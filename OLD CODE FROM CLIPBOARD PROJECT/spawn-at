@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+import sys, time, json, subprocess, os
+
+args = sys.argv[1:]
+x, y = None, None
+w, h = None, None
+offset_x, offset_y = 0, 0
+has_pos = False
+has_offset = False
+
+margin_t, margin_b, margin_l, margin_r = None, None, None, None
+bounded_flag = None
+
+cmd = []
+i = 0
+while i < len(args):
+    arg = args[i]
+    if arg in ("-p", "--pos") and i + 2 < len(args):
+        x, y = int(args[i+1]), int(args[i+2])
+        has_pos = True
+        i += 3
+    elif arg in ("-s", "--size") and i + 2 < len(args):
+        w, h = int(args[i+1]), int(args[i+2])
+        i += 3
+    elif arg in ("-o", "--offset") and i + 2 < len(args):
+        offset_x, offset_y = int(args[i+1]), int(args[i+2])
+        has_offset = True
+        i += 3
+    elif arg in ("-t", "--top") and i + 1 < len(args):
+        margin_t = int(args[i+1])
+        i += 2
+    elif arg in ("-b", "--bottom", "--bounds") and i + 1 < len(args):
+        try:
+            margin_b = int(args[i+1])
+            i += 2
+        except:
+            margin_b = 0
+            i += 1
+    elif arg in ("-l", "--left") and i + 1 < len(args):
+        margin_l = int(args[i+1])
+        i += 2
+    elif arg in ("-r", "--right") and i + 1 < len(args):
+        margin_r = int(args[i+1])
+        i += 2
+    elif arg == "--unbounded":
+        bounded_flag = False
+        i += 1
+    elif arg == "--":
+        cmd = args[i+1:]
+        break
+    elif arg.startswith("-"):
+        print(f"Unknown option {arg}", file=sys.stderr)
+        sys.exit(1)
+    else:
+        cmd = args[i:]
+        break
+
+if not cmd:
+    print("Error: No application command provided.", file=sys.stderr)
+    sys.exit(1)
+
+if has_pos and has_offset:
+    print("Error: --pos and --offset cannot be used together.", file=sys.stderr)
+    sys.exit(1)
+
+def call_dbus(dest, path, iface, method, *args):
+    try:
+        return subprocess.check_output([
+            "gdbus", "call", "--session",
+            "--dest", dest,
+            "--object-path", path,
+            "--method", f"{iface}.{method}",
+            *args
+        ], stderr=subprocess.DEVNULL).decode()
+    except:
+        return ""
+
+if not has_pos:
+    raw_coords = call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "GetCoordinates")
+    if raw_coords:
+        import re
+        m = re.search(r"\((\d+),\s*(\d+)\)", raw_coords)
+        if m:
+            x, y = int(m.group(1)), int(m.group(2))
+    if x is None:
+        x, y = 0, 0
+
+if has_offset:
+    x += offset_x
+    y += offset_y
+
+panel_mode = "auto"
+custom_panel_height = 32
+cfg_t, cfg_b, cfg_l, cfg_r = 0, 10, 0, 0
+is_bounded = True
+
+dbus_bounds = call_dbus("com.win11clipboard.Settings", "/com/win11clipboard/Settings", "com.win11clipboard.Settings", "GetEffectiveBounds")
+dbus_parsed = False
+if dbus_bounds:
+    try:
+        parts = dbus_bounds.strip()[1:-1].split(',')
+        if len(parts) >= 7:
+            panel_mode = parts[0].strip().strip("'\"")
+            custom_panel_height = int(parts[1].strip())
+            cfg_t = int(parts[2].strip())
+            cfg_b = int(parts[3].strip())
+            cfg_l = int(parts[4].strip())
+            cfg_r = int(parts[5].strip())
+            is_bounded = parts[6].strip().lower() == "true"
+            dbus_parsed = True
+    except:
+        pass
+
+if not dbus_parsed:
+    config_path = os.path.expanduser("~/.config/win11-clipboard-history/positioning.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                data = json.load(f)
+                panel_mode = data.get("panel_mode", "auto")
+                custom_panel_height = data.get("custom_panel_height", 32)
+                cfg_t = data.get("top_margin", 0)
+                cfg_b = data.get("bottom_margin", 10)
+                cfg_l = data.get("left_margin", 0)
+                cfg_r = data.get("right_margin", 0)
+                is_bounded = data.get("bounded", True)
+        except:
+            pass
+
+if margin_t is not None: cfg_t = margin_t
+if margin_b is not None: cfg_b = margin_b
+if margin_l is not None: cfg_l = margin_l
+if margin_r is not None: cfg_r = margin_r
+if bounded_flag is not None: is_bounded = bounded_flag
+
+workarea_y = 0
+monitor_x, monitor_y, monitor_w, monitor_h = 0, 0, 99999, 99999
+monitor_scale = 1
+
+if is_bounded:
+    try:
+        import gi
+        gi.require_version("Gdk", "3.0")
+        from gi.repository import Gdk
+        disp = Gdk.Display.get_default()
+        mon = disp.get_monitor_at_point(x, y)
+        geo = mon.get_geometry()
+        monitor_x, monitor_y, monitor_w, monitor_h = geo.x, geo.y, geo.width, geo.height
+        monitor_scale = mon.get_scale_factor() if hasattr(mon, "get_scale_factor") else 1
+        
+        work = mon.get_workarea()
+        if work.y > geo.y:
+            workarea_y = work.y - geo.y
+        elif work.y == 0:
+            workarea_y = 36 * monitor_scale
+    except:
+        pass
+
+effective_top_inset = cfg_t
+if panel_mode == "auto":
+    effective_top_inset = (workarea_y if workarea_y > 0 else 36 * monitor_scale) + cfg_t
+elif panel_mode == "custom":
+    effective_top_inset = custom_panel_height + cfg_t
+elif panel_mode == "none":
+    effective_top_inset = cfg_t
+
+bound_min_x = monitor_x + cfg_l
+bound_min_y = monitor_y + effective_top_inset
+bound_max_x = monitor_x + monitor_w - cfg_r
+bound_max_y = monitor_y + monitor_h - cfg_b
+
+def clamp(val, min_v, max_v):
+    if max_v < min_v: max_v = min_v
+    return max(min_v, min(val, max_v))
+
+clamped_x, clamped_y = x, y
+if is_bounded and w and h:
+    clamped_x = clamp(x, bound_min_x, bound_max_x - w)
+    clamped_y = clamp(y, bound_min_y, bound_max_y - h)
+
+def extract_json(out, bracket_start, bracket_end):
+    start = out.find(bracket_start)
+    end = out.rfind(bracket_end)
+    if start != -1 and end != -1:
+        try:
+            return json.loads(out[start:end+1].replace("\\\"", "\""))
+        except:
+            pass
+    return None
+
+def get_ids():
+    data = extract_json(call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "List"), "[", "]")
+    if data:
+        return {item["id"] for item in data if "id" in item}
+    return set()
+
+def get_rect(wid):
+    return extract_json(call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "GetFrameRect", f"uint32 {wid}"), "{", "}")
+
+old_ids = get_ids()
+subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+new_id = None
+for _ in range(200):
+    diff = get_ids() - old_ids
+    if diff:
+        new_id = str(list(diff)[-1])
+        call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "Unmaximize", f"uint32 {new_id}")
+        
+        if w and h:
+            call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "MoveResize", f"uint32 {new_id}", f"int32 {clamped_x}", f"int32 {clamped_y}", f"uint32 {w}", f"uint32 {h}")
+        call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "Move", f"uint32 {new_id}", f"int32 {clamped_x}", f"int32 {clamped_y}")
+        break
+    time.sleep(0.01)
+
+if not new_id:
+    sys.exit(1)
+
+for _ in range(12):
+    rect = get_rect(new_id)
+    curr_w = rect.get("width", 0) if rect else 0
+    curr_h = rect.get("height", 0) if rect else 0
+    
+    use_w = curr_w if curr_w > 0 else (w if w else 0)
+    use_h = curr_h if curr_h > 0 else (h if h else 0)
+    
+    dyn_x, dyn_y = x, y
+    if is_bounded and use_w > 0 and use_h > 0:
+        dyn_x = clamp(x, bound_min_x, bound_max_x - use_w)
+        dyn_y = clamp(y, bound_min_y, bound_max_y - use_h)
+
+    if w and h:
+        call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "MoveResize", f"uint32 {new_id}", f"int32 {dyn_x}", f"int32 {dyn_y}", f"uint32 {w}", f"uint32 {h}")
+    call_dbus("org.gnome.Shell", "/org/gnome/Shell/Extensions/Windows", "org.gnome.Shell.Extensions.Windows", "Move", f"uint32 {new_id}", f"int32 {dyn_x}", f"int32 {dyn_y}")
+    
+    time.sleep(0.04)
+    
+    rect = get_rect(new_id)
+    if rect:
+        curr_x, curr_y = rect.get("x", -1), rect.get("y", -1)
+        curr_w, curr_h = rect.get("width", -1), rect.get("height", -1)
+        
+        if abs(curr_x - dyn_x) <= 50 and abs(curr_y - dyn_y) <= 50:
+            if not w or (abs(curr_w - w) <= 50 and abs(curr_h - h) <= 50):
+                break
