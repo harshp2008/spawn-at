@@ -3,125 +3,32 @@
 //! ## Architectural Overview
 //!
 //! `spawn-at` is a standalone utility that enables mathematically perfect cold-starts
-//! for desktop applications on Linux, with primary zero-flicker support for GNOME Wayland.
+//! and dynamic transformations for desktop applications on Linux, with primary zero-flicker
+//! support for GNOME Wayland.
 //!
 //! ### Core Components:
-//! - **CLI Router ([`main`]):** Parses subcommands (`install`, `uninstall`, `spawn`) using `clap`.
+//! - **CLI Router ([`cli`]):** Parses subcommands (`install`, `uninstall`, `spawn`, `transform`) using `clap`.
 //! - **Compositor Drivers ([`drivers`]):** Trait-based abstraction (`WindowManager`) allowing
-//!   environment-specific mechanics:
-//!     - [`drivers::gnome::GnomeWaylandDriver`]: Interacts with Mutter via an embedded GNOME
-//!       extension using D-Bus pre-arming and opacity cloaking.
-//!     - [`drivers::x11::X11Driver`]: Fallback baseline driver for legacy X11 sessions.
-//! - **Platform Resolver ([`platform`]):** Maps binary command invocations (e.g. `gnome-text-editor`)
-//!   to canonical FreeDesktop / Wayland App IDs (e.g. `org.gnome.TextEditor`), supporting Flatpaks and Snaps.
-//! - **Geometry Engine ([`geometry`]):** Calculates absolute pixel coordinates, monitors,
-//!   and screen clamping.
+//!   environment-specific mechanics.
+//! - **Platform Resolver ([`platform`]):** Maps binary command invocations to canonical FreeDesktop / Wayland App IDs.
+//! - **Geometry Engine ([`geom`]):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
+//! - **Target Resolver ([`target`]):** Resolves deterministic window targets by PID, class, title, or focus.
 
-mod config;
-mod daemon;
-mod drivers;
-mod geometry;
-mod platform;
+pub mod cli;
+pub mod config;
+pub mod daemon;
+pub mod drivers;
+pub mod geom;
+pub mod geometry;
+pub mod platform;
+pub mod target;
 
+use clap::Parser;
+use cli::{Cli, Commands, QueryCommands, TransformArgs};
 use dialoguer::Confirm;
-use std::io::IsTerminal;
-use clap::{Args, Parser, Subcommand};
-use drivers::{get_active_driver, InstallArgs, InstallScope, UninstallArgs};
+use drivers::{get_active_driver, InstallScope};
 use geometry::GeometryParams;
-
-#[derive(Parser, Debug)]
-#[command(
-    name = "spawn-at",
-    version,
-    about = "Zero-flicker modular window manager & placement engine",
-    long_about = "A high-performance Linux window positioning engine supporting mathematically \
-                  perfect, zero-flicker cold-starts under GNOME Wayland via opacity cloaking."
-)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Install the embedded GNOME Shell extension and binary to $PATH
-    Install(InstallArgs),
-    /// Uninstall the GNOME Shell extension and binary from $PATH
-    Uninstall(UninstallArgs),
-    /// Spawn an application at a specific target screen geometry
-    Spawn(SpawnArgs),
-    /// Background daemon to enforce window constraints
-    Daemon,
-    /// Query active state from the compositor
-    Query {
-        #[command(subcommand)]
-        cmd: QueryCommands,
-    },
-    /// Move an existing window by its class identifier
-    Move(MoveArgs),
-}
-
-#[derive(Subcommand, Debug)]
-enum QueryCommands {
-    /// Fetch and print JSON layout of all work areas
-    Layout,
-    /// Fetch and print current pointer coordinates
-    Pointer,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct MoveArgs {
-    /// Explicit Wayland App ID or WM_CLASS override
-    #[arg(short = 'c', long)]
-    pub class: String,
-
-    /// Target screen coordinates [X, Y]
-    #[arg(short, long, num_args = 2, value_names = ["X", "Y"])]
-    pub pos: Vec<i32>,
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct SpawnArgs {
-    /// Absolute target screen coordinates [X, Y]
-    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "offset")]
-    pub pos: Option<Vec<i32>>,
-
-    /// Relative offset from mouse cursor [X, Y] (defaults to 0 0 if no pos is given)
-    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "pos")]
-    pub offset: Option<Vec<i32>>,
-
-    /// Target window dimensions [WIDTH, HEIGHT]
-    #[arg(short, long, num_args = 2, value_names = ["WIDTH", "HEIGHT"])]
-    pub size: Option<Vec<u32>>,
-
-    /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
-    #[arg(short = 'c', long)]
-    pub class: Option<String>,
-
-    /// Top screen boundary margin
-    #[arg(short = 't', long)]
-    pub bound_top: Option<i32>,
-
-    /// Bottom screen boundary margin
-    #[arg(short = 'b', long)]
-    pub bound_bottom: Option<i32>,
-
-    /// Left screen boundary margin
-    #[arg(short = 'l', long)]
-    pub bound_left: Option<i32>,
-
-    /// Right screen boundary margin
-    #[arg(short = 'r', long)]
-    pub bound_right: Option<i32>,
-
-    /// Global margin applied to all boundaries
-    #[arg(short = 'm', long)]
-    pub margin: Option<i32>,
-
-    /// Command to spawn along with any trailing flags/arguments
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
-    pub command: Vec<String>,
-}
+use std::io::IsTerminal;
 
 fn main() {
     let cli = Cli::parse();
@@ -160,7 +67,10 @@ fn main() {
             if !args.skip_bin {
                 if let Err(e) = crate::platform::installer::install_binary(args.scope) {
                     let mut recovered = false;
-                    if args.scope == InstallScope::System && !args.headless && std::io::stdout().is_terminal() {
+                    if args.scope == InstallScope::System
+                        && !args.headless
+                        && std::io::stdout().is_terminal()
+                    {
                         println!("\x1b[1;31mSystem installation failed\x1b[0m: {}", e);
                         let fallback = Confirm::new()
                             .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
@@ -185,7 +95,11 @@ fn main() {
             }
 
             if let Err(e) = driver.install(&args) {
-                eprintln!("\x1b[1;31mError during install ({})\x1b[0m: {}", driver.name(), e);
+                eprintln!(
+                    "\x1b[1;31mError during install ({})\x1b[0m: {}",
+                    driver.name(),
+                    e
+                );
                 std::process::exit(1);
             }
         }
@@ -220,14 +134,21 @@ fn main() {
 
             if !args.skip_bin {
                 if let Err(e) = crate::platform::installer::uninstall_binary(args.scope) {
-                    eprintln!("\x1b[1;31mError during binary uninstallation\x1b[0m: {}", e);
+                    eprintln!(
+                        "\x1b[1;31mError during binary uninstallation\x1b[0m: {}",
+                        e
+                    );
                     std::process::exit(1);
                 }
                 println!();
             }
 
             if let Err(e) = driver.uninstall(&args) {
-                eprintln!("\x1b[1;31mError during uninstall ({})\x1b[0m: {}", driver.name(), e);
+                eprintln!(
+                    "\x1b[1;31mError during uninstall ({})\x1b[0m: {}",
+                    driver.name(),
+                    e
+                );
                 std::process::exit(1);
             }
         }
@@ -237,10 +158,15 @@ fn main() {
                 std::process::exit(1);
             }
 
+            if let Err(e) = spawn_args.validate() {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+
             // 1. Calculate target geometry
             let pos = spawn_args.pos.as_ref().map(|p| (p[0], p[1]));
             let offset = spawn_args.offset.as_ref().map(|o| (o[0], o[1]));
-            let size = spawn_args.size.as_ref().map(|s| (s[0], s[1]));
+            let size = spawn_args.size.as_ref().map(|s| (s[0] as u32, s[1] as u32));
 
             let params = GeometryParams {
                 pos,
@@ -270,6 +196,13 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        Commands::Transform(transform_args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_transform(transform_args)) {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
         Commands::Daemon => {
             let rt = tokio::runtime::Runtime::new().unwrap();
             if let Err(e) = rt.block_on(daemon::run_daemon()) {
@@ -291,6 +224,10 @@ fn main() {
                         let (x, y) = proxy.get_pointer().await?;
                         println!("{}, {}", x, y);
                     }
+                    QueryCommands::Windows => {
+                        let windows = proxy.get_windows().await?;
+                        println!("{}", windows);
+                    }
                 }
                 Ok::<(), zbus::Error>(())
             });
@@ -301,12 +238,14 @@ fn main() {
         }
         Commands::Move(move_args) => {
             if move_args.pos.len() != 2 {
-                eprintln!("\x1b[1;31mError\x1b[0m: Position must contain exactly X and Y coordinates.");
+                eprintln!(
+                    "\x1b[1;31mError\x1b[0m: Position must contain exactly X and Y coordinates."
+                );
                 std::process::exit(1);
             }
             let x = move_args.pos[0];
             let y = move_args.pos[1];
-            
+
             let rt = tokio::runtime::Runtime::new().unwrap();
             let res = rt.block_on(async {
                 let conn = zbus::Connection::session().await?;
@@ -319,4 +258,105 @@ fn main() {
             }
         }
     }
+}
+
+async fn run_transform(args: TransformArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    // 1. Query active windows via D-Bus and resolve target window using TargetResolver
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector {
+        class: args.class,
+        title: args.title,
+        pid: args.pid,
+        focused: args.focused,
+    };
+    let target_win = target::resolve_target(&windows, &selector)?;
+
+    // 2. Query active workareas and cursor coordinates
+    let json_workareas = proxy.get_workareas().await?;
+    let workareas: Vec<geom::Rect> = serde_json::from_str(&json_workareas)
+        .map_err(|e| format!("Failed to parse workareas from compositor: {}", e))?;
+    let (cursor_x, cursor_y) = proxy.get_pointer().await?;
+
+    // 3. Resolve target workarea from --monitor (or cursor location if --cursor / --monitor cursor)
+    let target_workarea = if args.cursor || args.monitor.eq_ignore_ascii_case("cursor") {
+        geom::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor")?
+    } else {
+        geom::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.monitor)?
+    };
+
+    // 4. Determine target size
+    let (target_w, target_h) = if let Some(ref s) = args.size {
+        if s.len() != 2 {
+            return Err("Size argument must contain exactly width and height: --size W H".into());
+        }
+        (s[0], s[1])
+    } else {
+        (target_win.w, target_win.h)
+    };
+
+    // 5. Determine target position
+    let (target_x, target_y) = if let Some(anchor) = args.anchor {
+        geom::apply_anchor(target_workarea, target_w, target_h, anchor, args.margin)
+    } else if args.cursor {
+        (cursor_x - target_w / 2, cursor_y - target_h / 2)
+    } else if let Some(ref pos) = args.pos {
+        if pos.len() != 2 {
+            return Err(
+                "Position argument must contain exactly X and Y coordinates: --pos X Y".into(),
+            );
+        }
+        (pos[0], pos[1])
+    } else {
+        (target_win.x, target_win.y)
+    };
+
+    // 6. If clamp is true, run clamp_rect against target workarea and margin
+    let (final_x, final_y, final_w, final_h) = if args.clamp {
+        let clamped = geom::clamp_rect(
+            geom::Rect {
+                x: target_x,
+                y: target_y,
+                w: target_w,
+                h: target_h,
+            },
+            target_workarea,
+            args.margin,
+        );
+        (clamped.x, clamped.y, clamped.w, clamped.h)
+    } else {
+        (target_x, target_y, target_w, target_h)
+    };
+
+    // 7. Call proxy.move_resize_window(target_id_or_pid, final_x, final_y, final_w, final_h)
+    let target_id = if let Some(pid) = target_win.pid {
+        if pid > 0 {
+            pid.to_string()
+        } else {
+            target_win.class.clone()
+        }
+    } else {
+        target_win.class.clone()
+    };
+
+    let success = proxy
+        .move_resize_window(&target_id, final_x, final_y, final_w, final_h)
+        .await?;
+
+    if !success {
+        return Err(format!(
+            "Compositor failed to move/resize window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    Ok(())
 }
