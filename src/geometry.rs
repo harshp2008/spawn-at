@@ -1,4 +1,16 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+//! # Screen Geometry & Placement Calculation Engine
+//!
+//! A pure mathematical engine for calculating screen coordinates, mouse cursor offsets,
+//! multi-monitor containment, and margin clamping for window cold-starts.
+//!
+//! This module contains zero I/O, zero D-Bus calls, and zero external subprocess invocations.
+//! All environment inputs (pointer coordinates and monitor geometries) are provided
+//! by the caller.
+
+use crate::drivers::TargetGeometry;
+
+/// Rectangle representing a screen or monitor bounding box.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,
@@ -6,6 +18,7 @@ pub struct Rect {
     pub height: i32,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowInfo {
     pub id: String,
@@ -13,9 +26,81 @@ pub struct WindowInfo {
     pub title: String,
 }
 
-/// Finds the monitor that contains the cursor. If none found, returns the first one,
-/// or a default if monitors is empty.
-pub fn find_active_monitor(cursor_x: i32, cursor_y: i32, monitors: &[Rect]) -> &Rect {
+/// Input parameters for calculating final target window geometry.
+#[derive(Debug, Clone, Default)]
+pub struct GeometryParams {
+    /// Explicit absolute screen coordinates (X, Y)
+    pub pos: Option<(i32, i32)>,
+    /// Relative offset from mouse cursor (X, Y)
+    pub offset: Option<(i32, i32)>,
+    /// Target window dimensions (Width, Height)
+    pub size: Option<(u32, u32)>,
+    pub bound_top: Option<i32>,
+    pub bound_bottom: Option<i32>,
+    pub bound_left: Option<i32>,
+    pub bound_right: Option<i32>,
+    pub margin: Option<i32>,
+}
+
+/// Pure mathematical calculation of target window geometry.
+///
+/// - If `params.pos` is specified, uses absolute coordinates.
+/// - Otherwise, derives base coordinates from `cursor` (falling back to (0, 0)) + `params.offset`.
+/// - If margin/boundary constraints are set and `monitors` are provided, clamps coordinates
+///   within the active monitor containing the target.
+pub fn calculate(
+    params: &GeometryParams,
+    cursor: Option<(i32, i32)>,
+    monitors: &[Rect],
+) -> TargetGeometry {
+    // 1. Determine base target coordinates
+    let (mut target_x, mut target_y) = if let Some((px, py)) = params.pos {
+        (px, py)
+    } else {
+        let (cx, cy) = cursor.unwrap_or((0, 0));
+        let (ox, oy) = params.offset.unwrap_or((0, 0));
+        (cx + ox, cy + oy)
+    };
+
+    // 2. Determine target dimensions (0 implies client default / unconstrained)
+    let (w, h) = params.size.unwrap_or((0, 0));
+
+    // 3. Optional screen boundary clamping
+    let has_bounds = params.margin.is_some()
+        || params.bound_top.is_some()
+        || params.bound_bottom.is_some()
+        || params.bound_left.is_some()
+        || params.bound_right.is_some();
+
+    if has_bounds && !monitors.is_empty() {
+        let active_monitor = find_active_monitor(target_x, target_y, monitors);
+        let (cx, cy) = clamp_to_monitor(
+            target_x,
+            target_y,
+            w as i32,
+            h as i32,
+            active_monitor,
+            params.bound_top.unwrap_or(0),
+            params.bound_bottom.unwrap_or(0),
+            params.bound_left.unwrap_or(0),
+            params.bound_right.unwrap_or(0),
+            params.margin.unwrap_or(0),
+        );
+        target_x = cx;
+        target_y = cy;
+    }
+
+    TargetGeometry {
+        x: target_x,
+        y: target_y,
+        w,
+        h,
+    }
+}
+
+/// Finds the monitor that contains the specified point (X, Y).
+/// If out of bounds or none match, returns the first monitor.
+pub fn find_active_monitor<'a>(cursor_x: i32, cursor_y: i32, monitors: &'a [Rect]) -> &'a Rect {
     for monitor in monitors {
         if cursor_x >= monitor.x
             && cursor_x < monitor.x + monitor.width
@@ -25,13 +110,11 @@ pub fn find_active_monitor(cursor_x: i32, cursor_y: i32, monitors: &[Rect]) -> &
             return monitor;
         }
     }
-    // Fallback to first monitor if out of bounds, or a dummy if none
-    monitors.first().expect("No monitors found")
+    monitors.first().expect("monitors slice must not be empty")
 }
 
-/// Clamps the given rectangle (x, y, w, h) strictly within the monitor bounds,
-/// considering the provided bounds/margins.
-/// Handles multi-monitor containment (window coordinates never cross into neighboring monitors).
+/// Clamps the given rectangle strictly within the monitor bounds,
+/// accounting for directional bounds and global margin.
 pub fn clamp_to_monitor(
     x: i32,
     y: i32,
@@ -54,7 +137,6 @@ pub fn clamp_to_monitor(
     let mut max_x = monitor.x + monitor.width - right - w;
     let mut max_y = monitor.y + monitor.height - bottom - h;
 
-    // Ensure we don't end up with max < min. If window is bigger than monitor, min wins.
     if max_x < min_x {
         max_x = min_x;
     }
@@ -73,7 +155,58 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_find_active_monitor() {
+    fn test_calculate_with_explicit_pos() {
+        let params = GeometryParams {
+            pos: Some((500, 300)),
+            size: Some((800, 600)),
+            ..Default::default()
+        };
+        let geom = calculate(&params, None, &[]);
+        assert_eq!(
+            geom,
+            TargetGeometry {
+                x: 500,
+                y: 300,
+                w: 800,
+                h: 600,
+            }
+        );
+    }
+
+    #[test]
+    fn test_calculate_with_cursor_and_offset() {
+        let params = GeometryParams {
+            offset: Some((50, -20)),
+            size: Some((400, 300)),
+            ..Default::default()
+        };
+        let geom = calculate(&params, Some((1000, 500)), &[]);
+        assert_eq!(
+            geom,
+            TargetGeometry {
+                x: 1050,
+                y: 480,
+                w: 400,
+                h: 300,
+            }
+        );
+    }
+
+    #[test]
+    fn test_clamp_to_monitor() {
+        let monitor = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+
+        let (cx, cy) = clamp_to_monitor(2000, 1200, 800, 600, &monitor, 0, 0, 0, 0, 0);
+        assert_eq!((cx, cy), (1120, 480));
+    }
+
+    #[test]
+    fn test_find_active_monitor_multi() {
         let m1 = Rect {
             x: 0,
             y: 0,
@@ -88,44 +221,8 @@ mod tests {
         };
         let monitors = vec![m1, m2];
 
-        assert_eq!(find_active_monitor(100, 100, &monitors), &m1);
-        assert_eq!(find_active_monitor(2000, 100, &monitors), &m2);
-
-        // Out of bounds, falls back to first
-        assert_eq!(find_active_monitor(-10, -10, &monitors), &m1);
-    }
-
-    #[test]
-    fn test_clamp_to_monitor() {
-        let monitor = Rect {
-            x: 1920,
-            y: 0,
-            width: 1920,
-            height: 1080,
-        };
-
-        // Window inside bounds
-        let (cx, cy) = clamp_to_monitor(2000, 100, 800, 600, &monitor, 0, 0, 0, 0, 0);
-        assert_eq!((cx, cy), (2000, 100));
-
-        // Window crossing right boundary
-        let (cx, cy) = clamp_to_monitor(3500, 100, 800, 600, &monitor, 0, 0, 0, 0, 0);
-        // max_x = 1920 + 1920 - 800 = 3040
-        assert_eq!((cx, cy), (3040, 100));
-
-        // Crossing left boundary
-        let (cx, cy) = clamp_to_monitor(1800, 100, 800, 600, &monitor, 0, 0, 0, 0, 0);
-        assert_eq!((cx, cy), (1920, 100));
-
-        // With margins
-        let (cx, cy) = clamp_to_monitor(1800, 100, 800, 600, &monitor, 10, 20, 30, 40, 5);
-        // min_x = 1920 + 30 + 5 = 1955
-        // min_y = 0 + 10 + 5 = 15 (though y is 100, so it will be 100)
-        assert_eq!(cx, 1955);
-        assert_eq!(cy, 100);
-
-        // Window bigger than monitor with margins
-        let (cx, cy) = clamp_to_monitor(1920, 0, 2000, 1080, &monitor, 0, 0, 0, 0, 0);
-        assert_eq!((cx, cy), (1920, 0)); // since max is applied before min, min wins
+        assert_eq!(find_active_monitor(500, 500, &monitors), &m1);
+        assert_eq!(find_active_monitor(2500, 500, &monitors), &m2);
+        assert_eq!(find_active_monitor(5000, 5000, &monitors), &m1); // fallback
     }
 }

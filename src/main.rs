@@ -1,171 +1,244 @@
-mod cli;
+//! # spawn-at: Modular Zero-Flicker Window Placement Engine
+//!
+//! ## Architectural Overview
+//!
+//! `spawn-at` is a standalone utility that enables mathematically perfect cold-starts
+//! for desktop applications on Linux, with primary zero-flicker support for GNOME Wayland.
+//!
+//! ### Core Components:
+//! - **CLI Router ([`main`]):** Parses subcommands (`install`, `uninstall`, `spawn`) using `clap`.
+//! - **Compositor Drivers ([`drivers`]):** Trait-based abstraction (`WindowManager`) allowing
+//!   environment-specific mechanics:
+//!     - [`drivers::gnome::GnomeWaylandDriver`]: Interacts with Mutter via an embedded GNOME
+//!       extension using D-Bus pre-arming and opacity cloaking.
+//!     - [`drivers::x11::X11Driver`]: Fallback baseline driver for legacy X11 sessions.
+//! - **Platform Resolver ([`platform`]):** Maps binary command invocations (e.g. `gnome-text-editor`)
+//!   to canonical FreeDesktop / Wayland App IDs (e.g. `org.gnome.TextEditor`), supporting Flatpaks and Snaps.
+//! - **Geometry Engine ([`geometry`]):** Calculates absolute pixel coordinates, monitors,
+//!   and screen clamping.
+
 mod drivers;
 mod geometry;
+mod platform;
 
-use clap::Parser;
-use cli::Cli;
-use drivers::detect_driver;
-use geometry::find_active_monitor;
-use std::path::Path;
-use std::time::Duration;
+use dialoguer::Confirm;
+use std::io::IsTerminal;
+use clap::{Args, Parser, Subcommand};
+use drivers::{get_active_driver, InstallArgs, InstallScope, UninstallArgs};
+use geometry::GeometryParams;
 
-fn matches_app_name(win: &crate::geometry::WindowInfo, expected_name: &str) -> bool {
-    let exp_lower = expected_name.to_lowercase();
-    let wm_lower = win.wm_class.to_lowercase();
-
-    if wm_lower.is_empty() || exp_lower.is_empty() {
-        return false;
-    }
-
-    // Direct check (case-insensitive)
-    if wm_lower == exp_lower || wm_lower.contains(&exp_lower) {
-        return true;
-    }
-
-    // Normalized strings: lowercase, alphanumeric and hyphens only
-    let exp_norm: String = exp_lower
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == '-')
-        .collect();
-    let wm_norm: String = wm_lower
-        .chars()
-        .filter(|c| c.is_alphanumeric() || *c == '-')
-        .collect();
-
-    if !exp_norm.is_empty() && (wm_norm == exp_norm || wm_norm.contains(&exp_norm)) {
-        return true;
-    }
-
-    // Stripped of all non-alphanumeric (e.g. org.gnome.TextEditor -> orggnometexteditor vs gnome-text-editor -> gnometexteditor)
-    let exp_alphanum: String = exp_lower.chars().filter(|c| c.is_alphanumeric()).collect();
-    let wm_alphanum: String = wm_lower.chars().filter(|c| c.is_alphanumeric()).collect();
-
-    if !exp_alphanum.is_empty()
-        && (wm_alphanum == exp_alphanum || wm_alphanum.contains(&exp_alphanum))
-    {
-        return true;
-    }
-
-    // Check desktop file ID segments in wm_class (e.g., com.example.AppName matching AppName or vice-versa)
-    for part in wm_lower.split('.') {
-        let part_clean: String = part.chars().filter(|c| c.is_alphanumeric()).collect();
-        if !part_clean.is_empty() && part_clean.len() >= 4 && part_clean == exp_alphanum {
-            return true;
-        }
-    }
-
-    false
+#[derive(Parser, Debug)]
+#[command(
+    name = "spawn-at",
+    version,
+    about = "Zero-flicker modular window manager & placement engine",
+    long_about = "A high-performance Linux window positioning engine supporting mathematically \
+                  perfect, zero-flicker cold-starts under GNOME Wayland via opacity cloaking."
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+#[derive(Subcommand, Debug)]
+enum Commands {
+    /// Install the embedded GNOME Shell extension and binary to $PATH
+    Install(InstallArgs),
+    /// Uninstall the GNOME Shell extension and binary from $PATH
+    Uninstall(UninstallArgs),
+    /// Spawn an application at a specific target screen geometry
+    Spawn(SpawnArgs),
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SpawnArgs {
+    /// Absolute target screen coordinates [X, Y]
+    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "offset")]
+    pub pos: Option<Vec<i32>>,
+
+    /// Relative offset from mouse cursor [X, Y] (defaults to 0 0 if no pos is given)
+    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "pos")]
+    pub offset: Option<Vec<i32>>,
+
+    /// Target window dimensions [WIDTH, HEIGHT]
+    #[arg(short, long, num_args = 2, value_names = ["WIDTH", "HEIGHT"])]
+    pub size: Option<Vec<u32>>,
+
+    /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
+    #[arg(short = 'c', long)]
+    pub class: Option<String>,
+
+    /// Top screen boundary margin
+    #[arg(short = 't', long)]
+    pub bound_top: Option<i32>,
+
+    /// Bottom screen boundary margin
+    #[arg(short = 'b', long)]
+    pub bound_bottom: Option<i32>,
+
+    /// Left screen boundary margin
+    #[arg(short = 'l', long)]
+    pub bound_left: Option<i32>,
+
+    /// Right screen boundary margin
+    #[arg(short = 'r', long)]
+    pub bound_right: Option<i32>,
+
+    /// Global margin applied to all boundaries
+    #[arg(short = 'm', long)]
+    pub margin: Option<i32>,
+
+    /// Command to spawn along with any trailing flags/arguments
+    #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+    pub command: Vec<String>,
+}
+
+fn main() {
     let cli = Cli::parse();
+    let driver = get_active_driver();
 
-    let driver = detect_driver().await?;
+    match cli.command {
+        Commands::Install(mut args) => {
+            if !args.headless && std::io::stdout().is_terminal() {
+                if !args.skip_bin {
+                    println!("\x1b[1;36m=== Binary Installation Setup ===\x1b[0m\n");
+                    let choices = &[
+                        "Current user only (~/.local/bin) [Recommended]",
+                        "System-wide for all users (/usr/local/bin - requires sudo)",
+                        "Skip binary installation (compositor setup only)",
+                    ];
+                    let selection = dialoguer::Select::new()
+                        .with_prompt("Where would you like to install the 'spawn-at' executable?")
+                        .items(choices)
+                        .default(0)
+                        .interact();
 
-    let (target_x, target_y);
-
-    // 1. Determine base coordinates
-    if let Some(pos) = &cli.pos {
-        target_x = pos[0];
-        target_y = pos[1];
-    } else {
-        let (cx, cy) = driver.get_cursor().await.unwrap_or((0, 0));
-        let (ox, oy) = if let Some(offset) = &cli.offset {
-            (offset[0], offset[1])
-        } else {
-            (0, 0)
-        };
-        target_x = cx + ox;
-        target_y = cy + oy;
-    }
-
-    // 2. Fetch Monitors and Calculate Active Monitor
-    let monitors = driver.get_monitors().await.unwrap_or_default();
-    let active_monitor = find_active_monitor(target_x, target_y, &monitors);
-
-    let size_w = cli.size.as_ref().map(|s| s[0]);
-    let size_h = cli.size.as_ref().map(|s| s[1]);
-
-    let global_margin = cli.margin.unwrap_or(0);
-    let bound_t = cli.bound_top.unwrap_or(0);
-    let bound_b = cli.bound_bottom.unwrap_or(0);
-    let bound_l = cli.bound_left.unwrap_or(0);
-    let bound_r = cli.bound_right.unwrap_or(0);
-
-    // 3. Snapshot existing windows
-    let old_windows = driver.get_windows().await.unwrap_or_default();
-    let old_ids: std::collections::HashSet<_> = old_windows.iter().map(|w| w.id.clone()).collect();
-
-    // 4. Spawn target command
-    let mut cmd_iter = cli.command.iter();
-    let command_name = cmd_iter.next().unwrap().clone();
-    let mut child = tokio::process::Command::new(&command_name)
-        .args(cmd_iter)
-        .spawn()?;
-
-    let expected_binary_name = Path::new(&command_name)
-        .file_name()
-        .unwrap_or_default()
-        .to_string_lossy()
-        .to_string();
-
-    // 5. Polling for new window
-    let mut new_win_id = None;
-    for iteration in 0..200 {
-        let current_windows = driver.get_windows().await.unwrap_or_default();
-        let current_ids: std::collections::HashSet<_> =
-            current_windows.iter().map(|w| w.id.clone()).collect();
-        let diff: Vec<_> = current_ids.difference(&old_ids).collect();
-
-        if !diff.is_empty() {
-            new_win_id = Some(diff[diff.len() - 1].clone());
-            break;
-        }
-
-        // Continuous Fallback: If after 20 iterations (300ms) no new ID appears in diff:
-        if iteration >= 20 {
-            for win in &current_windows {
-                if matches_app_name(win, &expected_binary_name) {
-                    new_win_id = Some(win.id.clone());
-                    break;
+                    match selection {
+                        Ok(0) => args.scope = InstallScope::User,
+                        Ok(1) => args.scope = InstallScope::System,
+                        Ok(2) => args.skip_bin = true,
+                        Err(e) => {
+                            eprintln!("\x1b[1;31mError during selection\x1b[0m: {}", e);
+                            std::process::exit(1);
+                        }
+                        _ => {}
+                    }
+                    println!();
                 }
             }
-            if new_win_id.is_some() {
-                break;
+
+            if !args.skip_bin {
+                if let Err(e) = crate::platform::installer::install_binary(args.scope) {
+                    let mut recovered = false;
+                    if args.scope == InstallScope::System && !args.headless && std::io::stdout().is_terminal() {
+                        println!("\x1b[1;31mSystem installation failed\x1b[0m: {}", e);
+                        let fallback = Confirm::new()
+                            .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
+                            .default(true)
+                            .interact();
+
+                        if let Ok(true) = fallback {
+                            println!("\nFalling back to User scope installation...");
+                            args.scope = InstallScope::User;
+                            if crate::platform::installer::install_binary(args.scope).is_ok() {
+                                recovered = true;
+                            }
+                        }
+                    }
+
+                    if !recovered {
+                        eprintln!("\x1b[1;31mError during binary installation\x1b[0m: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+                println!();
+            }
+
+            if let Err(e) = driver.install(&args) {
+                eprintln!("\x1b[1;31mError during install ({})\x1b[0m: {}", driver.name(), e);
+                std::process::exit(1);
             }
         }
+        Commands::Uninstall(mut args) => {
+            if !args.headless && std::io::stdout().is_terminal() {
+                if !args.skip_bin {
+                    println!("\x1b[1;36m=== Binary Uninstallation Setup ===\x1b[0m\n");
+                    let choices = &[
+                        "Remove binary from current user directory (~/.local/bin) [Recommended]",
+                        "Remove binary from system-wide directory (/usr/local/bin - requires sudo)",
+                        "Skip binary removal (compositor cleanup only)",
+                    ];
+                    let selection = dialoguer::Select::new()
+                        .with_prompt("Do you want to remove the global 'spawn-at' executable?")
+                        .items(choices)
+                        .default(0)
+                        .interact();
 
-        tokio::time::sleep(Duration::from_millis(15)).await;
+                    match selection {
+                        Ok(0) => args.scope = InstallScope::User,
+                        Ok(1) => args.scope = InstallScope::System,
+                        Ok(2) => args.skip_bin = true,
+                        Err(e) => {
+                            eprintln!("\x1b[1;31mError during selection\x1b[0m: {}", e);
+                            std::process::exit(1);
+                        }
+                        _ => {}
+                    }
+                    println!();
+                }
+            }
 
-        if let Ok(Some(_)) = child.try_wait() {
-            // Child process exited prematurely but it might have spawned a daemon
+            if !args.skip_bin {
+                if let Err(e) = crate::platform::installer::uninstall_binary(args.scope) {
+                    eprintln!("\x1b[1;31mError during binary uninstallation\x1b[0m: {}", e);
+                    std::process::exit(1);
+                }
+                println!();
+            }
+
+            if let Err(e) = driver.uninstall(&args) {
+                eprintln!("\x1b[1;31mError during uninstall ({})\x1b[0m: {}", driver.name(), e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Spawn(spawn_args) => {
+            if spawn_args.command.is_empty() {
+                eprintln!("\x1b[1;31mError\x1b[0m: No command specified to spawn.");
+                std::process::exit(1);
+            }
+
+            // 1. Calculate target geometry
+            let pos = spawn_args.pos.as_ref().map(|p| (p[0], p[1]));
+            let offset = spawn_args.offset.as_ref().map(|o| (o[0], o[1]));
+            let size = spawn_args.size.as_ref().map(|s| (s[0], s[1]));
+
+            let params = GeometryParams {
+                pos,
+                offset,
+                size,
+                bound_top: spawn_args.bound_top,
+                bound_bottom: spawn_args.bound_bottom,
+                bound_left: spawn_args.bound_left,
+                bound_right: spawn_args.bound_right,
+                margin: spawn_args.margin,
+            };
+
+            let cursor = driver.get_cursor_position();
+            let monitors = driver.get_monitors();
+            let geom = geometry::calculate(&params, cursor, &monitors);
+
+            // 2. Resolve target application identifier via the active driver
+            let target_id = driver.resolve_id(&spawn_args.command, spawn_args.class.as_deref());
+
+            // 3. Dispatch to active driver
+            if let Err(e) = driver.spawn_at(&target_id, &spawn_args.command, &geom) {
+                eprintln!(
+                    "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
+                    driver.name(),
+                    e
+                );
+                std::process::exit(1);
+            }
         }
     }
-
-    // 6. Move the newly found window
-    if let Some(win_id) = new_win_id {
-        let _ = driver
-            .move_window(
-                &win_id,
-                target_x,
-                target_y,
-                size_w,
-                size_h,
-                active_monitor,
-                bound_t,
-                bound_b,
-                bound_l,
-                bound_r,
-                global_margin,
-            )
-            .await;
-    } else {
-        eprintln!(
-            "Warning: Did not detect new window spawn for {}",
-            expected_binary_name
-        );
-    }
-
-    Ok(())
 }

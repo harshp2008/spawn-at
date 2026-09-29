@@ -1,0 +1,11 @@
+{
+  "name": "Spawn-At Interceptor",
+  "description": "Zero-latency Wayland window placement hook for spawn-at.",
+  "uuid": "spawn-at@harsh.local",
+  "shell-version": [
+    "45",
+    "46",
+    "47",
+    "48"
+  ]
+}
