@@ -63,6 +63,30 @@ const DBUS_IFACE = `
       <arg type="i" name="x" direction="out"/>
       <arg type="i" name="y" direction="out"/>
     </method>
+    <method name="GetPointer">
+      <arg type="i" name="x" direction="out"/>
+      <arg type="i" name="y" direction="out"/>
+    </method>
+    <method name="GetWorkareas">
+      <arg type="s" name="json_layout" direction="out"/>
+    </method>
+    <method name="GetWindows">
+      <arg type="s" name="json_windows" direction="out"/>
+    </method>
+    <method name="MoveResizeWindow">
+      <arg type="s" name="target" direction="in"/>
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+      <arg type="i" name="w" direction="in"/>
+      <arg type="i" name="h" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
+    <method name="MoveWindow">
+      <arg type="s" name="app_id" direction="in"/>
+      <arg type="i" name="x" direction="in"/>
+      <arg type="i" name="y" direction="in"/>
+    </method>
+    <signal name="WorkareaChanged"/>
   </interface>
 </node>`;
 
@@ -77,19 +101,57 @@ export default class SpawnAtExtension extends Extension {
 
         // 1. Hook into window creation
         // This is called synchronously by Mutter when a new MetaWindow is instantiated.
-        this._windowCreatedId = global.display.connect('window-created', (display, window) => {
-            this._handleWindowCreated(window);
-        });
+        try {
+            this._windowCreatedId = global.display.connect('window-created', (display, window) => {
+                this._handleWindowCreated(window);
+            });
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to connect window-created signal: ${e}`);
+        }
 
         // 2. Hook into compositor actor mapping
         // This is called when Mutter wraps the MetaWindow in a ClutterActor for display.
-        this._mapId = global.window_manager.connect('map', (wm, actor) => {
-            this._handleActorMap(actor);
-        });
+        try {
+            this._mapId = global.window_manager.connect('map', (wm, actor) => {
+                this._handleActorMap(actor);
+            });
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to connect map signal: ${e}`);
+        }
 
         // 3. Export D-Bus interface for the Rust CLI client
-        this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(DBUS_IFACE, this);
-        this._dbusImpl.export(Gio.DBus.session, '/org/gnome/Shell/Extensions/SpawnAt');
+        try {
+            this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(DBUS_IFACE, this);
+            this._dbusImpl.export(Gio.DBus.session, '/org/gnome/Shell/Extensions/SpawnAt');
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to export D-Bus interface: ${e}`);
+        }
+
+        // 4. Hook into workspace/monitor changes
+        try {
+            const monitorManager = global.backend?.get_monitor_manager ? global.backend.get_monitor_manager() : null;
+            if (monitorManager) {
+                this._monitorsChangedId = monitorManager.connect('monitors-changed', () => {
+                    if (this._dbusImpl) {
+                        this._dbusImpl.emit_signal('WorkareaChanged', null);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to connect monitors-changed signal: ${e}`);
+        }
+
+        try {
+            if (global.display) {
+                this._workareasChangedId = global.display.connect('workareas-changed', () => {
+                    if (this._dbusImpl) {
+                        this._dbusImpl.emit_signal('WorkareaChanged', null);
+                    }
+                });
+            }
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to connect workareas-changed signal: ${e}`);
+        }
     }
 
     /**
@@ -249,6 +311,91 @@ export default class SpawnAtExtension extends Extension {
         return [x, y];
     }
 
+    GetPointer() {
+        let [x, y] = global.get_pointer();
+        return [x, y];
+    }
+
+    GetWorkareas() {
+        let areas = [];
+        let numMonitors = global.display.get_n_monitors();
+        let workspace = global.workspace_manager.get_active_workspace();
+        
+        for (let i = 0; i < numMonitors; i++) {
+            let rect = workspace.get_work_area_for_monitor(i);
+            areas.push({
+                x: rect.x,
+                y: rect.y,
+                w: rect.width,
+                h: rect.height
+            });
+        }
+        return JSON.stringify(areas);
+    }
+
+    GetWindows() {
+        const display = global.display;
+        const workspace = display.get_workspace_manager().get_active_workspace();
+        const windows = display.get_tab_list(0, workspace);
+
+        const winList = windows.map(win => {
+            const frame = win.get_frame_rect();
+            return {
+                id: win.get_id ? win.get_id() : null,
+                pid: win.get_pid(),
+                title: win.get_title() || "",
+                class: win.get_wm_class() || win.get_gtk_application_id() || "",
+                x: frame.x,
+                y: frame.y,
+                w: frame.width,
+                h: frame.height,
+                focused: win.has_focus()
+            };
+        });
+
+        return JSON.stringify(winList);
+    }
+
+    MoveResizeWindow(target, x, y, w, h) {
+        const display = global.display;
+        const workspace = display.get_workspace_manager().get_active_workspace();
+        const windows = display.get_tab_list(0, workspace);
+
+        // Match by PID if target is numeric, otherwise match by WM_CLASS or GTK App ID
+        const targetPid = parseInt(target, 10);
+        const win = windows.find(w => {
+            if (!isNaN(targetPid) && targetPid > 0 && w.get_pid() === targetPid) {
+                return true;
+            }
+            const wmClass = w.get_wm_class() || "";
+            const appId = w.get_gtk_application_id() || "";
+            return wmClass === target || appId === target;
+        });
+
+        if (!win) {
+            return false;
+        }
+
+        const frame = win.get_frame_rect();
+        const finalX = (x !== -1) ? x : frame.x;
+        const finalY = (y !== -1) ? y : frame.y;
+        const finalW = (w > 0) ? w : frame.width;
+        const finalH = (h > 0) ? h : frame.height;
+
+        // Use Mutter's frame move & resize API
+        if (win.move_resize_frame) {
+            win.move_resize_frame(true, finalX, finalY, finalW, finalH);
+        } else {
+            win.move_frame(true, finalX, finalY);
+        }
+
+        return true;
+    }
+
+    MoveWindow(app_id, x, y) {
+        this.MoveResizeWindow(app_id, x, y, -1, -1);
+    }
+
     _clearWildcard() {
         if (this._wildcardTimeoutId) {
             GLib.Source.remove(this._wildcardTimeoutId);
@@ -259,19 +406,52 @@ export default class SpawnAtExtension extends Extension {
 
     disable() {
         if (this._windowCreatedId) {
-            global.display.disconnect(this._windowCreatedId);
+            try {
+                global.display.disconnect(this._windowCreatedId);
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to disconnect windowCreatedId: ${e}`);
+            }
             this._windowCreatedId = null;
         }
 
         if (this._mapId) {
-            global.window_manager.disconnect(this._mapId);
+            try {
+                global.window_manager.disconnect(this._mapId);
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to disconnect mapId: ${e}`);
+            }
             this._mapId = null;
         }
 
         this._clearWildcard();
 
+        if (this._monitorsChangedId) {
+            try {
+                const monitorManager = global.backend?.get_monitor_manager ? global.backend.get_monitor_manager() : null;
+                if (monitorManager) {
+                    monitorManager.disconnect(this._monitorsChangedId);
+                }
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to disconnect monitorsChangedId: ${e}`);
+            }
+            this._monitorsChangedId = null;
+        }
+
+        if (this._workareasChangedId) {
+            try {
+                global.display.disconnect(this._workareasChangedId);
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to disconnect workareasChangedId: ${e}`);
+            }
+            this._workareasChangedId = null;
+        }
+
         if (this._dbusImpl) {
-            this._dbusImpl.unexport();
+            try {
+                this._dbusImpl.unexport();
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to unexport D-Bus interface: ${e}`);
+            }
             this._dbusImpl = null;
         }
 

@@ -14,8 +14,28 @@ use crate::drivers::TargetGeometry;
 pub struct Rect {
     pub x: i32,
     pub y: i32,
-    pub width: i32,
-    pub height: i32,
+    pub w: u32,
+    pub h: u32,
+}
+
+impl Rect {
+    pub fn clamp_to_bounds(&self, bounds: &Rect, margin: u32) -> Rect {
+        let margin = margin as i32;
+        let mut clamped = self.clone();
+
+        // Target boundaries
+        let min_x = bounds.x + margin;
+        let min_y = bounds.y + margin;
+        let max_x = bounds.x + bounds.w as i32 - margin - self.w as i32;
+        let max_y = bounds.y + bounds.h as i32 - margin - self.h as i32;
+
+        // If the window is larger than bounds (minus margins), anchor it to the top-left (min bounds).
+        // Otherwise, clamp between min and max.
+        clamped.x = clamped.x.clamp(min_x, max_x.max(min_x));
+        clamped.y = clamped.y.clamp(min_y, max_y.max(min_y));
+
+        clamped
+    }
 }
 
 #[allow(dead_code)]
@@ -103,9 +123,9 @@ pub fn calculate(
 pub fn find_active_monitor<'a>(cursor_x: i32, cursor_y: i32, monitors: &'a [Rect]) -> &'a Rect {
     for monitor in monitors {
         if cursor_x >= monitor.x
-            && cursor_x < monitor.x + monitor.width
+            && cursor_x < monitor.x + monitor.w as i32
             && cursor_y >= monitor.y
-            && cursor_y < monitor.y + monitor.height
+            && cursor_y < monitor.y + monitor.h as i32
         {
             return monitor;
         }
@@ -134,8 +154,8 @@ pub fn clamp_to_monitor(
 
     let min_x = monitor.x + left;
     let min_y = monitor.y + top;
-    let mut max_x = monitor.x + monitor.width - right - w;
-    let mut max_y = monitor.y + monitor.height - bottom - h;
+    let mut max_x = monitor.x + monitor.w as i32 - right - w;
+    let mut max_y = monitor.y + monitor.h as i32 - bottom - h;
 
     if max_x < min_x {
         max_x = min_x;
@@ -197,8 +217,8 @@ mod tests {
         let monitor = Rect {
             x: 0,
             y: 0,
-            width: 1920,
-            height: 1080,
+            w: 1920,
+            h: 1080,
         };
 
         let (cx, cy) = clamp_to_monitor(2000, 1200, 800, 600, &monitor, 0, 0, 0, 0, 0);
@@ -210,19 +230,39 @@ mod tests {
         let m1 = Rect {
             x: 0,
             y: 0,
-            width: 1920,
-            height: 1080,
+            w: 1920,
+            h: 1080,
         };
         let m2 = Rect {
             x: 1920,
             y: 0,
-            width: 1920,
-            height: 1080,
+            w: 1920,
+            h: 1080,
         };
         let monitors = vec![m1, m2];
 
         assert_eq!(find_active_monitor(500, 500, &monitors), &m1);
         assert_eq!(find_active_monitor(2500, 500, &monitors), &m2);
         assert_eq!(find_active_monitor(5000, 5000, &monitors), &m1); // fallback
+    }
+
+    #[test]
+    fn test_clamp_to_bounds() {
+        let monitor = Rect { x: 0, y: 0, w: 1920, h: 1080 };
+        
+        // Window inside bounds
+        let r1 = Rect { x: 100, y: 100, w: 400, h: 300 };
+        let c1 = r1.clamp_to_bounds(&monitor, 10);
+        assert_eq!(c1, r1);
+        
+        // Window outside right bound
+        let r2 = Rect { x: 2000, y: 100, w: 400, h: 300 };
+        let c2 = r2.clamp_to_bounds(&monitor, 10);
+        assert_eq!(c2, Rect { x: 1920 - 400 - 10, y: 100, w: 400, h: 300 });
+
+        // Window outside top bound
+        let r3 = Rect { x: 100, y: -500, w: 400, h: 300 };
+        let c3 = r3.clamp_to_bounds(&monitor, 10);
+        assert_eq!(c3, Rect { x: 100, y: 10, w: 400, h: 300 });
     }
 }

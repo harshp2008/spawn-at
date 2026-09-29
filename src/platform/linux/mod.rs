@@ -25,8 +25,8 @@ pub fn query_xrandr_monitors() -> Vec<Rect> {
                             monitors.push(Rect {
                                 x,
                                 y,
-                                width: w,
-                                height: h,
+                                w: w as u32,
+                                h: h as u32,
                             });
                         }
                     }

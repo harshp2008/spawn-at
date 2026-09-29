@@ -17,6 +17,8 @@
 //! - **Geometry Engine ([`geometry`]):** Calculates absolute pixel coordinates, monitors,
 //!   and screen clamping.
 
+mod config;
+mod daemon;
 mod drivers;
 mod geometry;
 mod platform;
@@ -48,6 +50,34 @@ enum Commands {
     Uninstall(UninstallArgs),
     /// Spawn an application at a specific target screen geometry
     Spawn(SpawnArgs),
+    /// Background daemon to enforce window constraints
+    Daemon,
+    /// Query active state from the compositor
+    Query {
+        #[command(subcommand)]
+        cmd: QueryCommands,
+    },
+    /// Move an existing window by its class identifier
+    Move(MoveArgs),
+}
+
+#[derive(Subcommand, Debug)]
+enum QueryCommands {
+    /// Fetch and print JSON layout of all work areas
+    Layout,
+    /// Fetch and print current pointer coordinates
+    Pointer,
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct MoveArgs {
+    /// Explicit Wayland App ID or WM_CLASS override
+    #[arg(short = 'c', long)]
+    pub class: String,
+
+    /// Target screen coordinates [X, Y]
+    #[arg(short, long, num_args = 2, value_names = ["X", "Y"])]
+    pub pos: Vec<i32>,
 }
 
 #[derive(Args, Debug, Clone)]
@@ -237,6 +267,54 @@ fn main() {
                     driver.name(),
                     e
                 );
+                std::process::exit(1);
+            }
+        }
+        Commands::Daemon => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(daemon::run_daemon()) {
+                eprintln!("\x1b[1;31mDaemon Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Query { cmd } => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let res = rt.block_on(async {
+                let conn = zbus::Connection::session().await?;
+                let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+                match cmd {
+                    QueryCommands::Layout => {
+                        let layout = proxy.get_workareas().await?;
+                        println!("{}", layout);
+                    }
+                    QueryCommands::Pointer => {
+                        let (x, y) = proxy.get_pointer().await?;
+                        println!("{}, {}", x, y);
+                    }
+                }
+                Ok::<(), zbus::Error>(())
+            });
+            if let Err(e) = res {
+                eprintln!("\x1b[1;31mQuery Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Move(move_args) => {
+            if move_args.pos.len() != 2 {
+                eprintln!("\x1b[1;31mError\x1b[0m: Position must contain exactly X and Y coordinates.");
+                std::process::exit(1);
+            }
+            let x = move_args.pos[0];
+            let y = move_args.pos[1];
+            
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            let res = rt.block_on(async {
+                let conn = zbus::Connection::session().await?;
+                let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+                proxy.move_window(&move_args.class, x, y).await
+            });
+            if let Err(e) = res {
+                eprintln!("\x1b[1;31mMove Error\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
