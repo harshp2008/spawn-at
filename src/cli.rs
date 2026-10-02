@@ -2,8 +2,8 @@
 //!
 //! Defines the CLI arguments and subcommands for `spawn-at`.
 
-use crate::drivers::{InstallArgs, UninstallArgs};
-use crate::geom::{Anchor, Pivot};
+use crate::platform::{InstallArgs, UninstallArgs};
+use crate::core::geometry::{Anchor, Pivot};
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -29,8 +29,6 @@ pub enum Commands {
     Spawn(SpawnArgs),
     /// Transform, reposition, or resize an existing window
     Transform(TransformArgs),
-    /// Background daemon to enforce window constraints
-    Daemon,
     /// Query active state from the compositor
     Query {
         #[command(subcommand)]
@@ -38,7 +36,7 @@ pub enum Commands {
     },
     /// Move an existing window by its class identifier
     Move(MoveArgs),
-    /// Focus / activate a target window
+    /// Focus / activate a target window (unhides if minimized)
     #[command(aliases = ["raise", "activate"])]
     Focus(WindowTargetArgs),
     /// Relinquish keyboard focus from a target window
@@ -50,21 +48,27 @@ pub enum Commands {
     /// Minimize a target window
     #[command(alias = "minimise")]
     Minimize(MinimizeArgs),
-    /// Unminimize a target window
-    Unminimize(MinimizeArgs),
-    /// Restore a window to its unmaximized/unminimized state
-    #[command(alias = "float")]
+    /// Restore a window to its normal floating state (unmaximize/unminimize)
+    #[command(aliases = ["unmaximize", "unmaximise", "unminimize", "unminimise"])]
     Restore(RestoreArgs),
 }
 
 #[derive(Subcommand, Debug)]
 pub enum QueryCommands {
-    /// Fetch and print JSON layout of all work areas
-    Layout,
+    /// Fetch and print layout of all work areas
+    Layout {
+        /// Output raw JSON instead of human-readable table
+        #[arg(long)]
+        json: bool,
+    },
     /// Fetch and print current pointer coordinates
     Pointer,
-    /// Fetch and print JSON list of all open windows with metadata
-    Windows,
+    /// Fetch and print list of all open windows with metadata
+    Windows {
+        /// Output raw JSON instead of human-readable table
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 #[derive(Args, Debug, Clone)]
@@ -236,6 +240,26 @@ pub struct TransformArgs {
     // Focus Management
     #[command(flatten)]
     pub focus_modifiers: FocusModifierArgs,
+}
+
+impl Default for TransformArgs {
+    fn default() -> Self {
+        Self {
+            class: None,
+            title: None,
+            pid: None,
+            focused: false,
+            pos: None,
+            anchor: None,
+            cursor: false,
+            pivot: Pivot::TopLeft,
+            size: None,
+            monitor: "primary".to_string(),
+            margin: 16,
+            clamp: true,
+            focus_modifiers: FocusModifierArgs::default(),
+        }
+    }
 }
 
 impl TransformArgs {
@@ -418,7 +442,7 @@ pub struct DefocusArgs {
     #[command(flatten)]
     pub target: WindowTargetArgs,
 
-    /// Destination for focus relinquishment ('prev' [default] or 'desktop')
+    /// Destination for focus relinquishment ('prev' \[default\] or 'desktop')
     #[arg(long, default_value = "prev", value_parser = ["prev", "desktop"])]
     pub to: String,
 }
@@ -456,7 +480,7 @@ impl DefocusArgs {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::Parser;
+    use clap::{CommandFactory, Parser};
 
     #[test]
     fn test_parse_negative_pos_coordinates() {
@@ -782,10 +806,7 @@ mod tests {
         assert!(Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal", "--no-focus"]).is_err());
         assert!(Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal", "--defocus"]).is_err());
 
-        // unmaximize subcommand is removed
-        assert!(Cli::try_parse_from(["spawn-at", "unmaximize", "-c", "terminal"]).is_err());
-
-        // restore with alias 'float' and focus modifiers
+        // restore and aliases (unmaximize, unmaximise, unminimize, unminimise) with focus modifiers
         let cli = Cli::try_parse_from(["spawn-at", "restore", "-c", "terminal", "--focus"]).unwrap();
         if let Commands::Restore(args) = cli.command {
             assert_eq!(args.target.class.as_deref(), Some("terminal"));
@@ -794,13 +815,26 @@ mod tests {
             panic!("Expected Restore variant");
         }
 
-        let cli = Cli::try_parse_from(["spawn-at", "float", "-c", "terminal", "--no-focus"]).unwrap();
+        let cli = Cli::try_parse_from(["spawn-at", "unmaximize", "-c", "terminal", "--no-focus"]).unwrap();
         if let Commands::Restore(args) = cli.command {
             assert_eq!(args.target.class.as_deref(), Some("terminal"));
             assert!(args.focus_modifiers.no_focus);
         } else {
-            panic!("Expected Restore variant via float alias");
+            panic!("Expected Restore variant via unmaximize");
         }
+
+        let cli = Cli::try_parse_from(["spawn-at", "unmaximise", "-c", "terminal"]).unwrap();
+        assert!(matches!(cli.command, Commands::Restore(ref args) if args.target.class.as_deref() == Some("terminal")));
+
+        let cli = Cli::try_parse_from(["spawn-at", "unminimize", "-c", "terminal"]).unwrap();
+        assert!(matches!(cli.command, Commands::Restore(ref args) if args.target.class.as_deref() == Some("terminal")));
+
+        let cli = Cli::try_parse_from(["spawn-at", "unminimise", "-c", "terminal"]).unwrap();
+        assert!(matches!(cli.command, Commands::Restore(ref args) if args.target.class.as_deref() == Some("terminal")));
+
+        // Old subcommands/aliases removed
+        assert!(Cli::try_parse_from(["spawn-at", "float", "-c", "terminal"]).is_err());
+        assert!(Cli::try_parse_from(["spawn-at", "daemon"]).is_err());
     }
 
     #[test]
@@ -819,5 +853,10 @@ mod tests {
             ..Default::default()
         };
         assert!(focused_args.validate().is_ok());
+    }
+
+    #[test]
+    fn test_clap_parser_configuration() {
+        Cli::command().debug_assert();
     }
 }

@@ -13,6 +13,41 @@ pub struct WindowSelector {
     pub focused: bool,
 }
 
+impl WindowSelector {
+    pub fn matches(&self, window: &WindowMetadata) -> bool {
+        // 1. PID match: Exact
+        if let Some(pid) = self.pid {
+            if window.pid != Some(pid) {
+                return false;
+            }
+        }
+        // 2. Focused match: Exact
+        if self.focused && !window.focused {
+            return false;
+        }
+
+        // 3. Class match: Exact OR reverse-DNS segment match (case-insensitive)
+        if let Some(ref target_class) = self.class {
+            let win_class = window.class.to_lowercase();
+            let query = target_class.to_lowercase();
+            let exact = win_class == query;
+            let suffix_match = win_class.split('.').last() == Some(query.as_str());
+
+            if !exact && !suffix_match {
+                return false;
+            }
+        }
+
+        // 4. Title match: Substring match (case-insensitive)
+        if let Some(ref target_title) = self.title {
+            if !window.title.to_lowercase().contains(&target_title.to_lowercase()) {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct WindowMetadata {
     #[serde(default)]
@@ -35,7 +70,7 @@ pub struct WindowMetadata {
 ///
 /// Filter criteria:
 /// - If `pid` is specified, matches `win.pid == Some(pid)`.
-/// - If `class` is specified, performs case-insensitive exact match with `win.class`.
+/// - If `class` is specified, matches exact class or reverse-DNS suffix (case-insensitive).
 /// - If `title` is specified, performs case-insensitive substring search in `win.title`.
 /// - If `focused` is true, matches `win.focused == true`.
 ///
@@ -43,41 +78,62 @@ pub struct WindowMetadata {
 /// - If multiple windows match, prefers the one with `focused == true`, otherwise returns the first match.
 ///
 /// Error:
-/// - Returns an informative error message if no window satisfies the criteria.
+/// - Returns an informative error message if no window satisfies the criteria, offering smart suggestions if a similar class exists.
 pub fn resolve_target<'a>(
     windows: &'a [WindowMetadata],
     selector: &WindowSelector,
 ) -> Result<&'a WindowMetadata, String> {
     let mut matching: Vec<&'a WindowMetadata> = windows
         .iter()
-        .filter(|win| {
-            if let Some(target_pid) = selector.pid {
-                if win.pid != Some(target_pid) {
-                    return false;
-                }
-            }
-
-            if let Some(ref target_class) = selector.class {
-                if !win.class.eq_ignore_ascii_case(target_class) {
-                    return false;
-                }
-            }
-
-            if let Some(ref target_title) = selector.title {
-                if !win.title.to_lowercase().contains(&target_title.to_lowercase()) {
-                    return false;
-                }
-            }
-
-            if selector.focused && !win.focused {
-                return false;
-            }
-
-            true
-        })
+        .filter(|win| selector.matches(win))
         .collect();
 
     if matching.is_empty() {
+        if let Some(ref target) = selector.class {
+            let target_lower = target.to_lowercase();
+            let mut suggestions: Vec<(f64, &WindowMetadata)> = windows
+                .iter()
+                .map(|w| {
+                    let class_lower = w.class.to_lowercase();
+
+                    // 1. Score against full class string
+                    let mut best_score = strsim::jaro_winkler(&target_lower, &class_lower);
+
+                    // 2. Score against individual dot-separated segments
+                    for segment in class_lower.split('.') {
+                        if segment.len() <= 3 {
+                            continue;
+                        }
+                        let seg_score = strsim::jaro_winkler(&target_lower, segment);
+                        if seg_score > best_score {
+                            best_score = seg_score;
+                        }
+                    }
+
+                    // 3. Substring boost
+                    if class_lower.contains(&target_lower) {
+                        best_score = best_score.max(0.85);
+                    }
+
+                    (best_score, w)
+                })
+                .filter(|(score, _)| *score > 0.70)
+                .collect();
+
+            suggestions.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+
+            if let Some((_, best)) = suggestions.first() {
+                let pid_str = best
+                    .pid
+                    .map(|p| p.to_string())
+                    .unwrap_or_else(|| "unknown".to_string());
+                return Err(format!(
+                    "No active window matched class \"{target}\".\n\nDid you mean:\n  -c {} (title: \"{}\", pid: {})\n\nTip: You can also match by title using `-t \"{}\"`",
+                    best.class, best.title, pid_str, best.title
+                ));
+            }
+        }
+
         let mut criteria = Vec::new();
         if let Some(ref c) = selector.class {
             criteria.push(format!("class: {:?}", c));
@@ -103,9 +159,26 @@ pub fn resolve_target<'a>(
         ));
     }
 
-    // If multiple matches, prioritize focused window
-    if let Some(focused_win) = matching.iter().find(|w| w.focused) {
-        return Ok(*focused_win);
+    if matching.len() > 1 {
+        let mut candidate_lines = Vec::new();
+        for (i, win) in matching.iter().enumerate() {
+            let pid_str = win
+                .pid
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+            candidate_lines.push(format!(
+                "  {}. -c {} (PID: {}, Title: \"{}\")",
+                i + 1,
+                win.class,
+                pid_str,
+                win.title
+            ));
+        }
+        return Err(format!(
+            "Ambiguous window selector matched {} active windows.\nMatched candidates:\n{}\nPlease disambiguate by using the full reverse-DNS class, PID (--pid), or Title (-t).",
+            matching.len(),
+            candidate_lines.join("\n")
+        ));
     }
 
     Ok(matching.remove(0))
@@ -166,17 +239,6 @@ mod tests {
                 h: 1080,
                 focused: false,
             },
-            WindowMetadata {
-                id: Some(4),
-                pid: Some(1004),
-                title: "Terminal 2".to_string(),
-                class: "Alacritty".to_string(),
-                x: 300,
-                y: 300,
-                w: 800,
-                h: 600,
-                focused: true,
-            },
         ]
     }
 
@@ -196,13 +258,12 @@ mod tests {
     fn test_match_by_class_case_insensitive() {
         let windows = sample_windows();
         let selector = WindowSelector {
-            class: Some("alacritty".to_string()),
+            class: Some("google-chrome".to_string()),
             ..Default::default()
         };
-        // Among matching Alacritty windows (pid 1001 unfocused, pid 1004 focused), focused should be picked
         let res = resolve_target(&windows, &selector).unwrap();
-        assert_eq!(res.id, Some(4));
-        assert_eq!(res.pid, Some(1004));
+        assert_eq!(res.id, Some(3));
+        assert_eq!(res.pid, Some(1003));
     }
 
     #[test]
@@ -223,9 +284,9 @@ mod tests {
             focused: true,
             ..Default::default()
         };
-        // Returns one of the focused windows
         let res = resolve_target(&windows, &selector).unwrap();
         assert!(res.focused);
+        assert_eq!(res.id, Some(2));
     }
 
     #[test]
@@ -280,5 +341,97 @@ mod tests {
             focused: false,
         };
         assert_eq!(resolve_target_id(&win_fallback_class), "test-app");
+    }
+
+    #[test]
+    fn test_match_by_reverse_dns_class() {
+        let mut windows = sample_windows();
+        windows.push(WindowMetadata {
+            id: Some(5),
+            pid: Some(1005),
+            title: "Calculator".to_string(),
+            class: "org.gnome.Calculator".to_string(),
+            x: 0,
+            y: 0,
+            w: 400,
+            h: 500,
+            focused: false,
+        });
+
+        // Query by last segment "calculator"
+        let selector = WindowSelector {
+            class: Some("calculator".to_string()),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector).unwrap();
+        assert_eq!(res.id, Some(5));
+        assert_eq!(res.class, "org.gnome.Calculator");
+    }
+
+    #[test]
+    fn test_typo_suggestion_calcultor() {
+        let mut windows = sample_windows();
+        windows.push(WindowMetadata {
+            id: Some(5),
+            pid: Some(76342),
+            title: "Calculator".to_string(),
+            class: "org.gnome.Calculator".to_string(),
+            x: 0,
+            y: 0,
+            w: 400,
+            h: 500,
+            focused: false,
+        });
+
+        let selector = WindowSelector {
+            class: Some("calcultor".to_string()),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(err.contains("No active window matched class \"calcultor\"."));
+        assert!(err.contains("Did you mean:"));
+        assert!(err.contains("-c org.gnome.Calculator (title: \"Calculator\", pid: 76342)"));
+    }
+
+    #[test]
+    fn test_ambiguity_error_multiple_matches() {
+        let windows = vec![
+            WindowMetadata {
+                id: Some(1),
+                pid: Some(76342),
+                title: "Calculator".to_string(),
+                class: "org.gnome.Calculator".to_string(),
+                x: 0,
+                y: 0,
+                w: 400,
+                h: 500,
+                focused: false,
+            },
+            WindowMetadata {
+                id: Some(2),
+                pid: Some(81204),
+                title: "Qalculate!".to_string(),
+                class: "io.github.qalculate.calculator".to_string(),
+                x: 0,
+                y: 0,
+                w: 400,
+                h: 500,
+                focused: false,
+            },
+        ];
+
+        let selector = WindowSelector {
+            class: Some("calculator".to_string()),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector);
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        assert!(err.contains("Ambiguous window selector matched 2 active windows."));
+        assert!(err.contains("1. -c org.gnome.Calculator (PID: 76342, Title: \"Calculator\")"));
+        assert!(err.contains("2. -c io.github.qalculate.calculator (PID: 81204, Title: \"Qalculate!\")"));
+        assert!(err.contains("Please disambiguate by using the full reverse-DNS class, PID (--pid), or Title (-t)."));
     }
 }

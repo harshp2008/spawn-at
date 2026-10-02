@@ -58,6 +58,10 @@ const DBUS_IFACE = `
       <arg type="i" name="y" direction="in"/>
       <arg type="i" name="w" direction="in"/>
       <arg type="i" name="h" direction="in"/>
+      <arg type="i" name="min_x" direction="in"/>
+      <arg type="i" name="max_x" direction="in"/>
+      <arg type="i" name="min_y" direction="in"/>
+      <arg type="i" name="max_y" direction="in"/>
     </method>
     <method name="GetCursor">
       <arg type="i" name="x" direction="out"/>
@@ -246,7 +250,7 @@ export default class SpawnAtExtension extends Extension {
         // rectangle every 10ms to verify that the geometry matches the target before
         // making the window visible.
         let checkCount = 0;
-        const maxChecks = 35; // Maximum duration: ~350ms safety clamp
+        const maxChecks = 50; // Maximum duration: ~500ms safety clamp
 
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
             checkCount++;
@@ -256,28 +260,69 @@ export default class SpawnAtExtension extends Extension {
 
             let frame = window.get_frame_rect();
 
-            // Re-apply target position if Mutter drifted during client configure events
-            if (frame.x !== target.x || frame.y !== target.y) {
-                if (target.w > 0 && target.h > 0) {
-                    window.move_resize_frame(true, target.x, target.y, target.w, target.h);
-                } else {
-                    window.move_frame(true, target.x, target.y);
+            let actualW = frame.width;
+            let actualH = frame.height;
+            let finalX = target.x;
+            let finalY = target.y;
+
+            // Right boundary clamp (Auto-Anchor if original intent touched wall)
+            if (target.max_x !== undefined && target.max_x >= 0) {
+                if ((finalX + actualW > target.max_x) || (target.x + target.w >= target.max_x)) {
+                    finalX = target.max_x - actualW;
+                }
+            }
+            // Left boundary clamp
+            if (target.min_x !== undefined && target.min_x >= 0) {
+                if ((finalX < target.min_x) || (target.x <= target.min_x)) {
+                    finalX = target.min_x;
+                }
+            }
+            // Bottom boundary clamp (Auto-Anchor if original intent touched wall)
+            if (target.max_y !== undefined && target.max_y >= 0) {
+                if ((finalY + actualH > target.max_y) || (target.y + target.h >= target.max_y)) {
+                    finalY = target.max_y - actualH;
+                }
+            }
+            // Top boundary clamp
+            if (target.min_y !== undefined && target.min_y >= 0) {
+                if ((finalY < target.min_y) || (target.y <= target.min_y)) {
+                    finalY = target.min_y;
                 }
             }
 
-            let posMatch = (frame.x === target.x && frame.y === target.y);
-            let sizeMatch = (target.w === 0 && target.h === 0) || 
-                            (frame.width === target.w && frame.height === target.h);
+            // Apply boundary-corrected position
+            // To prevent Mutter from centering the window against a rejected sub-minimum target size,
+            // we update the requested bounds to perfectly match the actual settled buffer.
+            if (frame.x !== finalX || frame.y !== finalY) {
+                if (window._spawnAtLastX !== finalX || window._spawnAtLastY !== finalY || 
+                    window._spawnAtLastW !== actualW || window._spawnAtLastH !== actualH) {
+                    
+                    window.move_resize_frame(true, finalX, finalY, actualW, actualH);
+                    
+                    window._spawnAtLastX = finalX;
+                    window._spawnAtLastY = finalY;
+                    window._spawnAtLastW = actualW;
+                    window._spawnAtLastH = actualH;
+                }
+            }
 
-            // Some clients enforce min/max size geometry hints (e.g. terminals with grid increments).
-            // If the position matches and we've waited at least 5 frames (~50ms), accept as clamped match.
-            let clampedMatch = posMatch && (checkCount >= 5);
+            let posMatch = Math.abs(frame.x - finalX) <= 1 && Math.abs(frame.y - finalY) <= 1;
 
-            // Timeout fallback: never leave a window permanently hidden if client misbehaves
+            // Require both position match and at least 6 ticks (~60ms) of settling 
+            let settled = posMatch && (checkCount >= 6);
             let timedOut = (checkCount >= maxChecks);
 
-            if ((posMatch && sizeMatch) || clampedMatch || timedOut) {
-                // Reveal the window atomically at its settled position
+            if (settled || timedOut) {
+                if (!posMatch) {
+                    window.move_resize_frame(true, finalX, finalY, actualW, actualH);
+                }
+                
+                // Clean up state
+                delete window._spawnAtLastX;
+                delete window._spawnAtLastY;
+                delete window._spawnAtLastW;
+                delete window._spawnAtLastH;
+                
                 actor.opacity = 255;
                 return GLib.SOURCE_REMOVE;
             }
@@ -287,11 +332,11 @@ export default class SpawnAtExtension extends Extension {
     }
 
     /**
-     * D-Bus Method: Arm(identifier, x, y, w, h)
+     * D-Bus Method: Arm(identifier, x, y, w, h, min_x, max_x, min_y, max_y)
      * Primes the compositor to intercept the specified application window.
      */
-    Arm(identifier, x, y, w, h) {
-        let rect = { x, y, w, h };
+    Arm(identifier, x, y, w, h, min_x, max_x, min_y, max_y) {
+        let rect = { x, y, w, h, min_x, max_x, min_y, max_y };
 
         if (!identifier || identifier === "*") {
             // Wildcard: intercept the very next unmapped window within 1200ms

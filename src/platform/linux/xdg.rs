@@ -47,6 +47,18 @@ pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> 
         return "*".to_string();
     }
 
+    // Direct mapping for daemonized/split binaries where Mutter's wm_class
+    // diverges from the .desktop filename or command binary
+    const KNOWN_WM_CLASS_OVERRIDES: &[(&str, &str)] = &[
+        ("gnome-terminal", "gnome-terminal-server"),
+    ];
+
+    for &(bin, target_class) in KNOWN_WM_CLASS_OVERRIDES {
+        if bin_name == bin {
+            return target_class.to_string();
+        }
+    }
+
     // 2. Build list of desktop entry search directories
     let search_dirs = collect_xdg_application_dirs();
 

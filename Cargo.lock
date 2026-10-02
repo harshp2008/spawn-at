@@ -889,11 +889,13 @@ dependencies = [
 name = "spawn-at"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "clap",
  "dialoguer",
  "futures-util",
  "serde",
  "serde_json",
+ "strsim",
  "tokio",
  "toml",
  "zbus",

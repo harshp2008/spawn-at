@@ -38,7 +38,11 @@
 //! destroys all client connections. Therefore, when loading shell extensions in older
 //! environments, logging out via `gnome-session-quit` is the standard clean reload method.
 
-use super::{DriverError, InstallArgs, TargetGeometry, UninstallArgs, WindowManager};
+pub mod dbus;
+
+use crate::core::geometry::{Rect, TargetGeometry};
+use crate::platform::{CompositorBackend, DriverError, InstallArgs, UninstallArgs, WindowState};
+use crate::target::WindowMetadata;
 use clap::Args;
 use dialoguer::{Confirm, Select};
 use std::fs;
@@ -48,33 +52,49 @@ use std::process::Command;
 
 #[derive(Args, Debug, Clone, Default)]
 pub struct GnomeInstallArgs {
-    /// [GNOME] Automatically enable the GNOME Shell extension
+    /// \[GNOME\] Automatically enable the GNOME Shell extension
     #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_auto_enable: bool,
 
-    /// [GNOME] Automatically log out / restart session to load extension
+    /// \[GNOME\] Automatically log out / restart session to load extension
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_restart: bool,
 }
 
 #[derive(Args, Debug, Clone, Default)]
 pub struct GnomeUninstallArgs {
-    /// [GNOME] Completely remove extension files from disk
+    /// \[GNOME\] Completely remove extension files from disk
     #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_delete_files: bool,
 
-    /// [GNOME] Automatically log out / restart session after uninstallation
+    /// \[GNOME\] Automatically log out / restart session after uninstallation
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_restart: bool,
 }
 
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
-const EXTENSION_JS: &str = include_str!("../../assets/gnome/extension.esm.js");
-const METADATA_JSON: &str = include_str!("../../assets/gnome/metadata.json");
+const EXTENSION_JS: &str = include_str!("../../../../assets/gnome/extension.esm.js");
+const METADATA_JSON: &str = include_str!("../../../../assets/gnome/metadata.json");
 
-pub struct GnomeWaylandDriver;
+/// Compositor backend driver for GNOME Wayland sessions, communicating via the SpawnAt D-Bus extension.
+pub struct GnomeWaylandDriver {
+    proxy: dbus::SpawnAtProxy<'static>,
+}
 
 impl GnomeWaylandDriver {
+    /// Constructs a new `GnomeWaylandDriver` by establishing a session bus D-Bus connection.
+    pub async fn new() -> Result<Self, DriverError> {
+        let connection = zbus::Connection::session()
+            .await
+            .map_err(|e| DriverError::IpcError(format!("Failed to connect to D-Bus session bus: {}", e)))?;
+        let static_conn: &'static zbus::Connection = Box::leak(Box::new(connection));
+        let proxy = dbus::SpawnAtProxy::new(static_conn)
+            .await
+            .map_err(|e| DriverError::IpcError(format!("Failed to initialize SpawnAt D-Bus proxy: {}", e)))?;
+
+        Ok(Self { proxy })
+    }
+
     /// Resolves the user extension directory: `~/.local/share/gnome-shell/extensions/spawn-at@harsh.local`
     fn extension_dir() -> Result<PathBuf, DriverError> {
         let home = std::env::var("HOME").map_err(|e| {
@@ -88,9 +108,14 @@ impl GnomeWaylandDriver {
     }
 }
 
-impl WindowManager for GnomeWaylandDriver {
+#[async_trait::async_trait]
+impl CompositorBackend for GnomeWaylandDriver {
     fn name(&self) -> &'static str {
         "GNOME Wayland"
+    }
+
+    fn supports_runtime_transform(&self) -> bool {
+        true
     }
 
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
@@ -231,17 +256,15 @@ impl WindowManager for GnomeWaylandDriver {
             let _ = Command::new("gnome-session-quit")
                 .args(["--logout", "--no-prompt"])
                 .spawn();
+        } else {
+            println!("Session restart skipped.");
         }
 
         Ok(())
     }
 
     /// Primes the GNOME Shell extension via D-Bus and launches the command.
-    ///
-    /// The D-Bus call to `Arm` informs Mutter of the target coordinates and application ID
-    /// prior to child process execution, ensuring that the window is intercepted and cloaked
-    /// at the moment of creation.
-    fn spawn_at(
+    async fn spawn_at(
         &self,
         app_id: &str,
         command: &[String],
@@ -253,35 +276,28 @@ impl WindowManager for GnomeWaylandDriver {
             ));
         }
 
-        // 1. Connect to user D-Bus session bus
-        let connection = zbus::blocking::Connection::session().map_err(|e| {
-            DriverError::Execution(
-                format!("Failed to connect to D-Bus session bus: {}", e).into(),
+        self.proxy
+            .arm(
+                app_id,
+                geom.x,
+                geom.y,
+                geom.w as i32,
+                geom.h as i32,
+                geom.min_x.unwrap_or(-1),
+                geom.max_x.unwrap_or(-1),
+                geom.min_y.unwrap_or(-1),
+                geom.max_y.unwrap_or(-1),
             )
-        })?;
-
-        // 2. Call Arm(identifier: s, x: i, y: i, w: u, h: u)
-        let arm_result: Result<zbus::message::Message, zbus::Error> = connection.call_method(
-            Some("org.gnome.Shell"),
-            "/org/gnome/Shell/Extensions/SpawnAt",
-            Some("org.gnome.Shell.Extensions.SpawnAt"),
-            "Arm",
-            &(app_id, geom.x, geom.y, geom.w as i32, geom.h as i32),
-        );
-
-        if let Err(e) = arm_result {
-            return Err(DriverError::Execution(
-                format!(
+            .await
+            .map_err(|e| {
+                DriverError::IpcError(format!(
                     "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n\
                      Reason: The extension does not appear to be running on the session bus.\n\
                      Fix: Run 'spawn-at install' to install and activate the extension.",
                     e
-                )
-                .into(),
-            ));
-        }
+                ))
+            })?;
 
-        // 3. Launch the requested process
         Command::new(&command[0])
             .args(&command[1..])
             .spawn()
@@ -295,41 +311,132 @@ impl WindowManager for GnomeWaylandDriver {
     }
 
     /// Queries pointer position from the GNOME extension over D-Bus, with fallback to xdotool.
-    fn get_cursor_position(&self) -> Option<(i32, i32)> {
-        if let Ok(conn) = zbus::blocking::Connection::session() {
-            // 1. Try querying SpawnAt GNOME extension via D-Bus
-            if let Ok(reply) = conn.call_method(
-                Some("org.gnome.Shell"),
-                "/org/gnome/Shell/Extensions/SpawnAt",
-                Some("org.gnome.Shell.Extensions.SpawnAt"),
-                "GetCursor",
-                &(),
-            ) {
-                if let Ok(coords) = reply.body().deserialize::<(i32, i32)>() {
-                    return Some(coords);
-                }
-            }
-
-            // 2. Try MousePos extension if present
-            if let Ok(reply) = conn.call_method(
-                Some("org.gnome.Shell"),
-                "/org/gnome/Shell/Extensions/MousePos",
-                Some("org.gnome.Shell.Extensions.MousePos"),
-                "GetCoordinates",
-                &(),
-            ) {
-                if let Ok(coords) = reply.body().deserialize::<(i32, i32)>() {
-                    return Some(coords);
-                }
-            }
+    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
+        if let Ok(coords) = self.proxy.get_cursor().await {
+            return Ok(coords);
         }
-
-        // Fallback for XWayland
-        crate::platform::linux::query_xdotool_cursor()
+        if let Ok(coords) = self.proxy.get_pointer().await {
+            return Ok(coords);
+        }
+        Ok(crate::platform::linux::query_xdotool_cursor().unwrap_or((0, 0)))
     }
 
-    /// Queries active display monitor geometries via xrandr.
-    fn get_monitors(&self) -> Vec<crate::geometry::Rect> {
-        crate::platform::linux::query_xrandr_monitors()
+    async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
+        match self.get_workareas().await {
+            Ok(areas) if !areas.is_empty() => Ok(areas),
+            _ => Ok(crate::platform::linux::query_xrandr_monitors()),
+        }
+    }
+
+    async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
+        let json = self
+            .proxy
+            .get_workareas()
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+        serde_json::from_str(&json)
+            .map_err(|e| DriverError::IpcError(format!("Failed to parse workareas: {}", e)))
+    }
+
+    async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+        let json = self
+            .proxy
+            .get_windows()
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+        serde_json::from_str(&json)
+            .map_err(|e| DriverError::IpcError(format!("Failed to parse windows: {}", e)))
+    }
+
+    async fn move_window(&self, target_id: &str, x: i32, y: i32) -> Result<(), DriverError> {
+        self.proxy
+            .move_window(target_id, x, y)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))
+    }
+
+    async fn move_resize_window(
+        &self,
+        target_id: &str,
+        x: i32,
+        y: i32,
+        w: u32,
+        h: u32,
+    ) -> Result<(), DriverError> {
+        let success = self
+            .proxy
+            .move_resize_window(target_id, x, y, w as i32, h as i32)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+
+        if !success {
+            return Err(DriverError::TargetNotFound(format!(
+                "Compositor failed to move/resize window target '{}'",
+                target_id
+            )));
+        }
+        Ok(())
+    }
+
+    async fn set_window_state(
+        &self,
+        target_id: &str,
+        state: WindowState,
+    ) -> Result<(), DriverError> {
+        let state_str = match state {
+            WindowState::Maximize => "maximize",
+            WindowState::Minimize => "minimize",
+            WindowState::Unminimize => "unminimize",
+            WindowState::Restore => "restore",
+        };
+        let success = self
+            .proxy
+            .set_window_state(target_id, state_str)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+
+        if !success {
+            return Err(DriverError::TargetNotFound(format!(
+                "Compositor failed to set state '{:?}' on target '{}'",
+                state, target_id
+            )));
+        }
+        Ok(())
+    }
+
+    async fn focus_window(&self, target_id: &str) -> Result<(), DriverError> {
+        let success = self
+            .proxy
+            .focus_window(target_id)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+
+        if !success {
+            return Err(DriverError::TargetNotFound(format!(
+                "Compositor failed to focus window target '{}'",
+                target_id
+            )));
+        }
+        Ok(())
+    }
+
+    async fn defocus_window(&self, target_id: &str, to_target: &str) -> Result<(), DriverError> {
+        let success = self
+            .proxy
+            .defocus_window(target_id, to_target)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
+
+        if !success {
+            return Err(DriverError::TargetNotFound(format!(
+                "Compositor failed to defocus window target '{}'",
+                target_id
+            )));
+        }
+        Ok(())
+    }
+
+    async fn run_daemon(&self) -> Result<(), DriverError> {
+        dbus::run_daemon(&self.proxy).await
     }
 }
