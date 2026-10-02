@@ -111,6 +111,22 @@ pub fn resolve_target<'a>(
     Ok(matching.remove(0))
 }
 
+/// Determines the optimal string identifier for a resolved window to send to the compositor.
+/// Prioritizes unique compositor window ID, then PID, then window class / application ID.
+pub fn resolve_target_id(win: &WindowMetadata) -> String {
+    if let Some(id) = win.id {
+        if id > 0 {
+            return id.to_string();
+        }
+    }
+    if let Some(pid) = win.pid {
+        if pid > 0 {
+            return pid.to_string();
+        }
+    }
+    win.class.clone()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -222,5 +238,47 @@ mod tests {
         let res = resolve_target(&windows, &selector);
         assert!(res.is_err());
         assert!(res.unwrap_err().contains("No active window matched criteria"));
+    }
+
+    #[test]
+    fn test_resolve_target_id() {
+        let win_with_id = WindowMetadata {
+            id: Some(42),
+            pid: Some(1234),
+            title: "Test".to_string(),
+            class: "test-app".to_string(),
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            focused: false,
+        };
+        assert_eq!(resolve_target_id(&win_with_id), "42");
+
+        let win_with_pid = WindowMetadata {
+            id: None,
+            pid: Some(1234),
+            title: "Test".to_string(),
+            class: "test-app".to_string(),
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            focused: false,
+        };
+        assert_eq!(resolve_target_id(&win_with_pid), "1234");
+
+        let win_fallback_class = WindowMetadata {
+            id: None,
+            pid: None,
+            title: "Test".to_string(),
+            class: "test-app".to_string(),
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            focused: false,
+        };
+        assert_eq!(resolve_target_id(&win_fallback_class), "test-app");
     }
 }

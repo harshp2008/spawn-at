@@ -24,7 +24,10 @@ pub mod platform;
 pub mod target;
 
 use clap::Parser;
-use cli::{Cli, Commands, QueryCommands, TransformArgs};
+use cli::{
+    Cli, Commands, DefocusArgs, FocusModifierArgs, MaximizeArgs, MinimizeArgs, QueryCommands,
+    RestoreArgs, TransformArgs, WindowTargetArgs,
+};
 use dialoguer::Confirm;
 use drivers::{get_active_driver, InstallScope};
 use geometry::GeometryParams;
@@ -257,7 +260,66 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        Commands::Focus(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_focus(args)) {
+                eprintln!("\x1b[1;31mFocus Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Defocus(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_defocus(args)) {
+                eprintln!("\x1b[1;31mDefocus Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Maximize(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_maximize(args)) {
+                eprintln!("\x1b[1;31mMaximize Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Minimize(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_minimize(args)) {
+                eprintln!("\x1b[1;31mMinimize Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Unminimize(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_unminimize(args)) {
+                eprintln!("\x1b[1;31mUnminimize Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Restore(args) => {
+            let rt = tokio::runtime::Runtime::new().unwrap();
+            if let Err(e) = rt.block_on(run_restore(args)) {
+                eprintln!("\x1b[1;31mRestore Error\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
     }
+}
+
+async fn apply_focus_policy(
+    proxy: &daemon::SpawnAtProxy<'_>,
+    target_id: &str,
+    modifiers: &FocusModifierArgs,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if modifiers.defocus {
+        // Active eviction: strip focus and yield to previous window
+        proxy.defocus_window(target_id, "previous").await?;
+    } else if modifiers.no_focus {
+        // Passive: leave compositor focus state untouched
+    } else {
+        // Default (or explicit --focus): ensure target window gets focus
+        proxy.focus_window(target_id).await?;
+    }
+    Ok(())
 }
 
 async fn run_transform(args: TransformArgs) -> Result<(), Box<dyn std::error::Error>> {
@@ -306,14 +368,14 @@ async fn run_transform(args: TransformArgs) -> Result<(), Box<dyn std::error::Er
     let (target_x, target_y) = if let Some(anchor) = args.anchor {
         geom::apply_anchor(target_workarea, target_w, target_h, anchor, args.margin)
     } else if args.cursor {
-        (cursor_x - target_w / 2, cursor_y - target_h / 2)
+        geom::apply_pivot(cursor_x, cursor_y, target_w, target_h, args.pivot)
     } else if let Some(ref pos) = args.pos {
         if pos.len() != 2 {
             return Err(
                 "Position argument must contain exactly X and Y coordinates: --pos X Y".into(),
             );
         }
-        (pos[0], pos[1])
+        geom::apply_pivot(pos[0], pos[1], target_w, target_h, args.pivot)
     } else {
         (target_win.x, target_win.y)
     };
@@ -336,15 +398,7 @@ async fn run_transform(args: TransformArgs) -> Result<(), Box<dyn std::error::Er
     };
 
     // 7. Call proxy.move_resize_window(target_id_or_pid, final_x, final_y, final_w, final_h)
-    let target_id = if let Some(pid) = target_win.pid {
-        if pid > 0 {
-            pid.to_string()
-        } else {
-            target_win.class.clone()
-        }
-    } else {
-        target_win.class.clone()
-    };
+    let target_id = target::resolve_target_id(target_win);
 
     let success = proxy
         .move_resize_window(&target_id, final_x, final_y, final_w, final_h)
@@ -357,6 +411,186 @@ async fn run_transform(args: TransformArgs) -> Result<(), Box<dyn std::error::Er
         )
         .into());
     }
+
+    apply_focus_policy(&proxy, &target_id, &args.focus_modifiers).await?;
+
+    Ok(())
+}
+
+async fn run_focus(args: WindowTargetArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector::from(&args);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    let success = proxy.focus_window(&target_id).await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to focus window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+async fn run_defocus(args: DefocusArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = args.get_selector();
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    if !target_win.focused {
+        println!(
+            "Window '{}' is already not focused; nothing to defocus.",
+            target_win.title
+        );
+        return Ok(());
+    }
+
+    let success = proxy.defocus_window(&target_id, &args.to).await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to defocus window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    let yield_target = if args.to == "desktop" {
+        "desktop"
+    } else {
+        "previous window/desktop"
+    };
+    println!(
+        "Defocused window '{}' (focus yielded to {}).",
+        target_win.title, yield_target
+    );
+
+    Ok(())
+}
+
+async fn run_maximize(args: MaximizeArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector::from(&args.target);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    let success = proxy.set_window_state(&target_id, "maximize").await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to maximize window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    apply_focus_policy(&proxy, &target_id, &args.focus_modifiers).await?;
+
+    Ok(())
+}
+
+async fn run_minimize(args: MinimizeArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector::from(&args.target);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    let success = proxy.set_window_state(&target_id, "minimize").await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to minimize window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+async fn run_unminimize(args: MinimizeArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector::from(&args.target);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    let success = proxy.set_window_state(&target_id, "unminimize").await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to unminimize window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    Ok(())
+}
+
+async fn run_restore(args: RestoreArgs) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let conn = zbus::Connection::session().await?;
+    let proxy = daemon::SpawnAtProxy::new(&conn).await?;
+
+    let json_windows = proxy.get_windows().await?;
+    let windows: Vec<target::WindowMetadata> = serde_json::from_str(&json_windows)
+        .map_err(|e| format!("Failed to parse windows from compositor: {}", e))?;
+
+    let selector = target::WindowSelector::from(&args.target);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+
+    let success = proxy.set_window_state(&target_id, "restore").await?;
+    if !success {
+        return Err(format!(
+            "Compositor failed to restore window '{}' (PID: {:?}, class: '{}')",
+            target_win.title, target_win.pid, target_win.class
+        )
+        .into());
+    }
+
+    apply_focus_policy(&proxy, &target_id, &args.focus_modifiers).await?;
 
     Ok(())
 }

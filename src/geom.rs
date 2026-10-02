@@ -2,7 +2,7 @@
 //!
 //! A pure mathematical engine with zero compositor or OS dependencies for screen
 //! coordinate calculations, multi-monitor / workarea resolution, anchor placement,
-//! and boundary clamping.
+//! pivot transformations, and boundary clamping.
 
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +21,16 @@ pub enum Anchor {
     TopRight,
     BottomLeft,
     BottomRight,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Default)]
+pub enum Pivot {
+    #[default]
+    TopLeft,
+    TopRight,
+    BottomLeft,
+    BottomRight,
+    Center,
 }
 
 /// Resolves the target workarea rectangle from a list of workareas, pointer coordinates,
@@ -99,6 +109,24 @@ pub fn apply_anchor(
             let y = workarea.y + workarea.h - win_h - margin;
             (x, y)
         }
+    }
+}
+
+/// Computes the top-left origin coordinates `(x, y)` when placing a window of size
+/// `(win_w, win_h)` such that the specified `pivot` point aligns with `(target_x, target_y)`.
+pub fn apply_pivot(
+    target_x: i32,
+    target_y: i32,
+    win_w: i32,
+    win_h: i32,
+    pivot: Pivot,
+) -> (i32, i32) {
+    match pivot {
+        Pivot::TopLeft => (target_x, target_y),
+        Pivot::TopRight => (target_x - win_w, target_y),
+        Pivot::BottomLeft => (target_x, target_y - win_h),
+        Pivot::BottomRight => (target_x - win_w, target_y - win_h),
+        Pivot::Center => (target_x - win_w / 2, target_y - win_h / 2),
     }
 }
 
@@ -187,6 +215,35 @@ mod tests {
         assert_eq!(
             apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin),
             (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20)
+        );
+    }
+
+    #[test]
+    fn test_apply_pivot() {
+        let target_x = 500;
+        let target_y = 400;
+        let win_w = 200;
+        let win_h = 100;
+
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft),
+            (500, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight),
+            (300, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft),
+            (500, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight),
+            (300, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center),
+            (400, 350)
         );
     }
 

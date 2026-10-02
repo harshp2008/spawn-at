@@ -16,6 +16,9 @@ pub trait SpawnAt {
     fn get_windows(&self) -> zbus::Result<String>;
     fn move_window(&self, app_id: &str, x: i32, y: i32) -> zbus::Result<()>;
     fn move_resize_window(&self, target: &str, x: i32, y: i32, w: i32, h: i32) -> zbus::Result<bool>;
+    fn focus_window(&self, target: &str) -> zbus::Result<bool>;
+    fn defocus_window(&self, target: &str, to_target: &str) -> zbus::Result<bool>;
+    fn set_window_state(&self, target: &str, state: &str) -> zbus::Result<bool>;
     #[zbus(signal)]
     fn workarea_changed(&self) -> zbus::Result<()>;
 }

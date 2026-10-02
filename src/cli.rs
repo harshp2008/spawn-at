@@ -3,7 +3,7 @@
 //! Defines the CLI arguments and subcommands for `spawn-at`.
 
 use crate::drivers::{InstallArgs, UninstallArgs};
-use crate::geom::Anchor;
+use crate::geom::{Anchor, Pivot};
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -38,6 +38,23 @@ pub enum Commands {
     },
     /// Move an existing window by its class identifier
     Move(MoveArgs),
+    /// Focus / activate a target window
+    #[command(aliases = ["raise", "activate"])]
+    Focus(WindowTargetArgs),
+    /// Relinquish keyboard focus from a target window
+    #[command(aliases = ["unfocus", "blur"])]
+    Defocus(DefocusArgs),
+    /// Maximize a target window
+    #[command(alias = "maximise")]
+    Maximize(MaximizeArgs),
+    /// Minimize a target window
+    #[command(alias = "minimise")]
+    Minimize(MinimizeArgs),
+    /// Unminimize a target window
+    Unminimize(MinimizeArgs),
+    /// Restore a window to its unmaximized/unminimized state
+    #[command(alias = "float")]
+    Restore(RestoreArgs),
 }
 
 #[derive(Subcommand, Debug)]
@@ -187,6 +204,9 @@ pub struct TransformArgs {
     #[arg(long)]
     pub cursor: bool,
 
+    #[arg(long, value_enum, default_value_t = Pivot::TopLeft)]
+    pub pivot: Pivot,
+
     // Sizing
     #[arg(
         short = 's',
@@ -204,8 +224,18 @@ pub struct TransformArgs {
     #[arg(long, default_value_t = 16)]
     pub margin: i32,
 
-    #[arg(long, default_value_t = true, action = clap::ArgAction::Set)]
+    #[arg(
+        long,
+        default_value = "true",
+        default_missing_value = "true",
+        num_args = 0..=1,
+        action = clap::ArgAction::Set
+    )]
     pub clamp: bool,
+
+    // Focus Management
+    #[command(flatten)]
+    pub focus_modifiers: FocusModifierArgs,
 }
 
 impl TransformArgs {
@@ -230,11 +260,196 @@ impl TransformArgs {
             );
         }
 
+        if self.anchor.is_some() && self.cursor {
+            return Err(
+                "Conflicting arguments: Cannot specify both --cursor and --anchor.".to_string(),
+            );
+        }
+
+        if self.anchor.is_some() && self.pivot != Pivot::TopLeft {
+            return Err(
+                "Conflicting arguments: Cannot specify both --anchor and --pivot.".to_string(),
+            );
+        }
+
         if self.margin < 0 {
             return Err("Invalid margin: margin cannot be negative.".to_string());
         }
 
         Ok(())
+    }
+}
+
+/// Mutually exclusive focus modifier arguments for window action commands.
+#[derive(Debug, Args, Clone, Default, PartialEq, Eq)]
+pub struct FocusModifierArgs {
+    /// Explicitly focus the target window (default behavior for action commands)
+    #[arg(long, conflicts_with_all = ["no_focus", "defocus"])]
+    pub focus: bool,
+
+    /// Passive: do not alter focus state; leave active input where it currently is
+    #[arg(long, conflicts_with_all = ["focus", "defocus"])]
+    pub no_focus: bool,
+
+    /// Active: forcibly strip/yield focus from the target window to the previous window
+    #[arg(long, conflicts_with_all = ["focus", "no_focus"])]
+    pub defocus: bool,
+}
+
+/// Arguments targeting a window selector for focus, state management, or query operations.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct WindowTargetArgs {
+    /// Target window by class / application ID
+    #[arg(short = 'c', long)]
+    pub class: Option<String>,
+
+    /// Target window by title substring
+    #[arg(short = 't', long)]
+    pub title: Option<String>,
+
+    /// Target window by process ID (PID)
+    #[arg(long)]
+    pub pid: Option<u32>,
+
+    /// Target currently focused window
+    #[arg(long)]
+    pub focused: bool,
+}
+
+impl WindowTargetArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
+            return Err(
+                "At least one window selector must be specified: --class (-c), --title (-t), --pid, or --focused".to_string(),
+            );
+        }
+        Ok(())
+    }
+}
+
+impl From<&WindowTargetArgs> for crate::target::WindowSelector {
+    fn from(args: &WindowTargetArgs) -> Self {
+        Self {
+            class: args.class.clone(),
+            title: args.title.clone(),
+            pid: args.pid,
+            focused: args.focused,
+        }
+    }
+}
+
+impl From<WindowTargetArgs> for crate::target::WindowSelector {
+    fn from(args: WindowTargetArgs) -> Self {
+        Self {
+            class: args.class,
+            title: args.title,
+            pid: args.pid,
+            focused: args.focused,
+        }
+    }
+}
+
+/// Arguments for maximizing a target window with focus policies.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct MaximizeArgs {
+    #[command(flatten)]
+    pub target: WindowTargetArgs,
+
+    #[command(flatten)]
+    pub focus_modifiers: FocusModifierArgs,
+}
+
+impl MaximizeArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        self.target.validate()
+    }
+}
+
+impl From<&MaximizeArgs> for crate::target::WindowSelector {
+    fn from(args: &MaximizeArgs) -> Self {
+        (&args.target).into()
+    }
+}
+
+/// Arguments for restoring a target window with focus policies.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct RestoreArgs {
+    #[command(flatten)]
+    pub target: WindowTargetArgs,
+
+    #[command(flatten)]
+    pub focus_modifiers: FocusModifierArgs,
+}
+
+impl RestoreArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        self.target.validate()
+    }
+}
+
+impl From<&RestoreArgs> for crate::target::WindowSelector {
+    fn from(args: &RestoreArgs) -> Self {
+        (&args.target).into()
+    }
+}
+
+/// Arguments for minimizing a target window.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct MinimizeArgs {
+    #[command(flatten)]
+    pub target: WindowTargetArgs,
+}
+
+impl MinimizeArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        self.target.validate()
+    }
+}
+
+impl From<&MinimizeArgs> for crate::target::WindowSelector {
+    fn from(args: &MinimizeArgs) -> Self {
+        (&args.target).into()
+    }
+}
+
+/// Arguments for defocusing a window with optional target selectors and handover destination.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct DefocusArgs {
+    #[command(flatten)]
+    pub target: WindowTargetArgs,
+
+    /// Destination for focus relinquishment ('prev' [default] or 'desktop')
+    #[arg(long, default_value = "prev", value_parser = ["prev", "desktop"])]
+    pub to: String,
+}
+
+impl DefocusArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        if self.to != "prev" && self.to != "desktop" {
+            return Err("Invalid --to destination: expected 'prev' or 'desktop'.".to_string());
+        }
+        Ok(())
+    }
+
+    pub fn get_selector(&self) -> crate::target::WindowSelector {
+        if self.target.class.is_none()
+            && self.target.title.is_none()
+            && self.target.pid.is_none()
+            && !self.target.focused
+        {
+            // Default to targeting the currently focused window if no explicit selector is specified
+            crate::target::WindowSelector {
+                focused: true,
+                ..Default::default()
+            }
+        } else {
+            crate::target::WindowSelector {
+                class: self.target.class.clone(),
+                title: self.target.title.clone(),
+                pid: self.target.pid,
+                focused: self.target.focused,
+            }
+        }
     }
 }
 
@@ -304,5 +519,305 @@ mod tests {
         } else {
             panic!("Expected Transform command variant");
         }
+    }
+
+    #[test]
+    fn test_clamp_flag_parsing() {
+        // 1. Default (omitted) -> clamp is true
+        let args_default = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+        ];
+        let cli = Cli::try_parse_from(args_default).expect("Parsing should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(t_args.clamp);
+        } else {
+            panic!("Expected Transform command variant");
+        }
+
+        // 2. Bare flag --clamp -> clamp is true
+        let args_bare = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--clamp",
+        ];
+        let cli = Cli::try_parse_from(args_bare).expect("Parsing bare --clamp should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(t_args.clamp);
+        } else {
+            panic!("Expected Transform command variant");
+        }
+
+        // 3. Explicit --clamp=false
+        let args_false = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--clamp=false",
+        ];
+        let cli = Cli::try_parse_from(args_false).expect("Parsing --clamp=false should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(!t_args.clamp);
+        } else {
+            panic!("Expected Transform command variant");
+        }
+    }
+
+    #[test]
+    fn test_pivot_parsing_and_conflicts() {
+        let args_pivot = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--pivot",
+            "center",
+        ];
+        let cli = Cli::try_parse_from(args_pivot).expect("Parsing --pivot should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert_eq!(t_args.pivot, Pivot::Center);
+            assert!(t_args.validate().is_ok());
+        } else {
+            panic!("Expected Transform command variant");
+        }
+
+        // Anchor + Pivot conflict
+        let args_conflict = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--anchor",
+            "top-left",
+            "--pivot",
+            "center",
+        ];
+        let cli = Cli::try_parse_from(args_conflict).expect("Parsing should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            let err = t_args.validate().unwrap_err();
+            assert!(err.contains("Conflicting arguments: Cannot specify both --anchor and --pivot."));
+        } else {
+            panic!("Expected Transform command variant");
+        }
+
+        // Anchor + Cursor conflict
+        let args_cursor_conflict = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--anchor",
+            "top-left",
+            "--cursor",
+        ];
+        let cli = Cli::try_parse_from(args_cursor_conflict).expect("Parsing should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            let err = t_args.validate().unwrap_err();
+            assert!(err.contains("Conflicting arguments: Cannot specify both --cursor and --anchor."));
+        } else {
+            panic!("Expected Transform command variant");
+        }
+    }
+
+    #[test]
+    fn test_transform_focus_defocus_conflict() {
+        // 1. --focus alone succeeds
+        let args_focus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--focus",
+        ];
+        let cli = Cli::try_parse_from(args_focus).expect("Parsing --focus should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(t_args.focus_modifiers.focus);
+            assert!(!t_args.focus_modifiers.defocus);
+            assert!(!t_args.focus_modifiers.no_focus);
+        } else {
+            panic!("Expected Transform variant");
+        }
+
+        // 2. --defocus alone succeeds
+        let args_defocus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--defocus",
+        ];
+        let cli = Cli::try_parse_from(args_defocus).expect("Parsing --defocus should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(!t_args.focus_modifiers.focus);
+            assert!(t_args.focus_modifiers.defocus);
+            assert!(!t_args.focus_modifiers.no_focus);
+        } else {
+            panic!("Expected Transform variant");
+        }
+
+        // 3. --no-focus alone succeeds
+        let args_no_focus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--no-focus",
+        ];
+        let cli = Cli::try_parse_from(args_no_focus).expect("Parsing --no-focus should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert!(!t_args.focus_modifiers.focus);
+            assert!(!t_args.focus_modifiers.defocus);
+            assert!(t_args.focus_modifiers.no_focus);
+        } else {
+            panic!("Expected Transform variant");
+        }
+
+        // 4. Conflicts
+        let args_conflict_focus_defocus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--focus",
+            "--defocus",
+        ];
+        let err = Cli::try_parse_from(args_conflict_focus_defocus).unwrap_err();
+        assert!(err.to_string().contains("cannot be used with"));
+
+        let args_conflict_focus_no_focus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--focus",
+            "--no-focus",
+        ];
+        let err = Cli::try_parse_from(args_conflict_focus_no_focus).unwrap_err();
+        assert!(err.to_string().contains("cannot be used with"));
+
+        let args_conflict_defocus_no_focus = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "org.gnome.Calculator",
+            "--defocus",
+            "--no-focus",
+        ];
+        let err = Cli::try_parse_from(args_conflict_defocus_no_focus).unwrap_err();
+        assert!(err.to_string().contains("cannot be used with"));
+    }
+
+    #[test]
+    fn test_lifecycle_and_focus_subcommands_parsing() {
+        // focus with aliases
+        let cli = Cli::try_parse_from(["spawn-at", "focus", "-c", "code"]).unwrap();
+        assert!(matches!(cli.command, Commands::Focus(args) if args.class.as_deref() == Some("code")));
+
+        let cli = Cli::try_parse_from(["spawn-at", "raise", "-t", "editor"]).unwrap();
+        assert!(matches!(cli.command, Commands::Focus(args) if args.title.as_deref() == Some("editor")));
+
+        let cli = Cli::try_parse_from(["spawn-at", "activate", "--pid", "1234"]).unwrap();
+        assert!(matches!(cli.command, Commands::Focus(args) if args.pid == Some(1234)));
+
+        // defocus with aliases and --to
+        let cli = Cli::try_parse_from(["spawn-at", "defocus", "--focused"]).unwrap();
+        if let Commands::Defocus(args) = cli.command {
+            assert!(args.target.focused);
+            assert_eq!(args.to, "prev");
+        } else {
+            panic!("Expected Defocus variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "unfocus", "--to", "desktop"]).unwrap();
+        if let Commands::Defocus(args) = cli.command {
+            assert_eq!(args.to, "desktop");
+            // Default selector targets focused window
+            let sel = args.get_selector();
+            assert!(sel.focused);
+        } else {
+            panic!("Expected Defocus variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "blur", "-c", "code"]).unwrap();
+        if let Commands::Defocus(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("code"));
+            assert_eq!(args.to, "prev");
+        } else {
+            panic!("Expected Defocus variant");
+        }
+
+        // maximize with British alias 'maximise' and focus modifiers
+        let cli = Cli::try_parse_from(["spawn-at", "maximize", "-c", "terminal", "--no-focus"]).unwrap();
+        if let Commands::Maximize(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("terminal"));
+            assert!(args.focus_modifiers.no_focus);
+            assert!(!args.focus_modifiers.focus);
+            assert!(!args.focus_modifiers.defocus);
+        } else {
+            panic!("Expected Maximize variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "maximise", "-c", "terminal", "--defocus"]).unwrap();
+        if let Commands::Maximize(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("terminal"));
+            assert!(args.focus_modifiers.defocus);
+        } else {
+            panic!("Expected Maximize variant via alias");
+        }
+
+        // minimize with British alias 'minimise' (no focus modifiers allowed)
+        let cli = Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal"]).unwrap();
+        assert!(matches!(cli.command, Commands::Minimize(ref args) if args.target.class.as_deref() == Some("terminal")));
+
+        let cli = Cli::try_parse_from(["spawn-at", "minimise", "-c", "terminal"]).unwrap();
+        assert!(matches!(cli.command, Commands::Minimize(ref args) if args.target.class.as_deref() == Some("terminal")));
+
+        // minimize rejecting focus modifiers
+        assert!(Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal", "--focus"]).is_err());
+        assert!(Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal", "--no-focus"]).is_err());
+        assert!(Cli::try_parse_from(["spawn-at", "minimize", "-c", "terminal", "--defocus"]).is_err());
+
+        // unmaximize subcommand is removed
+        assert!(Cli::try_parse_from(["spawn-at", "unmaximize", "-c", "terminal"]).is_err());
+
+        // restore with alias 'float' and focus modifiers
+        let cli = Cli::try_parse_from(["spawn-at", "restore", "-c", "terminal", "--focus"]).unwrap();
+        if let Commands::Restore(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("terminal"));
+            assert!(args.focus_modifiers.focus);
+        } else {
+            panic!("Expected Restore variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "float", "-c", "terminal", "--no-focus"]).unwrap();
+        if let Commands::Restore(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("terminal"));
+            assert!(args.focus_modifiers.no_focus);
+        } else {
+            panic!("Expected Restore variant via float alias");
+        }
+    }
+
+    #[test]
+    fn test_window_target_args_validation() {
+        let empty_args = WindowTargetArgs::default();
+        assert!(empty_args.validate().is_err());
+
+        let class_args = WindowTargetArgs {
+            class: Some("gedit".to_string()),
+            ..Default::default()
+        };
+        assert!(class_args.validate().is_ok());
+
+        let focused_args = WindowTargetArgs {
+            focused: true,
+            ..Default::default()
+        };
+        assert!(focused_args.validate().is_ok());
     }
 }
