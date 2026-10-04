@@ -211,14 +211,65 @@ export default class SpawnAtExtension extends Extension {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
                 await new Promise(resolve => {
-                    // Give GTK/Wayland a couple compositor frames (~45ms) to commit the buffer before unhiding
-                    GLib.timeout_add(GLib.PRIORITY_HIGH, 45, () => {
+                    let finished = false;
+                    let laterId = 0;
+                    let timeoutId = 0;
+
+                    const finish = () => {
+                        if (finished) return;
+                        finished = true;
+
+                        // Clean up later callback
+                        if (laterId) {
+                            if (global.compositor && global.compositor.get_laters) {
+                                global.compositor.get_laters().remove(laterId);
+                            } else if (Meta.later_remove) {
+                                Meta.later_remove(laterId);
+                            }
+                            laterId = 0;
+                        }
+
+                        // Clean up safety timeout
+                        if (timeoutId) {
+                            GLib.source_remove(timeoutId);
+                            timeoutId = 0;
+                        }
+
+                        // Unhide actor
                         if (this._uncloak) {
                             this._uncloak(actor);
                         } else {
                             actor.show();
                         }
+
+                        // Force Clutter to wake the frame clock and repaint immediately
+                        if (global.stage && global.stage.queue_relayout) {
+                            global.stage.queue_relayout();
+                        }
+
                         resolve();
+                    };
+
+                    // Track 1: Fast track — sync directly with the compositor's next redraw pass
+                    try {
+                        if (global.compositor && global.compositor.get_laters) {
+                            laterId = global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
+                                finish();
+                                return false;
+                            });
+                        } else if (Meta.later_add) {
+                            laterId = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
+                                finish();
+                                return false;
+                            });
+                        }
+                    } catch (e) {
+                        // Fall back cleanly if Later API is unavailable in current runtime
+                    }
+
+                    // Track 2: Fail-safe timer (250ms) to ensure window shows even if compositor is idle
+                    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+                        finish();
                         return GLib.SOURCE_REMOVE;
                     });
                 });
