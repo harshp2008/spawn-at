@@ -281,7 +281,7 @@ impl CompositorBackend for GnomeWaylandDriver {
             .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
 
         self.proxy
-            .execute_batch(app_id, &instructions_json)
+            .arm_spawn(app_id, &instructions_json)
             .await
             .map_err(|e| {
                 DriverError::IpcError(format!(

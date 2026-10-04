@@ -132,6 +132,7 @@ export default class SpawnAtExtension extends Extension {
         const instructions = window._spawnAtInstructions;
         delete window._spawnAtInstructions;
 
+        actor.opacity = 0;
         this._runBatch(window, actor, instructions).catch(e => {
             console.error(`[SpawnAt] Batch execution failed: ${e}`);
             actor.opacity = 255;
@@ -139,6 +140,9 @@ export default class SpawnAtExtension extends Extension {
     }
 
     async _runBatch(window, actor, instructions) {
+        let targetW = null;
+        let targetH = null;
+
         for (let inst of instructions) {
             if (inst === "Snapshot") {
                 this._createSnapshot(actor);
@@ -150,17 +154,21 @@ export default class SpawnAtExtension extends Extension {
                 this._destroySnapshot(actor);
             } else if (inst.SetSize) {
                 let { w, h } = inst.SetSize;
-                if (window.get_maximized && window.get_maximized()) {
-                    window.unmaximize(Meta.MaximizeFlags.BOTH);
-                }
-                let frame = window.get_frame_rect();
-                if (window.move_resize_frame) {
-                    window.move_resize_frame(true, frame.x, frame.y, w, h);
-                } else {
-                    window.resize(true, w, h);
+                if (w > 0 && h > 0) {
+                    targetW = w;
+                    targetH = h;
+                    if (window.get_maximized && window.get_maximized()) {
+                        window.unmaximize(Meta.MaximizeFlags.BOTH);
+                    }
+                    let frame = window.get_frame_rect();
+                    if (window.move_resize_frame) {
+                        window.move_resize_frame(true, frame.x, frame.y, w, h);
+                    } else {
+                        window.resize(true, w, h);
+                    }
                 }
             } else if (inst.WaitForCommit) {
-                await this._waitForCommit(window, inst.WaitForCommit.timeout_ms);
+                await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
                 this._applyAnchoredPosition(window, inst.SetPositionAnchored);
             }
@@ -187,23 +195,86 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    _waitForCommit(window, timeout_ms) {
+    _waitForCommit(window, actor, timeout_ms, targetW = null, targetH = null) {
         return new Promise(resolve => {
             let timeoutId = null;
-            let sigId = window.connect('size-changed', () => {
-                window.disconnect(sigId);
+            let idleId = null;
+            let actorSigId = null;
+            let winSigId = null;
+            let resolved = false;
+
+            const cleanup = () => {
+                if (actorSigId && actor) {
+                    try { actor.disconnect(actorSigId); } catch (e) {}
+                    actorSigId = null;
+                }
+                if (winSigId && window) {
+                    try { window.disconnect(winSigId); } catch (e) {}
+                    winSigId = null;
+                }
                 if (timeoutId) {
                     GLib.Source.remove(timeoutId);
                     timeoutId = null;
                 }
+                if (idleId) {
+                    GLib.Source.remove(idleId);
+                    idleId = null;
+                }
+            };
+
+            const finish = () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
                 resolve();
-            });
-            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeout_ms, () => {
-                if (sigId) window.disconnect(sigId);
+            };
+
+            const scheduleIdleFinish = () => {
+                if (resolved || idleId) return;
+                idleId = GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                    idleId = null;
+                    finish();
+                    return GLib.SOURCE_REMOVE;
+                });
+            };
+
+            const checkAndTrigger = () => {
+                if (resolved || idleId) return;
+                if (targetW != null && targetH != null) {
+                    try {
+                        let frame = window.get_frame_rect();
+                        if (Math.abs(frame.width - targetW) > 10 || Math.abs(frame.height - targetH) > 10) {
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                scheduleIdleFinish();
+            };
+
+            if (actor) {
+                try {
+                    actorSigId = actor.connect('notify::allocation', () => {
+                        checkAndTrigger();
+                    });
+                } catch (e) {}
+            }
+
+            if (window) {
+                try {
+                    winSigId = window.connect('size-changed', () => {
+                        checkAndTrigger();
+                    });
+                } catch (e) {}
+            }
+
+            let effectiveTimeout = Math.min(timeout_ms, 60);
+            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, effectiveTimeout, () => {
                 timeoutId = null;
-                resolve();
+                scheduleIdleFinish();
                 return GLib.SOURCE_REMOVE;
             });
+
+            checkAndTrigger();
         });
     }
 

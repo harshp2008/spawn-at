@@ -7,6 +7,10 @@ import Clutter from 'gi://Clutter';
 const DBUS_IFACE = `
 <node>
   <interface name="org.gnome.Shell.Extensions.SpawnAt">
+    <method name="ArmSpawn">
+      <arg type="s" name="target_id" direction="in"/>
+      <arg type="s" name="instructions_json" direction="in"/>
+    </method>
     <method name="ExecuteBatch">
       <arg type="s" name="target_id" direction="in"/>
       <arg type="s" name="instructions_json" direction="in"/>
@@ -179,6 +183,9 @@ export default class SpawnAtExtension extends Extension {
     }
 
     async _runBatch(window, actor, instructions) {
+        let targetW = null;
+        let targetH = null;
+
         for (let inst of instructions) {
             if (inst === "Snapshot") {
                 this._createSnapshot(actor);
@@ -191,6 +198,8 @@ export default class SpawnAtExtension extends Extension {
             } else if (inst.SetSize) {
                 let { w, h } = inst.SetSize;
                 if (w > 0 && h > 0) {
+                    targetW = w;
+                    targetH = h;
                     if (window.get_maximized && window.get_maximized()) {
                         window.unmaximize(Meta.MaximizeFlags.BOTH);
                     }
@@ -202,7 +211,7 @@ export default class SpawnAtExtension extends Extension {
                     }
                 }
             } else if (inst.WaitForCommit) {
-                await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms);
+                await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
                 this._applyAnchoredPosition(window, inst.SetPositionAnchored);
             }
@@ -229,24 +238,86 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    _waitForCommit(window, actor, timeout_ms) {
+    _waitForCommit(window, actor, timeout_ms, targetW = null, targetH = null) {
         return new Promise(resolve => {
             let timeoutId = null;
-            let effectiveTimeout = Math.min(timeout_ms, 60);
-            let sigId = actor.connect('notify::allocation', () => {
-                actor.disconnect(sigId);
+            let idleId = null;
+            let actorSigId = null;
+            let winSigId = null;
+            let resolved = false;
+
+            const cleanup = () => {
+                if (actorSigId && actor) {
+                    try { actor.disconnect(actorSigId); } catch (e) {}
+                    actorSigId = null;
+                }
+                if (winSigId && window) {
+                    try { window.disconnect(winSigId); } catch (e) {}
+                    winSigId = null;
+                }
                 if (timeoutId) {
                     GLib.Source.remove(timeoutId);
                     timeoutId = null;
                 }
+                if (idleId) {
+                    GLib.Source.remove(idleId);
+                    idleId = null;
+                }
+            };
+
+            const finish = () => {
+                if (resolved) return;
+                resolved = true;
+                cleanup();
                 resolve();
-            });
+            };
+
+            const scheduleIdleFinish = () => {
+                if (resolved || idleId) return;
+                idleId = GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                    idleId = null;
+                    finish();
+                    return GLib.SOURCE_REMOVE;
+                });
+            };
+
+            const checkAndTrigger = () => {
+                if (resolved || idleId) return;
+                if (targetW != null && targetH != null) {
+                    try {
+                        let frame = window.get_frame_rect();
+                        if (Math.abs(frame.width - targetW) > 10 || Math.abs(frame.height - targetH) > 10) {
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                scheduleIdleFinish();
+            };
+
+            if (actor) {
+                try {
+                    actorSigId = actor.connect('notify::allocation', () => {
+                        checkAndTrigger();
+                    });
+                } catch (e) {}
+            }
+
+            if (window) {
+                try {
+                    winSigId = window.connect('size-changed', () => {
+                        checkAndTrigger();
+                    });
+                } catch (e) {}
+            }
+
+            let effectiveTimeout = Math.min(timeout_ms, 60);
             timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, effectiveTimeout, () => {
-                if (sigId) actor.disconnect(sigId);
                 timeoutId = null;
-                resolve();
+                scheduleIdleFinish();
                 return GLib.SOURCE_REMOVE;
             });
+
+            checkAndTrigger();
         });
     }
 
@@ -263,7 +334,7 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    ExecuteBatch(target_id, instructions_json) {
+    ArmSpawn(target_id, instructions_json) {
         let instructions = [];
         try {
             instructions = JSON.parse(instructions_json);
@@ -272,9 +343,33 @@ export default class SpawnAtExtension extends Extension {
             return;
         }
 
+        if (!target_id || target_id === "*") {
+            this._clearWildcard();
+            this._wildcardTarget = instructions;
+            this._wildcardTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
+                this._wildcardTarget = null;
+                this._wildcardTimeoutId = null;
+                return GLib.SOURCE_REMOVE;
+            });
+        } else {
+            this._armedSpawns.set(target_id, instructions);
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15000, () => {
+                if (this._armedSpawns.has(target_id)) this._armedSpawns.delete(target_id);
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    ExecuteBatch(target_id, instructions_json) {
+        let instructions = [];
+        try {
+            instructions = JSON.parse(instructions_json);
+        } catch (e) {
+            return;
+        }
+
         const win = this._findWindow(target_id);
         if (win) {
-            // Transform an existing window
             let actor = null;
             if (typeof win.get_compositor_private === 'function') {
                 actor = win.get_compositor_private();
@@ -285,23 +380,6 @@ export default class SpawnAtExtension extends Extension {
                 this._runBatch(win, actor, instructions).catch(e => {
                     console.error(`[SpawnAt] Batch execution failed: ${e}`);
                     actor.opacity = 255;
-                });
-            }
-        } else {
-            // Target window not mapped yet - arm it for Spawn
-            if (!target_id || target_id === "*") {
-                this._clearWildcard();
-                this._wildcardTarget = instructions;
-                this._wildcardTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
-                    this._wildcardTarget = null;
-                    this._wildcardTimeoutId = null;
-                    return GLib.SOURCE_REMOVE;
-                });
-            } else {
-                this._armedSpawns.set(target_id, instructions);
-                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15000, () => {
-                    if (this._armedSpawns.has(target_id)) this._armedSpawns.delete(target_id);
-                    return GLib.SOURCE_REMOVE;
                 });
             }
         }
