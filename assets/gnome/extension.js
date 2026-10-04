@@ -48,16 +48,34 @@ const DBUS_IFACE = `
       <arg type="s" name="state" direction="in"/>
       <arg type="b" name="success" direction="out"/>
     </method>
+    <method name="SetLogging">
+      <arg type="b" name="enabled" direction="in"/>
+    </method>
     <signal name="WorkareaChanged"/>
   </interface>
 </node>`;
 
 export default class SpawnAtExtension extends Extension {
+    _isLoggingEnabled() {
+        if (this._loggingEnabled !== undefined) {
+            return this._loggingEnabled;
+        }
+        let envVal = GLib.getenv('SPAWN_AT_DEBUG');
+        this._loggingEnabled = envVal === '1' || envVal === 'true';
+        return this._loggingEnabled;
+    }
+
     _logTime(tag, extra = "") {
+        if (!this._isLoggingEnabled()) return;
+
         let nowUs = GLib.get_monotonic_time();
         if (!this._t0) this._t0 = nowUs;
         let elapsedMs = ((nowUs - this._t0) / 1000.0).toFixed(2);
         console.error(`[spawn-at-time] +${elapsedMs}ms | ${tag} ${extra}`);
+    }
+
+    SetLogging(enabled) {
+        this._loggingEnabled = Boolean(enabled);
     }
 
     enable() {
@@ -209,7 +227,6 @@ export default class SpawnAtExtension extends Extension {
         if ((window && window._spawnAtInstructions) || this._armedSpawns.size > 0 || this._wildcardTarget) {
             if (actor.remove_all_transitions) actor.remove_all_transitions();
             actor.opacity = 0;
-            actor.hide();
         }
 
         let wmClass = window ? window.get_wm_class() : "unknown";
@@ -221,7 +238,6 @@ export default class SpawnAtExtension extends Extension {
 
         if (window._spawnAtInstructions) {
             console.error(`[spawn-at] MATCH FOUND! Processing batch for wmClass="${wmClass}"`);
-            actor.hide();
             this._runBatch(window, actor, window._spawnAtInstructions);
             delete window._spawnAtInstructions;
             return;
@@ -230,7 +246,7 @@ export default class SpawnAtExtension extends Extension {
         // PRE-EMPTIVE CLOAK: Wayland windows often map before 'notify::gtk-application-id' fires.
         // If a spawn is pending, hold the new window cloaked for up to 100ms.
         if (this._armedSpawns.size > 0 || this._wildcardTarget) {
-            actor.hide();
+            actor.opacity = 0;
             let checkCount = 0;
             let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
                 checkCount++;
@@ -266,16 +282,28 @@ export default class SpawnAtExtension extends Extension {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
                 await new Promise(resolve => {
-                    GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                    let laters = global.compositor ? global.compositor.get_laters() : (Meta.is_wayland_compositor ? Meta.get_laters() : null);
+
+                    const executeUncloak = () => {
                         let rect = window ? window.get_frame_rect() : { x: 0, y: 0, width: 0, height: 0 };
-                        this._logTime("UNCLOAK_TRIGGERED", `rect=(${rect.x}, ${rect.y}, ${rect.width}x${rect.height}) via IMMEDIATE_IDLE`);
+                        let buf = (window && window.get_buffer_rect) ? window.get_buffer_rect() : rect;
+                        this._logTime("UNCLOAK_TRIGGERED", `frame=(${rect.x},${rect.y},${rect.width}x${rect.height}) buf=(${buf.x},${buf.y}) actor=(${actor.x},${actor.y}) visible=${actor.visible} opacity=${actor.opacity}`);
                         this._uncloak(actor);
                         if (global.stage && global.stage.queue_relayout) {
                             global.stage.queue_relayout();
                         }
                         resolve();
-                        return GLib.SOURCE_REMOVE;
-                    });
+                        return false;
+                    };
+
+                    if (laters && laters.add) {
+                        laters.add(Meta.LaterType.BEFORE_REDRAW, executeUncloak);
+                    } else {
+                        GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                            executeUncloak();
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    }
                 });
             } else if (inst === "DestroySnapshot") {
                 this._destroySnapshot(actor);
@@ -302,6 +330,34 @@ export default class SpawnAtExtension extends Extension {
                 await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
                 this._applyAnchoredPosition(window, inst.SetPositionAnchored, targetW, targetH);
+                
+                let f0 = window.get_frame_rect();
+                let b0 = window.get_buffer_rect ? window.get_buffer_rect() : f0;
+                this._logTime("POSITION_SET", `frame=(${f0.x},${f0.y},${f0.width}x${f0.height}) buf=(${b0.x},${b0.y}) actor=(${actor.x},${actor.y})`);
+
+                await new Promise(resolve => {
+                    let laters = global.compositor ? global.compositor.get_laters() : (Meta.is_wayland_compositor ? Meta.get_laters() : null);
+
+                    if (laters && laters.add) {
+                        laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+                            let f1 = window.get_frame_rect();
+                            this._logTime("LATCH_TICK_1", `frame=(${f1.x},${f1.y}) actor=(${actor.x},${actor.y})`);
+                            
+                            laters.add(Meta.LaterType.BEFORE_REDRAW, () => {
+                                let f2 = window.get_frame_rect();
+                                this._logTime("LATCH_TICK_2", `frame=(${f2.x},${f2.y}) actor=(${actor.x},${actor.y})`);
+                                resolve();
+                                return false;
+                            });
+                            return false;
+                        });
+                    } else {
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 35, () => {
+                            resolve();
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    }
+                });
             }
         }
 
@@ -317,14 +373,14 @@ export default class SpawnAtExtension extends Extension {
         if (!actor) return;
         if (actor.remove_all_transitions) actor.remove_all_transitions();
         actor.opacity = 0;
-        actor.hide();
+        // Do NOT call actor.hide(); keep actor mapped in Clutter scene graph
     }
 
     _uncloak(actor) {
         if (!actor) return;
         if (actor.remove_all_transitions) actor.remove_all_transitions();
         actor.opacity = 255;
-        actor.show();
+        if (!actor.visible) actor.show();
     }
     
     _createSnapshot(actor) {
@@ -347,7 +403,6 @@ export default class SpawnAtExtension extends Extension {
     _waitForCommit(window, actor, timeout_ms, targetW = null, targetH = null) {
         return new Promise(resolve => {
             let timeoutId = null;
-            let idleId = null;
             let actorSigId = null;
             let winSigId = null;
             let resolved = false;
@@ -365,45 +420,58 @@ export default class SpawnAtExtension extends Extension {
                     GLib.Source.remove(timeoutId);
                     timeoutId = null;
                 }
-                if (idleId) {
-                    GLib.Source.remove(idleId);
-                    idleId = null;
-                }
             };
 
-            const finish = () => {
+            const doResolve = (reason) => {
                 if (resolved) return;
                 resolved = true;
                 cleanup();
                 resolve();
             };
 
-            const scheduleIdleFinish = () => {
-                if (resolved || idleId) return;
-                idleId = GLib.idle_add(GLib.PRIORITY_HIGH, () => {
-                    idleId = null;
-                    finish();
-                    return GLib.SOURCE_REMOVE;
-                });
+            if (!window) {
+                doResolve("NO_WINDOW");
+                return;
+            }
+
+            let initialW = 0;
+            let initialH = 0;
+            try {
+                let f = window.get_frame_rect();
+                initialW = f.width;
+                initialH = f.height;
+            } catch (e) {}
+
+            const isSettled = (f) => {
+                if (!f || targetW == null || targetH == null) return false;
+                let dw = Math.abs(f.width - targetW);
+                let dh = Math.abs(f.height - targetH);
+                // VTE character-grid cell snapping allows up to ~40px deviation on width/height
+                return dw <= 45 && dh <= 45;
             };
 
-            const checkAndTrigger = () => {
-                if (resolved || idleId) return;
-                if (targetW != null && targetH != null) {
-                    try {
-                        let frame = window.get_frame_rect();
-                        if (Math.abs(frame.width - targetW) > 25 || Math.abs(frame.height - targetH) > 25) {
-                            return;
+            const onCommitCheck = () => {
+                if (resolved) return;
+                try {
+                    let current = window.get_frame_rect();
+                    this._logTime("COMMIT_POLL", `current=(${current.width}x${current.height}) target=(${targetW}x${targetH})`);
+                    if (targetW != null && targetH != null) {
+                        if (isSettled(current) || (current.width !== initialW || current.height !== initialH)) {
+                            // Window dimensions have actually shifted from initial spawn state
+                            doResolve("SIZE_SETTLED");
                         }
-                    } catch (e) {}
+                    } else {
+                        doResolve("NO_TARGET");
+                    }
+                } catch (e) {
+                    doResolve("ERROR");
                 }
-                scheduleIdleFinish();
             };
 
             if (actor) {
                 try {
                     actorSigId = actor.connect('notify::allocation', () => {
-                        checkAndTrigger();
+                        onCommitCheck();
                     });
                 } catch (e) {}
             }
@@ -411,19 +479,19 @@ export default class SpawnAtExtension extends Extension {
             if (window) {
                 try {
                     winSigId = window.connect('size-changed', () => {
-                        checkAndTrigger();
+                        onCommitCheck();
                     });
                 } catch (e) {}
             }
 
-            let effectiveTimeout = Math.min(timeout_ms, 60);
+            let effectiveTimeout = Math.max(timeout_ms || 350, 350);
             timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, effectiveTimeout, () => {
                 timeoutId = null;
-                scheduleIdleFinish();
+                doResolve("TIMEOUT");
                 return GLib.SOURCE_REMOVE;
             });
 
-            checkAndTrigger();
+            onCommitCheck();
         });
     }
 
