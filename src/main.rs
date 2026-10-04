@@ -170,30 +170,44 @@ async fn main() {
             }
 
             // 1. Calculate target geometry
-            let pos = spawn_args.pos.as_ref().map(|p| (p[0], p[1]));
-            let offset = spawn_args.offset.as_ref().map(|o| (o[0], o[1]));
-            let size = spawn_args.size.as_ref().map(|s| (s[0] as u32, s[1] as u32));
+            let is_cursor_anchor = spawn_args.geometry.anchor == Some(core::geometry::Anchor::Cursor);
+            let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
+            let workareas = driver.get_workareas().await.unwrap_or_default();
 
-            let cursor = driver.get_cursor_position().await.ok();
-            let monitors = driver.get_monitors().await.unwrap_or_default();
+            let target_workarea = if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
+                core::geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+            } else {
+                core::geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &spawn_args.geometry.monitor).unwrap_or_default()
+            };
+
+            let pos = spawn_args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
+            let size = spawn_args.geometry.size.as_ref().and_then(|s| {
+                if s.len() == 2 {
+                    let w = s[0].parse::<u32>().ok()?;
+                    let h = s[1].parse::<u32>().ok()?;
+                    Some((w, h))
+                } else {
+                    None
+                }
+            });
             
             let params = PlacementParams {
                 pos,
-                offset,
+                offset: None,
                 size,
-                anchor: None,
-                pivot: crate::core::geometry::Pivot::TopLeft,
-                margin: spawn_args.margin.unwrap_or(0),
-                cursor_pos: cursor,
-                workarea: monitors.into_iter().next().unwrap_or_default(),
+                anchor: spawn_args.geometry.anchor,
+                pivot: spawn_args.geometry.pivot,
+                margin: spawn_args.geometry.margin,
+                cursor_pos: Some((cursor_x, cursor_y)),
+                workarea: target_workarea,
             };
 
             let payload = core::geometry::calculate_placement(params, 0, 0);
             
             let mut instructions = vec![crate::core::types::Instruction::Cloak];
 
-            if let Some(size) = spawn_args.size {
-                instructions.push(crate::core::types::Instruction::SetSize { w: size[0] as u32, h: size[1] as u32 });
+            if let Some(size) = size {
+                instructions.push(crate::core::types::Instruction::SetSize { w: size.0, h: size.1 });
                 instructions.push(crate::core::types::Instruction::WaitForCommit { timeout_ms: 60 });
             }
 

@@ -40,6 +40,24 @@ pub enum Anchor {
     BottomLeft,
     /// Anchors the window to the bottom-right of the bounding box.
     BottomRight,
+    /// Anchors the window to the top edge of the bounding box.
+    Top,
+    /// Anchors the window to the bottom edge of the bounding box.
+    Bottom,
+    /// Anchors the window to the left edge of the bounding box.
+    Left,
+    /// Anchors the window to the right edge of the bounding box.
+    Right,
+    /// Anchors the window to the cursor position.
+    Cursor,
+}
+
+/// Defines the boundary reference area for placement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Default)]
+pub enum Area {
+    #[default]
+    Workarea,
+    Screen,
 }
 
 /// Defines which corner of the window aligns with the target coordinate.
@@ -193,6 +211,29 @@ pub fn apply_anchor(
             let x = workarea.x + wa_w - w - margin;
             let y = workarea.y + wa_h - h - margin;
             (x, y)
+        }
+        Anchor::Top => {
+            let x = workarea.x + (wa_w - w) / 2;
+            let y = workarea.y + margin;
+            (x, y)
+        }
+        Anchor::Bottom => {
+            let x = workarea.x + (wa_w - w) / 2;
+            let y = workarea.y + wa_h - h - margin;
+            (x, y)
+        }
+        Anchor::Left => {
+            let x = workarea.x + margin;
+            let y = workarea.y + (wa_h - h) / 2;
+            (x, y)
+        }
+        Anchor::Right => {
+            let x = workarea.x + wa_w - w - margin;
+            let y = workarea.y + (wa_h - h) / 2;
+            (x, y)
+        }
+        Anchor::Cursor => {
+            (workarea.x, workarea.y)
         }
     }
 }
@@ -379,6 +420,10 @@ mod tests {
         assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin), (100 + 1920 - 400 - 20, 70));
         assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin), (120, 50 + 1080 - 300 - 20));
         assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin), (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20));
+        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Top, margin), (100 + (1920 - 400) / 2, 70));
+        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin), (100 + (1920 - 400) / 2, 50 + 1080 - 300 - 20));
+        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Left, margin), (120, 50 + (1080 - 300) / 2));
+        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Right, margin), (100 + 1920 - 400 - 20, 50 + (1080 - 300) / 2));
     }
 
     #[test]
@@ -491,69 +536,102 @@ pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u
     let intended_w = params.size.map(|s| s.0).unwrap_or(current_w);
     let intended_h = params.size.map(|s| s.1).unwrap_or(current_h);
 
-    let mut pivot_u = 0.0;
-    let mut pivot_v = 0.0;
-    let mut screen_anchor_x = 0;
-    let mut screen_anchor_y = 0;
+    let wa = params.workarea;
+    let margin = params.margin;
     let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
     let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
 
-    let wa = params.workarea;
-    let margin = params.margin;
-
-    if let Some(anchor) = params.anchor {
+    let (pivot_u, pivot_v, screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
         match anchor {
-            Anchor::Center => {
-                screen_anchor_x = wa.x + (wa.width as i32) / 2;
-                screen_anchor_y = wa.y + (wa.height as i32) / 2;
-                pivot_u = 0.5;
-                pivot_v = 0.5;
-            }
-            Anchor::TopLeft => {
-                screen_anchor_x = wa.x + margin;
-                screen_anchor_y = wa.y + margin;
-                pivot_u = 0.0;
-                pivot_v = 0.0;
-            }
-            Anchor::TopRight => {
-                screen_anchor_x = wa.x + (wa.width as i32) - margin;
-                screen_anchor_y = wa.y + margin;
-                pivot_u = 1.0;
-                pivot_v = 0.0;
-            }
-            Anchor::BottomLeft => {
-                screen_anchor_x = wa.x + margin;
-                screen_anchor_y = wa.y + (wa.height as i32) - margin;
-                pivot_u = 0.0;
-                pivot_v = 1.0;
-            }
-            Anchor::BottomRight => {
-                screen_anchor_x = wa.x + (wa.width as i32) - margin;
-                screen_anchor_y = wa.y + (wa.height as i32) - margin;
-                pivot_u = 1.0;
-                pivot_v = 1.0;
+            Anchor::Center => (
+                0.5,
+                0.5,
+                wa.x + (wa.width as i32) / 2,
+                wa.y + (wa.height as i32) / 2,
+            ),
+            Anchor::TopLeft => (
+                0.0,
+                0.0,
+                wa.x + margin,
+                wa.y + margin,
+            ),
+            Anchor::TopRight => (
+                1.0,
+                0.0,
+                wa.x + (wa.width as i32) - margin,
+                wa.y + margin,
+            ),
+            Anchor::BottomLeft => (
+                0.0,
+                1.0,
+                wa.x + margin,
+                wa.y + (wa.height as i32) - margin,
+            ),
+            Anchor::BottomRight => (
+                1.0,
+                1.0,
+                wa.x + (wa.width as i32) - margin,
+                wa.y + (wa.height as i32) - margin,
+            ),
+            Anchor::Top => (
+                0.5,
+                0.0,
+                wa.x + (wa.width as i32) / 2,
+                wa.y + margin,
+            ),
+            Anchor::Bottom => (
+                0.5,
+                1.0,
+                wa.x + (wa.width as i32) / 2,
+                wa.y + (wa.height as i32) - margin,
+            ),
+            Anchor::Left => (
+                0.0,
+                0.5,
+                wa.x + margin,
+                wa.y + (wa.height as i32) / 2,
+            ),
+            Anchor::Right => (
+                1.0,
+                0.5,
+                wa.x + (wa.width as i32) - margin,
+                wa.y + (wa.height as i32) / 2,
+            ),
+            Anchor::Cursor => {
+                let (ax, ay) = if let Some(cursor) = params.cursor_pos {
+                    (cursor.0, cursor.1)
+                } else {
+                    (wa.x + margin, wa.y + margin)
+                };
+                let (pu, pv) = match params.pivot {
+                    Pivot::TopLeft => (0.0, 0.0),
+                    Pivot::TopRight => (1.0, 0.0),
+                    Pivot::BottomLeft => (0.0, 1.0),
+                    Pivot::BottomRight => (1.0, 1.0),
+                    Pivot::Center => (0.5, 0.5),
+                };
+                (pu, pv, ax, ay)
             }
         }
     } else {
-        match params.pivot {
-            Pivot::TopLeft => { pivot_u = 0.0; pivot_v = 0.0; }
-            Pivot::TopRight => { pivot_u = 1.0; pivot_v = 0.0; }
-            Pivot::BottomLeft => { pivot_u = 0.0; pivot_v = 1.0; }
-            Pivot::BottomRight => { pivot_u = 1.0; pivot_v = 1.0; }
-            Pivot::Center => { pivot_u = 0.5; pivot_v = 0.5; }
-        }
+        let (pu, pv) = match params.pivot {
+            Pivot::TopLeft => (0.0, 0.0),
+            Pivot::TopRight => (1.0, 0.0),
+            Pivot::BottomLeft => (0.0, 1.0),
+            Pivot::BottomRight => (1.0, 1.0),
+            Pivot::Center => (0.5, 0.5),
+        };
 
-        if let Some(pos) = params.pos {
-            screen_anchor_x = pos.0;
-            screen_anchor_y = pos.1;
+        let (ax, ay) = if let Some(pos) = params.pos {
+            (pos.0, pos.1)
         } else if let Some(cursor) = params.cursor_pos {
-            screen_anchor_x = cursor.0;
-            screen_anchor_y = cursor.1;
+            (cursor.0, cursor.1)
         } else {
-            screen_anchor_x = wa.x + margin;
-            screen_anchor_y = wa.y + margin;
-        }
-    }
+            (wa.x + margin, wa.y + margin)
+        };
+
+        (pu, pv, ax, ay)
+    };
 
     PlacementPayload {
         intended_w,

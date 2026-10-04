@@ -3,7 +3,7 @@
 //! Defines the CLI arguments and subcommands for `spawn-at`.
 
 use crate::platform::{InstallArgs, UninstallArgs};
-use crate::core::geometry::{Anchor, Pivot};
+use crate::core::geometry::{Anchor, Area, Pivot};
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]
@@ -88,63 +88,124 @@ pub struct MoveArgs {
     pub pos: Vec<i32>,
 }
 
-#[derive(Args, Debug, Clone)]
-pub struct SpawnArgs {
+/// Shared spatial geometry and layout arguments for positioning windows.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct GeometryArgs {
+    /// Screen anchor target or cursor
+    #[arg(short = 'a', long, value_enum)]
+    pub anchor: Option<Anchor>,
+
+    /// Window alignment pivot point relative to target
+    #[arg(long, value_enum, default_value_t = Pivot::TopLeft)]
+    pub pivot: Pivot,
+
     /// Absolute target screen coordinates [X, Y]
     #[arg(
-        short,
+        short = 'p',
         long,
         num_args = 2,
         value_names = ["X", "Y"],
-        conflicts_with = "offset",
         allow_hyphen_values = true
     )]
     pub pos: Option<Vec<i32>>,
 
-    /// Relative offset from mouse cursor [X, Y] (defaults to 0 0 if no pos is given)
+    /// Target window dimensions [W, H]
     #[arg(
-        short,
+        short = 's',
         long,
         num_args = 2,
-        value_names = ["X", "Y"],
-        conflicts_with = "pos",
+        value_names = ["W", "H"],
         allow_hyphen_values = true
     )]
-    pub offset: Option<Vec<i32>>,
+    pub size: Option<Vec<String>>,
 
-    /// Target window dimensions [WIDTH, HEIGHT]
+    /// Target monitor selector (<INDEX>, 'cursor', or 'primary')
+    #[arg(long, default_value = "primary")]
+    pub monitor: String,
+
+    /// Boundary reference area ('workarea' or 'screen')
+    #[arg(long, value_enum, default_value_t = Area::Workarea)]
+    pub area: Area,
+
+    /// Universal margin in pixels applied to all boundaries
+    #[arg(short = 'm', long, default_value_t = 16)]
+    pub margin: i32,
+
+    /// Top boundary margin in pixels
+    #[arg(long = "margin-top", alias = "mt")]
+    pub margin_top: Option<i32>,
+
+    /// Bottom boundary margin in pixels
+    #[arg(long = "margin-bottom", alias = "mb")]
+    pub margin_bottom: Option<i32>,
+
+    /// Left boundary margin in pixels
+    #[arg(long = "margin-left", alias = "ml")]
+    pub margin_left: Option<i32>,
+
+    /// Right boundary margin in pixels
+    #[arg(long = "margin-right", alias = "mr")]
+    pub margin_right: Option<i32>,
+
+    /// Constrain window strictly within monitor/workarea bounds
     #[arg(
-        short,
         long,
-        num_args = 2,
-        value_names = ["WIDTH", "HEIGHT"],
-        allow_hyphen_values = true
+        default_value = "true",
+        default_missing_value = "true",
+        num_args = 0..=1,
+        action = clap::ArgAction::Set
     )]
-    pub size: Option<Vec<i32>>,
+    pub clamp: bool,
+}
 
+impl GeometryArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        if let Some(ref s) = self.size {
+            if s.len() != 2 {
+                return Err(
+                    "Invalid size: must specify exactly 2 values [WIDTH, HEIGHT].".to_string(),
+                );
+            }
+            for val_str in s {
+                if let Ok(val) = val_str.parse::<i32>() {
+                    if val <= 0 {
+                        return Err(
+                            "Invalid size: width and height must be strictly positive integers (> 0). Got negative or zero dimensions.".to_string(),
+                        );
+                    }
+                }
+            }
+        }
+
+        if self.anchor.is_some() && self.pos.is_some() {
+            return Err(
+                "Conflicting arguments: Cannot specify both --pos and --anchor.".to_string(),
+            );
+        }
+
+        if let Some(anchor) = self.anchor {
+            if anchor != Anchor::Cursor && self.pivot != Pivot::TopLeft {
+                return Err(
+                    "Conflicting arguments: Cannot specify both --anchor and --pivot.".to_string(),
+                );
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[derive(Args, Debug, Clone)]
+pub struct SpawnArgs {
     /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
     #[arg(short = 'c', long)]
     pub class: Option<String>,
 
-    /// Top screen boundary margin
-    #[arg(short = 't', long)]
-    pub bound_top: Option<i32>,
+    #[command(flatten)]
+    pub geometry: GeometryArgs,
 
-    /// Bottom screen boundary margin
-    #[arg(short = 'b', long)]
-    pub bound_bottom: Option<i32>,
-
-    /// Left screen boundary margin
-    #[arg(short = 'l', long)]
-    pub bound_left: Option<i32>,
-
-    /// Right screen boundary margin
-    #[arg(short = 'r', long)]
-    pub bound_right: Option<i32>,
-
-    /// Global margin applied to all boundaries
-    #[arg(short = 'm', long)]
-    pub margin: Option<i32>,
+    #[command(flatten)]
+    pub focus_modifiers: FocusModifierArgs,
 
     /// Command to spawn along with any trailing flags/arguments
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
@@ -153,31 +214,11 @@ pub struct SpawnArgs {
 
 impl SpawnArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if let Some(ref s) = self.size {
-            if s.len() != 2 || s[0] <= 0 || s[1] <= 0 {
-                return Err(
-                    "Invalid size: width and height must be strictly positive integers (> 0)."
-                        .to_string(),
-                );
-            }
-        }
-
-        if self.margin.map_or(false, |m| m < 0)
-            || self.bound_top.map_or(false, |m| m < 0)
-            || self.bound_bottom.map_or(false, |m| m < 0)
-            || self.bound_left.map_or(false, |m| m < 0)
-            || self.bound_right.map_or(false, |m| m < 0)
-        {
-            return Err(
-                "Invalid margin or boundary constraint: values cannot be negative.".to_string(),
-            );
-        }
-
-        Ok(())
+        self.geometry.validate()
     }
 }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TransformArgs {
     // Selectors (at least one required)
     #[arg(short = 'c', long)]
@@ -192,74 +233,12 @@ pub struct TransformArgs {
     #[arg(long)]
     pub focused: bool,
 
-    // Positioning
-    #[arg(
-        short = 'p',
-        long,
-        num_args = 2,
-        value_names = ["X", "Y"],
-        allow_hyphen_values = true
-    )]
-    pub pos: Option<Vec<i32>>,
-
-    #[arg(short = 'a', long, value_enum)]
-    pub anchor: Option<Anchor>,
-
-    #[arg(long)]
-    pub cursor: bool,
-
-    #[arg(long, value_enum, default_value_t = Pivot::TopLeft)]
-    pub pivot: Pivot,
-
-    // Sizing
-    #[arg(
-        short = 's',
-        long,
-        num_args = 2,
-        value_names = ["W", "H"],
-        allow_hyphen_values = true
-    )]
-    pub size: Option<Vec<i32>>,
-
-    // Spatial Context & Clamping
-    #[arg(short = 'm', long, default_value = "primary")]
-    pub monitor: String,
-
-    #[arg(long, default_value_t = 16)]
-    pub margin: i32,
-
-    #[arg(
-        long,
-        default_value = "true",
-        default_missing_value = "true",
-        num_args = 0..=1,
-        action = clap::ArgAction::Set
-    )]
-    pub clamp: bool,
+    #[command(flatten)]
+    pub geometry: GeometryArgs,
 
     // Focus Management
     #[command(flatten)]
     pub focus_modifiers: FocusModifierArgs,
-}
-
-impl Default for TransformArgs {
-    fn default() -> Self {
-        Self {
-            class: None,
-            title: None,
-            pid: None,
-            focused: false,
-            pos: None,
-            anchor: None,
-            cursor: false,
-            pivot: Pivot::TopLeft,
-            size: None,
-            monitor: "primary".to_string(),
-            margin: 16,
-            clamp: true,
-            focus_modifiers: FocusModifierArgs::default(),
-        }
-    }
 }
 
 impl TransformArgs {
@@ -270,35 +249,7 @@ impl TransformArgs {
             );
         }
 
-        if let Some(ref s) = self.size {
-            if s.len() != 2 || s[0] <= 0 || s[1] <= 0 {
-                return Err(
-                    "Invalid size: width and height must be strictly positive integers (> 0). Got negative or zero dimensions.".to_string(),
-                );
-            }
-        }
-
-        if self.anchor.is_some() && self.pos.is_some() {
-            return Err(
-                "Conflicting arguments: Cannot specify both --pos and --anchor.".to_string(),
-            );
-        }
-
-        if self.anchor.is_some() && self.cursor {
-            return Err(
-                "Conflicting arguments: Cannot specify both --cursor and --anchor.".to_string(),
-            );
-        }
-
-        if self.anchor.is_some() && self.pivot != Pivot::TopLeft {
-            return Err(
-                "Conflicting arguments: Cannot specify both --anchor and --pivot.".to_string(),
-            );
-        }
-
-        if self.margin < 0 {
-            return Err("Invalid margin: margin cannot be negative.".to_string());
-        }
+        self.geometry.validate()?;
 
         Ok(())
     }
@@ -495,7 +446,7 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args).expect("Failed to parse negative --pos values");
         if let Commands::Transform(t_args) = cli.command {
-            assert_eq!(t_args.pos, Some(vec![-500, -200]));
+            assert_eq!(t_args.geometry.pos, Some(vec![-500, -200]));
             assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");
@@ -515,7 +466,10 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args).expect("Parsing negative --size should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert_eq!(t_args.size, Some(vec![-100, 200]));
+            assert_eq!(
+                t_args.geometry.size,
+                Some(vec!["-100".to_string(), "200".to_string()])
+            );
             let err = t_args.validate().unwrap_err();
             assert!(err.contains("Invalid size: width and height must be strictly positive integers"));
         } else {
@@ -556,7 +510,7 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args_default).expect("Parsing should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert!(t_args.clamp);
+            assert!(t_args.geometry.clamp);
         } else {
             panic!("Expected Transform command variant");
         }
@@ -571,7 +525,7 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args_bare).expect("Parsing bare --clamp should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert!(t_args.clamp);
+            assert!(t_args.geometry.clamp);
         } else {
             panic!("Expected Transform command variant");
         }
@@ -586,7 +540,7 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args_false).expect("Parsing --clamp=false should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert!(!t_args.clamp);
+            assert!(!t_args.geometry.clamp);
         } else {
             panic!("Expected Transform command variant");
         }
@@ -604,13 +558,13 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args_pivot).expect("Parsing --pivot should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert_eq!(t_args.pivot, Pivot::Center);
+            assert_eq!(t_args.geometry.pivot, Pivot::Center);
             assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");
         }
 
-        // Anchor + Pivot conflict
+        // Anchor + Pivot conflict for static anchors
         let args_conflict = vec![
             "spawn-at",
             "transform",
@@ -629,20 +583,84 @@ mod tests {
             panic!("Expected Transform command variant");
         }
 
-        // Anchor + Cursor conflict
-        let args_cursor_conflict = vec![
+        // Anchor::Cursor + Pivot is valid
+        let args_cursor_pivot = vec![
             "spawn-at",
             "transform",
             "--class",
             "org.gnome.Calculator",
             "--anchor",
-            "top-left",
-            "--cursor",
+            "cursor",
+            "--pivot",
+            "bottom-right",
         ];
-        let cli = Cli::try_parse_from(args_cursor_conflict).expect("Parsing should succeed");
+        let cli = Cli::try_parse_from(args_cursor_pivot).expect("Parsing should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            let err = t_args.validate().unwrap_err();
-            assert!(err.contains("Conflicting arguments: Cannot specify both --cursor and --anchor."));
+            assert_eq!(t_args.geometry.anchor, Some(Anchor::Cursor));
+            assert_eq!(t_args.geometry.pivot, Pivot::BottomRight);
+            assert!(t_args.validate().is_ok());
+        } else {
+            panic!("Expected Transform command variant");
+        }
+    }
+
+    #[test]
+    fn test_area_and_margins_parsing() {
+        let args = vec![
+            "spawn-at",
+            "spawn",
+            "--area",
+            "screen",
+            "--margin-top",
+            "10",
+            "--mb",
+            "20",
+            "--margin-left",
+            "30",
+            "--mr",
+            "40",
+            "-m",
+            "16",
+            "gedit",
+        ];
+        let cli = Cli::try_parse_from(args).expect("Parsing spawn with area and margins should succeed");
+        if let Commands::Spawn(s_args) = cli.command {
+            assert_eq!(s_args.geometry.area, Area::Screen);
+            assert_eq!(s_args.geometry.margin_top, Some(10));
+            assert_eq!(s_args.geometry.margin_bottom, Some(20));
+            assert_eq!(s_args.geometry.margin_left, Some(30));
+            assert_eq!(s_args.geometry.margin_right, Some(40));
+            assert_eq!(s_args.geometry.margin, 16);
+            assert_eq!(s_args.command, vec!["gedit"]);
+            assert!(s_args.validate().is_ok());
+        } else {
+            panic!("Expected Spawn command variant");
+        }
+    }
+
+    #[test]
+    fn test_directional_margin_aliases() {
+        let args = vec![
+            "spawn-at",
+            "transform",
+            "--class",
+            "kitty",
+            "--mt",
+            "5",
+            "--margin-bottom",
+            "15",
+            "--ml",
+            "25",
+            "--margin-right",
+            "35",
+        ];
+        let cli = Cli::try_parse_from(args).expect("Parsing transform with short margin aliases should succeed");
+        if let Commands::Transform(t_args) = cli.command {
+            assert_eq!(t_args.geometry.margin_top, Some(5));
+            assert_eq!(t_args.geometry.margin_bottom, Some(15));
+            assert_eq!(t_args.geometry.margin_left, Some(25));
+            assert_eq!(t_args.geometry.margin_right, Some(35));
+            assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");
         }

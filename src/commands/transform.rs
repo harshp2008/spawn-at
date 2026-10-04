@@ -5,7 +5,7 @@
 
 use crate::cli::TransformArgs;
 use crate::commands::focus::apply_focus_policy;
-use crate::core::geometry::{self, Rect, PlacementParams};
+use crate::core::geometry::{self, PlacementParams};
 use crate::core::types::Instruction;
 use crate::platform::{CompositorBackend, DriverError};
 use crate::target;
@@ -39,18 +39,29 @@ pub async fn run_transform(
     let workareas = backend.get_workareas().await?;
     let (cursor_x, cursor_y) = backend.get_cursor_position().await?;
 
-    // 3. Resolve target workarea from --monitor (or cursor location if --cursor / --monitor cursor)
-    let target_workarea = if args.cursor || args.monitor.eq_ignore_ascii_case("cursor") {
+    // 3. Resolve target workarea from --monitor (or cursor location if --anchor cursor / --monitor cursor)
+    let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
+    let target_workarea = if is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor") {
         geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor")?
     } else {
-        geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.monitor)?
+        geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.geometry.monitor)?
     };
 
     // 4. Calculate target position and size via geometry solver
-    let target_w = args.size.as_ref().map(|s| s[0] as u32).unwrap_or(target_win.w as u32);
-    let target_h = args.size.as_ref().map(|s| s[1] as u32).unwrap_or(target_win.h as u32);
+    let target_w = args
+        .geometry
+        .size
+        .as_ref()
+        .and_then(|s| s.get(0).and_then(|v| v.parse::<u32>().ok()))
+        .unwrap_or(target_win.w as u32);
+    let target_h = args
+        .geometry
+        .size
+        .as_ref()
+        .and_then(|s| s.get(1).and_then(|v| v.parse::<u32>().ok()))
+        .unwrap_or(target_win.h as u32);
 
-    let pos = if let Some(p) = args.pos {
+    let pos = if let Some(ref p) = args.geometry.pos {
         Some((p[0], p[1]))
     } else {
         None
@@ -59,10 +70,10 @@ pub async fn run_transform(
     let params = PlacementParams {
         pos,
         offset: None,
-        anchor: args.anchor,
-        pivot: args.pivot,
+        anchor: args.geometry.anchor,
+        pivot: args.geometry.pivot,
         size: Some((target_w, target_h)),
-        margin: args.margin,
+        margin: args.geometry.margin,
         cursor_pos: Some((cursor_x, cursor_y)),
         workarea: target_workarea,
     };
