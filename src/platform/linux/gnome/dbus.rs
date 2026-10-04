@@ -10,24 +10,13 @@ use zbus::proxy;
     interface = "org.gnome.Shell.Extensions.SpawnAt"
 )]
 pub trait SpawnAt {
-    fn arm(
-        &self,
-        identifier: &str,
-        x: i32,
-        y: i32,
-        w: i32,
-        h: i32,
-        min_x: i32,
-        max_x: i32,
-        min_y: i32,
-        max_y: i32,
-    ) -> zbus::Result<()>;
+    fn execute_batch(&self, target_id: &str, instructions_json: &str) -> zbus::Result<()>;
     fn get_cursor(&self) -> zbus::Result<(i32, i32)>;
     fn get_pointer(&self) -> zbus::Result<(i32, i32)>;
     fn get_workareas(&self) -> zbus::Result<String>;
     fn get_windows(&self) -> zbus::Result<String>;
     fn move_window(&self, app_id: &str, x: i32, y: i32) -> zbus::Result<()>;
-    fn move_resize_window(&self, target: &str, x: i32, y: i32, w: i32, h: i32) -> zbus::Result<bool>;
+    // fn move_resize_window is removed in favor of execute_batch
     fn focus_window(&self, target: &str) -> zbus::Result<bool>;
     fn defocus_window(&self, target: &str, to_target: &str) -> zbus::Result<bool>;
     fn set_window_state(&self, target: &str, state: &str) -> zbus::Result<bool>;

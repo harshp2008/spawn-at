@@ -40,7 +40,8 @@
 
 pub mod dbus;
 
-use crate::core::geometry::{Rect, TargetGeometry};
+use crate::core::geometry::Rect;
+use crate::core::types::Instruction;
 use crate::platform::{CompositorBackend, DriverError, InstallArgs, UninstallArgs, WindowState};
 use crate::target::WindowMetadata;
 use clap::Args;
@@ -263,12 +264,12 @@ impl CompositorBackend for GnomeWaylandDriver {
         Ok(())
     }
 
-    /// Primes the GNOME Shell extension via D-Bus and launches the command.
+        /// Primes the GNOME Shell extension via D-Bus and launches the command.
     async fn spawn_at(
         &self,
         app_id: &str,
         command: &[String],
-        geom: &TargetGeometry,
+        instructions: &[Instruction],
     ) -> Result<(), DriverError> {
         if command.is_empty() {
             return Err(DriverError::Execution(
@@ -276,23 +277,16 @@ impl CompositorBackend for GnomeWaylandDriver {
             ));
         }
 
+        let instructions_json = serde_json::to_string(instructions)
+            .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
+
         self.proxy
-            .arm(
-                app_id,
-                geom.x,
-                geom.y,
-                geom.w as i32,
-                geom.h as i32,
-                geom.min_x.unwrap_or(-1),
-                geom.max_x.unwrap_or(-1),
-                geom.min_y.unwrap_or(-1),
-                geom.max_y.unwrap_or(-1),
-            )
+            .execute_batch(app_id, &instructions_json)
             .await
             .map_err(|e| {
                 DriverError::IpcError(format!(
-                    "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n\
-                     Reason: The extension does not appear to be running on the session bus.\n\
+                    "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}
+                     Reason: The extension does not appear to be running on the session bus.
                      Fix: Run 'spawn-at install' to install and activate the extension.",
                     e
                 ))
@@ -306,6 +300,18 @@ impl CompositorBackend for GnomeWaylandDriver {
                     format!("Failed to spawn command '{}': {}", command[0], e).into(),
                 )
             })?;
+
+        Ok(())
+    }
+
+    async fn execute_batch(&self, target_id: &str, instructions: &[Instruction]) -> Result<(), DriverError> {
+        let instructions_json = serde_json::to_string(instructions)
+            .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
+
+        self.proxy
+            .execute_batch(target_id, &instructions_json)
+            .await
+            .map_err(|e| DriverError::IpcError(e.to_string()))?;
 
         Ok(())
     }
@@ -355,28 +361,6 @@ impl CompositorBackend for GnomeWaylandDriver {
             .map_err(|e| DriverError::IpcError(e.to_string()))
     }
 
-    async fn move_resize_window(
-        &self,
-        target_id: &str,
-        x: i32,
-        y: i32,
-        w: u32,
-        h: u32,
-    ) -> Result<(), DriverError> {
-        let success = self
-            .proxy
-            .move_resize_window(target_id, x, y, w as i32, h as i32)
-            .await
-            .map_err(|e| DriverError::IpcError(e.to_string()))?;
-
-        if !success {
-            return Err(DriverError::TargetNotFound(format!(
-                "Compositor failed to move/resize window target '{}'",
-                target_id
-            )));
-        }
-        Ok(())
-    }
 
     async fn set_window_state(
         &self,

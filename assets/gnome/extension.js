@@ -1,67 +1,15 @@
-/**
- * Spawn-At GNOME Shell Extension
- *
- * ARCHITECTURAL OVERVIEW & THE "WHY" BEHIND OPACITY CLOAKING ON WAYLAND:
- *
- * 1. The Wayland Security & Isolation Model:
- *    Under Wayland, unlike X11, client applications are explicitly barred from
- *    querying global display coordinates or setting their own absolute window
- *    positions. The compositor (Mutter in GNOME) maintains exclusive ownership
- *    of window placement. As a result, external CLI tools cannot move or position
- *    Wayland windows via standard protocols.
- *
- * 2. Why Traditional Post-Launch Repositioning Fails (The "Flash-and-Jump" Bug):
- *    In naive window positioning approaches, a CLI launches the application and
- *    polls window lists until the window appears, then sends a move/resize request.
- *    By the time the move request reaches Mutter, the window has already been:
- *      (a) Mapped into the Clutter scene graph,
- *      (b) Rendered at Mutter's default placement (often centered or cascading),
- *      (c) Flushed to the display hardware (KMS / DRM plane).
- *    When the resize/move takes effect several frames later, the user perceives an
- *    annoying, jarring flicker or visual jump.
- *
- * 3. The Zero-Flicker "Opacity Cloaking" Solution:
- *    This extension hooks directly into GNOME Shell's compositor internals via two
- *    critical events:
- *      - `window-created`: Triggered immediately when Mutter allocates a `MetaWindow`
- *        for a new Wayland toplevel surface, before any scene graph actor is mapped.
- *        We inspect the window's `wm_class` / `app_id` and match it with pending
- *        spawn targets registered via our D-Bus `Arm` method.
- *      - `map` (on `global.window_manager`): Triggered when Mutter constructs the
- *        `MetaWindowActor` (a ClutterActor) to begin displaying the window.
- *        Synchronously, within the very first execution turn of `map`, we set:
- *          `actor.opacity = 0`
- *        This ensures Mutter renders the window as completely transparent during the
- *        initial Wayland client `xdg_surface.configure` handshake.
- *
- * 4. Compositor Thread Timing & Frame Rect Verification:
- *    When `window.move_resize_frame()` is invoked, Wayland clients process the
- *    configure event asynchronously. The compositor might take 1 to 3 frame cycles
- *    (16ms-50ms) to negotiate buffer dimensions with the client.
- *    We periodically poll `window.get_frame_rect()`. Only when the actual rendered
- *    frame rectangle satisfies the target coordinates (or when dimension clamping is
- *    detected or a safe timeout threshold expires), we restore `actor.opacity = 255`.
- *    Result: The window appears instantly and atomically at the exact target location!
- */
-
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
+import Clutter from 'gi://Clutter';
 
 const DBUS_IFACE = `
 <node>
   <interface name="org.gnome.Shell.Extensions.SpawnAt">
-    <method name="Arm">
-      <arg type="s" name="identifier" direction="in"/>
-      <arg type="i" name="x" direction="in"/>
-      <arg type="i" name="y" direction="in"/>
-      <arg type="i" name="w" direction="in"/>
-      <arg type="i" name="h" direction="in"/>
-      <arg type="i" name="min_x" direction="in"/>
-      <arg type="i" name="max_x" direction="in"/>
-      <arg type="i" name="min_y" direction="in"/>
-      <arg type="i" name="max_y" direction="in"/>
+    <method name="ExecuteBatch">
+      <arg type="s" name="target_id" direction="in"/>
+      <arg type="s" name="instructions_json" direction="in"/>
     </method>
     <method name="GetCursor">
       <arg type="i" name="x" direction="out"/>
@@ -76,14 +24,6 @@ const DBUS_IFACE = `
     </method>
     <method name="GetWindows">
       <arg type="s" name="json_windows" direction="out"/>
-    </method>
-    <method name="MoveResizeWindow">
-      <arg type="s" name="target" direction="in"/>
-      <arg type="i" name="x" direction="in"/>
-      <arg type="i" name="y" direction="in"/>
-      <arg type="i" name="w" direction="in"/>
-      <arg type="i" name="h" direction="in"/>
-      <arg type="b" name="success" direction="out"/>
     </method>
     <method name="MoveWindow">
       <arg type="s" name="app_id" direction="in"/>
@@ -110,15 +50,10 @@ const DBUS_IFACE = `
 
 export default class SpawnAtExtension extends Extension {
     enable() {
-        // Map of armed App IDs / WM_CLASS identifiers -> target geometries
         this._armedSpawns = new Map();
-
-        // Wildcard target: used when armed with "*" to catch the next unmapped window
         this._wildcardTarget = null;
         this._wildcardTimeoutId = null;
 
-        // 1. Hook into window creation
-        // This is called synchronously by Mutter when a new MetaWindow is instantiated.
         try {
             this._windowCreatedId = global.display.connect('window-created', (display, window) => {
                 this._handleWindowCreated(window);
@@ -127,8 +62,6 @@ export default class SpawnAtExtension extends Extension {
             console.error(`[SpawnAt] Failed to connect window-created signal: ${e}`);
         }
 
-        // 2. Hook into compositor actor mapping
-        // This is called when Mutter wraps the MetaWindow in a ClutterActor for display.
         try {
             this._mapId = global.window_manager.connect('map', (wm, actor) => {
                 this._handleActorMap(actor);
@@ -137,7 +70,6 @@ export default class SpawnAtExtension extends Extension {
             console.error(`[SpawnAt] Failed to connect map signal: ${e}`);
         }
 
-        // 3. Export D-Bus interface for the Rust CLI client
         try {
             this._dbusImpl = Gio.DBusExportedObject.wrapJSObject(DBUS_IFACE, this);
             this._dbusImpl.export(Gio.DBus.session, '/org/gnome/Shell/Extensions/SpawnAt');
@@ -145,226 +77,236 @@ export default class SpawnAtExtension extends Extension {
             console.error(`[SpawnAt] Failed to export D-Bus interface: ${e}`);
         }
 
-        // 4. Hook into workspace/monitor changes
         try {
             const monitorManager = global.backend?.get_monitor_manager ? global.backend.get_monitor_manager() : null;
             if (monitorManager) {
                 this._monitorsChangedId = monitorManager.connect('monitors-changed', () => {
-                    if (this._dbusImpl) {
-                        this._dbusImpl.emit_signal('WorkareaChanged', null);
-                    }
+                    if (this._dbusImpl) this._dbusImpl.emit_signal('WorkareaChanged', null);
                 });
             }
-        } catch (e) {
-            console.error(`[SpawnAt] Failed to connect monitors-changed signal: ${e}`);
-        }
+        } catch (e) {}
 
         try {
             if (global.display) {
                 this._workareasChangedId = global.display.connect('workareas-changed', () => {
-                    if (this._dbusImpl) {
-                        this._dbusImpl.emit_signal('WorkareaChanged', null);
-                    }
+                    if (this._dbusImpl) this._dbusImpl.emit_signal('WorkareaChanged', null);
                 });
             }
-        } catch (e) {
-            console.error(`[SpawnAt] Failed to connect workareas-changed signal: ${e}`);
-        }
+        } catch (e) {}
     }
 
-    /**
-     * Inspects newly created windows to attach armed placement targets.
-     */
     _handleWindowCreated(window) {
-        const checkMatch = (id) => {
-            let target = null;
+        const getIdentifiers = (win) => {
+            const list = [];
+            try {
+                const cls = win.get_wm_class();
+                if (cls) list.push(cls);
+            } catch (e) {}
+            try {
+                const appId = win.get_gtk_application_id();
+                if (appId) list.push(appId);
+            } catch (e) {}
+            try {
+                if (win.get_sandboxed_app_id) {
+                    const sb = win.get_sandboxed_app_id();
+                    if (sb) list.push(sb);
+                }
+            } catch (e) {}
+            return list;
+        };
 
-            // Check exact App ID / WM_CLASS match
-            if (id && this._armedSpawns.has(id)) {
-                target = this._armedSpawns.get(id);
-                this._armedSpawns.delete(id);
-            } 
-            // Fallback: Wildcard match catches the very next window within timeout
-            else if (this._wildcardTarget) {
-                target = this._wildcardTarget;
+        const checkMatch = () => {
+            if (window._spawnAtInstructions) return;
+
+            const ids = getIdentifiers(window);
+            let instructions = null;
+            let matchedKey = null;
+
+            for (let id of ids) {
+                if (this._armedSpawns.has(id)) {
+                    matchedKey = id;
+                    break;
+                }
+                for (let armedKey of this._armedSpawns.keys()) {
+                    if (id.toLowerCase().includes(armedKey.toLowerCase()) || 
+                        armedKey.toLowerCase().includes(id.toLowerCase())) {
+                        matchedKey = armedKey;
+                        break;
+                    }
+                }
+                if (matchedKey) break;
+            }
+
+            if (matchedKey) {
+                instructions = this._armedSpawns.get(matchedKey);
+                this._armedSpawns.delete(matchedKey);
+            } else if (this._wildcardTarget) {
+                instructions = this._wildcardTarget;
                 this._clearWildcard();
             }
 
-            if (target) {
-                // Attach target geometry directly onto the MetaWindow instance
-                window._spawnAtTarget = target;
+            if (instructions) {
+                window._spawnAtInstructions = instructions;
             }
         };
 
-        // Under Wayland, wm_class or gtk_application_id can be populated asynchronously
-        // as the client completes initial surface negotiation.
-        let cls = window.get_wm_class();
-        if (!cls) {
-            // Listen for late wm-class property notification
-            let sigId = window.connect('notify::wm-class', () => {
-                let lateCls = window.get_wm_class();
-                if (lateCls) {
-                    checkMatch(lateCls);
-                    window.disconnect(sigId);
-                }
-            });
+        checkMatch();
 
-            // Also check wildcard immediately if armed
-            if (this._wildcardTarget) {
-                checkMatch(null);
-            }
-        } else {
-            checkMatch(cls);
+        if (!window._spawnAtInstructions) {
+            const sigWm = window.connect('notify::wm-class', () => {
+                checkMatch();
+                if (window._spawnAtInstructions) window.disconnect(sigWm);
+            });
+            const sigGtk = window.connect('notify::gtk-application-id', () => {
+                checkMatch();
+                if (window._spawnAtInstructions) window.disconnect(sigGtk);
+            });
         }
     }
 
-    /**
-     * Intercepts window actor mapping to execute zero-flicker Opacity Cloaking.
-     */
     _handleActorMap(actor) {
         let window = actor.meta_window;
-        if (!window || !window._spawnAtTarget) {
-            return;
-        }
+        if (!window || !window._spawnAtInstructions) return;
 
-        const target = window._spawnAtTarget;
-        delete window._spawnAtTarget;
+        const instructions = window._spawnAtInstructions;
+        delete window._spawnAtInstructions;
 
-        // STEP 1: OPACITY CLOAKING
-        // Suppress actor visibility immediately in the map callback before the compositor
-        // submits the frame to the GPU render pass.
         actor.opacity = 0;
-
-        // STEP 2: Clear any maximized state that would restrict repositioning
-        window.unmaximize(Meta.MaximizeFlags.BOTH);
-
-        // STEP 3: Apply initial geometry frame mutation
-        if (target.w > 0 && target.h > 0) {
-            window.move_resize_frame(true, target.x, target.y, target.w, target.h);
-        } else {
-            window.move_frame(true, target.x, target.y);
-        }
-
-        // STEP 4: Asynchronous settling loop
-        // Wayland clients configure surface buffers asynchronously. We poll the frame
-        // rectangle every 10ms to verify that the geometry matches the target before
-        // making the window visible.
-        let checkCount = 0;
-        const maxChecks = 50; // Maximum duration: ~500ms safety clamp
-
-        GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
-            checkCount++;
-
-            // Ensure opacity stays cloaked while Mutter adjusts the geometry
-            actor.opacity = 0;
-
-            let frame = window.get_frame_rect();
-
-            let actualW = frame.width;
-            let actualH = frame.height;
-            let finalX = target.x;
-            let finalY = target.y;
-
-            // Right boundary clamp (Auto-Anchor if original intent touched wall)
-            if (target.max_x !== undefined && target.max_x >= 0) {
-                if ((finalX + actualW > target.max_x) || (target.x + target.w >= target.max_x)) {
-                    finalX = target.max_x - actualW;
-                }
-            }
-            // Left boundary clamp
-            if (target.min_x !== undefined && target.min_x >= 0) {
-                if ((finalX < target.min_x) || (target.x <= target.min_x)) {
-                    finalX = target.min_x;
-                }
-            }
-            // Bottom boundary clamp (Auto-Anchor if original intent touched wall)
-            if (target.max_y !== undefined && target.max_y >= 0) {
-                if ((finalY + actualH > target.max_y) || (target.y + target.h >= target.max_y)) {
-                    finalY = target.max_y - actualH;
-                }
-            }
-            // Top boundary clamp
-            if (target.min_y !== undefined && target.min_y >= 0) {
-                if ((finalY < target.min_y) || (target.y <= target.min_y)) {
-                    finalY = target.min_y;
-                }
-            }
-
-            // Apply boundary-corrected position
-            // To prevent Mutter from centering the window against a rejected sub-minimum target size,
-            // we update the requested bounds to perfectly match the actual settled buffer.
-            if (frame.x !== finalX || frame.y !== finalY) {
-                if (window._spawnAtLastX !== finalX || window._spawnAtLastY !== finalY || 
-                    window._spawnAtLastW !== actualW || window._spawnAtLastH !== actualH) {
-                    
-                    window.move_resize_frame(true, finalX, finalY, actualW, actualH);
-                    
-                    window._spawnAtLastX = finalX;
-                    window._spawnAtLastY = finalY;
-                    window._spawnAtLastW = actualW;
-                    window._spawnAtLastH = actualH;
-                }
-            }
-
-            let posMatch = Math.abs(frame.x - finalX) <= 1 && Math.abs(frame.y - finalY) <= 1;
-
-            // Require both position match and at least 6 ticks (~60ms) of settling 
-            let settled = posMatch && (checkCount >= 6);
-            let timedOut = (checkCount >= maxChecks);
-
-            if (settled || timedOut) {
-                if (!posMatch) {
-                    window.move_resize_frame(true, finalX, finalY, actualW, actualH);
-                }
-                
-                // Clean up state
-                delete window._spawnAtLastX;
-                delete window._spawnAtLastY;
-                delete window._spawnAtLastW;
-                delete window._spawnAtLastH;
-                
-                actor.opacity = 255;
-                return GLib.SOURCE_REMOVE;
-            }
-
-            return GLib.SOURCE_CONTINUE;
+        this._runBatch(window, actor, instructions).catch(e => {
+            console.error(`[SpawnAt] Batch execution failed: ${e}`);
+            actor.opacity = 255;
         });
     }
 
-    /**
-     * D-Bus Method: Arm(identifier, x, y, w, h, min_x, max_x, min_y, max_y)
-     * Primes the compositor to intercept the specified application window.
-     */
-    Arm(identifier, x, y, w, h, min_x, max_x, min_y, max_y) {
-        let rect = { x, y, w, h, min_x, max_x, min_y, max_y };
-
-        if (!identifier || identifier === "*") {
-            // Wildcard: intercept the very next unmapped window within 1200ms
-            this._clearWildcard();
-            this._wildcardTarget = rect;
-
-            this._wildcardTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
-                this._wildcardTarget = null;
-                this._wildcardTimeoutId = null;
-                return GLib.SOURCE_REMOVE;
-            });
-        } else {
-            this._armedSpawns.set(identifier, rect);
-
-            // Auto-clean stale armed spawns after 15 seconds if application never launched
-            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15000, () => {
-                if (this._armedSpawns.has(identifier)) {
-                    this._armedSpawns.delete(identifier);
+    async _runBatch(window, actor, instructions) {
+        for (let inst of instructions) {
+            if (inst === "Snapshot") {
+                this._createSnapshot(actor);
+            } else if (inst === "Cloak") {
+                this._cloak(actor);
+            } else if (inst === "Uncloak") {
+                this._uncloak(actor);
+            } else if (inst === "DestroySnapshot") {
+                this._destroySnapshot(actor);
+            } else if (inst.SetSize) {
+                let { w, h } = inst.SetSize;
+                if (w > 0 && h > 0) {
+                    if (window.get_maximized && window.get_maximized()) {
+                        window.unmaximize(Meta.MaximizeFlags.BOTH);
+                    }
+                    let frame = window.get_frame_rect();
+                    if (window.move_resize_frame) {
+                        window.move_resize_frame(true, frame.x, frame.y, w, h);
+                    } else {
+                        window.resize(true, w, h);
+                    }
                 }
-                return GLib.SOURCE_REMOVE;
-            });
+            } else if (inst.WaitForCommit) {
+                await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms);
+            } else if (inst.SetPositionAnchored) {
+                this._applyAnchoredPosition(window, inst.SetPositionAnchored);
+            }
         }
     }
 
-    /**
-     * D-Bus Method: GetCursor() -> (x, y)
-     * Queries the pointer's current global screen coordinates.
-     */
+    _cloak(actor) { actor.opacity = 0; }
+    _uncloak(actor) { actor.opacity = 255; }
+    
+    _createSnapshot(actor) {
+        if (actor._spawnAtClone) return;
+        let clone = new Clutter.Clone({ source: actor, x: actor.x, y: actor.y });
+        let parent = actor.get_parent();
+        if (parent) {
+            parent.add_child(clone);
+            actor._spawnAtClone = clone;
+        }
+    }
+
+    _destroySnapshot(actor) {
+        if (actor._spawnAtClone) {
+            actor._spawnAtClone.destroy();
+            delete actor._spawnAtClone;
+        }
+    }
+
+    _waitForCommit(window, actor, timeout_ms) {
+        return new Promise(resolve => {
+            let timeoutId = null;
+            let effectiveTimeout = Math.min(timeout_ms, 60);
+            let sigId = actor.connect('notify::allocation', () => {
+                actor.disconnect(sigId);
+                if (timeoutId) {
+                    GLib.Source.remove(timeoutId);
+                    timeoutId = null;
+                }
+                resolve();
+            });
+            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, effectiveTimeout, () => {
+                if (sigId) actor.disconnect(sigId);
+                timeoutId = null;
+                resolve();
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+    }
+
+    _applyAnchoredPosition(window, payload) {
+        let frame = window.get_frame_rect();
+        let actualW = frame.width;
+        let actualH = frame.height;
+        let finalX = payload.screen_anchor_x - Math.round(payload.pivot_u * actualW) + payload.offset_x;
+        let finalY = payload.screen_anchor_y - Math.round(payload.pivot_v * actualH) + payload.offset_y;
+        if (window.move_resize_frame) {
+            window.move_resize_frame(true, finalX, finalY, actualW, actualH);
+        } else {
+            window.move_frame(true, finalX, finalY);
+        }
+    }
+
+    ExecuteBatch(target_id, instructions_json) {
+        let instructions = [];
+        try {
+            instructions = JSON.parse(instructions_json);
+        } catch (e) {
+            console.error(`[SpawnAt] Invalid JSON instructions: ${e}`);
+            return;
+        }
+
+        const win = this._findWindow(target_id);
+        if (win) {
+            // Transform an existing window
+            let actor = null;
+            if (typeof win.get_compositor_private === 'function') {
+                actor = win.get_compositor_private();
+            } else if (global.window_manager.get_window_actor_for_meta_window) {
+                actor = global.window_manager.get_window_actor_for_meta_window(win);
+            }
+            if (actor) {
+                this._runBatch(win, actor, instructions).catch(e => {
+                    console.error(`[SpawnAt] Batch execution failed: ${e}`);
+                    actor.opacity = 255;
+                });
+            }
+        } else {
+            // Target window not mapped yet - arm it for Spawn
+            if (!target_id || target_id === "*") {
+                this._clearWildcard();
+                this._wildcardTarget = instructions;
+                this._wildcardTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
+                    this._wildcardTarget = null;
+                    this._wildcardTimeoutId = null;
+                    return GLib.SOURCE_REMOVE;
+                });
+            } else {
+                this._armedSpawns.set(target_id, instructions);
+                GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15000, () => {
+                    if (this._armedSpawns.has(target_id)) this._armedSpawns.delete(target_id);
+                    return GLib.SOURCE_REMOVE;
+                });
+            }
+        }
+    }
+
     GetCursor() {
         let [x, y] = global.get_pointer();
         return [x, y];
@@ -425,12 +367,8 @@ export default class SpawnAtExtension extends Extension {
 
         try {
             const list = global.display.get_tab_list(tabListType, workspace);
-            if (list && list.length > 0) {
-                return list;
-            }
-        } catch (e) {
-            console.warn(`[spawn-at] get_tab_list failed: ${e}`);
-        }
+            if (list && list.length > 0) return list;
+        } catch (e) {}
 
         try {
             if (workspace && typeof workspace.list_windows === 'function') {
@@ -440,9 +378,7 @@ export default class SpawnAtExtension extends Extension {
                 }
                 return windows;
             }
-        } catch (e) {
-            console.warn(`[spawn-at] window list fallback failed: ${e}`);
-        }
+        } catch (e) {}
 
         return [];
     }
@@ -467,51 +403,24 @@ export default class SpawnAtExtension extends Extension {
         }) || null;
     }
 
-    MoveResizeWindow(target, x, y, w, h) {
-        const win = this._findWindow(target);
-        if (!win) {
-            return false;
+    MoveWindow(app_id, x, y) {
+        const win = this._findWindow(app_id);
+        if (win) {
+            if (win.move_frame) win.move_frame(true, x, y);
         }
-
-        if (win.get_maximized && win.get_maximized()) {
-            win.unmaximize(Meta.MaximizeFlags.BOTH);
-        }
-
-        const frame = win.get_frame_rect();
-        const finalX = (x !== -1) ? x : frame.x;
-        const finalY = (y !== -1) ? y : frame.y;
-        const finalW = (w > 0) ? w : frame.width;
-        const finalH = (h > 0) ? h : frame.height;
-
-        // Use Mutter's frame move & resize API
-        if (win.move_resize_frame) {
-            win.move_resize_frame(true, finalX, finalY, finalW, finalH);
-        } else {
-            win.move_frame(true, finalX, finalY);
-        }
-
-        return true;
     }
 
     FocusWindow(target) {
         const win = this._findWindow(target);
-        if (!win) {
-            return false;
-        }
-        const time = global.get_current_time();
-        win.activate(time);
+        if (!win) return false;
+        win.activate(global.get_current_time());
         return true;
     }
 
     DefocusWindow(target, to_target) {
         const win = this._findWindow(target);
-        if (!win) {
-            return false;
-        }
-
-        if (!win.has_focus()) {
-            return true;
-        }
+        if (!win) return false;
+        if (!win.has_focus()) return true;
 
         const time = global.get_current_time();
         if (to_target === 'desktop') {
@@ -519,7 +428,6 @@ export default class SpawnAtExtension extends Extension {
             return true;
         }
 
-        // Standard yield (previous / MRU window)
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const windows = this._getMRUWindows(workspace);
         const nextWin = windows.find(w => w !== win && !w.minimized && !w.skip_taskbar);
@@ -528,39 +436,23 @@ export default class SpawnAtExtension extends Extension {
         } else {
             global.stage.set_key_focus(null);
         }
-
         return true;
     }
 
     SetWindowState(target, state) {
         const win = this._findWindow(target);
-        if (!win) {
-            return false;
-        }
+        if (!win) return false;
         switch (state) {
-            case 'maximize':
-                win.maximize(Meta.MaximizeFlags.BOTH);
-                return true;
-            case 'unmaximize':
-                win.unmaximize(Meta.MaximizeFlags.BOTH);
-                return true;
-            case 'minimize':
-                win.minimize();
-                return true;
-            case 'unminimize':
-                win.unminimize();
-                return true;
+            case 'maximize': win.maximize(Meta.MaximizeFlags.BOTH); return true;
+            case 'unmaximize': win.unmaximize(Meta.MaximizeFlags.BOTH); return true;
+            case 'minimize': win.minimize(); return true;
+            case 'unminimize': win.unminimize(); return true;
             case 'restore':
                 if (win.minimized) win.unminimize();
                 if (win.get_maximized && win.get_maximized()) win.unmaximize(Meta.MaximizeFlags.BOTH);
                 return true;
-            default:
-                return false;
+            default: return false;
         }
-    }
-
-    MoveWindow(app_id, x, y) {
-        this.MoveResizeWindow(app_id, x, y, -1, -1);
     }
 
     _clearWildcard() {
@@ -573,55 +465,26 @@ export default class SpawnAtExtension extends Extension {
 
     disable() {
         if (this._windowCreatedId) {
-            try {
-                global.display.disconnect(this._windowCreatedId);
-            } catch (e) {
-                console.error(`[SpawnAt] Failed to disconnect windowCreatedId: ${e}`);
-            }
+            try { global.display.disconnect(this._windowCreatedId); } catch(e) {}
             this._windowCreatedId = null;
         }
-
         if (this._mapId) {
-            try {
-                global.window_manager.disconnect(this._mapId);
-            } catch (e) {
-                console.error(`[SpawnAt] Failed to disconnect mapId: ${e}`);
-            }
+            try { global.window_manager.disconnect(this._mapId); } catch(e) {}
             this._mapId = null;
         }
-
         this._clearWildcard();
-
         if (this._monitorsChangedId) {
-            try {
-                const monitorManager = global.backend?.get_monitor_manager ? global.backend.get_monitor_manager() : null;
-                if (monitorManager) {
-                    monitorManager.disconnect(this._monitorsChangedId);
-                }
-            } catch (e) {
-                console.error(`[SpawnAt] Failed to disconnect monitorsChangedId: ${e}`);
-            }
+            try { global.backend.get_monitor_manager().disconnect(this._monitorsChangedId); } catch(e) {}
             this._monitorsChangedId = null;
         }
-
         if (this._workareasChangedId) {
-            try {
-                global.display.disconnect(this._workareasChangedId);
-            } catch (e) {
-                console.error(`[SpawnAt] Failed to disconnect workareasChangedId: ${e}`);
-            }
+            try { global.display.disconnect(this._workareasChangedId); } catch(e) {}
             this._workareasChangedId = null;
         }
-
         if (this._dbusImpl) {
-            try {
-                this._dbusImpl.unexport();
-            } catch (e) {
-                console.error(`[SpawnAt] Failed to unexport D-Bus interface: ${e}`);
-            }
+            try { this._dbusImpl.unexport(); } catch(e) {}
             this._dbusImpl = null;
         }
-
         this._armedSpawns.clear();
     }
 }

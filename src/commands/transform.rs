@@ -5,7 +5,8 @@
 
 use crate::cli::TransformArgs;
 use crate::commands::focus::apply_focus_policy;
-use crate::core::geometry::{self, Rect};
+use crate::core::geometry::{self, Rect, PlacementParams};
+use crate::core::types::Instruction;
 use crate::platform::{CompositorBackend, DriverError};
 use crate::target;
 
@@ -45,76 +46,45 @@ pub async fn run_transform(
         geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.monitor)?
     };
 
-    // 4. Determine target size
-    let (target_w, target_h) = if let Some(ref s) = args.size {
-        if s.len() != 2 {
-            return Err("Size argument must contain exactly width and height: --size W H".into());
-        }
-        (s[0], s[1])
+    // 4. Calculate target position and size via geometry solver
+    let target_w = args.size.as_ref().map(|s| s[0] as u32).unwrap_or(target_win.w as u32);
+    let target_h = args.size.as_ref().map(|s| s[1] as u32).unwrap_or(target_win.h as u32);
+
+    let pos = if let Some(p) = args.pos {
+        Some((p[0], p[1]))
     } else {
-        (target_win.w, target_win.h)
+        None
+    };
+    
+    let params = PlacementParams {
+        pos,
+        offset: None,
+        anchor: args.anchor,
+        pivot: args.pivot,
+        size: Some((target_w, target_h)),
+        margin: args.margin,
+        cursor_pos: Some((cursor_x, cursor_y)),
+        workarea: target_workarea,
     };
 
-    // 5. Determine target position
-    let (target_x, target_y) = if let Some(anchor) = args.anchor {
-        geometry::apply_anchor(
-            target_workarea,
-            target_w as u32,
-            target_h as u32,
-            anchor,
-            args.margin,
-        )
-    } else if args.cursor {
-        geometry::apply_pivot(
-            cursor_x,
-            cursor_y,
-            target_w as u32,
-            target_h as u32,
-            args.pivot,
-        )
-    } else if let Some(ref pos) = args.pos {
-        if pos.len() != 2 {
-            return Err(
-                "Position argument must contain exactly X and Y coordinates: --pos X Y".into(),
-            );
-        }
-        geometry::apply_pivot(
-            pos[0],
-            pos[1],
-            target_w as u32,
-            target_h as u32,
-            args.pivot,
-        )
-    } else {
-        (target_win.x, target_win.y)
-    };
+    let payload = geometry::calculate_placement(params, target_win.w as u32, target_win.h as u32);
 
-    // 6. If clamp is true, run clamp_rect against target workarea and margin
-    let (final_x, final_y, final_w, final_h) = if args.clamp {
-        let clamped = geometry::clamp_to_bounds(
-            Rect {
-                x: target_x,
-                y: target_y,
-                width: target_w as u32,
-                height: target_h as u32,
-            },
-            target_workarea,
-            0,
-            0,
-            0,
-            0,
-            args.margin,
-        );
-        (clamped.x, clamped.y, clamped.width, clamped.height)
-    } else {
-        (target_x, target_y, target_w as u32, target_h as u32)
-    };
+    // 5. Generate execution plan
+    let instructions = vec![
+        Instruction::Snapshot,
+        Instruction::Cloak,
+        Instruction::SetSize { w: payload.intended_w, h: payload.intended_h },
+        Instruction::WaitForCommit { timeout_ms: 500 },
+        Instruction::SetPositionAnchored(payload),
+        Instruction::Uncloak,
+        Instruction::DestroySnapshot,
+    ];
 
-    // 7. Move/resize window via backend
+    // 6. Execute batch via backend
     let target_id = target::resolve_target_id(target_win);
 
     backend
-        .move_resize_window(&target_id, final_x, final_y, final_w, final_h)
+        .execute_batch(&target_id, &instructions)
         .await?;
 
     apply_focus_policy(backend, &target_id, &args.focus_modifiers).await?;

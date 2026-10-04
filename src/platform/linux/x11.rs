@@ -17,7 +17,8 @@
 //! while informing the user that compositor-assisted zero-flicker hooks are currently
 //! focused on the Wayland engine.
 
-use crate::core::geometry::{Rect, TargetGeometry};
+use crate::core::geometry::Rect;
+use crate::core::types::Instruction;
 use crate::platform::{CompositorBackend, DriverError, WindowState};
 use crate::target::WindowMetadata;
 
@@ -42,7 +43,7 @@ impl CompositorBackend for X11Driver {
         &self,
         _app_id: &str,
         command: &[String],
-        _geom: &TargetGeometry,
+        _instructions: &[Instruction],
     ) -> Result<(), DriverError> {
         println!("Warning: Perfect cold-starts not fully supported on X11 yet.");
         std::process::Command::new(&command[0])
@@ -50,6 +51,12 @@ impl CompositorBackend for X11Driver {
             .spawn()
             .map_err(|e| DriverError::Execution(Box::new(e)))?;
         Ok(())
+    }
+
+    async fn execute_batch(&self, _target_id: &str, _instructions: &[Instruction]) -> Result<(), DriverError> {
+        Err(DriverError::UnsupportedCapability(
+            "Batch execution is not yet implemented for X11",
+        ))
     }
 
     /// Queries pointer position using xdotool.

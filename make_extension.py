@@ -1,4 +1,4 @@
-import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+content = """import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
@@ -96,71 +96,32 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _handleWindowCreated(window) {
-        const getIdentifiers = (win) => {
-            const list = [];
-            try {
-                const cls = win.get_wm_class();
-                if (cls) list.push(cls);
-            } catch (e) {}
-            try {
-                const appId = win.get_gtk_application_id();
-                if (appId) list.push(appId);
-            } catch (e) {}
-            try {
-                if (win.get_sandboxed_app_id) {
-                    const sb = win.get_sandboxed_app_id();
-                    if (sb) list.push(sb);
-                }
-            } catch (e) {}
-            return list;
-        };
-
-        const checkMatch = () => {
-            if (window._spawnAtInstructions) return;
-
-            const ids = getIdentifiers(window);
+        const checkMatch = (id) => {
             let instructions = null;
-            let matchedKey = null;
-
-            for (let id of ids) {
-                if (this._armedSpawns.has(id)) {
-                    matchedKey = id;
-                    break;
-                }
-                for (let armedKey of this._armedSpawns.keys()) {
-                    if (id.toLowerCase().includes(armedKey.toLowerCase()) || 
-                        armedKey.toLowerCase().includes(id.toLowerCase())) {
-                        matchedKey = armedKey;
-                        break;
-                    }
-                }
-                if (matchedKey) break;
-            }
-
-            if (matchedKey) {
-                instructions = this._armedSpawns.get(matchedKey);
-                this._armedSpawns.delete(matchedKey);
+            if (id && this._armedSpawns.has(id)) {
+                instructions = this._armedSpawns.get(id);
+                this._armedSpawns.delete(id);
             } else if (this._wildcardTarget) {
                 instructions = this._wildcardTarget;
                 this._clearWildcard();
             }
-
             if (instructions) {
                 window._spawnAtInstructions = instructions;
             }
         };
 
-        checkMatch();
-
-        if (!window._spawnAtInstructions) {
-            const sigWm = window.connect('notify::wm-class', () => {
-                checkMatch();
-                if (window._spawnAtInstructions) window.disconnect(sigWm);
+        let cls = window.get_wm_class();
+        if (!cls) {
+            let sigId = window.connect('notify::wm-class', () => {
+                let lateCls = window.get_wm_class();
+                if (lateCls) {
+                    checkMatch(lateCls);
+                    window.disconnect(sigId);
+                }
             });
-            const sigGtk = window.connect('notify::gtk-application-id', () => {
-                checkMatch();
-                if (window._spawnAtInstructions) window.disconnect(sigGtk);
-            });
+            if (this._wildcardTarget) checkMatch(null);
+        } else {
+            checkMatch(cls);
         }
     }
 
@@ -171,7 +132,6 @@ export default class SpawnAtExtension extends Extension {
         const instructions = window._spawnAtInstructions;
         delete window._spawnAtInstructions;
 
-        actor.opacity = 0;
         this._runBatch(window, actor, instructions).catch(e => {
             console.error(`[SpawnAt] Batch execution failed: ${e}`);
             actor.opacity = 255;
@@ -190,19 +150,17 @@ export default class SpawnAtExtension extends Extension {
                 this._destroySnapshot(actor);
             } else if (inst.SetSize) {
                 let { w, h } = inst.SetSize;
-                if (w > 0 && h > 0) {
-                    if (window.get_maximized && window.get_maximized()) {
-                        window.unmaximize(Meta.MaximizeFlags.BOTH);
-                    }
-                    let frame = window.get_frame_rect();
-                    if (window.move_resize_frame) {
-                        window.move_resize_frame(true, frame.x, frame.y, w, h);
-                    } else {
-                        window.resize(true, w, h);
-                    }
+                if (window.get_maximized && window.get_maximized()) {
+                    window.unmaximize(Meta.MaximizeFlags.BOTH);
+                }
+                let frame = window.get_frame_rect();
+                if (window.move_resize_frame) {
+                    window.move_resize_frame(true, frame.x, frame.y, w, h);
+                } else {
+                    window.resize(true, w, h);
                 }
             } else if (inst.WaitForCommit) {
-                await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms);
+                await this._waitForCommit(window, inst.WaitForCommit.timeout_ms);
             } else if (inst.SetPositionAnchored) {
                 this._applyAnchoredPosition(window, inst.SetPositionAnchored);
             }
@@ -229,20 +187,19 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    _waitForCommit(window, actor, timeout_ms) {
+    _waitForCommit(window, timeout_ms) {
         return new Promise(resolve => {
             let timeoutId = null;
-            let effectiveTimeout = Math.min(timeout_ms, 60);
-            let sigId = actor.connect('notify::allocation', () => {
-                actor.disconnect(sigId);
+            let sigId = window.connect('size-changed', () => {
+                window.disconnect(sigId);
                 if (timeoutId) {
                     GLib.Source.remove(timeoutId);
                     timeoutId = null;
                 }
                 resolve();
             });
-            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, effectiveTimeout, () => {
-                if (sigId) actor.disconnect(sigId);
+            timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, timeout_ms, () => {
+                if (sigId) window.disconnect(sigId);
                 timeoutId = null;
                 resolve();
                 return GLib.SOURCE_REMOVE;
@@ -488,3 +445,10 @@ export default class SpawnAtExtension extends Extension {
         this._armedSpawns.clear();
     }
 }
+"""
+
+with open("assets/gnome/extension.js", "w") as f:
+    f.write(content)
+
+with open("assets/gnome/extension.esm.js", "w") as f:
+    f.write(content)

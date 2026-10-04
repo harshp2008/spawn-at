@@ -2,7 +2,8 @@ pub mod gnome;
 pub mod x11;
 pub mod xdg;
 
-use crate::core::geometry::{Rect, TargetGeometry};
+use crate::core::geometry::Rect;
+use crate::core::types::Instruction;
 use crate::platform::{CompositorBackend, DriverError, InstallArgs, UninstallArgs, WindowState};
 use crate::target::WindowMetadata;
 use std::process::Command;
@@ -133,9 +134,13 @@ impl CompositorBackend for LinuxBackend {
         &self,
         app_id: &str,
         command: &[String],
-        geom: &TargetGeometry,
+        instructions: &[Instruction],
     ) -> Result<(), DriverError> {
-        self.driver.spawn_at(app_id, command, geom).await
+        self.driver.spawn_at(app_id, command, instructions).await
+    }
+
+    async fn execute_batch(&self, target_id: &str, instructions: &[Instruction]) -> Result<(), DriverError> {
+        self.driver.execute_batch(target_id, instructions).await
     }
 
     async fn move_window(&self, target_id: &str, x: i32, y: i32) -> Result<(), DriverError> {

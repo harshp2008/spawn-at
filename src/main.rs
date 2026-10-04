@@ -24,7 +24,7 @@ pub mod target;
 
 use clap::Parser;
 use cli::{Cli, Commands};
-use core::geometry::GeometryParams;
+use core::geometry::PlacementParams;
 use dialoguer::Confirm;
 use platform::{init_backend, InstallScope};
 use std::io::IsTerminal;
@@ -174,26 +174,37 @@ async fn main() {
             let offset = spawn_args.offset.as_ref().map(|o| (o[0], o[1]));
             let size = spawn_args.size.as_ref().map(|s| (s[0] as u32, s[1] as u32));
 
-            let params = GeometryParams {
+            let cursor = driver.get_cursor_position().await.ok();
+            let monitors = driver.get_monitors().await.unwrap_or_default();
+            
+            let params = PlacementParams {
                 pos,
                 offset,
                 size,
-                bound_top: spawn_args.bound_top,
-                bound_bottom: spawn_args.bound_bottom,
-                bound_left: spawn_args.bound_left,
-                bound_right: spawn_args.bound_right,
-                margin: spawn_args.margin,
+                anchor: None,
+                pivot: crate::core::geometry::Pivot::TopLeft,
+                margin: spawn_args.margin.unwrap_or(0),
+                cursor_pos: cursor,
+                workarea: monitors.into_iter().next().unwrap_or_default(),
             };
 
-            let cursor = driver.get_cursor_position().await.ok();
-            let monitors = driver.get_monitors().await.unwrap_or_default();
-            let geom = core::geometry::calculate(&params, cursor, &monitors);
+            let payload = core::geometry::calculate_placement(params, 0, 0);
+            
+            let mut instructions = vec![crate::core::types::Instruction::Cloak];
+
+            if let Some(size) = spawn_args.size {
+                instructions.push(crate::core::types::Instruction::SetSize { w: size[0] as u32, h: size[1] as u32 });
+                instructions.push(crate::core::types::Instruction::WaitForCommit { timeout_ms: 60 });
+            }
+
+            instructions.push(crate::core::types::Instruction::SetPositionAnchored(payload));
+            instructions.push(crate::core::types::Instruction::Uncloak);
 
             // 2. Resolve target application identifier via the active driver
             let target_id = driver.resolve_id(&spawn_args.command, spawn_args.class.as_deref());
 
             // 3. Dispatch to active driver
-            if let Err(e) = driver.spawn_at(&target_id, &spawn_args.command, &geom).await {
+            if let Err(e) = driver.spawn_at(&target_id, &spawn_args.command, &instructions).await {
                 eprintln!(
                     "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
                     driver.name(),

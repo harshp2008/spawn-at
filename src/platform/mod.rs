@@ -20,6 +20,7 @@ pub use linux::LinuxBackend as NativeBackend;
 use std::fmt;
 use clap::Args;
 pub use crate::core::geometry::{Rect, TargetGeometry};
+pub use crate::core::types::Instruction;
 pub use crate::target::WindowMetadata;
 
 /// Errors produced during driver detection, installation, or window positioning.
@@ -165,9 +166,14 @@ pub trait CompositorBackend: Send + Sync {
         &self,
         _app_id: &str,
         _command: &[String],
-        _geom: &TargetGeometry,
+        _instructions: &[Instruction],
     ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("spawn_at"))
+    }
+
+    /// Executes a batch of atomic window placement instructions.
+    async fn execute_batch(&self, _target_id: &str, _instructions: &[Instruction]) -> Result<(), DriverError> {
+        Err(DriverError::UnsupportedCapability("execute_batch"))
     }
 
     /// Moves a window to the specified coordinates without altering its dimensions.
