@@ -74,6 +74,11 @@ pub async fn run_transform(
         pivot: args.geometry.pivot,
         size: Some((target_w, target_h)),
         margin: args.geometry.margin,
+        margin_top: args.geometry.margin_top,
+        margin_bottom: args.geometry.margin_bottom,
+        margin_left: args.geometry.margin_left,
+        margin_right: args.geometry.margin_right,
+        area: Some(args.geometry.area),
         cursor_pos: Some((cursor_x, cursor_y)),
         workarea: target_workarea,
     };

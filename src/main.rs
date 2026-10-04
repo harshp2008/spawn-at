@@ -198,6 +198,11 @@ async fn main() {
                 anchor: spawn_args.geometry.anchor,
                 pivot: spawn_args.geometry.pivot,
                 margin: spawn_args.geometry.margin,
+                margin_top: spawn_args.geometry.margin_top,
+                margin_bottom: spawn_args.geometry.margin_bottom,
+                margin_left: spawn_args.geometry.margin_left,
+                margin_right: spawn_args.geometry.margin_right,
+                area: Some(spawn_args.geometry.area),
                 cursor_pos: Some((cursor_x, cursor_y)),
                 workarea: target_workarea,
             };

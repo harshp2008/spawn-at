@@ -528,6 +528,11 @@ pub struct PlacementParams {
     pub pivot: Pivot,
     pub size: Option<(u32, u32)>,
     pub margin: i32,
+    pub margin_top: Option<i32>,
+    pub margin_bottom: Option<i32>,
+    pub margin_left: Option<i32>,
+    pub margin_right: Option<i32>,
+    pub area: Option<Area>,
     pub cursor_pos: Option<(i32, i32)>,
     pub workarea: Rect,
 }
@@ -537,7 +542,11 @@ pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u
     let intended_h = params.size.map(|s| s.1).unwrap_or(current_h);
 
     let wa = params.workarea;
-    let margin = params.margin;
+    let margin_top = params.margin_top.unwrap_or(params.margin);
+    let margin_bottom = params.margin_bottom.unwrap_or(params.margin);
+    let margin_left = params.margin_left.unwrap_or(params.margin);
+    let margin_right = params.margin_right.unwrap_or(params.margin);
+
     let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
     let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
 
@@ -552,56 +561,56 @@ pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u
             Anchor::TopLeft => (
                 0.0,
                 0.0,
-                wa.x + margin,
-                wa.y + margin,
+                wa.x + margin_left,
+                wa.y + margin_top,
             ),
             Anchor::TopRight => (
                 1.0,
                 0.0,
-                wa.x + (wa.width as i32) - margin,
-                wa.y + margin,
+                wa.x + (wa.width as i32) - margin_right,
+                wa.y + margin_top,
             ),
             Anchor::BottomLeft => (
                 0.0,
                 1.0,
-                wa.x + margin,
-                wa.y + (wa.height as i32) - margin,
+                wa.x + margin_left,
+                wa.y + (wa.height as i32) - margin_bottom,
             ),
             Anchor::BottomRight => (
                 1.0,
                 1.0,
-                wa.x + (wa.width as i32) - margin,
-                wa.y + (wa.height as i32) - margin,
+                wa.x + (wa.width as i32) - margin_right,
+                wa.y + (wa.height as i32) - margin_bottom,
             ),
             Anchor::Top => (
                 0.5,
                 0.0,
                 wa.x + (wa.width as i32) / 2,
-                wa.y + margin,
+                wa.y + margin_top,
             ),
             Anchor::Bottom => (
                 0.5,
                 1.0,
                 wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) - margin,
+                wa.y + (wa.height as i32) - margin_bottom,
             ),
             Anchor::Left => (
                 0.0,
                 0.5,
-                wa.x + margin,
+                wa.x + margin_left,
                 wa.y + (wa.height as i32) / 2,
             ),
             Anchor::Right => (
                 1.0,
                 0.5,
-                wa.x + (wa.width as i32) - margin,
+                wa.x + (wa.width as i32) - margin_right,
                 wa.y + (wa.height as i32) / 2,
             ),
             Anchor::Cursor => {
                 let (ax, ay) = if let Some(cursor) = params.cursor_pos {
                     (cursor.0, cursor.1)
                 } else {
-                    (wa.x + margin, wa.y + margin)
+                    (wa.x + margin_left, wa.y + margin_top)
                 };
                 let (pu, pv) = match params.pivot {
                     Pivot::TopLeft => (0.0, 0.0),
@@ -627,7 +636,7 @@ pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u
         } else if let Some(cursor) = params.cursor_pos {
             (cursor.0, cursor.1)
         } else {
-            (wa.x + margin, wa.y + margin)
+            (wa.x + margin_left, wa.y + margin_top)
         };
 
         (pu, pv, ax, ay)
@@ -642,5 +651,13 @@ pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u
         pivot_v,
         offset_x,
         offset_y,
+        area: params.area.map(|a| match a {
+            Area::Workarea => "workarea".to_string(),
+            Area::Screen => "screen".to_string(),
+        }),
+        margin_top,
+        margin_bottom,
+        margin_left,
+        margin_right,
     }
 }

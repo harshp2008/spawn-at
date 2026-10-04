@@ -10,6 +10,16 @@ pub struct PlacementPayload {
     pub pivot_v: f64,
     pub offset_x: i32,
     pub offset_y: i32,
+    #[serde(default)]
+    pub area: Option<String>,
+    #[serde(default)]
+    pub margin_top: i32,
+    #[serde(default)]
+    pub margin_bottom: i32,
+    #[serde(default)]
+    pub margin_left: i32,
+    #[serde(default)]
+    pub margin_right: i32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -329,7 +329,7 @@ export default class SpawnAtExtension extends Extension {
             } else if (inst.WaitForCommit) {
                 await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
-                this._applyAnchoredPosition(window, inst.SetPositionAnchored, targetW, targetH);
+                this._applyAnchoredPosition(window, inst.SetPositionAnchored);
                 
                 let f0 = window.get_frame_rect();
                 let b0 = window.get_buffer_rect ? window.get_buffer_rect() : f0;
@@ -405,9 +405,14 @@ export default class SpawnAtExtension extends Extension {
             let timeoutId = null;
             let actorSigId = null;
             let winSigId = null;
+            let settleTimerId = null;
             let resolved = false;
 
             const cleanup = () => {
+                if (settleTimerId) {
+                    GLib.Source.remove(settleTimerId);
+                    settleTimerId = null;
+                }
                 if (actorSigId && actor) {
                     try { actor.disconnect(actorSigId); } catch (e) {}
                     actorSigId = null;
@@ -425,6 +430,7 @@ export default class SpawnAtExtension extends Extension {
             const doResolve = (reason) => {
                 if (resolved) return;
                 resolved = true;
+                this._logTime("COMMIT_RESOLVED", `reason=${reason}`);
                 cleanup();
                 resolve();
             };
@@ -434,53 +440,50 @@ export default class SpawnAtExtension extends Extension {
                 return;
             }
 
-            let initialW = 0;
-            let initialH = 0;
+            let lastW = 0;
+            let lastH = 0;
             try {
                 let f = window.get_frame_rect();
-                initialW = f.width;
-                initialH = f.height;
+                lastW = f.width;
+                lastH = f.height;
             } catch (e) {}
 
-            const isSettled = (f) => {
-                if (!f || targetW == null || targetH == null) return false;
-                let dw = Math.abs(f.width - targetW);
-                let dh = Math.abs(f.height - targetH);
-                // VTE character-grid cell snapping allows up to ~40px deviation on width/height
-                return dw <= 45 && dh <= 45;
-            };
-
-            const onCommitCheck = () => {
+            const scheduleCheck = () => {
                 if (resolved) return;
-                try {
-                    let current = window.get_frame_rect();
-                    this._logTime("COMMIT_POLL", `current=(${current.width}x${current.height}) target=(${targetW}x${targetH})`);
-                    if (targetW != null && targetH != null) {
-                        if (isSettled(current) || (current.width !== initialW || current.height !== initialH)) {
-                            // Window dimensions have actually shifted from initial spawn state
-                            doResolve("SIZE_SETTLED");
-                        }
-                    } else {
-                        doResolve("NO_TARGET");
-                    }
-                } catch (e) {
-                    doResolve("ERROR");
+                if (settleTimerId) {
+                    GLib.Source.remove(settleTimerId);
+                    settleTimerId = null;
                 }
+
+                // Debounce to allow GTK3/VTE font cell quantization to fully settle
+                settleTimerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 30, () => {
+                    settleTimerId = null;
+                    try {
+                        let current = window.get_frame_rect();
+                        this._logTime("COMMIT_POLL", `current=(${current.width}x${current.height}) last=(${lastW}x${lastH}) target=(${targetW}x${targetH})`);
+                        if (current.width === lastW && current.height === lastH) {
+                            doResolve("SIZE_STABLE");
+                        } else {
+                            lastW = current.width;
+                            lastH = current.height;
+                            scheduleCheck();
+                        }
+                    } catch (e) {
+                        doResolve("ERROR");
+                    }
+                    return GLib.SOURCE_REMOVE;
+                });
             };
 
             if (actor) {
                 try {
-                    actorSigId = actor.connect('notify::allocation', () => {
-                        onCommitCheck();
-                    });
+                    actorSigId = actor.connect('notify::allocation', () => scheduleCheck());
                 } catch (e) {}
             }
 
             if (window) {
                 try {
-                    winSigId = window.connect('size-changed', () => {
-                        onCommitCheck();
-                    });
+                    winSigId = window.connect('size-changed', () => scheduleCheck());
                 } catch (e) {}
             }
 
@@ -491,23 +494,43 @@ export default class SpawnAtExtension extends Extension {
                 return GLib.SOURCE_REMOVE;
             });
 
-            onCommitCheck();
+            scheduleCheck();
         });
     }
 
-    _applyAnchoredPosition(window, payload, targetW = null, targetH = null) {
+    _applyAnchoredPosition(window, payload) {
         let frame = window.get_frame_rect();
-        let effW = targetW || (window && window._targetW) || frame.width;
-        let effH = targetH || (window && window._targetH) || frame.height;
+        // Always use actual settled frame dimensions from the compositor
+        let effW = frame.width;
+        let effH = frame.height;
+
         let x = payload.screen_anchor_x - Math.round(payload.pivot_u * effW) + payload.offset_x;
         let y = payload.screen_anchor_y - Math.round(payload.pivot_v * effH) + payload.offset_y;
 
         let monitorIndex = window.get_monitor();
-        let workArea = window.get_work_area_for_monitor(monitorIndex);
+        let bounds;
+        if (payload.area === 'screen') {
+            bounds = global.display.get_monitor_geometry(monitorIndex);
+        } else {
+            bounds = window.get_work_area_for_monitor(monitorIndex);
+        }
 
-        // Clamp to workarea bounds to prevent spawning under top bar or off-screen
-        x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - effW));
-        y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - effH));
+        let mt = payload.margin_top !== undefined ? payload.margin_top : 0;
+        let mb = payload.margin_bottom !== undefined ? payload.margin_bottom : 0;
+        let ml = payload.margin_left !== undefined ? payload.margin_left : 0;
+        let mr = payload.margin_right !== undefined ? payload.margin_right : 0;
+
+        let minX = bounds.x + ml;
+        let maxX = bounds.x + bounds.width - mr - effW;
+        let minY = bounds.y + mt;
+        let maxY = bounds.y + bounds.height - mb - effH;
+
+        // If window is larger than available space, pin to top-left boundary
+        if (maxX < minX) maxX = minX;
+        if (maxY < minY) maxY = minY;
+
+        x = Math.max(minX, Math.min(x, maxX));
+        y = Math.max(minY, Math.min(y, maxY));
 
         if (window) {
             window._targetX = x;
