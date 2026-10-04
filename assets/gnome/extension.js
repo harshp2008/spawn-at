@@ -170,16 +170,34 @@ export default class SpawnAtExtension extends Extension {
 
     _handleActorMap(actor) {
         let window = actor.meta_window;
-        if (!window || !window._spawnAtInstructions) return;
+        if (!window) return;
 
-        const instructions = window._spawnAtInstructions;
-        delete window._spawnAtInstructions;
+        if (window._spawnAtInstructions) {
+            actor.hide();
+            this._runBatch(window, actor, window._spawnAtInstructions);
+            delete window._spawnAtInstructions;
+            return;
+        }
 
-        actor.opacity = 0;
-        this._runBatch(window, actor, instructions).catch(e => {
-            console.error(`[SpawnAt] Batch execution failed: ${e}`);
-            actor.opacity = 255;
-        });
+        // PRE-EMPTIVE CLOAK: Wayland windows often map before 'notify::gtk-application-id' fires.
+        // If a spawn is pending, hold the new window cloaked for up to 100ms.
+        if (this._armedSpawns.size > 0 || this._wildcardTarget) {
+            actor.hide();
+            let checkCount = 0;
+            let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
+                checkCount++;
+                if (window._spawnAtInstructions) {
+                    this._runBatch(window, actor, window._spawnAtInstructions);
+                    delete window._spawnAtInstructions;
+                    return GLib.SOURCE_REMOVE;
+                }
+                if (checkCount > 10) { // 100ms timeout reached, not our window
+                    actor.show();
+                    return GLib.SOURCE_REMOVE;
+                }
+                return GLib.SOURCE_CONTINUE;
+            });
+        }
     }
 
     async _runBatch(window, actor, instructions) {
@@ -192,7 +210,17 @@ export default class SpawnAtExtension extends Extension {
             } else if (inst === "Cloak") {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
-                this._uncloak(actor);
+                await new Promise(resolve => {
+                    GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                        if (this._uncloak) {
+                            this._uncloak(actor);
+                        } else {
+                            actor.show();
+                        }
+                        resolve();
+                        return GLib.SOURCE_REMOVE;
+                    });
+                });
             } else if (inst === "DestroySnapshot") {
                 this._destroySnapshot(actor);
             } else if (inst.SetSize) {
@@ -218,8 +246,15 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    _cloak(actor) { actor.opacity = 0; }
-    _uncloak(actor) { actor.opacity = 255; }
+    _cloak(actor) {
+        if (!actor) return;
+        actor.hide();
+    }
+
+    _uncloak(actor) {
+        if (!actor) return;
+        actor.show();
+    }
     
     _createSnapshot(actor) {
         if (actor._spawnAtClone) return;
@@ -323,14 +358,22 @@ export default class SpawnAtExtension extends Extension {
 
     _applyAnchoredPosition(window, payload) {
         let frame = window.get_frame_rect();
-        let actualW = frame.width;
-        let actualH = frame.height;
-        let finalX = payload.screen_anchor_x - Math.round(payload.pivot_u * actualW) + payload.offset_x;
-        let finalY = payload.screen_anchor_y - Math.round(payload.pivot_v * actualH) + payload.offset_y;
-        if (window.move_resize_frame) {
-            window.move_resize_frame(true, finalX, finalY, actualW, actualH);
+        let w = frame.width;
+        let h = frame.height;
+        let x = payload.screen_anchor_x - Math.round(payload.pivot_u * w) + payload.offset_x;
+        let y = payload.screen_anchor_y - Math.round(payload.pivot_v * h) + payload.offset_y;
+
+        let monitorIndex = window.get_monitor();
+        let workArea = window.get_work_area_for_monitor(monitorIndex);
+
+        // Clamp to workarea bounds to prevent spawning under top bar or off-screen
+        x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - w));
+        y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - h));
+
+        if (window.move_frame) {
+            window.move_frame(true, x, y);
         } else {
-            window.move_frame(true, finalX, finalY);
+            window.move(true, x, y);
         }
     }
 
@@ -379,7 +422,7 @@ export default class SpawnAtExtension extends Extension {
             if (actor) {
                 this._runBatch(win, actor, instructions).catch(e => {
                     console.error(`[SpawnAt] Batch execution failed: ${e}`);
-                    actor.opacity = 255;
+                    actor.show();
                 });
             }
         }
