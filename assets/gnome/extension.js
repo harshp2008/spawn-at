@@ -53,6 +53,13 @@ const DBUS_IFACE = `
 </node>`;
 
 export default class SpawnAtExtension extends Extension {
+    _logTime(tag, extra = "") {
+        let nowUs = GLib.get_monotonic_time();
+        if (!this._t0) this._t0 = nowUs;
+        let elapsedMs = ((nowUs - this._t0) / 1000.0).toFixed(2);
+        console.error(`[spawn-at-time] +${elapsedMs}ms | ${tag} ${extra}`);
+    }
+
     enable() {
         this._armedSpawns = new Map();
         this._wildcardTarget = null;
@@ -100,6 +107,20 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _handleWindowCreated(window) {
+        let cls = "";
+        try { cls = window.get_wm_class() || ""; } catch (_) {}
+        let actor = (typeof window.get_compositor_private === 'function')
+            ? window.get_compositor_private()
+            : (global.window_manager.get_window_actor_for_meta_window
+                ? global.window_manager.get_window_actor_for_meta_window(window)
+                : null);
+        let actorStatus = actor ? `actorFound=true visible=${actor.visible} opacity=${actor.opacity}` : `actorFound=false`;
+        this._logTime("WINDOW_CREATED", `class="${cls}" ${actorStatus}`);
+
+        if ('no_map_animation' in window) {
+            window.no_map_animation = true;
+        }
+
         const getIdentifiers = (win) => {
             const list = [];
             try {
@@ -151,6 +172,15 @@ export default class SpawnAtExtension extends Extension {
 
             if (instructions) {
                 window._spawnAtInstructions = instructions;
+                let actor = (typeof window.get_compositor_private === 'function') 
+                    ? window.get_compositor_private() 
+                    : (global.window_manager.get_window_actor_for_meta_window 
+                        ? global.window_manager.get_window_actor_for_meta_window(window) 
+                        : null);
+                if (actor) {
+                    if (actor.remove_all_transitions) actor.remove_all_transitions();
+                    actor.opacity = 0;
+                }
             }
         };
 
@@ -169,13 +199,24 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _handleActorMap(actor) {
-        let w = actor.meta_window || (actor.get_meta_window ? actor.get_meta_window() : null);
-        let wmClass = w ? w.get_wm_class() : "unknown";
-        let gtkAppId = (w && w.get_gtk_application_id) ? w.get_gtk_application_id() : "none";
-        let pid = w ? w.get_pid() : -1;
+        let metaWin = actor.meta_window || (actor.get_meta_window ? actor.get_meta_window() : null);
+        let cls = metaWin ? metaWin.get_wm_class() : "unknown";
+        this._logTime("ACTOR_MAP", `class="${cls}" visible=${actor.visible} opacity=${actor.opacity}`);
+        let window = metaWin;
+        if (window && 'no_map_animation' in window) {
+            window.no_map_animation = true;
+        }
+        if ((window && window._spawnAtInstructions) || this._armedSpawns.size > 0 || this._wildcardTarget) {
+            if (actor.remove_all_transitions) actor.remove_all_transitions();
+            actor.opacity = 0;
+            actor.hide();
+        }
+
+        let wmClass = window ? window.get_wm_class() : "unknown";
+        let gtkAppId = (window && window.get_gtk_application_id) ? window.get_gtk_application_id() : "none";
+        let pid = window ? window.get_pid() : -1;
         console.error(`[spawn-at] WINDOW CREATED: class="${wmClass}", gtkAppId="${gtkAppId}", pid=${pid}`);
 
-        let window = actor.meta_window;
         if (!window) return;
 
         if (window._spawnAtInstructions) {
@@ -199,7 +240,13 @@ export default class SpawnAtExtension extends Extension {
                     return GLib.SOURCE_REMOVE;
                 }
                 if (checkCount > 10) { // 100ms timeout reached, not our window
-                    actor.show();
+                    if (this._uncloak) {
+                        this._uncloak(actor);
+                    } else if (actor) {
+                        if (actor.remove_all_transitions) actor.remove_all_transitions();
+                        actor.opacity = 255;
+                        actor.show();
+                    }
                     return GLib.SOURCE_REMOVE;
                 }
                 return GLib.SOURCE_CONTINUE;
@@ -212,164 +259,23 @@ export default class SpawnAtExtension extends Extension {
         let targetH = null;
 
         for (let inst of instructions) {
+            this._logTime("BATCH_STEP", `inst=${typeof inst === 'string' ? inst : Object.keys(inst)[0]}`);
             if (inst === "Snapshot") {
                 this._createSnapshot(actor);
             } else if (inst === "Cloak") {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
-                let f2 = window.get_frame_rect();
-                let b2 = window.get_buffer_rect();
-                let [aw2, ah2] = actor.get_size ? actor.get_size() : [0, 0];
-                console.error(`[spawn-at-debug] PRE-UNCLOAK: frame=${f2.width}x${f2.height} | buffer=${b2.width}x${b2.height} | actor=${aw2}x${ah2}`);
-
                 await new Promise(resolve => {
-                    let finished = false;
-                    let laterId = 0;
-                    let timeoutId = 0;
-                    let winSigId = 0;
-                    let actorSigId = 0;
-
-                    const tolerance = 25;
-                    const effTargetW = targetW !== null ? targetW : (window && window._targetW !== undefined ? window._targetW : null);
-                    const effTargetH = targetH !== null ? targetH : (window && window._targetH !== undefined ? window._targetH : null);
-
-                    const isGeometryMatching = () => {
-                        if (effTargetW === null && effTargetH === null) return true;
-                        try {
-                            let frame = window.get_frame_rect();
-                            let matchW = effTargetW === null || Math.abs(frame.width - effTargetW) <= tolerance;
-                            let matchH = effTargetH === null || Math.abs(frame.height - effTargetH) <= tolerance;
-                            return matchW && matchH;
-                        } catch (_) {
-                            return true;
-                        }
-                    };
-
-                    const cleanupListeners = () => {
-                        if (winSigId && window) {
-                            try { window.disconnect(winSigId); } catch (_) {}
-                            winSigId = 0;
-                        }
-                        if (actorSigId && actor) {
-                            try { actor.disconnect(actorSigId); } catch (_) {}
-                            actorSigId = 0;
-                        }
-                    };
-
-                    const cleanup = () => {
-                        cleanupListeners();
-
-                        if (laterId) {
-                            try {
-                                if (global.compositor && global.compositor.get_laters) {
-                                    global.compositor.get_laters().remove(laterId);
-                                } else if (Meta.later_remove) {
-                                    Meta.later_remove(laterId);
-                                }
-                            } catch (_) {}
-                            laterId = 0;
-                        }
-
-                        if (timeoutId) {
-                            try {
-                                GLib.source_remove(timeoutId);
-                            } catch (_) {
-                                try { GLib.Source.remove(timeoutId); } catch (_) {}
-                            }
-                            timeoutId = 0;
-                        }
-                    };
-
-                    const finish = (trigger) => {
-                        if (finished) return;
-                        finished = true;
-
-                        cleanup();
-
+                    GLib.idle_add(GLib.PRIORITY_HIGH, () => {
                         let rect = window ? window.get_frame_rect() : { x: 0, y: 0, width: 0, height: 0 };
-                        console.error(`[spawn-at] UNCLOAK: rect=(${rect.x}, ${rect.y}, ${rect.width}x${rect.height}) via ${trigger}`);
-
-                        if (this._uncloak) {
-                            this._uncloak(actor);
-                        } else if (actor) {
-                            actor.show();
-                        }
-
+                        this._logTime("UNCLOAK_TRIGGERED", `rect=(${rect.x}, ${rect.y}, ${rect.width}x${rect.height}) via IMMEDIATE_IDLE`);
+                        this._uncloak(actor);
                         if (global.stage && global.stage.queue_relayout) {
                             global.stage.queue_relayout();
                         }
-
                         resolve();
-                    };
-
-                    const scheduleBeforeRedraw = (triggerName) => {
-                        if (finished || laterId) return;
-
-                        // Force Mutter to wake up the compositor frame clock
-                        if (actor && actor.queue_relayout) actor.queue_relayout();
-                        if (global.stage && global.stage.queue_relayout) global.stage.queue_relayout();
-
-                        // Register frame-accurate redraw
-                        try {
-                            let laterType = Meta.LaterType ? Meta.LaterType.BEFORE_REDRAW : 1;
-                            if (global.compositor && global.compositor.get_laters) {
-                                laterId = global.compositor.get_laters().add(laterType, () => {
-                                    laterId = 0;
-                                    finish(triggerName);
-                                    return false;
-                                });
-                            } else if (Meta.later_add) {
-                                laterId = Meta.later_add(laterType, () => {
-                                    laterId = 0;
-                                    finish(triggerName);
-                                    return false;
-                                });
-                            } else {
-                                console.error("[spawn-at] No Later API found on this Mutter version");
-                                finish(triggerName);
-                            }
-                        } catch (e) {
-                            console.error(`[spawn-at] later_add failed: ${e.message}`);
-                            finish(triggerName);
-                        }
-                    };
-
-                    // Fallback timeout (200ms)
-                    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
-                        timeoutId = 0;
-                        finish("FALLBACK");
                         return GLib.SOURCE_REMOVE;
                     });
-
-                    // Scenario A: Geometry already matches or no resize needed
-                    if (isGeometryMatching()) {
-                        scheduleBeforeRedraw("IMMEDIATE_MATCH");
-                    } else {
-                        // Scenario B: Geometry pending update -> wait for size-changed / allocation
-                        const onSizeChanged = () => {
-                            if (isGeometryMatching()) {
-                                cleanupListeners();
-                                scheduleBeforeRedraw("SIZE_CHANGED");
-                            }
-                        };
-
-                        if (window && window.connect) {
-                            try {
-                                winSigId = window.connect('size-changed', onSizeChanged);
-                            } catch (_) {}
-                        }
-                        if (actor && actor.connect) {
-                            try {
-                                actorSigId = actor.connect('notify::allocation', onSizeChanged);
-                            } catch (_) {}
-                        }
-
-                        // Re-check in case size changed synchronously during connect
-                        if (isGeometryMatching()) {
-                            cleanupListeners();
-                            scheduleBeforeRedraw("SIZE_CHANGED");
-                        }
-                    }
                 });
             } else if (inst === "DestroySnapshot") {
                 this._destroySnapshot(actor);
@@ -391,10 +297,6 @@ export default class SpawnAtExtension extends Extension {
                     } else {
                         window.resize(true, w, h);
                     }
-                    let f = window.get_frame_rect();
-                    let b = window.get_buffer_rect();
-                    let [aw, ah] = actor.get_size ? actor.get_size() : [0, 0];
-                    console.error(`[spawn-at-debug] POST-RESIZE: frame=${f.width}x${f.height} | buffer=${b.width}x${b.height} | actor=${aw}x${ah}`);
                 }
             } else if (inst.WaitForCommit) {
                 await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
@@ -406,16 +308,22 @@ export default class SpawnAtExtension extends Extension {
         if (window) {
             delete window._targetW;
             delete window._targetH;
+            delete window._targetX;
+            delete window._targetY;
         }
     }
 
     _cloak(actor) {
         if (!actor) return;
+        if (actor.remove_all_transitions) actor.remove_all_transitions();
+        actor.opacity = 0;
         actor.hide();
     }
 
     _uncloak(actor) {
         if (!actor) return;
+        if (actor.remove_all_transitions) actor.remove_all_transitions();
+        actor.opacity = 255;
         actor.show();
     }
     
@@ -533,6 +441,11 @@ export default class SpawnAtExtension extends Extension {
         x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - effW));
         y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - effH));
 
+        if (window) {
+            window._targetX = x;
+            window._targetY = y;
+        }
+
         if (window.move_frame) {
             window.move_frame(true, x, y);
         } else {
@@ -541,7 +454,8 @@ export default class SpawnAtExtension extends Extension {
     }
 
     ArmSpawn(target_id, instructions_json) {
-        console.error(`[spawn-at] ArmSpawn CALLED: expectedClass="${target_id}", expectedPid=-1`);
+        this._t0 = GLib.get_monotonic_time();
+        this._logTime("ARM_SPAWN", `target="${target_id}"`);
         let instructions = [];
         try {
             instructions = JSON.parse(instructions_json);
