@@ -211,7 +211,8 @@ export default class SpawnAtExtension extends Extension {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
                 await new Promise(resolve => {
-                    GLib.idle_add(GLib.PRIORITY_HIGH, () => {
+                    // Give GTK/Wayland a couple compositor frames (~45ms) to commit the buffer before unhiding
+                    GLib.timeout_add(GLib.PRIORITY_HIGH, 45, () => {
                         if (this._uncloak) {
                             this._uncloak(actor);
                         } else {
