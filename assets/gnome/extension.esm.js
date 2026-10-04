@@ -169,10 +169,17 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _handleActorMap(actor) {
+        let w = actor.meta_window || (actor.get_meta_window ? actor.get_meta_window() : null);
+        let wmClass = w ? w.get_wm_class() : "unknown";
+        let gtkAppId = (w && w.get_gtk_application_id) ? w.get_gtk_application_id() : "none";
+        let pid = w ? w.get_pid() : -1;
+        console.error(`[spawn-at] WINDOW CREATED: class="${wmClass}", gtkAppId="${gtkAppId}", pid=${pid}`);
+
         let window = actor.meta_window;
         if (!window) return;
 
         if (window._spawnAtInstructions) {
+            console.error(`[spawn-at] MATCH FOUND! Processing batch for wmClass="${wmClass}"`);
             actor.hide();
             this._runBatch(window, actor, window._spawnAtInstructions);
             delete window._spawnAtInstructions;
@@ -210,39 +217,84 @@ export default class SpawnAtExtension extends Extension {
             } else if (inst === "Cloak") {
                 this._cloak(actor);
             } else if (inst === "Uncloak") {
+                let f2 = window.get_frame_rect();
+                let b2 = window.get_buffer_rect();
+                let [aw2, ah2] = actor.get_size ? actor.get_size() : [0, 0];
+                console.error(`[spawn-at-debug] PRE-UNCLOAK: frame=${f2.width}x${f2.height} | buffer=${b2.width}x${b2.height} | actor=${aw2}x${ah2}`);
+
                 await new Promise(resolve => {
                     let finished = false;
                     let laterId = 0;
                     let timeoutId = 0;
+                    let winSigId = 0;
+                    let actorSigId = 0;
 
-                    const finish = () => {
-                        if (finished) return;
-                        finished = true;
+                    const tolerance = 25;
+                    const effTargetW = targetW !== null ? targetW : (window && window._targetW !== undefined ? window._targetW : null);
+                    const effTargetH = targetH !== null ? targetH : (window && window._targetH !== undefined ? window._targetH : null);
 
-                        // Clean up later callback
+                    const isGeometryMatching = () => {
+                        if (effTargetW === null && effTargetH === null) return true;
+                        try {
+                            let frame = window.get_frame_rect();
+                            let matchW = effTargetW === null || Math.abs(frame.width - effTargetW) <= tolerance;
+                            let matchH = effTargetH === null || Math.abs(frame.height - effTargetH) <= tolerance;
+                            return matchW && matchH;
+                        } catch (_) {
+                            return true;
+                        }
+                    };
+
+                    const cleanupListeners = () => {
+                        if (winSigId && window) {
+                            try { window.disconnect(winSigId); } catch (_) {}
+                            winSigId = 0;
+                        }
+                        if (actorSigId && actor) {
+                            try { actor.disconnect(actorSigId); } catch (_) {}
+                            actorSigId = 0;
+                        }
+                    };
+
+                    const cleanup = () => {
+                        cleanupListeners();
+
                         if (laterId) {
-                            if (global.compositor && global.compositor.get_laters) {
-                                global.compositor.get_laters().remove(laterId);
-                            } else if (Meta.later_remove) {
-                                Meta.later_remove(laterId);
-                            }
+                            try {
+                                if (global.compositor && global.compositor.get_laters) {
+                                    global.compositor.get_laters().remove(laterId);
+                                } else if (Meta.later_remove) {
+                                    Meta.later_remove(laterId);
+                                }
+                            } catch (_) {}
                             laterId = 0;
                         }
 
-                        // Clean up safety timeout
                         if (timeoutId) {
-                            GLib.source_remove(timeoutId);
+                            try {
+                                GLib.source_remove(timeoutId);
+                            } catch (_) {
+                                try { GLib.Source.remove(timeoutId); } catch (_) {}
+                            }
                             timeoutId = 0;
                         }
+                    };
 
-                        // Unhide actor
+                    const finish = (trigger) => {
+                        if (finished) return;
+                        finished = true;
+
+                        cleanup();
+
+                        let rect = window ? window.get_frame_rect() : { x: 0, y: 0, width: 0, height: 0 };
+                        console.error(`[spawn-at] UNCLOAK: rect=(${rect.x}, ${rect.y}, ${rect.width}x${rect.height}) via ${trigger}`);
+
                         if (this._uncloak) {
                             this._uncloak(actor);
-                        } else {
+                        } else if (actor) {
                             actor.show();
                         }
 
-                        // Force Clutter to wake the frame clock and repaint immediately
                         if (global.stage && global.stage.queue_relayout) {
                             global.stage.queue_relayout();
                         }
@@ -250,28 +302,74 @@ export default class SpawnAtExtension extends Extension {
                         resolve();
                     };
 
-                    // Track 1: Fast track — sync directly with the compositor's next redraw pass
-                    try {
-                        if (global.compositor && global.compositor.get_laters) {
-                            laterId = global.compositor.get_laters().add(Meta.LaterType.BEFORE_REDRAW, () => {
-                                finish();
-                                return false;
-                            });
-                        } else if (Meta.later_add) {
-                            laterId = Meta.later_add(Meta.LaterType.BEFORE_REDRAW, () => {
-                                finish();
-                                return false;
-                            });
-                        }
-                    } catch (e) {
-                        // Fall back cleanly if Later API is unavailable in current runtime
-                    }
+                    const scheduleBeforeRedraw = (triggerName) => {
+                        if (finished || laterId) return;
 
-                    // Track 2: Fail-safe timer (250ms) to ensure window shows even if compositor is idle
-                    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-                        finish();
+                        // Force Mutter to wake up the compositor frame clock
+                        if (actor && actor.queue_relayout) actor.queue_relayout();
+                        if (global.stage && global.stage.queue_relayout) global.stage.queue_relayout();
+
+                        // Register frame-accurate redraw
+                        try {
+                            let laterType = Meta.LaterType ? Meta.LaterType.BEFORE_REDRAW : 1;
+                            if (global.compositor && global.compositor.get_laters) {
+                                laterId = global.compositor.get_laters().add(laterType, () => {
+                                    laterId = 0;
+                                    finish(triggerName);
+                                    return false;
+                                });
+                            } else if (Meta.later_add) {
+                                laterId = Meta.later_add(laterType, () => {
+                                    laterId = 0;
+                                    finish(triggerName);
+                                    return false;
+                                });
+                            } else {
+                                console.error("[spawn-at] No Later API found on this Mutter version");
+                                finish(triggerName);
+                            }
+                        } catch (e) {
+                            console.error(`[spawn-at] later_add failed: ${e.message}`);
+                            finish(triggerName);
+                        }
+                    };
+
+                    // Fallback timeout (200ms)
+                    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 200, () => {
+                        timeoutId = 0;
+                        finish("FALLBACK");
                         return GLib.SOURCE_REMOVE;
                     });
+
+                    // Scenario A: Geometry already matches or no resize needed
+                    if (isGeometryMatching()) {
+                        scheduleBeforeRedraw("IMMEDIATE_MATCH");
+                    } else {
+                        // Scenario B: Geometry pending update -> wait for size-changed / allocation
+                        const onSizeChanged = () => {
+                            if (isGeometryMatching()) {
+                                cleanupListeners();
+                                scheduleBeforeRedraw("SIZE_CHANGED");
+                            }
+                        };
+
+                        if (window && window.connect) {
+                            try {
+                                winSigId = window.connect('size-changed', onSizeChanged);
+                            } catch (_) {}
+                        }
+                        if (actor && actor.connect) {
+                            try {
+                                actorSigId = actor.connect('notify::allocation', onSizeChanged);
+                            } catch (_) {}
+                        }
+
+                        // Re-check in case size changed synchronously during connect
+                        if (isGeometryMatching()) {
+                            cleanupListeners();
+                            scheduleBeforeRedraw("SIZE_CHANGED");
+                        }
+                    }
                 });
             } else if (inst === "DestroySnapshot") {
                 this._destroySnapshot(actor);
@@ -280,6 +378,10 @@ export default class SpawnAtExtension extends Extension {
                 if (w > 0 && h > 0) {
                     targetW = w;
                     targetH = h;
+                    if (window) {
+                        window._targetW = w;
+                        window._targetH = h;
+                    }
                     if (window.get_maximized && window.get_maximized()) {
                         window.unmaximize(Meta.MaximizeFlags.BOTH);
                     }
@@ -289,12 +391,21 @@ export default class SpawnAtExtension extends Extension {
                     } else {
                         window.resize(true, w, h);
                     }
+                    let f = window.get_frame_rect();
+                    let b = window.get_buffer_rect();
+                    let [aw, ah] = actor.get_size ? actor.get_size() : [0, 0];
+                    console.error(`[spawn-at-debug] POST-RESIZE: frame=${f.width}x${f.height} | buffer=${b.width}x${b.height} | actor=${aw}x${ah}`);
                 }
             } else if (inst.WaitForCommit) {
                 await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
-                this._applyAnchoredPosition(window, inst.SetPositionAnchored);
+                this._applyAnchoredPosition(window, inst.SetPositionAnchored, targetW, targetH);
             }
+        }
+
+        if (window) {
+            delete window._targetW;
+            delete window._targetH;
         }
     }
 
@@ -373,7 +484,7 @@ export default class SpawnAtExtension extends Extension {
                 if (targetW != null && targetH != null) {
                     try {
                         let frame = window.get_frame_rect();
-                        if (Math.abs(frame.width - targetW) > 10 || Math.abs(frame.height - targetH) > 10) {
+                        if (Math.abs(frame.width - targetW) > 25 || Math.abs(frame.height - targetH) > 25) {
                             return;
                         }
                     } catch (e) {}
@@ -408,19 +519,19 @@ export default class SpawnAtExtension extends Extension {
         });
     }
 
-    _applyAnchoredPosition(window, payload) {
+    _applyAnchoredPosition(window, payload, targetW = null, targetH = null) {
         let frame = window.get_frame_rect();
-        let w = frame.width;
-        let h = frame.height;
-        let x = payload.screen_anchor_x - Math.round(payload.pivot_u * w) + payload.offset_x;
-        let y = payload.screen_anchor_y - Math.round(payload.pivot_v * h) + payload.offset_y;
+        let effW = targetW || (window && window._targetW) || frame.width;
+        let effH = targetH || (window && window._targetH) || frame.height;
+        let x = payload.screen_anchor_x - Math.round(payload.pivot_u * effW) + payload.offset_x;
+        let y = payload.screen_anchor_y - Math.round(payload.pivot_v * effH) + payload.offset_y;
 
         let monitorIndex = window.get_monitor();
         let workArea = window.get_work_area_for_monitor(monitorIndex);
 
         // Clamp to workarea bounds to prevent spawning under top bar or off-screen
-        x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - w));
-        y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - h));
+        x = Math.max(workArea.x, Math.min(x, workArea.x + workArea.width - effW));
+        y = Math.max(workArea.y, Math.min(y, workArea.y + workArea.height - effH));
 
         if (window.move_frame) {
             window.move_frame(true, x, y);
@@ -430,6 +541,7 @@ export default class SpawnAtExtension extends Extension {
     }
 
     ArmSpawn(target_id, instructions_json) {
+        console.error(`[spawn-at] ArmSpawn CALLED: expectedClass="${target_id}", expectedPid=-1`);
         let instructions = [];
         try {
             instructions = JSON.parse(instructions_json);
