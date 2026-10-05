@@ -305,7 +305,21 @@ export default class SpawnAtExtension extends Extension {
                 this._createSnapshot(actor);
             } else if (inst === "Cloak") {
                 this._cloak(actor);
-            } else if (inst === "Uncloak") {
+            } else if (inst === "Uncloak" || (typeof inst === 'object' && inst !== null && 'Uncloak' in inst)) {
+                let delay_ms = 300; // Default to 300ms if no flag is provided
+                if (typeof inst === 'object' && inst.Uncloak && typeof inst.Uncloak.delay_ms === 'number') {
+                    delay_ms = inst.Uncloak.delay_ms;
+                }
+
+                if (delay_ms > 0) {
+                    await new Promise(resolve => {
+                        GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay_ms, () => {
+                            resolve();
+                            return GLib.SOURCE_REMOVE;
+                        });
+                    });
+                }
+
                 if (actor) {
                     if (actor.remove_all_transitions) actor.remove_all_transitions();
                     actor.opacity = 255;
@@ -313,7 +327,7 @@ export default class SpawnAtExtension extends Extension {
                 }
                 let rect = window ? window.get_frame_rect() : { x: 0, y: 0, width: 0, height: 0 };
                 let buf = (window && window.get_buffer_rect) ? window.get_buffer_rect() : rect;
-                this._logTime("UNCLOAK_TRIGGERED", `frame=(${rect.x},${rect.y},${rect.width}x${rect.height}) buf=(${buf.x},${buf.y}) actor=(${actor.x},${actor.y}) visible=${actor ? actor.visible : false} opacity=${actor ? actor.opacity : -1}`);
+                this._logTime("UNCLOAK_TRIGGERED", `delay=${delay_ms}ms frame=(${rect.x},${rect.y},${rect.width}x${rect.height}) buf=(${buf.x},${buf.y}) actor=(${actor.x},${actor.y}) visible=${actor ? actor.visible : false} opacity=${actor ? actor.opacity : -1}`);
                 if (global.stage && global.stage.queue_relayout) {
                     global.stage.queue_relayout();
                 }
@@ -336,6 +350,13 @@ export default class SpawnAtExtension extends Extension {
                         window.move_resize_frame(true, frame.x, frame.y, w, h);
                     } else {
                         window.resize(true, w, h);
+                    }
+
+                    // SYNTHETIC INVALIDATION PING:
+                    // Force GTK3/VTE to flush its style cache and render true font grids
+                    if (window && window.activate) {
+                        global.stage.set_key_focus(null);
+                        window.activate(global.get_current_time());
                     }
                 }
             } else if (inst.WaitForCommit) {
