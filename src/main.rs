@@ -24,10 +24,14 @@ pub mod target;
 
 use clap::Parser;
 use cli::{Cli, Commands};
-use core::geometry::PlacementParams;
 use dialoguer::Confirm;
 use platform::{init_backend, InstallScope};
+use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
+use spawn_at_core::geometry::{
+    check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, PlacementParams,
+};
 use std::io::IsTerminal;
+use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
@@ -169,15 +173,15 @@ async fn main() {
                 std::process::exit(1);
             }
 
-            // 1. Calculate target geometry
-            let is_cursor_anchor = spawn_args.geometry.anchor == Some(core::geometry::Anchor::Cursor);
+            // 1. Calculate target geometry parameters
+            let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
             let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
             let workareas = driver.get_workareas().await.unwrap_or_default();
 
             let target_workarea = if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-                core::geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+                resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
             } else {
-                core::geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &spawn_args.geometry.monitor).unwrap_or_default()
+                resolve_workarea(&workareas, (cursor_x, cursor_y), &spawn_args.geometry.monitor).unwrap_or_default()
             };
 
             let pos = spawn_args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
@@ -190,7 +194,7 @@ async fn main() {
                     None
                 }
             });
-            
+
             let params = PlacementParams {
                 pos,
                 offset: None,
@@ -207,27 +211,73 @@ async fn main() {
                 workarea: target_workarea,
             };
 
-            let payload = core::geometry::calculate_placement(params, 0, 0);
-            
-            let mut instructions = vec![crate::core::types::Instruction::Cloak];
-
-            if let Some(size) = size {
-                instructions.push(crate::core::types::Instruction::SetSize { w: size.0, h: size.1 });
-                instructions.push(crate::core::types::Instruction::WaitForCommit { timeout_ms: 60 });
+            for diag in check_geometry_diagnostics(&params) {
+                match diag {
+                    GeometryDiagnostic::Oversized { w, h } => {
+                        eprintln!(
+                            "\n\x1b[1;33m[spawn-at] WARN:\x1b[0m Window is oversized ({w}x{h}); bottom and right margins ignored."
+                        );
+                    }
+                    GeometryDiagnostic::SubMinimumSize { w, h } => {
+                        eprintln!(
+                            "\n\x1b[1;36m[spawn-at] INFO:\x1b[0m Requested size ({w}x{h}) is below toolkit minimums; window will expand."
+                        );
+                    }
+                    _ => {}
+                }
             }
 
-            instructions.push(crate::core::types::Instruction::SetPositionAnchored(payload));
-            instructions.push(crate::core::types::Instruction::Uncloak);
+            // 2. Generate unique activation token / entry key
+            let entry_key = format!(
+                "spawn-at-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
 
-            // 2. Resolve target application identifier via the active driver
-            let target_id = driver.resolve_id(&spawn_args.command, spawn_args.class.as_deref());
+            let app_hint = spawn_args.class.clone().unwrap_or_else(|| {
+                driver.resolve_id(&spawn_args.command, None)
+            });
 
-            // 3. Dispatch to active driver
-            if let Err(e) = driver.spawn_at(&target_id, &spawn_args.command, &instructions).await {
+            let batch = Batch {
+                id: 1,
+                entries: vec![Entry {
+                    key: entry_key,
+                    app_hint,
+                    placement: params,
+                }],
+                reveal: Reveal::Together,
+                focus: FocusIntent::Exclusive,
+                urgency: Urgency::Normal,
+                deadline: Duration::from_millis(15000),
+            };
+
+            // 3. Arm the driver with the declarative batch intent
+            let armed = match driver.arm(batch).await {
+                Ok(a) => a,
+                Err(e) => {
+                    eprintln!(
+                        "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
+                        driver.name(),
+                        e
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            // 4. Launch child process with armed environment variables
+            let mut cmd = std::process::Command::new(&spawn_args.command[0]);
+            cmd.args(&spawn_args.command[1..]);
+            for (k, v) in armed.launch_env {
+                cmd.env(k, v);
+            }
+
+            if let Err(e) = cmd.spawn() {
                 eprintln!(
-                    "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
-                    driver.name(),
-                    e
+                    "\x1b[1;31mExecution Error\x1b[0m: Failed to spawn command '{}': {}",
+                    spawn_args.command[0], e
                 );
                 std::process::exit(1);
             }

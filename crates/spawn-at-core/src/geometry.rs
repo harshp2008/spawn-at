@@ -10,7 +10,6 @@
 //! - **Sign Conventions**: Coordinates (`x`, `y`) are signed `i32` to allow for negative monitor offsets, while dimensions (`width`, `height`) are unsigned `u32` to prevent impossible sizes.
 
 use serde::{Deserialize, Serialize};
-use crate::core::types::PlacementPayload;
 
 /// A 2D bounding rectangle representing a window, monitor, or workarea boundary.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -28,7 +27,8 @@ pub struct Rect {
 }
 
 /// Defines the origin point for window placement relative to a bounding workarea.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Anchor {
     /// Centers the window inside the target bounding box.
     Center,
@@ -53,7 +53,8 @@ pub enum Anchor {
 }
 
 /// Defines the boundary reference area for placement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Area {
     #[default]
     Workarea,
@@ -61,7 +62,8 @@ pub enum Area {
 }
 
 /// Defines which corner of the window aligns with the target coordinate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Pivot {
     /// The target coordinate aligns with the window's top-left corner.
     #[default]
@@ -77,7 +79,7 @@ pub enum Pivot {
 }
 
 /// Input parameters for calculating final target window geometry.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct GeometryParams {
     /// Explicit absolute screen coordinates (X, Y)
     pub pos: Option<(i32, i32)>,
@@ -110,25 +112,26 @@ pub struct TargetGeometry {
     pub max_y: Option<i32>,
 }
 
+/// Declarative parameters describing spatial positioning, alignment, and bounding box constraints.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PlacementParams {
+    pub pos: Option<(i32, i32)>,
+    pub offset: Option<(i32, i32)>,
+    pub anchor: Option<Anchor>,
+    pub pivot: Option<Pivot>,
+    pub size: Option<(u32, u32)>,
+    pub margin: i32,
+    pub margin_top: Option<i32>,
+    pub margin_bottom: Option<i32>,
+    pub margin_left: Option<i32>,
+    pub margin_right: Option<i32>,
+    pub area: Option<Area>,
+    pub cursor_pos: Option<(i32, i32)>,
+    pub workarea: Rect,
+}
+
 /// Resolves the target workarea rectangle from a list of workareas, pointer coordinates,
 /// and a monitor selector string (`<INDEX>`, `"cursor"`, or `"primary"`).
-///
-/// - If `monitor` is `"cursor"`, locates the workarea containing `(px, py)`.
-///   Falls back to `workareas[0]` if the cursor is outside all workareas.
-/// - If `monitor` is a numeric index (e.g. `"0"`, `"1"`), selects `workareas[index]`.
-///   Falls back to `workareas[0]` if out of bounds.
-/// - Defaults to `workareas[0]` (the primary monitor) for `"primary"` or any other input.
-///
-/// # Examples
-/// ```
-/// use spawn_at::core::geometry::{Rect, resolve_workarea};
-/// let m1 = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-/// let m2 = Rect { x: 1920, y: 0, width: 2560, height: 1440 };
-/// let workareas = vec![m1, m2];
-/// 
-/// assert_eq!(resolve_workarea(&workareas, (0, 0), "1").unwrap(), m2);
-/// assert_eq!(resolve_workarea(&workareas, (2000, 500), "cursor").unwrap(), m2);
-/// ```
 pub fn resolve_workarea(
     workareas: &[Rect],
     pointer: (i32, i32),
@@ -166,15 +169,6 @@ pub fn resolve_workarea(
 
 /// Computes the top-left origin coordinates `(x, y)` for a window of size `(win_w, win_h)`
 /// anchored inside `workarea` with a given `margin`.
-///
-/// # Examples
-/// ```
-/// use spawn_at::core::geometry::{Rect, Anchor, apply_anchor};
-/// let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-/// let (x, y) = apply_anchor(wa, 800, 600, Anchor::Center, 16);
-/// assert_eq!(x, (1920 - 800) / 2);
-/// assert_eq!(y, (1080 - 600) / 2);
-/// ```
 pub fn apply_anchor(
     workarea: Rect,
     win_w: u32,
@@ -182,7 +176,6 @@ pub fn apply_anchor(
     anchor: Anchor,
     margin: i32,
 ) -> (i32, i32) {
-    // Cast widths safely to i32 for coordinate math
     let (wa_w, wa_h) = (workarea.width as i32, workarea.height as i32);
     let (w, h) = (win_w as i32, win_h as i32);
 
@@ -232,21 +225,12 @@ pub fn apply_anchor(
             let y = workarea.y + (wa_h - h) / 2;
             (x, y)
         }
-        Anchor::Cursor => {
-            (workarea.x, workarea.y)
-        }
+        Anchor::Cursor => (workarea.x, workarea.y),
     }
 }
 
 /// Computes the top-left origin coordinates `(x, y)` when placing a window of size
 /// `(win_w, win_h)` such that the specified `pivot` point aligns with `(target_x, target_y)`.
-///
-/// # Examples
-/// ```
-/// use spawn_at::core::geometry::{Pivot, apply_pivot};
-/// let (x, y) = apply_pivot(500, 400, 200, 100, Pivot::Center);
-/// assert_eq!((x, y), (400, 350));
-/// ```
 pub fn apply_pivot(
     target_x: i32,
     target_y: i32,
@@ -266,18 +250,6 @@ pub fn apply_pivot(
 
 /// Clamps `rect.x` and `rect.y` so that the window stays strictly within the bounds,
 /// accounting for a global `margin` and specific directional boundaries.
-///
-/// If `rect` is larger than the boundaries minus margins, it will pin to the top-left
-/// `(bounds.x + left_bound, bounds.y + top_bound)` to prevent hiding the title bar.
-///
-/// # Examples
-/// ```
-/// use spawn_at::core::geometry::{Rect, clamp_to_bounds};
-/// let bounds = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-/// let rect = Rect { x: 2000, y: 100, width: 400, height: 300 };
-/// let clamped = clamp_to_bounds(rect, bounds, 0, 0, 0, 0, 10);
-/// assert_eq!(clamped.x, 1920 - 400 - 10);
-/// ```
 pub fn clamp_to_bounds(
     rect: Rect,
     bounds: Rect,
@@ -297,8 +269,6 @@ pub fn clamp_to_bounds(
     let mut max_x = bounds.x + (bounds.width as i32) - right - (rect.width as i32);
     let mut max_y = bounds.y + (bounds.height as i32) - bottom - (rect.height as i32);
 
-    // If max_x is less than min_x, the window is too wide for the monitor minus margins.
-    // In this case, we anchor to min_x to keep the left edge (and title bar) visible.
     if max_x < min_x {
         max_x = min_x;
     }
@@ -318,17 +288,11 @@ pub fn clamp_to_bounds(
 }
 
 /// Pure mathematical calculation of target window geometry.
-///
-/// - If `params.pos` is specified, uses absolute coordinates.
-/// - Otherwise, derives base coordinates from `cursor` (falling back to (0, 0)) + `params.offset`.
-/// - If margin/boundary constraints are set and `monitors` are provided, clamps coordinates
-///   within the active monitor containing the target and computes boundary limits.
 pub fn calculate(
     params: &GeometryParams,
     cursor: Option<(i32, i32)>,
     monitors: &[Rect],
 ) -> TargetGeometry {
-    // 1. Determine base target coordinates
     let (mut target_x, mut target_y) = if let Some((px, py)) = params.pos {
         (px, py)
     } else {
@@ -337,10 +301,8 @@ pub fn calculate(
         (cx + ox, cy + oy)
     };
 
-    // 2. Determine target dimensions (0 implies client default / unconstrained)
     let (w, h) = params.size.unwrap_or((0, 0));
 
-    // 3. Optional screen boundary clamping
     let has_bounds = params.margin.is_some()
         || params.bound_top.is_some()
         || params.bound_bottom.is_some()
@@ -353,7 +315,6 @@ pub fn calculate(
     let mut max_y = None;
 
     if has_bounds && !monitors.is_empty() {
-        // Resolve active monitor by mimicking cursor behavior with the target coordinates
         let active_monitor = resolve_workarea(monitors, (target_x, target_y), "cursor").unwrap_or(monitors[0]);
 
         let bound_top = params.bound_top.unwrap_or(0);
@@ -395,6 +356,159 @@ pub fn calculate(
         min_y,
         max_y,
     }
+}
+
+/// Diagnostic messages generated during geometry resolution.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GeometryDiagnostic {
+    /// Window size exceeds the available workarea space after margins.
+    Oversized { w: u32, h: u32 },
+    /// Window origin coordinates were adjusted due to boundary margin clamping.
+    Repositioned {
+        raw_x: i32,
+        raw_y: i32,
+        clamped_x: i32,
+        clamped_y: i32,
+    },
+    /// Window size is smaller than typical toolkit constraints.
+    SubMinimumSize { w: u32, h: u32 },
+}
+
+/// Evaluates spatial placement parameters against the bounding workarea and returns any diagnostics.
+pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagnostic> {
+    let mut diags = Vec::new();
+
+    if let Some((w, h)) = params.size {
+        let wa = params.workarea;
+        let ml = params.margin_left.unwrap_or(params.margin);
+        let mr = params.margin_right.unwrap_or(params.margin);
+        let mt = params.margin_top.unwrap_or(params.margin);
+        let mb = params.margin_bottom.unwrap_or(params.margin);
+
+        let avail_w = wa.width as i32 - ml - mr;
+        let avail_h = wa.height as i32 - mt - mb;
+
+        let is_oversized = (w as i32) > avail_w || (h as i32) > avail_h;
+
+        if is_oversized {
+            diags.push(GeometryDiagnostic::Oversized { w, h });
+        } else {
+            let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
+            let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
+
+            let (pivot_u, pivot_v) = if let Some(pivot) = params.pivot {
+                match pivot {
+                    Pivot::TopLeft => (0.0, 0.0),
+                    Pivot::TopRight => (1.0, 0.0),
+                    Pivot::BottomLeft => (0.0, 1.0),
+                    Pivot::BottomRight => (1.0, 1.0),
+                    Pivot::Center => (0.5, 0.5),
+                }
+            } else if let Some(anchor) = params.anchor {
+                match anchor {
+                    Anchor::Center => (0.5, 0.5),
+                    Anchor::TopLeft => (0.0, 0.0),
+                    Anchor::TopRight => (1.0, 0.0),
+                    Anchor::BottomLeft => (0.0, 1.0),
+                    Anchor::BottomRight => (1.0, 1.0),
+                    Anchor::Top => (0.5, 0.0),
+                    Anchor::Bottom => (0.5, 1.0),
+                    Anchor::Left => (0.0, 0.5),
+                    Anchor::Right => (1.0, 0.5),
+                    Anchor::Cursor => (0.0, 0.0),
+                }
+            } else {
+                (0.0, 0.0)
+            };
+
+            let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
+                match anchor {
+                    Anchor::Center => (
+                        wa.x + (wa.width as i32) / 2,
+                        wa.y + (wa.height as i32) / 2,
+                    ),
+                    Anchor::TopLeft => (
+                        wa.x + ml,
+                        wa.y + mt,
+                    ),
+                    Anchor::TopRight => (
+                        wa.x + (wa.width as i32) - mr,
+                        wa.y + mt,
+                    ),
+                    Anchor::BottomLeft => (
+                        wa.x + ml,
+                        wa.y + (wa.height as i32) - mb,
+                    ),
+                    Anchor::BottomRight => (
+                        wa.x + (wa.width as i32) - mr,
+                        wa.y + (wa.height as i32) - mb,
+                    ),
+                    Anchor::Top => (
+                        wa.x + (wa.width as i32) / 2,
+                        wa.y + mt,
+                    ),
+                    Anchor::Bottom => (
+                        wa.x + (wa.width as i32) / 2,
+                        wa.y + (wa.height as i32) - mb,
+                    ),
+                    Anchor::Left => (
+                        wa.x + ml,
+                        wa.y + (wa.height as i32) / 2,
+                    ),
+                    Anchor::Right => (
+                        wa.x + (wa.width as i32) - mr,
+                        wa.y + (wa.height as i32) / 2,
+                    ),
+                    Anchor::Cursor => {
+                        if let Some(cursor) = params.cursor_pos {
+                            (cursor.0, cursor.1)
+                        } else {
+                            (wa.x + ml, wa.y + mt)
+                        }
+                    }
+                }
+            } else if let Some(pos) = params.pos {
+                (pos.0, pos.1)
+            } else if let Some(cursor) = params.cursor_pos {
+                (cursor.0, cursor.1)
+            } else {
+                (wa.x + ml, wa.y + mt)
+            };
+
+            let min_x = wa.x + ml;
+            let mut max_x = wa.x + (wa.width as i32) - mr - (w as i32);
+            let min_y = wa.y + mt;
+            let mut max_y = wa.y + (wa.height as i32) - mb - (h as i32);
+
+            if max_x < min_x {
+                max_x = min_x;
+            }
+            if max_y < min_y {
+                max_y = min_y;
+            }
+
+            let raw_x = screen_anchor_x - (pivot_u * (w as f64)).round() as i32 + offset_x;
+            let raw_y = screen_anchor_y - (pivot_v * (h as f64)).round() as i32 + offset_y;
+
+            let clamped_x = raw_x.clamp(min_x, max_x);
+            let clamped_y = raw_y.clamp(min_y, max_y);
+
+            if raw_x != clamped_x || raw_y != clamped_y {
+                diags.push(GeometryDiagnostic::Repositioned {
+                    raw_x,
+                    raw_y,
+                    clamped_x,
+                    clamped_y,
+                });
+            }
+        }
+
+        if w < 100 || h < 80 {
+            diags.push(GeometryDiagnostic::SubMinimumSize { w, h });
+        }
+    }
+
+    diags
 }
 
 #[cfg(test)]
@@ -517,147 +631,57 @@ mod tests {
         assert_eq!(geom.min_y, Some(50 + 40 + 10));
         assert_eq!(geom.max_y, Some(50 + 1080 - 40));
     }
-}
 
-
-#[derive(Debug, Clone, Default)]
-pub struct PlacementParams {
-    pub pos: Option<(i32, i32)>,
-    pub offset: Option<(i32, i32)>,
-    pub anchor: Option<Anchor>,
-    pub pivot: Pivot,
-    pub size: Option<(u32, u32)>,
-    pub margin: i32,
-    pub margin_top: Option<i32>,
-    pub margin_bottom: Option<i32>,
-    pub margin_left: Option<i32>,
-    pub margin_right: Option<i32>,
-    pub area: Option<Area>,
-    pub cursor_pos: Option<(i32, i32)>,
-    pub workarea: Rect,
-}
-
-pub fn calculate_placement(params: PlacementParams, current_w: u32, current_h: u32) -> PlacementPayload {
-    let intended_w = params.size.map(|s| s.0).unwrap_or(current_w);
-    let intended_h = params.size.map(|s| s.1).unwrap_or(current_h);
-
-    let wa = params.workarea;
-    let margin_top = params.margin_top.unwrap_or(params.margin);
-    let margin_bottom = params.margin_bottom.unwrap_or(params.margin);
-    let margin_left = params.margin_left.unwrap_or(params.margin);
-    let margin_right = params.margin_right.unwrap_or(params.margin);
-
-    let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
-    let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
-
-    let (pivot_u, pivot_v, screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
-        match anchor {
-            Anchor::Center => (
-                0.5,
-                0.5,
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::TopLeft => (
-                0.0,
-                0.0,
-                wa.x + margin_left,
-                wa.y + margin_top,
-            ),
-            Anchor::TopRight => (
-                1.0,
-                0.0,
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + margin_top,
-            ),
-            Anchor::BottomLeft => (
-                0.0,
-                1.0,
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::BottomRight => (
-                1.0,
-                1.0,
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Top => (
-                0.5,
-                0.0,
-                wa.x + (wa.width as i32) / 2,
-                wa.y + margin_top,
-            ),
-            Anchor::Bottom => (
-                0.5,
-                1.0,
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Left => (
-                0.0,
-                0.5,
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Right => (
-                1.0,
-                0.5,
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Cursor => {
-                let (ax, ay) = if let Some(cursor) = params.cursor_pos {
-                    (cursor.0, cursor.1)
-                } else {
-                    (wa.x + margin_left, wa.y + margin_top)
-                };
-                let (pu, pv) = match params.pivot {
-                    Pivot::TopLeft => (0.0, 0.0),
-                    Pivot::TopRight => (1.0, 0.0),
-                    Pivot::BottomLeft => (0.0, 1.0),
-                    Pivot::BottomRight => (1.0, 1.0),
-                    Pivot::Center => (0.5, 0.5),
-                };
-                (pu, pv, ax, ay)
-            }
-        }
-    } else {
-        let (pu, pv) = match params.pivot {
-            Pivot::TopLeft => (0.0, 0.0),
-            Pivot::TopRight => (1.0, 0.0),
-            Pivot::BottomLeft => (0.0, 1.0),
-            Pivot::BottomRight => (1.0, 1.0),
-            Pivot::Center => (0.5, 0.5),
+    #[test]
+    fn test_diagnostics_oversized() {
+        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let params = PlacementParams {
+            size: Some((3000, 2000)),
+            anchor: Some(Anchor::BottomRight),
+            pivot: Some(Pivot::BottomRight),
+            margin: 20,
+            workarea: wa,
+            ..Default::default()
         };
+        let diags = check_geometry_diagnostics(&params);
+        assert_eq!(diags, vec![GeometryDiagnostic::Oversized { w: 3000, h: 2000 }]);
+    }
 
-        let (ax, ay) = if let Some(pos) = params.pos {
-            (pos.0, pos.1)
-        } else if let Some(cursor) = params.cursor_pos {
-            (cursor.0, cursor.1)
-        } else {
-            (wa.x + margin_left, wa.y + margin_top)
+    #[test]
+    fn test_diagnostics_sub_minimum() {
+        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let params = PlacementParams {
+            size: Some((30, 20)),
+            anchor: Some(Anchor::BottomRight),
+            pivot: Some(Pivot::BottomRight),
+            margin: 20,
+            workarea: wa,
+            ..Default::default()
         };
+        let diags = check_geometry_diagnostics(&params);
+        assert_eq!(diags, vec![GeometryDiagnostic::SubMinimumSize { w: 30, h: 20 }]);
+    }
 
-        (pu, pv, ax, ay)
-    };
-
-    PlacementPayload {
-        intended_w,
-        intended_h,
-        screen_anchor_x,
-        screen_anchor_y,
-        pivot_u,
-        pivot_v,
-        offset_x,
-        offset_y,
-        area: params.area.map(|a| match a {
-            Area::Workarea => "workarea".to_string(),
-            Area::Screen => "screen".to_string(),
-        }),
-        margin_top,
-        margin_bottom,
-        margin_left,
-        margin_right,
+    #[test]
+    fn test_diagnostics_repositioned() {
+        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let params = PlacementParams {
+            size: Some((800, 600)),
+            anchor: Some(Anchor::BottomRight),
+            pivot: Some(Pivot::TopLeft),
+            margin: 20,
+            workarea: wa,
+            ..Default::default()
+        };
+        let diags = check_geometry_diagnostics(&params);
+        assert_eq!(
+            diags,
+            vec![GeometryDiagnostic::Repositioned {
+                raw_x: 1900,
+                raw_y: 1060,
+                clamped_x: 1100,
+                clamped_y: 460
+            }]
+        );
     }
 }

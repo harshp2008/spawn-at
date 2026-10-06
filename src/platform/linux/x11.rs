@@ -17,12 +17,23 @@
 //! while informing the user that compositor-assisted zero-flicker hooks are currently
 //! focused on the Wayland engine.
 
-use crate::core::geometry::Rect;
-use crate::core::types::Instruction;
-use crate::platform::{CompositorBackend, DriverError, WindowState};
-use crate::target::WindowMetadata;
+use crate::platform::{
+    Armed, Batch, CompositorBackend, Driver, DriverError, Rect, WindowMetadata, WindowState,
+};
 
 pub struct X11Driver;
+
+#[async_trait::async_trait]
+impl Driver for X11Driver {
+    async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+        let mut launch_env = Vec::new();
+        for entry in &batch.entries {
+            launch_env.push(("XDG_ACTIVATION_TOKEN".to_string(), entry.key.clone()));
+            launch_env.push(("DESKTOP_STARTUP_ID".to_string(), entry.key.clone()));
+        }
+        Ok(Armed { launch_env })
+    }
+}
 
 #[async_trait::async_trait]
 impl CompositorBackend for X11Driver {
@@ -37,26 +48,6 @@ impl CompositorBackend for X11Driver {
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
         let bin = command.first().map(|s| s.as_str()).unwrap_or("");
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
-    }
-
-    async fn spawn_at(
-        &self,
-        _app_id: &str,
-        command: &[String],
-        _instructions: &[Instruction],
-    ) -> Result<(), DriverError> {
-        println!("Warning: Perfect cold-starts not fully supported on X11 yet.");
-        std::process::Command::new(&command[0])
-            .args(&command[1..])
-            .spawn()
-            .map_err(|e| DriverError::Execution(Box::new(e)))?;
-        Ok(())
-    }
-
-    async fn execute_batch(&self, _target_id: &str, _instructions: &[Instruction]) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability(
-            "Batch execution is not yet implemented for X11",
-        ))
     }
 
     /// Queries pointer position using xdotool.

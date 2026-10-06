@@ -5,10 +5,9 @@
 
 use crate::cli::TransformArgs;
 use crate::commands::focus::apply_focus_policy;
-use crate::core::geometry::{self, PlacementParams};
-use crate::core::types::Instruction;
-use crate::platform::{CompositorBackend, DriverError};
+use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use crate::target;
+use spawn_at_core::geometry;
 
 /// Executes the `transform` subcommand: resolves window coordinates and transforms target geometry.
 pub async fn run_transform(
@@ -83,24 +82,11 @@ pub async fn run_transform(
         workarea: target_workarea,
     };
 
-    let payload = geometry::calculate_placement(params, target_win.w as u32, target_win.h as u32);
-
-    // 5. Generate execution plan
-    let instructions = vec![
-        Instruction::Snapshot,
-        Instruction::Cloak,
-        Instruction::SetSize { w: payload.intended_w, h: payload.intended_h },
-        Instruction::WaitForCommit { timeout_ms: 500 },
-        Instruction::SetPositionAnchored(payload),
-        Instruction::Uncloak,
-        Instruction::DestroySnapshot,
-    ];
-
-    // 6. Execute batch via backend
+    // 5. Execute transform via backend
     let target_id = target::resolve_target_id(target_win);
 
     backend
-        .execute_batch(&target_id, &instructions)
+        .transform_window(&target_id, params, target_win.w as u32, target_win.h as u32)
         .await?;
 
     apply_focus_policy(backend, &target_id, &args.focus_modifiers).await?;

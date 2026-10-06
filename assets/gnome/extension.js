@@ -83,6 +83,11 @@ export default class SpawnAtExtension extends Extension {
         this._wildcardTarget = null;
         this._wildcardTimeoutId = null;
 
+        // Mutex queue state: serializes window orchestration batches to prevent
+        // focus and geometry race conditions during concurrent window creations.
+        this._batchQueue = [];
+        this._batchBusy = false;
+
         try {
             this._windowCreatedId = global.display.connect('window-created', (display, window) => {
                 this._handleWindowCreated(window);
@@ -148,6 +153,16 @@ export default class SpawnAtExtension extends Extension {
 
         const getIdentifiers = (win) => {
             const list = [];
+            // DETERMINISTIC TOKEN MATCHING:
+            // Query the window's startup ID first. By injecting a unique XDG_ACTIVATION_TOKEN
+            // into each spawned process, matching on startup ID takes precedence over generic
+            // WM classes and ensures concurrent instances of the same application never swap instructions.
+            try {
+                if (win.get_startup_id) {
+                    const sid = win.get_startup_id();
+                    if (sid) list.push(sid);
+                }
+            } catch (e) {}
             try {
                 const cls = win.get_wm_class();
                 if (cls) list.push(cls);
@@ -234,6 +249,7 @@ export default class SpawnAtExtension extends Extension {
             window.no_map_animation = true;
         }
 
+        // Maintain hard cloak if this window has pending instructions or if an armed wildcard exists
         if ((window && window._spawnAtInstructions) || this._armedSpawns.size > 0 || this._wildcardTarget) {
             if (actor.remove_all_transitions) actor.remove_all_transitions();
             actor.opacity = 0;
@@ -251,7 +267,8 @@ export default class SpawnAtExtension extends Extension {
 
         if (window._spawnAtInstructions) {
             console.error(`[spawn-at] MATCH FOUND! Processing batch for wmClass="${wmClass}"`);
-            this._runBatch(window, actor, window._spawnAtInstructions);
+            // Reroute direct execution through the serialized mutex queue
+            this._enqueueBatch(window, actor, window._spawnAtInstructions);
             delete window._spawnAtInstructions;
             return;
         }
@@ -264,7 +281,8 @@ export default class SpawnAtExtension extends Extension {
             let timerId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 10, () => {
                 checkCount++;
                 if (window._spawnAtInstructions) {
-                    this._runBatch(window, actor, window._spawnAtInstructions);
+                    // Match found during cloak poll: reroute to serialized batch mutex queue
+                    this._enqueueBatch(window, actor, window._spawnAtInstructions);
                     delete window._spawnAtInstructions;
                     return GLib.SOURCE_REMOVE;
                 }
@@ -283,9 +301,77 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
+    /**
+     * Enqueues an orchestration batch instruction set into the serialized FIFO mutex queue.
+     *
+     * Serialization is critical in concurrent window spawn environments (such as multi-window
+     * CLI grid launches or rapid terminal spawns). Parallel execution of window transformation
+     * batches causes race conditions over Mutter's single-threaded focus and layout state machine.
+     * Enqueuing ensures that each window completes its sizing, asynchronous focus transition,
+     * and placement lifecycle without interference.
+     *
+     * @param {Meta.Window} window - Target Mutter window instance
+     * @param {Clutter.Actor} actor - Corresponding Clutter window actor
+     * @param {Array<Object|string>} instructions - Array of batch operation descriptors
+     */
+    _enqueueBatch(window, actor, instructions) {
+        this._batchQueue.push({ window, actor, instructions });
+        this._processQueue();
+    }
+
+    /**
+     * Mutex Queue Worker.
+     *
+     * Asynchronously serializes batch executions to prevent focus collisions and geometry race conditions.
+     *
+     * Why serialization is necessary:
+     * 1. Focus Contention Prevention: GTK3/VTE widgets require a clean 'focus-out' -> 'focus-in'
+     *    transition to calculate font metrics and minimum geometry. If multiple windows execute
+     *    this sequence concurrently, they steal focus from each other mid-handshake, breaking
+     *    geometry calculation and causing layout freezes.
+     * 2. Wayland Protocol Stream Synchronization: Mutter layout passes and Wayland buffer commits
+     *    rely on asynchronous event loop turns. Processing batches sequentially guarantees that
+     *    each window's buffer commit and anchored positioning settle before the next batch starts.
+     */
+    async _processQueue() {
+        if (this._batchBusy || this._batchQueue.length === 0) {
+            return;
+        }
+
+        this._batchBusy = true;
+        const { window, actor, instructions } = this._batchQueue.shift();
+
+        try {
+            await this._runBatch(window, actor, instructions);
+        } catch (e) {
+            console.error(`[SpawnAt] Batch processing failed in mutex queue: ${e}`);
+            if (actor) {
+                // Failsafe uncloak: ensure the actor is not left permanently invisible on error
+                this._uncloak(actor);
+            }
+        } finally {
+            this._batchBusy = false;
+            // Recursively process any remaining items in the queue
+            this._processQueue();
+        }
+    }
+
+    /**
+     * Core Batch Orchestration Engine.
+     *
+     * Executes the sequence of instructions (e.g. Snapshot, Cloak, SetSize, WaitForCommit,
+     * SetPositionAnchored, Uncloak) for a targeted window.
+     *
+     * @param {Meta.Window} window - The window being configured.
+     * @param {Clutter.Actor} actor - The Clutter scene-graph actor for the window.
+     * @param {Array<Object|string>} instructions - Ordered instruction pipeline.
+     */
     async _runBatch(window, actor, instructions) {
         let targetW = null;
         let targetH = null;
+        let lastAnchorPayload = null;
+        let lastPositionedW = -1;
+        let lastPositionedH = -1;
 
         let sizeInst = instructions.find(i => i && i.SetSize);
         if (sizeInst) {
@@ -320,16 +406,52 @@ export default class SpawnAtExtension extends Extension {
                     });
                 }
 
+                let current_rect = window ? window.get_frame_rect() : null;
+                if (current_rect && lastAnchorPayload && (current_rect.width !== lastPositionedW || current_rect.height !== lastPositionedH)) {
+                    console.error(`[spawn-at] INFO: Window resized to ${current_rect.width}x${current_rect.height} (enforced by toolkit minimum dimensions).`);
+                    this._applyAnchoredPosition(window, lastAnchorPayload);
+                }
+
                 if (actor) {
                     if (actor.remove_all_transitions) actor.remove_all_transitions();
                     actor.opacity = 255;
                     actor.show();
+                }
+                if (window && window.has_focus) {
+                    this._logTime("DEBUG", "Initiating post-uncloak focus bounce to force GTK layout");
+                    global.stage.set_key_focus(null);
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 15, () => {
+                        if (window && window.activate) {
+                            window.activate(global.get_current_time());
+                            this._logTime("DEBUG", "Post-uncloak focus restored");
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
                 let rect = window ? window.get_frame_rect() : { x: 0, y: 0, width: 0, height: 0 };
                 let buf = (window && window.get_buffer_rect) ? window.get_buffer_rect() : rect;
                 this._logTime("UNCLOAK_TRIGGERED", `delay=${delay_ms}ms frame=(${rect.x},${rect.y},${rect.width}x${rect.height}) buf=(${buf.x},${buf.y}) actor=(${actor.x},${actor.y}) visible=${actor ? actor.visible : false} opacity=${actor ? actor.opacity : -1}`);
                 if (global.stage && global.stage.queue_relayout) {
                     global.stage.queue_relayout();
+                }
+
+                if (lastAnchorPayload) {
+                    let lateSigId = window.connect('size-changed', () => {
+                        let r = window.get_frame_rect();
+                        this._logTime("DEBUG", `Late size-changed fired: ${r.width}x${r.height}`);
+                        if (r.width !== lastPositionedW || r.height !== lastPositionedH) {
+                            this._applyAnchoredPosition(window, lastAnchorPayload);
+                            lastPositionedW = r.width;
+                            lastPositionedH = r.height;
+                        }
+                    });
+                    // Detach listener after 1200ms once toolkit layout has fully stabilized
+                    GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1200, () => {
+                        if (window && lateSigId) {
+                            try { window.disconnect(lateSigId); } catch(e) {}
+                        }
+                        return GLib.SOURCE_REMOVE;
+                    });
                 }
             } else if (inst === "DestroySnapshot") {
                 this._destroySnapshot(actor);
@@ -351,21 +473,17 @@ export default class SpawnAtExtension extends Extension {
                     } else {
                         window.resize(true, w, h);
                     }
-
-                    // SYNTHETIC INVALIDATION PING:
-                    // Force GTK3/VTE to flush its style cache and render true font grids
-                    if (window && window.activate) {
-                        global.stage.set_key_focus(null);
-                        window.activate(global.get_current_time());
-                    }
                 }
             } else if (inst.WaitForCommit) {
                 await this._waitForCommit(window, actor, inst.WaitForCommit.timeout_ms, targetW, targetH);
             } else if (inst.SetPositionAnchored) {
+                lastAnchorPayload = inst.SetPositionAnchored;
                 // Apply anchor strictly to the final stabilized geometry
                 this._applyAnchoredPosition(window, inst.SetPositionAnchored);
                 
                 let f0 = window.get_frame_rect();
+                lastPositionedW = f0.width;
+                lastPositionedH = f0.height;
                 let b0 = window.get_buffer_rect ? window.get_buffer_rect() : f0;
                 this._logTime("POSITION_SET", `frame=(${f0.x},${f0.y},${f0.width}x${f0.height}) buf=(${b0.x},${b0.y}) actor=(${actor.x},${actor.y})`);
             }
@@ -379,13 +497,22 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
+    /**
+     * Instantly cloaks the window actor by neutralizing opacity and removing transitions.
+     * 
+     * CRITICAL: We intentionally do NOT call `actor.hide()`. Keeping the actor mapped in Clutter's
+     * scene graph hierarchy allows Clutter and Mutter to perform layout, allocation, and geometry
+     * negotiations without triggering unmap/remap cycle glitches when uncloaked.
+     */
     _cloak(actor) {
         if (!actor) return;
         if (actor.remove_all_transitions) actor.remove_all_transitions();
         actor.opacity = 0;
-        // Do NOT call actor.hide(); keep actor mapped in Clutter scene graph
     }
 
+    /**
+     * Restores window actor visibility and queues a Clutter stage relayout.
+     */
     _uncloak(actor) {
         if (!actor) return;
         if (actor.remove_all_transitions) actor.remove_all_transitions();
@@ -393,6 +520,10 @@ export default class SpawnAtExtension extends Extension {
         if (!actor.visible) actor.show();
     }
     
+    /**
+     * Creates a temporary Clutter.Clone snapshot of the window actor.
+     * Used during dynamic resize/move transformations to eliminate visual tearing.
+     */
     _createSnapshot(actor) {
         if (actor._spawnAtClone) return;
         let clone = new Clutter.Clone({ source: actor, x: actor.x, y: actor.y });
@@ -403,6 +534,9 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
+    /**
+     * Destroys the temporary clone snapshot once geometry and uncloak settle.
+     */
     _destroySnapshot(actor) {
         if (actor._spawnAtClone) {
             actor._spawnAtClone.destroy();
@@ -410,7 +544,22 @@ export default class SpawnAtExtension extends Extension {
         }
     }
 
-    _waitForCommit(window, actor, timeout_ms, targetW = null, targetH = null) {
+    /**
+     * Dynamic Geometry & Commit Latch.
+     *
+     * Monitors Mutter's allocation and size-change signals to detect when a client
+     * (GTK/Wayland application) has committed its new buffer geometry matching the requested size.
+     *
+     * Lifecycle Details:
+     * - Attaches listeners to actor 'notify::allocation' and window 'size-changed'.
+     * - Evaluates whether current geometry is within tolerance of target geometry (`isNearTarget`).
+     * - Employs a 60ms debounce settling timer to accommodate toolkits that resize in multiple passes
+     *   (such as terminal emulators snapping to font grids).
+     * - Enforces a fallback timeout ceiling (min 120ms) so windows with hard min/max constraints do not stall.
+     */
+    async _waitForCommit(window, actor, timeout_ms, targetW = null, targetH = null) {
+        if (!window) return;
+
         return new Promise(resolve => {
             let timeoutId = null;
             let actorSigId = null;
@@ -432,8 +581,6 @@ export default class SpawnAtExtension extends Extension {
                 cleanup();
                 resolve();
             };
-
-            if (!window) return doResolve("NO_WINDOW");
 
             let initialRect = window.get_frame_rect();
             let initialW = initialRect.width;
@@ -458,6 +605,7 @@ export default class SpawnAtExtension extends Extension {
 
                 try {
                     let rect = window.get_frame_rect();
+                    this._logTime("DEBUG", `Geometry check: ${rect.width}x${rect.height}`);
 
                     if (rect.width !== initialW || rect.height !== initialH) {
                         hasChanged = true;
@@ -511,14 +659,30 @@ export default class SpawnAtExtension extends Extension {
         });
     }
 
+    /**
+     * Computes and applies anchored window position.
+     *
+     * Accounts for pivot offsets (pivot_u, pivot_v), CSD frame geometry, monitor bounds/workareas,
+     * toolkit minimum size constraints, and margin constraints. Uses `window.move_frame` to correctly
+     * calculate client-side decoration (CSD) shadow offsets in Wayland.
+     *
+     * Dynamic Toolkit Minimums (Margin Bounds Clamping):
+     * CSD applications (e.g. GTK/VTE) initially report an intermediate frame height (e.g. 76px bare headerbar)
+     * prior to font metric negotiation. Querying `window.get_min_size()` ensures that anchoring math
+     * accounts for the true minimum widget dimensions (~93px+), preventing bottom/right margin violations
+     * when the window later expands downward or rightward.
+     */
     _applyAnchoredPosition(window, payload, overrideW = null, overrideH = null) {
         let frame = window.get_frame_rect();
-        // Use true frame geometry if larger than override (respecting toolkit minimums)
-        let effW = (overrideW !== null && overrideW > frame.width) ? overrideW : frame.width;
-        let effH = (overrideH !== null && overrideH > frame.height) ? overrideH : frame.height;
 
-        let x = payload.screen_anchor_x - Math.round(payload.pivot_u * effW) + payload.offset_x;
-        let y = payload.screen_anchor_y - Math.round(payload.pivot_v * effH) + payload.offset_y;
+        let [minW, minH] = [0, 0];
+        if (typeof window.get_min_size === 'function') {
+            try { [minW, minH] = window.get_min_size(); } catch (e) {}
+        }
+
+        // Clamp effective dimensions to the toolkit's true minimum size constraints
+        let effW = overrideW !== null ? Math.max(overrideW, minW) : Math.max(frame.width, minW);
+        let effH = overrideH !== null ? Math.max(overrideH, minH) : Math.max(frame.height, minH);
 
         let monitorIndex = window.get_monitor();
         let bounds = payload.area === 'screen' 
@@ -535,11 +699,28 @@ export default class SpawnAtExtension extends Extension {
         let minY = bounds.y + mt;
         let maxY = bounds.y + bounds.height - mb - effH;
 
+        let availW = bounds.width - ml - mr;
+        let availH = bounds.height - mt - mb;
+
+        if (effW > availW || effH > availH) {
+            console.error(`[spawn-at] WARN: Window is oversized (${effW}x${effH}); bottom and right margins will be ignored to preserve top-left accessibility.`);
+        }
+
         if (maxX < minX) maxX = minX;
         if (maxY < minY) maxY = minY;
 
-        x = Math.max(minX, Math.min(x, maxX));
-        y = Math.max(minY, Math.min(y, maxY));
+        let raw_x = payload.screen_anchor_x - Math.round(payload.pivot_u * effW) + payload.offset_x;
+        let raw_y = payload.screen_anchor_y - Math.round(payload.pivot_v * effH) + payload.offset_y;
+
+        let clamped_x = Math.max(minX, Math.min(raw_x, maxX));
+        let clamped_y = Math.max(minY, Math.min(raw_y, maxY));
+
+        if (!(effW > availW || effH > availH) && (clamped_x !== raw_x || clamped_y !== raw_y)) {
+            console.error(`[spawn-at] INFO: Window repositioned from (${raw_x}, ${raw_y}) to (${clamped_x}, ${clamped_y}) due to boundary margin clamp.`);
+        }
+
+        let x = clamped_x;
+        let y = clamped_y;
 
         if (window) {
             window._targetX = x;
@@ -608,10 +789,8 @@ export default class SpawnAtExtension extends Extension {
                 actor = global.window_manager.get_window_actor_for_meta_window(win);
             }
             if (actor) {
-                this._runBatch(win, actor, instructions).catch(e => {
-                    console.error(`[SpawnAt] Batch execution failed: ${e}`);
-                    actor.show();
-                });
+                // Reroute direct batch execution through the serialized mutex queue
+                this._enqueueBatch(win, actor, instructions);
             }
         }
     }
@@ -773,6 +952,10 @@ export default class SpawnAtExtension extends Extension {
     }
 
     disable() {
+        // Clean up pending queue items and reset mutex busy state
+        this._batchQueue = [];
+        this._batchBusy = false;
+
         if (this._windowCreatedId) {
             try { global.display.disconnect(this._windowCreatedId); } catch(e) {}
             this._windowCreatedId = null;

@@ -895,10 +895,20 @@ dependencies = [
  "futures-util",
  "serde",
  "serde_json",
+ "spawn-at-core",
  "strsim",
  "tokio",
  "toml",
  "zbus",
+]
+
+[[package]]
+name = "spawn-at-core"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "clap",
+ "serde",
 ]
 
 [[package]]

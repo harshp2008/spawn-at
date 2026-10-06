@@ -2,10 +2,10 @@ pub mod gnome;
 pub mod x11;
 pub mod xdg;
 
-use crate::core::geometry::Rect;
-use crate::core::types::Instruction;
-use crate::platform::{CompositorBackend, DriverError, InstallArgs, UninstallArgs, WindowState};
-use crate::target::WindowMetadata;
+use crate::platform::{
+    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, PlacementParams, Rect,
+    UninstallArgs, WindowMetadata, WindowState,
+};
 use std::process::Command;
 
 /// Queries available display monitor bounding boxes via xrandr.
@@ -93,6 +93,13 @@ impl LinuxBackend {
 }
 
 #[async_trait::async_trait]
+impl Driver for LinuxBackend {
+    async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+        self.driver.arm(batch).await
+    }
+}
+
+#[async_trait::async_trait]
 impl CompositorBackend for LinuxBackend {
     fn name(&self) -> &'static str {
         self.driver.name()
@@ -130,17 +137,16 @@ impl CompositorBackend for LinuxBackend {
         self.driver.get_windows().await
     }
 
-    async fn spawn_at(
+    async fn transform_window(
         &self,
-        app_id: &str,
-        command: &[String],
-        instructions: &[Instruction],
+        target_id: &str,
+        params: PlacementParams,
+        current_w: u32,
+        current_h: u32,
     ) -> Result<(), DriverError> {
-        self.driver.spawn_at(app_id, command, instructions).await
-    }
-
-    async fn execute_batch(&self, target_id: &str, instructions: &[Instruction]) -> Result<(), DriverError> {
-        self.driver.execute_batch(target_id, instructions).await
+        self.driver
+            .transform_window(target_id, params, current_w, current_h)
+            .await
     }
 
     async fn move_window(&self, target_id: &str, x: i32, y: i32) -> Result<(), DriverError> {

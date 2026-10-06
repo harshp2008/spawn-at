@@ -1,0 +1,14 @@
+[package]
+name = "spawn-at-core"
+version = "0.1.0"
+edition = "2021"
+description = "Pure mathematical geometry and declarative scheduling primitives for spawn-at"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+async-trait = "0.1"
+clap = { version = "4.5", features = ["derive"], optional = true }
+
+[features]
+default = ["clap"]
+clap = ["dep:clap"]

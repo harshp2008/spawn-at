@@ -96,8 +96,8 @@ pub struct GeometryArgs {
     pub anchor: Option<Anchor>,
 
     /// Window alignment pivot point relative to target
-    #[arg(long, value_enum, default_value_t = Pivot::TopLeft)]
-    pub pivot: Pivot,
+    #[arg(long, value_enum)]
+    pub pivot: Option<Pivot>,
 
     /// Absolute target screen coordinates [X, Y]
     #[arg(
@@ -181,14 +181,6 @@ impl GeometryArgs {
             return Err(
                 "Conflicting arguments: Cannot specify both --pos and --anchor.".to_string(),
             );
-        }
-
-        if let Some(anchor) = self.anchor {
-            if anchor != Anchor::Cursor && self.pivot != Pivot::TopLeft {
-                return Err(
-                    "Conflicting arguments: Cannot specify both --anchor and --pivot.".to_string(),
-                );
-            }
         }
 
         Ok(())
@@ -558,14 +550,14 @@ mod tests {
         ];
         let cli = Cli::try_parse_from(args_pivot).expect("Parsing --pivot should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            assert_eq!(t_args.geometry.pivot, Pivot::Center);
+            assert_eq!(t_args.geometry.pivot, Some(Pivot::Center));
             assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");
         }
 
-        // Anchor + Pivot conflict for static anchors
-        let args_conflict = vec![
+        // Anchor + Pivot both specified (e.g. --anchor top-left --pivot center)
+        let args_both = vec![
             "spawn-at",
             "transform",
             "--class",
@@ -575,10 +567,11 @@ mod tests {
             "--pivot",
             "center",
         ];
-        let cli = Cli::try_parse_from(args_conflict).expect("Parsing should succeed");
+        let cli = Cli::try_parse_from(args_both).expect("Parsing should succeed");
         if let Commands::Transform(t_args) = cli.command {
-            let err = t_args.validate().unwrap_err();
-            assert!(err.contains("Conflicting arguments: Cannot specify both --anchor and --pivot."));
+            assert_eq!(t_args.geometry.anchor, Some(Anchor::TopLeft));
+            assert_eq!(t_args.geometry.pivot, Some(Pivot::Center));
+            assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");
         }
@@ -597,7 +590,7 @@ mod tests {
         let cli = Cli::try_parse_from(args_cursor_pivot).expect("Parsing should succeed");
         if let Commands::Transform(t_args) = cli.command {
             assert_eq!(t_args.geometry.anchor, Some(Anchor::Cursor));
-            assert_eq!(t_args.geometry.pivot, Pivot::BottomRight);
+            assert_eq!(t_args.geometry.pivot, Some(Pivot::BottomRight));
             assert!(t_args.validate().is_ok());
         } else {
             panic!("Expected Transform command variant");

@@ -18,32 +18,26 @@
 //!   Result: Window flickers at default location for 1-5 frames before jumping.
 //!
 //! - **Spawn-At (Zero-Flicker) Flow:**
-//!   1. **D-Bus Arm:** Call `Arm(app_id, x, y, w, h)` on the GNOME Shell extension.
+//!   1. **D-Bus Arm:** Call `ArmSpawn(target_id, instructions_json)` on the GNOME Shell extension.
 //!      The compositor registers an expected window target in memory *before* the
 //!      application process is even spawned.
-//!   2. **Process Spawn:** The child process is launched. It connects to the Wayland
-//!      display socket and submits its `xdg_surface`.
+//!   2. **Process Spawn:** The child process is launched with `XDG_ACTIVATION_TOKEN` / `DESKTOP_STARTUP_ID`.
+//!      It connects to the Wayland display socket and submits its `xdg_surface`.
 //!   3. **Synchronous Interception:** Mutter triggers `window-created`. The extension
-//!      matches the window's `wm_class` / `app_id` (or wildcard `*`) with the armed target.
+//!      matches the window's startup ID / `app_id` with the armed target.
 //!   4. **Opacity Cloaking:** As soon as Mutter creates the `ClutterActor` during `map`,
 //!      the extension sets `actor.opacity = 0` synchronously. Mutter renders nothing to the
 //!      screen while the initial frame geometry settles.
 //!   5. **Atomic Reveal:** Once `window.get_frame_rect()` matches the target coordinates,
 //!      `actor.opacity = 255` is restored.
-//!
-//! ### 3. Session Restart Semantics on Wayland
-//! Under X11, GNOME Shell could be restarted in-place without dropping running apps by
-//! typing `r` in the `Alt+F2` prompt. Under Wayland, the compositor IS the display server;
-//! terminating or restarting the GNOME Shell process tears down the Wayland socket and
-//! destroys all client connections. Therefore, when loading shell extensions in older
-//! environments, logging out via `gnome-session-quit` is the standard clean reload method.
 
 pub mod dbus;
+pub mod mechanics;
 
-use crate::core::geometry::Rect;
-use crate::core::types::Instruction;
-use crate::platform::{CompositorBackend, DriverError, InstallArgs, UninstallArgs, WindowState};
-use crate::target::WindowMetadata;
+use crate::platform::{
+    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, PlacementParams, Rect,
+    UninstallArgs, WindowMetadata, WindowState,
+};
 use clap::Args;
 use dialoguer::{Confirm, Select};
 use std::fs;
@@ -110,6 +104,48 @@ impl GnomeWaylandDriver {
 }
 
 #[async_trait::async_trait]
+impl Driver for GnomeWaylandDriver {
+    /// Arms the GNOME Shell extension with declarative batch entries translated to low-level instructions.
+    async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+        let mut launch_env = Vec::new();
+        let is_solitary = batch.entries.len() == 1;
+
+        for entry in &batch.entries {
+            let target_id = if is_solitary {
+                if !entry.app_hint.is_empty() {
+                    entry.app_hint.as_str()
+                } else {
+                    "*"
+                }
+            } else {
+                entry.key.as_str()
+            };
+
+            let instructions = mechanics::build_instructions_for_entry(entry);
+            let instructions_json = serde_json::to_string(&instructions)
+                .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
+
+            self.proxy
+                .arm_spawn(target_id, &instructions_json)
+                .await
+                .map_err(|e| {
+                    DriverError::IpcError(format!(
+                        "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n\
+                         Reason: The extension does not appear to be running on the session bus.\n\
+                         Fix: Run 'spawn-at install' to install and activate the extension.",
+                        e
+                    ))
+                })?;
+
+            launch_env.push(("XDG_ACTIVATION_TOKEN".to_string(), entry.key.clone()));
+            launch_env.push(("DESKTOP_STARTUP_ID".to_string(), entry.key.clone()));
+        }
+
+        Ok(Armed { launch_env })
+    }
+}
+
+#[async_trait::async_trait]
 impl CompositorBackend for GnomeWaylandDriver {
     fn name(&self) -> &'static str {
         "GNOME Wayland"
@@ -127,7 +163,6 @@ impl CompositorBackend for GnomeWaylandDriver {
     /// Installs the embedded GNOME Shell extension into the user's extensions directory
     /// using dual-mode execution (interactive TUI prompt or headless flag automation).
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
-        // Resolve configuration: interactive TUI vs headless
         let (auto_enable, restart) = if !args.headless && std::io::stdout().is_terminal() {
             println!("\x1b[1;36m=== GNOME Shell Extension Setup ===\x1b[0m\n");
 
@@ -264,49 +299,25 @@ impl CompositorBackend for GnomeWaylandDriver {
         Ok(())
     }
 
-        /// Primes the GNOME Shell extension via D-Bus and launches the command.
-    async fn spawn_at(
+    async fn transform_window(
         &self,
-        app_id: &str,
-        command: &[String],
-        instructions: &[Instruction],
+        target_id: &str,
+        params: PlacementParams,
+        current_w: u32,
+        current_h: u32,
     ) -> Result<(), DriverError> {
-        if command.is_empty() {
-            return Err(DriverError::Execution(
-                "Cannot spawn application: command vector is empty".into(),
-            ));
-        }
-
-        let instructions_json = serde_json::to_string(instructions)
-            .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
-
-        self.proxy
-            .arm_spawn(app_id, &instructions_json)
-            .await
-            .map_err(|e| {
-                DriverError::IpcError(format!(
-                    "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}
-                     Reason: The extension does not appear to be running on the session bus.
-                     Fix: Run 'spawn-at install' to install and activate the extension.",
-                    e
-                ))
-            })?;
-
-        Command::new(&command[0])
-            .args(&command[1..])
-            .spawn()
-            .map_err(|e| {
-                DriverError::Execution(
-                    format!("Failed to spawn command '{}': {}", command[0], e).into(),
-                )
-            })?;
-
-        Ok(())
-    }
-
-    async fn execute_batch(&self, target_id: &str, instructions: &[Instruction]) -> Result<(), DriverError> {
-        let instructions_json = serde_json::to_string(instructions)
-            .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
+        let payload = mechanics::calculate_placement(&params, current_w, current_h);
+        let instructions = vec![
+            mechanics::Instruction::Snapshot,
+            mechanics::Instruction::Cloak,
+            mechanics::Instruction::SetSize { w: payload.intended_w, h: payload.intended_h },
+            mechanics::Instruction::WaitForCommit { timeout_ms: 500 },
+            mechanics::Instruction::SetPositionAnchored(payload),
+            mechanics::Instruction::Uncloak,
+            mechanics::Instruction::DestroySnapshot,
+        ];
+        let instructions_json = serde_json::to_string(&instructions)
+            .map_err(|e| DriverError::Execution(format!("Serialization error: {}", e).into()))?;
 
         self.proxy
             .execute_batch(target_id, &instructions_json)
@@ -360,7 +371,6 @@ impl CompositorBackend for GnomeWaylandDriver {
             .await
             .map_err(|e| DriverError::IpcError(e.to_string()))
     }
-
 
     async fn set_window_state(
         &self,

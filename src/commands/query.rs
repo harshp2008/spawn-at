@@ -110,6 +110,13 @@ mod tests {
     }
 
     #[async_trait::async_trait]
+    impl crate::platform::Driver for MockQueryBackend {
+        async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
     impl CompositorBackend for MockQueryBackend {
         fn name(&self) -> &'static str {
             "Mock"

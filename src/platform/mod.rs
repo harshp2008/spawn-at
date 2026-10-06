@@ -17,52 +17,10 @@ pub mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
 
-use std::fmt;
 use clap::Args;
-pub use crate::core::geometry::{Rect, TargetGeometry};
-pub use crate::core::types::Instruction;
+pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
+pub use spawn_at_core::geometry::{PlacementParams, Rect, TargetGeometry};
 pub use crate::target::WindowMetadata;
-
-/// Errors produced during driver detection, installation, or window positioning.
-#[derive(Debug)]
-pub enum DriverError {
-    /// A required feature or operation is not supported by the active driver.
-    UnsupportedCapability(&'static str),
-    /// IPC failure (e.g., D-Bus, Wayland Socket, X11 protocol error).
-    IpcError(String),
-    /// Target window could not be found via the provided selectors.
-    TargetNotFound(String),
-    /// A runtime execution error occurred.
-    Execution(Box<dyn std::error::Error + Send + Sync>),
-}
-
-impl fmt::Display for DriverError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            DriverError::UnsupportedCapability(feature) => {
-                write!(f, "The active compositor does not support this feature: {}", feature)
-            }
-            DriverError::IpcError(err) => {
-                write!(f, "IPC Error: {}", err)
-            }
-            DriverError::TargetNotFound(target) => {
-                write!(f, "Target window not found: {}", target)
-            }
-            DriverError::Execution(err) => {
-                write!(f, "Driver execution error: {}", err)
-            }
-        }
-    }
-}
-
-impl std::error::Error for DriverError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            DriverError::Execution(err) => Some(&**err as &(dyn std::error::Error + 'static)),
-            _ => None,
-        }
-    }
-}
 
 /// The desired window state for transformations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -108,7 +66,7 @@ pub struct UninstallArgs {
 
 /// Core interface representing a window manager or compositor driver.
 #[async_trait::async_trait]
-pub trait CompositorBackend: Send + Sync {
+pub trait CompositorBackend: Driver + Send + Sync {
     /// Human-readable name of the window manager / driver.
     fn name(&self) -> &'static str;
 
@@ -161,19 +119,15 @@ pub trait CompositorBackend: Send + Sync {
 
     // --- Core Actions ---
 
-    /// Spawns a process and places its primary window at the specified geometry.
-    async fn spawn_at(
+    /// Performs an animated or atomic transform on an existing window.
+    async fn transform_window(
         &self,
-        _app_id: &str,
-        _command: &[String],
-        _instructions: &[Instruction],
+        _target_id: &str,
+        _params: PlacementParams,
+        _current_w: u32,
+        _current_h: u32,
     ) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability("spawn_at"))
-    }
-
-    /// Executes a batch of atomic window placement instructions.
-    async fn execute_batch(&self, _target_id: &str, _instructions: &[Instruction]) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability("execute_batch"))
+        Err(DriverError::UnsupportedCapability("transform_window"))
     }
 
     /// Moves a window to the specified coordinates without altering its dimensions.
