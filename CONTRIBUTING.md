@@ -29,16 +29,16 @@ Welcome to the `spawn-at` developer and contributor guide! This document details
 
 ### Core Components & Directory Structure
 
-- **`src/main.rs`**: Entry point. Parses subcommands (`spawn`, `install`, `uninstall`) using `clap`, renders interactive TUI menus via `dialoguer`, and coordinates target geometry calculation and driver execution. Contains no OS- or compositor-specific IPC logic.
-- **`src/geometry.rs`**: Pure mathematical engine. Computes absolute coordinates, applies mouse offsets, calculates monitor bounding boxes, and handles edge clamping and margin offsets. Independent of any display server or OS APIs.
-- **`src/platform/`**: OS-level utilities and system integration abstractions:
+- **`src/main.rs`**: Entry point. Parses subcommands (`spawn`, `install`, `uninstall`) using `clap`, renders interactive TUI menus via `dialoguer`, and coordinates target geometry calculation and platform backend execution. Contains no OS- or compositor-specific IPC logic.
+- **`src/core/geometry.rs`**: Pure mathematical engine. Computes absolute coordinates, applies mouse offsets, calculates monitor bounding boxes, and handles edge clamping and margin offsets. Independent of any display server or OS APIs.
+- **`src/platform/`**: OS-level utilities, compositor abstraction, and system integration:
+  - `mod.rs`: Defines the `CompositorBackend` trait and platform bootstrap logic (`init_backend()`).
   - `installer.rs`: Manages user-space (`~/.local/bin`) vs system-wide (`/usr/local/bin`) binary deployment, canonical path resolution, and `$PATH` environment verification.
   - `escalate.rs`: Reactive privilege escalation (`sudo` on Linux/macOS, UAC on Windows) triggered automatically when filesystem operations encounter `PermissionDenied`.
+  - `linux/mod.rs`: Unified `LinuxBackend` adapter routing to GNOME Wayland or X11 drivers.
+  - `linux/gnome/`: Drivers for GNOME Shell Wayland, communicating with Mutter via session D-Bus IPC (`org.gnome.Shell.Extensions.SpawnAt`).
+  - `linux/x11.rs`: Fallback driver for legacy X11 sessions.
   - `linux/xdg.rs`: FreeDesktop desktop entry parsing, Flatpak/Snap application ID resolution, and `$XDG_DATA_DIRS` lookup.
-- **`src/drivers/`**: Window manager and compositor driver abstractions:
-  - `mod.rs`: Defines the `WindowManager` trait and driver detection logic (`get_active_driver()`).
-  - `gnome.rs`: Drivers for GNOME Shell Wayland/X11, communicating with Mutter via session D-Bus IPC (`org.gnome.Shell.Extensions.SpawnAt`).
-  - `x11.rs`: Fallback driver for legacy X11 sessions.
 - **`assets/`**: Embedded asset payloads:
   - `gnome/extension.esm.js`: GNOME Shell extension code (`spawn-at@harsh.local`).
   - `gnome/metadata.json`: GNOME Shell extension manifest.
@@ -48,13 +48,13 @@ Welcome to the `spawn-at` developer and contributor guide! This document details
 ## 2. Decoupled Architecture Principles
 
 ### 1. Pure Geometry is Window-Manager Agnostic
-All coordinate math, cursor offsets, monitor boundary calculations, and margin clamping are handled by `geometry.rs`. Drivers receive a resolved `TargetGeometry` struct containing final target pixel coordinates `(x, y)` and dimensions `(w, h)`.
+All coordinate math, cursor offsets, monitor boundary calculations, and margin clamping are handled by `core::geometry`. Drivers receive a resolved `TargetGeometry` struct containing final target pixel coordinates `(x, y)` and dimensions `(w, h)`.
 
 ### 2. Reactive Privilege Escalation Model
 Standard CLI and installation workflows run under unprivileged user rights. When an operation requires root privileges (such as writing to `/usr/local/bin`), the installer catches `PermissionDenied` and reactively invokes administrative elevation (`sudo` via `platform::escalate`), presenting a clear explanation to the user.
 
-### 3. Drivers Implement the `WindowManager` Trait
-All compositor-specific IPC mechanisms (D-Bus, UNIX domain sockets, X11 atom manipulation, Win32 APIs) are isolated inside driver implementations of the `WindowManager` trait.
+### 3. Drivers Implement the `CompositorBackend` Trait
+All compositor-specific IPC mechanisms (D-Bus, UNIX domain sockets, X11 atom manipulation, Win32 APIs) are isolated inside driver implementations of the `CompositorBackend` trait.
 
 ---
 
@@ -93,15 +93,16 @@ Under Wayland, client applications are sandboxed and cannot position their own w
 To add support for a new window manager or compositor (e.g., Hyprland, Sway, or KDE Plasma):
 
 ### Step 1: Create the Driver Module
-Create a new file under `src/drivers/<driver_name>.rs` and implement the `WindowManager` trait:
+Create a new file under `src/platform/linux/<driver_name>.rs` and implement the `CompositorBackend` trait:
 
 ```rust
-use crate::drivers::{DriverError, TargetGeometry, WindowManager};
-use crate::geometry::Rect;
+use crate::platform::{CompositorBackend, DriverError, TargetGeometry};
+use crate::core::geometry::Rect;
 
 pub struct HyprlandDriver;
 
-impl WindowManager for HyprlandDriver {
+#[async_trait::async_trait]
+impl CompositorBackend for HyprlandDriver {
     fn name(&self) -> &'static str {
         "Hyprland"
     }
@@ -111,7 +112,7 @@ impl WindowManager for HyprlandDriver {
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
     }
 
-    fn spawn_at(
+    async fn spawn_at(
         &self,
         app_id: &str,
         command: &[String],
@@ -121,32 +122,38 @@ impl WindowManager for HyprlandDriver {
         Ok(())
     }
 
-    fn get_cursor_position(&self) -> Option<(i32, i32)> {
+    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
         // Query pointer position via Hyprland IPC
-        None
+        Ok((0, 0))
     }
 
-    fn get_monitors(&self) -> Vec<Rect> {
+    async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
         // Query monitor bounds via Hyprland IPC
-        Vec::new()
+        Ok(Vec::new())
     }
 }
 ```
 
-### Step 2: Register in `src/drivers/mod.rs`
-1. Add `pub mod <driver_name>;` in `src/drivers/mod.rs`.
-2. Update `get_active_driver()` to detect the environment:
+### Step 2: Register in `src/platform/linux/mod.rs`
+1. Add `pub mod <driver_name>;` in `src/platform/linux/mod.rs`.
+2. Update `LinuxBackend::bootstrap()` to detect the environment:
 
 ```rust
-pub fn get_active_driver() -> Box<dyn WindowManager> {
-    if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
-        Box::new(hyprland::HyprlandDriver)
-    } else if session_type == "wayland" && desktop.contains("GNOME") {
-        Box::new(gnome::GnomeWaylandDriver)
-    } else {
-        Box::new(x11::X11Driver)
-    }
+if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
+    Ok(Box::new(LinuxBackend {
+        driver: Box::new(hyprland::HyprlandDriver),
+    }))
+} else if session_type == "wayland" && desktop.contains("GNOME") {
+    let driver = gnome::GnomeWaylandDriver::new().await?;
+    Ok(Box::new(LinuxBackend {
+        driver: Box::new(driver),
+    }))
+} else {
+    Ok(Box::new(LinuxBackend {
+        driver: Box::new(x11::X11Driver),
+    }))
 }
+```
 ```
 
 ### Step 3: Add Unit Tests

@@ -3,99 +3,46 @@
 //! ## Architectural Overview
 //!
 //! `spawn-at` is a standalone utility that enables mathematically perfect cold-starts
-//! for desktop applications on Linux, with primary zero-flicker support for GNOME Wayland.
+//! and dynamic transformations for desktop applications on Linux, with primary zero-flicker
+//! support for GNOME Wayland.
 //!
 //! ### Core Components:
-//! - **CLI Router ([`main`]):** Parses subcommands (`install`, `uninstall`, `spawn`) using `clap`.
-//! - **Compositor Drivers ([`drivers`]):** Trait-based abstraction (`WindowManager`) allowing
-//!   environment-specific mechanics:
-//!     - [`drivers::gnome::GnomeWaylandDriver`]: Interacts with Mutter via an embedded GNOME
-//!       extension using D-Bus pre-arming and opacity cloaking.
-//!     - [`drivers::x11::X11Driver`]: Fallback baseline driver for legacy X11 sessions.
-//! - **Platform Resolver ([`platform`]):** Maps binary command invocations (e.g. `gnome-text-editor`)
-//!   to canonical FreeDesktop / Wayland App IDs (e.g. `org.gnome.TextEditor`), supporting Flatpaks and Snaps.
-//! - **Geometry Engine ([`geometry`]):** Calculates absolute pixel coordinates, monitors,
-//!   and screen clamping.
+//! - **CLI Router ([`cli`]):** Parses subcommands (`install`, `uninstall`, `spawn`, `transform`) using `clap`.
+//! - **Commands ([`commands`]):** Platform-agnostic execution handlers for subcommands.
+//! - **Compositor Platform ([`platform`]):** Trait-based abstraction (`CompositorBackend`) allowing
+//!   environment-specific mechanics.
+//! - **Platform Resolver ([`platform`]):** Maps binary command invocations to canonical FreeDesktop / Wayland App IDs.
+//! - **Geometry Engine ([`core::geometry`]):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
+//! - **Target Resolver ([`target`]):** Resolves deterministic window targets by PID, class, title, or focus.
 
-mod drivers;
-mod geometry;
-mod platform;
+pub mod cli;
+pub mod commands;
+pub mod config;
+pub mod core;
+pub mod platform;
+pub mod target;
 
+use clap::Parser;
+use cli::{Cli, Commands};
 use dialoguer::Confirm;
+use platform::{init_backend, InstallScope};
+use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
+use spawn_at_core::geometry::{
+    check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, PlacementParams,
+};
 use std::io::IsTerminal;
-use clap::{Args, Parser, Subcommand};
-use drivers::{get_active_driver, InstallArgs, InstallScope, UninstallArgs};
-use geometry::GeometryParams;
+use std::time::Duration;
 
-#[derive(Parser, Debug)]
-#[command(
-    name = "spawn-at",
-    version,
-    about = "Zero-flicker modular window manager & placement engine",
-    long_about = "A high-performance Linux window positioning engine supporting mathematically \
-                  perfect, zero-flicker cold-starts under GNOME Wayland via opacity cloaking."
-)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Install the embedded GNOME Shell extension and binary to $PATH
-    Install(InstallArgs),
-    /// Uninstall the GNOME Shell extension and binary from $PATH
-    Uninstall(UninstallArgs),
-    /// Spawn an application at a specific target screen geometry
-    Spawn(SpawnArgs),
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct SpawnArgs {
-    /// Absolute target screen coordinates [X, Y]
-    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "offset")]
-    pub pos: Option<Vec<i32>>,
-
-    /// Relative offset from mouse cursor [X, Y] (defaults to 0 0 if no pos is given)
-    #[arg(short, long, num_args = 2, value_names = ["X", "Y"], conflicts_with = "pos")]
-    pub offset: Option<Vec<i32>>,
-
-    /// Target window dimensions [WIDTH, HEIGHT]
-    #[arg(short, long, num_args = 2, value_names = ["WIDTH", "HEIGHT"])]
-    pub size: Option<Vec<u32>>,
-
-    /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
-    #[arg(short = 'c', long)]
-    pub class: Option<String>,
-
-    /// Top screen boundary margin
-    #[arg(short = 't', long)]
-    pub bound_top: Option<i32>,
-
-    /// Bottom screen boundary margin
-    #[arg(short = 'b', long)]
-    pub bound_bottom: Option<i32>,
-
-    /// Left screen boundary margin
-    #[arg(short = 'l', long)]
-    pub bound_left: Option<i32>,
-
-    /// Right screen boundary margin
-    #[arg(short = 'r', long)]
-    pub bound_right: Option<i32>,
-
-    /// Global margin applied to all boundaries
-    #[arg(short = 'm', long)]
-    pub margin: Option<i32>,
-
-    /// Command to spawn along with any trailing flags/arguments
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
-    pub command: Vec<String>,
-}
-
-fn main() {
+#[tokio::main]
+async fn main() {
     let cli = Cli::parse();
-    let driver = get_active_driver();
+    let driver = match init_backend().await {
+        Ok(d) => d,
+        Err(e) => {
+            eprintln!("\x1b[1;31mDriver Initialization Error\x1b[0m: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     match cli.command {
         Commands::Install(mut args) => {
@@ -130,7 +77,10 @@ fn main() {
             if !args.skip_bin {
                 if let Err(e) = crate::platform::installer::install_binary(args.scope) {
                     let mut recovered = false;
-                    if args.scope == InstallScope::System && !args.headless && std::io::stdout().is_terminal() {
+                    if args.scope == InstallScope::System
+                        && !args.headless
+                        && std::io::stdout().is_terminal()
+                    {
                         println!("\x1b[1;31mSystem installation failed\x1b[0m: {}", e);
                         let fallback = Confirm::new()
                             .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
@@ -155,7 +105,11 @@ fn main() {
             }
 
             if let Err(e) = driver.install(&args) {
-                eprintln!("\x1b[1;31mError during install ({})\x1b[0m: {}", driver.name(), e);
+                eprintln!(
+                    "\x1b[1;31mError during install ({})\x1b[0m: {}",
+                    driver.name(),
+                    e
+                );
                 std::process::exit(1);
             }
         }
@@ -190,14 +144,21 @@ fn main() {
 
             if !args.skip_bin {
                 if let Err(e) = crate::platform::installer::uninstall_binary(args.scope) {
-                    eprintln!("\x1b[1;31mError during binary uninstallation\x1b[0m: {}", e);
+                    eprintln!(
+                        "\x1b[1;31mError during binary uninstallation\x1b[0m: {}",
+                        e
+                    );
                     std::process::exit(1);
                 }
                 println!();
             }
 
             if let Err(e) = driver.uninstall(&args) {
-                eprintln!("\x1b[1;31mError during uninstall ({})\x1b[0m: {}", driver.name(), e);
+                eprintln!(
+                    "\x1b[1;31mError during uninstall ({})\x1b[0m: {}",
+                    driver.name(),
+                    e
+                );
                 std::process::exit(1);
             }
         }
@@ -207,36 +168,185 @@ fn main() {
                 std::process::exit(1);
             }
 
-            // 1. Calculate target geometry
-            let pos = spawn_args.pos.as_ref().map(|p| (p[0], p[1]));
-            let offset = spawn_args.offset.as_ref().map(|o| (o[0], o[1]));
-            let size = spawn_args.size.as_ref().map(|s| (s[0], s[1]));
+            if let Err(e) = spawn_args.validate() {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
 
-            let params = GeometryParams {
-                pos,
-                offset,
-                size,
-                bound_top: spawn_args.bound_top,
-                bound_bottom: spawn_args.bound_bottom,
-                bound_left: spawn_args.bound_left,
-                bound_right: spawn_args.bound_right,
-                margin: spawn_args.margin,
+            // 1. Calculate target geometry parameters
+            let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
+            let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
+            let workareas = driver.get_workareas().await.unwrap_or_default();
+
+            let target_workarea = if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
+                resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+            } else {
+                resolve_workarea(&workareas, (cursor_x, cursor_y), &spawn_args.geometry.monitor).unwrap_or_default()
             };
 
-            let cursor = driver.get_cursor_position();
-            let monitors = driver.get_monitors();
-            let geom = geometry::calculate(&params, cursor, &monitors);
+            let pos = spawn_args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
+            let size = spawn_args.geometry.size.as_ref().and_then(|s| {
+                if s.len() == 2 {
+                    let w = s[0].parse::<u32>().ok()?;
+                    let h = s[1].parse::<u32>().ok()?;
+                    Some((w, h))
+                } else {
+                    None
+                }
+            });
 
-            // 2. Resolve target application identifier via the active driver
-            let target_id = driver.resolve_id(&spawn_args.command, spawn_args.class.as_deref());
+            let params = PlacementParams {
+                pos,
+                offset: None,
+                size,
+                anchor: spawn_args.geometry.anchor,
+                pivot: spawn_args.geometry.pivot,
+                margin: spawn_args.geometry.margin,
+                margin_top: spawn_args.geometry.margin_top,
+                margin_bottom: spawn_args.geometry.margin_bottom,
+                margin_left: spawn_args.geometry.margin_left,
+                margin_right: spawn_args.geometry.margin_right,
+                area: Some(spawn_args.geometry.area),
+                cursor_pos: Some((cursor_x, cursor_y)),
+                workarea: target_workarea,
+            };
 
-            // 3. Dispatch to active driver
-            if let Err(e) = driver.spawn_at(&target_id, &spawn_args.command, &geom) {
+            for diag in check_geometry_diagnostics(&params) {
+                match diag {
+                    GeometryDiagnostic::Oversized { w, h } => {
+                        eprintln!(
+                            "\n\x1b[1;33m[spawn-at] WARN:\x1b[0m Window is oversized ({w}x{h}); bottom and right margins ignored."
+                        );
+                    }
+                    GeometryDiagnostic::SubMinimumSize { w, h } => {
+                        eprintln!(
+                            "\n\x1b[1;36m[spawn-at] INFO:\x1b[0m Requested size ({w}x{h}) is below toolkit minimums; window will expand."
+                        );
+                    }
+                    _ => {}
+                }
+            }
+
+            // 2. Generate unique activation token / entry key
+            let entry_key = format!(
+                "spawn-at-{}-{}",
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+
+            let app_hint = spawn_args.class.clone().unwrap_or_else(|| {
+                driver.resolve_id(&spawn_args.command, None)
+            });
+
+            let batch = Batch {
+                id: 1,
+                entries: vec![Entry {
+                    key: entry_key,
+                    app_hint,
+                    placement: params,
+                }],
+                reveal: Reveal::Together,
+                focus: FocusIntent::Exclusive,
+                urgency: Urgency::Normal,
+                deadline: Duration::from_millis(15000),
+            };
+
+            // 3. Arm the driver with the declarative batch intent
+            let armed = match driver.arm(batch.clone()).await {
+                Ok(a) => a,
+                Err(e) => {
+                    eprintln!(
+                        "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
+                        driver.name(),
+                        e
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            // 4. Launch child process with armed environment variables
+            let mut cmd = std::process::Command::new(&spawn_args.command[0]);
+            cmd.args(&spawn_args.command[1..]);
+            for (k, v) in armed.launch_env {
+                cmd.env(k, v);
+            }
+
+            let child = match cmd.spawn() {
+                Ok(child) => child,
+                Err(e) => {
+                    eprintln!(
+                        "\x1b[1;31mExecution Error\x1b[0m: Failed to spawn command '{}': {}",
+                        spawn_args.command[0], e
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            // If we are on X11, intercept the window natively
+            if driver.name() == "X11" {
+                eprintln!("[spawn-at-main] Detected X11 backend. Triggering native X11 post_spawn hook...");
+                if let Err(e) = driver.post_spawn(child.id(), &batch).await {
+                    eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m X11 window interception failed: {}", e);
+                }
+            }
+        }
+        Commands::Transform(transform_args) => {
+            if let Err(e) = commands::run_transform(driver.as_ref(), transform_args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Query { cmd } => {
+            if let Err(e) = commands::run_query(driver.as_ref(), cmd).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Move(move_args) => {
+            if move_args.pos.len() != 2 {
                 eprintln!(
-                    "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
-                    driver.name(),
-                    e
+                    "\x1b[1;31mError\x1b[0m: Position must contain exactly X and Y coordinates."
                 );
+                std::process::exit(1);
+            }
+            let x = move_args.pos[0];
+            let y = move_args.pos[1];
+
+            if let Err(e) = driver.move_window(&move_args.class, x, y).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Focus(args) => {
+            if let Err(e) = commands::run_focus(driver.as_ref(), args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Defocus(args) => {
+            if let Err(e) = commands::run_defocus(driver.as_ref(), args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Maximize(args) => {
+            if let Err(e) = commands::run_maximize(driver.as_ref(), args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Minimize(args) => {
+            if let Err(e) = commands::run_minimize(driver.as_ref(), args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                std::process::exit(1);
+            }
+        }
+        Commands::Restore(args) => {
+            if let Err(e) = commands::run_restore(driver.as_ref(), args).await {
+                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }

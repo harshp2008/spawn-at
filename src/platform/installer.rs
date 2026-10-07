@@ -3,7 +3,7 @@
 //! Handles copying and removing the `spawn-at` binary to/from directories in `$PATH`
 //! for user and system installation scopes across operating systems.
 
-use crate::drivers::InstallScope;
+use crate::platform::InstallScope;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
