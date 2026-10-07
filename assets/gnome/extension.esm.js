@@ -83,7 +83,8 @@ const DBUS_IFACE = `
     </method>
     <method name="DefocusWindow">
       <arg type="s" name="target" direction="in"/>
-      <arg type="s" name="to_target" direction="in"/>
+      <arg type="s" name="mode" direction="in"/>
+      <arg type="s" name="destination" direction="in"/>
       <arg type="b" name="success" direction="out"/>
     </method>
     <method name="SetWindowState">
@@ -160,6 +161,16 @@ export default class SpawnAtExtension extends Extension {
         // Windows currently under reactive-anchor control: Meta.Window -> state
         this._anchors = new Map();
 
+        // Inert focus parking actor
+        this._dummy = new Clutter.Actor({
+            name: 'spawn-at-defocus-dummy',
+            reactive: false,
+            opacity: 0,
+            width: 1,
+            height: 1,
+        });
+        global.stage.add_child(this._dummy);
+
         // FIFO mutex queue state
         this._batchQueue = [];
         this._batchBusy = false;
@@ -228,6 +239,14 @@ export default class SpawnAtExtension extends Extension {
             this._uncloak(actor);
         for (const actor of [...this._snapshots.keys()])
             this._destroySnapshot(actor);
+
+        // Clean up inert dummy actor
+        if (this._dummy) {
+            if (global.stage.get_key_focus() === this._dummy)
+                global.stage.set_key_focus(null);
+            this._try(() => this._dummy.destroy());
+            this._dummy = null;
+        }
 
         // Tear down D-Bus
         if (this._dbusImpl) {
@@ -1036,18 +1055,18 @@ export default class SpawnAtExtension extends Extension {
             `windowId=${winId} initial=(${startFrame.width}x${startFrame.height}) ` +
             `target=(${ctx.targetW}x${ctx.targetH})`);
 
-        // 1. Defocus the specific window object to the desktop
+        await this._sleep(150);
+
+        // Defocus using explicit desktop mode
         this._defocusWindowObject(window, 'desktop');
         this._logTime('POST_REVEAL_PULSE_DEFOCUSED', `windowId=${winId} focus yielded to desktop`);
 
-        // 2. Wait 100ms for Wayland frame clock to process wl_keyboard.leave and commit the new layout
         await this._sleep(100);
 
-        // 3. Refocus the exact window object
+        // Refocus the window
         this._focusWindowObject(window);
         this._logTime('POST_REVEAL_PULSE_REFOCUSED', `windowId=${winId} focus restored`);
 
-        // 4. Wait for any reactive size settling
         await this._waitForSizeQuiet(window, WAKE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
 
         const endFrame = window.get_frame_rect();
@@ -1276,24 +1295,36 @@ export default class SpawnAtExtension extends Extension {
         return true;
     }
 
-    _defocusWindowObject(window, toTarget) {
-        if (!window.has_focus())
-            return true;
-
-        // 'desktop': drop stage key focus rather than activating another window
-        if (toTarget === 'desktop') {
-            global.stage.set_key_focus(null);
+    _defocusWindowObject(window, mode = 'desktop', destination = '') {
+        // Mode 1: Desktop yield via Mutter native API + dummy parking actor
+        if (mode === 'desktop') {
+            global.display.unset_input_focus(global.get_current_time());
+            if (this._dummy)
+                global.stage.set_key_focus(this._dummy);
             return true;
         }
 
-        // Otherwise hand focus to the next usable window in MRU order
+        // Mode 2: Explicit target window (destination is strictly a title/class/pid lookup)
+        if (mode === 'window' && destination) {
+            const destWin = this._findWindow(destination);
+            if (destWin) {
+                destWin.activate(global.get_current_time());
+                return true;
+            }
+        }
+
+        // Mode 3: MRU fallback
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const next = this._getMRUWindows(workspace)
             .find(w => w !== window && !w.minimized && !w.skip_taskbar);
-        if (next)
+
+        if (next) {
             next.activate(global.get_current_time());
-        else
-            global.stage.set_key_focus(null);
+        } else {
+            global.display.unset_input_focus(global.get_current_time());
+            if (this._dummy)
+                global.stage.set_key_focus(this._dummy);
+        }
         return true;
     }
 
@@ -1434,10 +1465,9 @@ export default class SpawnAtExtension extends Extension {
         return window ? this._focusWindowObject(window) : false;
     }
 
-    /** Take focus away from a window ('desktop' or next-in-MRU). */
-    DefocusWindow(target, to_target) {
+    DefocusWindow(target, mode, destination) {
         const window = this._findWindow(target);
-        return window ? this._defocusWindowObject(window, to_target) : false;
+        return window ? this._defocusWindowObject(window, mode, destination) : false;
     }
 
     /** maximize | unmaximize | minimize | unminimize | restore */

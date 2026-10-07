@@ -15,7 +15,7 @@ pub async fn apply_focus_policy(
 ) -> Result<(), Box<dyn std::error::Error>> {
     if modifiers.defocus {
         // Active eviction: strip focus and yield to previous window
-        backend.defocus_window(target_id, "previous").await?;
+        backend.defocus_window(target_id, "mru", "").await?;
     } else if modifiers.no_focus {
         // Passive: leave compositor focus state untouched
     } else {
@@ -62,12 +62,13 @@ pub async fn run_defocus(
         return Ok(());
     }
 
-    backend.defocus_window(&target_id, &args.to).await?;
+    let (mode, destination) = args.mode_and_destination();
+    backend.defocus_window(&target_id, mode, destination).await?;
 
-    let yield_target = if args.to == "desktop" {
-        "desktop"
-    } else {
-        "previous window/desktop"
+    let yield_target = match mode {
+        "desktop" => "desktop".to_string(),
+        "window" => format!("window '{}'", destination),
+        _ => "previous window/desktop".to_string(),
     };
     println!(
         "Defocused window '{}' (focus yielded to {}).",

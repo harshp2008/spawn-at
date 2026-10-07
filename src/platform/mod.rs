@@ -151,7 +151,12 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Evicts focus from the target window to another target (or desktop/previous).
-    async fn defocus_window(&self, _target_id: &str, _to_target: &str) -> Result<(), DriverError> {
+    async fn defocus_window(
+        &self,
+        _target_id: &str,
+        _mode: &str,
+        _destination: &str,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("defocus_window"))
     }
 

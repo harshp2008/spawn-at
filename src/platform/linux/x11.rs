@@ -106,7 +106,12 @@ impl CompositorBackend for X11Driver {
         ))
     }
 
-    async fn defocus_window(&self, _target_id: &str, _to_target: &str) -> Result<(), DriverError> {
+    async fn defocus_window(
+        &self,
+        _target_id: &str,
+        _mode: &str,
+        _destination: &str,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability(
             "Window defocus control is currently not implemented for X11",
         ))
@@ -155,7 +160,7 @@ mod tests {
         ));
 
         assert!(matches!(
-            driver.defocus_window("test", "desktop").await,
+            driver.defocus_window("test", "desktop", "").await,
             Err(DriverError::UnsupportedCapability(_))
         ));
 

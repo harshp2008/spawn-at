@@ -414,10 +414,15 @@ impl CompositorBackend for GnomeWaylandDriver {
         Ok(())
     }
 
-    async fn defocus_window(&self, target_id: &str, to_target: &str) -> Result<(), DriverError> {
+    async fn defocus_window(
+        &self,
+        target_id: &str,
+        mode: &str,
+        destination: &str,
+    ) -> Result<(), DriverError> {
         let success = self
             .proxy
-            .defocus_window(target_id, to_target)
+            .defocus_window(target_id, mode, destination)
             .await
             .map_err(|e| DriverError::IpcError(e.to_string()))?;
 

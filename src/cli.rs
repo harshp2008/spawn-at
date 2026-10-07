@@ -385,17 +385,28 @@ pub struct DefocusArgs {
     #[command(flatten)]
     pub target: WindowTargetArgs,
 
-    /// Destination for focus relinquishment ('prev' \[default\] or 'desktop')
-    #[arg(long, default_value = "prev", value_parser = ["prev", "desktop"])]
-    pub to: String,
+    /// Yield focus to the desktop/shell
+    #[arg(long = "to-desktop", alias = "desktop", conflicts_with = "to_window")]
+    pub to_desktop: bool,
+
+    /// Transfer focus to a specific window by title, class, or id
+    #[arg(long = "to-window", alias = "to", conflicts_with = "to_desktop")]
+    pub to_window: Option<String>,
 }
 
 impl DefocusArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if self.to != "prev" && self.to != "desktop" {
-            return Err("Invalid --to destination: expected 'prev' or 'desktop'.".to_string());
-        }
         Ok(())
+    }
+
+    pub fn mode_and_destination(&self) -> (&'static str, &str) {
+        if self.to_desktop {
+            ("desktop", "")
+        } else if let Some(ref win) = self.to_window {
+            ("window", win.as_str())
+        } else {
+            ("mru", "")
+        }
     }
 
     pub fn get_selector(&self) -> crate::target::WindowSelector {
@@ -759,18 +770,22 @@ mod tests {
         let cli = Cli::try_parse_from(["spawn-at", "activate", "--pid", "1234"]).unwrap();
         assert!(matches!(cli.command, Commands::Focus(args) if args.pid == Some(1234)));
 
-        // defocus with aliases and --to
+        // defocus with aliases, --to-desktop/--desktop, and --to-window/--to
         let cli = Cli::try_parse_from(["spawn-at", "defocus", "--focused"]).unwrap();
         if let Commands::Defocus(args) = cli.command {
             assert!(args.target.focused);
-            assert_eq!(args.to, "prev");
+            assert!(!args.to_desktop);
+            assert_eq!(args.to_window, None);
+            assert_eq!(args.mode_and_destination(), ("mru", ""));
         } else {
             panic!("Expected Defocus variant");
         }
 
-        let cli = Cli::try_parse_from(["spawn-at", "unfocus", "--to", "desktop"]).unwrap();
+        let cli = Cli::try_parse_from(["spawn-at", "unfocus", "--to-desktop"]).unwrap();
         if let Commands::Defocus(args) = cli.command {
-            assert_eq!(args.to, "desktop");
+            assert!(args.to_desktop);
+            assert_eq!(args.to_window, None);
+            assert_eq!(args.mode_and_destination(), ("desktop", ""));
             // Default selector targets focused window
             let sel = args.get_selector();
             assert!(sel.focused);
@@ -778,13 +793,35 @@ mod tests {
             panic!("Expected Defocus variant");
         }
 
-        let cli = Cli::try_parse_from(["spawn-at", "blur", "-c", "code"]).unwrap();
+        let cli = Cli::try_parse_from(["spawn-at", "defocus", "--desktop"]).unwrap();
         if let Commands::Defocus(args) = cli.command {
-            assert_eq!(args.target.class.as_deref(), Some("code"));
-            assert_eq!(args.to, "prev");
+            assert!(args.to_desktop);
+            assert_eq!(args.mode_and_destination(), ("desktop", ""));
         } else {
             panic!("Expected Defocus variant");
         }
+
+        let cli = Cli::try_parse_from(["spawn-at", "defocus", "--to-window", "editor"]).unwrap();
+        if let Commands::Defocus(args) = cli.command {
+            assert!(!args.to_desktop);
+            assert_eq!(args.to_window.as_deref(), Some("editor"));
+            assert_eq!(args.mode_and_destination(), ("window", "editor"));
+        } else {
+            panic!("Expected Defocus variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "blur", "-c", "code", "--to", "target_win"]).unwrap();
+        if let Commands::Defocus(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("code"));
+            assert_eq!(args.to_window.as_deref(), Some("target_win"));
+            assert_eq!(args.mode_and_destination(), ("window", "target_win"));
+        } else {
+            panic!("Expected Defocus variant");
+        }
+
+        // Conflict between --to-desktop and --to-window
+        let conflict_res = Cli::try_parse_from(["spawn-at", "defocus", "--to-desktop", "--to-window", "editor"]);
+        assert!(conflict_res.is_err());
 
         // maximize with British alias 'maximise' and focus modifiers
         let cli = Cli::try_parse_from(["spawn-at", "maximize", "-c", "terminal", "--no-focus"]).unwrap();

@@ -176,8 +176,13 @@ impl CompositorBackend for LinuxBackend {
         self.driver.focus_window(target_id).await
     }
 
-    async fn defocus_window(&self, target_id: &str, to_target: &str) -> Result<(), DriverError> {
-        self.driver.defocus_window(target_id, to_target).await
+    async fn defocus_window(
+        &self,
+        target_id: &str,
+        mode: &str,
+        destination: &str,
+    ) -> Result<(), DriverError> {
+        self.driver.defocus_window(target_id, mode, destination).await
     }
 
     async fn run_daemon(&self) -> Result<(), DriverError> {
