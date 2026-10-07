@@ -202,6 +202,19 @@ export default class SpawnAtExtension extends Extension {
         });
         global.stage.add_child(this._dummy);
 
+        this._cloakSafetyId = this._tryConnect(global.stage, 'after-update', () => {
+            if (this._cloakedActors.size === 0)
+                return;
+            for (const actor of [...this._cloakedActors]) {
+                if (actor.is_destroyed?.())
+                    continue;
+                if (actor.opacity !== 0) {
+                    actor.remove_all_transitions?.();
+                    actor.opacity = 0;
+                }
+            }
+        });
+
         // FIFO mutex queue state
         this._batchQueue = [];
         this._batchBusy = false;
@@ -251,12 +264,13 @@ export default class SpawnAtExtension extends Extension {
             this._disarmAnchor(window, 'DISABLE');
 
         // Disconnect compositor signals
+        this._safeDisconnect(global.stage, this._cloakSafetyId);
         this._safeDisconnect(global.display, this._windowCreatedId);
         this._safeDisconnect(global.window_manager, this._mapId);
         this._safeDisconnect(global.display, this._grabEndId);
         this._safeDisconnect(this._monitorManager, this._monitorsChangedId);
         this._safeDisconnect(global.display, this._workareasChangedId);
-        this._windowCreatedId = this._mapId = this._grabEndId = 0;
+        this._cloakSafetyId = this._windowCreatedId = this._mapId = this._grabEndId = 0;
         this._monitorsChangedId = this._workareasChangedId = 0;
         this._monitorManager = null;
 
@@ -549,8 +563,20 @@ export default class SpawnAtExtension extends Extension {
 
     /** Disable Mutter's map animation (it would fade the actor in over our cloak). */
     _suppressMapAnimation(window) {
+        // MetaWindow property (older Mutter)
         if ('no_map_animation' in window)
             window.no_map_animation = true;
+
+        // MetaWindowActor property — this is the one current Mutter actually
+        // consults before starting the fade-in transition on map.
+        const actor = this._getActor(window);
+        if (actor) {
+            if ('no_map_animation' in actor)
+                actor.no_map_animation = true;
+            // Kill any default easing that Mutter might re-apply on map.
+            if (typeof actor.set_easing_duration === 'function')
+                actor.set_easing_duration(0);
+        }
     }
 
     _isMaximized(window) {
@@ -773,13 +799,11 @@ export default class SpawnAtExtension extends Extension {
         if (this._disabled)
             return;
 
+        this._suppressMapAnimation(window);
         const actor = this._getActor(window);
-
         if (this._hasArmedSpawns() && actor)
             this._cloak(actor);
-
         this._logTime('WINDOW_CREATED', `actorFound=${Boolean(actor)}`, window);
-        this._suppressMapAnimation(window);
 
         if (this._claimInstructions(window))
             return;
@@ -1162,11 +1186,30 @@ export default class SpawnAtExtension extends Extension {
     _cloak(actor) {
         if (!actor)
             return;
+
+        // Register FIRST so any notify::opacity emission mid-setup is caught.
+        this._cloakedActors.add(actor);
+
         this._try(() => {
             actor.remove_all_transitions?.();
+
+            // Prevent Mutter from caching a visible frame and replaying it
+            // during position changes — this is what makes the window visibly
+            // "slide" from top-left to its anchor.
+            if (typeof actor.set_offscreen_redirect === 'function')
+                actor.set_offscreen_redirect(Clutter.OffscreenRedirect.NEVER);
+
             actor.opacity = 0;
+
+            if (!actor._spawnAtOpacityId) {
+                actor._spawnAtOpacityId = this._tryConnect(actor, 'notify::opacity', () => {
+                    if (this._cloakedActors.has(actor) && actor.opacity !== 0) {
+                        actor.remove_all_transitions?.();
+                        actor.opacity = 0;
+                    }
+                });
+            }
         });
-        this._cloakedActors.add(actor);
     }
 
     _uncloak(actor) {
@@ -1174,7 +1217,15 @@ export default class SpawnAtExtension extends Extension {
             return;
         this._cloakedActors.delete(actor);
         this._try(() => {
+            if (actor._spawnAtOpacityId) {
+                this._safeDisconnect(actor, actor._spawnAtOpacityId);
+                delete actor._spawnAtOpacityId;
+            }
             actor.remove_all_transitions?.();
+            if (typeof actor.set_offscreen_redirect === 'function')
+                actor.set_offscreen_redirect(Clutter.OffscreenRedirect.AUTOMATIC_FOR_OPACITY);
+            if (typeof actor.set_easing_duration === 'function')
+                actor.set_easing_duration(0);
             actor.opacity = 255;
             if (!actor.visible)
                 actor.show();
