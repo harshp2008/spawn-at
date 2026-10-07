@@ -20,9 +20,10 @@
  *  pins the top-left corner, so the later growth pushes the bottom edge off-screen.
  *
  *  Two independent defences are used, neither of which guesses geometry:
- *   - POST-REVEAL FOCUS PULSE: once uncloaked, pulse focus to desktop and back
- *     on the exact Meta.Window object. The resulting wl_keyboard.leave forces GTK3/VTE
- *     to tear down clamped minimum buffers and commit full profile geometry.
+ *   - PRE-REVEAL FOCUS PULSE: while the actor is still cloaked (opacity 0), drop
+ *     focus to desktop and restore it on the exact Meta.Window object. The resulting
+ *     wl_keyboard.leave forces GTK3/VTE to tear down clamped minimum buffers and
+ *     commit full profile geometry. The window is re-anchored and only then revealed.
  *   - REACTIVE ANCHOR: if the window changes size (due to pulse or client changes),
  *     re-solve the anchored position on `size-changed`.
  *
@@ -126,6 +127,13 @@ const WAKE_IDLE_MS = 120;
 const WAKE_QUIET_MS = 60;
 /** After a wake: absolute upper bound. */
 const WAKE_CEILING_MS = 300;
+
+/** Pulse: after defocus, how long to wait for the client to even begin resizing. */
+const PULSE_LEAVE_IDLE_MS = 150;
+/** Pulse: ceiling for Mutter to report the window focused again. */
+const PULSE_REFOCUS_CEILING_MS = 250;
+/** Max wait for the compositor frames flushed just before reveal. */
+const FRAME_WAIT_CEILING_MS = 100;
 
 /** Reactive anchor retires this long after its last correction. */
 const ANCHOR_RETIRE_QUIET_MS = 1000;
@@ -767,33 +775,48 @@ export default class SpawnAtExtension extends Extension {
     }
 
     /**
-     * Step: the uncloak sequence.
-     *   4A  safety delay        — let buffers paint
-     *   4B  re-anchor           — fix position if the size changed since placement
-     *   4C  reveal + anchor     — show the window and arm the reactive anchor
-     *   4D  post-reveal pulse   — force deferred toolkit layout after uncloaking
+     * Step: the uncloak sequence. EVERYTHING before 4D happens at opacity 0.
+     *   4A  safety delay        - let initial buffers paint
+     *   4B  focus pulse         - defocus -> commit full geometry -> refocus (cloaked)
+     *   4C  re-anchor           - solve position for the final size (cloaked)
+     *   4D  reveal + anchor     - show only the finished window, arm reactive anchor
      */
     async _stepUncloak(ctx, args) {
         const delayMs = Number.isFinite(args.delay_ms) ? args.delay_ms : DEFAULT_UNCLOAK_DELAY_MS;
         const wantWake = args.wake !== false;
 
-        // 4A. Safety delay
+        // 4A. Safety delay (wait for initial Wayland buffers in the dark)
         this._logTime('UNCLOAK_4A', `delay=${delayMs}ms`);
         if (delayMs > 0)
             await this._sleep(delayMs);
         if (this._disabled)
             return;
 
-        // 4B. Re-anchor if geometry moved on since we positioned
+        // Re-assert the cloak: nothing may be visible from here until 4D.
+        this._cloak(ctx.actor);
+
+        // 4B. Focus pulse, strictly under the cloak
+        const clamped = this._isToolkitClamped(ctx);
+        this._logTime('UNCLOAK_4B', `wantWake=${wantWake} clamped=${clamped}`);
+        if (wantWake && clamped) {
+            await this._executeFocusPulse(ctx);
+            if (this._disabled)
+                return;
+            // The pulse (or something it triggered) must not have revealed us
+            this._cloak(ctx.actor);
+        }
+
+        // 4C. Re-anchor for the final size, still invisible
         this._reanchorIfResized(ctx);
 
-        // 4C. Reveal and keep the anchor alive
-        this._reveal(ctx);
+        // Let the (re)focused, re-anchored state reach the screen buffer-wise
+        // before the first visible frame, so no titlebar state change is shown.
+        await this._waitForFrames(2, FRAME_WAIT_CEILING_MS);
+        if (this._disabled)
+            return;
 
-        // 4D. Post-reveal pulse to wake the toolkit now that the window is uncloaked
-        if (wantWake && this._isToolkitClamped(ctx)) {
-            await this._postRevealPulse(ctx);
-        }
+        // 4D. Reveal LAST
+        this._reveal(ctx);
     }
 
     /**
@@ -1039,40 +1062,119 @@ export default class SpawnAtExtension extends Extension {
     }
 
     // =======================================================================
-    // 9. POST-REVEAL FOCUS PULSE
+    // 9. FOCUS PULSE
     // =======================================================================
 
     /**
-     * Execute a post-reveal focus pulse directly on ctx.window to force
-     * deferred toolkit layout (e.g. GTK3/VTE 76px -> 93px clamped minimum buffers).
+     * Focus pulse, run entirely while the actor is cloaked (opacity 0).
+     *
+     *   1. unset_input_focus  -> client receives wl_keyboard.leave
+     *   2. wait for the client to commit its new size (event-driven, bounded)
+     *   3. activate the window again -> client receives wl_keyboard.enter
+     *   4. wait until Mutter reports it focused and the size is quiet
+     *
+     * No blind sleeps: each wait ends on the signal it is waiting for, with a
+     * ceiling as the only fallback.
      */
-    async _postRevealPulse(ctx) {
-        const { window } = ctx;
+    async _executeFocusPulse(ctx) {
+        const { window, actor } = ctx;
         const winId = window.get_id();
         const startFrame = window.get_frame_rect();
 
-        this._logTime('POST_REVEAL_PULSE_INIT',
+        this._logTime('FOCUS_PULSE_INIT',
             `windowId=${winId} initial=(${startFrame.width}x${startFrame.height}) ` +
-            `target=(${ctx.targetW}x${ctx.targetH})`);
+            `target=(${ctx.targetW}x${ctx.targetH}) opacity=${actor?.opacity}`);
 
-        await this._sleep(150);
-
-        // Defocus using explicit desktop mode
+        // 1. Drop seat focus to desktop
         this._defocusWindowObject(window, 'desktop');
-        this._logTime('POST_REVEAL_PULSE_DEFOCUSED', `windowId=${winId} focus yielded to desktop`);
+        this._logTime('FOCUS_PULSE_DEFOCUSED', `windowId=${winId}`);
 
-        await this._sleep(100);
+        // 2. Wait for the client to react to wl_keyboard.leave. The client only
+        //    needs to *start* resizing within PULSE_LEAVE_IDLE_MS; once it does,
+        //    wait for the size to go quiet.
+        await this._waitForSizeQuiet(window, PULSE_LEAVE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
+        if (this._disabled)
+            return;
+        this._cloak(actor);
 
-        // Refocus the window
+        // 3. Restore focus
         this._focusWindowObject(window);
-        this._logTime('POST_REVEAL_PULSE_REFOCUSED', `windowId=${winId} focus restored`);
+        this._logTime('FOCUS_PULSE_REFOCUSED', `windowId=${winId}`);
 
+        // 4. Wait until Mutter agrees the window is focused again...
+        const focused = await this._waitForWindowCondition(
+            window, ['notify::appears-focused', 'focus'],
+            () => window.has_focus(), PULSE_REFOCUS_CEILING_MS);
+        this._logTime('FOCUS_PULSE_FOCUS_CONFIRMED', `focused=${focused}`);
+
+        // ...and any resulting resize (focus can change decoration/geometry) is done.
         await this._waitForSizeQuiet(window, WAKE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
 
         const endFrame = window.get_frame_rect();
-        this._logTime('POST_REVEAL_PULSE_DONE',
+        this._logTime('FOCUS_PULSE_DONE',
             `windowId=${winId} final=(${endFrame.width}x${endFrame.height}) ` +
             `deltaH=${endFrame.height - startFrame.height}`);
+    }
+
+    /**
+     * Resolve true as soon as `predicate()` holds (checked now and on each listed
+     * signal of `window`), or false after `ceilingMs`. Never rejects.
+     */
+    _waitForWindowCondition(window, signals, predicate, ceilingMs) {
+        return new Promise(resolve => {
+            if (this._try(predicate, false)) {
+                resolve(true);
+                return;
+            }
+            let finished = false;
+            let ceiling = 0;
+            const ids = [];
+            const finish = ok => {
+                if (finished)
+                    return;
+                finished = true;
+                this._removeTimer(ceiling);
+                ids.forEach(id => this._safeDisconnect(window, id));
+                resolve(ok);
+            };
+            const check = () => {
+                if (this._try(predicate, false))
+                    finish(true);
+            };
+            for (const sig of signals)
+                ids.push(this._tryConnect(window, sig, check));
+            ceiling = this._addTimer(ceilingMs, () => finish(false));
+        });
+    }
+
+    /**
+     * Resolve after the compositor has run `count` frame updates (or after
+     * `ceilingMs`). Used so the last cloaked state is flushed before reveal.
+     */
+    _waitForFrames(count, ceilingMs) {
+        return new Promise(resolve => {
+            let finished = false;
+            let remaining = count;
+            let ceiling = 0;
+            let sigId = 0;
+            const finish = () => {
+                if (finished)
+                    return;
+                finished = true;
+                this._removeTimer(ceiling);
+                this._safeDisconnect(global.stage, sigId);
+                resolve();
+            };
+            sigId = this._tryConnect(global.stage, 'after-update', () => {
+                if (--remaining <= 0)
+                    finish();
+            });
+            ceiling = this._addTimer(ceilingMs, finish);
+            // Make sure at least one update is actually scheduled
+            this._try(() => global.stage.queue_redraw());
+            if (!sigId)
+                finish();
+        });
     }
 
     // =======================================================================
