@@ -20,11 +20,11 @@
  *  pins the top-left corner, so the later growth pushes the bottom edge off-screen.
  *
  *  Two independent defences are used, neither of which guesses geometry:
- *   - FOCUS CYCLE (wake): while the window is still cloaked, give *this exact window*
- *     focus and immediately hand focus back to whoever had it. The resulting focus-out
- *     makes the toolkit finish layout before the user ever sees the window.
- *   - REACTIVE ANCHOR: if the window still changes size later (focus cycle rejected,
- *     client changes its mind, ...), re-solve the anchored position on `size-changed`.
+ *   - POST-REVEAL FOCUS PULSE: once uncloaked, pulse focus to desktop and back
+ *     on the exact Meta.Window object. The resulting wl_keyboard.leave forces GTK3/VTE
+ *     to tear down clamped minimum buffers and commit full profile geometry.
+ *   - REACTIVE ANCHOR: if the window changes size (due to pulse or client changes),
+ *     re-solve the anchored position on `size-changed`.
  *
  * INSTRUCTION SCHEMA (JSON array passed over D-Bus)
  * -------------------------------------------------
@@ -119,8 +119,6 @@ const COMMIT_HARD_CAP_MS = 1500;
 /** Default blind delay at the start of the Uncloak phase (lets buffers paint). */
 const DEFAULT_UNCLOAK_DELAY_MS = 300;
 
-/** Focus cycle: how long to wait for a focus change to be honoured. */
-const FOCUS_WAIT_MS = 150;
 /** After a wake: wait this long for any size change to even begin. */
 const WAKE_IDLE_MS = 120;
 /** After a wake: size must be quiet this long once it starts changing. */
@@ -751,10 +749,10 @@ export default class SpawnAtExtension extends Extension {
 
     /**
      * Step: the uncloak sequence.
-     *   4A  safety delay      — let buffers paint
-     *   4B  wake              — focus cycle to force deferred toolkit layout
-     *   4C  re-anchor         — fix position if the size changed since placement
-     *   4D  reveal + anchor   — show the window and arm the reactive anchor
+     *   4A  safety delay        — let buffers paint
+     *   4B  re-anchor           — fix position if the size changed since placement
+     *   4C  reveal + anchor     — show the window and arm the reactive anchor
+     *   4D  post-reveal pulse   — force deferred toolkit layout after uncloaking
      */
     async _stepUncloak(ctx, args) {
         const delayMs = Number.isFinite(args.delay_ms) ? args.delay_ms : DEFAULT_UNCLOAK_DELAY_MS;
@@ -767,18 +765,16 @@ export default class SpawnAtExtension extends Extension {
         if (this._disabled)
             return;
 
-        // 4B. Wake the toolkit (only when the toolkit clamped us above the request)
-        if (wantWake && this._isToolkitClamped(ctx)) {
-            await this._wakeToolkit(ctx);
-            if (this._disabled)
-                return;
-        }
-
-        // 4C. Re-anchor if geometry moved on since we positioned
+        // 4B. Re-anchor if geometry moved on since we positioned
         this._reanchorIfResized(ctx);
 
-        // 4D. Reveal and keep the anchor alive
+        // 4C. Reveal and keep the anchor alive
         this._reveal(ctx);
+
+        // 4D. Post-reveal pulse to wake the toolkit now that the window is uncloaked
+        if (wantWake && this._isToolkitClamped(ctx)) {
+            await this._postRevealPulse(ctx);
+        }
     }
 
     /**
@@ -1024,114 +1020,40 @@ export default class SpawnAtExtension extends Extension {
     }
 
     // =======================================================================
-    // 9. TOOLKIT WAKE (FOCUS CYCLE)
+    // 9. POST-REVEAL FOCUS PULSE
     // =======================================================================
 
     /**
-     * Force a deferred toolkit layout while the window is still cloaked.
-     *
-     * Runs the focus cycle, waits for any resulting resize, and logs the outcome.
-     * Skipped if the window already holds focus: it then has nothing to lose.
+     * Execute a post-reveal focus pulse directly on ctx.window to force
+     * deferred toolkit layout (e.g. GTK3/VTE 76px -> 93px clamped minimum buffers).
      */
-    async _wakeToolkit(ctx) {
+    async _postRevealPulse(ctx) {
         const { window } = ctx;
-        const before = window.get_frame_rect();
-        this._logTime('WAKE_START', `clamped=(${before.width}x${before.height}) ` +
-            `target=(${ctx.targetW}x${ctx.targetH}) currentFocus=${global.display.focus_window?.get_id()}`);
+        const winId = window.get_id();
+        const startFrame = window.get_frame_rect();
 
-        if (!(await this._focusCycle(window)))
-            return;
+        this._logTime('POST_REVEAL_PULSE_INIT',
+            `windowId=${winId} initial=(${startFrame.width}x${startFrame.height}) ` +
+            `target=(${ctx.targetW}x${ctx.targetH})`);
 
-        // The growth may land before or after focus is restored: wait for quiet
+        // 1. Defocus the specific window object to the desktop
+        this._defocusWindowObject(window, 'desktop');
+        this._logTime('POST_REVEAL_PULSE_DEFOCUSED', `windowId=${winId} focus yielded to desktop`);
+
+        // 2. Wait 100ms for Wayland frame clock to process wl_keyboard.leave and commit the new layout
+        await this._sleep(100);
+
+        // 3. Refocus the exact window object
+        this._focusWindowObject(window);
+        this._logTime('POST_REVEAL_PULSE_REFOCUSED', `windowId=${winId} focus restored`);
+
+        // 4. Wait for any reactive size settling
         await this._waitForSizeQuiet(window, WAKE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
 
-        const after = window.get_frame_rect();
-        this._logTime('WAKE_DONE', `after=(${after.width}x${after.height}) ` +
-            `deltaH=${after.height - before.height} deltaW=${after.width - before.width}`);
-    }
-
-    /**
-     * Give THIS window focus, then return focus to whichever window had it.
-     *
-     * Targets the exact Meta.Window object (identity, not wm_class), so sibling
-     * windows of the same app are never touched. The focus-OUT on this window is
-     * what makes GTK/VTE finish its layout.
-     *
-     * Side effects to be aware of: the user's window briefly loses focus (terminal
-     * apps may see focus-out/focus-in events), and a rejected activation can flag the
-     * window "demands attention" — which is cleared below.
-     *
-     * @returns {Promise<boolean>} true if the full cycle ran
-     */
-    async _focusCycle(window) {
-        const display = global.display;
-        const previous = display.focus_window;
-
-        this._logTime('FOCUS_CYCLE_INIT', `currentFocus=${previous?.get_id()} target=${window.get_id()}`);
-
-        if (previous === window) {
-            // Window ALREADY holds focus: it needs a focus-OUT to complete VTE layout.
-            // Find another window or drop focus to desktop, then restore to this window.
-            const workspace = global.display.get_workspace_manager().get_active_workspace();
-            const altWindow = this._getMRUWindows(workspace).find(w => w !== window && !w.minimized && !w.skip_taskbar);
-            
-            if (altWindow) {
-                altWindow.activate(global.get_current_time());
-                await this._waitForFocus(altWindow, FOCUS_WAIT_MS);
-            } else if (global.stage?.set_key_focus) {
-                global.stage.set_key_focus(null);
-                await this._sleep(50);
-            }
-
-            // Restore focus back to the spawned window
-            window.activate(global.get_current_time());
-            const restored = await this._waitForFocus(window, FOCUS_WAIT_MS);
-            this._logTime('FOCUS_CYCLE_DONE', `cycleType="pulse_out_and_back" restored=${restored}`);
-            return true;
-        }
-
-        // Window does NOT hold focus: standard pulse in then out
-        if (!previous || previous.minimized) {
-            this._logTime('FOCUS_CYCLE_SKIP', 'no distinct previous focus window');
-            return false;
-        }
-
-        window.activate(global.get_current_time());
-        if (!(await this._waitForFocus(window, FOCUS_WAIT_MS))) {
-            this._try(() => window.unset_demands_attention());
-            this._logTime('FOCUS_CYCLE_ABORT', 'activate() was not honoured');
-            return false;
-        }
-
-        previous.activate(global.get_current_time());
-        const restored = await this._waitForFocus(previous, FOCUS_WAIT_MS);
-        this._logTime('FOCUS_CYCLE_DONE', `cycleType="pulse_in_and_restore" restored=${restored}`);
-        return true;
-    }
-
-    /** Resolve true as soon as `target` is the focus window, false on timeout. */
-    _waitForFocus(target, timeoutMs) {
-        const display = global.display;
-        return new Promise(resolve => {
-            if (display.focus_window === target) {
-                resolve(true);
-                return;
-            }
-
-            let sigId = 0;
-            let timer = 0;
-            const done = ok => {
-                this._safeDisconnect(display, sigId);
-                this._removeTimer(timer);
-                resolve(ok);
-            };
-
-            sigId = this._tryConnect(display, 'notify::focus-window', () => {
-                if (display.focus_window === target)
-                    done(true);
-            });
-            timer = this._addTimer(timeoutMs, () => done(false));
-        });
+        const endFrame = window.get_frame_rect();
+        this._logTime('POST_REVEAL_PULSE_DONE',
+            `windowId=${winId} final=(${endFrame.width}x${endFrame.height}) ` +
+            `deltaH=${endFrame.height - startFrame.height}`);
     }
 
     // =======================================================================
