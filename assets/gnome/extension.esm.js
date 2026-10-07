@@ -113,7 +113,7 @@ const ARM_EXPIRY_MS = 15000;
 const WILDCARD_EXPIRY_MS = 1200;
 
 /** Commit latch: geometry must be unchanged this long to count as "settled". */
-const COMMIT_QUIET_MS = 60;
+const COMMIT_QUIET_MS = 30;
 /** Commit latch: minimum wait when the window never changes size at all. */
 const COMMIT_MIN_TIMEOUT_MS = 120;
 /** Commit latch: absolute upper bound, even if the client keeps resizing. */
@@ -125,16 +125,16 @@ const DEFAULT_UNCLOAK_DELAY_MS = 300;
 /** After a wake: wait this long for any size change to even begin. */
 const WAKE_IDLE_MS = 120;
 /** After a wake: size must be quiet this long once it starts changing. */
-const WAKE_QUIET_MS = 60;
+const WAKE_QUIET_MS = 30;
 /** After a wake: absolute upper bound. */
 const WAKE_CEILING_MS = 300;
 
 /** Pulse: after defocus, how long to wait for client size-changed signal before early-exit. */
-const PULSE_LEAVE_IDLE_MS = 150;
+const PULSE_LEAVE_IDLE_MS = 100;
 /** Pulse: ceiling for Mutter to report the window focused again. */
 const PULSE_REFOCUS_CEILING_MS = 250;
 /** Max wait for the compositor frames flushed just before reveal. */
-const FRAME_WAIT_CEILING_MS = 100;
+const FRAME_WAIT_CEILING_MS = 50;
 
 /** Reactive anchor retires this long after its last correction. */
 const ANCHOR_RETIRE_QUIET_MS = 1000;
@@ -1090,16 +1090,11 @@ export default class SpawnAtExtension extends Extension {
      *   4D  Reveal + anchor     - reveal actor, arm reactive anchor
      */
     async _stepUncloak(ctx, args) {
-        const delayMs = Number.isFinite(args.delay_ms) ? args.delay_ms : DEFAULT_UNCLOAK_DELAY_MS;
         const wantWake = args.wake !== false;
 
-        // 4A. Safety delay (wait for initial Wayland buffers in the dark)
-        this._logTime('UNCLOAK_4A', `delay=${delayMs}ms`, ctx.window);
-        if (delayMs > 0)
-            await this._sleep(delayMs);
-        if (this._disabled)
-            return;
-
+        // 4A. Safety delay is now fully removed. WaitForCommit guarantees the buffer
+        // is painted, and our bulletproof cloak prevents any visual leak.
+        this._logTime('UNCLOAK_4A', `delay=0ms (skipped)`, ctx.window);
         this._cloak(ctx.actor);
 
         // 4B. Gated focus pulse
@@ -1109,12 +1104,10 @@ export default class SpawnAtExtension extends Extension {
 
         if (wantWake && clamped) {
             if (!isVte) {
-                // Non-VTE applications (GTK4, Qt, Kitty, GParted, Mousepad) skip pulse entirely
                 this._logTime('FOCUS_PULSE_SKIP_NOT_VTE',
                     `reason="non-VTE toolkit; bypassing synthetic defocus"`,
                     ctx.window);
             } else {
-                // Only GTK3+VTE apps run the pulse (with early-exit detection)
                 await this._executeFocusPulse(ctx);
                 if (this._disabled)
                     return;
@@ -1125,8 +1118,8 @@ export default class SpawnAtExtension extends Extension {
         // 4C. Re-anchor for final size, still invisible
         this._reanchorIfResized(ctx);
 
-        // Flush frame updates before revealing
-        await this._waitForFrames(2, FRAME_WAIT_CEILING_MS);
+        // Flush 1 frame before revealing
+        await this._waitForFrames(1, FRAME_WAIT_CEILING_MS);
         if (this._disabled)
             return;
 
@@ -1339,6 +1332,14 @@ export default class SpawnAtExtension extends Extension {
                     this._removeTimer(idleTimer);
                     idleTimer = 0;
                     this._removeTimer(quietTimer);
+                    quietTimer = this._addTimer(COMMIT_QUIET_MS, () => finish('SIZE_SETTLED'));
+                } 
+                
+                else if (source === 'allocation' && idleTimer) {
+                    // Allocation fired but size didn't change. Window is stable.
+                    // Start the quiet timer and cancel the long idle timeout.
+                    this._removeTimer(idleTimer);
+                    idleTimer = 0;
                     quietTimer = this._addTimer(COMMIT_QUIET_MS, () => finish('SIZE_SETTLED'));
                 }
             };
