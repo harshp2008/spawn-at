@@ -20,7 +20,7 @@ mod tests {
     use crate::platform::linux::x11::X11Driver;
 
     #[tokio::test]
-    async fn test_transform_unsupported_on_x11() {
+    async fn test_transform_supported_on_x11() {
         let driver = X11Driver;
         let args = TransformArgs {
             class: Some("alacritty".into()),
@@ -28,11 +28,11 @@ mod tests {
         };
         let err = run_transform(&driver, args).await.unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("The active compositor does not support this feature"));
+        assert!(!msg.contains("The active compositor does not support this feature"));
     }
 
     #[tokio::test]
-    async fn test_focus_unsupported_on_x11() {
+    async fn test_focus_supported_on_x11() {
         let driver = X11Driver;
         let args = WindowTargetArgs {
             class: Some("alacritty".into()),
@@ -40,11 +40,11 @@ mod tests {
         };
         let err = run_focus(&driver, args).await.unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("The active compositor does not support this feature"));
+        assert!(!msg.contains("The active compositor does not support this feature"));
     }
 
     #[tokio::test]
-    async fn test_lifecycle_unsupported_on_x11() {
+    async fn test_lifecycle_supported_on_x11() {
         let driver = X11Driver;
         let args = MaximizeArgs {
             target: WindowTargetArgs {
@@ -55,6 +55,6 @@ mod tests {
         };
         let err = run_maximize(&driver, args).await.unwrap_err();
         let msg = err.to_string();
-        assert!(msg.contains("The active compositor does not support this feature"));
+        assert!(!msg.contains("The active compositor does not support this feature"));
     }
 }

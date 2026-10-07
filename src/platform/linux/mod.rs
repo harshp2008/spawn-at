@@ -6,62 +6,48 @@ use crate::platform::{
     Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, PlacementParams, Rect,
     UninstallArgs, WindowMetadata, WindowState,
 };
-use std::process::Command;
+use x11rb::connection::Connection as _;
 
-/// Queries available display monitor bounding boxes via xrandr.
+/// Queries available display monitor bounding boxes via native X11 RANDR or screen fallback.
 pub fn query_xrandr_monitors() -> Vec<Rect> {
-    let mut monitors = Vec::new();
-    if let Ok(output) = Command::new("xrandr").output() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        for line in stdout.lines() {
-            if line.contains(" connected ") {
-                if let Some(geom) = line
-                    .split_whitespace()
-                    .find(|s| s.contains('x') && s.contains('+'))
-                {
-                    let parts: Vec<&str> = geom.split(&['x', '+'][..]).collect();
-                    if parts.len() >= 4 {
-                        if let (Ok(w), Ok(h), Ok(x), Ok(y)) = (
-                            parts[0].parse::<i32>(),
-                            parts[1].parse::<i32>(),
-                            parts[2].parse::<i32>(),
-                            parts[3].parse::<i32>(),
-                        ) {
-                            monitors.push(Rect {
-                                x,
-                                y,
-                                width: w as u32,
-                                height: h as u32,
-                            });
-                        }
-                    }
+    if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
+        let root = conn.setup().roots[screen_num].root;
+        use x11rb::protocol::randr::ConnectionExt as _;
+        if let Ok(reply) = conn.randr_get_monitors(root, true) {
+            if let Ok(reply) = reply.reply() {
+                if !reply.monitors.is_empty() {
+                    return reply
+                        .monitors
+                        .into_iter()
+                        .map(|m| Rect {
+                            x: m.x as i32,
+                            y: m.y as i32,
+                            width: m.width as u32,
+                            height: m.height as u32,
+                        })
+                        .collect();
                 }
             }
         }
+        let screen = &conn.setup().roots[screen_num];
+        return vec![Rect {
+            x: 0,
+            y: 0,
+            width: screen.width_in_pixels as u32,
+            height: screen.height_in_pixels as u32,
+        }];
     }
-    monitors
+    Vec::new()
 }
 
-/// Queries current pointer coordinates using xdotool (fallback for X11 / XWayland).
+/// Queries current pointer coordinates using native X11 protocol.
 pub fn query_xdotool_cursor() -> Option<(i32, i32)> {
-    if let Ok(output) = Command::new("xdotool")
-        .args(["getmouselocation", "--shell"])
-        .output()
-    {
-        if output.status.success() {
-            let stdout = String::from_utf8_lossy(&output.stdout);
-            let mut x = None;
-            let mut y = None;
-            for line in stdout.lines() {
-                if let Some(val) = line.strip_prefix("X=") {
-                    x = val.parse::<i32>().ok();
-                }
-                if let Some(val) = line.strip_prefix("Y=") {
-                    y = val.parse::<i32>().ok();
-                }
-            }
-            if let (Some(x), Some(y)) = (x, y) {
-                return Some((x, y));
+    if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
+        let root = conn.setup().roots[screen_num].root;
+        use x11rb::protocol::xproto::ConnectionExt as _;
+        if let Ok(reply) = conn.query_pointer(root) {
+            if let Ok(reply) = reply.reply() {
+                return Some((reply.root_x as i32, reply.root_y as i32));
             }
         }
     }
@@ -74,21 +60,27 @@ pub struct LinuxBackend {
 }
 
 impl LinuxBackend {
-    /// Inspects the runtime session environment and instantiates the appropriate compositor backend.
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
-        let session_type = std::env::var("XDG_SESSION_TYPE").unwrap_or_default().to_lowercase();
+        let forced = std::env::var("SPAWN_AT_BACKEND").unwrap_or_default().to_lowercase();
+        if forced == "x11" {
+            return Ok(Box::new(LinuxBackend {
+                driver: Box::new(x11::X11Driver),
+            }));
+        }
+
         let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
 
-        if session_type == "wayland" && desktop.contains("GNOME") {
-            let driver = gnome::GnomeWaylandDriver::new().await?;
-            Ok(Box::new(LinuxBackend {
-                driver: Box::new(driver),
-            }))
-        } else {
-            Ok(Box::new(LinuxBackend {
-                driver: Box::new(x11::X11Driver),
-            }))
+        if desktop.contains("GNOME") {
+            if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
+                return Ok(Box::new(LinuxBackend {
+                    driver: Box::new(driver),
+                }));
+            }
         }
+
+        Ok(Box::new(LinuxBackend {
+            driver: Box::new(x11::X11Driver),
+        }))
     }
 }
 
@@ -183,6 +175,10 @@ impl CompositorBackend for LinuxBackend {
         destination: &str,
     ) -> Result<(), DriverError> {
         self.driver.defocus_window(target_id, mode, destination).await
+    }
+
+    async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
+        self.driver.post_spawn(child_pid, batch).await
     }
 
     async fn run_daemon(&self) -> Result<(), DriverError> {

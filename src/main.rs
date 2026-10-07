@@ -255,7 +255,7 @@ async fn main() {
             };
 
             // 3. Arm the driver with the declarative batch intent
-            let armed = match driver.arm(batch).await {
+            let armed = match driver.arm(batch.clone()).await {
                 Ok(a) => a,
                 Err(e) => {
                     eprintln!(
@@ -274,12 +274,23 @@ async fn main() {
                 cmd.env(k, v);
             }
 
-            if let Err(e) = cmd.spawn() {
-                eprintln!(
-                    "\x1b[1;31mExecution Error\x1b[0m: Failed to spawn command '{}': {}",
-                    spawn_args.command[0], e
-                );
-                std::process::exit(1);
+            let child = match cmd.spawn() {
+                Ok(child) => child,
+                Err(e) => {
+                    eprintln!(
+                        "\x1b[1;31mExecution Error\x1b[0m: Failed to spawn command '{}': {}",
+                        spawn_args.command[0], e
+                    );
+                    std::process::exit(1);
+                }
+            };
+
+            // If we are on X11, intercept the window natively
+            if driver.name() == "X11" {
+                eprintln!("[spawn-at-main] Detected X11 backend. Triggering native X11 post_spawn hook...");
+                if let Err(e) = driver.post_spawn(child.id(), &batch).await {
+                    eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m X11 window interception failed: {}", e);
+                }
             }
         }
         Commands::Transform(transform_args) => {

@@ -160,6 +160,11 @@ pub trait CompositorBackend: Driver + Send + Sync {
         Err(DriverError::UnsupportedCapability("defocus_window"))
     }
 
+    /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
+    async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
+        Ok(())
+    }
+
     /// Runs background daemon event loop monitoring compositor state changes.
     async fn run_daemon(&self) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("run_daemon"))
