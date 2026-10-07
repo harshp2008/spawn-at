@@ -12,30 +12,33 @@
  *  4. Anchor      : after reveal, a *reactive anchor* keeps the window glued to its
  *                   requested screen anchor if the client later changes its own size.
  *
- * THE GTK3/VTE "76px -> 93px" PROBLEM (why the code looks the way it does)
- * ------------------------------------------------------------------------
- *  A background gnome-terminal window commits only its bare headerbar (~76px). VTE
- *  finishes its row/column layout only after the window has *lost keyboard focus*
- *  (empirically: alt-tab away fixes it; typing, resizing or clicking do not). Mutter
- *  pins the top-left corner, so the later growth pushes the bottom edge off-screen.
+ * TOOLKIT GROWTH (e.g. gnome-terminal 76px -> 93px) & GATED FOCUS PULSE
+ * ---------------------------------------------------------------------
+ *  Some toolkits (specifically GTK3 + VTE, e.g. gnome-terminal-server) commit a
+ *  clamped minimum size first and only finish full grid layout negotiation after
+ *  receiving a wl_keyboard.leave / wl_keyboard.enter cycle.
+ *  Non-VTE toolkits (GTK4/Libadwaita, Qt, Kitty, GTK3 non-VTE, XWayland) do NOT
+ *  suffer from this defect; defocusing GTK4 windows while cloaked causes Wayland
+ *  surface drops, map stalls, and visual flicker.
+ *  The extension gates the focus pulse via:
+ *   - VTE CANDIDATE GATING: Inspects /proc/<pid>/maps and window classes to only
+ *     pulse processes running libvte. Non-VTE applications completely skip the pulse.
+ *   - EARLY-EXIT DETECTION: Defocuses briefly; if size-changed does not fire within
+ *     PULSE_LEAVE_IDLE_MS, immediately restores focus and aborts the pulse.
  *
- *  Two independent defences are used, neither of which guesses geometry:
- *   - PRE-REVEAL FOCUS PULSE: while the actor is still cloaked (opacity 0), drop
- *     focus to desktop and restore it on the exact Meta.Window object. The resulting
- *     wl_keyboard.leave forces GTK3/VTE to tear down clamped minimum buffers and
- *     commit full profile geometry. The window is re-anchored and only then revealed.
- *   - REACTIVE ANCHOR: if the window changes size (due to pulse or client changes),
- *     re-solve the anchored position on `size-changed`.
+ * GEOMETRY GUARD FLOOR
+ * --------------------
+ *  Enforces a hard minimum floor (100x60) so micro-geometry requests (e.g. 30x20)
+ *  never pass sub-chrome dimensions to Mutter. This prevents CSD titlebar subtraction
+ *  from causing negative inner widget allocations in GTK3/Pixman/XWayland, and avoids
+ *  framebuffer rejection in OpenGL engines like Kitty.
  *
- * INSTRUCTION SCHEMA (JSON array passed over D-Bus)
- * -------------------------------------------------
- *   "Snapshot" | "Cloak" | "DestroySnapshot"
- *   { SetSize: { w, h } }
- *   { WaitForCommit: { timeout_ms } }
- *   { SetPositionAnchored: { screen_anchor_x, screen_anchor_y, pivot_u, pivot_v,
- *                            offset_x, offset_y, margin_top/bottom/left/right,
- *                            area: 'screen' | 'workarea' } }
- *   { Uncloak: { delay_ms, wake } }      // wake:false disables the focus cycle
+ * PERSISTENT SESSION LOGGING & ENRICHED TELEMETRY
+ * -----------------------------------------------
+ *  Maintains persistent diagnostic logs at ~/.local/state/spawn-at/session.log
+ *  using non-blocking asynchronous I/O (Gio.File async streams). Previous session
+ *  logs are rotated to session.log.old on new login sessions (/run/user/<uid> marker),
+ *  ensuring debug data survives test runs and extension reloads without premature loss.
  */
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -101,15 +104,13 @@ const DBUS_IFACE = `
 </node>`;
 
 // ===========================================================================
-// TIMING CONSTANTS (the only "magic numbers" — none depend on pixel sizes)
+// TIMING CONSTANTS
 // ===========================================================================
 
 /** How long an armed instruction set lives if no window claims it. */
 const ARM_EXPIRY_MS = 15000;
 /** How long a wildcard ("*") arm lives if no window claims it. */
 const WILDCARD_EXPIRY_MS = 1200;
-/** How long an unmatched freshly-mapped window stays cloaked waiting for a late match. */
-const PREEMPTIVE_CLOAK_MS = 100;
 
 /** Commit latch: geometry must be unchanged this long to count as "settled". */
 const COMMIT_QUIET_MS = 60;
@@ -128,7 +129,7 @@ const WAKE_QUIET_MS = 60;
 /** After a wake: absolute upper bound. */
 const WAKE_CEILING_MS = 300;
 
-/** Pulse: after defocus, how long to wait for the client to even begin resizing. */
+/** Pulse: after defocus, how long to wait for client size-changed signal before early-exit. */
 const PULSE_LEAVE_IDLE_MS = 150;
 /** Pulse: ceiling for Mutter to report the window focused again. */
 const PULSE_REFOCUS_CEILING_MS = 250;
@@ -137,6 +138,25 @@ const FRAME_WAIT_CEILING_MS = 100;
 
 /** Reactive anchor retires this long after its last correction. */
 const ANCHOR_RETIRE_QUIET_MS = 1000;
+
+// ===========================================================================
+// GEOMETRY CONSTANTS
+// ===========================================================================
+
+/**
+ * Absolute minimum geometry floor sent to Mutter, in pixels.
+ *
+ * Rationale: toolkits (GTK3 CSD, Pixman) subtract internal chrome
+ * (titlebars, padding) from the frame size before allocating the container.
+ * If we pass a frame height smaller than that chrome the inner allocation goes
+ * negative, producing Pixman assertion failures and XWayland crashes.
+ * Similarly, Kitty calculates padding and rejects requests smaller than ~30x25.
+ *
+ * - Width  100 px: narrower than any decoratable GTK titlebar button row.
+ * - Height  60 px: comfortably above a typical 25–37 px CSD titlebar.
+ */
+const GEOMETRY_FLOOR_W = 100;
+const GEOMETRY_FLOOR_H = 60;
 
 // ===========================================================================
 // EXTENSION
@@ -164,6 +184,9 @@ export default class SpawnAtExtension extends Extension {
         // Clutter.Clone snapshots keyed by their source actor
         this._snapshots = new Map();
 
+        // Windows held cloaked while an arm is pending and they are not yet resolved
+        this._heldWindows = new Set();
+
         // Per-window bookkeeping for discovery (instructions, mapped flag, ...)
         this._windowStates = new WeakMap();
         // Windows currently under reactive-anchor control: Meta.Window -> state
@@ -182,6 +205,9 @@ export default class SpawnAtExtension extends Extension {
         // FIFO mutex queue state
         this._batchQueue = [];
         this._batchBusy = false;
+
+        // Initialize persistent session logging
+        this._initSessionLogging();
 
         // Compositor signals
         this._windowCreatedId = this._tryConnect(global.display, 'window-created',
@@ -242,6 +268,8 @@ export default class SpawnAtExtension extends Extension {
         this._wildcardTarget = null;
         this._armedSpawns.clear();
 
+        this._heldWindows.clear();
+
         // Never leave a window invisible or a snapshot overlay behind
         for (const actor of [...this._cloakedActors])
             this._uncloak(actor);
@@ -256,6 +284,9 @@ export default class SpawnAtExtension extends Extension {
             this._dummy = null;
         }
 
+        // Flush any remaining persistent log entries before unexporting
+        this._flushSessionLogSync();
+
         // Tear down D-Bus
         if (this._dbusImpl) {
             this._try(() => this._dbusImpl.unexport());
@@ -264,36 +295,200 @@ export default class SpawnAtExtension extends Extension {
     }
 
     // =======================================================================
-    // 2. LOGGING
+    // 2. PERSISTENT LOGGING & ENRICHED TELEMETRY
     // =======================================================================
 
-    /** Debug logging is enabled by SPAWN_AT_DEBUG=1|true or the SetLogging D-Bus call. */
+    /**
+     * Initialize persistent session logging to ~/.local/state/spawn-at/session.log.
+     * Uses /run/user/<uid>/spawn-at-session.marker to detect login session lifecycle:
+     * - New login session (marker missing): rotates existing session.log -> session.log.old.
+     * - Same session (marker exists): appends to session.log without data loss.
+     */
+    _initSessionLogging() {
+        this._pendingLogLines = [];
+        this._logWriting = false;
+        this._logFlushScheduled = false;
+
+        try {
+            const stateDir = GLib.build_filenamev([GLib.get_user_state_dir(), 'spawn-at']);
+            GLib.mkdir_with_parents(stateDir, 0o755);
+
+            this._sessionLogPath = GLib.build_filenamev([stateDir, 'session.log']);
+            const oldLogPath = GLib.build_filenamev([stateDir, 'session.log.old']);
+            this._sessionLogFile = Gio.File.new_for_path(this._sessionLogPath);
+
+            const runtimeDir = GLib.get_user_runtime_dir();
+            const markerPath = GLib.build_filenamev([runtimeDir, 'spawn-at-session.marker']);
+            const markerFile = Gio.File.new_for_path(markerPath);
+
+            const isNewSession = !markerFile.query_exists(null);
+            if (isNewSession) {
+                // Rotate previous log if present so history is preserved
+                if (this._sessionLogFile.query_exists(null)) {
+                    try {
+                        const oldFile = Gio.File.new_for_path(oldLogPath);
+                        this._sessionLogFile.move(oldFile, Gio.FileCopyFlags.OVERWRITE, null, null);
+                    } catch (_e) {}
+                }
+                // Touch the session marker in /run/user/<uid> (wiped on logout/reboot by systemd)
+                try {
+                    const st = markerFile.create(Gio.FileCreateFlags.NONE, null);
+                    st.close(null);
+                } catch (_e) {}
+                this._queueLogLine(`=== SPAWN-AT SESSION STARTED: ${new Date().toISOString()} ===`);
+            } else {
+                this._queueLogLine(`--- SPAWN-AT EXTENSION RE-ENABLED: ${new Date().toISOString()} ---`);
+            }
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to initialize session logging: ${e}`);
+        }
+    }
+
+    /** Append a formatted line to the async write queue and trigger flush. */
+    _queueLogLine(line) {
+        if (!this._pendingLogLines)
+            this._pendingLogLines = [];
+        this._pendingLogLines.push(line);
+
+        if (!this._logWriting && !this._logFlushScheduled) {
+            this._logFlushScheduled = true;
+            GLib.idle_add(GLib.PRIORITY_LOW, () => {
+                this._logFlushScheduled = false;
+                this._flushLogQueue();
+                return GLib.SOURCE_REMOVE;
+            });
+        }
+    }
+
+    /** Asynchronously write queued lines to ~/.local/state/spawn-at/session.log. */
+    _flushLogQueue() {
+        if (this._disabled && this._pendingLogLines.length === 0)
+            return;
+        if (this._logWriting || !this._sessionLogFile || this._pendingLogLines.length === 0)
+            return;
+
+        this._logWriting = true;
+        const chunk = this._pendingLogLines.splice(0).join('\n') + '\n';
+        const bytes = new GLib.Bytes(new TextEncoder().encode(chunk));
+
+        try {
+            this._sessionLogFile.append_to_async(
+                Gio.FileCreateFlags.NONE,
+                GLib.PRIORITY_LOW,
+                null,
+                (file, res) => {
+                    try {
+                        const stream = file.append_to_finish(res);
+                        stream.write_bytes_async(
+                            bytes,
+                            GLib.PRIORITY_LOW,
+                            null,
+                            (s, wres) => {
+                                try {
+                                    s.write_bytes_finish(wres);
+                                    s.close_async(GLib.PRIORITY_LOW, null, (cs, cres) => {
+                                        try { cs.close_finish(cres); } catch (_e) {}
+                                        this._logWriting = false;
+                                        if (this._pendingLogLines.length > 0)
+                                            this._flushLogQueue();
+                                    });
+                                } catch (_err) {
+                                    try { s.close(null); } catch (_e) {}
+                                    this._logWriting = false;
+                                }
+                            }
+                        );
+                    } catch (_err) {
+                        this._logWriting = false;
+                    }
+                }
+            );
+        } catch (_err) {
+            this._logWriting = false;
+        }
+    }
+
+    /** Synchronously drain pending log buffer during disable(). */
+    _flushSessionLogSync() {
+        if (!this._sessionLogFile || !this._pendingLogLines || this._pendingLogLines.length === 0)
+            return;
+        try {
+            const stream = this._sessionLogFile.append_to(Gio.FileCreateFlags.NONE, null);
+            if (stream) {
+                const chunk = this._pendingLogLines.splice(0).join('\n') + '\n';
+                stream.write_bytes(new GLib.Bytes(new TextEncoder().encode(chunk)), null);
+                stream.close(null);
+            }
+        } catch (_e) {}
+    }
+
+    /** Debug logging is enabled by default unless SPAWN_AT_DEBUG=0|false or SetLogging(false). */
     _isLoggingEnabled() {
         if (this._loggingEnabled !== undefined)
             return this._loggingEnabled;
         const env = GLib.getenv('SPAWN_AT_DEBUG');
-        this._loggingEnabled = env === '1' || env === 'true';
+        this._loggingEnabled = env !== '0' && env !== 'false';
         return this._loggingEnabled;
     }
 
-    /** Timestamped debug line, relative to the most recent ArmSpawn call. */
-    _logTime(tag, extra = '') {
-        if (!this._isLoggingEnabled())
-            return;
+    /** Formats rich window metadata for diagnostic logging. */
+    _formatWindowMeta(window) {
+        if (!window)
+            return 'win=[none]';
+
+        const clientType = this._try(() => window.get_client_type?.());
+        let protocol = 'Unknown';
+        if (clientType === Meta.WindowClientType?.WAYLAND || clientType === 0)
+            protocol = 'Wayland';
+        else if (clientType === Meta.WindowClientType?.X11 || clientType === 1)
+            protocol = 'XWayland';
+
+        const typeInt = this._try(() => window.get_window_type?.(), -1);
+        let windowType = 'UNKNOWN';
+        if (Meta.WindowType) {
+            for (const [name, val] of Object.entries(Meta.WindowType)) {
+                if (val === typeInt) {
+                    windowType = name;
+                    break;
+                }
+            }
+        }
+
+        const id = this._try(() => window.get_id?.(), -1);
+        const pid = this._try(() => window.get_pid?.(), -1);
+        const wmClass = this._try(() => window.get_wm_class?.(), '') || '';
+        const appId = this._try(() => window.get_gtk_application_id?.(), '') ||
+                      this._try(() => window.get_sandboxed_app_id?.(), '') || '';
+
+        return `win=[id=${id} pid=${pid} class="${wmClass}" app="${appId}" type=${windowType} proto=${protocol}]`;
+    }
+
+    /** Timestamped diagnostic line written to session.log and console.error. */
+    _logTime(tag, extra = '', window = null) {
         const nowUs = GLib.get_monotonic_time();
         if (!this._t0)
             this._t0 = nowUs;
         const elapsedMs = ((nowUs - this._t0) / 1000.0).toFixed(2);
-        console.error(`[spawn-at-time] +${elapsedMs}ms | ${tag} ${extra}`);
+        const winInfo = window ? (` ${this._formatWindowMeta(window)}`) : '';
+        const payload = `+${elapsedMs}ms | ${tag}${winInfo} ${extra}`.trim();
+
+        // Always record to the persistent user session log file
+        const iso = new Date().toISOString();
+        this._queueLogLine(`[${iso}] ${payload}`);
+
+        // Emit to console when logging is active
+        if (this._isLoggingEnabled())
+            console.error(`[spawn-at-time] ${payload}`);
     }
 
-    /** D-Bus: toggle debug logging at runtime. */
+    /** D-Bus: toggle debug console logging at runtime. */
     SetLogging(enabled) {
         this._loggingEnabled = Boolean(enabled);
+        this._logTime('SET_LOGGING', `enabled=${this._loggingEnabled}`);
     }
 
     // =======================================================================
-    // 3. SMALL UTILITIES
+    // 3. SMALL UTILITIES & DETECTION HELPERS
     // =======================================================================
 
     /** Run fn, returning `fallback` if it throws. */
@@ -323,10 +518,7 @@ export default class SpawnAtExtension extends Extension {
         return Number.isFinite(value) ? value : fallback;
     }
 
-    /**
-     * Schedule a one-shot timer that is tracked for cleanup.
-     * @returns {number} source id usable with _removeTimer
-     */
+    /** Schedule a tracked one-shot timer. */
     _addTimer(ms, callback) {
         const id = GLib.timeout_add(GLib.PRIORITY_DEFAULT, ms, () => {
             this._timerIds.delete(id);
@@ -337,7 +529,7 @@ export default class SpawnAtExtension extends Extension {
         return id;
     }
 
-    /** Cancel a timer created with _addTimer (safe on 0 / already-fired ids). */
+    /** Cancel a timer created with _addTimer. */
     _removeTimer(id) {
         if (id && this._timerIds.delete(id))
             GLib.Source.remove(id);
@@ -360,10 +552,6 @@ export default class SpawnAtExtension extends Extension {
         if ('no_map_animation' in window)
             window.no_map_animation = true;
     }
-
-    // --- Version-tolerant window state helpers -----------------------------
-    // Newer Mutter versions changed/removed the MaximizeFlags-based API, so every
-    // call is feature-detected with a fallback instead of assumed.
 
     _isMaximized(window) {
         if (typeof window.is_maximized === 'function')
@@ -413,6 +601,65 @@ export default class SpawnAtExtension extends Extension {
         this._dbusImpl?.emit_signal('WorkareaChanged', null);
     }
 
+    /**
+     * Detect whether a window belongs to a GTK3/VTE terminal application.
+     *
+     * Rationale:
+     * Only GTK3 + VTE applications (most notably gnome-terminal-server) suffer from
+     * the deferred grid metric negotiation bug where initial layout clamps to ~76px
+     * and requires a wl_keyboard.leave / wl_keyboard.enter focus cycle to commit full
+     * terminal geometry.
+     *
+     * Non-VTE applications (GTK4/Libadwaita, Qt, Kitty, GTK3 non-VTE, XWayland):
+     * 1. Do NOT have this bug and do NOT grow from a focus pulse (deltaH = 0).
+     * 2. GTK4/Libadwaita apps drop their Wayland surface when defocused while
+     *    cloaked, causing a 350ms stall and visual flicker.
+     *
+     * Detection strategy:
+     *  1. Inspect process memory maps: check if /proc/<pid>/maps maps 'libvte'.
+     *     (Virtually zero cost: procfs RAM read taking ~1.5ms).
+     *  2. Check known VTE terminal identifiers (wm_class, app_id, comm).
+     */
+    _isVteCandidate(window) {
+        if (!window)
+            return false;
+
+        const pid = this._try(() => window.get_pid?.(), -1);
+        if (pid > 0) {
+            // Check /proc/<pid>/maps
+            try {
+                const [ok, contents] = GLib.file_get_contents(`/proc/${pid}/maps`);
+                if (ok) {
+                    const text = new TextDecoder().decode(contents);
+                    if (text.includes('libvte'))
+                        return true;
+                }
+            } catch (_e) {}
+
+            // Check /proc/<pid>/comm
+            try {
+                const [ok, commBytes] = GLib.file_get_contents(`/proc/${pid}/comm`);
+                if (ok) {
+                    const comm = new TextDecoder().decode(commBytes).trim().toLowerCase();
+                    if (comm.includes('gnome-terminal') || comm === 'terminator' ||
+                        comm === 'tilix' || comm === 'guake') {
+                        return true;
+                    }
+                }
+            } catch (_e) {}
+        }
+
+        // Check window identifiers
+        const ids = this._getIdentifiers(window).map(id => id.toLowerCase());
+        const vteKeywords = ['gnome-terminal', 'terminator', 'tilix', 'guake', 'xfce4-terminal', 'vte'];
+        for (const id of ids) {
+            if (vteKeywords.some(kw => id.includes(kw)))
+                return true;
+        }
+
+        return false;
+    }
+
     // =======================================================================
     // 4. SPAWN DISCOVERY (window-created / map)
     // =======================================================================
@@ -427,39 +674,28 @@ export default class SpawnAtExtension extends Extension {
         let state = this._windowStates.get(window);
         if (!state) {
             state = {
-                instructions: null,   // claimed instructions awaiting dispatch
-                mapped: false,        // actor map signal has fired
-                dispatched: false,    // batch has been queued
-                cloakTimerId: 0,      // pre-emptive cloak timeout
-                notifyIds: [],        // late-identifier signal connections
+                instructions: null,
+                mapped: false,
+                dispatched: false,
+                notifyIds: [],
             };
             this._windowStates.set(window, state);
         }
         return state;
     }
 
-    /**
-     * Collect every identifier that could match an armed target.
-     * The startup id is first: it is unique per spawned process (injected via
-     * XDG_ACTIVATION_TOKEN), so matching on it never swaps instructions between
-     * concurrent instances of the same app.
-     */
+    /** Collect every identifier that could match an armed target. */
     _getIdentifiers(window) {
         const ids = [
             this._try(() => window.get_startup_id?.()),
-            this._try(() => window.get_wm_class()),
-            this._try(() => window.get_gtk_application_id()),
+            this._try(() => window.get_wm_class?.()),
+            this._try(() => window.get_gtk_application_id?.()),
             this._try(() => window.get_sandboxed_app_id?.()),
         ];
         return ids.filter(id => typeof id === 'string' && id.length > 0);
     }
 
-    /**
-     * Find the armed key matching these identifiers.
-     * Pass 1 is exact (so a precise startup-id match always beats a fuzzy class
-     * match); pass 2 is a case-insensitive substring match in either direction.
-     * @returns {string|null}
-     */
+    /** Find the armed key matching these identifiers. */
     _findArmedKey(ids) {
         for (const id of ids) {
             const queue = this._armedSpawns.get(id);
@@ -479,12 +715,7 @@ export default class SpawnAtExtension extends Extension {
         return null;
     }
 
-    /**
-     * Try to claim armed instructions for this window.
-     * On success the instructions are stored on the window's state, the actor is
-     * cloaked, and — if the window is already mapped — the batch is dispatched.
-     * @returns {boolean} true if the window now has (or had) instructions
-     */
+    /** Try to claim armed instructions for this window. */
     _claimInstructions(window) {
         const state = this._getState(window);
         if (state.instructions || state.dispatched)
@@ -507,11 +738,13 @@ export default class SpawnAtExtension extends Extension {
             return false;
 
         state.instructions = instructions;
+        this._heldWindows.delete(window);
         const actor = this._getActor(window);
         if (actor)
             this._cloak(actor);
 
-        // A late match (identifiers arrived after map) must still be executed
+        this._releaseHeldIfIdle();
+
         if (state.mapped)
             this._dispatch(window);
         return true;
@@ -529,10 +762,9 @@ export default class SpawnAtExtension extends Extension {
         const instructions = state.instructions;
         state.dispatched = true;
         state.instructions = null;
-        this._removeTimer(state.cloakTimerId);
-        state.cloakTimerId = 0;
+        this._heldWindows.delete(window);
 
-        console.error(`[spawn-at] MATCH FOUND! class="${this._try(() => window.get_wm_class(), '?')}"`);
+        this._logTime('DISPATCH', `instructionsCount=${instructions.length}`, window);
         this._enqueueBatch(window, actor, instructions);
     }
 
@@ -543,38 +775,39 @@ export default class SpawnAtExtension extends Extension {
 
         const actor = this._getActor(window);
 
-        // IMMEDIATE HARD CLOAK: if anything is armed, hide before the first frame
         if (this._hasArmedSpawns() && actor)
             this._cloak(actor);
 
-        this._logTime('WINDOW_CREATED',
-            `class="${this._try(() => window.get_wm_class(), '')}" actorFound=${Boolean(actor)}`);
+        this._logTime('WINDOW_CREATED', `actorFound=${Boolean(actor)}`, window);
         this._suppressMapAnimation(window);
 
         if (this._claimInstructions(window))
             return;
 
-        // Wayland often reports wm-class / app-id *after* creation: retry on notify.
         const state = this._getState(window);
         const retry = () => {
             if (this._claimInstructions(window))
                 this._disconnectDiscoveryHandlers(window, state);
+            else
+                this._settleUnmatched(window);
         };
         state.notifyIds.push(
             this._tryConnect(window, 'notify::wm-class', retry),
             this._tryConnect(window, 'notify::gtk-application-id', retry),
-            this._tryConnect(window, 'unmanaged', () => this._disconnectDiscoveryHandlers(window, state)),
+            this._tryConnect(window, 'unmanaged', () => {
+                this._heldWindows.delete(window);
+                this._disconnectDiscoveryHandlers(window, state);
+            }),
         );
     }
 
-    /** Disconnect *all* late-identifier handlers for a window. */
     _disconnectDiscoveryHandlers(window, state) {
         for (const id of state.notifyIds)
             this._safeDisconnect(window, id);
         state.notifyIds = [];
     }
 
-    /** `map`: the actor is about to be shown; dispatch or hold the cloak briefly. */
+    /** `map`: actor about to be shown. Hold cloak if armed, or reject. */
     _handleActorMap(actor) {
         if (this._disabled)
             return;
@@ -589,46 +822,73 @@ export default class SpawnAtExtension extends Extension {
         state.mapped = true;
         const armed = this._hasArmedSpawns();
 
-        // Keep the cloak up for windows we own, or may still claim
-        if (state.instructions || armed)
+        if (state.instructions || state.dispatched || armed)
             this._cloak(actor);
 
-        this._logTime('ACTOR_MAP', `class="${this._try(() => window.get_wm_class(), '?')}" ` +
-            `pid=${this._try(() => window.get_pid(), -1)}`);
+        this._logTime('ACTOR_MAP', '', window);
 
-        // Already claimed: run it
         if (state.instructions) {
             this._dispatch(window);
             return;
         }
+        if (state.dispatched)
+            return;
+        if (!armed) {
+            if (this._cloakedActors.has(actor))
+                this._uncloak(actor);
+            return;
+        }
 
-        if (!armed)
+        if (this._claimInstructions(window))
             return;
 
-        // PRE-EMPTIVE CLOAK: identifiers may still arrive. Hold the cloak for a short
-        // grace period; if no one claims the window by then it is not ours.
-        state.cloakTimerId = this._addTimer(PREEMPTIVE_CLOAK_MS, () => {
-            state.cloakTimerId = 0;
-            if (!state.instructions && !state.dispatched)
+        this._heldWindows.add(window);
+        this._settleUnmatched(window);
+    }
+
+    _hasIdentity(window) {
+        return this._try(() => window.get_wm_class?.(), '') !== '' ||
+            this._try(() => window.get_gtk_application_id?.(), '') !== '' ||
+            this._try(() => window.get_sandboxed_app_id?.(), '') !== '';
+    }
+
+    _settleUnmatched(window) {
+        const state = this._getState(window);
+        if (!state.mapped || state.instructions || state.dispatched)
+            return;
+        if (!this._hasIdentity(window) && this._hasArmedSpawns())
+            return;
+
+        this._heldWindows.delete(window);
+        const actor = this._getActor(window);
+        this._logTime('REJECT_UNMATCHED', '', window);
+        if (actor)
+            this._uncloak(actor);
+    }
+
+    _releaseHeldIfIdle() {
+        if (this._hasArmedSpawns())
+            return;
+        for (const window of [...this._heldWindows]) {
+            const state = this._getState(window);
+            this._heldWindows.delete(window);
+            if (state.instructions || state.dispatched)
+                continue;
+            const actor = this._getActor(window);
+            if (actor)
                 this._uncloak(actor);
-        });
+        }
     }
 
     // =======================================================================
     // 5. SERIALIZED BATCH QUEUE (FIFO mutex)
     // =======================================================================
 
-    /**
-     * Enqueue a batch. Serialization prevents Wayland configure races between
-     * concurrently spawned windows: each window finishes sizing, toolkit layout
-     * negotiation and anchoring before the next one starts.
-     */
     _enqueueBatch(window, actor, instructions) {
         this._batchQueue.push({ window, actor, instructions });
         this._processQueue();
     }
 
-    /** Queue worker: runs one batch at a time, then recurses to the next. */
     async _processQueue() {
         if (this._disabled || this._batchBusy || this._batchQueue.length === 0)
             return;
@@ -640,7 +900,6 @@ export default class SpawnAtExtension extends Extension {
             await this._runBatch(window, actor, instructions);
         } catch (e) {
             console.error(`[SpawnAt] Batch processing failed in mutex queue: ${e}`);
-            // Failsafe: an error must never leave the actor permanently invisible
             this._uncloak(actor);
         } finally {
             this._batchBusy = false;
@@ -652,7 +911,6 @@ export default class SpawnAtExtension extends Extension {
     // 6. BATCH ENGINE
     // =======================================================================
 
-    /** Normalise "Name" or { Name: args } into { name, args }; null if malformed. */
     _normalizeInstruction(inst) {
         if (typeof inst === 'string')
             return { name: inst, args: {} };
@@ -664,36 +922,26 @@ export default class SpawnAtExtension extends Extension {
         return null;
     }
 
-    /**
-     * Execute an instruction list for one window, strictly in order.
-     *
-     * Order rationale:
-     *  SetSize            -> dispatch the xdg_toplevel configure request
-     *  WaitForCommit      -> wait for the client's buffer geometry to settle
-     *  SetPositionAnchored-> position against the *committed* size, never the request
-     *  Uncloak            -> wake toolkit, re-verify, reveal, arm reactive anchor
-     *
-     * No pre-positioning happens before the commit: moving an actor before the
-     * client buffer settles makes Mutter clamp it off-screen (1-frame corner flash).
-     */
     async _runBatch(window, actor, instructions) {
         const ops = instructions
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
 
-        // Mutable context shared by the step handlers
         const ctx = {
             window,
             actor,
-            targetW: null,        // requested width  (from SetSize)
-            targetH: null,        // requested height (from SetSize)
-            anchorPayload: null,  // last SetPositionAnchored payload
-            positionedW: -1,      // frame size at the moment we last positioned
+            targetW: null,
+            targetH: null,
+            safeW: null,
+            safeH: null,
+            preSetSizeFrame: null,
+            preSetSizeBuf: null,
+            anchorPayload: null,
+            positionedW: -1,
             positionedH: -1,
-            revealed: false,      // actor restored to opacity 255
+            revealed: false,
         };
 
-        // Pre-seed the target so a WaitForCommit placed before SetSize still knows it
         const sizeOp = ops.find(op => op.name === 'SetSize');
         if (sizeOp && sizeOp.args.w > 0 && sizeOp.args.h > 0) {
             ctx.targetW = sizeOp.args.w;
@@ -704,7 +952,7 @@ export default class SpawnAtExtension extends Extension {
             for (const op of ops) {
                 if (this._disabled)
                     return;
-                this._logTime('BATCH_STEP', `inst=${op.name}`);
+                this._logTime('BATCH_STEP', `inst=${op.name}`, window);
 
                 switch (op.name) {
                     case 'Snapshot':            this._createSnapshot(actor); break;
@@ -719,98 +967,141 @@ export default class SpawnAtExtension extends Extension {
                 }
             }
         } finally {
-            // A batch without an Uncloak (and without an explicit Cloak) must not leave
-            // the window hidden by the automatic cloak applied at discovery.
             const wantsHidden = ops.some(op => op.name === 'Cloak');
             if (!ctx.revealed && !wantsHidden)
                 this._uncloak(actor);
         }
     }
 
-    /** Step: request a new frame size (asynchronous configure to the client). */
+    /**
+     * Step: request a new frame size with two-tier geometry floor protection.
+     *
+     * Prevents sub-minimum raw geometry from being pushed to Mutter:
+     *  - Tier 1: window-reported minimum (via get_min_size()).
+     *  - Tier 2: GEOMETRY_FLOOR_W (100px) and GEOMETRY_FLOOR_H (60px).
+     *
+     * Safe size sent to Mutter is max(requested, minReported, floor).
+     * The requested size is preserved in ctx.targetW/H for clamp comparisons.
+     */
     _stepSetSize(ctx, { w, h }) {
         const { window } = ctx;
         if (!(w > 0 && h > 0))
             return;
 
+        const [minW, minH] = this._getMinSize(window);
+        const floorW = Math.max(GEOMETRY_FLOOR_W, minW);
+        const floorH = Math.max(GEOMETRY_FLOOR_H, minH);
+        const safeW  = Math.max(w, floorW);
+        const safeH  = Math.max(h, floorH);
+
         ctx.targetW = w;
         ctx.targetH = h;
+        ctx.safeW = safeW;
+        ctx.safeH = safeH;
 
-        // A maximized window ignores size requests
+        const preFrame = window.get_frame_rect();
+        const preBuf = window.get_buffer_rect ? window.get_buffer_rect() : preFrame;
+        ctx.preSetSizeFrame = preFrame;
+        ctx.preSetSizeBuf = preBuf;
+
+        if (safeW !== w || safeH !== h) {
+            this._logTime('SET_SIZE_CLAMPED',
+                `requestedSize=(${w}x${h}) reportedMinSize=(${minW}x${minH}) ` +
+                `floor=(${floorW}x${floorH}) clampedSafeSize=(${safeW}x${safeH})`,
+                window);
+        }
+
         if (this._isMaximized(window))
             this._unmaximize(window);
 
-        const frame = window.get_frame_rect();
         this._logTime('SET_SIZE_REQUEST',
-            `target=(${w}x${h}) preFrame=(${frame.x},${frame.y},${frame.width}x${frame.height})`);
+            `requestedSize=(${w}x${h}) clampedSafeSize=(${safeW}x${safeH}) ` +
+            `reportedMinSize=(${minW}x${minH}) ` +
+            `preFrame=(${preFrame.x},${preFrame.y},${preFrame.width}x${preFrame.height}) ` +
+            `bufferRect=(${preBuf.x},${preBuf.y},${preBuf.width}x${preBuf.height})`,
+            window);
 
-        // Keep the current origin; only the size is being requested here
         if (window.move_resize_frame)
-            window.move_resize_frame(true, frame.x, frame.y, w, h);
+            window.move_resize_frame(true, preFrame.x, preFrame.y, safeW, safeH);
         else
-            window.resize(true, w, h);
+            window.resize(true, safeW, safeH);
     }
 
-    /** Step: wait for the client's geometry to settle. */
+    /** Step: wait for client geometry to settle with enriched telemetry. */
     async _stepWaitForCommit(ctx, args) {
         ctx.commit = await this._waitForCommit(
-            ctx.window, ctx.actor, args.timeout_ms, ctx.targetW, ctx.targetH);
+            ctx.window, ctx.actor, args.timeout_ms,
+            ctx.targetW, ctx.targetH, ctx.safeW, ctx.safeH);
     }
 
-    /** Step: place the window using the committed (not requested) size. */
+    /** Step: place the window using committed size and record telemetry. */
     _stepPosition(ctx, payload) {
         const { window, actor } = ctx;
         ctx.anchorPayload = payload;
+
+        const preFrame = window.get_frame_rect();
+        const preBuf = window.get_buffer_rect ? window.get_buffer_rect() : preFrame;
+
         this._applyAnchoredPosition(window, payload);
 
-        // Remember the size we positioned for, so step 4C can detect later growth
-        const frame = window.get_frame_rect();
-        ctx.positionedW = frame.width;
-        ctx.positionedH = frame.height;
+        const postFrame = window.get_frame_rect();
+        const postBuf = window.get_buffer_rect ? window.get_buffer_rect() : postFrame;
+        ctx.positionedW = postFrame.width;
+        ctx.positionedH = postFrame.height;
 
-        const buf = window.get_buffer_rect ? window.get_buffer_rect() : frame;
         this._logTime('POSITION_SET',
-            `frame=(${frame.x},${frame.y},${frame.width}x${frame.height}) ` +
-            `buf=(${buf.x},${buf.y}) actor=(${actor.x},${actor.y})`);
+            `preFrame=(${preFrame.x},${preFrame.y},${preFrame.width}x${preFrame.height}) ` +
+            `postFrame=(${postFrame.x},${postFrame.y},${postFrame.width}x${postFrame.height}) ` +
+            `bufferRect=(${postBuf.x},${postBuf.y},${postBuf.width}x${postBuf.height}) ` +
+            `actor=(${actor.x},${actor.y}) ` +
+            `delta=(${postFrame.x - preFrame.x},${postFrame.y - preFrame.y})`,
+            window);
     }
 
     /**
-     * Step: the uncloak sequence. EVERYTHING before 4D happens at opacity 0.
-     *   4A  safety delay        - let initial buffers paint
-     *   4B  focus pulse         - defocus -> commit full geometry -> refocus (cloaked)
-     *   4C  re-anchor           - solve position for the final size (cloaked)
-     *   4D  reveal + anchor     - show only the finished window, arm reactive anchor
+     * Step: uncloak sequence with selective pulse gating.
+     *   4A  Safety delay        - let initial buffers paint in the dark
+     *   4B  Gated focus pulse   - executed ONLY for VTE candidates with early-exit
+     *   4C  Re-anchor           - solve position for final size while still cloaked
+     *   4D  Reveal + anchor     - reveal actor, arm reactive anchor
      */
     async _stepUncloak(ctx, args) {
         const delayMs = Number.isFinite(args.delay_ms) ? args.delay_ms : DEFAULT_UNCLOAK_DELAY_MS;
         const wantWake = args.wake !== false;
 
         // 4A. Safety delay (wait for initial Wayland buffers in the dark)
-        this._logTime('UNCLOAK_4A', `delay=${delayMs}ms`);
+        this._logTime('UNCLOAK_4A', `delay=${delayMs}ms`, ctx.window);
         if (delayMs > 0)
             await this._sleep(delayMs);
         if (this._disabled)
             return;
 
-        // Re-assert the cloak: nothing may be visible from here until 4D.
         this._cloak(ctx.actor);
 
-        // 4B. Focus pulse, strictly under the cloak
+        // 4B. Gated focus pulse
         const clamped = this._isToolkitClamped(ctx);
-        this._logTime('UNCLOAK_4B', `wantWake=${wantWake} clamped=${clamped}`);
+        const isVte = this._isVteCandidate(ctx.window);
+        this._logTime('UNCLOAK_4B', `wantWake=${wantWake} clamped=${clamped} isVte=${isVte}`, ctx.window);
+
         if (wantWake && clamped) {
-            await this._executeFocusPulse(ctx);
-            if (this._disabled)
-                return;
-            // The pulse (or something it triggered) must not have revealed us
-            this._cloak(ctx.actor);
+            if (!isVte) {
+                // Non-VTE applications (GTK4, Qt, Kitty, GParted, Mousepad) skip pulse entirely
+                this._logTime('FOCUS_PULSE_SKIP_NOT_VTE',
+                    `reason="non-VTE toolkit; bypassing synthetic defocus"`,
+                    ctx.window);
+            } else {
+                // Only GTK3+VTE apps run the pulse (with early-exit detection)
+                await this._executeFocusPulse(ctx);
+                if (this._disabled)
+                    return;
+                this._cloak(ctx.actor);
+            }
         }
 
-        // 4C. Re-anchor for the final size, still invisible
+        // 4C. Re-anchor for final size, still invisible
         this._reanchorIfResized(ctx);
 
-        // Let the (re)focused, re-anchored state reach the screen buffer-wise
-        // before the first visible frame, so no titlebar state change is shown.
+        // Flush frame updates before revealing
         await this._waitForFrames(2, FRAME_WAIT_CEILING_MS);
         if (this._disabled)
             return;
@@ -819,11 +1110,6 @@ export default class SpawnAtExtension extends Extension {
         this._reveal(ctx);
     }
 
-    /**
-     * Clamp signature: the window is *larger* than requested in some dimension.
-     * That is what a toolkit minimum-size clamp looks like, regardless of app or
-     * pixel values. (Smaller-than-requested means a max-size constraint — no wake.)
-     */
     _isToolkitClamped(ctx) {
         if (ctx.targetW === null || ctx.targetH === null)
             return false;
@@ -831,10 +1117,6 @@ export default class SpawnAtExtension extends Extension {
         return frame.width > ctx.targetW || frame.height > ctx.targetH;
     }
 
-    /**
-     * Phase 4C: if the frame size differs from the size we positioned for,
-     * recompute the anchored position so margins are preserved.
-     */
     _reanchorIfResized(ctx) {
         const { window } = ctx;
         if (!ctx.anchorPayload)
@@ -844,18 +1126,18 @@ export default class SpawnAtExtension extends Extension {
         const resized = cur.width !== ctx.positionedW || cur.height !== ctx.positionedH;
         this._logTime('UNCLOAK_4C',
             `positioned=(${ctx.positionedW}x${ctx.positionedH}) actual=(${cur.width}x${cur.height}) ` +
-            `needsReanchor=${resized}`);
+            `needsReanchor=${resized}`,
+            window);
         if (!resized)
             return;
 
-        this._logTime('REANCHOR_TRIGGERED', `newBounds=(${cur.width}x${cur.height})`);
+        this._logTime('REANCHOR_TRIGGERED', `newBounds=(${cur.width}x${cur.height})`, window);
         this._applyAnchoredPosition(window, ctx.anchorPayload);
         const after = window.get_frame_rect();
         ctx.positionedW = after.width;
         ctx.positionedH = after.height;
     }
 
-    /** Phase 4D: show the window, then hand position upkeep to the reactive anchor. */
     _reveal(ctx) {
         const { window, actor } = ctx;
         this._uncloak(actor);
@@ -864,9 +1146,11 @@ export default class SpawnAtExtension extends Extension {
         const rect = window.get_frame_rect();
         const buf = window.get_buffer_rect ? window.get_buffer_rect() : rect;
         this._logTime('UNCLOAK_4D_REVEAL',
-            `finalFrame=(${rect.x},${rect.y},${rect.width}x${rect.height}) buf=(${buf.x},${buf.y})`);
+            `requestedSize=(${ctx.targetW}x${ctx.targetH}) ` +
+            `postFrame=(${rect.x},${rect.y},${rect.width}x${rect.height}) ` +
+            `bufferRect=(${buf.x},${buf.y},${buf.width}x${buf.height})`,
+            window);
 
-        // Only windows that were positioned need position upkeep
         if (ctx.anchorPayload)
             this._armAnchor(window, ctx.anchorPayload);
     }
@@ -875,27 +1159,33 @@ export default class SpawnAtExtension extends Extension {
     // 7. CLOAK / SNAPSHOT HELPERS
     // =======================================================================
 
-    /**
-     * Hide the actor by zeroing opacity. We intentionally do NOT call hide():
-     * keeping the actor mapped lets Clutter/Mutter keep negotiating geometry
-     * without an unmap/remap cycle when we reveal it.
-     */
     _cloak(actor) {
         if (!actor)
             return;
         this._try(() => {
             actor.remove_all_transitions?.();
             actor.opacity = 0;
+            if (!actor._spawnAtOpacityId) {
+                actor._spawnAtOpacityId = this._tryConnect(actor, 'notify::opacity', () => {
+                    if (this._cloakedActors.has(actor) && actor.opacity !== 0) {
+                        actor.remove_all_transitions?.();
+                        actor.opacity = 0;
+                    }
+                });
+            }
         });
         this._cloakedActors.add(actor);
     }
 
-    /** Restore full opacity and visibility. Safe on destroyed actors. */
     _uncloak(actor) {
         if (!actor)
             return;
         this._cloakedActors.delete(actor);
         this._try(() => {
+            if (actor._spawnAtOpacityId) {
+                this._safeDisconnect(actor, actor._spawnAtOpacityId);
+                delete actor._spawnAtOpacityId;
+            }
             actor.remove_all_transitions?.();
             actor.opacity = 255;
             if (!actor.visible)
@@ -903,7 +1193,6 @@ export default class SpawnAtExtension extends Extension {
         });
     }
 
-    /** Overlay a Clutter.Clone of the actor (hides tearing during transformations). */
     _createSnapshot(actor) {
         if (this._snapshots.has(actor))
             return;
@@ -915,7 +1204,6 @@ export default class SpawnAtExtension extends Extension {
         this._snapshots.set(actor, clone);
     }
 
-    /** Remove the snapshot overlay, if any. */
     _destroySnapshot(actor) {
         const clone = this._snapshots.get(actor);
         if (!clone)
@@ -930,22 +1218,9 @@ export default class SpawnAtExtension extends Extension {
 
     /**
      * Wait until the client's frame geometry has settled after SetSize.
-     *
-     * Resolves (never rejects) when the FIRST of these happens:
-     *   AT_TARGET          the frame exactly equals the request
-     *   SIZE_SETTLED       the size changed, then stayed unchanged for COMMIT_QUIET_MS
-     *   TIMEOUT_NO_CHANGE  the size never changed within max(timeout_ms, 120ms)
-     *                      (e.g. already clamped at its minimum)
-     *   HARD_CAP           safety bound if a client resizes forever
-     *
-     * The result reports honestly whether the request was met (`exact`). A settled
-     * size that differs from the request is a *clamp*, and — importantly — is NOT
-     * necessarily final: a toolkit may still be mid-negotiation. That is why
-     * anchoring is revisited later (4C) and kept reactive afterwards.
-     *
-     * @returns {Promise<{width:number,height:number,exact:boolean,reason:string}>}
+     * Logs exact resolving signal: AT_TARGET, SIZE_SETTLED, TIMEOUT_NO_CHANGE, HARD_CAP.
      */
-    _waitForCommit(window, actor, timeoutMs, targetW = null, targetH = null) {
+    _waitForCommit(window, actor, timeoutMs, targetW = null, targetH = null, safeW = null, safeH = null) {
         return new Promise(resolve => {
             const idleTimeout = Math.max(this._num(timeoutMs), COMMIT_MIN_TIMEOUT_MS);
             const hasTarget = targetW !== null && targetH !== null;
@@ -961,7 +1236,6 @@ export default class SpawnAtExtension extends Extension {
             let lastW = start.width;
             let lastH = start.height;
 
-            /** Resolve exactly once and release every timer and signal. */
             const finish = reason => {
                 if (finished)
                     return;
@@ -973,18 +1247,30 @@ export default class SpawnAtExtension extends Extension {
                 this._safeDisconnect(window, windowSigId);
 
                 const rect = this._try(() => window.get_frame_rect(), start);
-                const exact = hasTarget && rect.width === targetW && rect.height === targetH;
+                const buf = window.get_buffer_rect ? window.get_buffer_rect() : rect;
+                const exact = hasTarget && (
+                    (rect.width === targetW && rect.height === targetH) ||
+                    (safeW !== null && safeH !== null && rect.width === safeW && rect.height === safeH)
+                );
+                const deltaW = rect.width - start.width;
+                const deltaH = rect.height - start.height;
+                const deltaReqW = targetW !== null ? (rect.width - targetW) : 0;
+                const deltaReqH = targetH !== null ? (rect.height - targetH) : 0;
+
                 this._logTime('COMMIT_RESOLVED',
-                    `reason=${reason} frame=(${rect.width}x${rect.height}) exact=${exact}`);
+                    `signal="${reason}" ` +
+                    `postFrame=(${rect.x},${rect.y},${rect.width}x${rect.height}) ` +
+                    `bufferRect=(${buf.x},${buf.y},${buf.width}x${buf.height}) ` +
+                    `delta=(${deltaW}x${deltaH}) deltaReq=(${deltaReqW}x${deltaReqH}) ` +
+                    `exact=${exact}`,
+                    window);
                 resolve({ width: rect.width, height: rect.height, exact, reason });
             };
 
-            /** Evaluate geometry on every size/allocation pulse. */
             const check = source => {
                 if (finished)
                     return;
 
-                // Defeat any Mutter map transition on every pulse
                 this._cloak(actor);
 
                 let rect;
@@ -994,20 +1280,23 @@ export default class SpawnAtExtension extends Extension {
                     finish('ERROR');
                     return;
                 }
-                this._logTime('COMMIT_SIGNAL',
-                    `source=${source} frame=(${rect.width}x${rect.height}) last=(${lastW}x${lastH})`);
 
-                // Exact hit: nothing more to negotiate
-                if (hasTarget && rect.width === targetW && rect.height === targetH) {
+                this._logTime('COMMIT_SIGNAL',
+                    `source=${source} frame=(${rect.width}x${rect.height}) last=(${lastW}x${lastH})`,
+                    window);
+
+                // Exact match: window met requested target or clamped safe target
+                if (hasTarget && (
+                    (rect.width === targetW && rect.height === targetH) ||
+                    (safeW !== null && safeH !== null && rect.width === safeW && rect.height === safeH)
+                )) {
                     finish('AT_TARGET');
                     return;
                 }
 
-                // Size moved: the window is actively negotiating. Restart the quiet timer.
                 if (rect.width !== lastW || rect.height !== lastH) {
                     lastW = rect.width;
                     lastH = rect.height;
-                    // Once something changed, the "never changed" timeout is moot
                     this._removeTimer(idleTimer);
                     idleTimer = 0;
                     this._removeTimer(quietTimer);
@@ -1015,7 +1304,6 @@ export default class SpawnAtExtension extends Extension {
                 }
             };
 
-            // Both signals feed the same check (allocation also re-enforces the cloak)
             if (actor)
                 actorSigId = this._tryConnect(actor, 'notify::allocation', () => check('allocation'));
             windowSigId = this._tryConnect(window, 'size-changed', () => check('size-changed'));
@@ -1027,11 +1315,6 @@ export default class SpawnAtExtension extends Extension {
         });
     }
 
-    /**
-     * Wait for a window's size to go quiet.
-     * Resolves after `idleMs` if nothing changes, otherwise `quietMs` after the
-     * last change, and never later than `ceilingMs`.
-     */
     _waitForSizeQuiet(window, idleMs, quietMs, ceilingMs) {
         return new Promise(resolve => {
             let finished = false;
@@ -1049,7 +1332,6 @@ export default class SpawnAtExtension extends Extension {
                 resolve();
             };
 
-            // Every size change pushes the deadline out by `quietMs`
             const rearm = ms => {
                 this._removeTimer(timer);
                 timer = this._addTimer(ms, finish);
@@ -1062,64 +1344,99 @@ export default class SpawnAtExtension extends Extension {
     }
 
     // =======================================================================
-    // 9. FOCUS PULSE
+    // 9. FOCUS PULSE (GATED WITH EARLY-EXIT)
     // =======================================================================
 
     /**
-     * Focus pulse, run entirely while the actor is cloaked (opacity 0).
-     *
-     *   1. unset_input_focus  -> client receives wl_keyboard.leave
-     *   2. wait for the client to commit its new size (event-driven, bounded)
-     *   3. activate the window again -> client receives wl_keyboard.enter
-     *   4. wait until Mutter reports it focused and the size is quiet
-     *
-     * No blind sleeps: each wait ends on the signal it is waiting for, with a
-     * ceiling as the only fallback.
+     * Focus pulse, executed strictly under the cloak for verified VTE candidates.
+     * Incorporates early-exit detection to avoid wasting time if the window is already
+     * at its minimum cell grid floor (e.g. Terminator).
      */
     async _executeFocusPulse(ctx) {
         const { window, actor } = ctx;
-        const winId = window.get_id();
+        const winId = window.get_id ? window.get_id() : -1;
         const startFrame = window.get_frame_rect();
+        const startBuf = window.get_buffer_rect ? window.get_buffer_rect() : startFrame;
 
         this._logTime('FOCUS_PULSE_INIT',
-            `windowId=${winId} initial=(${startFrame.width}x${startFrame.height}) ` +
-            `target=(${ctx.targetW}x${ctx.targetH}) opacity=${actor?.opacity}`);
+            `windowId=${winId} preFrame=(${startFrame.x},${startFrame.y},${startFrame.width}x${startFrame.height}) ` +
+            `bufferRect=(${startBuf.x},${startBuf.y},${startBuf.width}x${startBuf.height}) ` +
+            `requestedSize=(${ctx.targetW}x${ctx.targetH}) opacity=${actor?.opacity}`,
+            window);
 
-        // 1. Drop seat focus to desktop
+        // 1. Drop seat focus to desktop -> client receives wl_keyboard.leave
         this._defocusWindowObject(window, 'desktop');
-        this._logTime('FOCUS_PULSE_DEFOCUSED', `windowId=${winId}`);
+        this._logTime('FOCUS_PULSE_DEFOCUSED', `windowId=${winId}`, window);
 
-        // 2. Wait for the client to react to wl_keyboard.leave. The client only
-        //    needs to *start* resizing within PULSE_LEAVE_IDLE_MS; once it does,
-        //    wait for the size to go quiet.
-        await this._waitForSizeQuiet(window, PULSE_LEAVE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
+        // 2. Early-exit detection: listen for size-changed within PULSE_LEAVE_IDLE_MS
+        const resized = await this._waitForSizeChangedOrTimeout(window, PULSE_LEAVE_IDLE_MS);
+        if (this._disabled)
+            return;
+
+        if (!resized) {
+            // Early-exit: client did NOT resize upon defocus; restore focus immediately
+            this._logTime('FOCUS_PULSE_EARLY_EXIT',
+                `windowId=${winId} reason="no size-changed within ${PULSE_LEAVE_IDLE_MS}ms"`,
+                window);
+            this._focusWindowObject(window);
+            await this._waitForWindowCondition(
+                window, ['notify::appears-focused', 'focus'],
+                () => window.has_focus(), PULSE_REFOCUS_CEILING_MS);
+            this._logTime('FOCUS_PULSE_EARLY_EXIT_DONE', `windowId=${winId}`, window);
+            return;
+        }
+
+        // Full execution: size-changed fired; wait for VTE geometry expansion to settle
+        this._logTime('FOCUS_PULSE_FULL_EXECUTION_START', `windowId=${winId}`, window);
+        await this._waitForSizeQuiet(window, 0, WAKE_QUIET_MS, WAKE_CEILING_MS);
         if (this._disabled)
             return;
         this._cloak(actor);
 
-        // 3. Restore focus
+        // 3. Restore focus -> client receives wl_keyboard.enter
         this._focusWindowObject(window);
-        this._logTime('FOCUS_PULSE_REFOCUSED', `windowId=${winId}`);
+        this._logTime('FOCUS_PULSE_REFOCUSED', `windowId=${winId}`, window);
 
-        // 4. Wait until Mutter agrees the window is focused again...
+        // 4. Confirm focus is acknowledged
         const focused = await this._waitForWindowCondition(
             window, ['notify::appears-focused', 'focus'],
             () => window.has_focus(), PULSE_REFOCUS_CEILING_MS);
-        this._logTime('FOCUS_PULSE_FOCUS_CONFIRMED', `focused=${focused}`);
+        this._logTime('FOCUS_PULSE_FOCUS_CONFIRMED', `focused=${focused}`, window);
 
-        // ...and any resulting resize (focus can change decoration/geometry) is done.
         await this._waitForSizeQuiet(window, WAKE_IDLE_MS, WAKE_QUIET_MS, WAKE_CEILING_MS);
 
         const endFrame = window.get_frame_rect();
-        this._logTime('FOCUS_PULSE_DONE',
-            `windowId=${winId} final=(${endFrame.width}x${endFrame.height}) ` +
-            `deltaH=${endFrame.height - startFrame.height}`);
+        const endBuf = window.get_buffer_rect ? window.get_buffer_rect() : endFrame;
+        const deltaW = endFrame.width - startFrame.width;
+        const deltaH = endFrame.height - startFrame.height;
+
+        this._logTime('FOCUS_PULSE_FULL_EXECUTION_DONE',
+            `windowId=${winId} postFrame=(${endFrame.x},${endFrame.y},${endFrame.width}x${endFrame.height}) ` +
+            `bufferRect=(${endBuf.x},${endBuf.y},${endBuf.width}x${endBuf.height}) ` +
+            `delta=(${deltaW}x${deltaH}) deltaH=${deltaH}`,
+            window);
     }
 
-    /**
-     * Resolve true as soon as `predicate()` holds (checked now and on each listed
-     * signal of `window`), or false after `ceilingMs`. Never rejects.
-     */
+    _waitForSizeChangedOrTimeout(window, timeoutMs) {
+        return new Promise(resolve => {
+            let finished = false;
+            let timerId  = 0;
+            let sigId    = 0;
+
+            const finish = ok => {
+                if (finished)
+                    return;
+                finished = true;
+                this._removeTimer(timerId);
+                this._safeDisconnect(window, sigId);
+                resolve(ok);
+            };
+
+            sigId   = this._tryConnect(window, 'size-changed', () => finish(true));
+            timerId = this._addTimer(timeoutMs, () => finish(false));
+        });
+    }
+
     _waitForWindowCondition(window, signals, predicate, ceilingMs) {
         return new Promise(resolve => {
             if (this._try(predicate, false)) {
@@ -1147,10 +1464,6 @@ export default class SpawnAtExtension extends Extension {
         });
     }
 
-    /**
-     * Resolve after the compositor has run `count` frame updates (or after
-     * `ceilingMs`). Used so the last cloaked state is flushed before reveal.
-     */
     _waitForFrames(count, ceilingMs) {
         return new Promise(resolve => {
             let finished = false;
@@ -1170,7 +1483,6 @@ export default class SpawnAtExtension extends Extension {
                     finish();
             });
             ceiling = this._addTimer(ceilingMs, finish);
-            // Make sure at least one update is actually scheduled
             this._try(() => global.stage.queue_redraw());
             if (!sigId)
                 finish();
@@ -1181,17 +1493,6 @@ export default class SpawnAtExtension extends Extension {
     // 10. ANCHORED POSITIONING
     // =======================================================================
 
-    /**
-     * Pure computation of the anchored position for the window's CURRENT size.
-     *
-     * Effective size = max(current frame, toolkit-reported minimum). The minimum is a
-     * *measured, per-window* lower bound (never inferred from other windows). It can
-     * be stale for deferred toolkits, which is why the reactive anchor exists.
-     *
-     * Position = anchor point - pivot * size + offset, clamped inside the bounds
-     * (monitor or work area) minus margins. If the window is larger than the
-     * available space, right/bottom margins yield so top-left stays reachable.
-     */
     _computeAnchoredPosition(window, payload) {
         const frame = window.get_frame_rect();
         const [minW, minH] = this._getMinSize(window);
@@ -1208,20 +1509,17 @@ export default class SpawnAtExtension extends Extension {
         const ml = this._num(payload.margin_left);
         const mr = this._num(payload.margin_right);
 
-        // Legal range for the top-left corner
         const minX = bounds.x + ml;
         const minY = bounds.y + mt;
         let maxX = bounds.x + bounds.width - mr - effW;
         let maxY = bounds.y + bounds.height - mb - effH;
 
-        // Oversized windows: collapse the range so top-left wins
         const oversized = effW > bounds.width - ml - mr || effH > bounds.height - mt - mb;
         if (maxX < minX)
             maxX = minX;
         if (maxY < minY)
             maxY = minY;
 
-        // Unclamped target from anchor + pivot + offset
         const rawX = this._num(payload.screen_anchor_x)
             - Math.round(this._num(payload.pivot_u) * effW) + this._num(payload.offset_x);
         const rawY = this._num(payload.screen_anchor_y)
@@ -1236,9 +1534,7 @@ export default class SpawnAtExtension extends Extension {
         };
     }
 
-    /** Compute the anchored position and move the window there. */
     _applyAnchoredPosition(window, payload) {
-        // Kill any Mutter transition that could fight the move
         const actor = this._getActor(window);
         actor?.remove_all_transitions?.();
 
@@ -1246,7 +1542,8 @@ export default class SpawnAtExtension extends Extension {
 
         if (pos.minW === 0 && pos.minH === 0) {
             this._logTime('FALLBACK_USED',
-                `reason="min size unreported" usingFrame=(${pos.effW}x${pos.effH})`);
+                `reason="min size unreported" usingFrame=(${pos.effW}x${pos.effH})`,
+                window);
         }
         if (pos.oversized) {
             console.warn(`[spawn-at] Window is oversized (${pos.effW}x${pos.effH}); ` +
@@ -1254,11 +1551,13 @@ export default class SpawnAtExtension extends Extension {
         }
         if (pos.x !== pos.rawX || pos.y !== pos.rawY) {
             this._logTime('MARGIN_CLAMP_ENGAGED',
-                `raw=(${pos.rawX},${pos.rawY}) clamped=(${pos.x},${pos.y})`);
+                `raw=(${pos.rawX},${pos.rawY}) clamped=(${pos.x},${pos.y})`,
+                window);
         }
         this._logTime('APPLY_ANCHOR',
             `eff=(${pos.effW}x${pos.effH}) bounds=(${pos.bounds.x},${pos.bounds.y},` +
-            `${pos.bounds.width}x${pos.bounds.height}) final=(${pos.x},${pos.y})`);
+            `${pos.bounds.width}x${pos.bounds.height}) final=(${pos.x},${pos.y})`,
+            window);
 
         this._moveFrame(window, pos.x, pos.y);
         return pos;
@@ -1268,24 +1567,7 @@ export default class SpawnAtExtension extends Extension {
     // 11. REACTIVE ANCHOR
     // =======================================================================
 
-    /**
-     * Keep a positioned window anchored even if the client later changes size.
-     *
-     * Mutter pins the top-left on client-initiated resizes, so a window anchored to
-     * the bottom/right would drift off-screen when it grows. Instead of trusting a
-     * one-time calculation, re-solve the position on every `size-changed`.
-     *
-     * The handler is idempotent (it moves only if the solved position differs from
-     * the current one), so moving can never cause a feedback loop.
-     *
-     * The anchor releases itself when:
-     *   - the user grabs/moves/resizes the window   (grab-op-end)
-     *   - the window is closed                      (unmanaged)
-     *   - an external D-Bus call moves/changes it   (MoveWindow / SetWindowState)
-     *   - it has made a correction and then stayed quiet for ANCHOR_RETIRE_QUIET_MS
-     */
     _armAnchor(window, payload) {
-        // Replace any existing anchor for this window
         this._disarmAnchor(window, 'REARM');
 
         const state = { payload, sizeId: 0, unmanagedId: 0, retireTimerId: 0 };
@@ -1294,15 +1576,13 @@ export default class SpawnAtExtension extends Extension {
         state.unmanagedId = this._tryConnect(window, 'unmanaged',
             () => this._disarmAnchor(window, 'UNMANAGED'));
         this._anchors.set(window, state);
-        this._logTime('ANCHOR_ARMED');
+        this._logTime('ANCHOR_ARMED', '', window);
     }
 
-    /** `size-changed` handler of an armed anchor. */
     _onAnchoredSizeChanged(window, state) {
         if (this._disabled)
             return;
 
-        // Never fight an interactive resize, or a window the user maximized
         if (this._userIsGrabbing())
             return;
         if (this._isMaximized(window) || this._isFullscreen(window))
@@ -1311,21 +1591,19 @@ export default class SpawnAtExtension extends Extension {
         const cur = window.get_frame_rect();
         const pos = this._computeAnchoredPosition(window, state.payload);
 
-        // Already where it should be (also makes our own moves harmless)
         if (pos.x === cur.x && pos.y === cur.y)
             return;
 
         this._logTime('ANCHOR_CORRECTION',
-            `size=(${cur.width}x${cur.height}) from=(${cur.x},${cur.y}) to=(${pos.x},${pos.y})`);
+            `size=(${cur.width}x${cur.height}) from=(${cur.x},${cur.y}) to=(${pos.x},${pos.y})`,
+            window);
         this._moveFrame(window, pos.x, pos.y);
 
-        // A correction happened: retire once the client has been quiet for a while
         this._removeTimer(state.retireTimerId);
         state.retireTimerId = this._addTimer(ANCHOR_RETIRE_QUIET_MS,
             () => this._disarmAnchor(window, 'RETIRED'));
     }
 
-    /** Release a window's reactive anchor and all of its connections. */
     _disarmAnchor(window, reason = '') {
         const state = this._anchors.get(window);
         if (!state)
@@ -1334,16 +1612,14 @@ export default class SpawnAtExtension extends Extension {
         this._safeDisconnect(window, state.sizeId);
         this._safeDisconnect(window, state.unmanagedId);
         this._anchors.delete(window);
-        this._logTime('ANCHOR_RELEASED', `reason=${reason}`);
+        this._logTime('ANCHOR_RELEASED', `reason=${reason}`, window);
     }
 
     // =======================================================================
     // 12. WINDOW LOOKUP (shared by the D-Bus API)
     // =======================================================================
 
-    /** Windows on a workspace in most-recently-used order. */
     _getMRUWindows(workspace) {
-        // Resolve the tab-list enum across Mutter versions
         let tabListType = 0;
         if (Meta.TabList?.NORMAL !== undefined)
             tabListType = Meta.TabList.NORMAL;
@@ -1354,7 +1630,6 @@ export default class SpawnAtExtension extends Extension {
         if (list && list.length > 0)
             return list;
 
-        // Fallback: stacking order, topmost first
         return this._try(() => {
             const windows = workspace.list_windows();
             if (typeof global.display.sort_windows_by_stacking === 'function')
@@ -1363,12 +1638,6 @@ export default class SpawnAtExtension extends Extension {
         }, []);
     }
 
-    /**
-     * Find a window by numeric id, numeric pid, wm_class or app id.
-     * NOTE: class/app-id lookups return the most recently used match, so they are NOT
-     * suitable for singling out one of several same-app windows (internal code uses
-     * the Meta.Window object directly for that reason).
-     */
     _findWindow(target) {
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const windows = this._getMRUWindows(workspace);
@@ -1384,13 +1653,11 @@ export default class SpawnAtExtension extends Extension {
         }
 
         return windows.find(w => {
-            const wmClass = w.get_wm_class() || '';
-            const appId = w.get_gtk_application_id() || '';
+            const wmClass = w.get_wm_class?.() || '';
+            const appId = w.get_gtk_application_id?.() || '';
             return wmClass === target || appId === target;
         }) || null;
     }
-
-    // --- Focus helpers operating on a concrete window object ---------------
 
     _focusWindowObject(window) {
         window.activate(global.get_current_time());
@@ -1398,7 +1665,6 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _defocusWindowObject(window, mode = 'desktop', destination = '') {
-        // Mode 1: Desktop yield via Mutter native API + dummy parking actor
         if (mode === 'desktop') {
             global.display.unset_input_focus(global.get_current_time());
             if (this._dummy)
@@ -1406,7 +1672,6 @@ export default class SpawnAtExtension extends Extension {
             return true;
         }
 
-        // Mode 2: Explicit target window (destination is strictly a title/class/pid lookup)
         if (mode === 'window' && destination) {
             const destWin = this._findWindow(destination);
             if (destWin) {
@@ -1415,7 +1680,6 @@ export default class SpawnAtExtension extends Extension {
             }
         }
 
-        // Mode 3: MRU fallback
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const next = this._getMRUWindows(workspace)
             .find(w => w !== window && !w.minimized && !w.skip_taskbar);
@@ -1441,13 +1705,9 @@ export default class SpawnAtExtension extends Extension {
     }
 
     // =======================================================================
-    // 14. D-BUS API (method names/signatures are fixed by DBUS_IFACE)
+    // 14. D-BUS API
     // =======================================================================
 
-    /**
-     * Arm instructions for the next window matching `target_id` ("" or "*" = the
-     * next window of any kind). Unclaimed arms expire automatically.
-     */
     ArmSpawn(target_id, instructions_json) {
         this._t0 = GLib.get_monotonic_time();
         this._logTime('ARM_SPAWN', `target="${target_id}"`);
@@ -1460,23 +1720,21 @@ export default class SpawnAtExtension extends Extension {
             return;
         }
 
-        // Wildcard arm: single slot, short-lived
         if (!target_id || target_id === '*') {
             this._clearWildcard();
             this._wildcardTarget = instructions;
             this._wildcardTimeoutId = this._addTimer(WILDCARD_EXPIRY_MS, () => {
                 this._wildcardTimeoutId = 0;
                 this._wildcardTarget = null;
+                this._releaseHeldIfIdle();
             });
             return;
         }
 
-        // Targeted arm: FIFO queue per key, so several windows can be armed at once
         if (!this._armedSpawns.has(target_id))
             this._armedSpawns.set(target_id, []);
         this._armedSpawns.get(target_id).push(instructions);
 
-        // Expire just this entry if nobody claims it
         this._addTimer(ARM_EXPIRY_MS, () => {
             const queue = this._armedSpawns.get(target_id);
             if (!queue)
@@ -1486,10 +1744,10 @@ export default class SpawnAtExtension extends Extension {
                 queue.splice(idx, 1);
             if (queue.length === 0)
                 this._armedSpawns.delete(target_id);
+            this._releaseHeldIfIdle();
         });
     }
 
-    /** Run an instruction batch against an existing window right now (queued). */
     ExecuteBatch(target_id, instructions_json) {
         let instructions;
         try {
@@ -1509,18 +1767,15 @@ export default class SpawnAtExtension extends Extension {
             this._enqueueBatch(window, actor, instructions);
     }
 
-    /** Pointer position (global coordinates). */
     GetCursor() {
         const [x, y] = global.get_pointer();
         return [x, y];
     }
 
-    /** Alias of GetCursor kept for API compatibility. */
     GetPointer() {
         return this.GetCursor();
     }
 
-    /** JSON list of per-monitor work areas for the active workspace. */
     GetWorkareas() {
         const workspace = global.workspace_manager.get_active_workspace();
         const count = global.display.get_n_monitors();
@@ -1532,7 +1787,6 @@ export default class SpawnAtExtension extends Extension {
         return JSON.stringify(areas);
     }
 
-    /** JSON list of windows on the active workspace (MRU order). */
     GetWindows() {
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const windows = this._getMRUWindows(workspace);
@@ -1540,9 +1794,9 @@ export default class SpawnAtExtension extends Extension {
             const frame = win.get_frame_rect();
             return {
                 id: win.get_id ? win.get_id() : null,
-                pid: win.get_pid(),
-                title: win.get_title() || '',
-                class: win.get_wm_class() || win.get_gtk_application_id() || '',
+                pid: win.get_pid ? win.get_pid() : -1,
+                title: win.get_title ? (win.get_title() || '') : '',
+                class: win.get_wm_class ? (win.get_wm_class() || win.get_gtk_application_id?.() || '') : '',
                 x: frame.x,
                 y: frame.y,
                 w: frame.width,
@@ -1552,7 +1806,6 @@ export default class SpawnAtExtension extends Extension {
         }));
     }
 
-    /** Move a window; the caller now owns its position, so release any anchor. */
     MoveWindow(app_id, x, y) {
         const window = this._findWindow(app_id);
         if (!window)
@@ -1561,7 +1814,6 @@ export default class SpawnAtExtension extends Extension {
         this._moveFrame(window, x, y);
     }
 
-    /** Give a window keyboard focus. */
     FocusWindow(target) {
         const window = this._findWindow(target);
         return window ? this._focusWindowObject(window) : false;
@@ -1572,13 +1824,11 @@ export default class SpawnAtExtension extends Extension {
         return window ? this._defocusWindowObject(window, mode, destination) : false;
     }
 
-    /** maximize | unmaximize | minimize | unminimize | restore */
     SetWindowState(target, state) {
         const window = this._findWindow(target);
         if (!window)
             return false;
 
-        // An external state change supersedes our position upkeep
         this._disarmAnchor(window, 'EXTERNAL_STATE');
 
         switch (state) {
