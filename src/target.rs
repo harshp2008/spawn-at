@@ -141,7 +141,7 @@ pub fn resolve_target<'a>(
                 .filter(|(score, _)| *score > 0.70)
                 .collect();
 
-            suggestions.sort_by(|a, b| b.0.partial_cmp(&a.0).unwrap());
+            suggestions.sort_by(|a, b| b.0.total_cmp(&a.0));
 
             if let Some((_, best)) = suggestions.first() {
                 let pid_str = best
