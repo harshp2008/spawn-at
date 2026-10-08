@@ -684,4 +684,191 @@ mod tests {
             }]
         );
     }
+
+    // ========================================================================
+    // Characterization Tests: Comprehensive Pure Geometry Engine Verification
+    // ========================================================================
+
+    #[test]
+    fn test_apply_anchor_all_variants_exhaustive() {
+        let wa = Rect { x: 100, y: 200, width: 1920, height: 1080 };
+        let (win_w, win_h) = (800, 600);
+        let margin = 24;
+
+        // Center
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Center, margin),
+            (100 + (1920 - 800) / 2, 200 + (1080 - 600) / 2) // (660, 440)
+        );
+
+        // TopLeft
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin),
+            (100 + 24, 200 + 24) // (124, 224)
+        );
+
+        // TopRight
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin),
+            (100 + 1920 - 800 - 24, 200 + 24) // (1196, 224)
+        );
+
+        // BottomLeft
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin),
+            (100 + 24, 200 + 1080 - 600 - 24) // (124, 656)
+        );
+
+        // BottomRight
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin),
+            (100 + 1920 - 800 - 24, 200 + 1080 - 600 - 24) // (1196, 656)
+        );
+
+        // Top
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Top, margin),
+            (100 + (1920 - 800) / 2, 200 + 24) // (660, 224)
+        );
+
+        // Bottom
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin),
+            (100 + (1920 - 800) / 2, 200 + 1080 - 600 - 24) // (660, 656)
+        );
+
+        // Left
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Left, margin),
+            (100 + 24, 200 + (1080 - 600) / 2) // (124, 440)
+        );
+
+        // Right
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Right, margin),
+            (100 + 1920 - 800 - 24, 200 + (1080 - 600) / 2) // (1196, 440)
+        );
+
+        // Cursor fallback returns workarea origin without margin
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Cursor, margin),
+            (100, 200)
+        );
+    }
+
+    #[test]
+    fn test_apply_pivot_all_variants_exhaustive() {
+        let (target_x, target_y) = (500, 400);
+        let (win_w, win_h) = (200, 100);
+
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft),
+            (500, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight),
+            (300, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft),
+            (500, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight),
+            (300, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center),
+            (400, 350)
+        );
+    }
+
+    #[test]
+    fn test_clamp_to_bounds_negative_and_oversized() {
+        let bounds = Rect { x: -1920, y: 0, width: 1920, height: 1080 }; // Left monitor
+        let normal_rect = Rect { x: -1000, y: 200, width: 500, height: 400 };
+
+        // Inside bounds: untouched
+        let clamped = clamp_to_bounds(normal_rect, bounds, 0, 0, 0, 0, 0);
+        assert_eq!(clamped, normal_rect);
+
+        // Overflow left: clamped to bounds.x (-1920)
+        let overflow_left = Rect { x: -2500, y: 200, width: 500, height: 400 };
+        let clamped_left = clamp_to_bounds(overflow_left, bounds, 0, 0, 0, 0, 10);
+        assert_eq!(clamped_left.x, -1920 + 10);
+
+        // Overflow right: clamped to bounds.x + width - win_w
+        let overflow_right = Rect { x: 500, y: 200, width: 500, height: 400 };
+        let clamped_right = clamp_to_bounds(overflow_right, bounds, 0, 0, 0, 0, 10);
+        assert_eq!(clamped_right.x, -1920 + 1920 - 10 - 500); // -510
+
+        // Window larger than workarea (2500px wide in 1920px monitor)
+        let huge_rect = Rect { x: 0, y: 0, width: 2500, height: 1500 };
+        let clamped_huge = clamp_to_bounds(huge_rect, bounds, 0, 0, 0, 0, 16);
+        // max_x < min_x -> pins to min_x
+        assert_eq!(clamped_huge.x, -1920 + 16);
+        assert_eq!(clamped_huge.y, 0 + 16);
+    }
+
+    #[test]
+    fn test_resolve_workarea_multi_monitor_and_errors() {
+        let monitors = vec![
+            Rect { x: 0, y: 0, width: 1920, height: 1080 },        // Monitor 0: Primary
+            Rect { x: 1920, y: 0, width: 2560, height: 1440 },     // Monitor 1: Right
+            Rect { x: -1920, y: 0, width: 1920, height: 1080 },    // Monitor 2: Left
+        ];
+
+        // Cursor resolution
+        assert_eq!(
+            resolve_workarea(&monitors, (100, 100), "cursor").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (2500, 500), "cursor").unwrap(),
+            monitors[1]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (-500, 300), "cursor").unwrap(),
+            monitors[2]
+        );
+
+        // Primary / Index resolution
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "primary").unwrap(), monitors[0]);
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "0").unwrap(), monitors[0]);
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "1").unwrap(), monitors[1]);
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "2").unwrap(), monitors[2]);
+
+        // Out-of-bounds index falls back to primary monitor (monitors[0])
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "99").unwrap(), monitors[0]);
+        // Unrecognized string falls back to primary monitor
+        assert_eq!(resolve_workarea(&monitors, (0, 0), "invalid_spec").unwrap(), monitors[0]);
+        // Empty monitor list returns Err
+        assert!(resolve_workarea(&[], (0, 0), "primary").is_err());
+    }
+
+    #[test]
+    fn test_50_permutations_anchor_cross_pivot_matrix() {
+        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let anchors = [
+            Anchor::Center, Anchor::TopLeft, Anchor::TopRight,
+            Anchor::BottomLeft, Anchor::BottomRight, Anchor::Top,
+            Anchor::Bottom, Anchor::Left, Anchor::Right, Anchor::Cursor,
+        ];
+        let pivots = [
+            Pivot::TopLeft, Pivot::TopRight, Pivot::BottomLeft,
+            Pivot::BottomRight, Pivot::Center,
+        ];
+
+        let mut count = 0;
+        for anchor in &anchors {
+            for pivot in &pivots {
+                let (ax, ay) = apply_anchor(wa, 800, 600, *anchor, 20);
+                let (px, py) = apply_pivot(ax, ay, 800, 600, *pivot);
+                assert!(px >= -10000 && px <= 10000);
+                assert!(py >= -10000 && py <= 10000);
+                count += 1;
+            }
+        }
+        assert_eq!(count, 50);
+    }
 }
