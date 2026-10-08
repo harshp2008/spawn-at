@@ -913,4 +913,80 @@ mod tests {
         let cli = Cli::try_parse_from(["spawn-at", "spawn", "--no-wait", "--", "alacritty"]).unwrap();
         assert!(cli.no_wait);
     }
+
+    #[test]
+    fn test_characterization_all_subcommands_parsing() {
+        // 1. Spawn with full matrix of flags
+        let cli = Cli::try_parse_from([
+            "spawn-at", "spawn",
+            "-a", "bottom-right",
+            "--pivot", "center",
+            "-p", "100", "200",
+            "-s", "800", "600",
+            "-m", "24",
+            "--mt", "12",
+            "--mb", "14",
+            "--ml", "16",
+            "--mr", "18",
+            "--monitor", "DP-1",
+            "--area", "screen",
+            "--clamp=false",
+            "--no-focus",
+            "--no-wait",
+            "--", "my-app", "arg1", "--flag",
+        ]).unwrap();
+        assert!(cli.no_wait);
+        if let Commands::Spawn(s) = cli.command {
+            assert_eq!(s.geometry.anchor, Some(Anchor::BottomRight));
+            assert_eq!(s.geometry.pivot, Some(Pivot::Center));
+            assert_eq!(s.geometry.pos, Some(vec![100, 200]));
+            assert_eq!(s.geometry.size, Some(vec!["800".to_string(), "600".to_string()]));
+            assert_eq!(s.geometry.margin, 24);
+            assert_eq!(s.geometry.margin_top, Some(12));
+            assert_eq!(s.geometry.margin_bottom, Some(14));
+            assert_eq!(s.geometry.margin_left, Some(16));
+            assert_eq!(s.geometry.margin_right, Some(18));
+            assert_eq!(s.geometry.monitor, "DP-1");
+            assert_eq!(s.geometry.area, Area::Screen);
+            assert!(!s.geometry.clamp);
+            assert!(s.focus_modifiers.no_focus);
+            assert_eq!(s.command, vec!["my-app", "arg1", "--flag"]);
+        } else {
+            panic!("Expected Spawn variant");
+        }
+
+        // 2. Query subcommands
+        let cli = Cli::try_parse_from(["spawn-at", "query", "layout", "--json"]).unwrap();
+        assert!(matches!(cli.command, Commands::Query { cmd: QueryCommands::Layout { json: true } }));
+
+        let cli = Cli::try_parse_from(["spawn-at", "query", "pointer"]).unwrap();
+        assert!(matches!(cli.command, Commands::Query { cmd: QueryCommands::Pointer }));
+
+        let cli = Cli::try_parse_from(["spawn-at", "query", "windows", "--json"]).unwrap();
+        assert!(matches!(cli.command, Commands::Query { cmd: QueryCommands::Windows { json: true } }));
+
+        // 3. Update args
+        let cli = Cli::try_parse_from(["spawn-at", "update", "--check", "--channel", "all", "--force", "--headless"]).unwrap();
+        if let Commands::Update(u) = cli.command {
+            assert!(u.check);
+            assert_eq!(u.channel.as_deref(), Some("all"));
+            assert!(u.force);
+            assert!(u.headless);
+        } else {
+            panic!("Expected Update variant");
+        }
+
+        // 4. Install & Uninstall
+        let cli = Cli::try_parse_from(["spawn-at", "install", "--skip-bin", "--headless"]).unwrap();
+        if let Commands::Install(i) = cli.command {
+            assert!(i.skip_bin);
+            assert!(i.headless);
+        } else {
+            panic!("Expected Install variant");
+        }
+
+        let cli = Cli::try_parse_from(["spawn-at", "uninstall"]).unwrap();
+        assert!(matches!(cli.command, Commands::Uninstall(_)));
+    }
 }
+
