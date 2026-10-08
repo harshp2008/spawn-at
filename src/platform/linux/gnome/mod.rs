@@ -1,6 +1,9 @@
-//! # GNOME Wayland Compositor Driver
+//! # GNOME Compositor Backend & Extension Driver
 //!
-//! ## Deep Dive: The Mechanics of Wayland Window Placement on GNOME
+//! Provides the primary compositor backend for GNOME Shell on Linux across both
+//! Wayland and X11 sessions.
+//!
+//! ## Architectural Overview: Zero-Flicker Window Placement on GNOME
 //!
 //! ### 1. The Wayland Isolation Barrier
 //! Wayland compositors (specifically Mutter in GNOME) enforce a strict isolation model:
@@ -11,18 +14,18 @@
 //!
 //! ### 2. The Arming & Pre-Registration Pattern
 //! To place a window at exact coordinates on its very first frame without flash-and-jump,
-//! the sequence of events must be inverted:
+//! the sequence of events is inverted:
 //!
 //! - **Conventional (Faulty) Flow:**
 //!   1. Spawn process -> 2. Wait for window to map -> 3. Reposition window.
-//!   Result: Window flickers at default location for 1-5 frames before jumping.
+//!      Result: Window flickers at default location for 1-5 frames before jumping.
 //!
 //! - **Spawn-At (Zero-Flicker) Flow:**
 //!   1. **D-Bus Arm:** Call `ArmSpawn(target_id, instructions_json)` on the GNOME Shell extension.
 //!      The compositor registers an expected window target in memory *before* the
 //!      application process is even spawned.
 //!   2. **Process Spawn:** The child process is launched with `XDG_ACTIVATION_TOKEN` / `DESKTOP_STARTUP_ID`.
-//!      It connects to the Wayland display socket and submits its `xdg_surface`.
+//!      It connects to the display socket and submits its surface.
 //!   3. **Synchronous Interception:** Mutter triggers `window-created`. The extension
 //!      matches the window's startup ID / `app_id` with the armed target.
 //!   4. **Opacity Cloaking:** As soon as Mutter creates the `ClutterActor` during `map`,
@@ -30,6 +33,23 @@
 //!      screen while the initial frame geometry settles.
 //!   5. **Atomic Reveal:** Once `window.get_frame_rect()` matches the target coordinates,
 //!      `actor.opacity = 255` is restored.
+//!
+//! ## Table of Contents
+//! - **1. CLI Configuration & Arguments**
+//!   - [`GnomeInstallArgs`]: Flags controlling extension enablement, X11 reload, and Wayland logout during install.
+//!   - [`GnomeUninstallArgs`]: Flags controlling file cleanup, X11 reload, and Wayland logout during uninstall.
+//! - **2. Session & Desktop Detection**
+//!   - [`is_wayland_session`]: Detects whether current desktop is running on Wayland via `loginctl`.
+//! - **3. Execution & Reload Helpers**
+//!   - [`restart_gnome_shell_x11`]: Simulates `Alt+F2` -> `r` -> `Enter` via `xdotool` on X11.
+//! - **4. Driver Construction & Internal State**
+//!   - [`GnomeWaylandDriver`]: Core driver managing D-Bus communication with the GNOME extension.
+//! - **5. Pre-Map Arming Driver Trait**
+//!   - [`Driver`]: Pre-registers window targets and provides launch environment variables.
+//! - **6. Runtime Compositor Backend Trait**
+//!   - [`CompositorBackend`]: Implements `install`, `uninstall`, window transformations, state queries, and daemon mode.
+//! - **7. Unit Tests**
+//!   - Test suite verifying argument defaults, `--no-action` overrides, flag toggles, and session queries.
 
 pub mod dbus;
 pub mod mechanics;
@@ -45,33 +65,207 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::process::Command;
 
+// ============================================================================
+// 1. CLI Configuration & Arguments
+// ============================================================================
+
+/// Command-line arguments for the GNOME extension installation step.
 #[derive(Args, Debug, Clone, Default)]
 pub struct GnomeInstallArgs {
     /// \[GNOME\] Automatically enable the GNOME Shell extension
     #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_auto_enable: bool,
 
-    /// \[GNOME\] Automatically log out / restart session to load extension
+    /// \[GNOME X11\] Reload GNOME Shell in-place on X11 (non-destructive: apps stay open)
+    #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
+    pub gnome_x11_reload: bool,
+
+    /// \[GNOME Wayland\] Log out of session on Wayland to load extension (destructive: closes apps)
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
-    pub gnome_restart: bool,
+    pub gnome_wayland_logout: bool,
+
+    /// \[GNOME\] Do not reload or log out (alias for --gnome-x11-reload=false --gnome-wayland-logout=false)
+    #[arg(long)]
+    pub no_action: bool,
 }
 
+impl GnomeInstallArgs {
+    /// Determines whether shell reload or logout should be executed based on session type and flag precedence.
+    pub fn should_restart(&self, is_wayland: bool) -> bool {
+        if self.no_action {
+            false
+        } else if is_wayland {
+            self.gnome_wayland_logout
+        } else {
+            self.gnome_x11_reload
+        }
+    }
+}
+
+/// Command-line arguments for the GNOME extension uninstallation step.
 #[derive(Args, Debug, Clone, Default)]
 pub struct GnomeUninstallArgs {
     /// \[GNOME\] Completely remove extension files from disk
     #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
     pub gnome_delete_files: bool,
 
-    /// \[GNOME\] Automatically log out / restart session after uninstallation
+    /// \[GNOME X11\] Reload GNOME Shell in-place on X11 after uninstallation (non-destructive: apps stay open)
+    #[arg(long, default_value_t = true, num_args = 0..=1, default_missing_value = "true")]
+    pub gnome_x11_reload: bool,
+
+    /// \[GNOME Wayland\] Log out of session on Wayland after uninstallation (destructive: closes apps)
     #[arg(long, default_value_t = false, num_args = 0..=1, default_missing_value = "true")]
-    pub gnome_restart: bool,
+    pub gnome_wayland_logout: bool,
+
+    /// \[GNOME\] Do not reload or log out (alias for --gnome-x11-reload=false --gnome-wayland-logout=false)
+    #[arg(long)]
+    pub no_action: bool,
 }
 
+impl GnomeUninstallArgs {
+    /// Determines whether shell reload or logout should be executed based on session type and flag precedence.
+    pub fn should_restart(&self, is_wayland: bool) -> bool {
+        if self.no_action {
+            false
+        } else if is_wayland {
+            self.gnome_wayland_logout
+        } else {
+            self.gnome_x11_reload
+        }
+    }
+}
+
+// ============================================================================
+// 2. Session & Desktop Detection
+// ============================================================================
+
+/// Extension UUID recognized by GNOME Shell.
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
+/// Bundled JavaScript implementation of the GNOME Shell extension.
 const EXTENSION_JS: &str = include_str!("../../../../assets/gnome/extension.esm.js");
+/// Bundled metadata manifest for the GNOME Shell extension.
 const METADATA_JSON: &str = include_str!("../../../../assets/gnome/metadata.json");
 
-/// Compositor backend driver for GNOME Wayland sessions, communicating via the SpawnAt D-Bus extension.
+/// Resolves session identifier to pass into `loginctl show-session <id> -p Type --value`.
+fn get_session_id() -> Option<String> {
+    if let Ok(id) = std::env::var("XDG_SESSION_ID") {
+        let trimmed = id.trim().to_string();
+        if !trimmed.is_empty() {
+            return Some(trimmed);
+        }
+    }
+
+    if let Ok(uid_out) = Command::new("id").arg("-u").output() {
+        let uid = String::from_utf8_lossy(&uid_out.stdout).trim().to_string();
+        if !uid.is_empty() {
+            if let Ok(display_out) = Command::new("loginctl")
+                .args(["show-user", &uid, "-p", "Display", "--value"])
+                .output()
+            {
+                let sess = String::from_utf8_lossy(&display_out.stdout).trim().to_string();
+                if !sess.is_empty() {
+                    return Some(sess);
+                }
+            }
+        }
+    }
+
+    if let Ok(out) = Command::new("loginctl")
+        .args(["list-sessions", "--no-legend"])
+        .output()
+    {
+        let text = String::from_utf8_lossy(&out.stdout);
+        for line in text.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if let Some(first) = parts.first() {
+                if !first.is_empty() {
+                    return Some((*first).to_string());
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Returns true if the active desktop session is running on Wayland.
+///
+/// Decides X11 vs Wayland with `loginctl show-session <id> -p Type --value`,
+/// NOT `$XDG_SESSION_TYPE` (which has been unreliable).
+pub fn is_wayland_session() -> bool {
+    if let Some(id) = get_session_id() {
+        if let Ok(output) = Command::new("loginctl")
+            .args(["show-session", &id, "-p", "Type", "--value"])
+            .output()
+        {
+            let sess_type = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            if sess_type == "wayland" {
+                return true;
+            } else if sess_type == "x11" {
+                return false;
+            }
+        }
+    }
+
+    if let Ok(output) = Command::new("loginctl")
+        .args(["show-session", "auto", "-p", "Type", "--value"])
+        .output()
+    {
+        let sess_type = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+        if sess_type == "wayland" {
+            return true;
+        } else if sess_type == "x11" {
+            return false;
+        }
+    }
+
+    std::env::var("WAYLAND_DISPLAY").is_ok()
+}
+
+// ============================================================================
+// 3. Execution & Reload Helpers
+// ============================================================================
+
+/// Restarts GNOME Shell on X11 using synthetic keypresses via xdotool:
+/// Alt+F2, ~0.5s wait, type "r", press Return.
+///
+/// If xdotool is missing, prints a clear message telling the user to install it,
+/// and continues normally without failing the installation.
+pub fn restart_gnome_shell_x11() {
+    let which_res = Command::new("which").arg("xdotool").output();
+    let installed = which_res.map(|o| o.status.success()).unwrap_or(false);
+
+    if !installed {
+        println!("xdotool is not installed. To reload GNOME Shell automatically on X11, please install xdotool (e.g. 'sudo apt install xdotool').");
+        return;
+    }
+
+    println!("Reloading GNOME Shell on X11 via key simulation (Alt+F2 -> 'r' -> Enter)...");
+
+    if let Err(e) = Command::new("xdotool").args(["key", "Alt+F2"]).status() {
+        eprintln!("Warning: Failed to execute 'xdotool key Alt+F2': {}", e);
+        return;
+    }
+
+    std::thread::sleep(std::time::Duration::from_millis(500));
+
+    if let Err(e) = Command::new("xdotool").args(["type", "r"]).status() {
+        eprintln!("Warning: Failed to execute 'xdotool type r': {}", e);
+        return;
+    }
+
+    std::thread::sleep(std::time::Duration::from_millis(100));
+
+    if let Err(e) = Command::new("xdotool").args(["key", "Return"]).status() {
+        eprintln!("Warning: Failed to execute 'xdotool key Return': {}", e);
+    }
+}
+
+// ============================================================================
+// 4. Driver Construction & Internal State
+// ============================================================================
+
+/// Compositor backend driver for GNOME sessions, communicating via the SpawnAt D-Bus extension.
 pub struct GnomeWaylandDriver {
     proxy: dbus::SpawnAtProxy<'static>,
 }
@@ -102,6 +296,10 @@ impl GnomeWaylandDriver {
             .join(EXTENSION_UUID))
     }
 }
+
+// ============================================================================
+// 5. Pre-Map Arming Driver Trait
+// ============================================================================
 
 #[async_trait::async_trait]
 impl Driver for GnomeWaylandDriver {
@@ -145,6 +343,10 @@ impl Driver for GnomeWaylandDriver {
     }
 }
 
+// ============================================================================
+// 6. Runtime Compositor Backend Trait
+// ============================================================================
+
 #[async_trait::async_trait]
 impl CompositorBackend for GnomeWaylandDriver {
     fn name(&self) -> &'static str {
@@ -163,7 +365,9 @@ impl CompositorBackend for GnomeWaylandDriver {
     /// Installs the embedded GNOME Shell extension into the user's extensions directory
     /// using dual-mode execution (interactive TUI prompt or headless flag automation).
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
-        let (auto_enable, restart) = if !args.headless && std::io::stdout().is_terminal() {
+        let is_wayland = is_wayland_session();
+
+        let (auto_enable, should_restart) = if !args.headless && std::io::stdout().is_terminal() {
             println!("\x1b[1;36m=== GNOME Shell Extension Setup ===\x1b[0m\n");
 
             let auto_enable = Confirm::new()
@@ -172,20 +376,38 @@ impl CompositorBackend for GnomeWaylandDriver {
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?;
 
-            let restart_choices = &[
-                "No - Keep session running (I'll restart/log out later if needed)",
-                "Yes - Log out now to ensure extension is cleanly loaded",
-            ];
-            let restart_choice = Select::new()
-                .with_prompt("Do you want to log out / restart your session now?")
-                .items(restart_choices)
-                .default(0)
-                .interact()
-                .map_err(|e| DriverError::Execution(Box::new(e)))?;
+            // Session-tailored TUI prompt:
+            // - X11 reload is non-destructive (apps stay open) -> Default: Yes (choice 0)
+            // - Wayland logout is destructive (closes all apps) -> Default: No (choice 0)
+            let restart_choice = if is_wayland {
+                let restart_choices = &[
+                    "No - Keep session running (I'll log out later if needed) [Default]",
+                    "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
+                ];
+                let choice = Select::new()
+                    .with_prompt("Do you want to log out of your session now? (Destructive on Wayland)")
+                    .items(restart_choices)
+                    .default(0)
+                    .interact()
+                    .map_err(|e| DriverError::Execution(Box::new(e)))?;
+                choice == 1
+            } else {
+                let restart_choices = &[
+                    "Yes - Reload GNOME Shell in-place now (Non-destructive: apps stay open) [Default]",
+                    "No - Keep session running (I'll reload shell manually with Alt+F2 -> 'r' if needed)",
+                ];
+                let choice = Select::new()
+                    .with_prompt("Do you want to reload GNOME Shell now? (Non-destructive on X11)")
+                    .items(restart_choices)
+                    .default(0)
+                    .interact()
+                    .map_err(|e| DriverError::Execution(Box::new(e)))?;
+                choice == 0
+            };
 
-            (auto_enable, restart_choice == 1)
+            (auto_enable, restart_choice)
         } else {
-            (args.gnome.gnome_auto_enable, args.gnome.gnome_restart)
+            (args.gnome.gnome_auto_enable, args.gnome.should_restart(is_wayland))
         };
 
         let ext_dir = Self::extension_dir()?;
@@ -229,14 +451,23 @@ impl CompositorBackend for GnomeWaylandDriver {
             println!("Extension files deployed. Skipping automatic enablement (--gnome-auto-enable=false).");
         }
 
-        if restart {
-            println!("Logging out to complete GNOME Shell extension initialization...");
-            let _ = Command::new("gnome-session-quit")
-                .args(["--logout", "--no-prompt"])
-                .spawn();
+        if should_restart {
+            if is_wayland {
+                println!("Logging out to complete GNOME Shell extension initialization...");
+                let _ = Command::new("gnome-session-quit")
+                    .args(["--logout", "--no-prompt"])
+                    .spawn();
+            } else {
+                restart_gnome_shell_x11();
+            }
         } else {
-            println!("Session restart skipped.");
-            println!("If the extension is not immediately active, log out and back in to complete loading.");
+            if is_wayland {
+                println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
+                println!("If the extension is not immediately active, log out and back in to complete loading.");
+            } else {
+                println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
+                println!("You can reload the shell anytime on X11 by pressing Alt+F2, typing 'r', and pressing Enter.");
+            }
         }
 
         Ok(())
@@ -244,7 +475,9 @@ impl CompositorBackend for GnomeWaylandDriver {
 
     /// Disables and removes the GNOME Shell extension using dual-mode execution.
     fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
-        let (delete_files, restart) = if !args.headless && std::io::stdout().is_terminal() {
+        let is_wayland = is_wayland_session();
+
+        let (delete_files, should_restart) = if !args.headless && std::io::stdout().is_terminal() {
             println!("\x1b[1;36m=== GNOME Shell Extension Uninstallation ===\x1b[0m\n");
 
             let delete_files = Confirm::new()
@@ -253,20 +486,35 @@ impl CompositorBackend for GnomeWaylandDriver {
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?;
 
-            let restart_choices = &[
-                "No - Keep session running",
-                "Yes - Log out now to refresh GNOME Shell state",
-            ];
-            let restart_choice = Select::new()
-                .with_prompt("Do you want to log out / restart your session now?")
-                .items(restart_choices)
-                .default(0)
-                .interact()
-                .map_err(|e| DriverError::Execution(Box::new(e)))?;
+            let restart_choice = if is_wayland {
+                let restart_choices = &[
+                    "No - Keep session running [Default]",
+                    "Yes - Log out now to refresh GNOME Shell state (Destructive: closes apps)",
+                ];
+                let choice = Select::new()
+                    .with_prompt("Do you want to log out of your session now? (Destructive on Wayland)")
+                    .items(restart_choices)
+                    .default(0)
+                    .interact()
+                    .map_err(|e| DriverError::Execution(Box::new(e)))?;
+                choice == 1
+            } else {
+                let restart_choices = &[
+                    "Yes - Reload GNOME Shell in-place now (Non-destructive: apps stay open) [Default]",
+                    "No - Keep session running",
+                ];
+                let choice = Select::new()
+                    .with_prompt("Do you want to reload GNOME Shell now? (Non-destructive on X11)")
+                    .items(restart_choices)
+                    .default(0)
+                    .interact()
+                    .map_err(|e| DriverError::Execution(Box::new(e)))?;
+                choice == 0
+            };
 
-            (delete_files, restart_choice == 1)
+            (delete_files, restart_choice)
         } else {
-            (args.gnome.gnome_delete_files, args.gnome.gnome_restart)
+            (args.gnome.gnome_delete_files, args.gnome.should_restart(is_wayland))
         };
 
         let ext_dir = Self::extension_dir()?;
@@ -287,13 +535,21 @@ impl CompositorBackend for GnomeWaylandDriver {
 
         println!("Spawn-At extension successfully uninstalled.");
 
-        if restart {
-            println!("Logging out to complete uninstallation...");
-            let _ = Command::new("gnome-session-quit")
-                .args(["--logout", "--no-prompt"])
-                .spawn();
+        if should_restart {
+            if is_wayland {
+                println!("Logging out to complete uninstallation...");
+                let _ = Command::new("gnome-session-quit")
+                    .args(["--logout", "--no-prompt"])
+                    .spawn();
+            } else {
+                restart_gnome_shell_x11();
+            }
         } else {
-            println!("Session restart skipped.");
+            if is_wayland {
+                println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
+            } else {
+                println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
+            }
         }
 
         Ok(())
@@ -437,5 +693,111 @@ impl CompositorBackend for GnomeWaylandDriver {
 
     async fn run_daemon(&self) -> Result<(), DriverError> {
         dbus::run_daemon(&self.proxy).await
+    }
+}
+
+// ============================================================================
+// 7. Unit Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use clap::Parser;
+    use crate::cli::Cli;
+
+    #[test]
+    fn test_is_wayland_session() {
+        // Verify is_wayland_session executes without panicking
+        let _ = is_wayland_session();
+    }
+
+    #[test]
+    fn test_gnome_install_args_defaults() {
+        // Headless default run:
+        // On X11: reload is enabled by default (true)
+        // On Wayland: logout is disabled by default (false)
+        let parsed = Cli::try_parse_from(["spawn-at", "install", "--scope", "user", "--headless"]).unwrap();
+        if let crate::cli::Commands::Install(args) = parsed.command {
+            assert!(args.gnome.gnome_auto_enable);
+            assert!(args.gnome.gnome_x11_reload);
+            assert!(!args.gnome.gnome_wayland_logout);
+            assert!(!args.gnome.no_action);
+
+            assert!(args.gnome.should_restart(false)); // X11 defaults to reload (true)
+            assert!(!args.gnome.should_restart(true)); // Wayland defaults to safe skip (false)
+        } else {
+            panic!("Expected Install command");
+        }
+    }
+
+    #[test]
+    fn test_gnome_install_args_no_action_precedence() {
+        // Passing --no-action should override both X11 and Wayland to false
+        let parsed = Cli::try_parse_from([
+            "spawn-at", "install", "--scope", "user", "--headless",
+            "--gnome-x11-reload=true", "--gnome-wayland-logout=true", "--no-action"
+        ]).unwrap();
+        if let crate::cli::Commands::Install(args) = parsed.command {
+            assert!(args.gnome.no_action);
+            assert!(!args.gnome.should_restart(false));
+            assert!(!args.gnome.should_restart(true));
+        } else {
+            panic!("Expected Install command");
+        }
+    }
+
+    #[test]
+    fn test_gnome_install_args_flag_toggles() {
+        // Explicitly disable X11 reload
+        let parsed = Cli::try_parse_from([
+            "spawn-at", "install", "--scope", "user", "--headless", "--gnome-x11-reload=false"
+        ]).unwrap();
+        if let crate::cli::Commands::Install(args) = parsed.command {
+            assert!(!args.gnome.gnome_x11_reload);
+            assert!(!args.gnome.should_restart(false));
+        } else {
+            panic!("Expected Install command");
+        }
+
+        // Explicitly enable Wayland logout
+        let parsed = Cli::try_parse_from([
+            "spawn-at", "install", "--scope", "user", "--headless", "--gnome-wayland-logout=true"
+        ]).unwrap();
+        if let crate::cli::Commands::Install(args) = parsed.command {
+            assert!(args.gnome.gnome_wayland_logout);
+            assert!(args.gnome.should_restart(true));
+        } else {
+            panic!("Expected Install command");
+        }
+    }
+
+    #[test]
+    fn test_gnome_uninstall_args_defaults_and_overrides() {
+        // Defaults:
+        let parsed = Cli::try_parse_from(["spawn-at", "uninstall", "--scope", "user", "--headless"]).unwrap();
+        if let crate::cli::Commands::Uninstall(args) = parsed.command {
+            assert!(args.gnome.gnome_delete_files);
+            assert!(args.gnome.gnome_x11_reload);
+            assert!(!args.gnome.gnome_wayland_logout);
+            assert!(!args.gnome.no_action);
+
+            assert!(args.gnome.should_restart(false));
+            assert!(!args.gnome.should_restart(true));
+        } else {
+            panic!("Expected Uninstall command");
+        }
+
+        // --no-action override:
+        let parsed = Cli::try_parse_from([
+            "spawn-at", "uninstall", "--scope", "user", "--headless", "--no-action"
+        ]).unwrap();
+        if let crate::cli::Commands::Uninstall(args) = parsed.command {
+            assert!(args.gnome.no_action);
+            assert!(!args.gnome.should_restart(false));
+            assert!(!args.gnome.should_restart(true));
+        } else {
+            panic!("Expected Uninstall command");
+        }
     }
 }
