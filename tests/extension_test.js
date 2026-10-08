@@ -172,3 +172,84 @@ test('extension characterization: normalizeInstruction variants', () => {
     assert.equal(normalizeInstruction(42), null);
     assert.equal(normalizeInstruction({}), null);
 });
+
+import { validateInstructions, validateInstruction } from '../assets/gnome/validator.js';
+
+test('validator: valid full golden instruction pipeline', () => {
+    const raw = [
+        'Cloak',
+        { SetSize: { w: 800, h: 600 } },
+        { WaitForCommit: { timeout_ms: 300 } },
+        {
+            SetPositionAnchored: {
+                screen_anchor_x: 1895,
+                screen_anchor_y: 60,
+                pivot_u: 1.0,
+                pivot_v: 0.0,
+                offset_x: 10,
+                offset_y: -5,
+                area: 'workarea',
+                margin_top: 20,
+                margin_bottom: 0,
+                margin_left: 0,
+                margin_right: 25,
+                clamp: true,
+            },
+        },
+        'Uncloak',
+    ];
+
+    const validated = validateInstructions(raw);
+    assert.equal(validated.length, 5);
+    assert.equal(validated[0].name, 'Cloak');
+    assert.equal(validated[1].name, 'SetSize');
+    assert.equal(validated[1].args.w, 800);
+    assert.equal(validated[1].args.h, 600);
+    assert.equal(validated[2].name, 'WaitForCommit');
+    assert.equal(validated[2].args.timeout_ms, 300);
+    assert.equal(validated[3].name, 'SetPositionAnchored');
+    assert.equal(validated[3].args.screen_anchor_x, 1895);
+    assert.equal(validated[3].args.clamp, true);
+    assert.equal(validated[4].name, 'Uncloak');
+});
+
+test('validator: JSON string input support', () => {
+    const jsonStr = JSON.stringify(['Snapshot', 'Cloak', 'Uncloak', 'DestroySnapshot']);
+    const validated = validateInstructions(jsonStr);
+    assert.equal(validated.length, 4);
+});
+
+test('validator: rejects malformed and adversarial inputs', () => {
+    // Non-array
+    assert.throws(() => validateInstructions(null), /must be an Array/);
+    assert.throws(() => validateInstructions({}), /must be an Array/);
+    assert.throws(() => validateInstructions(''), /Unexpected end of JSON input|must be an Array/);
+    assert.throws(() => validateInstructions([]), /cannot be empty/);
+
+    // Unknown operation
+    assert.throws(() => validateInstructions(['UnknownOp']), /Unknown instruction name/);
+    assert.throws(() => validateInstructions([{ MaliciousOp: {} }]), /Unknown instruction name/);
+
+    // Missing arguments on parameterized ops
+    assert.throws(() => validateInstructions(['SetSize']), /requires an arguments object/);
+    assert.throws(() => validateInstructions(['WaitForCommit']), /requires an arguments object/);
+    assert.throws(() => validateInstructions(['SetPositionAnchored']), /requires an arguments object/);
+
+    // Invalid dimensions
+    assert.throws(() => validateInstructions([{ SetSize: { w: -10, h: 500 } }]), /invalid dimensions/);
+    assert.throws(() => validateInstructions([{ SetSize: { w: NaN, h: 500 } }]), /invalid dimensions/);
+    assert.throws(() => validateInstructions([{ SetSize: { w: Infinity, h: 500 } }]), /invalid dimensions/);
+
+    // Invalid timeouts
+    assert.throws(() => validateInstructions([{ WaitForCommit: { timeout_ms: -5 } }]), /invalid timeout_ms/);
+    assert.throws(() => validateInstructions([{ WaitForCommit: { timeout_ms: 100_000 } }]), /invalid timeout_ms/);
+
+    // Invalid areas
+    assert.throws(() => validateInstructions([{
+        SetPositionAnchored: {
+            screen_anchor_x: 0, screen_anchor_y: 0,
+            pivot_u: 0, pivot_v: 0,
+            area: 'invalid_area',
+        },
+    }]), /unknown area/);
+});
