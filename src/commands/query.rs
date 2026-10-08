@@ -212,4 +212,85 @@ mod tests {
             .await
             .is_ok());
     }
+
+    #[test]
+    fn test_characterization_query_layout_json_schema() {
+        let workareas = vec![
+            Rect { x: 0, y: 32, width: 1920, height: 1048 },
+            Rect { x: 1920, y: 0, width: 2560, height: 1440 },
+        ];
+        let json_str = serde_json::to_string(&workareas).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+
+        // Check exact schema keys
+        assert_eq!(arr[0]["x"], 0);
+        assert_eq!(arr[0]["y"], 32);
+        assert_eq!(arr[0]["width"], 1920);
+        assert_eq!(arr[0]["height"], 1048);
+
+        assert_eq!(arr[1]["x"], 1920);
+        assert_eq!(arr[1]["y"], 0);
+        assert_eq!(arr[1]["width"], 2560);
+        assert_eq!(arr[1]["height"], 1440);
+    }
+
+    #[test]
+    fn test_characterization_query_windows_json_schema() {
+        let windows = vec![
+            WindowMetadata {
+                id: Some(101),
+                pid: Some(202),
+                title: "Terminal".to_string(),
+                class: "org.gnome.Terminal".to_string(),
+                x: 10,
+                y: 20,
+                w: 800,
+                h: 600,
+                focused: true,
+                maximized: false,
+                minimized: false,
+            },
+            WindowMetadata {
+                id: None,
+                pid: None,
+                title: "Overlay".to_string(),
+                class: "overlay".to_string(),
+                x: 0,
+                y: 0,
+                w: 1920,
+                h: 1080,
+                focused: false,
+                maximized: true,
+                minimized: false,
+            },
+        ];
+        let json_str = serde_json::to_string(&windows).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json_str).unwrap();
+
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 2);
+
+        // Check exact schema keys and nullable fields
+        assert_eq!(arr[0]["id"], 101);
+        assert_eq!(arr[0]["pid"], 202);
+        assert_eq!(arr[0]["title"], "Terminal");
+        assert_eq!(arr[0]["class"], "org.gnome.Terminal");
+        assert_eq!(arr[0]["x"], 10);
+        assert_eq!(arr[0]["y"], 20);
+        assert_eq!(arr[0]["w"], 800);
+        assert_eq!(arr[0]["h"], 600);
+        assert_eq!(arr[0]["focused"], true);
+        assert_eq!(arr[0]["maximized"], false);
+        assert_eq!(arr[0]["minimized"], false);
+
+        assert!(arr[1]["id"].is_null());
+        assert!(arr[1]["pid"].is_null());
+        assert_eq!(arr[1]["maximized"], true);
+    }
 }
+
