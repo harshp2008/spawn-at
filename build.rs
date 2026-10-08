@@ -1,8 +1,10 @@
 use std::process::Command;
 
 fn main() {
-    println!("cargo:rerun-if-changed=.git/HEAD");
-    println!("cargo:rerun-if-changed=.git/refs");
+    if std::path::Path::new(".git").exists() {
+        println!("cargo:rerun-if-changed=.git/HEAD");
+        println!("cargo:rerun-if-changed=.git/refs");
+    }
 
     // Check if HEAD exactly matches a release git tag
     let exact_tag = Command::new("git")
