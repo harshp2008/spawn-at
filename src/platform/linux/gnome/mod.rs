@@ -276,8 +276,7 @@ impl GnomeWaylandDriver {
         let connection = zbus::Connection::session()
             .await
             .map_err(|e| DriverError::IpcError(format!("Failed to connect to D-Bus session bus: {}", e)))?;
-        let static_conn: &'static zbus::Connection = Box::leak(Box::new(connection));
-        let proxy = dbus::SpawnAtProxy::new(static_conn)
+        let proxy = dbus::SpawnAtProxy::new(&connection)
             .await
             .map_err(|e| DriverError::IpcError(format!("Failed to initialize SpawnAt D-Bus proxy: {}", e)))?;
 
