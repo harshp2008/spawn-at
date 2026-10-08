@@ -1565,8 +1565,9 @@ export default class SpawnAtExtension extends Extension {
         const rawY = this._num(payload.screen_anchor_y)
             - Math.round(this._num(payload.pivot_v) * effH) + this._num(payload.offset_y);
 
-        const x = Math.max(minX, Math.min(rawX, maxX));
-        const y = Math.max(minY, Math.min(rawY, maxY));
+        const clamp = payload.clamp !== false;
+        const x = clamp ? Math.max(minX, Math.min(rawX, maxX)) : rawX;
+        const y = clamp ? Math.max(minY, Math.min(rawY, maxY)) : rawY;
 
         return {
             x, y, rawX, rawY, effW, effH, minW, minH, oversized, bounds,

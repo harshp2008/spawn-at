@@ -179,15 +179,19 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
     };
 
     let raw_rect = Rect { x, y, width: w, height: h };
-    spawn_at_core::geometry::clamp_to_bounds(
-        raw_rect,
-        wa,
-        margin_top,
-        margin_bottom,
-        margin_left,
-        margin_right,
-        params.margin,
-    )
+    if params.clamp {
+        spawn_at_core::geometry::clamp_to_bounds(
+            raw_rect,
+            wa,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            params.margin,
+        )
+    } else {
+        raw_rect
+    }
 }
 
 // ============================================================================
@@ -1534,5 +1538,30 @@ mod tests {
                 assert_eq!(extension_y, single_margin_x11_y);
             }
         }
+    }
+
+    #[test]
+    fn test_x11_clamp_false_bypasses_bounds() {
+        let params = PlacementParams {
+            pos: Some((2500, -500)),
+            size: Some((400, 300)),
+            workarea: Rect { x: 0, y: 0, width: 1920, height: 1080 },
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params, 400, 300);
+        assert_eq!(rect.x, 2500);
+        assert_eq!(rect.y, -500);
+
+        let clamped_params = PlacementParams {
+            pos: Some((2500, -500)),
+            size: Some((400, 300)),
+            workarea: Rect { x: 0, y: 0, width: 1920, height: 1080 },
+            clamp: true,
+            ..Default::default()
+        };
+        let clamped_rect = calculate_rect_from_placement(&clamped_params, 400, 300);
+        assert_ne!(clamped_rect.x, 2500);
+        assert_ne!(clamped_rect.y, -500);
     }
 }

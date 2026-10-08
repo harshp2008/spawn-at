@@ -101,6 +101,30 @@ test('extension characterization: anchor math clamping out-of-bounds target', ()
     assert.equal(res.y, 20);              // 20 (clamped to minY)
 });
 
+test('extension: clamp false bypasses bounding constraints', () => {
+    const bounds = { x: 0, y: 0, width: 1920, height: 1080 };
+    const frame = { width: 400, height: 300 };
+    const payload = {
+        screen_anchor_x: 2500,
+        screen_anchor_y: -500,
+        pivot_u: 0,
+        pivot_v: 0,
+        offset_x: 0,
+        offset_y: 0,
+        margin_top: 20,
+        margin_bottom: 20,
+        margin_left: 20,
+        margin_right: 20,
+        clamp: false,
+    };
+
+    const res = computeAnchoredPosition(bounds, frame, [0, 0], payload);
+    assert.equal(res.rawX, 2500);
+    assert.equal(res.rawY, -500);
+    assert.equal(res.x, 2500); // not clamped
+    assert.equal(res.y, -500); // not clamped
+});
+
 test('extension characterization: oversized window top-left priority', () => {
     const bounds = { x: 100, y: 100, width: 500, height: 400 };
     const frame = { width: 600, height: 500 }; // larger than bounds

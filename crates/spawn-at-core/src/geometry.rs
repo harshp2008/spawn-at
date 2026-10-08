@@ -112,8 +112,12 @@ pub struct TargetGeometry {
     pub max_y: Option<i32>,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 /// Declarative parameters describing spatial positioning, alignment, and bounding box constraints.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlacementParams {
     pub pos: Option<(i32, i32)>,
     pub offset: Option<(i32, i32)>,
@@ -128,6 +132,29 @@ pub struct PlacementParams {
     pub area: Option<Area>,
     pub cursor_pos: Option<(i32, i32)>,
     pub workarea: Rect,
+    #[serde(default = "default_true")]
+    pub clamp: bool,
+}
+
+impl Default for PlacementParams {
+    fn default() -> Self {
+        Self {
+            pos: None,
+            offset: None,
+            anchor: None,
+            pivot: None,
+            size: None,
+            margin: 0,
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
+            area: None,
+            cursor_pos: None,
+            workarea: Rect::default(),
+            clamp: true,
+        }
+    }
 }
 
 /// Resolves the target workarea rectangle from a list of workareas, pointer coordinates,

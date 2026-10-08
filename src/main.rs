@@ -287,6 +287,7 @@ async fn main() {
                 area: Some(spawn_args.geometry.area),
                 cursor_pos: Some((cursor_x, cursor_y)),
                 workarea: target_workarea,
+                clamp: spawn_args.geometry.clamp,
             };
 
             for diag in check_geometry_diagnostics(&params) {

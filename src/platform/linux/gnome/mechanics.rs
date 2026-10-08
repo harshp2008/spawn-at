@@ -28,6 +28,12 @@ pub struct PlacementPayload {
     pub margin_left: i32,
     #[serde(default)]
     pub margin_right: i32,
+    #[serde(default = "default_true")]
+    pub clamp: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Low-level micro-instructions dispatched to the GNOME Shell extension.
@@ -154,6 +160,7 @@ pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: 
         margin_bottom,
         margin_left,
         margin_right,
+        clamp: params.clamp,
     }
 }
 
@@ -198,6 +205,7 @@ mod tests {
                     width: 1920,
                     height: 1040,
                 },
+                clamp: true,
                 ..Default::default()
             },
         };
@@ -227,6 +235,7 @@ mod tests {
             assert_eq!(payload.area.as_deref(), Some("workarea"));
             assert_eq!(payload.margin_top, 20);
             assert_eq!(payload.margin_right, 25);
+            assert!(payload.clamp);
         } else {
             panic!("Expected SetPositionAnchored at index 3");
         }
@@ -248,6 +257,7 @@ mod tests {
             margin_bottom: 16,
             margin_left: 16,
             margin_right: 16,
+            clamp: true,
         };
 
         let instructions = vec![

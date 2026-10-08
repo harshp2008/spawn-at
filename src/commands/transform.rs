@@ -81,6 +81,7 @@ pub async fn run_transform(
         area: Some(args.geometry.area),
         cursor_pos: Some((cursor_x, cursor_y)),
         workarea: target_workarea,
+        clamp: args.geometry.clamp,
     };
 
     // 5. Execute transform via backend
