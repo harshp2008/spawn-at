@@ -374,12 +374,9 @@ async fn main() {
                 }
             };
 
-            // If we are on X11, intercept the window natively
-            if driver.name() == "X11" {
-                eprintln!("[spawn-at-main] Detected X11 backend. Triggering native X11 post_spawn hook...");
-                if let Err(e) = driver.post_spawn(child.id(), &batch).await {
-                    eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m X11 window interception failed: {}", e);
-                }
+            // Polymorphic post-spawn interception hook
+            if let Err(e) = driver.post_spawn(child.id(), &batch).await {
+                eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m Window post-spawn hook failed: {}", e);
             }
 
             if !cli.no_wait {
