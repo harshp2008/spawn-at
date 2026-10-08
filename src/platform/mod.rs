@@ -46,6 +46,12 @@ pub struct InstallArgs {
     pub skip_bin: bool,
     #[arg(long)]
     pub headless: bool,
+    /// Update release channel: 'stable' (official) or 'all' (beta/pre-releases)
+    #[arg(long, value_parser = ["stable", "all"])]
+    pub update_channel: Option<String>,
+    /// Enable visual update notifications in interactive sessions
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    pub update_notify: Option<bool>,
     #[cfg(target_os = "linux")]
     #[command(flatten)]
     pub gnome: crate::platform::linux::gnome::GnomeInstallArgs,

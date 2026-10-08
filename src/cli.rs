@@ -9,7 +9,7 @@ use clap::{Args, Parser, Subcommand};
 #[derive(Parser, Debug)]
 #[command(
     name = "spawn-at",
-    version,
+    disable_version_flag = true,
     about = "Zero-flicker modular window manager & placement engine",
     long_about = "A high-performance Linux window positioning engine supporting mathematically \
                   perfect, zero-flicker cold-starts and dynamic transformations under GNOME Wayland."
@@ -29,6 +29,8 @@ pub enum Commands {
     Install(InstallArgs),
     /// Uninstall the GNOME Shell extension and binary from $PATH
     Uninstall(UninstallArgs),
+    /// Check for or install available updates
+    Update(crate::update::UpdateArgs),
     /// Spawn an application at a specific target screen geometry
     Spawn(SpawnArgs),
     /// Transform, reposition, or resize an existing window

@@ -21,6 +21,7 @@ pub mod config;
 pub mod core;
 pub mod platform;
 pub mod target;
+pub mod update;
 
 use clap::Parser;
 use cli::{Cli, Commands};
@@ -35,7 +36,32 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
+    let raw_args: Vec<String> = std::env::args().collect();
+    if raw_args.iter().any(|a| a == "-V" || a == "--version") {
+        println!("{}", crate::update::get_version_display());
+        return;
+    }
+
     let cli = Cli::parse();
+
+    if let Commands::Update(update_args) = cli.command {
+        if let Err(e) = crate::update::run_update(update_args) {
+            eprintln!("\x1b[1;31mUpdate Error\x1b[0m: {}", e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
+    let suppress_update_notice = matches!(cli.command, Commands::Update(_))
+        || match &cli.command {
+            Commands::Query { cmd } => match cmd {
+                crate::cli::QueryCommands::Layout { json } => *json,
+                crate::cli::QueryCommands::Windows { json } => *json,
+                crate::cli::QueryCommands::Pointer => false,
+            },
+            _ => false,
+        };
+
     let driver = match init_backend().await {
         Ok(d) => d,
         Err(e) => {
@@ -112,6 +138,56 @@ async fn main() {
                 );
                 std::process::exit(1);
             }
+
+            // Configure update settings
+            let (channel, notify) = if !args.headless && std::io::stdout().is_terminal() {
+                let ch = if let Some(ref c) = args.update_channel {
+                    c.clone()
+                } else {
+                    println!("\x1b[1;36m=== Update Preferences ===\x1b[0m\n");
+                    let channel_options = &[
+                        "Official releases only (stable) [Recommended]",
+                        "Include beta/pre-releases (all)",
+                    ];
+                    let ch_sel = dialoguer::Select::new()
+                        .with_prompt("Select update channel:")
+                        .items(channel_options)
+                        .default(0)
+                        .interact();
+                    match ch_sel {
+                        Ok(1) => "all".to_string(),
+                        _ => "stable".to_string(),
+                    }
+                };
+
+                let notif = if let Some(n) = args.update_notify {
+                    n
+                } else {
+                    let n_sel = dialoguer::Confirm::new()
+                        .with_prompt("Enable visual update notifications in terminal when a newer version is available?")
+                        .default(true)
+                        .interact();
+                    n_sel.unwrap_or(true)
+                };
+                (ch, notif)
+            } else {
+                (
+                    args.update_channel.unwrap_or_else(|| "stable".to_string()),
+                    args.update_notify.unwrap_or(false),
+                )
+            };
+
+            let mut cfg = crate::config::Config::load_or_default();
+            cfg.update.auto_check = true;
+            cfg.update.channel = channel;
+            cfg.update.notify = notify;
+            if let Err(e) = cfg.save() {
+                eprintln!("\x1b[1;33mWarning\x1b[0m: Failed to save update configuration: {}", e);
+            }
+
+            if let Err(e) = crate::config::install_login_autostart_entry() {
+                eprintln!("\x1b[1;33mWarning\x1b[0m: Failed to set up login update check: {}", e);
+            }
         }
         Commands::Uninstall(mut args) => {
             if !args.headless && std::io::stdout().is_terminal() {
@@ -161,6 +237,8 @@ async fn main() {
                 );
                 std::process::exit(1);
             }
+
+            crate::config::uninstall_login_autostart_entry();
         }
         Commands::Spawn(spawn_args) => {
             if spawn_args.command.is_empty() {
@@ -372,5 +450,10 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Commands::Update(_) => unreachable!(),
+    }
+
+    if !suppress_update_notice {
+        crate::update::render_update_notice_if_available();
     }
 }
