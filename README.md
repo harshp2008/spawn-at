@@ -119,13 +119,16 @@ Three details do most of the work:
 The geometry model (10 anchors, 5 pivots, margins, workarea clamping) is shared. A driver only has to answer: where are the screens, where is the cursor, and how do I place and reveal a window.
 
 ```mermaid
-flowchart TD
-    CLI["spawn-at CLI<br/>one command, one placement model"] --> Core["spawn-at-core<br/>anchors, pivots, margins, clamping"]
-    Core --> Backend["CompositorBackend trait"]
-    Backend --> GNOME["GNOME Shell driver<br/>Wayland + X11, with cloaking"]
-    Backend --> X11["Native X11 driver<br/>other X11 desktops, no cloaking, experimental"]
-    Backend -.-> Planned["Hyprland, Sway, KDE, macOS, Windows<br/>planned, not started"]
-    style Planned stroke-dasharray: 5 5
+sequenceDiagram
+    participant CLI as spawn-at
+    participant Ext as GNOME extension
+    participant App as your app
+    CLI->>Ext: 1. Here's where the next window goes
+    CLI->>App: 2. Launch it
+    App->>Ext: 3. Window created
+    Note over Ext: 4. Hide it (opacity 0)
+    Note over Ext,App: 5. Resize, wait for the app to finish drawing, position
+    Ext->>App: 6. Reveal
 ```
 
 Wayland is the worst case: no client-side placement, no global window API, and the compositor has to do everything. If one command can place a window with no flash there, the same model should carry to the easier platforms.
