@@ -46,6 +46,7 @@ import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import { validateInstructions } from './validator.js';
 
 // ===========================================================================
 // D-BUS INTERFACE
@@ -202,18 +203,10 @@ export default class SpawnAtExtension extends Extension {
         });
         global.stage.add_child(this._dummy);
 
-        this._cloakSafetyId = this._tryConnect(global.stage, 'after-update', () => {
-            if (this._cloakedActors.size === 0)
-                return;
-            for (const actor of [...this._cloakedActors]) {
-                if (actor.is_destroyed?.())
-                    continue;
-                if (actor.opacity !== 0) {
-                    actor.remove_all_transitions?.();
-                    actor.opacity = 0;
-                }
-            }
-        });
+        this._activeCommits = new Set();
+        this._cloakWatchdogs = new Map();
+        this._vtePidCache = new Map();
+        this._cloakSafetyId = 0;
 
         // FIFO mutex queue state
         this._batchQueue = [];
@@ -258,6 +251,23 @@ export default class SpawnAtExtension extends Extension {
         this._disabled = true;
         this._batchQueue = [];
         this._batchBusy = false;
+
+        // Cancel all active commit promises before removing timers (FINDING-01)
+        if (this._activeCommits) {
+            for (const finish of [...this._activeCommits])
+                finish('EXTENSION_DISABLED');
+            this._activeCommits.clear();
+        }
+
+        // Cancel all cloak watchdog timers (Safety Addition 11)
+        if (this._cloakWatchdogs) {
+            for (const timerId of this._cloakWatchdogs.values())
+                GLib.Source.remove(timerId);
+            this._cloakWatchdogs.clear();
+        }
+
+        if (this._vtePidCache)
+            this._vtePidCache.clear();
 
         // Release every reactive anchor (disconnects per-window signals)
         for (const window of [...this._anchors.keys()])
@@ -325,7 +335,7 @@ export default class SpawnAtExtension extends Extension {
 
         try {
             const stateDir = GLib.build_filenamev([GLib.get_user_state_dir(), 'spawn-at']);
-            GLib.mkdir_with_parents(stateDir, 0o755);
+            GLib.mkdir_with_parents(stateDir, 0o700);
 
             this._sessionLogPath = GLib.build_filenamev([stateDir, 'session.log']);
             const oldLogPath = GLib.build_filenamev([stateDir, 'session.log.old']);
@@ -384,6 +394,18 @@ export default class SpawnAtExtension extends Extension {
         this._logWriting = true;
         const chunk = this._pendingLogLines.splice(0).join('\n') + '\n';
         const bytes = new GLib.Bytes(new TextEncoder().encode(chunk));
+
+        try {
+            // Log rotation: 5 MB threshold (FINDING-15)
+            if (this._sessionLogFile.query_exists(null)) {
+                const info = this._sessionLogFile.query_info('standard::size', Gio.FileQueryInfoFlags.NONE, null);
+                if (info && info.get_size() >= 5 * 1024 * 1024) {
+                    const oldLogPath = GLib.build_filenamev([GLib.get_user_state_dir(), 'spawn-at', 'session.log.old']);
+                    const oldFile = Gio.File.new_for_path(oldLogPath);
+                    this._sessionLogFile.move(oldFile, Gio.FileCopyFlags.OVERWRITE, null, null);
+                }
+            }
+        } catch (_e) {}
 
         try {
             this._sessionLogFile.append_to_async(
@@ -651,6 +673,11 @@ export default class SpawnAtExtension extends Extension {
             return false;
 
         const pid = this._try(() => window.get_pid?.(), -1);
+        if (pid > 0 && this._vtePidCache?.has(pid))
+            return this._vtePidCache.get(pid);
+
+        let isVte = false;
+
         if (pid > 0) {
             // Check /proc/<pid>/maps
             try {
@@ -658,32 +685,46 @@ export default class SpawnAtExtension extends Extension {
                 if (ok) {
                     const text = new TextDecoder().decode(contents);
                     if (text.includes('libvte'))
-                        return true;
+                        isVte = true;
                 }
             } catch (_e) {}
 
-            // Check /proc/<pid>/comm
-            try {
-                const [ok, commBytes] = GLib.file_get_contents(`/proc/${pid}/comm`);
-                if (ok) {
-                    const comm = new TextDecoder().decode(commBytes).trim().toLowerCase();
-                    if (comm.includes('gnome-terminal') || comm === 'terminator' ||
-                        comm === 'tilix' || comm === 'guake') {
-                        return true;
+            if (!isVte) {
+                // Check /proc/<pid>/comm
+                try {
+                    const [ok, commBytes] = GLib.file_get_contents(`/proc/${pid}/comm`);
+                    if (ok) {
+                        const comm = new TextDecoder().decode(commBytes).trim().toLowerCase();
+                        if (comm.includes('gnome-terminal') || comm === 'terminator' ||
+                            comm === 'tilix' || comm === 'guake') {
+                            isVte = true;
+                        }
                     }
+                } catch (_e) {}
+            }
+        }
+
+        if (!isVte) {
+            // Check window identifiers
+            const ids = this._getIdentifiers(window).map(id => id.toLowerCase());
+            const vteKeywords = ['gnome-terminal', 'terminator', 'tilix', 'guake', 'xfce4-terminal', 'vte'];
+            for (const id of ids) {
+                if (vteKeywords.some(kw => id.includes(kw))) {
+                    isVte = true;
+                    break;
                 }
-            } catch (_e) {}
+            }
         }
 
-        // Check window identifiers
-        const ids = this._getIdentifiers(window).map(id => id.toLowerCase());
-        const vteKeywords = ['gnome-terminal', 'terminator', 'tilix', 'guake', 'xfce4-terminal', 'vte'];
-        for (const id of ids) {
-            if (vteKeywords.some(kw => id.includes(kw)))
-                return true;
+        if (pid > 0) {
+            if (!this._vtePidCache)
+                this._vtePidCache = new Map();
+            if (this._vtePidCache.size >= 128)
+                this._vtePidCache.clear();
+            this._vtePidCache.set(pid, isVte);
         }
 
-        return false;
+        return isVte;
     }
 
     // =======================================================================
@@ -991,8 +1032,7 @@ export default class SpawnAtExtension extends Extension {
                 }
             }
         } finally {
-            const wantsHidden = ops.some(op => op.name === 'Cloak');
-            if (!ctx.revealed && !wantsHidden)
+            if (!ctx.revealed)
                 this._uncloak(actor);
         }
     }
@@ -1182,6 +1222,18 @@ export default class SpawnAtExtension extends Extension {
 
         // Register FIRST so any notify::opacity emission mid-setup is caught.
         this._cloakedActors.add(actor);
+        this._ensureStageAfterUpdate();
+
+        // Hard deadline watchdog (Safety Addition 11): unconditionally uncloak after 6s
+        if (!this._cloakWatchdogs)
+            this._cloakWatchdogs = new Map();
+        if (!this._cloakWatchdogs.has(actor)) {
+            const timerId = this._addTimer(6000, () => {
+                console.warn('[spawn-at] Watchdog deadline reached for cloaked actor; uncloaking unconditionally.');
+                this._uncloak(actor);
+            });
+            this._cloakWatchdogs.set(actor, timerId);
+        }
 
         this._try(() => {
             actor.remove_all_transitions?.();
@@ -1209,6 +1261,12 @@ export default class SpawnAtExtension extends Extension {
         if (!actor)
             return;
         this._cloakedActors.delete(actor);
+        if (this._cloakWatchdogs?.has(actor)) {
+            this._removeTimer(this._cloakWatchdogs.get(actor));
+            this._cloakWatchdogs.delete(actor);
+        }
+        this._maybeDisconnectStageAfterUpdate();
+
         this._try(() => {
             if (actor._spawnAtOpacityId) {
                 this._safeDisconnect(actor, actor._spawnAtOpacityId);
@@ -1223,6 +1281,34 @@ export default class SpawnAtExtension extends Extension {
             if (!actor.visible)
                 actor.show();
         });
+    }
+
+    _ensureStageAfterUpdate() {
+        if (this._cloakSafetyId || this._cloakedActors.size === 0)
+            return;
+        this._cloakSafetyId = this._tryConnect(global.stage, 'after-update', () => {
+            if (this._cloakedActors.size === 0) {
+                this._maybeDisconnectStageAfterUpdate();
+                return;
+            }
+            for (const actor of [...this._cloakedActors]) {
+                if (actor.is_destroyed?.() || !actor.get_stage?.()) {
+                    this._uncloak(actor);
+                    continue;
+                }
+                if (actor.opacity !== 0) {
+                    actor.remove_all_transitions?.();
+                    actor.opacity = 0;
+                }
+            }
+        });
+    }
+
+    _maybeDisconnectStageAfterUpdate() {
+        if (this._cloakedActors.size === 0 && this._cloakSafetyId) {
+            this._safeDisconnect(global.stage, this._cloakSafetyId);
+            this._cloakSafetyId = 0;
+        }
     }
 
     _createSnapshot(actor) {
@@ -1272,6 +1358,8 @@ export default class SpawnAtExtension extends Extension {
                 if (finished)
                     return;
                 finished = true;
+                if (this._activeCommits)
+                    this._activeCommits.delete(finish);
                 this._removeTimer(quietTimer);
                 this._removeTimer(idleTimer);
                 this._removeTimer(capTimer);
@@ -1755,9 +1843,9 @@ export default class SpawnAtExtension extends Extension {
 
         let instructions;
         try {
-            instructions = JSON.parse(instructions_json);
+            instructions = validateInstructions(instructions_json);
         } catch (e) {
-            console.error(`[SpawnAt] Invalid JSON instructions: ${e}`);
+            console.error(`[SpawnAt] Invalid instructions: ${e.message}`);
             return;
         }
 
@@ -1774,7 +1862,12 @@ export default class SpawnAtExtension extends Extension {
 
         if (!this._armedSpawns.has(target_id))
             this._armedSpawns.set(target_id, []);
-        this._armedSpawns.get(target_id).push(instructions);
+        const queue = this._armedSpawns.get(target_id);
+        if (queue.length >= 16) {
+            console.warn(`[SpawnAt] Queue limit (16) reached for target "${target_id}", dropping oldest`);
+            queue.shift();
+        }
+        queue.push(instructions);
 
         this._addTimer(ARM_EXPIRY_MS, () => {
             const queue = this._armedSpawns.get(target_id);
@@ -1792,9 +1885,9 @@ export default class SpawnAtExtension extends Extension {
     ExecuteBatch(target_id, instructions_json) {
         let instructions;
         try {
-            instructions = JSON.parse(instructions_json);
+            instructions = validateInstructions(instructions_json);
         } catch (e) {
-            console.error(`[SpawnAt] Invalid JSON instructions: ${e}`);
+            console.error(`[SpawnAt] Invalid instructions: ${e.message}`);
             return;
         }
 

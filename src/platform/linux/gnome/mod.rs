@@ -143,6 +143,8 @@ impl GnomeUninstallArgs {
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 /// Bundled JavaScript implementation of the GNOME Shell extension.
 const EXTENSION_JS: &str = include_str!("../../../../assets/gnome/extension.esm.js");
+/// Bundled validator module for the GNOME Shell extension.
+const VALIDATOR_JS: &str = include_str!("../../../../assets/gnome/validator.js");
 /// Bundled metadata manifest for the GNOME Shell extension.
 const METADATA_JSON: &str = include_str!("../../../../assets/gnome/metadata.json");
 
@@ -419,10 +421,15 @@ impl CompositorBackend for GnomeWaylandDriver {
         })?;
 
         let js_path = ext_dir.join("extension.js");
+        let validator_path = ext_dir.join("validator.js");
         let meta_path = ext_dir.join("metadata.json");
 
         fs::write(&js_path, EXTENSION_JS).map_err(|e| {
             DriverError::Execution(format!("Failed to write extension.js: {}", e).into())
+        })?;
+
+        fs::write(&validator_path, VALIDATOR_JS).map_err(|e| {
+            DriverError::Execution(format!("Failed to write validator.js: {}", e).into())
         })?;
 
         fs::write(&meta_path, METADATA_JSON).map_err(|e| {
