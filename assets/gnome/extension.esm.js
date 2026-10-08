@@ -1818,7 +1818,7 @@ export default class SpawnAtExtension extends Extension {
     }
 
     GetWorkareas() {
-        const workspace = global.workspace_manager.get_active_workspace();
+        const workspace = global.display.get_workspace_manager().get_active_workspace();
         const count = global.display.get_n_monitors();
         const areas = [];
         for (let i = 0; i < count; i++) {
