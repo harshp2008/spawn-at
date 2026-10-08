@@ -9,7 +9,6 @@ use dialoguer::Select;
 use serde::Deserialize;
 use std::fs;
 use std::io::IsTerminal;
-use std::path::PathBuf;
 use std::process::Command;
 
 /// Command-line arguments for the `spawn-at update` subcommand.
@@ -87,6 +86,26 @@ pub fn parse_version_tuple(v: &str) -> (u32, u32, u32, bool) {
     (major, minor, patch, is_prerelease)
 }
 
+/// Compares two semver pre-release identifier strings according to SemVer 2.0.0.
+fn compare_prerelease(a: &str, b: &str) -> std::cmp::Ordering {
+    let a_parts: Vec<&str> = a.split('.').collect();
+    let b_parts: Vec<&str> = b.split('.').collect();
+    for (pa, pb) in a_parts.iter().zip(b_parts.iter()) {
+        let na = pa.parse::<u64>();
+        let nb = pb.parse::<u64>();
+        let ord = match (na, nb) {
+            (Ok(num_a), Ok(num_b)) => num_a.cmp(&num_b),
+            (Ok(_), Err(_)) => std::cmp::Ordering::Less,
+            (Err(_), Ok(_)) => std::cmp::Ordering::Greater,
+            (Err(_), Err(_)) => pa.cmp(pb),
+        };
+        if ord != std::cmp::Ordering::Equal {
+            return ord;
+        }
+    }
+    a_parts.len().cmp(&b_parts.len())
+}
+
 /// Determines whether `latest` represents a strictly newer version than `current`.
 pub fn is_newer_version(latest: &str, current: &str) -> bool {
     let latest_trim = latest.trim();
@@ -95,19 +114,26 @@ pub fn is_newer_version(latest: &str, current: &str) -> bool {
         return false;
     }
 
-    let (l_maj, l_min, l_pat, l_pre) = parse_version_tuple(latest_trim);
-    let (c_maj, c_min, c_pat, c_pre) = parse_version_tuple(current_trim);
+    let (l_maj, l_min, l_pat, _) = parse_version_tuple(latest_trim);
+    let (c_maj, c_min, c_pat, _) = parse_version_tuple(current_trim);
 
     if (l_maj, l_min, l_pat) > (c_maj, c_min, c_pat) {
         return true;
     }
-    if (l_maj, l_min, l_pat) == (c_maj, c_min, c_pat) {
-        // A non-prerelease is newer than a prerelease of the same version
-        if c_pre && !l_pre {
-            return true;
-        }
+    if (l_maj, l_min, l_pat) < (c_maj, c_min, c_pat) {
+        return false;
     }
-    false
+
+    // Major, minor, and patch are identical. Compare prerelease tags.
+    let l_suffix = latest_trim.trim_start_matches('v').split_once('-').map(|x| x.1);
+    let c_suffix = current_trim.trim_start_matches('v').split_once('-').map(|x| x.1);
+
+    match (l_suffix, c_suffix) {
+        (None, Some(_)) => true,  // Stable is newer than prerelease of same version
+        (Some(_), None) => false, // Prerelease is older than stable of same version
+        (Some(l_sub), Some(c_sub)) => compare_prerelease(l_sub, c_sub) == std::cmp::Ordering::Greater,
+        (None, None) => false,
+    }
 }
 
 /// Queries the GitHub API for releases of `harshp2008/spawn-at`.
@@ -227,15 +253,26 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         .find(|a| a.name == asset_name)
         .ok_or_else(|| format!("Release {} is missing pre-built binary asset '{}'", release.tag_name, asset_name))?;
 
-    let tmp_dir = PathBuf::from(format!("/tmp/spawn-at-update-{}", release.tag_name));
+    // Secure temporary directory with 0700 permissions (FINDING-03)
+    let tmp_dir = std::env::temp_dir().join(format!("spawn-at-update-{}-{}", release.tag_name, std::process::id()));
     let _ = fs::remove_dir_all(&tmp_dir);
     fs::create_dir_all(&tmp_dir).map_err(|e| format!("Failed to create tmp dir: {}", e))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let _ = fs::set_permissions(&tmp_dir, fs::Permissions::from_mode(0o700));
+    }
 
     let tar_path = tmp_dir.join(asset_name);
 
     println!("\x1b[1;36mDownloading {}\x1b[0m", release.tag_name);
     let curl_status = Command::new("curl")
-        .args(["-#", "-L", "-o", tar_path.to_str().unwrap(), &asset.browser_download_url])
+        .arg("-#")
+        .arg("-L")
+        .arg("-o")
+        .arg(&tar_path)
+        .arg(&asset.browser_download_url)
         .status()
         .map_err(|e| format!("Download failed: {}", e))?;
 
@@ -245,7 +282,11 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
 
     println!("\x1b[1;36mExtracting package...\x1b[0m");
     let tar_status = Command::new("tar")
-        .args(["-xzf", tar_path.to_str().unwrap(), "-C", tmp_dir.to_str().unwrap()])
+        .arg("-xzf")
+        .arg(&tar_path)
+        .arg("--no-same-owner")
+        .arg("-C")
+        .arg(&tmp_dir)
         .status()
         .map_err(|e| format!("Failed to extract package: {}", e))?;
 
@@ -256,6 +297,25 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     let new_binary = tmp_dir.join("spawn-at");
     if !new_binary.exists() {
         return Err("Extracted archive did not contain 'spawn-at' executable".to_string());
+    }
+
+    // Safety: Verify that the extracted binary is a regular file within tmp_dir
+    let meta = fs::symlink_metadata(&new_binary)
+        .map_err(|e| format!("Failed to inspect extracted binary: {}", e))?;
+    if !meta.file_type().is_file() {
+        return Err("Extracted 'spawn-at' is not a regular file".to_string());
+    }
+
+    // Deploy extensions from the new binary itself (FINDING-18)
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
+    if desktop.contains("GNOME") {
+        println!("Deploying GNOME Shell extension via newly unpacked binary...");
+        let ext_status = Command::new(&new_binary)
+            .args(["install", "--skip-bin", "--headless"])
+            .status();
+        if let Err(e) = ext_status {
+            eprintln!("Warning: Failed to install GNOME extension from new binary: {}", e);
+        }
     }
 
     // Identify target installation path
@@ -279,19 +339,9 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         let _ = fs::set_permissions(&current_exe, fs::Permissions::from_mode(0o755));
     }
 
-    // Re-deploy GNOME Shell extension if GNOME is the current desktop
+    // Check session type for reload prompt
     let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
     if desktop.contains("GNOME") {
-        if let Ok(home) = std::env::var("HOME") {
-            let ext_dir = PathBuf::from(home).join(".local/share/gnome-shell/extensions/spawn-at@harsh.local");
-            if ext_dir.exists() {
-                println!("Re-deploying GNOME Shell extension files...");
-                let ext_js = include_str!("../assets/gnome/extension.esm.js");
-                let meta_json = include_str!("../assets/gnome/metadata.json");
-                let _ = fs::write(ext_dir.join("extension.js"), ext_js);
-                let _ = fs::write(ext_dir.join("metadata.json"), meta_json);
-            }
-        }
 
         // Check session type for reload prompt
         let is_wayland = crate::platform::linux::gnome::is_wayland_session();
@@ -468,6 +518,14 @@ mod tests {
         assert!(is_newer_version("v0.2.0", "v0.1.0"));
         assert!(is_newer_version("v1.0.0", "v0.9.9"));
         assert!(is_newer_version("v0.2.0", "v0.2.0-alpha"));
+
+        // Prerelease comparison tests
+        assert!(is_newer_version("v0.2.0-beta.2", "v0.2.0-beta.1"));
+        assert!(is_newer_version("v0.2.0-beta", "v0.2.0-alpha"));
+        assert!(is_newer_version("v0.2.0-beta.10", "v0.2.0-beta.9"));
+        assert!(!is_newer_version("v0.2.0-beta.1", "v0.2.0-beta.2"));
+        assert!(!is_newer_version("v0.2.0-beta.1", "v0.2.0"));
+        assert!(is_newer_version("v0.2.0", "v0.2.0-beta.1"));
 
         assert!(!is_newer_version("v0.1.0", "v0.1.0"));
         assert!(!is_newer_version("v0.1.0", "v0.2.0"));
