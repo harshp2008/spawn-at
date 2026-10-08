@@ -160,6 +160,8 @@ mod tests {
                     w: 1920,
                     h: 1040,
                     focused: true,
+                    maximized: false,
+                    minimized: false,
                 },
                 WindowMetadata {
                     id: Some(706192866),
@@ -171,6 +173,8 @@ mod tests {
                     w: 450,
                     h: 550,
                     focused: false,
+                    maximized: false,
+                    minimized: false,
                 },
             ],
             cursor: (0, 0),

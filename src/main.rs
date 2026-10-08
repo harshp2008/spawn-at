@@ -227,14 +227,16 @@ async fn main() {
                 }
             }
 
-            // 2. Generate unique activation token / entry key
+            // 2. Generate unique activation token / entry key conforming to freedesktop startup notification spec
+            let ts_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis();
             let entry_key = format!(
-                "spawn-at-{}-{}",
+                "spawn-at-{}-{}_TIME{}",
                 std::process::id(),
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_nanos()
+                ts_ms,
+                ts_ms
             );
 
             let app_hint = spawn_args.class.clone().unwrap_or_else(|| {
@@ -244,8 +246,8 @@ async fn main() {
             let batch = Batch {
                 id: 1,
                 entries: vec![Entry {
-                    key: entry_key,
-                    app_hint,
+                    key: entry_key.clone(),
+                    app_hint: app_hint.clone(),
                     placement: params,
                 }],
                 reveal: Reveal::Together,
@@ -253,6 +255,15 @@ async fn main() {
                 urgency: Urgency::Normal,
                 deadline: Duration::from_millis(15000),
             };
+
+            // Pre-record existing window IDs so wait_for_spawn captures the newly spawned window accurately
+            let pre_existing_ids: std::collections::HashSet<u64> = driver
+                .get_windows()
+                .await
+                .unwrap_or_default()
+                .into_iter()
+                .filter_map(|w| w.id)
+                .collect();
 
             // 3. Arm the driver with the declarative batch intent
             let armed = match driver.arm(batch.clone()).await {
@@ -292,9 +303,35 @@ async fn main() {
                     eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m X11 window interception failed: {}", e);
                 }
             }
+
+            if !cli.no_wait {
+                match commands::wait_for_spawn(
+                    driver.as_ref(),
+                    child.id(),
+                    &app_hint,
+                    &entry_key,
+                    &pre_existing_ids,
+                    Duration::from_millis(2000),
+                )
+                .await
+                {
+                    Ok(win) => {
+                        eprintln!(
+                            "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned.",
+                            win.w, win.h
+                        );
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
+                            e
+                        );
+                    }
+                }
+            }
         }
         Commands::Transform(transform_args) => {
-            if let Err(e) = commands::run_transform(driver.as_ref(), transform_args).await {
+            if let Err(e) = commands::run_transform(driver.as_ref(), transform_args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
@@ -305,47 +342,32 @@ async fn main() {
                 std::process::exit(1);
             }
         }
-        Commands::Move(move_args) => {
-            if move_args.pos.len() != 2 {
-                eprintln!(
-                    "\x1b[1;31mError\x1b[0m: Position must contain exactly X and Y coordinates."
-                );
-                std::process::exit(1);
-            }
-            let x = move_args.pos[0];
-            let y = move_args.pos[1];
-
-            if let Err(e) = driver.move_window(&move_args.class, x, y).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
-                std::process::exit(1);
-            }
-        }
         Commands::Focus(args) => {
-            if let Err(e) = commands::run_focus(driver.as_ref(), args).await {
+            if let Err(e) = commands::run_focus(driver.as_ref(), args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
         Commands::Defocus(args) => {
-            if let Err(e) = commands::run_defocus(driver.as_ref(), args).await {
+            if let Err(e) = commands::run_defocus(driver.as_ref(), args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
         Commands::Maximize(args) => {
-            if let Err(e) = commands::run_maximize(driver.as_ref(), args).await {
+            if let Err(e) = commands::run_maximize(driver.as_ref(), args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
         Commands::Minimize(args) => {
-            if let Err(e) = commands::run_minimize(driver.as_ref(), args).await {
+            if let Err(e) = commands::run_minimize(driver.as_ref(), args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }
         }
         Commands::Restore(args) => {
-            if let Err(e) = commands::run_restore(driver.as_ref(), args).await {
+            if let Err(e) = commands::run_restore(driver.as_ref(), args, cli.no_wait).await {
                 eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
                 std::process::exit(1);
             }

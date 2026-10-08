@@ -1842,6 +1842,8 @@ export default class SpawnAtExtension extends Extension {
                 w: frame.width,
                 h: frame.height,
                 focused: win.has_focus(),
+                maximized: this._isMaximized(win),
+                minimized: Boolean(win.minimized),
             };
         }));
     }

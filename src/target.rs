@@ -48,7 +48,7 @@ impl WindowSelector {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct WindowMetadata {
     #[serde(default)]
     pub id: Option<u64>,
@@ -64,18 +64,21 @@ pub struct WindowMetadata {
     pub h: i32,
     #[serde(default)]
     pub focused: bool,
+    #[serde(default)]
+    pub maximized: bool,
+    #[serde(default)]
+    pub minimized: bool,
 }
 
 /// Resolves a window target from a list of window metadata entries based on `WindowSelector` criteria.
 ///
 /// Filter criteria:
+/// - If `focused` is true:
+///   - Standalone: if no class/title/pid is provided, resolves and returns the currently focused window.
+///   - As a Filter: if class/title/pid is provided, fetches the active window and validates it against those filters. If it doesn't match, returns "Target not found".
 /// - If `pid` is specified, matches `win.pid == Some(pid)`.
 /// - If `class` is specified, matches exact class or reverse-DNS suffix (case-insensitive).
 /// - If `title` is specified, performs case-insensitive substring search in `win.title`.
-/// - If `focused` is true, matches `win.focused == true`.
-///
-/// Tie-breaking:
-/// - If multiple windows match, prefers the one with `focused == true`, otherwise returns the first match.
 ///
 /// Error:
 /// - Returns an informative error message if no window satisfies the criteria, offering smart suggestions if a similar class exists.
@@ -83,6 +86,24 @@ pub fn resolve_target<'a>(
     windows: &'a [WindowMetadata],
     selector: &WindowSelector,
 ) -> Result<&'a WindowMetadata, String> {
+    if selector.focused {
+        let active = match windows.iter().find(|w| w.focused) {
+            Some(w) => w,
+            None => return Err("Target not found: no active window currently has focus.".to_string()),
+        };
+
+        let has_filter = selector.class.is_some() || selector.title.is_some() || selector.pid.is_some();
+        if !has_filter {
+            return Ok(active);
+        }
+
+        if selector.matches(active) {
+            return Ok(active);
+        } else {
+            return Err("Target not found".to_string());
+        }
+    }
+
     let mut matching: Vec<&'a WindowMetadata> = windows
         .iter()
         .filter(|win| selector.matches(win))
@@ -216,6 +237,7 @@ mod tests {
                 w: 800,
                 h: 600,
                 focused: false,
+                ..Default::default()
             },
             WindowMetadata {
                 id: Some(2),
@@ -227,6 +249,7 @@ mod tests {
                 w: 1200,
                 h: 800,
                 focused: true,
+                ..Default::default()
             },
             WindowMetadata {
                 id: Some(3),
@@ -238,6 +261,7 @@ mod tests {
                 w: 1920,
                 h: 1080,
                 focused: false,
+                ..Default::default()
             },
         ]
     }
@@ -313,6 +337,7 @@ mod tests {
             w: 100,
             h: 100,
             focused: false,
+            ..Default::default()
         };
         assert_eq!(resolve_target_id(&win_with_id), "42");
 
@@ -326,6 +351,7 @@ mod tests {
             w: 100,
             h: 100,
             focused: false,
+            ..Default::default()
         };
         assert_eq!(resolve_target_id(&win_with_pid), "1234");
 
@@ -339,6 +365,7 @@ mod tests {
             w: 100,
             h: 100,
             focused: false,
+            ..Default::default()
         };
         assert_eq!(resolve_target_id(&win_fallback_class), "test-app");
     }
@@ -356,6 +383,7 @@ mod tests {
             w: 400,
             h: 500,
             focused: false,
+            ..Default::default()
         });
 
         // Query by last segment "calculator"
@@ -381,6 +409,7 @@ mod tests {
             w: 400,
             h: 500,
             focused: false,
+            ..Default::default()
         });
 
         let selector = WindowSelector {
@@ -408,6 +437,7 @@ mod tests {
                 w: 400,
                 h: 500,
                 focused: false,
+                ..Default::default()
             },
             WindowMetadata {
                 id: Some(2),
@@ -419,6 +449,7 @@ mod tests {
                 w: 400,
                 h: 500,
                 focused: false,
+                ..Default::default()
             },
         ];
 
@@ -433,5 +464,58 @@ mod tests {
         assert!(err.contains("1. -c org.gnome.Calculator (PID: 76342, Title: \"Calculator\")"));
         assert!(err.contains("2. -c io.github.qalculate.calculator (PID: 81204, Title: \"Qalculate!\")"));
         assert!(err.contains("Please disambiguate by using the full reverse-DNS class, PID (--pid), or Title (-t)."));
+    }
+
+    #[test]
+    fn test_focused_standalone_resolves_active_window() {
+        let windows = sample_windows();
+        let selector = WindowSelector {
+            focused: true,
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector).unwrap();
+        assert_eq!(res.id, Some(2));
+        assert_eq!(res.class, "code");
+    }
+
+    #[test]
+    fn test_focused_as_filter_matches_class() {
+        let windows = sample_windows();
+        let selector = WindowSelector {
+            focused: true,
+            class: Some("code".to_string()),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector).unwrap();
+        assert_eq!(res.id, Some(2));
+        assert_eq!(res.class, "code");
+    }
+
+    #[test]
+    fn test_focused_as_filter_mismatch_returns_target_not_found() {
+        let windows = sample_windows();
+        let selector = WindowSelector {
+            focused: true,
+            class: Some("Alacritty".to_string()),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector);
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "Target not found");
+    }
+
+    #[test]
+    fn test_focused_no_focused_window_returns_error() {
+        let mut windows = sample_windows();
+        for w in &mut windows {
+            w.focused = false;
+        }
+        let selector = WindowSelector {
+            focused: true,
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector);
+        assert!(res.is_err());
+        assert!(res.unwrap_err().contains("Target not found"));
     }
 }

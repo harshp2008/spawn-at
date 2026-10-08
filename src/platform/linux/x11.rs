@@ -460,6 +460,34 @@ impl X11Session {
 
         let focused = active_win == Some(win);
 
+        let mut maximized = false;
+        let mut minimized = false;
+        if let Ok(c) = self.conn.get_property(
+            false,
+            win,
+            self.atoms._NET_WM_STATE,
+            AtomEnum::ATOM,
+            0,
+            64,
+        ) {
+            if let Ok(r) = c.reply() {
+                if let Some(atoms) = r.value32() {
+                    let mut max_h = false;
+                    let mut max_v = false;
+                    for atom in atoms {
+                        if atom == self.atoms._NET_WM_STATE_MAXIMIZED_HORZ {
+                            max_h = true;
+                        } else if atom == self.atoms._NET_WM_STATE_MAXIMIZED_VERT {
+                            max_v = true;
+                        } else if atom == self.atoms._NET_WM_STATE_HIDDEN {
+                            minimized = true;
+                        }
+                    }
+                    maximized = max_h && max_v;
+                }
+            }
+        }
+
         Ok(WindowMetadata {
             id: Some(win as u64),
             pid,
@@ -470,6 +498,8 @@ impl X11Session {
             w: geom.width as i32,
             h: geom.height as i32,
             focused,
+            maximized,
+            minimized,
         })
     }
 

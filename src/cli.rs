@@ -15,6 +15,10 @@ use clap::{Args, Parser, Subcommand};
                   perfect, zero-flicker cold-starts and dynamic transformations under GNOME Wayland."
 )]
 pub struct Cli {
+    /// Do not wait for compositor to apply changes before exiting
+    #[arg(long, global = true)]
+    pub no_wait: bool,
+
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -34,8 +38,6 @@ pub enum Commands {
         #[command(subcommand)]
         cmd: QueryCommands,
     },
-    /// Move an existing window by its class identifier
-    Move(MoveArgs),
     /// Focus / activate a target window (unhides if minimized)
     #[command(aliases = ["raise", "activate"])]
     Focus(WindowTargetArgs),
@@ -69,23 +71,6 @@ pub enum QueryCommands {
         #[arg(long)]
         json: bool,
     },
-}
-
-#[derive(Args, Debug, Clone)]
-pub struct MoveArgs {
-    /// Explicit Wayland App ID or WM_CLASS override
-    #[arg(short = 'c', long)]
-    pub class: String,
-
-    /// Target screen coordinates [X, Y]
-    #[arg(
-        short,
-        long,
-        num_args = 2,
-        value_names = ["X", "Y"],
-        allow_hyphen_values = true
-    )]
-    pub pos: Vec<i32>,
 }
 
 /// Shared spatial geometry and layout arguments for positioning windows.
@@ -906,5 +891,24 @@ mod tests {
     #[test]
     fn test_clap_parser_configuration() {
         Cli::command().debug_assert();
+    }
+
+    #[test]
+    fn test_global_no_wait_flag_parsing() {
+        // Flag after subcommand
+        let cli = Cli::try_parse_from(["spawn-at", "maximize", "--focused", "--no-wait"]).unwrap();
+        assert!(cli.no_wait);
+
+        // Flag before subcommand
+        let cli = Cli::try_parse_from(["spawn-at", "--no-wait", "maximize", "--focused"]).unwrap();
+        assert!(cli.no_wait);
+
+        // Default: false
+        let cli = Cli::try_parse_from(["spawn-at", "maximize", "--focused"]).unwrap();
+        assert!(!cli.no_wait);
+
+        // With spawn command
+        let cli = Cli::try_parse_from(["spawn-at", "spawn", "--no-wait", "--", "alacritty"]).unwrap();
+        assert!(cli.no_wait);
     }
 }

@@ -13,6 +13,7 @@ use spawn_at_core::geometry;
 pub async fn run_transform(
     backend: &dyn CompositorBackend,
     args: TransformArgs,
+    no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if !backend.supports_runtime_transform() {
         return Err(DriverError::UnsupportedCapability(
@@ -86,10 +87,38 @@ pub async fn run_transform(
     let target_id = target::resolve_target_id(target_win);
 
     backend
-        .transform_window(&target_id, params, target_win.w as u32, target_win.h as u32)
+        .transform_window(&target_id, params.clone(), target_win.w as u32, target_win.h as u32)
         .await?;
 
-    apply_focus_policy(backend, &target_id, &args.focus_modifiers).await?;
+    apply_focus_policy(backend, &target_id, &args.focus_modifiers, no_wait).await?;
+
+    if !no_wait {
+        let expected = if args.focus_modifiers.focus {
+            crate::commands::ExpectedState::Focused(true)
+        } else if args.focus_modifiers.defocus {
+            crate::commands::ExpectedState::Focused(false)
+        } else {
+            let (target_x, target_y) = if let Some(pos) = params.pos {
+                (Some(pos.0), Some(pos.1))
+            } else {
+                (None, None)
+            };
+            crate::commands::ExpectedState::Geometry {
+                x: target_x,
+                y: target_y,
+                w: Some(target_w),
+                h: Some(target_h),
+            }
+        };
+
+        let _ = crate::commands::wait_for_state_change(
+            backend,
+            &target_id,
+            expected,
+            std::time::Duration::from_millis(2000),
+        )
+        .await;
+    }
 
     Ok(())
 }

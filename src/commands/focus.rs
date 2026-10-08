@@ -12,15 +12,34 @@ pub async fn apply_focus_policy(
     backend: &dyn CompositorBackend,
     target_id: &str,
     modifiers: &FocusModifierArgs,
+    no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if modifiers.defocus {
         // Active eviction: strip focus and yield to previous window
         backend.defocus_window(target_id, "mru", "").await?;
+        if !no_wait {
+            let _ = crate::commands::wait_for_state_change(
+                backend,
+                target_id,
+                crate::commands::ExpectedState::Focused(false),
+                std::time::Duration::from_millis(2000),
+            )
+            .await;
+        }
     } else if modifiers.no_focus {
         // Passive: leave compositor focus state untouched
     } else {
         // Default (or explicit --focus): ensure target window gets focus
         backend.focus_window(target_id).await?;
+        if !no_wait {
+            let _ = crate::commands::wait_for_state_change(
+                backend,
+                target_id,
+                crate::commands::ExpectedState::Focused(true),
+                std::time::Duration::from_millis(2000),
+            )
+            .await;
+        }
     }
     Ok(())
 }
@@ -29,6 +48,7 @@ pub async fn apply_focus_policy(
 pub async fn run_focus(
     backend: &dyn CompositorBackend,
     args: WindowTargetArgs,
+    no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     args.validate()?;
 
@@ -39,6 +59,16 @@ pub async fn run_focus(
 
     backend.focus_window(&target_id).await?;
 
+    if !no_wait {
+        let _ = crate::commands::wait_for_state_change(
+            backend,
+            &target_id,
+            crate::commands::ExpectedState::Focused(true),
+            std::time::Duration::from_millis(2000),
+        )
+        .await;
+    }
+
     Ok(())
 }
 
@@ -46,6 +76,7 @@ pub async fn run_focus(
 pub async fn run_defocus(
     backend: &dyn CompositorBackend,
     args: DefocusArgs,
+    no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     args.validate()?;
 
@@ -64,6 +95,16 @@ pub async fn run_defocus(
 
     let (mode, destination) = args.mode_and_destination();
     backend.defocus_window(&target_id, mode, destination).await?;
+
+    if !no_wait {
+        let _ = crate::commands::wait_for_state_change(
+            backend,
+            &target_id,
+            crate::commands::ExpectedState::Focused(false),
+            std::time::Duration::from_millis(2000),
+        )
+        .await;
+    }
 
     let yield_target = match mode {
         "desktop" => "desktop".to_string(),
