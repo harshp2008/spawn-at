@@ -172,3 +172,108 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
 
     instructions
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spawn_at_core::geometry::{Anchor, Area, Pivot, Rect};
+
+    #[test]
+    fn test_golden_build_instructions_for_entry() {
+        let entry = Entry {
+            key: "test-token-123".to_string(),
+            app_hint: "org.gnome.TextEditor".to_string(),
+            placement: PlacementParams {
+                size: Some((800, 600)),
+                anchor: Some(Anchor::TopRight),
+                pivot: Some(Pivot::TopRight),
+                margin: 16,
+                margin_top: Some(20),
+                margin_right: Some(25),
+                offset: Some((10, -5)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 5);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        // Assert exact serialization contract
+        assert!(json.starts_with(r#"["Cloak",{"SetSize":{"w":800,"h":600}},{"WaitForCommit":{"timeout_ms":300}},{"SetPositionAnchored":"#));
+        assert!(json.ends_with(r#"},"Uncloak"]"#));
+
+        // Verify deserialization back to Vec<Instruction>
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.len(), 5);
+
+        // Verify payload values inside SetPositionAnchored
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[3] {
+            assert_eq!(payload.intended_w, 800);
+            assert_eq!(payload.intended_h, 600);
+            assert_eq!(payload.screen_anchor_x, 1920 - 25); // 1895
+            assert_eq!(payload.screen_anchor_y, 40 + 20);   // 60
+            assert_eq!(payload.pivot_u, 1.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 10);
+            assert_eq!(payload.offset_y, -5);
+            assert_eq!(payload.area.as_deref(), Some("workarea"));
+            assert_eq!(payload.margin_top, 20);
+            assert_eq!(payload.margin_right, 25);
+        } else {
+            panic!("Expected SetPositionAnchored at index 3");
+        }
+    }
+
+    #[test]
+    fn test_golden_transform_batch_instructions() {
+        let payload = PlacementPayload {
+            intended_w: 500,
+            intended_h: 400,
+            screen_anchor_x: 960,
+            screen_anchor_y: 540,
+            pivot_u: 0.5,
+            pivot_v: 0.5,
+            offset_x: 0,
+            offset_y: 0,
+            area: Some("screen".to_string()),
+            margin_top: 16,
+            margin_bottom: 16,
+            margin_left: 16,
+            margin_right: 16,
+        };
+
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetSize { w: 500, h: 400 },
+            Instruction::WaitForCommit { timeout_ms: 500 },
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 7);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetSize"]["w"], 500);
+        assert_eq!(arr[2]["SetSize"]["h"], 400);
+        assert_eq!(arr[3]["WaitForCommit"]["timeout_ms"], 500);
+        assert_eq!(arr[4]["SetPositionAnchored"]["intended_w"], 500);
+        assert_eq!(arr[4]["SetPositionAnchored"]["area"], "screen");
+        assert_eq!(arr[5], "Uncloak");
+        assert_eq!(arr[6], "DestroySnapshot");
+    }
+}
