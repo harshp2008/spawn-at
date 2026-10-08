@@ -44,6 +44,14 @@ use x11rb::protocol::xproto::{
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt as _;
 
+macro_rules! x11_debug {
+    ($($arg:tt)*) => {
+        if std::env::var("SPAWN_AT_DEBUG").map(|v| v == "1" || v == "true").unwrap_or(false) {
+            eprintln!($($arg)*);
+        }
+    };
+}
+
 // ============================================================================
 // 1. Atom Definitions & Manager
 // ============================================================================
@@ -256,7 +264,7 @@ impl X11Session {
 
     /// Queries connected monitor rectangles using RANDR extension protocol, falling back to screen size.
     fn fetch_monitors(&self) -> Result<Vec<Rect>, DriverError> {
-        eprintln!("[spawn-at-x11] Querying monitors via RANDR protocol...");
+        x11_debug!("[spawn-at-x11] Querying monitors via RANDR protocol...");
 
         // Try modern RANDR get_monitors
         if let Ok(reply) = self.conn.randr_get_monitors(self.root, true) {
@@ -312,7 +320,7 @@ impl X11Session {
 
     /// Queries desktop workareas using `_NET_WORKAREA` property, falling back to physical monitors.
     fn fetch_workareas(&self) -> Result<Vec<Rect>, DriverError> {
-        eprintln!("[spawn-at-x11] Querying workareas via _NET_WORKAREA property...");
+        x11_debug!("[spawn-at-x11] Querying workareas via _NET_WORKAREA property...");
 
         if let Ok(cookie) = self.conn.get_property(
             false,
@@ -348,7 +356,7 @@ impl X11Session {
 
     /// Queries all open windows on the X11 server via `_NET_CLIENT_LIST`.
     fn fetch_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
-        eprintln!("[spawn-at-x11] Querying windows via _NET_CLIENT_LIST...");
+        x11_debug!("[spawn-at-x11] Querying windows via _NET_CLIENT_LIST...");
 
         let client_list = self
             .conn
@@ -589,7 +597,7 @@ impl X11Session {
         }
 
         // Debug logging for every match attempt
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Checking match for window {:?} (PID: {:?}, StartupID: {:?})",
             win, win_pid, win_startup_id
         );
@@ -669,7 +677,7 @@ impl X11Session {
         pos: Option<(i32, i32)>,
         size: Option<(u32, u32)>,
     ) -> Result<(), DriverError> {
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Sending _NET_MOVERESIZE_WINDOW for win={:?}, pos={:?}, size={:?}",
             win, pos, size
         );
@@ -718,7 +726,7 @@ impl X11Session {
 
     /// Activates and raises a window using EWMH `_NET_ACTIVE_WINDOW` ClientMessage.
     fn activate_window(&self, win: Window) -> Result<(), DriverError> {
-        eprintln!("[spawn-at-x11] Sending _NET_ACTIVE_WINDOW ClientMessage for win={:?}", win);
+        x11_debug!("[spawn-at-x11] Sending _NET_ACTIVE_WINDOW ClientMessage for win={:?}", win);
 
         let event = ClientMessageEvent::new(
             32,
@@ -758,7 +766,7 @@ impl X11Session {
             None => return Ok(()),
         };
 
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Starting interception for PID: {} | App: {} | Startup ID: {}",
             child_pid, entry.app_hint, entry.key
         );
@@ -773,7 +781,7 @@ impl X11Session {
         let _ = self.conn.change_window_attributes(self.root, &aux);
         let _ = self.conn.flush();
 
-        eprintln!("[spawn-at-x11] Listening for X11 CreateNotify/MapRequest events on root window...");
+        x11_debug!("[spawn-at-x11] Listening for X11 CreateNotify/MapRequest events on root window...");
 
         // Record pre-existing windows on the display
         let mut pre_existing: HashSet<Window> = HashSet::new();
@@ -793,7 +801,7 @@ impl X11Session {
         // Check if the window already appeared right before event listener registration
         for &win in &pre_existing {
             if let Some(matched) = self.find_matching_window(win, child_pid, &entry.app_hint, &entry.key, true) {
-                eprintln!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
+                x11_debug!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
                 target_win = Some(matched);
                 break;
             }
@@ -811,7 +819,7 @@ impl X11Session {
                     _ => None,
                 };
 
-                eprintln!("[spawn-at-x11] Event received: {:?} for window ID: {:?}", event, win_id);
+                x11_debug!("[spawn-at-x11] Event received: {:?} for window ID: {:?}", event, win_id);
 
                 if let Some(w) = win_id {
                     if !pre_existing.contains(&w) && !candidate_windows.contains(&w) {
@@ -830,7 +838,7 @@ impl X11Session {
                         &entry.key,
                         pre_existing.contains(&w),
                     ) {
-                        eprintln!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
+                        x11_debug!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
                         target_win = Some(matched);
                         break;
                     }
@@ -844,7 +852,7 @@ impl X11Session {
             // Periodically re-evaluate candidate windows for asynchronously updated properties
             for &cand in &candidate_windows {
                 if let Some(matched) = self.find_matching_window(cand, child_pid, &entry.app_hint, &entry.key, false) {
-                    eprintln!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
+                    x11_debug!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
                     target_win = Some(matched);
                     break;
                 }
@@ -861,7 +869,7 @@ impl X11Session {
         let win = match target_win {
             Some(w) => w,
             None => {
-                eprintln!(
+                x11_debug!(
                     "[spawn-at-x11] ERROR: Timeout reached. No window matched PID {} or Startup ID {}.",
                     child_pid, entry.key
                 );
@@ -871,7 +879,7 @@ impl X11Session {
 
         // Step 4: Inject WM_NORMAL_HINTS (ICCCM XSizeHints) with USPosition | PPosition flags
         // before the window maps to eliminate the default top-left flash.
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Setting WM_NORMAL_HINTS to x={}, y={}, w={}, h={}",
             prov_rect.x, prov_rect.y, prov_w, prov_h
         );
@@ -969,17 +977,17 @@ impl X11Session {
             actual_h = prov_h;
         }
 
-        eprintln!("[spawn-at-x11] Actual mapped geometry: w={}, h={}", actual_w, actual_h);
+        x11_debug!("[spawn-at-x11] Actual mapped geometry: w={}, h={}", actual_w, actual_h);
 
         // Step 7: Recalculate anchor coordinates with negotiated dimensions
         let final_rect = calculate_rect_from_placement(&entry.placement, actual_w, actual_h);
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Final calculated position: x={}, y={}",
             final_rect.x, final_rect.y
         );
 
         // Step 8: Apply final placement adjustment via _NET_MOVERESIZE_WINDOW
-        eprintln!(
+        x11_debug!(
             "[spawn-at-x11] Applying final move_resize to x={}, y={}",
             final_rect.x, final_rect.y
         );
