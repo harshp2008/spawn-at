@@ -187,7 +187,7 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
             margin_bottom,
             margin_left,
             margin_right,
-            params.margin,
+            0,
         )
     } else {
         raw_rect
@@ -1517,33 +1517,49 @@ mod tests {
                 // `params.margin` when clamping!
                 // Mechanics / GNOME Extension computes `min_x = wa.x + ml` (single margin).
                 //
-                // We pin both existing behaviors below:
-                let x11_clamped_min_x = wa.x + ml + params.margin;
-                let x11_clamped_min_y = wa.y + mt + params.margin;
-                let x11_clamped_max_x = (wa.x + (wa.width as i32) - mr - params.margin - (win_w as i32)).max(x11_clamped_min_x);
-                let x11_clamped_max_y = (wa.y + (wa.height as i32) - mb - params.margin - (win_h as i32)).max(x11_clamped_min_y);
-
-                let expected_x11_x = raw_x.clamp(x11_clamped_min_x, x11_clamped_max_x);
-                let expected_x11_y = raw_y.clamp(x11_clamped_min_y, x11_clamped_max_y);
-
+                // With the double-margin bug fixed, X11 output exactly matches GNOME Extension / core:
                 assert_eq!(
-                    x11_rect.x, expected_x11_x,
-                    "Pinned X11 calculation mismatch for anchor {:?}, pivot {:?}",
+                    x11_rect.x, extension_x,
+                    "X11 calculation mismatch with extension for anchor {:?}, pivot {:?}",
                     anchor, pivot
                 );
                 assert_eq!(
-                    x11_rect.y, expected_x11_y,
-                    "Pinned X11 calculation mismatch for anchor {:?}, pivot {:?}",
+                    x11_rect.y, extension_y,
+                    "X11 calculation mismatch with extension for anchor {:?}, pivot {:?}",
                     anchor, pivot
                 );
-
-                // And we pin that extension_x would equal x11_rect IF global_margin was 0 (single margin):
-                let single_margin_x11_x = raw_x.clamp(min_x, max_x);
-                let single_margin_x11_y = raw_y.clamp(min_y, max_y);
-                assert_eq!(extension_x, single_margin_x11_x);
-                assert_eq!(extension_y, single_margin_x11_y);
             }
         }
+    }
+
+    #[test]
+    fn test_x11_margin_24_top_right_leaves_24px_not_48px() {
+        use spawn_at_core::geometry::Anchor;
+
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let params = PlacementParams {
+            anchor: Some(Anchor::TopRight),
+            margin: 24,
+            workarea: wa,
+            ..Default::default()
+        };
+
+        let win_w = 600;
+        let win_h = 400;
+        let rect = calculate_rect_from_placement(&params, win_w, win_h);
+
+        // Right edge distance: 1920 - (rect.x + win_w)
+        let right_margin = 1920 - (rect.x + (win_w as i32));
+        // Top edge distance: rect.y
+        let top_margin = rect.y;
+
+        assert_eq!(right_margin, 24, "Right margin must be 24px, not 48px");
+        assert_eq!(top_margin, 24, "Top margin must be 24px, not 48px");
     }
 
     #[test]
