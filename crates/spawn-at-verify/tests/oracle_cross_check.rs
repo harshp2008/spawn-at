@@ -326,3 +326,103 @@ fn test_oracle_vs_core_cursor_anchor_cross_check() {
         }
     }
 }
+
+#[test]
+fn test_oracle_vs_core_default_pivot_cross_check() {
+    // Cross-check for default pivot (no --pivot specified, params.pivot = None)
+    // for all 9 screen anchors across multiple workareas, margins, and clamp modes.
+    let margins = [0, 16, 24];
+    let clamp_modes = [true, false];
+    let win_size = (400, 300);
+
+    let workareas = [
+        (
+            OracleRect::new(0, 40, 1920, 1040),
+            CoreRect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            "primary (0, 40)",
+        ),
+        (
+            OracleRect::new(200, 100, 1600, 900),
+            CoreRect {
+                x: 200,
+                y: 100,
+                width: 1600,
+                height: 900,
+            },
+            "offset (200, 100)",
+        ),
+        (
+            OracleRect::new(-1920, 0, 1920, 1080),
+            CoreRect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            "negative-origin (-1920, 0)",
+        ),
+    ];
+
+    let mut checked_cases = 0;
+
+    for (oracle_wa, core_wa, wa_name) in &workareas {
+        for margin in &margins {
+            for &clamp in &clamp_modes {
+                for anchor_str in &SCREEN_ANCHORS {
+                    let oracle_params = OracleParams {
+                        anchor: Some(anchor_str.to_string()),
+                        pivot: None, // Default pivot
+                        explicit_pos: None,
+                        size: win_size,
+                        margin: *margin,
+                        margin_top: None,
+                        margin_bottom: None,
+                        margin_left: None,
+                        margin_right: None,
+                        clamp,
+                    };
+
+                    let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
+                        .expect("Oracle calculation failed");
+
+                    let core_params = CoreParams {
+                        pos: None,
+                        offset: None,
+                        anchor: Some(map_anchor(anchor_str)),
+                        pivot: None, // Default pivot
+                        size: Some(win_size),
+                        margin: *margin,
+                        margin_top: None,
+                        margin_bottom: None,
+                        margin_left: None,
+                        margin_right: None,
+                        area: Some(Area::Workarea),
+                        cursor_pos: None,
+                        workarea: *core_wa,
+                        clamp,
+                    };
+
+                    let core_rect =
+                        calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
+                    let mapped_core = core_to_oracle_rect(core_rect);
+
+                    assert_eq!(
+                        oracle_rect, mapped_core,
+                        "Default pivot mismatch on {wa_name}: anchor='{anchor_str}', margin={margin}, clamp={clamp}"
+                    );
+                    checked_cases += 1;
+                }
+            }
+        }
+    }
+
+    assert_eq!(
+        checked_cases, 162,
+        "Expected 162 default-pivot cross-check cases (9 anchors x 3 workareas x 3 margins x 2 clamp modes)"
+    );
+}

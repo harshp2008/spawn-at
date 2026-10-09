@@ -95,7 +95,7 @@ pub fn format_epoch_secs_sortable(secs: u64) -> String {
     let z = days + 719468;
     let era = if z >= 0 { z } else { z - 146096 } / 146097;
     let doe = (z - era * 146097) as u32;
-    let yoe = (doe - doe / 1020 + doe / 1460 - doe / 36524) / 365;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
     let y = yoe as i32 + era as i32 * 400;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     let mp = (5 * doy + 2) / 153;
@@ -505,5 +505,19 @@ mod tests {
             s2,
             s1
         );
+    }
+
+    #[test]
+    fn test_format_epoch_secs_sortable_test_vectors() {
+        // Test vectors for sortable UTC timestamp format YYYYMMDD-HHMMSS:
+        // 1. User test vector: epoch 1791559108 -> 20261009-151828 UTC
+        assert_eq!(format_epoch_secs_sortable(1791559108), "20261009-151828");
+
+        // 2. Epoch 0 -> 19700101-000000 UTC
+        assert_eq!(format_epoch_secs_sortable(0), "19700101-000000");
+
+        // 3. Leap-day test vector: epoch 1709208000 -> 20240229-120000 UTC
+        // (2024 is a leap year; 2024-02-29 12:00:00 UTC = 1709208000)
+        assert_eq!(format_epoch_secs_sortable(1709208000), "20240229-120000");
     }
 }

@@ -61,7 +61,7 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     let mr = params.margin_right.unwrap_or(params.margin);
 
     let (mut x, mut y) = if let Some((px, py)) = params.explicit_pos {
-        let pivot_str = params.pivot.as_deref().unwrap_or("center");
+        let pivot_str = params.pivot.as_deref().unwrap_or("top-left");
         apply_pivot_offset(px, py, w, h, pivot_str)?
     } else {
         let anchor_str = params.anchor.as_deref().unwrap_or("center");
@@ -414,6 +414,231 @@ mod tests {
         };
         let rect = calculate_expected_rect(wa, &params).unwrap();
         assert_eq!(rect, Rect::new(16, 56, 2000, 1200));
+    }
+
+    #[test]
+    fn test_golden_clamp_explicit_pos_0_40() {
+        // Live-confirmed case on host machine:
+        // Window size: 367x514. Work area: 1920x1040 at (0, 40). Default margin: 16.
+        // Command: `transform --pos 0 40`
+        //
+        // Arithmetic:
+        // Work area bounds: wa.x = 0, wa.y = 40, wa.w = 1920, wa.h = 1040.
+        // Margins: ml = 16, mr = 16, mt = 16, mb = 16.
+        // Requested position (unclamped): px = 0, py = 40.
+        // Clamp boundaries (work area minus margin):
+        //   min_x = wa.x + ml = 0 + 16 = 16
+        //   max_x = wa.x + wa.w - mr - win_w = 0 + 1920 - 16 - 367 = 1537
+        //   min_y = wa.y + mt = 40 + 16 = 56
+        //   max_y = wa.y + wa.h - mb - win_h = 40 + 1040 - 16 - 514 = 550
+        //
+        // Clamping:
+        //   clamped_x = 0.clamp(16, 1537) = 16
+        //   clamped_y = 40.clamp(56, 550) = 56
+        // Expected rect: Rect(16, 56, 367, 514)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            explicit_pos: Some((0, 40)),
+            size: (367, 514),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(16, 56, 367, 514));
+    }
+
+    #[test]
+    fn test_golden_clamp_explicit_pos_5000_5000() {
+        // Live-confirmed case on host machine:
+        // Window size: 367x514. Work area: 1920x1040 at (0, 40). Default margin: 16.
+        // Command: `transform --pos 5000 5000`
+        //
+        // Arithmetic:
+        // Work area bounds: wa.x = 0, wa.y = 40, wa.w = 1920, wa.h = 1040.
+        // Margins: ml = 16, mr = 16, mt = 16, mb = 16.
+        // Requested position (unclamped): px = 5000, py = 5000.
+        // Clamp boundaries (work area minus margin):
+        //   min_x = wa.x + ml = 0 + 16 = 16
+        //   max_x = wa.x + wa.w - mr - win_w = 0 + 1920 - 16 - 367 = 1537
+        //   min_y = wa.y + mt = 40 + 16 = 56
+        //   max_y = wa.y + wa.h - mb - win_h = 40 + 1040 - 16 - 514 = 550
+        //
+        // Clamping:
+        //   clamped_x = 5000.clamp(16, 1537) = 1537
+        //   clamped_y = 5000.clamp(56, 550) = 550
+        // Expected rect: Rect(1537, 550, 367, 514)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            explicit_pos: Some((5000, 5000)),
+            size: (367, 514),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1537, 550, 367, 514));
+    }
+
+    #[test]
+    fn test_golden_default_pivot_top() {
+        // Anchor: "top" with no explicit pivot (pivot = None)
+        // Window size: 400x300. Work area: 1920x1040 at (0, 40). Margin: 16.
+        //
+        // Arithmetic:
+        // Screen anchor point for top:
+        //   ax = wa.x + wa.w / 2 = 0 + 1920 / 2 = 960
+        //   ay = wa.y + mt = 40 + 16 = 56
+        // Default pivot for top (centered horizontally along the top margin):
+        //   x = ax - win_w / 2 = 960 - 400 / 2 = 760
+        //   y = ay = 56
+        // Clamping:
+        //   min_x = 16, max_x = 1920 - 16 - 400 = 1504 -> 760 is within bounds
+        //   min_y = 56, max_y = 40 + 1040 - 16 - 300 = 764 -> 56 is within bounds
+        // Expected rect: (760, 56, 400, 300)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("top".into()),
+            pivot: None,
+            size: (400, 300),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(760, 56, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_default_pivot_bottom() {
+        // Anchor: "bottom" with no explicit pivot (pivot = None)
+        // Window size: 400x300. Work area: 1920x1040 at (0, 40). Margin: 16.
+        //
+        // Arithmetic:
+        // Screen anchor point for bottom:
+        //   ax = wa.x + wa.w / 2 = 0 + 1920 / 2 = 960
+        //   ay = wa.y + wa.h - mb = 40 + 1040 - 16 = 1064
+        // Default pivot for bottom (centered horizontally along the bottom margin):
+        //   x = ax - win_w / 2 = 960 - 400 / 2 = 760
+        //   y = ay - win_h = 1064 - 300 = 764
+        // Clamping:
+        //   min_x = 16, max_x = 1504 -> 760 is within bounds
+        //   min_y = 56, max_y = 764 -> 764 is within bounds
+        // Expected rect: (760, 764, 400, 300)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("bottom".into()),
+            pivot: None,
+            size: (400, 300),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(760, 764, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_default_pivot_left() {
+        // Anchor: "left" with no explicit pivot (pivot = None)
+        // Window size: 400x300. Work area: 1920x1040 at (0, 40). Margin: 16.
+        //
+        // Arithmetic:
+        // Screen anchor point for left:
+        //   ax = wa.x + ml = 0 + 16 = 16
+        //   ay = wa.y + wa.h / 2 = 40 + 1040 / 2 = 560
+        // Default pivot for left (centered vertically along the left margin):
+        //   x = ax = 16
+        //   y = ay - win_h / 2 = 560 - 300 / 2 = 410
+        // Clamping:
+        //   min_x = 16, max_x = 1504 -> 16 is within bounds
+        //   min_y = 56, max_y = 764 -> 410 is within bounds
+        // Expected rect: (16, 410, 400, 300)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("left".into()),
+            pivot: None,
+            size: (400, 300),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(16, 410, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_default_pivot_right() {
+        // Anchor: "right" with no explicit pivot (pivot = None)
+        // Window size: 400x300. Work area: 1920x1040 at (0, 40). Margin: 16.
+        //
+        // Arithmetic:
+        // Screen anchor point for right:
+        //   ax = wa.x + wa.w - mr = 0 + 1920 - 16 = 1904
+        //   ay = wa.y + wa.h / 2 = 40 + 1040 / 2 = 560
+        // Default pivot for right (centered vertically along the right margin):
+        //   x = ax - win_w = 1904 - 400 = 1504
+        //   y = ay - win_h / 2 = 560 - 300 / 2 = 410
+        // Clamping:
+        //   min_x = 16, max_x = 1504 -> 1504 is within bounds
+        //   min_y = 56, max_y = 764 -> 410 is within bounds
+        // Expected rect: (1504, 410, 400, 300)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("right".into()),
+            pivot: None,
+            size: (400, 300),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1504, 410, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_default_pivot_all_nine_anchors() {
+        // Complete golden check for all 9 anchors with no explicit pivot (pivot = None).
+        // Work area: 1920x1040 at (0, 40). Margin: 16. Window size: 400x300.
+        //
+        // 1. top-left: ax = 16, ay = 56 -> top-left pivot (16, 56)
+        // 2. top: ax = 960, ay = 56 -> top pivot (960 - 200, 56) = (760, 56)
+        // 3. top-right: ax = 1904, ay = 56 -> top-right pivot (1904 - 400, 56) = (1504, 56)
+        // 4. left: ax = 16, ay = 560 -> left pivot (16, 560 - 150) = (16, 410)
+        // 5. center: ax = 960, ay = 560 -> center pivot (960 - 200, 560 - 150) = (760, 410)
+        // 6. right: ax = 1904, ay = 560 -> right pivot (1904 - 400, 560 - 150) = (1504, 410)
+        // 7. bottom-left: ax = 16, ay = 1064 -> bottom-left pivot (16, 1064 - 300) = (16, 764)
+        // 8. bottom: ax = 960, ay = 1064 -> bottom pivot (960 - 200, 1064 - 300) = (760, 764)
+        // 9. bottom-right: ax = 1904, ay = 1064 -> bottom-right pivot (1904 - 400, 1064 - 300) = (1504, 764)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let golden_cases = [
+            ("top-left", Rect::new(16, 56, 400, 300)),
+            ("top", Rect::new(760, 56, 400, 300)),
+            ("top-right", Rect::new(1504, 56, 400, 300)),
+            ("left", Rect::new(16, 410, 400, 300)),
+            ("center", Rect::new(760, 410, 400, 300)),
+            ("right", Rect::new(1504, 410, 400, 300)),
+            ("bottom-left", Rect::new(16, 764, 400, 300)),
+            ("bottom", Rect::new(760, 764, 400, 300)),
+            ("bottom-right", Rect::new(1504, 764, 400, 300)),
+        ];
+
+        for (anchor, expected) in golden_cases {
+            let params = OracleParams {
+                anchor: Some(anchor.into()),
+                pivot: None,
+                size: (400, 300),
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            };
+            let rect = calculate_expected_rect(wa, &params).unwrap();
+            assert_eq!(
+                rect, expected,
+                "Failed golden test for anchor '{}' with default pivot",
+                anchor
+            );
+        }
     }
 
     #[test]
