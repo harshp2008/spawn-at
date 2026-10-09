@@ -144,28 +144,82 @@ const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 
 /// Bundled modern GNOME Shell extension files (GNOME 45–48).
 pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
-    ("extension.js", include_str!("../../../../assets/gnome/modern/extension.js")),
-    ("dbus.js", include_str!("../../../../assets/gnome/modern/dbus.js")),
-    ("cloak.js", include_str!("../../../../assets/gnome/modern/cloak.js")),
-    ("commit.js", include_str!("../../../../assets/gnome/modern/commit.js")),
-    ("pulse.js", include_str!("../../../../assets/gnome/modern/pulse.js")),
-    ("anchor.js", include_str!("../../../../assets/gnome/modern/anchor.js")),
-    ("logger.js", include_str!("../../../../assets/gnome/modern/logger.js")),
-    ("validator.js", include_str!("../../../../assets/gnome/modern/validator.js")),
-    ("metadata.json", include_str!("../../../../assets/gnome/modern/metadata.json")),
+    (
+        "extension.js",
+        include_str!("../../../../assets/gnome/modern/extension.js"),
+    ),
+    (
+        "dbus.js",
+        include_str!("../../../../assets/gnome/modern/dbus.js"),
+    ),
+    (
+        "cloak.js",
+        include_str!("../../../../assets/gnome/modern/cloak.js"),
+    ),
+    (
+        "commit.js",
+        include_str!("../../../../assets/gnome/modern/commit.js"),
+    ),
+    (
+        "pulse.js",
+        include_str!("../../../../assets/gnome/modern/pulse.js"),
+    ),
+    (
+        "anchor.js",
+        include_str!("../../../../assets/gnome/modern/anchor.js"),
+    ),
+    (
+        "logger.js",
+        include_str!("../../../../assets/gnome/modern/logger.js"),
+    ),
+    (
+        "validator.js",
+        include_str!("../../../../assets/gnome/modern/validator.js"),
+    ),
+    (
+        "metadata.json",
+        include_str!("../../../../assets/gnome/modern/metadata.json"),
+    ),
 ];
 
 /// Bundled legacy GNOME Shell extension files (GNOME 42–44).
 pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
-    ("extension.js", include_str!("../../../../assets/gnome/legacy/extension.js")),
-    ("dbus.js", include_str!("../../../../assets/gnome/legacy/dbus.js")),
-    ("cloak.js", include_str!("../../../../assets/gnome/legacy/cloak.js")),
-    ("commit.js", include_str!("../../../../assets/gnome/legacy/commit.js")),
-    ("pulse.js", include_str!("../../../../assets/gnome/legacy/pulse.js")),
-    ("anchor.js", include_str!("../../../../assets/gnome/legacy/anchor.js")),
-    ("logger.js", include_str!("../../../../assets/gnome/legacy/logger.js")),
-    ("validator.js", include_str!("../../../../assets/gnome/legacy/validator.js")),
-    ("metadata.json", include_str!("../../../../assets/gnome/legacy/metadata.json")),
+    (
+        "extension.js",
+        include_str!("../../../../assets/gnome/legacy/extension.js"),
+    ),
+    (
+        "dbus.js",
+        include_str!("../../../../assets/gnome/legacy/dbus.js"),
+    ),
+    (
+        "cloak.js",
+        include_str!("../../../../assets/gnome/legacy/cloak.js"),
+    ),
+    (
+        "commit.js",
+        include_str!("../../../../assets/gnome/legacy/commit.js"),
+    ),
+    (
+        "pulse.js",
+        include_str!("../../../../assets/gnome/legacy/pulse.js"),
+    ),
+    (
+        "anchor.js",
+        include_str!("../../../../assets/gnome/legacy/anchor.js"),
+    ),
+    (
+        "logger.js",
+        include_str!("../../../../assets/gnome/legacy/logger.js"),
+    ),
+    (
+        "validator.js",
+        include_str!("../../../../assets/gnome/legacy/validator.js"),
+    ),
+    (
+        "metadata.json",
+        include_str!("../../../../assets/gnome/legacy/metadata.json"),
+    ),
 ];
 
 /// Default embedded extension files (modern).
@@ -185,7 +239,7 @@ pub fn parse_gnome_shell_major_version(version_str: &str) -> Option<u32> {
     for part in version_str.split_whitespace() {
         if let Some(first_num) = part.split('.').next() {
             if let Ok(ver) = first_num.parse::<u32>() {
-                if ver >= 40 && ver <= 60 {
+                if (40..=60).contains(&ver) {
                     return Some(ver);
                 }
             }
@@ -210,7 +264,9 @@ fn get_session_id() -> Option<String> {
                 .args(["show-user", &uid, "-p", "Display", "--value"])
                 .output()
             {
-                let sess = String::from_utf8_lossy(&display_out.stdout).trim().to_string();
+                let sess = String::from_utf8_lossy(&display_out.stdout)
+                    .trim()
+                    .to_string();
                 if !sess.is_empty() {
                     return Some(sess);
                 }
@@ -246,7 +302,9 @@ pub fn is_wayland_session() -> bool {
             .args(["show-session", &id, "-p", "Type", "--value"])
             .output()
         {
-            let sess_type = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+            let sess_type = String::from_utf8_lossy(&output.stdout)
+                .trim()
+                .to_lowercase();
             if sess_type == "wayland" {
                 return true;
             } else if sess_type == "x11" {
@@ -259,7 +317,9 @@ pub fn is_wayland_session() -> bool {
         .args(["show-session", "auto", "-p", "Type", "--value"])
         .output()
     {
-        let sess_type = String::from_utf8_lossy(&output.stdout).trim().to_lowercase();
+        let sess_type = String::from_utf8_lossy(&output.stdout)
+            .trim()
+            .to_lowercase();
         if sess_type == "wayland" {
             return true;
         } else if sess_type == "x11" {
@@ -291,7 +351,10 @@ pub fn restart_gnome_shell_x11() {
     println!("Reloading GNOME Shell on X11 via key simulation (Alt+F2 -> 'r' -> Enter)...");
 
     if let Err(e) = Command::new("xdotool").args(["key", "Alt+F2"]).status() {
-        crate::diagnostics::render_warning(&format!("Failed to execute 'xdotool key Alt+F2': {}", e));
+        crate::diagnostics::render_warning(&format!(
+            "Failed to execute 'xdotool key Alt+F2': {}",
+            e
+        ));
         return;
     }
 
@@ -305,7 +368,10 @@ pub fn restart_gnome_shell_x11() {
     std::thread::sleep(std::time::Duration::from_millis(100));
 
     if let Err(e) = Command::new("xdotool").args(["key", "Return"]).status() {
-        crate::diagnostics::render_warning(&format!("Failed to execute 'xdotool key Return': {}", e));
+        crate::diagnostics::render_warning(&format!(
+            "Failed to execute 'xdotool key Return': {}",
+            e
+        ));
     }
 }
 
@@ -321,21 +387,30 @@ pub struct GnomeWaylandDriver {
 impl GnomeWaylandDriver {
     /// Constructs a new `GnomeWaylandDriver` by establishing a session bus D-Bus connection.
     pub async fn new() -> Result<Self, DriverError> {
-        let connection = zbus::Connection::session()
-            .await
-            .map_err(|e| DriverError::IpcError(format!("Failed to connect to D-Bus session bus: {}", e)))?;
-        let proxy = dbus::SpawnAtProxy::new(&connection)
-            .await
-            .map_err(|e| DriverError::IpcError(format!("Failed to initialize SpawnAt D-Bus proxy: {}", e)))?;
+        let connection = zbus::Connection::session().await.map_err(|e| {
+            DriverError::IpcError(format!("Failed to connect to D-Bus session bus: {}", e))
+        })?;
+        let proxy = dbus::SpawnAtProxy::new(&connection).await.map_err(|e| {
+            DriverError::IpcError(format!("Failed to initialize SpawnAt D-Bus proxy: {}", e))
+        })?;
 
         Ok(Self { proxy })
+    }
+
+    /// Constructs a `GnomeWaylandDriver` with a custom proxy (useful for testing against stubs).
+    pub fn from_proxy(proxy: dbus::SpawnAtProxy<'static>) -> Self {
+        Self { proxy }
     }
 
     /// Resolves the user extension directory: `~/.local/share/gnome-shell/extensions/spawn-at@harsh.local`
     fn extension_dir() -> Result<PathBuf, DriverError> {
         let home = std::env::var("HOME").map_err(|e| {
             DriverError::Execution(
-                format!("Failed to determine $HOME directory for extension deployment: {}", e).into(),
+                format!(
+                    "Failed to determine $HOME directory for extension deployment: {}",
+                    e
+                )
+                .into(),
             )
         })?;
         Ok(PathBuf::from(home)
@@ -348,11 +423,11 @@ impl GnomeWaylandDriver {
 // 5. Pre-Map Arming Driver Trait
 // ============================================================================
 
-pub const EXPECTED_PROTOCOL_VERSION: u32 = 2;
+pub const EXPECTED_PROTOCOL_VERSION: u32 = 3;
 
+use crate::platform::{ClaimResult, ClaimSubscription};
 use futures_util::StreamExt;
 use std::time::Duration;
-use crate::platform::{ClaimResult, ClaimSubscription};
 
 pub struct GnomeClaimSubscription {
     stream: dbus::SpawnClaimedStream<'static>,
@@ -370,7 +445,10 @@ impl ClaimSubscription for GnomeClaimSubscription {
                 Ok(Some(sig)) => {
                     if let Ok(args) = sig.args() {
                         let sig_target = args.target_id;
-                        if self.target_id == "*" || sig_target == self.target_id || sig_target == "*" {
+                        if self.target_id == "*"
+                            || sig_target == self.target_id
+                            || sig_target == "*"
+                        {
                             if !args.success {
                                 return Err(DriverError::Execution(
                                     format!("Compositor placement failed: {}", args.error).into(),
@@ -410,7 +488,7 @@ impl Driver for GnomeWaylandDriver {
         if ext_version < EXPECTED_PROTOCOL_VERSION {
             crate::diagnostics::render_warning(
                 "Extension protocol mismatch (detected older extension). \
-                 Please log out and back in to load the updated extension."
+                 Please log out and back in to load the updated extension.",
             );
         }
 
@@ -430,8 +508,9 @@ impl Driver for GnomeWaylandDriver {
             };
 
             let instructions = mechanics::build_instructions_for_entry(entry);
-            let instructions_json = serde_json::to_string(&instructions)
-                .map_err(|e| DriverError::Execution(format!("Failed to serialize instructions: {}", e).into()))?;
+            let instructions_json = serde_json::to_string(&instructions).map_err(|e| {
+                DriverError::Execution(format!("Failed to serialize instructions: {}", e).into())
+            })?;
 
             self.proxy
                 .arm_spawn(target_id, &instructions_json)
@@ -483,24 +562,25 @@ impl CompositorBackend for GnomeWaylandDriver {
         true
     }
 
+    fn supports_close(&self) -> bool {
+        true
+    }
+
     async fn prepare_claim_wait(
         &self,
         target_id: &str,
     ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
         let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
-        if ext_version < EXPECTED_PROTOCOL_VERSION {
-            crate::diagnostics::render_info(&format!(
-                "GNOME Shell extension does not support SpawnClaimed signal (protocol version < {}); falling back to polling.",
-                EXPECTED_PROTOCOL_VERSION
-            ));
+        if ext_version < 2 {
+            crate::diagnostics::render_info(
+                "GNOME Shell extension does not support SpawnClaimed signal (protocol version < 2); falling back to polling.",
+            );
             return Ok(None);
         }
 
-        let stream = self
-            .proxy
-            .receive_spawn_claimed()
-            .await
-            .map_err(|e| DriverError::IpcError(format!("Failed to subscribe to SpawnClaimed: {}", e)))?;
+        let stream = self.proxy.receive_spawn_claimed().await.map_err(|e| {
+            DriverError::IpcError(format!("Failed to subscribe to SpawnClaimed: {}", e))
+        })?;
 
         Ok(Some(Box::new(GnomeClaimSubscription {
             stream,
@@ -550,7 +630,9 @@ impl CompositorBackend for GnomeWaylandDriver {
                     "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
                 ];
                 let choice = Select::new()
-                    .with_prompt("Do you want to log out of your session now? (Destructive on Wayland)")
+                    .with_prompt(
+                        "Do you want to log out of your session now? (Destructive on Wayland)",
+                    )
                     .items(restart_choices)
                     .default(0)
                     .interact()
@@ -572,25 +654,39 @@ impl CompositorBackend for GnomeWaylandDriver {
 
             (auto_enable, restart_choice)
         } else {
-            (args.gnome.gnome_auto_enable, args.gnome.should_restart(is_wayland))
+            (
+                args.gnome.gnome_auto_enable,
+                args.gnome.should_restart(is_wayland),
+            )
         };
 
         let ext_dir = Self::extension_dir()?;
         let major_version = detect_gnome_shell_major_version();
-        let is_legacy = major_version.map_or(false, |v| v < 45);
+        let is_legacy = major_version.is_some_and(|v| v < 45);
 
         let files = if is_legacy {
             crate::diagnostics::render_warning("Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.");
-            println!("Deploying legacy GNOME (42-44) extension to: {}", ext_dir.display());
+            println!(
+                "Deploying legacy GNOME (42-44) extension to: {}",
+                ext_dir.display()
+            );
             EMBEDDED_EXTENSION_FILES_LEGACY
         } else {
-            println!("Deploying embedded GNOME extension to: {}", ext_dir.display());
+            println!(
+                "Deploying embedded GNOME extension to: {}",
+                ext_dir.display()
+            );
             EMBEDDED_EXTENSION_FILES_MODERN
         };
 
         fs::create_dir_all(&ext_dir).map_err(|e| {
             DriverError::Execution(
-                format!("Failed to create extension directory '{}': {}", ext_dir.display(), e).into(),
+                format!(
+                    "Failed to create extension directory '{}': {}",
+                    ext_dir.display(),
+                    e
+                )
+                .into(),
             )
         })?;
 
@@ -652,7 +748,9 @@ impl CompositorBackend for GnomeWaylandDriver {
             println!("\x1b[1;36m=== GNOME Shell Extension Uninstallation ===\x1b[0m\n");
 
             let delete_files = Confirm::new()
-                .with_prompt("Completely delete extension files from ~/.local/share/gnome-shell/extensions?")
+                .with_prompt(
+                    "Completely delete extension files from ~/.local/share/gnome-shell/extensions?",
+                )
                 .default(true)
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?;
@@ -663,7 +761,9 @@ impl CompositorBackend for GnomeWaylandDriver {
                     "Yes - Log out now to refresh GNOME Shell state (Destructive: closes apps)",
                 ];
                 let choice = Select::new()
-                    .with_prompt("Do you want to log out of your session now? (Destructive on Wayland)")
+                    .with_prompt(
+                        "Do you want to log out of your session now? (Destructive on Wayland)",
+                    )
                     .items(restart_choices)
                     .default(0)
                     .interact()
@@ -685,7 +785,10 @@ impl CompositorBackend for GnomeWaylandDriver {
 
             (delete_files, restart_choice)
         } else {
-            (args.gnome.gnome_delete_files, args.gnome.should_restart(is_wayland))
+            (
+                args.gnome.gnome_delete_files,
+                args.gnome.should_restart(is_wayland),
+            )
         };
 
         let ext_dir = Self::extension_dir()?;
@@ -699,7 +802,12 @@ impl CompositorBackend for GnomeWaylandDriver {
             println!("Removing extension files from: {}", ext_dir.display());
             fs::remove_dir_all(&ext_dir).map_err(|e| {
                 DriverError::Execution(
-                    format!("Failed to remove extension directory '{}': {}", ext_dir.display(), e).into(),
+                    format!(
+                        "Failed to remove extension directory '{}': {}",
+                        ext_dir.display(),
+                        e
+                    )
+                    .into(),
                 )
             })?;
         }
@@ -737,7 +845,10 @@ impl CompositorBackend for GnomeWaylandDriver {
         let instructions = vec![
             mechanics::Instruction::Snapshot,
             mechanics::Instruction::Cloak,
-            mechanics::Instruction::SetSize { w: payload.intended_w, h: payload.intended_h },
+            mechanics::Instruction::SetSize {
+                w: payload.intended_w,
+                h: payload.intended_h,
+            },
             mechanics::Instruction::WaitForCommit { timeout_ms: 500 },
             mechanics::Instruction::SetPositionAnchored(payload),
             mechanics::Instruction::Uncloak,
@@ -865,8 +976,12 @@ impl CompositorBackend for GnomeWaylandDriver {
     async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
         let version = self.proxy.protocol_version().await.unwrap_or(0);
         if version < 3 {
-            return Err(DriverError::UnsupportedCapability(
-                "CloseWindow is not supported by the active GNOME Shell extension (ProtocolVersion < 3). Please reload or update the extension.",
+            return Err(DriverError::Execution(
+                format!(
+                    "extension is older than the CLI expects (protocol {}, need 3): run `spawn-at install` and log out and back in",
+                    version
+                )
+                .into(),
             ));
         }
 
@@ -875,8 +990,12 @@ impl CompositorBackend for GnomeWaylandDriver {
             Err(e) => {
                 let err_str = e.to_string();
                 if err_str.contains("UnknownMethod") || err_str.contains("MethodNotFound") {
-                    return Err(DriverError::UnsupportedCapability(
-                        "CloseWindow is not supported by the active GNOME Shell extension. Please reload or update the extension.",
+                    return Err(DriverError::Execution(
+                        format!(
+                            "extension is older than the CLI expects (protocol {}, need 3): run `spawn-at install` and log out and back in",
+                            version
+                        )
+                        .into(),
                     ));
                 }
                 return Err(DriverError::IpcError(err_str));
@@ -900,8 +1019,8 @@ impl CompositorBackend for GnomeWaylandDriver {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use clap::Parser;
     use crate::cli::Cli;
+    use clap::Parser;
 
     #[test]
     fn test_is_wayland_session() {
@@ -914,7 +1033,8 @@ mod tests {
         // Headless default run:
         // On X11: reload is enabled by default (true)
         // On Wayland: logout is disabled by default (false)
-        let parsed = Cli::try_parse_from(["spawn-at", "install", "--scope", "user", "--headless"]).unwrap();
+        let parsed =
+            Cli::try_parse_from(["spawn-at", "install", "--scope", "user", "--headless"]).unwrap();
         if let crate::cli::Commands::Install(args) = parsed.command {
             assert!(args.gnome.gnome_auto_enable);
             assert!(args.gnome.gnome_x11_reload);
@@ -932,9 +1052,16 @@ mod tests {
     fn test_gnome_install_args_no_action_precedence() {
         // Passing --no-action should override both X11 and Wayland to false
         let parsed = Cli::try_parse_from([
-            "spawn-at", "install", "--scope", "user", "--headless",
-            "--gnome-x11-reload=true", "--gnome-wayland-logout=true", "--no-action"
-        ]).unwrap();
+            "spawn-at",
+            "install",
+            "--scope",
+            "user",
+            "--headless",
+            "--gnome-x11-reload=true",
+            "--gnome-wayland-logout=true",
+            "--no-action",
+        ])
+        .unwrap();
         if let crate::cli::Commands::Install(args) = parsed.command {
             assert!(args.gnome.no_action);
             assert!(!args.gnome.should_restart(false));
@@ -948,8 +1075,14 @@ mod tests {
     fn test_gnome_install_args_flag_toggles() {
         // Explicitly disable X11 reload
         let parsed = Cli::try_parse_from([
-            "spawn-at", "install", "--scope", "user", "--headless", "--gnome-x11-reload=false"
-        ]).unwrap();
+            "spawn-at",
+            "install",
+            "--scope",
+            "user",
+            "--headless",
+            "--gnome-x11-reload=false",
+        ])
+        .unwrap();
         if let crate::cli::Commands::Install(args) = parsed.command {
             assert!(!args.gnome.gnome_x11_reload);
             assert!(!args.gnome.should_restart(false));
@@ -959,8 +1092,14 @@ mod tests {
 
         // Explicitly enable Wayland logout
         let parsed = Cli::try_parse_from([
-            "spawn-at", "install", "--scope", "user", "--headless", "--gnome-wayland-logout=true"
-        ]).unwrap();
+            "spawn-at",
+            "install",
+            "--scope",
+            "user",
+            "--headless",
+            "--gnome-wayland-logout=true",
+        ])
+        .unwrap();
         if let crate::cli::Commands::Install(args) = parsed.command {
             assert!(args.gnome.gnome_wayland_logout);
             assert!(args.gnome.should_restart(true));
@@ -972,7 +1111,9 @@ mod tests {
     #[test]
     fn test_gnome_uninstall_args_defaults_and_overrides() {
         // Defaults:
-        let parsed = Cli::try_parse_from(["spawn-at", "uninstall", "--scope", "user", "--headless"]).unwrap();
+        let parsed =
+            Cli::try_parse_from(["spawn-at", "uninstall", "--scope", "user", "--headless"])
+                .unwrap();
         if let crate::cli::Commands::Uninstall(args) = parsed.command {
             assert!(args.gnome.gnome_delete_files);
             assert!(args.gnome.gnome_x11_reload);
@@ -987,8 +1128,14 @@ mod tests {
 
         // --no-action override:
         let parsed = Cli::try_parse_from([
-            "spawn-at", "uninstall", "--scope", "user", "--headless", "--no-action"
-        ]).unwrap();
+            "spawn-at",
+            "uninstall",
+            "--scope",
+            "user",
+            "--headless",
+            "--no-action",
+        ])
+        .unwrap();
         if let crate::cli::Commands::Uninstall(args) = parsed.command {
             assert!(args.gnome.no_action);
             assert!(!args.gnome.should_restart(false));
@@ -1008,7 +1155,8 @@ mod tests {
             .map(|(name, _)| *name)
             .collect();
 
-        let modern_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/modern");
+        let modern_dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/modern");
         let modern_disk_names: HashSet<String> = std::fs::read_dir(modern_dir)
             .expect("Failed to read assets/gnome/modern directory")
             .filter_map(|entry| {
@@ -1033,7 +1181,8 @@ mod tests {
             .map(|(name, _)| *name)
             .collect();
 
-        let legacy_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/legacy");
+        let legacy_dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/legacy");
         let legacy_disk_names: HashSet<String> = std::fs::read_dir(legacy_dir)
             .expect("Failed to read assets/gnome/legacy directory")
             .filter_map(|entry| {
@@ -1067,16 +1216,162 @@ mod tests {
         let modern_xml = extract_xml(modern_dbus);
         let legacy_xml = extract_xml(legacy_dbus);
 
-        assert_eq!(modern_xml, legacy_xml, "D-Bus interface XML must match between modern and legacy extensions");
+        assert_eq!(
+            modern_xml, legacy_xml,
+            "D-Bus interface XML must match between modern and legacy extensions"
+        );
         assert!(modern_xml.contains("name=\"SpawnClaimed\""));
         assert!(modern_xml.contains("name=\"ProtocolVersion\""));
     }
 
     #[test]
     fn test_parse_gnome_shell_major_version() {
-        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 46.0"), Some(46));
-        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 42.9"), Some(42));
-        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 45.beta"), Some(45));
+        assert_eq!(
+            parse_gnome_shell_major_version("GNOME Shell 46.0"),
+            Some(46)
+        );
+        assert_eq!(
+            parse_gnome_shell_major_version("GNOME Shell 42.9"),
+            Some(42)
+        );
+        assert_eq!(
+            parse_gnome_shell_major_version("GNOME Shell 45.beta"),
+            Some(45)
+        );
         assert_eq!(parse_gnome_shell_major_version("unknown"), None);
+    }
+
+    struct StubProtocol3;
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubProtocol3 {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            3
+        }
+
+        fn close_window(&self, target_id: &str) -> bool {
+            target_id == "valid_id"
+        }
+    }
+
+    struct StubProtocol2;
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubProtocol2 {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            2
+        }
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_close_window_against_stub_protocol_3() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol3";
+        conn.object_server().at(path, StubProtocol3).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert!(driver.supports_close());
+
+        let linux_backend = crate::platform::linux::LinuxBackend::new(Box::new(driver));
+        assert!(linux_backend.supports_close());
+
+        let res = linux_backend.close_window("valid_id").await;
+        assert!(res.is_ok(), "Expected Ok(()), got {:?}", res);
+
+        let res_not_found = linux_backend.close_window("invalid_id").await;
+        assert!(res_not_found.is_err());
+        match res_not_found.unwrap_err() {
+            DriverError::TargetNotFound(msg) => {
+                assert!(msg.contains("invalid_id"));
+            }
+            other => panic!("Expected TargetNotFound, got {:?}", other),
+        }
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_close_window_against_stub_protocol_2_fails() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol2";
+        conn.object_server().at(path, StubProtocol2).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert!(driver.supports_close());
+
+        let linux_backend = crate::platform::linux::LinuxBackend::new(Box::new(driver));
+        assert!(linux_backend.supports_close());
+
+        let res = linux_backend.close_window("any_id").await;
+        assert!(res.is_err());
+        let err_str = res.unwrap_err().to_string();
+        assert_eq!(
+            err_str,
+            "extension is older than the CLI expects (protocol 2, need 3): run `spawn-at install` and log out and back in"
+        );
+    }
+
+    struct StubProtocol3MissingMethod;
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubProtocol3MissingMethod {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            3
+        }
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_close_window_missing_method_reports_stale_extension() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol3MissingMethod";
+        conn.object_server()
+            .at(path, StubProtocol3MissingMethod)
+            .await
+            .unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert!(driver.supports_close());
+
+        let linux_backend = crate::platform::linux::LinuxBackend::new(Box::new(driver));
+        assert!(linux_backend.supports_close());
+
+        let res = linux_backend.close_window("any_id").await;
+        assert!(res.is_err());
+        let err_str = res.unwrap_err().to_string();
+        assert_eq!(
+            err_str,
+            "extension is older than the CLI expects (protocol 3, need 3): run `spawn-at install` and log out and back in"
+        );
     }
 }

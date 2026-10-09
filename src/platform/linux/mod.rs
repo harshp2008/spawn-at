@@ -89,15 +89,23 @@ pub struct LinuxBackend {
 }
 
 impl LinuxBackend {
+    pub fn new(driver: Box<dyn CompositorBackend>) -> Self {
+        Self { driver }
+    }
+
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
-        let forced = std::env::var("SPAWN_AT_BACKEND").unwrap_or_default().to_lowercase();
+        let forced = std::env::var("SPAWN_AT_BACKEND")
+            .unwrap_or_default()
+            .to_lowercase();
         if forced == "x11" {
             return Ok(Box::new(LinuxBackend {
                 driver: Box::new(x11::X11Driver),
             }));
         }
 
-        let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
+        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or_default()
+            .to_uppercase();
 
         if desktop.contains("GNOME") {
             if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
@@ -140,6 +148,10 @@ impl CompositorBackend for LinuxBackend {
 
     fn supports_claim_wait(&self) -> bool {
         self.driver.supports_claim_wait()
+    }
+
+    fn supports_close(&self) -> bool {
+        self.driver.supports_close()
     }
 
     async fn prepare_claim_wait(
@@ -218,7 +230,13 @@ impl CompositorBackend for LinuxBackend {
         mode: &str,
         destination: &str,
     ) -> Result<(), DriverError> {
-        self.driver.defocus_window(target_id, mode, destination).await
+        self.driver
+            .defocus_window(target_id, mode, destination)
+            .await
+    }
+
+    async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+        self.driver.close_window(target_id).await
     }
 
     async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {

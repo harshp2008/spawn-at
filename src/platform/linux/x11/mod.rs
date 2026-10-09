@@ -18,11 +18,13 @@ pub use atoms::Atoms;
 pub use session::X11Session;
 
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, PlacementParams, Rect,
-    WindowMetadata, WindowState,
+    Armed, Batch, CompositorBackend, Driver, DriverError, PlacementParams, Rect, WindowMetadata,
+    WindowState,
 };
 use x11rb::connection::Connection as _;
-use x11rb::protocol::xproto::{ClientMessageEvent, ConnectionExt as _, EventMask, InputFocus, Window};
+use x11rb::protocol::xproto::{
+    ClientMessageEvent, ConnectionExt as _, EventMask, InputFocus, Window,
+};
 
 /// Resolves a full-screen bounding rectangle from placement parameters and actual/target dimensions.
 pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h: u32) -> Rect {
@@ -65,6 +67,10 @@ impl CompositorBackend for X11Driver {
         true
     }
 
+    fn supports_close(&self) -> bool {
+        true
+    }
+
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
         let bin = command.first().map(|s| s.as_str()).unwrap_or("");
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
@@ -77,9 +83,13 @@ impl CompositorBackend for X11Driver {
             let reply = session
                 .conn
                 .query_pointer(session.root)
-                .map_err(|e| DriverError::Execution(format!("Failed to query pointer: {}", e).into()))?
+                .map_err(|e| {
+                    DriverError::Execution(format!("Failed to query pointer: {}", e).into())
+                })?
                 .reply()
-                .map_err(|e| DriverError::Execution(format!("Failed to read pointer reply: {}", e).into()))?;
+                .map_err(|e| {
+                    DriverError::Execution(format!("Failed to read pointer reply: {}", e).into())
+                })?;
             Ok((reply.root_x as i32, reply.root_y as i32))
         })
         .await
@@ -129,11 +139,7 @@ impl CompositorBackend for X11Driver {
             let session = X11Session::connect()?;
             let win = session.resolve_target_window(&target_id)?;
             let rect = calculate_rect_from_placement(&params, current_w, current_h);
-            session.move_resize(
-                win,
-                Some((rect.x, rect.y)),
-                Some((rect.width, rect.height)),
-            )
+            session.move_resize(win, Some((rect.x, rect.y)), Some((rect.width, rect.height)))
         })
         .await
         .map_err(|e| DriverError::Execution(e.into()))?
@@ -171,7 +177,11 @@ impl CompositorBackend for X11Driver {
     }
 
     /// Modifies window state via EWMH `_NET_WM_STATE` and ICCCM `WM_CHANGE_STATE`.
-    async fn set_window_state(&self, target_id: &str, state: WindowState) -> Result<(), DriverError> {
+    async fn set_window_state(
+        &self,
+        target_id: &str,
+        state: WindowState,
+    ) -> Result<(), DriverError> {
         let target_id = target_id.to_string();
         tokio::task::spawn_blocking(move || {
             let session = X11Session::connect()?;
@@ -250,7 +260,10 @@ impl CompositorBackend for X11Driver {
                     session.activate_window(win)?;
                 }
             }
-            session.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+            session
+                .conn
+                .flush()
+                .map_err(|e| DriverError::Execution(e.into()))?;
             Ok(())
         })
         .await
@@ -319,7 +332,10 @@ impl CompositorBackend for X11Driver {
                     );
                 }
             }
-            session.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+            session
+                .conn
+                .flush()
+                .map_err(|e| DriverError::Execution(e.into()))?;
             Ok(())
         })
         .await
@@ -338,13 +354,19 @@ impl CompositorBackend for X11Driver {
                 session.atoms._NET_CLOSE_WINDOW,
                 [x11rb::CURRENT_TIME, 2, 0, 0, 0],
             );
-            session.conn.send_event(
-                false,
-                session.root,
-                EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
-                event,
-            ).map_err(|e| DriverError::Execution(e.into()))?;
-            session.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+            session
+                .conn
+                .send_event(
+                    false,
+                    session.root,
+                    EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
+                    event,
+                )
+                .map_err(|e| DriverError::Execution(e.into()))?;
+            session
+                .conn
+                .flush()
+                .map_err(|e| DriverError::Execution(e.into()))?;
             Ok(())
         })
         .await

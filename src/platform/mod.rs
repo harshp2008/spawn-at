@@ -17,11 +17,13 @@ pub mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
 
-use std::time::Duration;
-use clap::Args;
-pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
-pub use spawn_at_core::geometry::{PlacementParams, Rect};
 pub use crate::target::WindowMetadata;
+use clap::Args;
+pub use spawn_at_core::driver::{
+    Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency,
+};
+pub use spawn_at_core::geometry::{PlacementParams, Rect};
+use std::time::Duration;
 
 /// The result reported when a compositor claims and finishes placement of an armed window.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,7 +101,7 @@ pub trait CompositorBackend: Driver + Send + Sync {
     fn name(&self) -> &'static str;
 
     // --- Setup & Teardown ---
-    
+
     /// Installs any necessary system hooks or extensions required by this driver.
     fn install(&self, _args: &InstallArgs) -> Result<(), DriverError> {
         println!("No installation required for {}.", self.name());
@@ -113,7 +115,7 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     // --- Capability Checking ---
-    
+
     /// True if the compositor supports moving/resizing mapped windows via IPC.
     fn supports_runtime_transform(&self) -> bool {
         false
@@ -121,6 +123,11 @@ pub trait CompositorBackend: Driver + Send + Sync {
 
     /// True if the compositor supports asynchronous event/signal notification for claimed windows.
     fn supports_claim_wait(&self) -> bool {
+        false
+    }
+
+    /// True if the compositor backend supports closing windows.
+    fn supports_close(&self) -> bool {
         false
     }
 
@@ -192,12 +199,23 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Moves and resizes a target window to the specified geometry.
-    async fn move_resize_window(&self, _target_id: &str, _x: i32, _y: i32, _w: u32, _h: u32) -> Result<(), DriverError> {
+    async fn move_resize_window(
+        &self,
+        _target_id: &str,
+        _x: i32,
+        _y: i32,
+        _w: u32,
+        _h: u32,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("move_resize_window"))
     }
 
     /// Modifies the window state (maximize, minimize, unminimize, restore).
-    async fn set_window_state(&self, _target_id: &str, _state: WindowState) -> Result<(), DriverError> {
+    async fn set_window_state(
+        &self,
+        _target_id: &str,
+        _state: WindowState,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("set_window_state"))
     }
 
@@ -218,7 +236,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
 
     /// Requests graceful closure of the specified target window.
     async fn close_window(&self, _target_id: &str) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability("close_window"))
+        Err(DriverError::Execution(
+            "this backend cannot close windows".into(),
+        ))
     }
 
     /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
@@ -233,7 +253,9 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
     return NativeBackend::bootstrap().await;
 
     #[cfg(not(target_os = "linux"))]
-    Err(DriverError::UnsupportedCapability("Unsupported operating system"))
+    Err(DriverError::UnsupportedCapability(
+        "Unsupported operating system",
+    ))
 }
 
 /// Alias for `init_backend` to preserve backwards compatibility.
