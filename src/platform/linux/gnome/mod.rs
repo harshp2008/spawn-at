@@ -621,13 +621,13 @@ impl CompositorBackend for GnomeWaylandDriver {
         if let Ok(coords) = self.proxy.get_pointer().await {
             return Ok(coords);
         }
-        Ok(crate::platform::linux::query_xdotool_cursor().unwrap_or((0, 0)))
+        Ok(crate::platform::linux::query_x11_cursor().unwrap_or((0, 0)))
     }
 
     async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
         match self.get_workareas().await {
             Ok(areas) if !areas.is_empty() => Ok(areas),
-            _ => Ok(crate::platform::linux::query_xrandr_monitors()),
+            _ => Ok(crate::platform::linux::query_x11_monitors()),
         }
     }
 

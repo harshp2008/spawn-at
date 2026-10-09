@@ -9,7 +9,7 @@ use crate::platform::{
 use x11rb::connection::Connection as _;
 
 /// Queries available display monitor bounding boxes via native X11 RANDR or screen fallback.
-pub fn query_xrandr_monitors() -> Vec<Rect> {
+pub fn query_x11_monitors() -> Vec<Rect> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
         let root = conn.setup().roots[screen_num].root;
         use x11rb::protocol::randr::ConnectionExt as _;
@@ -41,7 +41,7 @@ pub fn query_xrandr_monitors() -> Vec<Rect> {
 }
 
 /// Queries current pointer coordinates using native X11 protocol.
-pub fn query_xdotool_cursor() -> Option<(i32, i32)> {
+pub fn query_x11_cursor() -> Option<(i32, i32)> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
         let root = conn.setup().roots[screen_num].root;
         use x11rb::protocol::xproto::ConnectionExt as _;
