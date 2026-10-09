@@ -19,7 +19,7 @@ pub use linux::LinuxBackend as NativeBackend;
 
 use clap::Args;
 pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
-pub use spawn_at_core::geometry::{PlacementParams, Rect, TargetGeometry};
+pub use spawn_at_core::geometry::{PlacementParams, Rect};
 pub use crate::target::WindowMetadata;
 
 /// The desired window state for transformations.

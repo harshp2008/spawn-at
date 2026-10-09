@@ -78,40 +78,6 @@ pub enum Pivot {
     Center,
 }
 
-/// Input parameters for calculating final target window geometry.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GeometryParams {
-    /// Explicit absolute screen coordinates (X, Y)
-    pub pos: Option<(i32, i32)>,
-    /// Relative offset from mouse cursor (X, Y)
-    pub offset: Option<(i32, i32)>,
-    /// Target window dimensions (Width, Height)
-    pub size: Option<(u32, u32)>,
-    /// Boundary distance from the top edge
-    pub bound_top: Option<i32>,
-    /// Boundary distance from the bottom edge
-    pub bound_bottom: Option<i32>,
-    /// Boundary distance from the left edge
-    pub bound_left: Option<i32>,
-    /// Boundary distance from the right edge
-    pub bound_right: Option<i32>,
-    /// Universal margin applied to all bounded edges
-    pub margin: Option<i32>,
-}
-
-/// Target geometry for the window to be spawned.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct TargetGeometry {
-    pub x: i32,
-    pub y: i32,
-    pub w: u32,
-    pub h: u32,
-    pub min_x: Option<i32>,
-    pub max_x: Option<i32>,
-    pub min_y: Option<i32>,
-    pub max_y: Option<i32>,
-}
-
 fn default_true() -> bool {
     true
 }
@@ -311,77 +277,6 @@ pub fn clamp_to_bounds(
         y: clamped_y,
         width: rect.width,
         height: rect.height,
-    }
-}
-
-/// Pure mathematical calculation of target window geometry.
-pub fn calculate(
-    params: &GeometryParams,
-    cursor: Option<(i32, i32)>,
-    monitors: &[Rect],
-) -> TargetGeometry {
-    let (mut target_x, mut target_y) = if let Some((px, py)) = params.pos {
-        (px, py)
-    } else {
-        let (cx, cy) = cursor.unwrap_or((0, 0));
-        let (ox, oy) = params.offset.unwrap_or((0, 0));
-        (cx + ox, cy + oy)
-    };
-
-    let (w, h) = params.size.unwrap_or((0, 0));
-
-    let has_bounds = params.margin.is_some()
-        || params.bound_top.is_some()
-        || params.bound_bottom.is_some()
-        || params.bound_left.is_some()
-        || params.bound_right.is_some();
-
-    let mut min_x = None;
-    let mut max_x = None;
-    let mut min_y = None;
-    let mut max_y = None;
-
-    if has_bounds && !monitors.is_empty() {
-        let active_monitor = resolve_workarea(monitors, (target_x, target_y), "cursor").unwrap_or(monitors[0]);
-
-        let bound_top = params.bound_top.unwrap_or(0);
-        let bound_bottom = params.bound_bottom.unwrap_or(0);
-        let bound_left = params.bound_left.unwrap_or(0);
-        let bound_right = params.bound_right.unwrap_or(0);
-        let margin = params.margin.unwrap_or(0);
-
-        let top = bound_top + margin;
-        let bottom = bound_bottom + margin;
-        let left = bound_left + margin;
-        let right = bound_right + margin;
-
-        min_x = Some(active_monitor.x + left);
-        max_x = Some(active_monitor.x + (active_monitor.width as i32) - right);
-        min_y = Some(active_monitor.y + top);
-        max_y = Some(active_monitor.y + (active_monitor.height as i32) - bottom);
-
-        let clamped = clamp_to_bounds(
-            Rect { x: target_x, y: target_y, width: w, height: h },
-            active_monitor,
-            bound_top,
-            bound_bottom,
-            bound_left,
-            bound_right,
-            margin,
-        );
-        target_x = clamped.x;
-        target_y = clamped.y;
-    }
-
-    TargetGeometry {
-        x: target_x,
-        y: target_y,
-        w,
-        h,
-        min_x,
-        max_x,
-        min_y,
-        max_y,
     }
 }
 
@@ -618,45 +513,6 @@ mod tests {
         assert_eq!(resolve_workarea(&workareas, (500, 300), "cursor").unwrap(), wa1);
         assert_eq!(resolve_workarea(&workareas, (2200, 500), "cursor").unwrap(), wa2);
         assert_eq!(resolve_workarea(&workareas, (9999, 9999), "cursor").unwrap(), wa1);
-    }
-    
-    #[test]
-    fn test_calculate_with_explicit_pos() {
-        let params = GeometryParams {
-            pos: Some((500, 300)),
-            size: Some((800, 600)),
-            ..Default::default()
-        };
-        let geom = calculate(&params, None, &[]);
-        assert_eq!(geom, TargetGeometry { x: 500, y: 300, w: 800, h: 600, ..Default::default() });
-    }
-
-    #[test]
-    fn test_calculate_with_cursor_and_offset() {
-        let params = GeometryParams {
-            offset: Some((50, -20)),
-            size: Some((400, 300)),
-            ..Default::default()
-        };
-        let geom = calculate(&params, Some((1000, 500)), &[]);
-        assert_eq!(geom, TargetGeometry { x: 1050, y: 480, w: 400, h: 300, ..Default::default() });
-    }
-
-    #[test]
-    fn test_calculate_with_boundary_limits() {
-        let wa = Rect { x: 100, y: 50, width: 1920, height: 1080 };
-        let params = GeometryParams {
-            pos: Some((200, 200)),
-            size: Some((800, 600)),
-            margin: Some(40),
-            bound_top: Some(10),
-            ..Default::default()
-        };
-        let geom = calculate(&params, None, &[wa]);
-        assert_eq!(geom.min_x, Some(100 + 40));
-        assert_eq!(geom.max_x, Some(100 + 1920 - 40));
-        assert_eq!(geom.min_y, Some(50 + 40 + 10));
-        assert_eq!(geom.max_y, Some(50 + 1080 - 40));
     }
 
     #[test]
