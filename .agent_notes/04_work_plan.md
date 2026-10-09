@@ -113,6 +113,38 @@ Before initiating Stage 2 execution, the following architectural and behavioral 
 
 ---
 
+### Phase 3.5: Truthful Diagnostics, Signal-Driven Claim Notification & Legacy GNOME Port
+**Objective:** Truthful diagnostics, fast signal-driven placement confirmation, unmaximization, and platform-independent driver traits.
+- **Tasks & Architectural Changes:**
+  - **Task 1: SpawnClaimed D-Bus Signal (Option A):**
+    - ProtocolVersion bumped to 2. Extension emits `SpawnClaimed(target_id: s, success: b, window_id: t, x: i, y: i, w: u, h: u, size_raised: b, error: s)`.
+    - CLI subscribes before calling `arm`, avoiding race conditions on fast-mapping windows.
+    - Fast failure reporting: failures emit immediately without waiting out the 2s timeout.
+    - Polling fallback on stale extension (`ProtocolVersion < 2`) with informative `INFO` log.
+    - `app_id` added to `GetWindows` and used by polling matcher.
+    - `gnome-terminal-server` paired with `org.gnome.Terminal` in extension matching.
+  - **Task 2: Unmaximize on Explicit Placement:**
+    - Unmaximize window before placement when explicit size, pos, or anchor is requested.
+    - Settle delay (~200ms) re-check; bounded re-assertion if client re-maximizes after map.
+    - Journal evidence analyzed: (a) new window created and restored maximized state; (b) app reused existing window.
+    - Reused existing windows: detect when app activates an existing window without creating a new one, print warning, and do not move or resize.
+  - **Task 3 & 4: Centralized Diagnostics & Settle Delay:**
+    - Unified `src/diagnostics.rs` module with typed `Diagnostic` enum.
+    - Both `spawn` and `transform` query settled rect after 200ms delay.
+    - Truthful reporting: distinguish between size raised to minimum vs workarea clamping.
+  - **Task 5: Platform Independence:**
+    - Added `supports_claim_wait`, `prepare_claim_wait`, and `get_window_rect` to `CompositorBackend` trait.
+  - **Task 6 & 7: Verification & Smoke Test:**
+    - Node tests (signal emission, error status, protocol version, unmaximize + re-assertion).
+    - Rust unit tests (subscribe-before-arm ordering, fallback on stale extension, launcher daemon handoff, diagnostics parity).
+    - Live smoke test (`scripts/smoke-live.sh`) covering center, top-right, bottom-right, sub-minimum size on terminal, calculator, and text-editor.
+  - **Task 8: Legacy GNOME (42-44) Port:**
+    - Port extension to legacy GJS imports (`imports.gi.*`).
+    - Parity XML and ProtocolVersion 2 test harness.
+- **Verification Gate 3.5:** All unit tests, Node tests, and live smoke tests pass within 1px tolerance.
+
+---
+
 ### Phase 4: Trait Redesign & Cross-OS Extensibility
 **Objective:** Restructure platform abstractions so non-Linux platforms compile and adding drivers is turnkey.
 - **Commits:**
