@@ -222,6 +222,117 @@ pub fn apply_anchor(
     }
 }
 
+/// Resolves screen anchor point `(x, y)` on the given workarea with directional margins.
+pub fn compute_screen_anchor(
+    workarea: Rect,
+    anchor: Anchor,
+    margin_top: i32,
+    margin_bottom: i32,
+    margin_left: i32,
+    margin_right: i32,
+    cursor_pos: Option<(i32, i32)>,
+) -> (i32, i32) {
+    match anchor {
+        Anchor::Center => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::TopLeft => (
+            workarea.x + margin_left,
+            workarea.y + margin_top,
+        ),
+        Anchor::TopRight => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + margin_top,
+        ),
+        Anchor::BottomLeft => (
+            workarea.x + margin_left,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::BottomRight => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::Top => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + margin_top,
+        ),
+        Anchor::Bottom => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::Left => (
+            workarea.x + margin_left,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::Right => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::Cursor => cursor_pos.unwrap_or((workarea.x + margin_left, workarea.y + margin_top)),
+    }
+}
+
+/// Computes the final target window geometry rectangle from declarative placement parameters.
+pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h: u32) -> Rect {
+    let w = params.size.map(|s| s.0).unwrap_or(win_w);
+    let h = params.size.map(|s| s.1).unwrap_or(win_h);
+
+    let wa = params.workarea;
+    let margin_top = params.margin_top.unwrap_or(params.margin);
+    let margin_bottom = params.margin_bottom.unwrap_or(params.margin);
+    let margin_left = params.margin_left.unwrap_or(params.margin);
+    let margin_right = params.margin_right.unwrap_or(params.margin);
+
+    let (anchor_x, anchor_y) = if let Some(anchor) = params.anchor {
+        compute_screen_anchor(wa, anchor, margin_top, margin_bottom, margin_left, margin_right, params.cursor_pos)
+    } else if let Some(pos) = params.pos {
+        pos
+    } else if let Some(cursor) = params.cursor_pos {
+        cursor
+    } else {
+        (wa.x + margin_left, wa.y + margin_top)
+    };
+
+    let (ox, oy) = params.offset.unwrap_or((0, 0));
+    let target_x = anchor_x + ox;
+    let target_y = anchor_y + oy;
+
+    let (x, y) = if let Some(pivot) = params.pivot {
+        apply_pivot(target_x, target_y, w, h, pivot)
+    } else if let Some(anchor) = params.anchor {
+        match anchor {
+            Anchor::Top => (target_x - (w as i32) / 2, target_y),
+            Anchor::Bottom => (target_x - (w as i32) / 2, target_y - (h as i32)),
+            Anchor::Left => (target_x, target_y - (h as i32) / 2),
+            Anchor::Right => (target_x - (w as i32), target_y - (h as i32) / 2),
+            Anchor::Center => (target_x - (w as i32) / 2, target_y - (h as i32) / 2),
+            Anchor::TopLeft => (target_x, target_y),
+            Anchor::TopRight => (target_x - (w as i32), target_y),
+            Anchor::BottomLeft => (target_x, target_y - (h as i32)),
+            Anchor::BottomRight => (target_x - (w as i32), target_y - (h as i32)),
+            Anchor::Cursor => (target_x, target_y),
+        }
+    } else {
+        (target_x, target_y)
+    };
+
+    let raw_rect = Rect { x, y, width: w, height: h };
+    if params.clamp {
+        clamp_to_bounds(
+            raw_rect,
+            wa,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            0,
+        )
+    } else {
+        raw_rect
+    }
+}
+
 /// Computes the top-left origin coordinates `(x, y)` when placing a window of size
 /// `(win_w, win_h)` such that the specified `pivot` point aligns with `(target_x, target_y)`.
 pub fn apply_pivot(

@@ -7,6 +7,7 @@ pub mod geometry;
 
 pub use driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
 pub use geometry::{
-    apply_anchor, apply_pivot, check_geometry_diagnostics, clamp_to_bounds, resolve_workarea,
-    Anchor, Area, GeometryDiagnostic, Pivot, PlacementParams, Rect,
+    apply_anchor, apply_pivot, calculate_rect_from_placement, check_geometry_diagnostics,
+    clamp_to_bounds, compute_screen_anchor, resolve_workarea, Anchor, Area, GeometryDiagnostic,
+    Pivot, PlacementParams, Rect,
 };

@@ -88,59 +88,21 @@ pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: 
     };
 
     let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
-        match anchor {
-            Anchor::Center => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::TopLeft => (
-                wa.x + margin_left,
-                wa.y + margin_top,
-            ),
-            Anchor::TopRight => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + margin_top,
-            ),
-            Anchor::BottomLeft => (
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::BottomRight => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Top => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + margin_top,
-            ),
-            Anchor::Bottom => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Left => (
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Right => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Cursor => {
-                if let Some(cursor) = params.cursor_pos {
-                    (cursor.0, cursor.1)
-                } else {
-                    (wa.x + margin_left, wa.y + margin_top)
-                }
-            }
-        }
+        spawn_at_core::geometry::compute_screen_anchor(
+            wa,
+            anchor,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            params.cursor_pos,
+        )
+    } else if let Some(pos) = params.pos {
+        (pos.0, pos.1)
+    } else if let Some(cursor) = params.cursor_pos {
+        (cursor.0, cursor.1)
     } else {
-        if let Some(pos) = params.pos {
-            (pos.0, pos.1)
-        } else if let Some(cursor) = params.cursor_pos {
-            (cursor.0, cursor.1)
-        } else {
-            (wa.x + margin_left, wa.y + margin_top)
-        }
+        (wa.x + margin_left, wa.y + margin_top)
     };
 
     PlacementPayload {
