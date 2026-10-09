@@ -3,12 +3,12 @@ title = "Bottom-right anchor placement"
 description = "Spawns a window at the bottom-right corner of the primary work area with a 16px boundary margin and validates the placed geometry against the independent arithmetic oracle."
 kind = "both"
 required = true
-tags = ["visual", "wayland-only", "gnome-only", "needs-fixture"]
+tags = ["visual", "needs-fixture"]
 
 [requires]
-session = ["wayland"]
-backend = ["gnome"]
-gnome = "45-48"
+session = ["any"]
+backend = ["any"]
+gnome = "any"
 monitors_min = 1
 scale = "any"
 apps = []
@@ -29,7 +29,7 @@ args = [
 
 [expect]
 exit_code = 0
-stderr_absent = ["Error", "WARNING"]
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
 stderr_present = []
 diagnostics = []
 never_visible_off_target = false

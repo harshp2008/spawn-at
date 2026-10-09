@@ -44,7 +44,9 @@ The verification suite lives in `crates/spawn-at-verify` as a developer-only wor
    - `TraceSource`: Reads structured compositor actor traces (`[spawn-at-trace] {json}`).
    - `EnvProbe`: Inspects session type (`wayland` vs `x11`), desktop environment, monitors, scale, and kernel.
    Platforms missing these traits build cleanly and skip dependent tests with clear, explicit skip reasons.
-3. **Independent Geometric Oracle**: Expected window bounds are calculated by a standalone arithmetic oracle inside the test runner using monitor dimensions from `spawn-at query layout --json`. It never imports `spawn-at-core`, avoiding circular verification bugs.
+3. **Independent Geometric Oracle**: Expected window bounds are calculated by a standalone arithmetic oracle inside the test runner using monitor dimensions from `spawn-at query layout --json`.
+   - **Semantic Authority**: The oracle follows the documented semantics of anchor, pivot, and margin from project documentation, **not from the implementation code**.
+   - If the oracle ever disagrees with `spawn-at`, the failure must be flagged and reported; the oracle is never altered to accommodate diverging code behavior.
 4. **Unified Session State & Lock**: The headless core maintains the canonical test execution state with a single writer lock. Running `spawn-at-verify tui --web` serves both the local terminal and a mobile or secondary browser simultaneously against the exact same in-process session.
 
 ---
@@ -57,24 +59,38 @@ Tests are defined in declarative TOML files stored under `verify/<category>/<tes
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `id` | `String` | Unique path-based identifier matching the relative file path (e.g. `placement/bottom-right`). |
+| `id` | `String` | Base path-based identifier matching the relative file path without `.toml` (e.g. `placement/bottom-right`). |
 | `title` | `String` | Short human-readable title. |
 | `description` | `String` | Detailed explanation of test intent. |
 | `kind` | `String` | `"auto"` (automated assertions only), `"human"` (visual review only), or `"both"` (both required). |
 | `required` | `bool` | If `true`, a pass is required for platform qualification in `SUPPORT.md`. |
-| `tags` | `Array<String>` | Labels: `visual`, `slow`, `multi-monitor`, `wayland-only`, `x11-only`, `gnome-only`, `legacy-gnome`, `destructive`, `manual-setup`, `needs-fixture`. |
-| `requires` | `Table` | Environment constraints (`session`, `backend`, `gnome`, `monitors_min`, `scale`, `apps`). Unmet requirements cause the test to be **SKIPPED with an explicit reason**, never silently passed. |
+| `tags` | `Array<String>` | Orthogonal test tags (e.g. `visual`, `slow`, `multi-monitor`, `destructive`, `manual-setup`, `needs-fixture`). **Note**: Platform tags (`wayland-only`, `x11-only`, `gnome-only`) are **derived automatically from `[requires]`** as the single source of truth and must not be duplicated here. |
+| `requires` | `Table` | Environment constraints (`session`, `backend`, `gnome`, `monitors_min`, `scale`, `apps`). Unmet requirements cause the test to be **SKIPPED with an explicit reason**, never silently passed. Defaults to `session = ["any"]`, `backend = ["any"]`. |
 | `subject` | `Table` | Target app to spawn: `app = "fixture"` or `"system:<command>"`, with profile and CLI args. |
 | `action` | `Table` | The CLI subcommand to invoke (`spawn`, `transform`, etc.), arguments, and whether it is `repeatable` in-place. |
 | `expect` | `Table` | Automated expectations: `exit_code`, `stderr_absent`, `stderr_present`, `diagnostics`, `never_visible_off_target`, and `rect` (oracle tolerance). |
 | `human` | `Table` | Human verification prompts: `watch = "..."` describes the exact visual artifact to watch for. |
 | `regression` | `Table` | For regression tests: `commit = "..."` and `note = "..."` linking to past issues. |
 
+### Diagnostic Label Matching (`stderr_absent` / `stderr_present`)
+- Entries in `stderr_absent` and `stderr_present` match **exact diagnostic label tokens** by default:
+  - `"[spawn-at] ERROR:"`
+  - `"[spawn-at] WARNING:"`
+  - `"[spawn-at] INFO:"`
+- Matching is case-sensitive literal substring comparison.
+- **Regex Opt-in**: To use regular expression matching, prefix the pattern with `re:` (e.g. `re:.*failed to connect.*`).
+
 ### Matrix Expansion
-Tests can define a `[matrix]` block to automatically generate parameterized combinations (e.g. anchors $\times$ pivots).
+Tests can define a `[matrix]` block to automatically generate parameterized combinations (e.g. initial buffer delay or anchors $\times$ pivots).
+- **ID Formation**: The file's `id` is the base ID; each expansion produces:
+  `<base>/<combination>`
+  For example, base `cloak/delayed-paint` with `delay = [0, 50, 150, 500]` expands to:
+  - `cloak/delayed-paint/delay-0`
+  - `cloak/delayed-paint/delay-50`
+  - `cloak/delayed-paint/delay-150`
+  - `cloak/delayed-paint/delay-500`
 - Real anchor and pivot identifiers are read directly from CLI argument definitions.
-- Sub-test IDs are derived predictably: `<category>/<matrix-file>/<param1>-<param2>`.
-- The loader validates that all generated IDs are globally unique.
+- The loader validates that all generated IDs are globally unique, rejecting duplicate expansions or unknown fields with file and line context.
 
 ---
 
@@ -89,7 +105,7 @@ verify/
 ├── placement/                # Anchor/pivot math, bounds, margins, and clamping
 │   ├── README.md
 │   └── bottom-right.toml
-├── cloak/                    # Zero-flicker cold starts, delayed paints, trace analysis
+├── cloak/                    # Zero-flicker cold starts, delayed paint & traces
 │   ├── README.md
 │   └── delayed-paint.toml
 ├── launchers/                # Forking launchers, daemon handoffs, single-instance reuse
@@ -119,20 +135,26 @@ verify/
 
 ---
 
-## 4. Selectors & Test Filtering
+## 4. Preflight Gate & Binary Freshness
 
-The runner and TUI filter tests dynamically via CLI flags:
-- `--category <path>`: Matches categories by prefix (e.g. `placement/` or `cloak/`).
-- `--tag <tag>`: Matches tags, with negation support (e.g. `--tag visual`, `--tag !slow`).
-- `--kind <auto|human|both>`: Filters by verification type.
-- `--required`: Runs only tests required for platform qualification.
-- `--id <glob>`: Filters by specific test ID pattern.
-- `--suite <name>`: Loads predefined suites from `verify/suites/<name>.toml`.
-- `--repeat <N>`: Repeats each selected test $N$ times (1–100) with a configurable delay.
+The preflight check runs first to prevent testing stale or out-of-sync binaries:
+
+| Binary State | Repo Git State | Preflight Verdict | Meaning / Action Required |
+| :--- | :--- | :--- | :--- |
+| **Clean** (matches HEAD) | Clean working tree | **PASS** | Binary is fresh and matches current committed tree. |
+| **Clean** | Newer HEAD or dirty working tree | **FAIL** | Stale binary; rebuild before verifying. |
+| **Dirty** (e.g. `20f032e-dirty`) | Any state | **WARN** | Built from uncommitted changes; flagged as "dirty build". |
+| **No Commit ID** (release build) | Any state | **SKIP** | Release tarball without git metadata; skipped with reason. |
+
+### Dirty Build Policy
+- A binary flagged as dirty may execute development tests.
+- However, the session report is permanently marked with `"dirty build"`.
+- A dirty-build session **can never qualify an environment for `SUPPORT.md`**.
+- The `release-gate` suite strictly refuses to run with a dirty build unless explicitly overridden with `--allow-dirty` (which is recorded in the report).
 
 ---
 
-## 5. Results Model & Flakiness Detection
+## 5. Results Model & Qualification
 
 ### Execution Statuses
 - `pending`: Not yet run.
@@ -140,8 +162,8 @@ The runner and TUI filter tests dynamically via CLI flags:
 - `auto-pass`: All automated CLI exit codes, stderr checks, oracle geometry, and traces passed.
 - `auto-fail`: One or more automated assertions failed.
 - `error`: Harness problem (e.g. cannot launch fixture or query layout), kept strictly distinct from product failure.
-- `skipped(reason)`: Unmet environment requirement (e.g. requires dual monitors on a single-monitor laptop).
-- `blocked`: Preflight gate failed. Overridable with `--force` (triggers loud warning banner).
+- `skipped(reason)`: Unmet environment requirement.
+- `blocked`: Preflight gate failed (overridable with `--force`).
 
 ### Human Verdicts (Tracked Separately)
 - `unset`: Awaiting human review.
@@ -149,24 +171,19 @@ The runner and TUI filter tests dynamically via CLI flags:
 - `fail`: Visual artifact or defect observed.
 - `skip`: Manually skipped by reviewer.
 - `flaky`: Inconsistent visual behavior noted.
-- Free-text reviewer notes accompany every verdict.
 
-### Final Reconciliation Matrix
-- `kind = "auto"`: Automated status decides (human verdict is optional context).
-- `kind = "human"`: Human verdict decides.
-- `kind = "both"`: Passes **only** if both `auto-pass` and human `pass` are achieved. Any disagreement between automated assertions and human verdict is highlighted with high-contrast alert badges.
-
-### Multi-Run Flakiness Detection
-When running with `--repeat <N>`, if individual iterations yield mixed results across identical preconditions, the test status is automatically marked as **`flaky`**.
+### Qualification Rule
+- **Skipped is NEVER counted as a pass.**
+- A `required` test that was skipped (for example, cloak tests when trace collection is not yet supported) prevents an environment from being marked as supported.
+- Reports must explicitly list all `required-but-skipped` tests with their skip reasons.
 
 ---
 
 ## 6. Window Ownership & Safe Cleanup Rules
 
-To prevent accidental termination of user shells, editors, or background daemons:
 1. **Startup Snapshot**: At session launch, the harness snapshots all existing window IDs via `spawn-at query windows --json`.
-2. **Ownership Strictness**: The harness **never** closes pre-existing windows. It tracks only windows that were spawned during test actions.
-3. **No PID or Name Killing**: Host processes (like `gnome-terminal-server`) host real user windows and the verification runner itself. The harness closes windows strictly by their specific window ID through the CLI (`spawn-at restore/defocus` or compositor protocols). Fixture helper processes spawned directly by the runner may be terminated by process handle.
+2. **Ownership Strictness**: The harness **never** closes pre-existing windows. It tracks only windows spawned during test actions.
+3. **No PID or Name Killing**: Host processes (`gnome-terminal-server`, etc.) are never terminated by PID or process name. Windows are closed individually by ID through `spawn-at` CLI commands. Fixture helper child processes spawned directly by the runner may be terminated via child process handle.
 4. **Concurrency Cap**: The harness tracks a maximum of 20 concurrent windows. If the cap is reached, further spawns are refused until windows are cleaned up.
 5. **Execution Variants**:
    - *Rerun Fresh*: Closes previous windows owned by this test, then spawns anew.
@@ -175,20 +192,12 @@ To prevent accidental termination of user shells, editors, or background daemons
 
 ---
 
-## 7. Fixture Application
+## 7. Fixture Application & Protocol Verification
 
-A dedicated, dev-only helper binary (`crates/spawn-at-verify/src/bin/fixture.rs`) built with `winit` and `softbuffer` to avoid heavy toolkit dependencies.
-
-Configurable profiles:
-- `plain`: Standard floating window with predictable title and app ID.
-- `min-size`: Enforces strict toolkit minimum geometry constraints.
-- `delayed-paint`: Delays first buffer presentation by $N$ ms (widens race conditions for cloak testing).
-- `resize-after-map`: Dynamically requests a geometry change after initial mapping.
-- `re-maximize`: Attempts to restore maximized state after placement.
-- `never-map`: Creates an event loop but never maps a surface.
-- `crash`: Intentionally exits abruptly prior to buffer attachment.
-- `launcher`: Short-lived launcher process that hands off window creation to a background server before exiting.
-- `single-instance`: Second invocation activates the existing window rather than mapping a new surface.
+The fixture helper binary (`crates/spawn-at-verify/src/bin/fixture.rs`) supports configurable window behaviors and explicit protocol control:
+- **Protocol Option**: `--protocol <auto|wayland|x11>`
+- **Actual Protocol Tracking**: The runner records per test window which protocol was actually used (derived from compositor trace/log or `query windows` output).
+- **Strict Protocol Enforcement**: A test requiring native Wayland fails or skips if the window was mapped under XWayland.
 
 ---
 
@@ -241,3 +250,4 @@ Test outputs are recorded under `verify-results/<timestamp>-<host>/`:
 
 ### Platform Support Qualification
 A platform or desktop environment may only be documented as **Supported** in `SUPPORT.md` if **100% of required tests pass** (`auto-pass` and human `pass` where `kind = "both"`). `spawn-at-verify report --support-row` formats verified candidate rows.
+

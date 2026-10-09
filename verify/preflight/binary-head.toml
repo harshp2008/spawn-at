@@ -6,8 +6,8 @@ required = true
 tags = ["preflight"]
 
 [requires]
-session = ["wayland", "x11"]
-backend = ["gnome", "x11"]
+session = ["any"]
+backend = ["any"]
 gnome = "any"
 monitors_min = 1
 scale = "any"
@@ -25,7 +25,7 @@ args = []
 
 [expect]
 exit_code = 0
-stderr_absent = ["Error", "WARNING"]
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
 stderr_present = []
 diagnostics = []
 never_visible_off_target = false

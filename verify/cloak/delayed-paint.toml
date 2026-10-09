@@ -1,14 +1,17 @@
 id = "cloak/delayed-paint"
-title = "Zero-flicker cold-start with delayed first paint"
-description = "Tests window cold-start masking when an application delays attaching its first graphic buffer by 150ms. Validates that the window is cloaked before map and never visible at off-target geometry."
+title = "Zero-flicker cold-start with delayed first paint matrix"
+description = "Tests window cold-start masking across a matrix of initial buffer presentation delays (0, 50, 150, 500 ms). Validates that the window is cloaked before map and never visible at off-target geometry."
 kind = "both"
 required = true
-tags = ["visual", "wayland-only", "gnome-only", "needs-fixture"]
+tags = ["visual", "needs-fixture"]
+
+[matrix]
+delay = [0, 50, 150, 500]
 
 [requires]
 session = ["wayland"]
 backend = ["gnome"]
-gnome = "45-48"
+gnome = "42-48"
 monitors_min = 1
 scale = "any"
 apps = []
@@ -19,7 +22,7 @@ profile = "delayed-paint"
 args = [
     "--title", "Verify-Cloak-DelayedPaint",
     "--app-id", "verify.cloak.delayedpaint",
-    "--paint-delay-ms", "150"
+    "--paint-delay-ms", "{delay}"
 ]
 
 [action]
@@ -32,7 +35,7 @@ args = [
 
 [expect]
 exit_code = 0
-stderr_absent = ["Error", "WARNING"]
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
 stderr_present = []
 diagnostics = []
 never_visible_off_target = true
