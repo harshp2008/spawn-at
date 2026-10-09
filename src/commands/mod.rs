@@ -6,11 +6,13 @@
 pub mod focus;
 pub mod lifecycle;
 pub mod query;
+pub mod spawn;
 pub mod transform;
 
 pub use focus::{apply_focus_policy, run_defocus, run_focus};
 pub use lifecycle::{run_maximize, run_minimize, run_restore, run_unminimize};
 pub use query::run_query;
+pub use spawn::run_spawn;
 pub use transform::run_transform;
 
 use crate::platform::{CompositorBackend, DriverError, WindowMetadata};
