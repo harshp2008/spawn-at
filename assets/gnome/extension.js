@@ -550,12 +550,16 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
 
     _normalizeInstruction(inst) {
+        if (!inst)
+            return null;
         if (typeof inst === 'string')
             return { name: inst, args: {} };
-        if (inst && typeof inst === 'object') {
+        if (typeof inst === 'object') {
+            if (typeof inst.name === 'string')
+                return { name: inst.name, args: (inst.args && typeof inst.args === 'object') ? inst.args : {} };
             const name = Object.keys(inst)[0];
             if (name)
-                return { name, args: inst[name] ?? {} };
+                return { name, args: (inst[name] && typeof inst[name] === 'object') ? inst[name] : {} };
         }
         return null;
     }
@@ -602,6 +606,7 @@ export default class SpawnAtExtension extends Extension {
                     case 'Uncloak':             await this._stepUncloak(ctx, op.args); break;
                     default:
                         console.error(`[SpawnAt] Unknown instruction "${op.name}" ignored`);
+                        throw new Error(`[SpawnAt] Unknown instruction "${op.name}"`);
                 }
             }
         } finally {

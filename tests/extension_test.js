@@ -7,12 +7,16 @@ import { computeAnchoredPosition } from '../assets/gnome/anchor.js';
  * Pure instruction normalization logic extracted from extension.esm.js.
  */
 function normalizeInstruction(inst) {
+    if (!inst)
+        return null;
     if (typeof inst === 'string')
         return { name: inst, args: {} };
-    if (inst && typeof inst === 'object') {
+    if (typeof inst === 'object') {
+        if (typeof inst.name === 'string')
+            return { name: inst.name, args: (inst.args && typeof inst.args === 'object') ? inst.args : {} };
         const name = Object.keys(inst)[0];
         if (name)
-            return { name, args: inst[name] ?? {} };
+            return { name, args: (inst[name] && typeof inst[name] === 'object') ? inst[name] : {} };
     }
     return null;
 }
@@ -128,6 +132,16 @@ test('extension characterization: normalizeInstruction variants', () => {
     assert.deepEqual(
         normalizeInstruction({ WaitForCommit: { timeout_ms: 300 } }),
         { name: 'WaitForCommit', args: { timeout_ms: 300 } }
+    );
+
+    assert.deepEqual(
+        normalizeInstruction({ name: 'SetSize', args: { w: 1024, h: 768 } }),
+        { name: 'SetSize', args: { w: 1024, h: 768 } }
+    );
+
+    assert.deepEqual(
+        normalizeInstruction({ name: 'Cloak', args: {} }),
+        { name: 'Cloak', args: {} }
     );
 
     assert.equal(normalizeInstruction(null), null);

@@ -187,10 +187,11 @@ export class SessionLogger {
         try { clientType = window.get_client_type?.(); } catch (_e) {}
 
         let protocol = 'Unknown';
+        const isWayland = typeof Meta.is_wayland_compositor === 'function' ? Meta.is_wayland_compositor() : false;
         if (clientType === Meta.WindowClientType?.WAYLAND || clientType === 0)
             protocol = 'Wayland';
         else if (clientType === Meta.WindowClientType?.X11 || clientType === 1)
-            protocol = 'XWayland';
+            protocol = isWayland ? 'XWayland' : 'X11';
 
         let typeInt = -1;
         try { typeInt = window.get_window_type?.(); } catch (_e) {}
