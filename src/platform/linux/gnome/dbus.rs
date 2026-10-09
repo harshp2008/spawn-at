@@ -21,4 +21,17 @@ pub trait SpawnAt {
     fn set_window_state(&self, target: &str, state: &str) -> zbus::Result<bool>;
     #[zbus(signal)]
     fn workarea_changed(&self) -> zbus::Result<()>;
+    #[zbus(signal)]
+    fn spawn_claimed(
+        &self,
+        target_id: &str,
+        success: bool,
+        window_id: u64,
+        x: i32,
+        y: i32,
+        w: u32,
+        h: u32,
+        size_raised: bool,
+        error: &str,
+    ) -> zbus::Result<()>;
 }

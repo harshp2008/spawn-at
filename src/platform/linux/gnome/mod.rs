@@ -309,7 +309,58 @@ impl GnomeWaylandDriver {
 // 5. Pre-Map Arming Driver Trait
 // ============================================================================
 
-pub const EXPECTED_PROTOCOL_VERSION: u32 = 1;
+pub const EXPECTED_PROTOCOL_VERSION: u32 = 2;
+
+use futures_util::StreamExt;
+use std::time::Duration;
+use crate::platform::{ClaimResult, ClaimSubscription};
+
+pub struct GnomeClaimSubscription {
+    stream: dbus::SpawnClaimedStream<'static>,
+    target_id: String,
+}
+
+#[async_trait::async_trait]
+impl ClaimSubscription for GnomeClaimSubscription {
+    async fn wait_claim(&mut self, timeout: Duration) -> Result<ClaimResult, DriverError> {
+        let deadline = tokio::time::Instant::now() + timeout;
+        while tokio::time::Instant::now() < deadline {
+            let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+            let next_signal = tokio::time::timeout(remaining, self.stream.next()).await;
+            match next_signal {
+                Ok(Some(sig)) => {
+                    if let Ok(args) = sig.args() {
+                        let sig_target = args.target_id;
+                        if self.target_id == "*" || sig_target == self.target_id || sig_target == "*" {
+                            if !args.success {
+                                return Err(DriverError::Execution(
+                                    format!("Compositor placement failed: {}", args.error).into(),
+                                ));
+                            }
+                            return Ok(ClaimResult {
+                                target_id: sig_target.to_string(),
+                                success: args.success,
+                                window_id: args.window_id,
+                                x: args.x,
+                                y: args.y,
+                                w: args.w,
+                                h: args.h,
+                                size_raised: args.size_raised,
+                                error: args.error.to_string(),
+                            });
+                        }
+                    }
+                }
+                Ok(None) => break,
+                Err(_) => break,
+            }
+        }
+        Err(DriverError::TargetNotFound(format!(
+            "Timed out waiting for claim signal for target '{}'",
+            self.target_id
+        )))
+    }
+}
 
 #[async_trait::async_trait]
 impl Driver for GnomeWaylandDriver {
@@ -387,6 +438,49 @@ impl CompositorBackend for GnomeWaylandDriver {
 
     fn supports_runtime_transform(&self) -> bool {
         true
+    }
+
+    fn supports_claim_wait(&self) -> bool {
+        true
+    }
+
+    async fn prepare_claim_wait(
+        &self,
+        target_id: &str,
+    ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+        let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
+        if ext_version < EXPECTED_PROTOCOL_VERSION {
+            eprintln!(
+                "[spawn-at] INFO: GNOME Shell extension does not support SpawnClaimed signal (protocol version < {}); falling back to polling.",
+                EXPECTED_PROTOCOL_VERSION
+            );
+            return Ok(None);
+        }
+
+        let stream = self
+            .proxy
+            .receive_spawn_claimed()
+            .await
+            .map_err(|e| DriverError::IpcError(format!("Failed to subscribe to SpawnClaimed: {}", e)))?;
+
+        Ok(Some(Box::new(GnomeClaimSubscription {
+            stream,
+            target_id: target_id.to_string(),
+        })))
+    }
+
+    async fn get_window_rect(&self, id: u64) -> Result<Rect, DriverError> {
+        let windows = self.get_windows().await?;
+        windows
+            .into_iter()
+            .find(|w| w.id == Some(id))
+            .map(|w| Rect {
+                x: w.x,
+                y: w.y,
+                width: w.w as u32,
+                height: w.h as u32,
+            })
+            .ok_or_else(|| DriverError::TargetNotFound(format!("Window ID {} not found", id)))
     }
 
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {

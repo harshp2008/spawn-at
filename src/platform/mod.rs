@@ -17,10 +17,32 @@ pub mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
 
+use std::time::Duration;
 use clap::Args;
 pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
 pub use spawn_at_core::geometry::{PlacementParams, Rect};
 pub use crate::target::WindowMetadata;
+
+/// The result reported when a compositor claims and finishes placement of an armed window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimResult {
+    pub target_id: String,
+    pub success: bool,
+    pub window_id: u64,
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+    pub size_raised: bool,
+    pub error: String,
+}
+
+/// A subscription to window claim notifications issued by the compositor backend.
+#[async_trait::async_trait]
+pub trait ClaimSubscription: Send + Sync {
+    /// Awaits the next claim signal matching the armed target or times out.
+    async fn wait_claim(&mut self, timeout: Duration) -> Result<ClaimResult, DriverError>;
+}
 
 /// The desired window state for transformations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -95,6 +117,34 @@ pub trait CompositorBackend: Driver + Send + Sync {
     /// True if the compositor supports moving/resizing mapped windows via IPC.
     fn supports_runtime_transform(&self) -> bool {
         false
+    }
+
+    /// True if the compositor supports asynchronous event/signal notification for claimed windows.
+    fn supports_claim_wait(&self) -> bool {
+        false
+    }
+
+    /// Prepares a subscription to wait for window claim notifications before arming.
+    async fn prepare_claim_wait(
+        &self,
+        _target_id: &str,
+    ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+        Ok(None)
+    }
+
+    /// Queries the current geometry of a window by its unique ID.
+    async fn get_window_rect(&self, id: u64) -> Result<Rect, DriverError> {
+        let windows = self.get_windows().await?;
+        windows
+            .into_iter()
+            .find(|w| w.id == Some(id))
+            .map(|w| Rect {
+                x: w.x,
+                y: w.y,
+                width: w.w as u32,
+                height: w.h as u32,
+            })
+            .ok_or_else(|| DriverError::TargetNotFound(format!("Window ID {} not found", id)))
     }
 
     // --- Environment Queries ---

@@ -138,6 +138,21 @@ impl CompositorBackend for LinuxBackend {
         self.driver.supports_runtime_transform()
     }
 
+    fn supports_claim_wait(&self) -> bool {
+        self.driver.supports_claim_wait()
+    }
+
+    async fn prepare_claim_wait(
+        &self,
+        target_id: &str,
+    ) -> Result<Option<Box<dyn crate::platform::ClaimSubscription>>, DriverError> {
+        self.driver.prepare_claim_wait(target_id).await
+    }
+
+    async fn get_window_rect(&self, id: u64) -> Result<Rect, DriverError> {
+        self.driver.get_window_rect(id).await
+    }
+
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
         self.driver.resolve_id(command, explicit_class)
     }

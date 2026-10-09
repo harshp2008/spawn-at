@@ -58,6 +58,8 @@ pub struct WindowMetadata {
     pub title: String,
     #[serde(default)]
     pub class: String,
+    #[serde(default)]
+    pub app_id: Option<String>,
     pub x: i32,
     pub y: i32,
     pub w: i32,

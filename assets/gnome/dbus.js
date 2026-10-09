@@ -58,6 +58,17 @@ export const DBUS_IFACE = `
       <arg type="b" name="enabled" direction="in"/>
     </method>
     <signal name="WorkareaChanged"/>
+    <signal name="SpawnClaimed">
+      <arg type="s" name="target_id"/>
+      <arg type="b" name="success"/>
+      <arg type="t" name="window_id"/>
+      <arg type="i" name="x"/>
+      <arg type="i" name="y"/>
+      <arg type="u" name="w"/>
+      <arg type="u" name="h"/>
+      <arg type="b" name="size_raised"/>
+      <arg type="s" name="error"/>
+    </signal>
   </interface>
 </node>`;
 

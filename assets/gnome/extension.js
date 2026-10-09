@@ -340,6 +340,21 @@ export default class SpawnAtExtension extends Extension {
         return ids.filter(id => typeof id === 'string' && id.length > 0);
     }
 
+    _matchesArmKey(id, key) {
+        if (!id || !key) return false;
+        if (id === key) return true;
+        const lowerId = id.toLowerCase();
+        const lowerKey = key.toLowerCase();
+        if (lowerId === lowerKey) return true;
+        if (lowerId.includes(lowerKey) || lowerKey.includes(lowerId)) return true;
+        // Known daemon/launcher pairings (e.g. gnome-terminal launcher vs gnome-terminal-server daemon)
+        if ((lowerKey === 'org.gnome.terminal' || lowerKey === 'gnome-terminal') &&
+            (lowerId === 'gnome-terminal-server' || lowerId === 'gnome-terminal')) return true;
+        if (lowerKey === 'gnome-terminal-server' &&
+            (lowerId === 'org.gnome.terminal' || lowerId === 'gnome-terminal')) return true;
+        return false;
+    }
+
     _findArmedKey(ids) {
         for (const id of ids) {
             const queue = this._armedSpawns.get(id);
@@ -347,12 +362,10 @@ export default class SpawnAtExtension extends Extension {
                 return id;
         }
         for (const id of ids) {
-            const lowerId = id.toLowerCase();
             for (const [key, queue] of this._armedSpawns) {
                 if (queue.length === 0)
                     continue;
-                const lowerKey = key.toLowerCase();
-                if (lowerId.includes(lowerKey) || lowerKey.includes(lowerId))
+                if (this._matchesArmKey(id, key))
                     return key;
             }
         }
@@ -365,15 +378,18 @@ export default class SpawnAtExtension extends Extension {
             return true;
 
         let instructions = null;
+        let claimedKey = null;
         const key = this._findArmedKey(this._getIdentifiers(window));
 
         if (key !== null) {
             const queue = this._armedSpawns.get(key);
             instructions = queue.shift();
+            claimedKey = key;
             if (queue.length === 0)
                 this._armedSpawns.delete(key);
         } else if (this._wildcardTarget) {
             instructions = this._wildcardTarget;
+            claimedKey = '*';
             this._clearWildcard();
         }
 
@@ -381,6 +397,7 @@ export default class SpawnAtExtension extends Extension {
             return false;
 
         state.instructions = instructions;
+        state.targetId = claimedKey;
         this._heldWindows.delete(window);
         const actor = this._getActor(window);
         if (actor)
@@ -402,12 +419,13 @@ export default class SpawnAtExtension extends Extension {
             return;
 
         const instructions = state.instructions;
+        const targetId = state.targetId || '';
         state.dispatched = true;
         state.instructions = null;
         this._heldWindows.delete(window);
 
         this.logTime('DISPATCH', `instructionsCount=${instructions.length}`, window);
-        this._enqueueBatch(window, actor, instructions);
+        this._enqueueBatch(window, actor, instructions, targetId);
     }
 
     _handleWindowCreated(window) {
@@ -522,8 +540,8 @@ export default class SpawnAtExtension extends Extension {
     // 5. SERIALIZED BATCH QUEUE
     // =======================================================================
 
-    _enqueueBatch(window, actor, instructions) {
-        this._batchQueue.push({ window, actor, instructions });
+    _enqueueBatch(window, actor, instructions, targetId = '') {
+        this._batchQueue.push({ window, actor, instructions, targetId });
         this._processQueue();
     }
 
@@ -532,12 +550,24 @@ export default class SpawnAtExtension extends Extension {
             return;
 
         this._batchBusy = true;
-        const { window, actor, instructions } = this._batchQueue.shift();
+        const { window, actor, instructions, targetId } = this._batchQueue.shift();
 
         try {
-            await this._runBatch(window, actor, instructions);
+            await this._runBatch(window, actor, instructions, targetId);
         } catch (e) {
             console.error(`[SpawnAt] Batch processing failed in mutex queue: ${e}`);
+            const winId = typeof window.get_id === 'function' ? window.get_id() : 0;
+            try {
+                const params = new GLib.Variant('(sbtiiuubs)', [
+                    targetId || '',
+                    false,
+                    winId,
+                    0, 0, 0, 0,
+                    false,
+                    e.message || String(e),
+                ]);
+                this._dbusManager?.emitSignal('SpawnClaimed', params);
+            } catch (_err) {}
             this._uncloak(actor);
         } finally {
             this._batchBusy = false;
@@ -564,7 +594,7 @@ export default class SpawnAtExtension extends Extension {
         return null;
     }
 
-    async _runBatch(window, actor, instructions) {
+    async _runBatch(window, actor, instructions, targetId = '') {
         const ops = instructions
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
@@ -572,10 +602,12 @@ export default class SpawnAtExtension extends Extension {
         const ctx = {
             window,
             actor,
+            targetId,
             targetW: null,
             targetH: null,
             safeW: null,
             safeH: null,
+            clampedSafeSize: null,
             preSetSizeFrame: null,
             preSetSizeBuf: null,
             anchorPayload: null,
@@ -630,6 +662,7 @@ export default class SpawnAtExtension extends Extension {
         ctx.targetH = h;
         ctx.safeW = safeW;
         ctx.safeH = safeH;
+        ctx.clampedSafeSize = { w: safeW, h: safeH };
 
         const preFrame = window.get_frame_rect();
         const preBuf = window.get_buffer_rect ? window.get_buffer_rect() : preFrame;
@@ -668,6 +701,9 @@ export default class SpawnAtExtension extends Extension {
     _stepPosition(ctx, payload) {
         const { window, actor } = ctx;
         ctx.anchorPayload = payload;
+
+        if (this._isMaximized(window))
+            this._unmaximize(window);
 
         const preFrame = window.get_frame_rect();
         const preBuf = window.get_buffer_rect ? window.get_buffer_rect() : preFrame;
@@ -731,6 +767,15 @@ export default class SpawnAtExtension extends Extension {
         if (!ctx.anchorPayload)
             return;
 
+        if (this._isMaximized(window)) {
+            this._unmaximize(window);
+            this._applyAnchoredPosition(window, ctx.anchorPayload);
+            const after = window.get_frame_rect();
+            ctx.positionedW = after.width;
+            ctx.positionedH = after.height;
+            return;
+        }
+
         const cur = window.get_frame_rect();
         const resized = cur.width !== ctx.positionedW || cur.height !== ctx.positionedH;
         this.logTime('UNCLOAK_4C',
@@ -762,6 +807,26 @@ export default class SpawnAtExtension extends Extension {
 
         if (ctx.anchorPayload)
             this._armAnchor(window, ctx.anchorPayload);
+
+        const winId = typeof window.get_id === 'function' ? window.get_id() : 0;
+        const targetId = ctx.targetId || '';
+        const sizeRaised = Boolean(ctx.clampedSafeSize && (ctx.clampedSafeSize.w > ctx.targetW || ctx.clampedSafeSize.h > ctx.targetH));
+        try {
+            const params = new GLib.Variant('(sbtiiuubs)', [
+                targetId,
+                true,
+                winId,
+                rect.x,
+                rect.y,
+                rect.width,
+                rect.height,
+                sizeRaised,
+                '',
+            ]);
+            this._dbusManager?.emitSignal('SpawnClaimed', params);
+        } catch (e) {
+            console.error(`[SpawnAt] Failed to emit SpawnClaimed signal: ${e}`);
+        }
     }
 
     // =======================================================================
@@ -945,7 +1010,7 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
 
     get ProtocolVersion() {
-        return 1;
+        return 2;
     }
 
     DisarmSpawn(target_id) {
@@ -1023,7 +1088,7 @@ export default class SpawnAtExtension extends Extension {
         }
         const actor = this._getActor(window);
         if (actor)
-            this._enqueueBatch(window, actor, instructions);
+            this._enqueueBatch(window, actor, instructions, target_id);
     }
 
     GetCursor() {
@@ -1056,6 +1121,7 @@ export default class SpawnAtExtension extends Extension {
                 pid: win.get_pid ? win.get_pid() : -1,
                 title: win.get_title ? (win.get_title() || '') : '',
                 class: win.get_wm_class ? (win.get_wm_class() || win.get_gtk_application_id?.() || '') : '',
+                app_id: win.get_gtk_application_id ? (win.get_gtk_application_id() || '') : '',
                 x: frame.x,
                 y: frame.y,
                 w: frame.width,

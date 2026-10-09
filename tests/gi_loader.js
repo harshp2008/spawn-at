@@ -47,6 +47,12 @@ export async function resolve(specifier, context, nextResolve) {
                     Source: {
                         remove: (id) => clearTimeout(id),
                     },
+                    Variant: class {
+                        constructor(format, value) {
+                            this.format = format;
+                            this.value = value;
+                        }
+                    },
                 };
             `;
         } else if (specifier === 'gi://Gio') {
