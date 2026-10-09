@@ -167,6 +167,8 @@ Before initiating Stage 2 execution, the following architectural and behavioral 
 - **Commits:**
   - `chore(cargo): add license = "MIT" and package metadata to all manifests`  
     Add license and repository fields to root and core manifests. [FINDING-31]
+  - `chore(release): bump package version in Cargo.toml manifests from 0.1.0 to 0.2.0-beta.1`  
+    Synchronize manifest package versions across workspace with current beta release.
   - `ci: add GitHub Actions CI workflow for main branch and pull requests`  
     Create `.github/workflows/ci.yml` running test, clippy, and fmt checks. [FINDING-32]
   - `fix(install): update install.sh to resolve beta releases and check checksums`  
