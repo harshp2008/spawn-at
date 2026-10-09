@@ -23,4 +23,5 @@ libc = "0.2"
 members = [
     ".",
     "crates/spawn-at-core",
+    "crates/spawn-at-verify",
 ]
