@@ -31,6 +31,10 @@ pub async fn run_close_with_timeout(
 ) -> Result<(), Box<dyn std::error::Error>> {
     args.validate()?;
 
+    if !backend.supports_close() {
+        return Err("this backend cannot close windows".into());
+    }
+
     let windows = backend.get_windows().await?;
     let selector = WindowSelector::from(&args.target);
     let target_win = target::resolve_target(&windows, &selector)?;
@@ -62,11 +66,13 @@ pub async fn run_close_with_timeout(
         }
 
         if still_open {
+            let id_str = match win_id {
+                Some(id) => format!(" (id: {})", id),
+                None => String::new(),
+            };
             return Err(format!(
-                "Window '{}' (id: {:?}) did not close within {:?}; window remains present.",
-                win_title,
-                win_id,
-                timeout
+                "Window '{}'{} did not close within {:?}; window remains present.",
+                win_title, id_str, timeout
             )
             .into());
         }
