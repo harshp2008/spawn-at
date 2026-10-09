@@ -209,8 +209,4 @@ impl CompositorBackend for LinuxBackend {
     async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
         self.driver.post_spawn(child_pid, batch).await
     }
-
-    async fn run_daemon(&self) -> Result<(), DriverError> {
-        self.driver.run_daemon().await
-    }
 }

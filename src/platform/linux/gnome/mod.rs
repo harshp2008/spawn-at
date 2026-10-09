@@ -720,10 +720,6 @@ impl CompositorBackend for GnomeWaylandDriver {
         }
         Ok(())
     }
-
-    async fn run_daemon(&self) -> Result<(), DriverError> {
-        dbus::run_daemon(&self.proxy).await
-    }
 }
 
 // ============================================================================

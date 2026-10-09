@@ -1318,10 +1318,6 @@ impl CompositorBackend for X11Driver {
         .await
         .map_err(|e| DriverError::Execution(e.into()))?
     }
-
-    async fn run_daemon(&self) -> Result<(), DriverError> {
-        Ok(())
-    }
 }
 
 // ============================================================================

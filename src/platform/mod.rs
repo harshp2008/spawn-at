@@ -170,11 +170,6 @@ pub trait CompositorBackend: Driver + Send + Sync {
     async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
         Ok(())
     }
-
-    /// Runs background daemon event loop monitoring compositor state changes.
-    async fn run_daemon(&self) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability("run_daemon"))
-    }
 }
 
 /// Automatically detects the active desktop environment and returns the appropriate driver.

@@ -4,31 +4,12 @@
 //! notification settings, and cached version metadata.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
-pub enum WindowMode {
-    SpawnOnly,
-    ClampOnChange,
-    PinnedBounds,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AppRule {
-    pub mode: WindowMode,
-    pub margin: Option<u32>,
-    pub avoid_panels: Option<bool>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-    #[serde(default)]
-    pub apps: HashMap<String, AppRule>,
-
     #[serde(default)]
     pub update: UpdateConfig,
 }
@@ -184,5 +165,23 @@ mod tests {
         let deserialized: Config = toml::from_str(&toml_str).unwrap();
         assert_eq!(deserialized.update.channel, "all");
         assert_eq!(deserialized.update.latest_cached_version, "v0.2.0");
+    }
+
+    #[test]
+    fn test_legacy_config_with_apps_table_loads_cleanly() {
+        let legacy_toml = r#"
+            [update]
+            channel = "all"
+            auto_check = false
+
+            [apps.alacritty]
+            mode = "clamp-on-change"
+            margin = 16
+            avoid_panels = true
+        "#;
+        let cfg: Config = toml::from_str(legacy_toml)
+            .expect("Old config with legacy [apps] section must load without errors");
+        assert_eq!(cfg.update.channel, "all");
+        assert!(!cfg.update.auto_check);
     }
 }
