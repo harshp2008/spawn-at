@@ -321,6 +321,7 @@ impl X11Session {
         let windows = self.fetch_windows()?;
         let pid_opt = target_id.parse::<u32>().ok();
         let selector = WindowSelector {
+            id: None,
             class: if pid_opt.is_none() {
                 Some(target_id.to_string())
             } else {

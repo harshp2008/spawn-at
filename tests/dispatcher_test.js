@@ -63,6 +63,9 @@ function createMockWindowAndActor() {
         connect: () => 1,
         disconnect: () => {},
         has_focus: () => true,
+        delete: () => {
+            window._deleted = true;
+        },
     };
 
     const actor = {
@@ -293,9 +296,23 @@ test('dispatcher: emits SpawnClaimed signal with failure status on error', async
     ext.disable();
 });
 
-test('dispatcher: ProtocolVersion property is 2', () => {
+test('dispatcher: ProtocolVersion property is 3', () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
-    assert.equal(ext.ProtocolVersion, 2);
+    assert.equal(ext.ProtocolVersion, 3);
+});
+
+test('dispatcher: CloseWindow deletes target window gracefully', () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    const { window } = createMockWindowAndActor();
+
+    // Stub _findWindow to return our mock window
+    ext._findWindow = (t) => (t === '101' || t === 'org.gnome.TextEditor' ? window : null);
+
+    assert.equal(ext.CloseWindow('999'), false, 'Non-existent window returns false');
+    assert.equal(window._deleted, undefined);
+
+    assert.equal(ext.CloseWindow('101'), true, 'Existing window by id returns true');
+    assert.equal(window._deleted, true, 'window.delete() must be invoked');
 });
 
 test('dispatcher: unmaximizes window before placement and re-asserts if client re-maximized', async () => {

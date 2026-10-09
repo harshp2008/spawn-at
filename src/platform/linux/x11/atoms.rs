@@ -21,6 +21,7 @@ x11rb::atom_manager! {
         _NET_WM_PID,
         _NET_WM_NAME,
         _NET_MOVERESIZE_WINDOW,
+        _NET_CLOSE_WINDOW,
         _NET_WM_STATE,
         _NET_WM_STATE_MAXIMIZED_VERT,
         _NET_WM_STATE_MAXIMIZED_HORZ,

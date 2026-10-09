@@ -326,6 +326,31 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
+    /// Requests graceful window closure via `_NET_CLOSE_WINDOW`.
+    async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+        let target_id = target_id.to_string();
+        tokio::task::spawn_blocking(move || {
+            let session = X11Session::connect()?;
+            let win = session.resolve_target_window(&target_id)?;
+            let event = ClientMessageEvent::new(
+                32,
+                win,
+                session.atoms._NET_CLOSE_WINDOW,
+                [x11rb::CURRENT_TIME, 2, 0, 0, 0],
+            );
+            session.conn.send_event(
+                false,
+                session.root,
+                EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
+                event,
+            ).map_err(|e| DriverError::Execution(e.into()))?;
+            session.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+            Ok(())
+        })
+        .await
+        .map_err(|e| DriverError::Execution(e.into()))?
+    }
+
     /// Post-spawn interception hook implementing zero-flicker X11 placement.
     async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
         let batch = batch.clone();

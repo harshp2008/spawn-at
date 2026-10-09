@@ -146,6 +146,10 @@ impl SpawnArgs {
 #[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct TransformArgs {
     // Selectors (at least one required)
+    /// Target window by numeric window ID (from 'query windows')
+    #[arg(long)]
+    pub id: Option<u64>,
+
     #[arg(short = 'c', long)]
     pub class: Option<String>,
 
@@ -168,9 +172,9 @@ pub struct TransformArgs {
 
 impl TransformArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
+        if self.id.is_none() && self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
             return Err(
-                "At least one window selector must be specified: --class (-c), --title (-t), --pid, or --focused".to_string(),
+                "At least one window selector must be specified: --id, --class (-c), --title (-t), --pid, or --focused".to_string(),
             );
         }
 
@@ -199,6 +203,10 @@ pub struct FocusModifierArgs {
 /// Arguments targeting a window selector for focus, state management, or query operations.
 #[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct WindowTargetArgs {
+    /// Target window by numeric window ID (from 'query windows')
+    #[arg(long)]
+    pub id: Option<u64>,
+
     /// Target window by class / application ID
     #[arg(short = 'c', long)]
     pub class: Option<String>,
@@ -218,9 +226,9 @@ pub struct WindowTargetArgs {
 
 impl WindowTargetArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
+        if self.id.is_none() && self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
             return Err(
-                "At least one window selector must be specified: --class (-c), --title (-t), --pid, or --focused".to_string(),
+                "At least one window selector must be specified: --id, --class (-c), --title (-t), --pid, or --focused".to_string(),
             );
         }
         Ok(())
@@ -230,6 +238,7 @@ impl WindowTargetArgs {
 impl From<&WindowTargetArgs> for crate::target::WindowSelector {
     fn from(args: &WindowTargetArgs) -> Self {
         Self {
+            id: args.id,
             class: args.class.clone(),
             title: args.title.clone(),
             pid: args.pid,
@@ -238,9 +247,24 @@ impl From<&WindowTargetArgs> for crate::target::WindowSelector {
     }
 }
 
+/// Arguments targeting a window for graceful closure.
+#[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
+pub struct CloseArgs {
+    #[command(flatten)]
+    pub target: WindowTargetArgs,
+}
+
+impl CloseArgs {
+    pub fn validate(&self) -> Result<(), String> {
+        self.target.validate()
+    }
+}
+
+
 impl From<WindowTargetArgs> for crate::target::WindowSelector {
     fn from(args: WindowTargetArgs) -> Self {
         Self {
+            id: args.id,
             class: args.class,
             title: args.title,
             pid: args.pid,
@@ -343,7 +367,8 @@ impl DefocusArgs {
     }
 
     pub fn get_selector(&self) -> crate::target::WindowSelector {
-        if self.target.class.is_none()
+        if self.target.id.is_none()
+            && self.target.class.is_none()
             && self.target.title.is_none()
             && self.target.pid.is_none()
             && !self.target.focused
@@ -354,12 +379,7 @@ impl DefocusArgs {
                 ..Default::default()
             }
         } else {
-            crate::target::WindowSelector {
-                class: self.target.class.clone(),
-                title: self.target.title.clone(),
-                pid: self.target.pid,
-                focused: self.target.focused,
-            }
+            crate::target::WindowSelector::from(&self.target)
         }
     }
 }

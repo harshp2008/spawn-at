@@ -216,6 +216,11 @@ pub trait CompositorBackend: Driver + Send + Sync {
         Err(DriverError::UnsupportedCapability("defocus_window"))
     }
 
+    /// Requests graceful closure of the specified target window.
+    async fn close_window(&self, _target_id: &str) -> Result<(), DriverError> {
+        Err(DriverError::UnsupportedCapability("close_window"))
+    }
+
     /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
     async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
         Ok(())

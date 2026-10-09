@@ -61,4 +61,6 @@ pub enum Commands {
     /// Restore a window to its normal floating state (unmaximize/unminimize)
     #[command(aliases = ["unmaximize", "unmaximise", "unminimize", "unminimise"])]
     Restore(RestoreArgs),
+    /// Request graceful closure of a target window
+    Close(CloseArgs),
 }

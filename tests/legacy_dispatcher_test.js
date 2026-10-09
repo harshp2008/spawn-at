@@ -89,6 +89,9 @@ function createMockWindowAndActor() {
         disconnect: () => {},
         unmaximize: () => {},
         is_maximized: () => false,
+        delete: () => {
+            window._deleted = true;
+        },
     };
 
     const actor = {
@@ -108,9 +111,22 @@ test('contract: interface XML parity between modern and legacy D-Bus definitions
     assert.equal(legacyIface.trim(), modernIface.trim(), 'Legacy and modern D-Bus interface XML must match character-for-character');
 });
 
-test('dispatcher (legacy): ProtocolVersion property is 2', () => {
+test('dispatcher (legacy): ProtocolVersion property is 3', () => {
     const ext = new SpawnAtExtension();
-    assert.equal(ext.ProtocolVersion, 2);
+    assert.equal(ext.ProtocolVersion, 3);
+});
+
+test('dispatcher (legacy): CloseWindow deletes target window gracefully', () => {
+    const ext = new SpawnAtExtension();
+    const { window } = createMockWindowAndActor();
+
+    ext._findWindow = (t) => (t === '101' || t === 'org.gnome.TextEditor' ? window : null);
+
+    assert.equal(ext.CloseWindow('999'), false, 'Non-existent window returns false');
+    assert.equal(window._deleted, undefined);
+
+    assert.equal(ext.CloseWindow('101'), true, 'Existing window by id returns true');
+    assert.equal(window._deleted, true, 'window.delete() must be invoked');
 });
 
 test('dispatcher (legacy): executes Rust golden entry instruction pipeline', async () => {

@@ -919,6 +919,8 @@ class SpawnAtExtension {
     }
 
     _disarmAnchor(window, reason = '') {
+        if (!this._anchors)
+            return;
         const state = this._anchors.get(window);
         if (!state)
             return;
@@ -1019,7 +1021,7 @@ class SpawnAtExtension {
     // =======================================================================
 
     get ProtocolVersion() {
-        return 2;
+        return 3;
     }
 
     DisarmSpawn(target_id) {
@@ -1189,6 +1191,19 @@ class SpawnAtExtension {
             default:
                 return false;
         }
+    }
+
+    CloseWindow(target) {
+        const window = this._findWindow(target);
+        if (!window)
+            return false;
+
+        this._disarmAnchor(window, 'EXTERNAL_CLOSE');
+        if (typeof window.delete === 'function') {
+            window.delete(global.get_current_time());
+            return true;
+        }
+        return false;
     }
 }
 

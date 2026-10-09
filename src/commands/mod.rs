@@ -10,7 +10,7 @@ pub mod spawn;
 pub mod transform;
 
 pub use focus::{apply_focus_policy, run_defocus, run_focus};
-pub use lifecycle::{run_maximize, run_minimize, run_restore, run_unminimize};
+pub use lifecycle::{run_close, run_close_with_timeout, run_maximize, run_minimize, run_restore, run_unminimize};
 pub use query::run_query;
 pub use spawn::run_spawn;
 pub use transform::run_transform;
@@ -682,5 +682,211 @@ mod tests {
         let win = res.unwrap();
         assert_eq!(win.id, Some(55));
         assert_eq!(win.class, "Gnome-terminal");
+    }
+
+    struct MockCloseBackend {
+        windows: std::sync::Mutex<Vec<WindowMetadata>>,
+        close_supported: bool,
+        closed_target: std::sync::Mutex<Option<String>>,
+        remove_on_close: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::platform::Driver for MockCloseBackend {
+        async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for MockCloseBackend {
+        fn name(&self) -> &'static str {
+            "MockClose"
+        }
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "mock".into()
+        }
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            Ok(self.windows.lock().unwrap().clone())
+        }
+        async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+            if !self.close_supported {
+                return Err(DriverError::UnsupportedCapability(
+                    "CloseWindow is not supported by the active GNOME Shell extension (ProtocolVersion < 3). Please reload or update the extension.",
+                ));
+            }
+            *self.closed_target.lock().unwrap() = Some(target_id.to_string());
+            if self.remove_on_close {
+                let mut wins = self.windows.lock().unwrap();
+                wins.retain(|w| {
+                    if let Some(id) = w.id {
+                        id.to_string() != target_id
+                    } else {
+                        w.class != target_id
+                    }
+                });
+            }
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_close_by_id() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![
+                WindowMetadata {
+                    id: Some(42),
+                    pid: Some(1234),
+                    title: "Editor".into(),
+                    class: "org.gnome.TextEditor".into(),
+                    app_id: None,
+                    x: 100,
+                    y: 100,
+                    w: 800,
+                    h: 600,
+                    focused: false,
+                    maximized: false,
+                    minimized: false,
+                },
+            ]),
+            close_supported: true,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_ok());
+        assert_eq!(backend.closed_target.lock().unwrap().as_deref(), Some("42"));
+        assert!(backend.windows.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_close_unknown_id_errors() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![
+                WindowMetadata {
+                    id: Some(42),
+                    pid: Some(1234),
+                    title: "Editor".into(),
+                    class: "org.gnome.TextEditor".into(),
+                    app_id: None,
+                    x: 100,
+                    y: 100,
+                    w: 800,
+                    h: 600,
+                    focused: false,
+                    maximized: false,
+                    minimized: false,
+                },
+            ]),
+            close_supported: true,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(999),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err().to_string(), "No window with id 999");
+        assert!(backend.closed_target.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_close_stale_extension_error() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![
+                WindowMetadata {
+                    id: Some(42),
+                    pid: Some(1234),
+                    title: "Editor".into(),
+                    class: "org.gnome.TextEditor".into(),
+                    app_id: None,
+                    x: 100,
+                    y: 100,
+                    w: 800,
+                    h: 600,
+                    focused: false,
+                    maximized: false,
+                    minimized: false,
+                },
+            ]),
+            close_supported: false,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert!(err_msg.contains("CloseWindow is not supported by the active GNOME Shell extension"));
+        // Confirm no fallback occurred
+        assert!(backend.closed_target.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_close_window_refuses_to_close_reports_honestly() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![
+                WindowMetadata {
+                    id: Some(42),
+                    pid: Some(1234),
+                    title: "Unsaved Document".into(),
+                    class: "org.gnome.TextEditor".into(),
+                    app_id: None,
+                    x: 100,
+                    y: 100,
+                    w: 800,
+                    h: 600,
+                    focused: false,
+                    maximized: false,
+                    minimized: false,
+                },
+            ]),
+            close_supported: true,
+            closed_target: std::sync::Mutex::new(None),
+            // Window stays in window list (e.g. prompt to save changes keeps it open)
+            remove_on_close: false,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(150)).await;
+        assert!(res.is_err(), "Must report failure truthfully if window remains open");
+        let err_msg = res.unwrap_err().to_string();
+        assert!(err_msg.contains("did not close"));
+        assert!(err_msg.contains("window remains present"));
     }
 }

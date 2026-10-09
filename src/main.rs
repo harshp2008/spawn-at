@@ -283,6 +283,12 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        Commands::Close(args) => {
+            if let Err(e) = commands::run_close(driver.as_ref(), args, cli.no_wait).await {
+                crate::diagnostics::render_error(&e.to_string());
+                std::process::exit(1);
+            }
+        }
         Commands::Update(_) => unreachable!(),
     }
 

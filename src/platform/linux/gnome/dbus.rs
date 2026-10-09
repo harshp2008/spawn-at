@@ -19,6 +19,7 @@ pub trait SpawnAt {
     fn focus_window(&self, target: &str) -> zbus::Result<bool>;
     fn defocus_window(&self, target: &str, mode: &str, destination: &str) -> zbus::Result<bool>;
     fn set_window_state(&self, target: &str, state: &str) -> zbus::Result<bool>;
+    fn close_window(&self, target: &str) -> zbus::Result<bool>;
     #[zbus(signal)]
     fn workarea_changed(&self) -> zbus::Result<()>;
     #[zbus(signal)]

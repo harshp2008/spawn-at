@@ -2,10 +2,78 @@
 //!
 //! Provides handlers for window state transformations (maximize, minimize, unminimize, restore).
 
-use crate::cli::{MaximizeArgs, MinimizeArgs, RestoreArgs};
+use crate::cli::{CloseArgs, MaximizeArgs, MinimizeArgs, RestoreArgs};
 use crate::commands::focus::apply_focus_policy;
 use crate::platform::{CompositorBackend, WindowState};
 use crate::target::{self, WindowSelector};
+
+/// Executes the `close` subcommand: requests graceful window closure and verifies termination.
+pub async fn run_close(
+    backend: &dyn CompositorBackend,
+    args: CloseArgs,
+    no_wait: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    run_close_with_timeout(
+        backend,
+        args,
+        no_wait,
+        std::time::Duration::from_millis(1500),
+    )
+    .await
+}
+
+/// Executes the `close` subcommand with a specified verification timeout.
+pub async fn run_close_with_timeout(
+    backend: &dyn CompositorBackend,
+    args: CloseArgs,
+    no_wait: bool,
+    timeout: std::time::Duration,
+) -> Result<(), Box<dyn std::error::Error>> {
+    args.validate()?;
+
+    let windows = backend.get_windows().await?;
+    let selector = WindowSelector::from(&args.target);
+    let target_win = target::resolve_target(&windows, &selector)?;
+    let target_id = target::resolve_target_id(target_win);
+    let win_id = target_win.id;
+    let win_title = target_win.title.clone();
+
+    backend.close_window(&target_id).await?;
+
+    if !no_wait {
+        let start = std::time::Instant::now();
+        let poll_interval = std::time::Duration::from_millis(50);
+
+        let mut still_open = true;
+        while start.elapsed() < timeout {
+            tokio::time::sleep(poll_interval).await;
+            let current_windows = backend.get_windows().await.unwrap_or_default();
+            let found = current_windows.iter().any(|w| {
+                if let Some(id) = win_id {
+                    w.id == Some(id)
+                } else {
+                    crate::commands::matches_target(w, &target_id)
+                }
+            });
+            if !found {
+                still_open = false;
+                break;
+            }
+        }
+
+        if still_open {
+            return Err(format!(
+                "Window '{}' (id: {:?}) did not close within {:?}; window remains present.",
+                win_title,
+                win_id,
+                timeout
+            )
+            .into());
+        }
+    }
+
+    Ok(())
+}
 
 /// Executes the `maximize` subcommand: sets the window state to maximized and applies focus policy.
 pub async fn run_maximize(

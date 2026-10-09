@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Default)]
 pub struct WindowSelector {
+    pub id: Option<u64>,
     pub class: Option<String>,
     pub title: Option<String>,
     pub pid: Option<u32>,
@@ -15,6 +16,12 @@ pub struct WindowSelector {
 
 impl WindowSelector {
     pub fn matches(&self, window: &WindowMetadata) -> bool {
+        // 0. ID match: Exact
+        if let Some(id) = self.id {
+            if window.id != Some(id) {
+                return false;
+            }
+        }
         // 1. PID match: Exact
         if let Some(pid) = self.pid {
             if window.pid != Some(pid) {
@@ -75,6 +82,7 @@ pub struct WindowMetadata {
 /// Resolves a window target from a list of window metadata entries based on `WindowSelector` criteria.
 ///
 /// Filter criteria:
+/// - If `id` is specified, matches `win.id == Some(id)` strictly; if not found, immediately returns error with no fallback.
 /// - If `focused` is true:
 ///   - Standalone: if no class/title/pid is provided, resolves and returns the currently focused window.
 ///   - As a Filter: if class/title/pid is provided, fetches the active window and validates it against those filters. If it doesn't match, returns "Target not found".
@@ -88,6 +96,14 @@ pub fn resolve_target<'a>(
     windows: &'a [WindowMetadata],
     selector: &WindowSelector,
 ) -> Result<&'a WindowMetadata, String> {
+    // 1. Direct ID selector: strict match, never fall back to class/PID
+    if let Some(target_id) = selector.id {
+        return windows
+            .iter()
+            .find(|w| w.id == Some(target_id))
+            .ok_or_else(|| format!("No window with id {}", target_id));
+    }
+
     if selector.focused {
         let active = match windows.iter().find(|w| w.focused) {
             Some(w) => w,
@@ -519,5 +535,32 @@ mod tests {
         let res = resolve_target(&windows, &selector);
         assert!(res.is_err());
         assert!(res.unwrap_err().contains("Target not found"));
+    }
+
+    #[test]
+    fn test_resolve_target_by_id_success() {
+        let windows = sample_windows();
+        let selector = WindowSelector {
+            id: Some(1),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector).unwrap();
+        assert_eq!(res.id, Some(1));
+        assert_eq!(res.class, "Alacritty");
+    }
+
+    #[test]
+    fn test_resolve_target_by_id_not_found_no_fallback() {
+        let windows = sample_windows();
+        // Even if class or pid matches an existing window, specifying an unknown id must fail strictly
+        let selector = WindowSelector {
+            id: Some(999),
+            class: Some("org.gnome.TextEditor".to_string()),
+            pid: Some(101),
+            ..Default::default()
+        };
+        let res = resolve_target(&windows, &selector);
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err(), "No window with id 999");
     }
 }

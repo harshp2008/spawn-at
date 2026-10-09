@@ -54,6 +54,10 @@ export const DBUS_IFACE = `
       <arg type="s" name="state" direction="in"/>
       <arg type="b" name="success" direction="out"/>
     </method>
+    <method name="CloseWindow">
+      <arg type="s" name="target" direction="in"/>
+      <arg type="b" name="success" direction="out"/>
+    </method>
     <method name="SetLogging">
       <arg type="b" name="enabled" direction="in"/>
     </method>

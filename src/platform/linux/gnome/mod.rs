@@ -861,6 +861,36 @@ impl CompositorBackend for GnomeWaylandDriver {
         }
         Ok(())
     }
+
+    async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+        let version = self.proxy.protocol_version().await.unwrap_or(0);
+        if version < 3 {
+            return Err(DriverError::UnsupportedCapability(
+                "CloseWindow is not supported by the active GNOME Shell extension (ProtocolVersion < 3). Please reload or update the extension.",
+            ));
+        }
+
+        let success = match self.proxy.close_window(target_id).await {
+            Ok(s) => s,
+            Err(e) => {
+                let err_str = e.to_string();
+                if err_str.contains("UnknownMethod") || err_str.contains("MethodNotFound") {
+                    return Err(DriverError::UnsupportedCapability(
+                        "CloseWindow is not supported by the active GNOME Shell extension. Please reload or update the extension.",
+                    ));
+                }
+                return Err(DriverError::IpcError(err_str));
+            }
+        };
+
+        if !success {
+            return Err(DriverError::TargetNotFound(format!(
+                "Compositor failed to close window target '{}' (window not found)",
+                target_id
+            )));
+        }
+        Ok(())
+    }
 }
 
 // ============================================================================

@@ -28,6 +28,7 @@ pub async fn run_transform(
     let windows = backend.get_windows().await?;
 
     let selector = target::WindowSelector {
+        id: args.id,
         class: args.class,
         title: args.title,
         pid: args.pid,

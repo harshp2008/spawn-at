@@ -195,6 +195,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `transform` | Reposition and resize an already-open window. |
 | `focus` / `defocus` | Raise a window, or give focus away (`--to-desktop`, `--to-window <ID>`). |
 | `maximize` / `minimize` / `restore` | Change window state. |
+| `close` | Request graceful closure of a target window. |
 | `query layout\|pointer\|windows` | Print monitors, cursor position, or open windows. `--json` on layout and windows. |
 | `install` / `uninstall` | Manage the binary and the GNOME Shell extension. |
 | `update` | Check for or apply releases (`--check`, `--channel`, `--force`). |
@@ -210,7 +211,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `-m, --margin <PX>` | Margin on all sides (default 16). |
 | `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
 | `--clamp <true\|false>` | Keep the window inside the area (default true). |
-| `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on. |
+| `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
 | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
 | `--no-wait` | Exit without waiting for the compositor. |
 

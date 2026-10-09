@@ -462,11 +462,73 @@ use spawn_at_core::geometry::{Anchor, Area, Pivot};
         };
         assert!(class_args.validate().is_ok());
 
+        let id_args = WindowTargetArgs {
+            id: Some(123),
+            ..Default::default()
+        };
+        assert!(id_args.validate().is_ok());
+
         let focused_args = WindowTargetArgs {
             focused: true,
             ..Default::default()
         };
         assert!(focused_args.validate().is_ok());
+    }
+
+    #[test]
+    fn test_close_subcommand_parsing() {
+        // Close with --id
+        let cli = Cli::try_parse_from(["spawn-at", "close", "--id", "42"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert_eq!(args.target.id, Some(42));
+            assert!(args.validate().is_ok());
+        } else {
+            panic!("Expected Close variant");
+        }
+
+        // Close with -c
+        let cli = Cli::try_parse_from(["spawn-at", "close", "-c", "gedit"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert_eq!(args.target.class.as_deref(), Some("gedit"));
+            assert!(args.validate().is_ok());
+        } else {
+            panic!("Expected Close variant");
+        }
+
+        // Close with --pid
+        let cli = Cli::try_parse_from(["spawn-at", "close", "--pid", "12345"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert_eq!(args.target.pid, Some(12345));
+            assert!(args.validate().is_ok());
+        } else {
+            panic!("Expected Close variant");
+        }
+
+        // Close with -t
+        let cli = Cli::try_parse_from(["spawn-at", "close", "-t", "Editor"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert_eq!(args.target.title.as_deref(), Some("Editor"));
+            assert!(args.validate().is_ok());
+        } else {
+            panic!("Expected Close variant");
+        }
+
+        // Close with --focused
+        let cli = Cli::try_parse_from(["spawn-at", "close", "--focused"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert!(args.target.focused);
+            assert!(args.validate().is_ok());
+        } else {
+            panic!("Expected Close variant");
+        }
+
+        // Close without any selector fails validation
+        let cli = Cli::try_parse_from(["spawn-at", "close"]).unwrap();
+        if let Commands::Close(args) = cli.command {
+            assert!(args.validate().is_err());
+        } else {
+            panic!("Expected Close variant");
+        }
     }
 
     #[test]

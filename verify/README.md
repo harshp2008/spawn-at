@@ -183,7 +183,7 @@ The preflight check runs first to prevent testing stale or out-of-sync binaries:
 
 1. **Startup Snapshot**: At session launch, the harness snapshots all existing window IDs via `spawn-at query windows --json`.
 2. **Ownership Strictness**: The harness **never** closes pre-existing windows. It tracks only windows spawned during test actions.
-3. **No PID or Name Killing**: Host processes (`gnome-terminal-server`, etc.) are never terminated by PID or process name. Windows are closed individually by ID through `spawn-at` CLI commands. Fixture helper child processes spawned directly by the runner may be terminated via child process handle.
+3. **No PID or Name Killing**: Host processes (`gnome-terminal-server`, etc.) are never terminated by PID or process name. Closing test windows uses `spawn-at close --id <ID>` only, for windows the harness itself launched (ownership rules unchanged). For fixture processes the harness spawned itself, it may terminate its own child process directly. A close that leaves the window present is reported in the run, and the cap on tracked windows still applies.
 4. **Concurrency Cap**: The harness tracks a maximum of 20 concurrent windows. If the cap is reached, further spawns are refused until windows are cleaned up.
 5. **Execution Variants**:
    - *Rerun Fresh*: Closes previous windows owned by this test, then spawns anew.
