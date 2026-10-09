@@ -1,5 +1,5 @@
 use crate::config::{Config, WindowMode};
-use crate::core::geometry::{self, Rect};
+use spawn_at_core::geometry::{self, Rect};
 use crate::platform::DriverError;
 use futures_util::stream::StreamExt;
 use zbus::proxy;

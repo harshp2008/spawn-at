@@ -33,14 +33,14 @@
 
 ---
 
-### [FINDING-02] `GetWorkareas` Throws Unhandled `TypeError` on GNOME Shell 45+
-- **Severity:** S1
-- **Category:** B (Extension Correctness) / A (Bugs)
+### [FINDING-02] `GetWorkareas` Uses Deprecated `global.workspace_manager` on GNOME Shell 45+
+- **Severity:** S3 (Downgraded from S1 after live verification)
+- **Category:** B (Extension Correctness)
 - **Evidence:** [`assets/gnome/extension.esm.js:1820`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js#L1820) vs [`line 1831`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js#L1831)
-- **Impact:** Line 1820 accesses `global.workspace_manager.get_active_workspace()`. In GNOME 45+ ESM, `global.workspace_manager` is removed or deprecated in favor of `global.display.get_workspace_manager().get_active_workspace()` (correctly used in line 1831). Any D-Bus client calling `GetWorkareas()` throws an uncaught JavaScript `TypeError: Cannot read properties of undefined (reading 'get_active_workspace')`, crashing the IPC call.
+- **Verification Note:** Tested live with `gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell/Extensions/SpawnAt --method org.gnome.Shell.Extensions.SpawnAt.GetWorkareas`. The call succeeded and returned `('[{"x":0,"y":40,"w":1920,"h":1040}]',)` on GNOME 46 because `global.workspace_manager` remains as a deprecated compatibility alias in Mutter 46. However, line 1820 is deprecated and risks breakage in GNOME 48+.
 - **Proposed Fix:** Change line 1820 to `global.display.get_workspace_manager().get_active_workspace()`.
 - **Risk of Fix:** None (standard GNOME 45–48 API).
-- **Behavior Change:** Bugfix only.
+- **Behavior Change:** Deprecation cleanup.
 
 ---
 
@@ -130,6 +130,7 @@
 - **Impact:** Every query and transformation method opens a new socket connection to the X11 server via `X11Session::connect()?`, performs atom resolution, executes one request, and drops the socket. This incurs substantial round-trip latency and socket overhead.
 - **Proposed Fix:** Allow `X11Driver` to maintain an initialized `RustConnection` and cached atom table across calls, or share an active session.
 - **Risk of Fix:** Medium (requires thread safety / synchronization in async context).
+- **Execution Decision:** **DEFERRED to post-beta.** Rationale: `RustConnection` is not `Sync` and queries complete in sub-millisecond local Unix sockets. Refactoring connection sharing into multi-threaded async tasks adds mutex/channel complexity without changing user-visible behavior during this cleanup beta.
 - **Behavior Change:** Latency reduction.
 
 ---
@@ -172,8 +173,9 @@
 - **Category:** B (Extension Correctness & Compliance)
 - **Evidence:** [`assets/gnome/extension.esm.js:657, 667`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js#L657)
 - **Impact:** `GLib.file_get_contents('/proc/' + pid + '/maps')` is called synchronously on the compositor's main thread on every window map event. If `/proc` stalls or if an app maps large address spaces, the GNOME Shell frame drops or hangs.
-- **Proposed Fix:** Cache results per PID, rely primarily on `get_wm_class()` / `get_gtk_application_id()` identifiers, or perform read asynchronously.
+- **Proposed Fix:** Retain VTE detection logic, but add per-PID Map caching (`this._vtePidCache = new Map()`) so `/proc/<pid>/maps` is read at most once per process lifetime. Prune cache on window destruction.
 - **Risk of Fix:** Low.
+- **Execution Decision:** **SCHEDULED for Phase 1.** Keep VTE detection with per-PID caching.
 - **Behavior Change:** Performance hardening.
 
 ---
@@ -319,6 +321,7 @@
 - **Impact:** Functions named `query_xrandr_monitors` and `query_xdotool_cursor` do not invoke external tools; they talk directly to `x11rb`.
 - **Proposed Fix:** Rename to `query_x11_monitors` and `query_x11_cursor`.
 - **Risk of Fix:** None.
+- **Execution Decision:** **SCHEDULED for Phase 3/4.** Clean internal rename.
 - **Behavior Change:** Refactor only.
 
 ---
@@ -389,6 +392,7 @@
 - **Impact:** Inconsistent release metadata.
 - **Proposed Fix:** Align versions to `0.2.0-beta.1` as planned for Stage 2.
 - **Risk of Fix:** Low.
+- **Execution Decision:** **SCHEDULED for Phase 5.** Bump Cargo manifests and extension metadata.json to `0.2.0-beta.1`.
 - **Behavior Change:** Version metadata.
 
 ---

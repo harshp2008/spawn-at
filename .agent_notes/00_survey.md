@@ -209,6 +209,23 @@ sequenceDiagram
 - `winnow`: v1.0.4 vs v0.7.15 (pulled by `toml` parser transition).
 - `toml_edit` / `toml_parser`: multiple versions due to recent toml crate upgrades.
 
+### Cargo Audit & Machete Output
+
+#### `cargo audit` (Executed 2026-10-09)
+```text
+    Fetching advisory database from `https://github.com/RustSec/advisory-db.git`
+      Loaded 795 security advisories (from /home/harsh/.cargo/advisory-db)
+    Updating crates.io index
+    Scanning Cargo.lock for vulnerabilities (148 crate dependencies)
+Success: 0 vulnerabilities found!
+```
+
+#### `cargo machete` (Executed 2026-10-09)
+```text
+Scanning Cargo.toml files for unused dependencies...
+cargo-machete: No unused dependencies found!
+```
+
 ---
 
 ## 4. Operating System Assumptions Catalog
@@ -231,3 +248,66 @@ sequenceDiagram
 | **Privilege Escalation** | `sudo install -D -m 755` | `src/platform/escalate.rs:15` | Assumes GNU `install` binary and `sudo`. Breaks on non-GNU/macOS/Windows. |
 | **IPC Infrastructure** | D-Bus Session Bus (`org.gnome.Shell`) | `src/platform/linux/gnome/dbus.rs` | Requires active D-Bus daemon and GNOME Shell D-Bus service. |
 | **External Binaries** | `git`, `curl`, `tar`, `sudo` | Multiple build and runtime locations | Assumes external command availability in `$PATH`. |
+
+---
+
+## 5. Extension Claim-Matching Rules & Safety Analysis
+
+### Claim-Matching Algorithm (`assets/gnome/extension.esm.js:714-777`)
+When any window is created or mapped, the extension extracts window identifiers via:
+1. `window.get_startup_id()` (Freedesktop `DESKTOP_STARTUP_ID`)
+2. `window.get_wm_class()` (X11 `WM_CLASS` / Wayland App ID)
+3. `window.get_gtk_application_id()`
+4. `window.get_sandboxed_app_id()` (Flatpak / Snap)
+
+The candidate key is evaluated against `this._armedSpawns` map in two stages:
+1. **Exact Key Match:** If any identifier exactly matches a pending armed key in `_armedSpawns`.
+2. **Case-Insensitive Substring Match Fallback:**
+   ```javascript
+   if (lowerId.includes(lowerKey) || lowerKey.includes(lowerId)) return key;
+   ```
+3. **Wildcard Match Fallback:** If `target_id === "*"` or empty, claimed by `this._wildcardTarget`.
+
+### Expiry Timers:
+- **Specific Targets:** `ARM_EXPIRY_MS = 15000` (15 seconds before unclaiming).
+- **Wildcard Targets:** `WILDCARD_EXPIRY_MS = 1200` (1.2 seconds before unclaiming).
+
+### Worst-Case Mis-Claim Scenario:
+Due to the bi-directional substring match (`lowerId.includes(lowerKey) || lowerKey.includes(lowerId)`):
+- If the user spawns with a short or common target hint (e.g. `-c edit` or `-c term` or `code`), and the target application fails to launch or takes longer than expected:
+- Any unrelated window mapping within the 15-second window whose class or title contains that substring (e.g., `gedit` matching `edit`, or `gnome-terminal` matching `term`) will **mis-claim** the instruction queue!
+- The innocent window is cloaked at frame 0, resized, repositioned to the wrong geometry, and uncloaked.
+- **Proposed Disarm Option:** A proposed D-Bus method `DisarmSpawn(target_id)` called by the CLI if child spawn fails or times out. (Will require user decision before introducing to D-Bus interface).
+
+---
+
+## 6. CLI Error Handling on `driver.arm()` Failure
+
+In `src/main.rs:347-356`:
+```rust
+let armed = match driver.arm(batch.clone()).await {
+    Ok(a) => a,
+    Err(e) => {
+        eprintln!("\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}", driver.name(), e);
+        std::process::exit(1);
+    }
+};
+```
+**Current State: Fail-Closed.**
+If the GNOME extension is disabled, uninstalled, or D-Bus communication fails, `spawn-at` prints a placement error and exits with code 1 **without launching the application**.
+*User Proposal:* Consider a fail-open policy (`--fail-open` or default) where `spawn-at` warns clearly to stderr, launches the application normally without placement environment variables, and exits 0.
+
+---
+
+## 7. Telemetry & `session.log` Audit
+
+### What `session.log` Records Now:
+- File location: `~/.local/state/spawn-at/session.log` (marker: `/run/user/<uid>/spawn-at-session.marker`)
+- Current Directory Permissions: Created via `GLib.mkdir_with_parents(stateDir, 0o755)` -> **Permissive 0755** instead of private **0700**!
+- Current File Permissions: Created with default umask (`0644`) instead of private (`0600`)!
+- Metadata Logged:
+  - Timestamp (`ISO 8601`) and monotonic delta (`+12.45ms`)
+  - Target identifiers: `id`, `pid`, `wmClass`, `appId`, `type` (`Meta.WindowType`), `proto` (`Wayland` vs `XWayland`)
+  - Internal pipeline steps: `ARM_SPAWN`, `WINDOW_CREATED`, `ACTOR_MAP`, `BATCH_STEP`, `COMMIT_SIGNAL`, `COMMIT_RESOLVED`, `UNCLOAK_COMPLETE`, `ANCHOR_DISARM`
+  - Window frame and buffer dimensions: `(x, y, w, h)`
+- **Privacy Assessment:** Window titles and text contents are **NOT** logged. Only window class, application ID, PID, and geometry bounding boxes are recorded. Directory permissions will be tightened to `0700` and file to `0600`.

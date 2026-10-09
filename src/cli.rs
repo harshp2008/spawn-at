@@ -3,7 +3,7 @@
 //! Defines the CLI arguments and subcommands for `spawn-at`.
 
 use crate::platform::{InstallArgs, UninstallArgs};
-use crate::core::geometry::{Anchor, Area, Pivot};
+use spawn_at_core::geometry::{Anchor, Area, Pivot};
 use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser, Debug)]

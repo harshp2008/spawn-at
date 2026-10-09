@@ -99,7 +99,7 @@ pub async fn run_query(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::geometry::Rect;
+    use spawn_at_core::geometry::Rect;
     use crate::platform::DriverError;
     use crate::target::WindowMetadata;
 
