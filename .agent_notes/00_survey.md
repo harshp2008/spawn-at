@@ -277,37 +277,41 @@ Due to the bi-directional substring match (`lowerId.includes(lowerKey) || lowerK
 - If the user spawns with a short or common target hint (e.g. `-c edit` or `-c term` or `code`), and the target application fails to launch or takes longer than expected:
 - Any unrelated window mapping within the 15-second window whose class or title contains that substring (e.g., `gedit` matching `edit`, or `gnome-terminal` matching `term`) will **mis-claim** the instruction queue!
 - The innocent window is cloaked at frame 0, resized, repositioned to the wrong geometry, and uncloaked.
-- **Proposed Disarm Option:** A proposed D-Bus method `DisarmSpawn(target_id)` called by the CLI if child spawn fails or times out. (Will require user decision before introducing to D-Bus interface).
+- **Disarm Implementation:** D-Bus method `DisarmSpawn(target_id)` added in commit `40f92a1` and called by the CLI if child spawn fails or if explicitly disarmed.
 
 ---
 
 ## 6. CLI Error Handling on `driver.arm()` Failure
 
-In `src/main.rs:347-356`:
+In `src/commands/spawn.rs`:
 ```rust
-let armed = match driver.arm(batch.clone()).await {
-    Ok(a) => a,
+let armed_opt = match driver.arm(batch.clone()).await {
+    Ok(a) => Some(a),
     Err(e) => {
-        eprintln!("\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}", driver.name(), e);
-        std::process::exit(1);
+        eprintln!(
+            "\x1b[1;33m[spawn-at] Warning:\x1b[0m Placement arming failed [driver: {}]: {}. Launching application without placement.",
+            driver.name(),
+            e
+        );
+        None
     }
 };
 ```
-**Current State: Fail-Closed.**
-If the GNOME extension is disabled, uninstalled, or D-Bus communication fails, `spawn-at` prints a placement error and exits with code 1 **without launching the application**.
-*User Proposal:* Consider a fail-open policy (`--fail-open` or default) where `spawn-at` warns clearly to stderr, launches the application normally without placement environment variables, and exits 0.
+**Implemented State: Fail-Open for `spawn`, Fail-Closed for Transformations.**
+- For `spawn`: if the GNOME extension is missing, D-Bus errors, or backend fails to arm, `spawn-at` warns clearly to stderr, still spawns the application without placement env vars, and exits 0. If the child executable itself fails to launch (e.g. command not found), it disarms and exits 1.
+- For all other subcommands (`transform`, `query`, `focus`, `minimize`, etc.), the CLI remains **fail-closed** (exits with code 1).
 
 ---
 
 ## 7. Telemetry & `session.log` Audit
 
-### What `session.log` Records Now:
-- File location: `~/.local/state/spawn-at/session.log` (marker: `/run/user/<uid>/spawn-at-session.marker`)
-- Current Directory Permissions: Created via `GLib.mkdir_with_parents(stateDir, 0o755)` -> **Permissive 0755** instead of private **0700**!
-- Current File Permissions: Created with default umask (`0644`) instead of private (`0600`)!
-- Metadata Logged:
+### What `session.log` Records:
+- File location: `~/.local/state/spawn-at/session.log` (rotated to `session.log.old` on new login sessions via `/run/user/<uid>/spawn-at-session.marker` or when exceeding 5 MB).
+- Directory Permissions: Private `0700` (`GLib.mkdir_with_parents(stateDir, 0o700)`).
+- File Permissions: Private `0600` (`GLib.chmod(this._sessionLogPath, 0o600)`).
+- Content Logged:
   - Timestamp (`ISO 8601`) and monotonic delta (`+12.45ms`)
   - Target identifiers: `id`, `pid`, `wmClass`, `appId`, `type` (`Meta.WindowType`), `proto` (`Wayland` vs `XWayland`)
-  - Internal pipeline steps: `ARM_SPAWN`, `WINDOW_CREATED`, `ACTOR_MAP`, `BATCH_STEP`, `COMMIT_SIGNAL`, `COMMIT_RESOLVED`, `UNCLOAK_COMPLETE`, `ANCHOR_DISARM`
+  - Internal pipeline steps: `ARM_SPAWN`, `WINDOW_CREATED`, `ACTOR_MAP`, `BATCH_STEP`, `COMMIT_SAMPLE`, `COMMIT_RESOLVED`, `UNCLOAK_4D_REVEAL`, `ANCHOR_ARMED`, `ANCHOR_RELEASED`
   - Window frame and buffer dimensions: `(x, y, w, h)`
-- **Privacy Assessment:** Window titles and text contents are **NOT** logged. Only window class, application ID, PID, and geometry bounding boxes are recorded. Directory permissions will be tightened to `0700` and file to `0600`.
+- **Privacy Assessment:** Window titles, environment variables, command arguments, and window contents are **NOT** logged. Only internal window ID, process PID, WM_CLASS/App ID, and bounding dimensions are logged for diagnostic latency and geometry tracking.
