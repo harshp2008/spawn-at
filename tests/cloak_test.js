@@ -50,72 +50,7 @@ class MockStage {
     }
 }
 
-class CloakManager {
-    constructor(stage, timers) {
-        this.stage = stage;
-        this.timers = timers || {
-            setTimeout: (cb, ms) => setTimeout(cb, ms),
-            clearTimeout: id => clearTimeout(id),
-        };
-        this.cloakedActors = new Set();
-        this.watchdogs = new Map();
-        this.stageListenerId = null;
-    }
-
-    cloak(actor) {
-        this.cloakedActors.add(actor);
-        actor.opacity = 0;
-        this.ensureStageListener();
-
-        if (!this.watchdogs.has(actor)) {
-            const timerId = this.timers.setTimeout(() => {
-                this.uncloak(actor);
-            }, 6000);
-            this.watchdogs.set(actor, timerId);
-        }
-    }
-
-    uncloak(actor) {
-        this.cloakedActors.delete(actor);
-        if (this.watchdogs.has(actor)) {
-            this.timers.clearTimeout(this.watchdogs.get(actor));
-            this.watchdogs.delete(actor);
-        }
-        actor.opacity = 255;
-        this.maybeDisconnectStageListener();
-    }
-
-    ensureStageListener() {
-        if (!this.stageListenerId && this.cloakedActors.size > 0) {
-            this.stageListenerId = this.stage.connect('after-update', () => {
-                for (const actor of [...this.cloakedActors]) {
-                    if (actor.is_destroyed() || !actor.get_stage()) {
-                        this.uncloak(actor);
-                        continue;
-                    }
-                    if (actor.opacity !== 0)
-                        actor.opacity = 0;
-                }
-            });
-        }
-    }
-
-    maybeDisconnectStageListener() {
-        if (this.cloakedActors.size === 0 && this.stageListenerId) {
-            this.stage.disconnect(this.stageListenerId);
-            this.stageListenerId = null;
-        }
-    }
-
-    disable() {
-        for (const actor of [...this.cloakedActors])
-            this.uncloak(actor);
-        for (const t of this.watchdogs.values())
-            this.timers.clearTimeout(t);
-        this.watchdogs.clear();
-        this.maybeDisconnectStageListener();
-    }
-}
+import { CloakManager } from '../assets/gnome/cloak.js';
 
 test('cloak: standard cloak and uncloak flow', () => {
     const stage = new MockStage();

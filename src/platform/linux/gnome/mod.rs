@@ -141,12 +141,19 @@ impl GnomeUninstallArgs {
 
 /// Extension UUID recognized by GNOME Shell.
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
-/// Bundled JavaScript implementation of the GNOME Shell extension.
-const EXTENSION_JS: &str = include_str!("../../../../assets/gnome/extension.esm.js");
-/// Bundled validator module for the GNOME Shell extension.
-const VALIDATOR_JS: &str = include_str!("../../../../assets/gnome/validator.js");
-/// Bundled metadata manifest for the GNOME Shell extension.
-const METADATA_JSON: &str = include_str!("../../../../assets/gnome/metadata.json");
+
+/// All bundled files comprising the GNOME Shell extension package.
+pub const EMBEDDED_EXTENSION_FILES: &[(&str, &str)] = &[
+    ("extension.js", include_str!("../../../../assets/gnome/extension.js")),
+    ("dbus.js", include_str!("../../../../assets/gnome/dbus.js")),
+    ("cloak.js", include_str!("../../../../assets/gnome/cloak.js")),
+    ("commit.js", include_str!("../../../../assets/gnome/commit.js")),
+    ("pulse.js", include_str!("../../../../assets/gnome/pulse.js")),
+    ("anchor.js", include_str!("../../../../assets/gnome/anchor.js")),
+    ("logger.js", include_str!("../../../../assets/gnome/logger.js")),
+    ("validator.js", include_str!("../../../../assets/gnome/validator.js")),
+    ("metadata.json", include_str!("../../../../assets/gnome/metadata.json")),
+];
 
 /// Resolves session identifier to pass into `loginctl show-session <id> -p Type --value`.
 fn get_session_id() -> Option<String> {
@@ -444,21 +451,12 @@ impl CompositorBackend for GnomeWaylandDriver {
             )
         })?;
 
-        let js_path = ext_dir.join("extension.js");
-        let validator_path = ext_dir.join("validator.js");
-        let meta_path = ext_dir.join("metadata.json");
-
-        fs::write(&js_path, EXTENSION_JS).map_err(|e| {
-            DriverError::Execution(format!("Failed to write extension.js: {}", e).into())
-        })?;
-
-        fs::write(&validator_path, VALIDATOR_JS).map_err(|e| {
-            DriverError::Execution(format!("Failed to write validator.js: {}", e).into())
-        })?;
-
-        fs::write(&meta_path, METADATA_JSON).map_err(|e| {
-            DriverError::Execution(format!("Failed to write metadata.json: {}", e).into())
-        })?;
+        for (filename, content) in EMBEDDED_EXTENSION_FILES {
+            let file_path = ext_dir.join(filename);
+            fs::write(&file_path, content).map_err(|e| {
+                DriverError::Execution(format!("Failed to write {}: {}", filename, e).into())
+            })?;
+        }
 
         if auto_enable {
             println!("Enabling extension via gnome-extensions CLI...");
@@ -825,5 +823,35 @@ mod tests {
         } else {
             panic!("Expected Uninstall command");
         }
+    }
+
+    #[test]
+    fn test_embedded_extension_files_match_disk() {
+        use std::collections::HashSet;
+
+        let embedded_names: HashSet<&str> = EMBEDDED_EXTENSION_FILES
+            .iter()
+            .map(|(name, _)| *name)
+            .collect();
+
+        let assets_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome");
+        let disk_names: HashSet<String> = std::fs::read_dir(assets_dir)
+            .expect("Failed to read assets/gnome directory")
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                if entry.file_type().ok()?.is_file() {
+                    Some(entry.file_name().to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let disk_refs: HashSet<&str> = disk_names.iter().map(|s| s.as_str()).collect();
+
+        assert_eq!(
+            embedded_names, disk_refs,
+            "EMBEDDED_EXTENSION_FILES in Rust must exactly match assets/gnome on disk"
+        );
     }
 }
