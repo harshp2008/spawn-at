@@ -909,6 +909,7 @@ dependencies = [
  "clap",
  "dialoguer",
  "futures-util",
+ "libc",
  "semver",
  "serde",
  "serde_json",

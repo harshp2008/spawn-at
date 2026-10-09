@@ -17,6 +17,7 @@ strsim = "0.11"
 x11rb = { version = "0.14", features = ["randr"] }
 futures-util = "0.3"
 semver = "1.0.28"
+libc = "0.2"
 
 [workspace]
 members = [

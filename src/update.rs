@@ -20,8 +20,6 @@ macro_rules! update_debug {
     };
 }
 
-pub(crate) use update_debug;
-
 /// Command-line arguments for the `spawn-at update` subcommand.
 #[derive(Args, Debug, Clone, Default)]
 pub struct UpdateArgs {
@@ -274,15 +272,92 @@ pub fn trigger_background_check_if_needed(cfg: &mut Config) {
     }
 }
 
-/// Renders a basic update banner; upgraded to npm-notifier style in Task 3.
-pub fn render_boxed_notice(current: &str, latest: &str) {
-    let line1 = format!("Update available: {} → {}", current, latest);
-    let line2 = "Run 'spawn-at update' to upgrade to the latest version".to_string();
+use crate::diagnostics::ColorCapability;
 
-    let (cur_v, lat_v) = (parse_semver(current), parse_semver(latest));
-    let compat_note = if let (Some(ref c), Some(ref l)) = (cur_v, lat_v) {
+/// Strips ANSI CSI color escape sequences from a string.
+pub fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                for ch in chars.by_ref() {
+                    if ch.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Computes visible character width in terminal columns (excluding ANSI escapes).
+pub fn visible_width(s: &str) -> usize {
+    strip_ansi(s).chars().count()
+}
+
+/// Checks whether the environment supports UTF-8 box-drawing characters.
+pub fn supports_utf8() -> bool {
+    let lang = std::env::var("LC_ALL")
+        .or_else(|_| std::env::var("LC_CTYPE"))
+        .or_else(|_| std::env::var("LANG"))
+        .unwrap_or_default()
+        .to_uppercase();
+    if lang == "C" || lang == "POSIX" {
+        false
+    } else {
+        true
+    }
+}
+
+/// Queries current terminal width in columns if available.
+pub fn terminal_width() -> Option<usize> {
+    if let Ok(cols) = std::env::var("COLUMNS") {
+        if let Ok(w) = cols.parse::<usize>() {
+            if w > 0 {
+                return Some(w);
+            }
+        }
+    }
+    #[cfg(unix)]
+    unsafe {
+        let mut winsize = libc::winsize {
+            ws_row: 0,
+            ws_col: 0,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        };
+        if libc::ioctl(libc::STDERR_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0 && winsize.ws_col > 0 {
+            return Some(winsize.ws_col as usize);
+        }
+        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0 && winsize.ws_col > 0 {
+            return Some(winsize.ws_col as usize);
+        }
+    }
+    None
+}
+
+/// Formats the update banner in npm update-notifier style with exact multi-color hierarchy.
+pub fn format_update_banner(
+    current: &str,
+    latest: &str,
+    cap: ColorCapability,
+    utf8: bool,
+    term_width: Option<usize>,
+) -> String {
+    let clean_current = current.trim().trim_start_matches('v');
+    let clean_latest = latest.trim().trim_start_matches('v');
+
+    let cur_semver = parse_semver(clean_current);
+    let lat_semver = parse_semver(clean_latest);
+
+    let compat_note_str = if let (Some(ref c), Some(ref l)) = (cur_semver, lat_semver) {
         if is_v01_to_v02_upgrade(c, l) {
-            Some("Note: spawn-at v0.2 CLI is not backward-compatible with v0.1 command syntax.")
+            Some("Note: The v0.2 CLI is not compatible with v0.1 commands")
         } else {
             None
         }
@@ -290,42 +365,127 @@ pub fn render_boxed_notice(current: &str, latest: &str) {
         None
     };
 
-    let mut inner_width = std::cmp::max(line1.chars().count(), line2.chars().count());
-    if let Some(note) = compat_note {
-        inner_width = std::cmp::max(inner_width, note.chars().count());
-    }
-    inner_width = std::cmp::max(inner_width + 6, 64);
+    let arrow = if utf8 { "→" } else { "->" };
 
-    let top = format!("┌{}┐", "─".repeat(inner_width));
-    let empty = format!("│{}│", " ".repeat(inner_width));
-    let pad1 = inner_width.saturating_sub(line1.chars().count() + 3);
-    let pad2 = inner_width.saturating_sub(line2.chars().count() + 3);
+    let (line1, line2, compat_line) = match cap {
+        ColorCapability::Disabled => {
+            let l1 = format!("Update available  {} {} {}", clean_current, arrow, clean_latest);
+            let l2 = "Run  spawn-at update  to update".to_string();
+            let l3 = compat_note_str.map(|s| s.to_string());
+            (l1, l2, l3)
+        }
+        ColorCapability::Basic => {
+            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
+            let l3 = compat_note_str.map(|s| format!("\x1b[33m{}\x1b[0m", s));
+            (l1, l2, l3)
+        }
+        ColorCapability::Color256 => {
+            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
+            let l3 = compat_note_str.map(|s| format!("\x1b[38;5;208m{}\x1b[0m", s));
+            (l1, l2, l3)
+        }
+        ColorCapability::TrueColor => {
+            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
+            let l3 = compat_note_str.map(|s| format!("\x1b[38;2;255;140;0m{}\x1b[0m", s));
+            (l1, l2, l3)
+        }
+    };
 
-    eprintln!("\n{}", top);
-    eprintln!("{}", empty);
-    eprintln!("│   {}{}│", line1, " ".repeat(pad1));
-    eprintln!("│   {}{}│", line2, " ".repeat(pad2));
-    if let Some(note) = compat_note {
-        let pad_note = inner_width.saturating_sub(note.chars().count() + 3);
-        eprintln!("│   {}{}│", note, " ".repeat(pad_note));
+    let w1 = visible_width(&line1);
+    let w2 = visible_width(&line2);
+    let w3 = compat_line.as_ref().map(|l| visible_width(l)).unwrap_or(0);
+    let content_max = std::cmp::max(w1, std::cmp::max(w2, w3));
+    let inner_width = content_max + 6; // 3 left spaces + 3 right spaces
+
+    let total_box_width = inner_width + 4; // 2 indent spaces + 2 border columns
+
+    // Fall back to plain text if terminal is narrower than box
+    if let Some(tw) = term_width {
+        if tw < total_box_width {
+            let mut fallback = match cap {
+                ColorCapability::Disabled => {
+                    format!("Update available: {} {} {}\nRun 'spawn-at update' to update", clean_current, arrow, clean_latest)
+                }
+                _ => {
+                    format!("Update available: \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m\nRun \x1b[36mspawn-at update\x1b[0m to update", clean_current, arrow, clean_latest)
+                }
+            };
+            if let Some(ref note) = compat_line {
+                fallback.push('\n');
+                fallback.push_str(note);
+            }
+            return fallback;
+        }
     }
-    eprintln!("{}", empty);
-    eprintln!("└{}┘\n", "─".repeat(inner_width));
+
+    let (tl, tr, bl, br, h, v) = if utf8 {
+        ("╭", "╮", "╰", "╯", "─", "│")
+    } else {
+        ("+", "+", "+", "+", "-", "|")
+    };
+
+    let (border_col, border_rst) = match cap {
+        ColorCapability::Disabled => ("", ""),
+        _ => ("\x1b[33m", "\x1b[0m"),
+    };
+
+    let bar_left = format!("  {border_col}{v}{border_rst}   ");
+    let bar_right = format!("{border_col}{v}{border_rst}\n");
+    let empty_row = format!("  {border_col}{v}{border_rst}{}{border_col}{v}{border_rst}\n", " ".repeat(inner_width));
+
+    let mut out = String::new();
+    out.push_str(&format!("  {border_col}{tl}{}{tr}{border_rst}\n", h.repeat(inner_width)));
+    out.push_str(&empty_row);
+
+    let pad1 = inner_width.saturating_sub(w1 + 3);
+    out.push_str(&format!("{bar_left}{line1}{}{bar_right}", " ".repeat(pad1)));
+
+    let pad2 = inner_width.saturating_sub(w2 + 3);
+    out.push_str(&format!("{bar_left}{line2}{}{bar_right}", " ".repeat(pad2)));
+
+    if let Some(ref line3) = compat_line {
+        let pad3 = inner_width.saturating_sub(w3 + 3);
+        out.push_str(&format!("{bar_left}{line3}{}{bar_right}", " ".repeat(pad3)));
+    }
+
+    out.push_str(&empty_row);
+    out.push_str(&format!("  {border_col}{bl}{}{br}{border_rst}", h.repeat(inner_width)));
+
+    out
+}
+
+/// Renders the npm update-notifier style boxed update banner at the bottom of standard command output.
+pub fn render_boxed_notice(current: &str, latest: &str) {
+    let cap = crate::diagnostics::detect_color_capability();
+    let banner = format_update_banner(current, latest, cap, supports_utf8(), terminal_width());
+    eprintln!("\n{}", banner);
+}
+
+/// Checks whether update notification should be rendered (stderr and stdout are TTYs, notify enabled).
+pub fn should_render_update_notice(stderr_is_tty: bool, stdout_is_tty: bool, notify: bool) -> bool {
+    stderr_is_tty && stdout_is_tty && notify
 }
 
 /// Hook called at the end of `main()` to render update notifications if appropriate.
 pub fn render_update_notice_if_available() {
-    if !std::io::stderr().is_terminal() {
+    // 1. Must be an interactive TTY on both stderr and stdout
+    if !should_render_update_notice(std::io::stderr().is_terminal(), std::io::stdout().is_terminal(), true) {
         return;
     }
 
+    // 2. Load configuration
     let mut cfg = Config::load_or_default();
     if !cfg.update.notify {
         return;
     }
 
+    // 3. Trigger 24h background check if due
     trigger_background_check_if_needed(&mut cfg);
 
+    // 4. Running version must be parseable semver
     let running_semver = match get_running_semver() {
         Some(v) => v,
         None => {
@@ -334,6 +494,7 @@ pub fn render_update_notice_if_available() {
         }
     };
 
+    // 5. Look up cached candidate for current channel
     let channel = normalize_channel(&cfg.update.channel);
     let cached_tag = match cfg.update.cached_version_for_channel(channel) {
         Some(t) => t,
@@ -345,8 +506,9 @@ pub fn render_update_notice_if_available() {
         None => return,
     };
 
+    // 6. Compare strictly against running version at display time
     if cached_semver > running_semver {
-        render_boxed_notice(&format!("v{}", running_semver), cached_tag);
+        render_boxed_notice(&format!("{}", running_semver), cached_tag);
     }
 }
 
@@ -811,5 +973,159 @@ pub mod tests {
     #[test]
     fn test_boxed_notice_rendering() {
         render_boxed_notice("v0.1.0", "v0.2.0");
+    }
+
+    #[test]
+    fn test_banner_snapshot_color_on() {
+        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::TrueColor, true, Some(80));
+
+        // Exact escape sequences:
+        // Yellow border: \x1b[33m
+        assert!(banner.contains("\x1b[33m╭"), "Top left yellow corner");
+        assert!(banner.contains("╮\x1b[0m"), "Top right yellow corner reset");
+        assert!(banner.contains("\x1b[33m╰"), "Bottom left yellow corner");
+        assert!(banner.contains("╯\x1b[0m"), "Bottom right yellow corner reset");
+
+        // Old version dim: \x1b[2m
+        assert!(banner.contains("\x1b[2m0.2.0-beta.1\x1b[0m"), "Old version dim");
+
+        // Plain arrow: ' → ' (without escape surrounding it)
+        assert!(banner.contains("\x1b[0m → \x1b[32m"), "Plain arrow between dim and green");
+
+        // New version green: \x1b[32m
+        assert!(banner.contains("\x1b[32m0.2.0\x1b[0m"), "New version green");
+
+        // Command cyan: \x1b[36m
+        assert!(banner.contains("\x1b[36mspawn-at update\x1b[0m"), "Command cyan");
+
+        // Verify every line has identical visible width
+        let lines: Vec<&str> = banner.lines().collect();
+        assert!(lines.len() >= 5);
+        let expected_w = visible_width(lines[0]);
+        for line in &lines {
+            assert_eq!(visible_width(line), expected_w, "Line visible width mismatch: {:?}", line);
+        }
+    }
+
+    #[test]
+    fn test_banner_snapshot_color_off() {
+        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, true, Some(80));
+
+        // No ANSI escape codes
+        assert!(!banner.contains("\x1b"), "Color off must contain no ANSI escapes");
+
+        // UTF-8 box characters present
+        assert!(banner.contains('╭'));
+        assert!(banner.contains('╮'));
+        assert!(banner.contains('╰'));
+        assert!(banner.contains('╯'));
+        assert!(banner.contains('│'));
+        assert!(banner.contains('─'));
+        assert!(banner.contains("Update available  0.2.0-beta.1 → 0.2.0"));
+        assert!(banner.contains("Run  spawn-at update  to update"));
+
+        // All lines equal visible width
+        let lines: Vec<&str> = banner.lines().collect();
+        let expected_w = visible_width(lines[0]);
+        for line in &lines {
+            assert_eq!(visible_width(line), expected_w);
+        }
+    }
+
+    #[test]
+    fn test_banner_snapshot_ascii_color_off() {
+        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, false, Some(80));
+
+        // No ANSI escapes
+        assert!(!banner.contains("\x1b"));
+
+        // ASCII border characters
+        assert!(banner.contains('+'));
+        assert!(banner.contains('-'));
+        assert!(banner.contains('|'));
+        assert!(banner.contains("->"));
+        assert!(banner.contains("Update available  0.2.0-beta.1 -> 0.2.0"));
+        assert!(banner.contains("Run  spawn-at update  to update"));
+
+        let lines: Vec<&str> = banner.lines().collect();
+        let expected_w = visible_width(lines[0]);
+        for line in &lines {
+            assert_eq!(visible_width(line), expected_w);
+        }
+    }
+
+    #[test]
+    fn test_banner_with_compat_note_color_on() {
+        let banner = format_update_banner("0.1.0", "0.2.0", ColorCapability::TrueColor, true, Some(80));
+        // Orange compatibility note in TrueColor: \x1b[38;2;255;140;0m
+        assert!(banner.contains("\x1b[38;2;255;140;0mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+
+        let lines: Vec<&str> = banner.lines().collect();
+        let expected_w = visible_width(lines[0]);
+        for line in &lines {
+            assert_eq!(visible_width(line), expected_w);
+        }
+
+        // Test 256-color fallback
+        let banner_256 = format_update_banner("0.1.0", "0.2.0", ColorCapability::Color256, true, Some(80));
+        assert!(banner_256.contains("\x1b[38;5;208mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+
+        // Test 16-color fallback
+        let banner_basic = format_update_banner("0.1.0", "0.2.0", ColorCapability::Basic, true, Some(80));
+        assert!(banner_basic.contains("\x1b[33mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+    }
+
+    #[test]
+    fn test_banner_width_different_version_string_lengths() {
+        let version_pairs = [
+            ("0.1.0", "0.2.0"),
+            ("0.2.0-beta.1", "0.2.0-beta.2"),
+            ("0.2.0-alpha.10.build.456", "0.2.0-beta.11.build.789"),
+            ("v1.0.0", "v2.0.0-rc.1"),
+        ];
+
+        for (cur, lat) in version_pairs {
+            for cap in [ColorCapability::Disabled, ColorCapability::Basic, ColorCapability::Color256, ColorCapability::TrueColor] {
+                for utf8 in [true, false] {
+                    let banner = format_update_banner(cur, lat, cap, utf8, Some(100));
+                    let lines: Vec<&str> = banner.lines().collect();
+                    assert!(lines.len() >= 5);
+                    let expected_w = visible_width(lines[0]);
+                    for (idx, line) in lines.iter().enumerate() {
+                        assert_eq!(
+                            visible_width(line),
+                            expected_w,
+                            "Width mismatch on line {} for versions ({}, {}), cap: {:?}, utf8: {}\nBanner:\n{}",
+                            idx, cur, lat, cap, utf8, banner
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test_banner_narrow_terminal_fallback() {
+        // Box is around 40-50 chars wide. A terminal width of 30 should trigger plain fallback.
+        let fallback = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::TrueColor, true, Some(30));
+        assert!(!fallback.contains('╭'), "Should not contain box characters");
+        assert!(!fallback.contains('│'), "Should not contain box characters");
+        assert!(fallback.contains("Update available: \x1b[2m0.2.0-beta.1\x1b[0m → \x1b[32m0.2.0\x1b[0m"));
+        assert!(fallback.contains("Run \x1b[36mspawn-at update\x1b[0m to update"));
+
+        // Disabled color narrow terminal
+        let fallback_plain = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, true, Some(30));
+        assert!(!fallback_plain.contains("\x1b"));
+        assert!(fallback_plain.contains("Update available: 0.2.0-beta.1 → 0.2.0"));
+        assert!(fallback_plain.contains("Run 'spawn-at update' to update"));
+    }
+
+    #[test]
+    fn test_not_a_tty_suppresses_banner() {
+        assert!(!should_render_update_notice(false, true, true));
+        assert!(!should_render_update_notice(true, false, true));
+        assert!(!should_render_update_notice(false, false, true));
+        assert!(!should_render_update_notice(true, true, false));
+        assert!(should_render_update_notice(true, true, true));
     }
 }
