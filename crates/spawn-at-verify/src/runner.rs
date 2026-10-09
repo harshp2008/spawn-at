@@ -6,9 +6,10 @@ use crate::oracle::{calculate_expected_rect, verify_rect_tolerance, OracleParams
 use crate::preflight::{inspect_binary, PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
-use crate::tracker::{query_window_records, WindowTracker};
+use crate::tracker::{query_window_ids, query_window_records, WindowTracker};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{Instant, SystemTime};
@@ -424,6 +425,12 @@ impl TestRunner {
             }
         }
 
+        // Fresh window snapshot immediately before each test's action
+        let pre_action_snapshot: HashSet<u64> = query_window_ids(&self.options.bin_path)
+            .unwrap_or_default()
+            .into_iter()
+            .collect();
+
         let output_res = cmd.output();
         let duration_ms = start.elapsed().as_millis() as u64;
         let end_secs = SystemTime::now()
@@ -469,8 +476,37 @@ impl TestRunner {
             let claimed_id = extract_claimed_window_id(&stdout, &stderr);
             let subject_app = test.subject.as_ref().map(|s| s.app.as_str());
             if let Ok(records) = query_window_records(&self.options.bin_path) {
-                let _ =
-                    tracker.attribute_and_register_test_windows(&records, claimed_id, subject_app);
+                if let Ok(outcome) = tracker.attribute_action_windows(
+                    &pre_action_snapshot,
+                    &records,
+                    None,
+                    subject_app,
+                    claimed_id,
+                ) {
+                    if let Some(err_msg) = outcome.error_message {
+                        let (final_status, disagreement) = resolve_final_status(
+                            test.kind,
+                            AutoStatus::AutoFail,
+                            &HumanVerdict::default(),
+                        );
+                        return TestResult {
+                            id: test.id.clone(),
+                            title: test.title.clone(),
+                            kind: test.kind,
+                            required: test.required,
+                            auto_status: AutoStatus::AutoFail,
+                            human_verdict: HumanVerdict::default(),
+                            final_status,
+                            disagreement,
+                            duration_ms,
+                            exit_code: Some(exit_code),
+                            stdout,
+                            stderr,
+                            message: Some(err_msg),
+                            log_slice,
+                        };
+                    }
+                }
             }
         }
 
