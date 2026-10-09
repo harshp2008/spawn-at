@@ -203,7 +203,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | :--- | :--- |
 | `-p, --pos <X> <Y>` | Absolute position in pixels. |
 | `-s, --size <W> <H>` | Window size in pixels. |
-| `-a, --anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor`. |
+| `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor`. |
 | `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
 | `--monitor` | Monitor index, `cursor`, or `primary` (default). |
 | `--area` | `workarea` (default) or `screen`. |

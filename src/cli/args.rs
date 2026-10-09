@@ -25,7 +25,7 @@ pub enum QueryCommands {
 #[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct GeometryArgs {
     /// Screen anchor target or cursor
-    #[arg(short = 'a', long, value_enum)]
+    #[arg(long, value_enum)]
     pub anchor: Option<Anchor>,
 
     /// Window alignment pivot point relative to target

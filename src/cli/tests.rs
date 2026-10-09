@@ -498,7 +498,7 @@ use spawn_at_core::geometry::{Anchor, Area, Pivot};
         // 1. Spawn with full matrix of flags
         let cli = Cli::try_parse_from([
             "spawn-at", "spawn",
-            "-a", "bottom-right",
+            "--anchor", "bottom-right",
             "--pivot", "center",
             "-p", "100", "200",
             "-s", "800", "600",
@@ -566,4 +566,24 @@ use spawn_at_core::geometry::{Anchor, Area, Pivot};
 
         let cli = Cli::try_parse_from(["spawn-at", "uninstall"]).unwrap();
         assert!(matches!(cli.command, Commands::Uninstall(_)));
+    }
+
+    #[test]
+    fn test_short_a_flag_rejected() {
+        // -a short flag is intentionally removed; only --anchor is valid
+        let res = Cli::try_parse_from(["spawn-at", "transform", "-a", "center", "-c", "gedit"]);
+        assert!(res.is_err());
+        let err = res.unwrap_err().to_string();
+        assert!(err.contains("unexpected argument '-a'") || err.contains("unexpected argument"));
+
+        // In spawn, -a is not parsed as anchor (it becomes a positional command argument instead)
+        let cli = Cli::try_parse_from(["spawn-at", "spawn", "--anchor", "center", "gedit"]).unwrap();
+        if let Commands::Spawn(s) = cli.command {
+            assert_eq!(s.geometry.anchor, Some(Anchor::Center));
+        }
+        let cli2 = Cli::try_parse_from(["spawn-at", "spawn", "-a", "center", "gedit"]).unwrap();
+        if let Commands::Spawn(s) = cli2.command {
+            assert_eq!(s.geometry.anchor, None);
+            assert_eq!(s.command, vec!["-a", "center", "gedit"]);
+        }
     }
