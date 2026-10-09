@@ -50,7 +50,7 @@ class MockStage {
     }
 }
 
-import { CloakManager } from '../assets/gnome/cloak.js';
+import { CloakManager } from '../assets/gnome/modern/cloak.js';
 
 test('cloak: standard cloak and uncloak flow', () => {
     const stage = new MockStage();

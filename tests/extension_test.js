@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { computeAnchoredPosition } from '../assets/gnome/anchor.js';
+import { computeAnchoredPosition } from '../assets/gnome/modern/anchor.js';
 
 /**
  * Pure instruction normalization logic extracted from extension.esm.js.
@@ -150,7 +150,7 @@ test('extension characterization: normalizeInstruction variants', () => {
     assert.equal(normalizeInstruction({}), null);
 });
 
-import { validateInstructions, validateInstruction } from '../assets/gnome/validator.js';
+import { validateInstructions, validateInstruction } from '../assets/gnome/modern/validator.js';
 
 test('validator: valid full golden instruction pipeline', () => {
     const raw = [

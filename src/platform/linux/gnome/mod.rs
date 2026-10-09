@@ -142,18 +142,57 @@ impl GnomeUninstallArgs {
 /// Extension UUID recognized by GNOME Shell.
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 
-/// All bundled files comprising the GNOME Shell extension package.
-pub const EMBEDDED_EXTENSION_FILES: &[(&str, &str)] = &[
-    ("extension.js", include_str!("../../../../assets/gnome/extension.js")),
-    ("dbus.js", include_str!("../../../../assets/gnome/dbus.js")),
-    ("cloak.js", include_str!("../../../../assets/gnome/cloak.js")),
-    ("commit.js", include_str!("../../../../assets/gnome/commit.js")),
-    ("pulse.js", include_str!("../../../../assets/gnome/pulse.js")),
-    ("anchor.js", include_str!("../../../../assets/gnome/anchor.js")),
-    ("logger.js", include_str!("../../../../assets/gnome/logger.js")),
-    ("validator.js", include_str!("../../../../assets/gnome/validator.js")),
-    ("metadata.json", include_str!("../../../../assets/gnome/metadata.json")),
+/// Bundled modern GNOME Shell extension files (GNOME 45–48).
+pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
+    ("extension.js", include_str!("../../../../assets/gnome/modern/extension.js")),
+    ("dbus.js", include_str!("../../../../assets/gnome/modern/dbus.js")),
+    ("cloak.js", include_str!("../../../../assets/gnome/modern/cloak.js")),
+    ("commit.js", include_str!("../../../../assets/gnome/modern/commit.js")),
+    ("pulse.js", include_str!("../../../../assets/gnome/modern/pulse.js")),
+    ("anchor.js", include_str!("../../../../assets/gnome/modern/anchor.js")),
+    ("logger.js", include_str!("../../../../assets/gnome/modern/logger.js")),
+    ("validator.js", include_str!("../../../../assets/gnome/modern/validator.js")),
+    ("metadata.json", include_str!("../../../../assets/gnome/modern/metadata.json")),
 ];
+
+/// Bundled legacy GNOME Shell extension files (GNOME 42–44).
+pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
+    ("extension.js", include_str!("../../../../assets/gnome/legacy/extension.js")),
+    ("dbus.js", include_str!("../../../../assets/gnome/legacy/dbus.js")),
+    ("cloak.js", include_str!("../../../../assets/gnome/legacy/cloak.js")),
+    ("commit.js", include_str!("../../../../assets/gnome/legacy/commit.js")),
+    ("pulse.js", include_str!("../../../../assets/gnome/legacy/pulse.js")),
+    ("anchor.js", include_str!("../../../../assets/gnome/legacy/anchor.js")),
+    ("logger.js", include_str!("../../../../assets/gnome/legacy/logger.js")),
+    ("validator.js", include_str!("../../../../assets/gnome/legacy/validator.js")),
+    ("metadata.json", include_str!("../../../../assets/gnome/legacy/metadata.json")),
+];
+
+/// Default embedded extension files (modern).
+pub const EMBEDDED_EXTENSION_FILES: &[(&str, &str)] = EMBEDDED_EXTENSION_FILES_MODERN;
+
+/// Detects the GNOME Shell major version (e.g. 42, 43, 44, 45, 46, etc.).
+pub fn detect_gnome_shell_major_version() -> Option<u32> {
+    let output = Command::new("gnome-shell").arg("--version").output().ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_gnome_shell_major_version(&stdout)
+}
+
+pub fn parse_gnome_shell_major_version(version_str: &str) -> Option<u32> {
+    for part in version_str.split_whitespace() {
+        if let Some(first_num) = part.split('.').next() {
+            if let Ok(ver) = first_num.parse::<u32>() {
+                if ver >= 40 && ver <= 60 {
+                    return Some(ver);
+                }
+            }
+        }
+    }
+    None
+}
 
 /// Resolves session identifier to pass into `loginctl show-session <id> -p Type --value`.
 fn get_session_id() -> Option<String> {
@@ -537,7 +576,17 @@ impl CompositorBackend for GnomeWaylandDriver {
         };
 
         let ext_dir = Self::extension_dir()?;
-        println!("Deploying embedded GNOME extension to: {}", ext_dir.display());
+        let major_version = detect_gnome_shell_major_version();
+        let is_legacy = major_version.map_or(false, |v| v < 45);
+
+        let files = if is_legacy {
+            eprintln!("\x1b[1;33m[spawn-at] WARNING: Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.\x1b[0m");
+            println!("Deploying legacy GNOME (42-44) extension to: {}", ext_dir.display());
+            EMBEDDED_EXTENSION_FILES_LEGACY
+        } else {
+            println!("Deploying embedded GNOME extension to: {}", ext_dir.display());
+            EMBEDDED_EXTENSION_FILES_MODERN
+        };
 
         fs::create_dir_all(&ext_dir).map_err(|e| {
             DriverError::Execution(
@@ -545,7 +594,7 @@ impl CompositorBackend for GnomeWaylandDriver {
             )
         })?;
 
-        for (filename, content) in EMBEDDED_EXTENSION_FILES {
+        for (filename, content) in files {
             let file_path = ext_dir.join(filename);
             fs::write(&file_path, content).map_err(|e| {
                 DriverError::Execution(format!("Failed to write {}: {}", filename, e).into())
@@ -923,14 +972,15 @@ mod tests {
     fn test_embedded_extension_files_match_disk() {
         use std::collections::HashSet;
 
-        let embedded_names: HashSet<&str> = EMBEDDED_EXTENSION_FILES
+        // Verify modern extension files
+        let modern_embedded_names: HashSet<&str> = EMBEDDED_EXTENSION_FILES_MODERN
             .iter()
             .map(|(name, _)| *name)
             .collect();
 
-        let assets_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome");
-        let disk_names: HashSet<String> = std::fs::read_dir(assets_dir)
-            .expect("Failed to read assets/gnome directory")
+        let modern_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/modern");
+        let modern_disk_names: HashSet<String> = std::fs::read_dir(modern_dir)
+            .expect("Failed to read assets/gnome/modern directory")
             .filter_map(|entry| {
                 let entry = entry.ok()?;
                 if entry.file_type().ok()?.is_file() {
@@ -941,11 +991,62 @@ mod tests {
             })
             .collect();
 
-        let disk_refs: HashSet<&str> = disk_names.iter().map(|s| s.as_str()).collect();
-
+        let modern_refs: HashSet<&str> = modern_disk_names.iter().map(|s| s.as_str()).collect();
         assert_eq!(
-            embedded_names, disk_refs,
-            "EMBEDDED_EXTENSION_FILES in Rust must exactly match assets/gnome on disk"
+            modern_embedded_names, modern_refs,
+            "EMBEDDED_EXTENSION_FILES_MODERN in Rust must exactly match assets/gnome/modern on disk"
         );
+
+        // Verify legacy extension files
+        let legacy_embedded_names: HashSet<&str> = EMBEDDED_EXTENSION_FILES_LEGACY
+            .iter()
+            .map(|(name, _)| *name)
+            .collect();
+
+        let legacy_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/gnome/legacy");
+        let legacy_disk_names: HashSet<String> = std::fs::read_dir(legacy_dir)
+            .expect("Failed to read assets/gnome/legacy directory")
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                if entry.file_type().ok()?.is_file() {
+                    Some(entry.file_name().to_string_lossy().to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        let legacy_refs: HashSet<&str> = legacy_disk_names.iter().map(|s| s.as_str()).collect();
+        assert_eq!(
+            legacy_embedded_names, legacy_refs,
+            "EMBEDDED_EXTENSION_FILES_LEGACY in Rust must exactly match assets/gnome/legacy on disk"
+        );
+    }
+
+    #[test]
+    fn test_legacy_and_modern_dbus_xml_parity() {
+        let modern_dbus = include_str!("../../../../assets/gnome/modern/dbus.js");
+        let legacy_dbus = include_str!("../../../../assets/gnome/legacy/dbus.js");
+
+        fn extract_xml(src: &str) -> String {
+            let start = src.find("<node>").expect("D-Bus XML <node> not found");
+            let end = src.find("</node>").expect("D-Bus XML </node> not found") + "</node>".len();
+            src[start..end].trim().to_string()
+        }
+
+        let modern_xml = extract_xml(modern_dbus);
+        let legacy_xml = extract_xml(legacy_dbus);
+
+        assert_eq!(modern_xml, legacy_xml, "D-Bus interface XML must match between modern and legacy extensions");
+        assert!(modern_xml.contains("name=\"SpawnClaimed\""));
+        assert!(modern_xml.contains("name=\"ProtocolVersion\""));
+    }
+
+    #[test]
+    fn test_parse_gnome_shell_major_version() {
+        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 46.0"), Some(46));
+        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 42.9"), Some(42));
+        assert_eq!(parse_gnome_shell_major_version("GNOME Shell 45.beta"), Some(45));
+        assert_eq!(parse_gnome_shell_major_version("unknown"), None);
     }
 }

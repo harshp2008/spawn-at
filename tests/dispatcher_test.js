@@ -38,8 +38,8 @@ globalThis.global = {
     get_pointer: () => [500, 500],
 };
 
-const { default: SpawnAtExtension } = await import('../assets/gnome/extension.js');
-const { validateInstructions } = await import('../assets/gnome/validator.js');
+const { default: SpawnAtExtension } = await import('../assets/gnome/modern/extension.js');
+const { validateInstructions } = await import('../assets/gnome/modern/validator.js');
 
 function createMockWindowAndActor() {
     let frameRect = { x: 100, y: 100, width: 640, height: 480 };
