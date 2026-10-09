@@ -53,50 +53,54 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     } else {
         let anchor_str = params.anchor.as_deref().unwrap_or("center");
         let m = params.margin;
+        let (wa_w, wa_h) = (workarea.w as i32, workarea.h as i32);
 
-        // Documented semantic: margin creates an inset boundary inside the workarea.
+        // Documented semantic: Anchor determines reference point on the workarea boundary/margin.
+        let (ax, ay) = match anchor_str {
+            "top-left" => (workarea.x + m, workarea.y + m),
+            "top" | "top-center" => (workarea.x + wa_w / 2, workarea.y + m),
+            "top-right" => (workarea.x + wa_w - m, workarea.y + m),
+            "left" => (workarea.x + m, workarea.y + wa_h / 2),
+            "center" => (workarea.x + wa_w / 2, workarea.y + wa_h / 2),
+            "right" => (workarea.x + wa_w - m, workarea.y + wa_h / 2),
+            "bottom-left" => (workarea.x + m, workarea.y + wa_h - m),
+            "bottom" | "bottom-center" => (workarea.x + wa_w / 2, workarea.y + wa_h - m),
+            "bottom-right" => (workarea.x + wa_w - m, workarea.y + wa_h - m),
+            other => return Err(format!("Unknown anchor '{}'", other)),
+        };
+
+        // If pivot is explicitly given, align window's pivot to anchor point.
+        // Otherwise, use matching default pivot for the anchor.
+        let pivot_str = if let Some(p) = &params.pivot {
+            p.as_str()
+        } else {
+            anchor_str
+        };
+
+        apply_pivot_offset(ax, ay, w, h, pivot_str)?
+    };
+
+    if params.clamp {
+        let m = params.margin;
         let inner_x = workarea.x + m;
         let inner_y = workarea.y + m;
         let inner_w = workarea.w as i32 - 2 * m;
         let inner_h = workarea.h as i32 - 2 * m;
 
-        match anchor_str {
-            "top-left" => (inner_x, inner_y),
-            "top" | "top-center" => (inner_x + (inner_w - w_i32) / 2, inner_y),
-            "top-right" => (inner_x + inner_w - w_i32, inner_y),
-            "left" => (inner_x, inner_y + (inner_h - h_i32) / 2),
-            "center" => (
-                inner_x + (inner_w - w_i32) / 2,
-                inner_y + (inner_h - h_i32) / 2,
-            ),
-            "right" => (inner_x + inner_w - w_i32, inner_y + (inner_h - h_i32) / 2),
-            "bottom-left" => (inner_x, inner_y + inner_h - h_i32),
-            "bottom" | "bottom-center" => {
-                (inner_x + (inner_w - w_i32) / 2, inner_y + inner_h - h_i32)
-            }
-            "bottom-right" => (inner_x + inner_w - w_i32, inner_y + inner_h - h_i32),
-            other => return Err(format!("Unknown anchor '{}'", other)),
-        }
-    };
-
-    if params.clamp {
-        let wa_w = workarea.w as i32;
-        let wa_h = workarea.h as i32;
-
-        if w_i32 <= wa_w {
-            let min_x = workarea.x;
-            let max_x = workarea.x + wa_w - w_i32;
+        if w_i32 <= inner_w {
+            let min_x = inner_x;
+            let max_x = inner_x + inner_w - w_i32;
             x = x.clamp(min_x, max_x);
         } else {
-            x = workarea.x;
+            x = inner_x;
         }
 
-        if h_i32 <= wa_h {
-            let min_y = workarea.y;
-            let max_y = workarea.y + wa_h - h_i32;
+        if h_i32 <= inner_h {
+            let min_y = inner_y;
+            let max_y = inner_y + inner_h - h_i32;
             y = y.clamp(min_y, max_y);
         } else {
-            y = workarea.y;
+            y = inner_y;
         }
     }
 
