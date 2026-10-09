@@ -240,6 +240,36 @@ pub async fn run_spawn(
                 if let Ok(settled_rect) = driver.get_window_rect(id).await {
                     final_rect = settled_rect;
                 }
+
+                // If explicit placement was requested and the client re-maximized itself, re-assert once, bounded.
+                let has_explicit_placement =
+                    params.size.is_some() || params.pos.is_some() || params.anchor.is_some();
+                if has_explicit_placement {
+                    if let Ok(windows) = driver.get_windows().await {
+                        if let Some(w) = windows.into_iter().find(|w| w.id == Some(id)) {
+                            if w.maximized {
+                                let _ = driver
+                                    .set_window_state(
+                                        &id.to_string(),
+                                        crate::platform::WindowState::Restore,
+                                    )
+                                    .await;
+                                let _ = driver
+                                    .transform_window(
+                                        &id.to_string(),
+                                        params.clone(),
+                                        final_rect.width,
+                                        final_rect.height,
+                                    )
+                                    .await;
+                                tokio::time::sleep(Duration::from_millis(150)).await;
+                                if let Ok(reasserted_rect) = driver.get_window_rect(id).await {
+                                    final_rect = reasserted_rect;
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             crate::diagnostics::verify_and_report_placement(
