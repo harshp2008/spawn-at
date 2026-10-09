@@ -71,14 +71,14 @@ pub async fn run_spawn(
     for diag in check_geometry_diagnostics(&params) {
         match diag {
             GeometryDiagnostic::Oversized { w, h } => {
-                eprintln!(
-                    "\n\x1b[1;33m[spawn-at] WARN:\x1b[0m Window is oversized ({w}x{h}); bottom and right margins ignored."
-                );
+                crate::diagnostics::render_warning(&format!(
+                    "Window is oversized ({w}x{h}); bottom and right margins ignored."
+                ));
             }
             GeometryDiagnostic::SubMinimumSize { w, h } => {
-                eprintln!(
-                    "\n\x1b[1;36m[spawn-at] INFO:\x1b[0m Requested size ({w}x{h}) is below toolkit minimums; window will expand."
-                );
+                crate::diagnostics::render_info(&format!(
+                    "Requested size ({w}x{h}) is below toolkit minimums; window will expand."
+                ));
             }
             _ => {}
         }
@@ -129,11 +129,11 @@ pub async fn run_spawn(
     let armed_opt = match driver.arm(batch.clone()).await {
         Ok(a) => Some(a),
         Err(e) => {
-            eprintln!(
-                "\x1b[1;33m[spawn-at] Warning:\x1b[0m Placement arming failed [driver: {}]: {}. Launching application without placement.",
+            crate::diagnostics::render_warning(&format!(
+                "Placement arming failed [driver: {}]: {}. Launching application without placement.",
                 driver.name(),
                 e
-            );
+            ));
             None
         }
     };
@@ -165,7 +165,7 @@ pub async fn run_spawn(
     if let Some(ref _armed) = armed_opt {
         // Polymorphic post-spawn interception hook
         if let Err(e) = driver.post_spawn(child.id(), &batch).await {
-            eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m Window post-spawn hook failed: {}", e);
+            crate::diagnostics::render_warning(&format!("Window post-spawn hook failed: {}", e));
         }
 
         if !no_wait {
@@ -186,7 +186,7 @@ pub async fn run_spawn(
                         ));
                     }
                     Err(DriverError::Execution(e)) => {
-                        eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m {}", e);
+                        crate::diagnostics::render_warning(&e.to_string());
                     }
                     Err(_) => {
                         // Claim signal timed out or was not received for this specific target;
@@ -223,10 +223,10 @@ pub async fn run_spawn(
                         }
                         Err(e) => {
                             if !e.to_string().contains("reused an existing window") {
-                                eprintln!(
-                                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
+                                crate::diagnostics::render_warning(&format!(
+                                    "Timed out waiting for window to map: {}",
                                     e
-                                );
+                                ));
                             }
                             return Ok(());
                         }

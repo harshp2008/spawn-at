@@ -126,7 +126,7 @@ pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
     }
 
     if !is_in_path(&target_dir) {
-        println!("\n\x1b[1;33mWarning\x1b[0m: '{}' is not currently in your $PATH.", target_dir.display());
+        crate::diagnostics::render_warning(&format!("'{}' is not currently in your $PATH.", target_dir.display()));
         println!("To run 'spawn-at' globally, add it to your shell startup file:");
         println!("  echo 'export PATH=\"{}:$PATH\"' >> ~/.bashrc", target_dir.display());
         println!("  (or ~/.zshrc / ~/.profile depending on your shell)");

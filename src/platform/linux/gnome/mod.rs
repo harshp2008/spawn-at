@@ -291,21 +291,21 @@ pub fn restart_gnome_shell_x11() {
     println!("Reloading GNOME Shell on X11 via key simulation (Alt+F2 -> 'r' -> Enter)...");
 
     if let Err(e) = Command::new("xdotool").args(["key", "Alt+F2"]).status() {
-        eprintln!("Warning: Failed to execute 'xdotool key Alt+F2': {}", e);
+        crate::diagnostics::render_warning(&format!("Failed to execute 'xdotool key Alt+F2': {}", e));
         return;
     }
 
     std::thread::sleep(std::time::Duration::from_millis(500));
 
     if let Err(e) = Command::new("xdotool").args(["type", "r"]).status() {
-        eprintln!("Warning: Failed to execute 'xdotool type r': {}", e);
+        crate::diagnostics::render_warning(&format!("Failed to execute 'xdotool type r': {}", e));
         return;
     }
 
     std::thread::sleep(std::time::Duration::from_millis(100));
 
     if let Err(e) = Command::new("xdotool").args(["key", "Return"]).status() {
-        eprintln!("Warning: Failed to execute 'xdotool key Return': {}", e);
+        crate::diagnostics::render_warning(&format!("Failed to execute 'xdotool key Return': {}", e));
     }
 }
 
@@ -408,8 +408,8 @@ impl Driver for GnomeWaylandDriver {
         // Check extension protocol version; warn on mismatch without hard-failing
         let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
         if ext_version < EXPECTED_PROTOCOL_VERSION {
-            eprintln!(
-                "\x1b[1;33m[spawn-at] Warning:\x1b[0m Extension protocol mismatch (detected older extension). \
+            crate::diagnostics::render_warning(
+                "Extension protocol mismatch (detected older extension). \
                  Please log out and back in to load the updated extension."
             );
         }
@@ -489,10 +489,10 @@ impl CompositorBackend for GnomeWaylandDriver {
     ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
         let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
         if ext_version < EXPECTED_PROTOCOL_VERSION {
-            eprintln!(
-                "[spawn-at] INFO: GNOME Shell extension does not support SpawnClaimed signal (protocol version < {}); falling back to polling.",
+            crate::diagnostics::render_info(&format!(
+                "GNOME Shell extension does not support SpawnClaimed signal (protocol version < {}); falling back to polling.",
                 EXPECTED_PROTOCOL_VERSION
-            );
+            ));
             return Ok(None);
         }
 
@@ -580,7 +580,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let is_legacy = major_version.map_or(false, |v| v < 45);
 
         let files = if is_legacy {
-            eprintln!("\x1b[1;33m[spawn-at] WARNING: Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.\x1b[0m");
+            crate::diagnostics::render_warning("Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.");
             println!("Deploying legacy GNOME (42-44) extension to: {}", ext_dir.display());
             EMBEDDED_EXTENSION_FILES_LEGACY
         } else {

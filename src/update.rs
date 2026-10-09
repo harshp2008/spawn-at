@@ -314,7 +314,7 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
             .args(["install", "--skip-bin", "--headless"])
             .status();
         if let Err(e) = ext_status {
-            eprintln!("Warning: Failed to install GNOME extension from new binary: {}", e);
+            crate::diagnostics::render_warning(&format!("Failed to install GNOME extension from new binary: {}", e));
         }
     }
 
@@ -416,7 +416,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     let release = match resolve_target_release(&channel) {
         Ok(r) => r,
         Err(e) => {
-            eprintln!("\x1b[1;31mError checking updates\x1b[0m: {}", e);
+            crate::diagnostics::render_error(&format!("Error checking updates: {}", e));
             return Ok(());
         }
     };

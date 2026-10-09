@@ -4,12 +4,98 @@
 //! `spawn` and `transform` commands across all platforms.
 
 use spawn_at_core::geometry::{calculate_rect_from_placement, PlacementParams, Rect};
+use std::io::IsTerminal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DiagnosticLevel {
     Info,
     Warning,
     Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorCapability {
+    Disabled,
+    Basic,
+    Color256,
+    TrueColor,
+}
+
+/// Detects terminal color capabilities with support for truecolor, 256color, ANSI fallback,
+/// NO_COLOR, TERM=dumb, and TTY checks.
+pub fn detect_color_capability_for_stream(is_terminal: bool) -> ColorCapability {
+    if !is_terminal {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var_os("NO_COLOR").map_or(false, |v| !v.is_empty()) {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var("TERM").map_or(false, |t| t == "dumb") {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var("COLORTERM").map_or(false, |ct| ct == "truecolor" || ct == "24bit") {
+        return ColorCapability::TrueColor;
+    }
+    if std::env::var("TERM").map_or(false, |t| t.contains("256color")) {
+        return ColorCapability::Color256;
+    }
+    ColorCapability::Basic
+}
+
+/// Detects color capability on stderr.
+pub fn detect_color_capability() -> ColorCapability {
+    detect_color_capability_for_stream(std::io::stderr().is_terminal())
+}
+
+/// Formats the diagnostic prefix label according to the color capability.
+pub fn format_label(level: DiagnosticLevel, cap: ColorCapability) -> String {
+    match cap {
+        ColorCapability::Disabled => match level {
+            DiagnosticLevel::Info => "[spawn-at] INFO:".to_string(),
+            DiagnosticLevel::Warning => "[spawn-at] WARNING:".to_string(),
+            DiagnosticLevel::Error => "[spawn-at] ERROR:".to_string(),
+        },
+        ColorCapability::Basic => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => "\x1b[1;33m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+        ColorCapability::Color256 => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => "\x1b[1;38;5;208m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+        ColorCapability::TrueColor => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+    }
+}
+
+/// Formats a complete labeled message given a level, message body, and color capability.
+pub fn format_message_with_capability(level: DiagnosticLevel, msg: &str, cap: ColorCapability) -> String {
+    format!("{} {}", format_label(level, cap), msg)
+}
+
+/// Renders a diagnostic message directly to stderr with color detection.
+pub fn render_diagnostic_message(level: DiagnosticLevel, msg: &str) {
+    eprintln!("{}", format_message_with_capability(level, msg, detect_color_capability()));
+}
+
+/// Centralized renderer for user-facing INFO diagnostics.
+pub fn render_info(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Info, msg);
+}
+
+/// Centralized renderer for user-facing WARNING diagnostics.
+pub fn render_warning(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Warning, msg);
+}
+
+/// Centralized renderer for user-facing ERROR diagnostics.
+pub fn render_error(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Error, msg);
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,11 +158,11 @@ impl Diagnostic {
         }
     }
 
-    pub fn format_message(&self) -> String {
+    pub fn message_body(&self) -> String {
         match self {
             Diagnostic::PlacedSuccess { pos, size } => {
                 format!(
-                    "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned at ({}, {}).",
+                    "Window mapped at final size ({}x{}) and positioned at ({}, {}).",
                     size.0, size.1, pos.0, pos.1
                 )
             }
@@ -88,12 +174,12 @@ impl Diagnostic {
             } => {
                 if let Some(min) = minimum {
                     format!(
-                        "[spawn-at] INFO: Requested size ({}x{}), window minimum is {}x{}; placed at ({}, {}) [{}x{}].",
+                        "Requested size ({}x{}), window minimum is {}x{}; placed at ({}, {}) [{}x{}].",
                         requested.0, requested.1, min.0, min.1, placed_pos.0, placed_pos.1, actual.0, actual.1
                     )
                 } else {
                     format!(
-                        "[spawn-at] INFO: Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
+                        "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
                         requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
                     )
                 }
@@ -104,7 +190,7 @@ impl Diagnostic {
                 placed_pos,
             } => {
                 format!(
-                    "[spawn-at] INFO: Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
+                    "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
                     requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
                 )
             }
@@ -116,7 +202,7 @@ impl Diagnostic {
                 clamped_to_workarea,
             } => {
                 let mut msg = format!(
-                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                    "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
                     actual_pos.0, actual_pos.1, actual_size.0, actual_size.1, expected_pos.0, expected_pos.1
                 );
                 if *clamped_to_workarea {
@@ -135,31 +221,50 @@ impl Diagnostic {
                 }
                 msg
             }
-            Diagnostic::OffScreenUnclamped { actual_pos, actual_size } => {
+            Diagnostic::OffScreenUnclamped {
+                actual_pos,
+                actual_size,
+            } => {
                 format!(
-                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Window positioned off-screen at ({}, {}) [{}x{}] (--clamp false).",
+                    "Window positioned off-screen at ({}, {}) [{}x{}] (--clamp false).",
                     actual_pos.0, actual_pos.1, actual_size.0, actual_size.1
                 )
             }
-            Diagnostic::WindowNeverMapped { app_hint, pid, timeout_ms } => {
+            Diagnostic::WindowNeverMapped {
+                app_hint,
+                pid,
+                timeout_ms,
+            } => {
                 format!(
-                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: Window matching app hint '{}' (PID: {}) did not appear within {}ms.",
+                    "Timed out waiting for window to map: Window matching app hint '{}' (PID: {}) did not appear within {}ms.",
                     app_hint, pid, timeout_ms
                 )
             }
-            Diagnostic::ReusedExistingWindow { class, title, pid } => {
+            Diagnostic::ReusedExistingWindow {
+                class,
+                title,
+                pid,
+            } => {
                 let pid_str = pid.map(|p| format!(" (PID: {})", p)).unwrap_or_default();
                 format!(
-                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Application reused an existing window{}: class '{}', title '{}'. Spawn-at does not reposition pre-existing windows on spawn.",
+                    "Application reused an existing window{}: class '{}', title '{}'. Spawn-at does not reposition pre-existing windows on spawn.",
                     pid_str, class, title
                 )
             }
         }
     }
+
+    pub fn format_message_with_capability(&self, cap: ColorCapability) -> String {
+        format_message_with_capability(self.level(), &self.message_body(), cap)
+    }
+
+    pub fn format_message(&self) -> String {
+        self.format_message_with_capability(detect_color_capability())
+    }
 }
 
 pub fn render_diagnostic(diag: &Diagnostic) {
-    eprintln!("{}", diag.format_message());
+    render_diagnostic_message(diag.level(), &diag.message_body());
 }
 
 /// Evaluates a window's final placed geometry against the desired placement parameters,
@@ -423,7 +528,191 @@ mod tests {
         assert_eq!(diags_spawn, diags_transform);
         assert_eq!(diags_spawn.len(), 1);
         assert_eq!(diags_spawn[0].level(), DiagnosticLevel::Info);
-        assert_eq!(diags_spawn[0].format_message(), diags_transform[0].format_message());
+        assert_eq!(
+            diags_spawn[0].format_message_with_capability(ColorCapability::TrueColor),
+            diags_transform[0].format_message_with_capability(ColorCapability::TrueColor)
+        );
+        assert_eq!(
+            diags_spawn[0].format_message_with_capability(ColorCapability::Disabled),
+            diags_transform[0].format_message_with_capability(ColorCapability::Disabled)
+        );
+    }
+
+    #[test]
+    fn test_renderer_snapshot_color_on_exact_escapes() {
+        // INFO: bold blue \x1b[1;34m
+        let info_msg = format_message_with_capability(
+            DiagnosticLevel::Info,
+            "Requested size (30x20) is below toolkit minimums; window will expand.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            info_msg,
+            "\x1b[1;34m[spawn-at] INFO:\x1b[0m Requested size (30x20) is below toolkit minimums; window will expand."
+        );
+
+        // WARNING (TrueColor): 24-bit orange \x1b[1;38;2;255;140;0m
+        let warn_truecolor = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            warn_truecolor,
+            "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // WARNING (256-color): 208 orange \x1b[1;38;5;208m
+        let warn_256 = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Color256,
+        );
+        assert_eq!(
+            warn_256,
+            "\x1b[1;38;5;208m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // WARNING (Basic 16-color fallback): ANSI yellow \x1b[1;33m
+        let warn_basic = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Basic,
+        );
+        assert_eq!(
+            warn_basic,
+            "\x1b[1;33m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // ERROR: bold red \x1b[1;31m
+        let error_msg = format_message_with_capability(
+            DiagnosticLevel::Error,
+            "No active window matched criteria.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            error_msg,
+            "\x1b[1;31m[spawn-at] ERROR:\x1b[0m No active window matched criteria."
+        );
+    }
+
+    #[test]
+    fn test_renderer_snapshot_color_off() {
+        let info_msg = format_message_with_capability(
+            DiagnosticLevel::Info,
+            "Requested size (30x20) is below toolkit minimums; window will expand.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            info_msg,
+            "[spawn-at] INFO: Requested size (30x20) is below toolkit minimums; window will expand."
+        );
+
+        let warn_msg = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            warn_msg,
+            "[spawn-at] WARNING: Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        let error_msg = format_message_with_capability(
+            DiagnosticLevel::Error,
+            "No active window matched criteria.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            error_msg,
+            "[spawn-at] ERROR: No active window matched criteria."
+        );
+    }
+
+    #[test]
+    fn test_not_a_tty_disables_color() {
+        assert_eq!(detect_color_capability_for_stream(false), ColorCapability::Disabled);
+    }
+
+    #[test]
+    fn test_no_color_environment_variable() {
+        // Test helper using custom stream capability logic
+        let orig_no_color = std::env::var("NO_COLOR").ok();
+        let orig_term = std::env::var("TERM").ok();
+
+        std::env::set_var("NO_COLOR", "1");
+        assert_eq!(detect_color_capability_for_stream(true), ColorCapability::Disabled);
+
+        std::env::remove_var("NO_COLOR");
+        std::env::set_var("TERM", "dumb");
+        assert_eq!(detect_color_capability_for_stream(true), ColorCapability::Disabled);
+
+        // Restore environment
+        match orig_no_color {
+            Some(v) => std::env::set_var("NO_COLOR", v),
+            None => std::env::remove_var("NO_COLOR"),
+        }
+        match orig_term {
+            Some(v) => std::env::set_var("TERM", v),
+            None => std::env::remove_var("TERM"),
+        }
+    }
+
+    #[test]
+    fn test_no_raw_spawn_at_prints_outside_renderer() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let src_dir = manifest_dir.join("src");
+        let mut violations = Vec::new();
+
+        fn check_dir(dir: &std::path::Path, violations: &mut Vec<String>) {
+            let entries = match std::fs::read_dir(dir) {
+                Ok(e) => e,
+                Err(_) => return,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    check_dir(&path, violations);
+                } else if path.extension().map_or(false, |ext| ext == "rs") {
+                    if path.file_name().map_or(false, |name| name == "diagnostics.rs") {
+                        continue;
+                    }
+                    let content = std::fs::read_to_string(&path).unwrap_or_default();
+                    for (line_idx, line) in content.lines().enumerate() {
+                        let trimmed = line.trim();
+                        // Ignore SPAWN_AT_DEBUG macro calls and definitions
+                        if trimmed.starts_with("//")
+                            || trimmed.contains("x11_debug!")
+                            || trimmed.contains("SPAWN_AT_DEBUG")
+                        {
+                            continue;
+                        }
+                        if (trimmed.contains("eprintln!")
+                            || trimmed.contains("println!")
+                            || trimmed.contains("eprint!")
+                            || trimmed.contains("print!"))
+                            && trimmed.contains("[spawn-at]")
+                        {
+                            violations.push(format!(
+                                "{}:{}: {}",
+                                path.strip_prefix(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+                                    .unwrap_or(&path)
+                                    .display(),
+                                line_idx + 1,
+                                trimmed
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        check_dir(&src_dir, &mut violations);
+        assert!(
+            violations.is_empty(),
+            "Found raw '[spawn-at]' print calls outside src/diagnostics.rs:\n{}",
+            violations.join("\n")
+        );
     }
 }
 

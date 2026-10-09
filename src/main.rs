@@ -41,7 +41,7 @@ async fn main() {
 
     if let Commands::Update(update_args) = cli.command {
         if let Err(e) = crate::update::run_update(update_args) {
-            eprintln!("\x1b[1;31mUpdate Error\x1b[0m: {}", e);
+            crate::diagnostics::render_error(&format!("Update error: {}", e));
             std::process::exit(1);
         }
         return;
@@ -60,7 +60,7 @@ async fn main() {
     let driver = match init_backend().await {
         Ok(d) => d,
         Err(e) => {
-            eprintln!("\x1b[1;31mDriver Initialization Error\x1b[0m: {}", e);
+            crate::diagnostics::render_error(&format!("Driver initialization error: {}", e));
             std::process::exit(1);
         }
     };
@@ -86,7 +86,7 @@ async fn main() {
                         Ok(1) => args.scope = InstallScope::System,
                         Ok(2) => args.skip_bin = true,
                         Err(e) => {
-                            eprintln!("\x1b[1;31mError during selection\x1b[0m: {}", e);
+                            crate::diagnostics::render_error(&format!("Error during selection: {}", e));
                             std::process::exit(1);
                         }
                         _ => {}
@@ -102,7 +102,7 @@ async fn main() {
                         && !args.headless
                         && std::io::stdout().is_terminal()
                     {
-                        println!("\x1b[1;31mSystem installation failed\x1b[0m: {}", e);
+                        crate::diagnostics::render_error(&format!("System installation failed: {}", e));
                         let fallback = Confirm::new()
                             .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
                             .default(true)
@@ -118,7 +118,7 @@ async fn main() {
                     }
 
                     if !recovered {
-                        eprintln!("\x1b[1;31mError during binary installation\x1b[0m: {}", e);
+                        crate::diagnostics::render_error(&format!("Error during binary installation: {}", e));
                         std::process::exit(1);
                     }
                 }
@@ -126,11 +126,11 @@ async fn main() {
             }
 
             if let Err(e) = driver.install(&args) {
-                eprintln!(
-                    "\x1b[1;31mError during install ({})\x1b[0m: {}",
+                crate::diagnostics::render_error(&format!(
+                    "Error during install ({}): {}",
                     driver.name(),
                     e
-                );
+                ));
                 std::process::exit(1);
             }
 
@@ -177,11 +177,11 @@ async fn main() {
             cfg.update.channel = channel;
             cfg.update.notify = notify;
             if let Err(e) = cfg.save() {
-                eprintln!("\x1b[1;33mWarning\x1b[0m: Failed to save update configuration: {}", e);
+                crate::diagnostics::render_warning(&format!("Failed to save update configuration: {}", e));
             }
 
             if let Err(e) = crate::config::install_login_autostart_entry() {
-                eprintln!("\x1b[1;33mWarning\x1b[0m: Failed to set up login update check: {}", e);
+                crate::diagnostics::render_warning(&format!("Failed to set up login update check: {}", e));
             }
         }
         Commands::Uninstall(mut args) => {
@@ -204,7 +204,7 @@ async fn main() {
                         Ok(1) => args.scope = InstallScope::System,
                         Ok(2) => args.skip_bin = true,
                         Err(e) => {
-                            eprintln!("\x1b[1;31mError during selection\x1b[0m: {}", e);
+                            crate::diagnostics::render_error(&format!("Error during selection: {}", e));
                             std::process::exit(1);
                         }
                         _ => {}
@@ -215,21 +215,21 @@ async fn main() {
 
             if !args.skip_bin {
                 if let Err(e) = crate::platform::installer::uninstall_binary(args.scope) {
-                    eprintln!(
-                        "\x1b[1;31mError during binary uninstallation\x1b[0m: {}",
+                    crate::diagnostics::render_error(&format!(
+                        "Error during binary uninstallation: {}",
                         e
-                    );
+                    ));
                     std::process::exit(1);
                 }
                 println!();
             }
 
             if let Err(e) = driver.uninstall(&args) {
-                eprintln!(
-                    "\x1b[1;31mError during uninstall ({})\x1b[0m: {}",
+                crate::diagnostics::render_error(&format!(
+                    "Error during uninstall ({}): {}",
                     driver.name(),
                     e
-                );
+                ));
                 std::process::exit(1);
             }
 
@@ -237,49 +237,49 @@ async fn main() {
         }
         Commands::Spawn(spawn_args) => {
             if let Err(e) = commands::run_spawn(driver.as_ref(), spawn_args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Transform(transform_args) => {
             if let Err(e) = commands::run_transform(driver.as_ref(), transform_args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Query { cmd } => {
             if let Err(e) = commands::run_query(driver.as_ref(), cmd).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Focus(args) => {
             if let Err(e) = commands::run_focus(driver.as_ref(), args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Defocus(args) => {
             if let Err(e) = commands::run_defocus(driver.as_ref(), args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Maximize(args) => {
             if let Err(e) = commands::run_maximize(driver.as_ref(), args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Minimize(args) => {
             if let Err(e) = commands::run_minimize(driver.as_ref(), args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
         Commands::Restore(args) => {
             if let Err(e) = commands::run_restore(driver.as_ref(), args, cli.no_wait).await {
-                eprintln!("\x1b[1;31mError\x1b[0m: {}", e);
+                crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }
         }
