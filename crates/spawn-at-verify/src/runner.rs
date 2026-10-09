@@ -6,7 +6,7 @@ use crate::oracle::{calculate_expected_rect, verify_rect_tolerance, OracleParams
 use crate::preflight::{inspect_binary, PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
-use crate::tracker::WindowTracker;
+use crate::tracker::{query_window_records, WindowTracker};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -462,10 +462,15 @@ impl TestRunner {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let exit_code = output.status.code().unwrap_or(-1);
 
-        // Detect newly spawned windows and register with tracker
-        if let Ok(new_wins) = tracker.detect_new_windows(&self.options.bin_path) {
-            for win_id in new_wins {
-                let _ = tracker.register_window(win_id);
+        // Attribute test-spawned windows strictly belonging to this test.
+        // It must come only from that test's own spawn (the window id from the SpawnClaimed
+        // signal or the claim result, or the fixture's own app id), never "any new window since the snapshot".
+        if test.action.command == "spawn" {
+            let claimed_id = extract_claimed_window_id(&stdout, &stderr);
+            let subject_app = test.subject.as_ref().map(|s| s.app.as_str());
+            if let Ok(records) = query_window_records(&self.options.bin_path) {
+                let _ =
+                    tracker.attribute_and_register_test_windows(&records, claimed_id, subject_app);
             }
         }
 
@@ -584,6 +589,10 @@ fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), St
         explicit_pos: None,
         size,
         margin: expect_rect.margin.unwrap_or(0),
+        margin_top: expect_rect.margin_top,
+        margin_bottom: expect_rect.margin_bottom,
+        margin_left: expect_rect.margin_left,
+        margin_right: expect_rect.margin_right,
         clamp: true,
     };
 
@@ -591,6 +600,16 @@ fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), St
 
     // Assert calculated rect is non-empty and bounded inside workarea
     verify_rect_tolerance(expected, expected, expect_rect.tolerance_px)
+}
+
+/// Extracts claimed window ID from command output (e.g. from SpawnClaimed signal or trace/log output).
+pub fn extract_claimed_window_id(stdout: &str, stderr: &str) -> Option<u64> {
+    let re = Regex::new(r#"(?i)(?:window_id|window id|claimed window)\s*[:=]?\s*(\d+)"#).ok()?;
+    if let Some(caps) = re.captures(stdout).or_else(|| re.captures(stderr)) {
+        caps.get(1)?.as_str().parse().ok()
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]

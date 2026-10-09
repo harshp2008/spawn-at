@@ -12,6 +12,15 @@ use std::process::Command;
 
 pub const MAX_CONCURRENT_WINDOWS: usize = 20;
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct WindowRecord {
+    pub id: u64,
+    pub pid: Option<u64>,
+    pub app_id: Option<String>,
+    pub class: Option<String>,
+    pub title: Option<String>,
+}
+
 #[derive(Debug, Clone)]
 pub struct WindowTracker {
     pub known_preexisting: HashSet<u64>,
@@ -38,21 +47,83 @@ impl WindowTracker {
         })
     }
 
-    /// Queries the currently open windows and returns any newly spawned window IDs
-    /// not present in the initial pre-existing snapshot.
-    pub fn detect_new_windows(&self, bin_path: &Path) -> Result<Vec<u64>, String> {
-        let current_ids = query_window_ids(bin_path)?;
-        let new_ids = self.filter_new_windows(&current_ids);
-        Ok(new_ids)
+    /// Attributes and registers windows spawned strictly by the test action.
+    ///
+    /// Attribution requires the window to:
+    /// 1. NOT be in the pre-existing snapshot.
+    /// 2. Strictly originate from this test's own spawn:
+    ///    - Explicit claim window ID (from SpawnClaimed signal or claim result), OR
+    ///    - The fixture's own app_id / class (e.g. "fixture", "spawn-at-fixture"), OR
+    ///    - The test subject's target app_id / class.
+    ///
+    /// Any external window that appears mid-test from another source is NEVER registered.
+    pub fn attribute_and_register_test_windows(
+        &mut self,
+        current_windows: &[WindowRecord],
+        claimed_id: Option<u64>,
+        subject_app: Option<&str>,
+    ) -> Result<Vec<u64>, String> {
+        let matched_ids = self.filter_test_windows(current_windows, claimed_id, subject_app);
+        let mut newly_registered = Vec::new();
+        for id in matched_ids {
+            if !self.tracked_test_windows.contains(&id) {
+                self.register_window(id)?;
+                newly_registered.push(id);
+            }
+        }
+        Ok(newly_registered)
     }
 
-    /// Pure in-memory filtering: returns only windows that were not in pre-existing snapshot.
-    pub fn filter_new_windows(&self, current_ids: &[u64]) -> Vec<u64> {
-        current_ids
-            .iter()
-            .copied()
-            .filter(|id| !self.known_preexisting.contains(id))
-            .collect()
+    /// Pure in-memory filtering: returns only windows that match this test's own spawn
+    /// and were not present in the pre-existing snapshot.
+    pub fn filter_test_windows(
+        &self,
+        current_windows: &[WindowRecord],
+        claimed_id: Option<u64>,
+        subject_app: Option<&str>,
+    ) -> Vec<u64> {
+        let mut matched = Vec::new();
+        for win in current_windows {
+            // Must not be pre-existing
+            if self.known_preexisting.contains(&win.id) {
+                continue;
+            }
+
+            // Attribution check:
+            let is_attributed = if let Some(cid) = claimed_id {
+                win.id == cid
+            } else if let Some(app) = subject_app {
+                let target = app.strip_prefix("system:").unwrap_or(app).to_lowercase();
+                let matches_app_id = win
+                    .app_id
+                    .as_deref()
+                    .map(|a| {
+                        let al = a.to_lowercase();
+                        al.contains(&target)
+                            || target.contains(&al)
+                            || (target == "fixture" && al.contains("fixture"))
+                    })
+                    .unwrap_or(false);
+                let matches_class = win
+                    .class
+                    .as_deref()
+                    .map(|c| {
+                        let cl = c.to_lowercase();
+                        cl.contains(&target)
+                            || target.contains(&cl)
+                            || (target == "fixture" && cl.contains("fixture"))
+                    })
+                    .unwrap_or(false);
+                matches_app_id || matches_class
+            } else {
+                false
+            };
+
+            if is_attributed {
+                matched.push(win.id);
+            }
+        }
+        matched
     }
 
     /// Registers a newly created test window. Refuses if the 20-window cap is reached.
@@ -102,8 +173,8 @@ impl WindowTracker {
     }
 }
 
-/// Helper to query current window IDs from `spawn-at query windows --json`.
-pub fn query_window_ids(bin_path: &Path) -> Result<Vec<u64>, String> {
+/// Helper to query structured window records from `spawn-at query windows --json`.
+pub fn query_window_records(bin_path: &Path) -> Result<Vec<WindowRecord>, String> {
     let output = Command::new(bin_path)
         .args(["query", "windows", "--json"])
         .output()
@@ -116,16 +187,37 @@ pub fn query_window_ids(bin_path: &Path) -> Result<Vec<u64>, String> {
     let parsed: serde_json::Value = serde_json::from_slice(&output.stdout)
         .map_err(|e| format!("Failed to parse windows JSON: {}", e))?;
 
-    let mut ids = Vec::new();
+    let mut records = Vec::new();
     if let Some(arr) = parsed.as_array() {
         for w in arr {
             if let Some(id) = w.get("id").and_then(|v| v.as_u64()) {
-                ids.push(id);
+                records.push(WindowRecord {
+                    id,
+                    pid: w.get("pid").and_then(|v| v.as_u64()),
+                    app_id: w
+                        .get("app_id")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    class: w
+                        .get("class")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    title: w
+                        .get("title")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                });
             }
         }
     }
 
-    Ok(ids)
+    Ok(records)
+}
+
+/// Helper to query current window IDs from `spawn-at query windows --json`.
+pub fn query_window_ids(bin_path: &Path) -> Result<Vec<u64>, String> {
+    let records = query_window_records(bin_path)?;
+    Ok(records.into_iter().map(|r| r.id).collect())
 }
 
 #[cfg(test)]
@@ -158,21 +250,123 @@ mod tests {
     }
 
     #[test]
-    fn test_tracker_never_closes_by_class_or_pid() {
-        // WindowTracker interface enforces strictly numeric window IDs (u64).
-        // It provides zero methods accepting class names or PIDs for closing.
-        let mut tracker = WindowTracker::new_with_preexisting(&[10]);
+    fn test_runner_cleanup_only_ever_passes_registered_ids_to_close() {
+        // Behavioral test: The runner cleanup path only ever passes registered IDs to close.
+        // It never passes pre-existing window IDs, never passes external/unregistered window IDs,
+        // and only takes strict numeric u64 IDs (cannot pass class names or PIDs).
+        let preexisting = vec![101, 102];
+        let mut tracker = WindowTracker::new_with_preexisting(&preexisting);
 
-        // Attempting to register and close requires strict u64
-        assert!(tracker.register_window(42).is_ok());
+        // System has preexisting windows (101, 102), a registered test window (201),
+        // and an external window (999) that appeared mid-test.
+        let current_windows = vec![
+            WindowRecord {
+                id: 101,
+                pid: Some(10),
+                app_id: Some("preexisting".into()),
+                class: Some("preexisting".into()),
+                title: Some("Preexisting 1".into()),
+            },
+            WindowRecord {
+                id: 201,
+                pid: Some(20),
+                app_id: Some("spawn-at-fixture".into()),
+                class: Some("spawn-at-fixture".into()),
+                title: Some("Fixture".into()),
+            },
+            WindowRecord {
+                id: 999,
+                pid: Some(30),
+                app_id: Some("chrome".into()),
+                class: Some("chrome".into()),
+                title: Some("External Chrome".into()),
+            },
+        ];
 
-        let mut invocations = Vec::new();
-        tracker.cleanup_with_closer(|id| {
-            invocations.push(id);
+        // Attribute windows for fixture spawn
+        let newly = tracker
+            .attribute_and_register_test_windows(&current_windows, None, Some("fixture"))
+            .unwrap();
+        assert_eq!(newly, vec![201]);
+
+        // Execute the cleanup path (identical to runner::cleanup_test_windows)
+        let mut closed_ids: Vec<u64> = Vec::new();
+        let failed = tracker.cleanup_with_closer(|id| {
+            closed_ids.push(id);
             true
         });
 
-        assert_eq!(invocations, vec![42]);
+        assert!(failed.is_empty());
+        // Verify ONLY the registered window ID 201 was passed to the closer
+        assert_eq!(closed_ids, vec![201]);
+        // Preexisting and external windows were never passed to closer
+        assert!(!closed_ids.contains(&101));
+        assert!(!closed_ids.contains(&102));
+        assert!(!closed_ids.contains(&999));
+    }
+
+    #[test]
+    fn test_tracker_ignores_external_window_appearing_mid_test() {
+        // A window that appears mid-test from another source is never registered or closed.
+        let preexisting = vec![10, 20];
+        let mut tracker = WindowTracker::new_with_preexisting(&preexisting);
+
+        // Current windows in system during a test with subject = "fixture":
+        // - 10: preexisting
+        // - 20: preexisting
+        // - 100: spawned fixture window
+        // - 999: external window opened mid-test (e.g. user opened Chrome or terminal externally)
+        let current_windows = vec![
+            WindowRecord {
+                id: 10,
+                pid: Some(1000),
+                app_id: Some("app1".into()),
+                class: Some("app1".into()),
+                title: Some("App 1".into()),
+            },
+            WindowRecord {
+                id: 20,
+                pid: Some(1001),
+                app_id: Some("app2".into()),
+                class: Some("app2".into()),
+                title: Some("App 2".into()),
+            },
+            WindowRecord {
+                id: 100,
+                pid: Some(2000),
+                app_id: Some("spawn-at-fixture".into()),
+                class: Some("spawn-at-fixture".into()),
+                title: Some("Fixture Window".into()),
+            },
+            WindowRecord {
+                id: 999,
+                pid: Some(3000),
+                app_id: Some("google-chrome".into()),
+                class: Some("google-chrome".into()),
+                title: Some("Chrome Window".into()),
+            },
+        ];
+
+        // Attribute windows for fixture test
+        let registered = tracker
+            .attribute_and_register_test_windows(&current_windows, None, Some("fixture"))
+            .expect("Registration should succeed");
+
+        // Only fixture window 100 is registered
+        assert_eq!(registered, vec![100]);
+        assert_eq!(tracker.tracked_test_windows, vec![100]);
+        // External window 999 is NEVER registered
+        assert!(!tracker.tracked_test_windows.contains(&999));
+
+        // When cleanup runs, external window 999 is NEVER closed
+        let mut closed_ids = Vec::new();
+        tracker.cleanup_with_closer(|id| {
+            closed_ids.push(id);
+            true
+        });
+
+        assert_eq!(closed_ids, vec![100]);
+        assert!(!closed_ids.contains(&999));
     }
 
     #[test]
@@ -197,12 +391,48 @@ mod tests {
 
         // Current system state includes pre-existing, one test-launched window,
         // and an external unlaunched window (e.g. user opened a browser outside test)
-        let current_windows = vec![1, 2, 3, 50, 99]; // 50 is test-launched, 99 is external unlaunched
-        let detected = tracker.filter_new_windows(&current_windows);
-        assert_eq!(detected, vec![50, 99]);
+        let current_windows = vec![
+            WindowRecord {
+                id: 1,
+                pid: Some(10),
+                app_id: None,
+                class: None,
+                title: None,
+            },
+            WindowRecord {
+                id: 2,
+                pid: Some(11),
+                app_id: None,
+                class: None,
+                title: None,
+            },
+            WindowRecord {
+                id: 3,
+                pid: Some(12),
+                app_id: None,
+                class: None,
+                title: None,
+            },
+            WindowRecord {
+                id: 50,
+                pid: Some(500),
+                app_id: Some("fixture".into()),
+                class: Some("fixture".into()),
+                title: None,
+            },
+            WindowRecord {
+                id: 99,
+                pid: Some(990),
+                app_id: Some("unrelated".into()),
+                class: Some("unrelated".into()),
+                title: None,
+            },
+        ];
 
-        // Harness only launched and registered 50
-        assert!(tracker.register_window(50).is_ok());
+        let newly = tracker
+            .attribute_and_register_test_windows(&current_windows, None, Some("fixture"))
+            .unwrap();
+        assert_eq!(newly, vec![50]);
 
         let mut closed_ids = Vec::new();
         tracker.cleanup_with_closer(|id| {

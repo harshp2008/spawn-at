@@ -25,6 +25,10 @@ pub struct OracleParams {
     pub explicit_pos: Option<(i32, i32)>,
     pub size: (u32, u32),
     pub margin: i32,
+    pub margin_top: Option<i32>,
+    pub margin_bottom: Option<i32>,
+    pub margin_left: Option<i32>,
+    pub margin_right: Option<i32>,
     pub clamp: bool,
 }
 
@@ -36,6 +40,10 @@ impl Default for OracleParams {
             explicit_pos: None,
             size: (400, 300),
             margin: 0,
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
             clamp: true,
         }
     }
@@ -47,25 +55,29 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     let w_i32 = w as i32;
     let h_i32 = h as i32;
 
+    let mt = params.margin_top.unwrap_or(params.margin);
+    let mb = params.margin_bottom.unwrap_or(params.margin);
+    let ml = params.margin_left.unwrap_or(params.margin);
+    let mr = params.margin_right.unwrap_or(params.margin);
+
     let (mut x, mut y) = if let Some((px, py)) = params.explicit_pos {
         let pivot_str = params.pivot.as_deref().unwrap_or("center");
         apply_pivot_offset(px, py, w, h, pivot_str)?
     } else {
         let anchor_str = params.anchor.as_deref().unwrap_or("center");
-        let m = params.margin;
         let (wa_w, wa_h) = (workarea.w as i32, workarea.h as i32);
 
         // Documented semantic: Anchor determines reference point on the workarea boundary/margin.
         let (ax, ay) = match anchor_str {
-            "top-left" => (workarea.x + m, workarea.y + m),
-            "top" | "top-center" => (workarea.x + wa_w / 2, workarea.y + m),
-            "top-right" => (workarea.x + wa_w - m, workarea.y + m),
-            "left" => (workarea.x + m, workarea.y + wa_h / 2),
+            "top-left" => (workarea.x + ml, workarea.y + mt),
+            "top" | "top-center" => (workarea.x + wa_w / 2, workarea.y + mt),
+            "top-right" => (workarea.x + wa_w - mr, workarea.y + mt),
+            "left" => (workarea.x + ml, workarea.y + wa_h / 2),
             "center" => (workarea.x + wa_w / 2, workarea.y + wa_h / 2),
-            "right" => (workarea.x + wa_w - m, workarea.y + wa_h / 2),
-            "bottom-left" => (workarea.x + m, workarea.y + wa_h - m),
-            "bottom" | "bottom-center" => (workarea.x + wa_w / 2, workarea.y + wa_h - m),
-            "bottom-right" => (workarea.x + wa_w - m, workarea.y + wa_h - m),
+            "right" => (workarea.x + wa_w - mr, workarea.y + wa_h / 2),
+            "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb),
+            "bottom" | "bottom-center" => (workarea.x + wa_w / 2, workarea.y + wa_h - mb),
+            "bottom-right" => (workarea.x + wa_w - mr, workarea.y + wa_h - mb),
             other => return Err(format!("Unknown anchor '{}'", other)),
         };
 
@@ -81,27 +93,22 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     };
 
     if params.clamp {
-        let m = params.margin;
-        let inner_x = workarea.x + m;
-        let inner_y = workarea.y + m;
-        let inner_w = workarea.w as i32 - 2 * m;
-        let inner_h = workarea.h as i32 - 2 * m;
+        let wa_w = workarea.w as i32;
+        let wa_h = workarea.h as i32;
 
-        if w_i32 <= inner_w {
-            let min_x = inner_x;
-            let max_x = inner_x + inner_w - w_i32;
-            x = x.clamp(min_x, max_x);
-        } else {
-            x = inner_x;
+        let min_x = workarea.x + ml;
+        let mut max_x = workarea.x + wa_w - mr - w_i32;
+        if max_x < min_x {
+            max_x = min_x;
         }
+        x = x.clamp(min_x, max_x);
 
-        if h_i32 <= inner_h {
-            let min_y = inner_y;
-            let max_y = inner_y + inner_h - h_i32;
-            y = y.clamp(min_y, max_y);
-        } else {
-            y = inner_y;
+        let min_y = workarea.y + mt;
+        let mut max_y = workarea.y + wa_h - mb - h_i32;
+        if max_y < min_y {
+            max_y = min_y;
         }
+        y = y.clamp(min_y, max_y);
     }
 
     Ok(Rect::new(x, y, w, h))
@@ -153,46 +160,260 @@ pub fn verify_rect_tolerance(
 mod tests {
     use super::*;
 
+    // Hand-computed golden tests:
+    // Work area: 1920x1040 at (0, 40)
+    // README default margin: 16 (confirmed from README CLI reference: "-m, --margin <PX> Margin on all sides (default 16)")
+
     #[test]
-    fn test_bottom_right_anchor_with_margin() {
-        let workarea = Rect::new(0, 40, 1920, 1040);
+    fn test_golden_bottom_right_338x93() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 338x93.
+        // Anchor: bottom-right
+        //   ax = workarea.x + workarea.w - margin = 0 + 1920 - 16 = 1904
+        //   ay = workarea.y + workarea.h - margin = 40 + 1040 - 16 = 1064
+        // Pivot: default bottom-right
+        //   x = ax - width = 1904 - 338 = 1566
+        //   y = ay - height = 1064 - 93 = 971
+        // Clamping checks:
+        //   min_x = 0 + 16 = 16, max_x = 1920 - 16 - 338 = 1566 -> x clamped to 1566
+        //   min_y = 40 + 16 = 56, max_y = 40 + 1040 - 16 - 93 = 971 -> y clamped to 971
+        // Expected: (1566, 971, 338, 93)
+        let wa = Rect::new(0, 40, 1920, 1040);
         let params = OracleParams {
             anchor: Some("bottom-right".into()),
-            pivot: None,
-            explicit_pos: None,
-            size: (400, 300),
+            size: (338, 93),
             margin: 16,
-            clamp: true,
+            ..Default::default()
         };
-
-        let rect = calculate_expected_rect(workarea, &params).unwrap();
-        // x = 0 + 1920 - 16 - 400 = 1504
-        // y = 40 + 1040 - 16 - 300 = 764
-        assert_eq!(rect.x, 1504);
-        assert_eq!(rect.y, 764);
-        assert_eq!(rect.w, 400);
-        assert_eq!(rect.h, 300);
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1566, 971, 338, 93));
     }
 
     #[test]
-    fn test_center_anchor_with_offset_workarea() {
-        let workarea = Rect::new(100, 50, 1800, 1000);
+    fn test_golden_bottom_right_30x20() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 30x20.
+        // Anchor: bottom-right
+        //   ax = 0 + 1920 - 16 = 1904
+        //   ay = 40 + 1040 - 16 = 1064
+        // Pivot: bottom-right
+        //   x = ax - width = 1904 - 30 = 1874
+        //   y = ay - height = 1064 - 20 = 1044
+        // Expected: (1874, 1044, 30, 20)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("bottom-right".into()),
+            size: (30, 20),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1874, 1044, 30, 20));
+    }
+
+    #[test]
+    fn test_golden_bottom_right_391x368() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 391x368.
+        // Anchor: bottom-right
+        //   ax = 1904, ay = 1064
+        // Pivot: bottom-right
+        //   x = ax - width = 1904 - 391 = 1513
+        //   y = ay - height = 1064 - 368 = 696
+        // Expected: (1513, 696, 391, 368)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("bottom-right".into()),
+            size: (391, 368),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1513, 696, 391, 368));
+    }
+
+    #[test]
+    fn test_golden_bottom_left_338x93() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 338x93.
+        // Anchor: bottom-left
+        //   ax = workarea.x + margin = 0 + 16 = 16
+        //   ay = workarea.y + workarea.h - margin = 40 + 1040 - 16 = 1064
+        // Pivot: default bottom-left
+        //   x = ax = 16
+        //   y = ay - height = 1064 - 93 = 971
+        // Expected: (16, 971, 338, 93)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("bottom-left".into()),
+            size: (338, 93),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(16, 971, 338, 93));
+    }
+
+    #[test]
+    fn test_golden_top_left() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 400x300.
+        // Anchor: top-left
+        //   ax = workarea.x + margin = 0 + 16 = 16
+        //   ay = workarea.y + margin = 40 + 16 = 56
+        // Pivot: default top-left
+        //   x = ax = 16
+        //   y = ay = 56
+        // Expected: (16, 56, 400, 300)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("top-left".into()),
+            size: (400, 300),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(16, 56, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_center_with_odd_sizes() {
+        // Work area: x=0, y=40, w=1920, h=1040. Margin: 0. Window: 401x301 (odd sizes).
+        // Anchor: center
+        //   ax = workarea.x + workarea.w / 2 = 0 + 1920 / 2 = 960
+        //   ay = workarea.y + workarea.h / 2 = 40 + 1040 / 2 = 560
+        // Pivot: center
+        //   x = ax - width / 2 = 960 - 401 / 2 = 960 - 200 = 760 (integer arithmetic)
+        //   y = ay - height / 2 = 560 - 301 / 2 = 560 - 150 = 410 (integer arithmetic)
+        // Expected: (760, 410, 401, 301)
+        let wa = Rect::new(0, 40, 1920, 1040);
         let params = OracleParams {
             anchor: Some("center".into()),
-            pivot: None,
-            explicit_pos: None,
-            size: (600, 400),
+            size: (401, 301),
             margin: 0,
-            clamp: true,
+            ..Default::default()
         };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(760, 410, 401, 301));
+    }
 
-        let rect = calculate_expected_rect(workarea, &params).unwrap();
-        // x = 100 + (1800 - 600) / 2 = 100 + 600 = 700
-        // y = 50 + (1000 - 400) / 2 = 50 + 300 = 350
-        assert_eq!(rect.x, 700);
-        assert_eq!(rect.y, 350);
-        assert_eq!(rect.w, 600);
-        assert_eq!(rect.h, 400);
+    #[test]
+    fn test_golden_per_side_margins() {
+        // Work area: x=0, y=40, w=1920, h=1040. Window: 100x100.
+        // Directional margins: top=10, bottom=20, left=30, right=40.
+        // Anchor: top-right
+        //   ax = workarea.x + workarea.w - margin_right = 0 + 1920 - 40 = 1880
+        //   ay = workarea.y + margin_top = 40 + 10 = 50
+        // Pivot: top-right
+        //   x = ax - width = 1880 - 100 = 1780
+        //   y = ay = 50
+        // Clamp checks:
+        //   min_x = 0 + 30 = 30, max_x = 0 + 1920 - 40 - 100 = 1780 -> x clamped to 1780
+        //   min_y = 40 + 10 = 50, max_y = 40 + 1040 - 20 - 100 = 960 -> y clamped to 50
+        // Expected: (1780, 50, 100, 100)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("top-right".into()),
+            size: (100, 100),
+            margin_top: Some(10),
+            margin_bottom: Some(20),
+            margin_left: Some(30),
+            margin_right: Some(40),
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(1780, 50, 100, 100));
+    }
+
+    #[test]
+    fn test_golden_negative_origin_monitor() {
+        // Monitor placed to the left of primary monitor:
+        // Work area: x=-1920, y=0, w=1920, h=1080. Window: 400x300. Margin: 16.
+        // Anchor: bottom-right
+        //   ax = workarea.x + workarea.w - margin = -1920 + 1920 - 16 = -16
+        //   ay = workarea.y + workarea.h - margin = 0 + 1080 - 16 = 1064
+        // Pivot: bottom-right
+        //   x = ax - width = -16 - 400 = -416
+        //   y = ay - height = 1064 - 300 = 764
+        // Clamp bounds:
+        //   min_x = -1920 + 16 = -1904, max_x = -1920 + 1920 - 16 - 400 = -416 -> x = -416
+        //   min_y = 0 + 16 = 16, max_y = 0 + 1080 - 16 - 300 = 764 -> y = 764
+        // Expected: (-416, 764, 400, 300)
+        let wa = Rect::new(-1920, 0, 1920, 1080);
+        let params = OracleParams {
+            anchor: Some("bottom-right".into()),
+            size: (400, 300),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(-416, 764, 400, 300));
+    }
+
+    #[test]
+    fn test_golden_offset_origin_workarea() {
+        // Work area with non-zero offset: x=200, y=100, w=1600, h=900. Window: 300x200. Margin: 16.
+        // Anchor: bottom-left
+        //   ax = workarea.x + margin = 200 + 16 = 216
+        //   ay = workarea.y + workarea.h - margin = 100 + 900 - 16 = 984
+        // Pivot: bottom-left
+        //   x = ax = 216
+        //   y = ay - height = 984 - 200 = 784
+        // Expected: (216, 784, 300, 200)
+        let wa = Rect::new(200, 100, 1600, 900);
+        let params = OracleParams {
+            anchor: Some("bottom-left".into()),
+            size: (300, 200),
+            margin: 16,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(216, 784, 300, 200));
+    }
+
+    #[test]
+    fn test_golden_window_larger_than_workarea_clamp_false() {
+        // Window 2000x1200 on 1920x1040 at (0, 40) with clamp=false. Margin: 16.
+        // Anchor: center
+        //   ax = 0 + 1920 / 2 = 960
+        //   ay = 40 + 1040 / 2 = 560
+        // Pivot: center
+        //   x = ax - width / 2 = 960 - 2000 / 2 = 960 - 1000 = -40
+        //   y = ay - height / 2 = 560 - 1200 / 2 = 560 - 600 = -40
+        // Clamping is disabled (clamp=false), preserving raw negative coordinates.
+        // Expected: (-40, -40, 2000, 1200)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("center".into()),
+            size: (2000, 1200),
+            margin: 16,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(-40, -40, 2000, 1200));
+    }
+
+    #[test]
+    fn test_golden_window_larger_than_workarea_clamp_true() {
+        // Window 2000x1200 on 1920x1040 at (0, 40) with clamp=true. Margin: 16.
+        // Raw position from center anchor: (-40, -40).
+        // Clamping arithmetic:
+        //   min_x = 0 + 16 = 16
+        //   max_x = 0 + 1920 - 16 - 2000 = -96
+        //   Because max_x (-96) < min_x (16), oversized window max_x pins to min_x (16).
+        //   Clamped x = (-40).clamp(16, 16) = 16.
+        //
+        //   min_y = 40 + 16 = 56
+        //   max_y = 40 + 1040 - 16 - 1200 = -136
+        //   Because max_y (-136) < min_y (56), oversized window max_y pins to min_y (56).
+        //   Clamped y = (-40).clamp(56, 56) = 56.
+        // Expected: (16, 56, 2000, 1200)
+        let wa = Rect::new(0, 40, 1920, 1040);
+        let params = OracleParams {
+            anchor: Some("center".into()),
+            size: (2000, 1200),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_expected_rect(wa, &params).unwrap();
+        assert_eq!(rect, Rect::new(16, 56, 2000, 1200));
     }
 
     #[test]

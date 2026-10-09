@@ -89,6 +89,14 @@ pub struct ExpectRect {
     pub size: Option<Vec<u32>>,
     #[serde(default)]
     pub margin: Option<i32>,
+    #[serde(default)]
+    pub margin_top: Option<i32>,
+    #[serde(default)]
+    pub margin_bottom: Option<i32>,
+    #[serde(default)]
+    pub margin_left: Option<i32>,
+    #[serde(default)]
+    pub margin_right: Option<i32>,
     #[serde(default = "default_tolerance_px")]
     pub tolerance_px: i32,
 }
