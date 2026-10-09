@@ -42,18 +42,19 @@ pub async fn run_transform(
 
     // 3. Resolve target workarea from --monitor (or cursor location if --anchor cursor / --monitor cursor)
     let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
-    let target_workarea = if is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-        geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor")?
-    } else {
-        geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.geometry.monitor)?
-    };
+    let target_workarea =
+        if is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor") {
+            geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor")?
+        } else {
+            geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.geometry.monitor)?
+        };
 
     // 4. Calculate target position and size via geometry solver
     let target_w = args
         .geometry
         .size
         .as_ref()
-        .and_then(|s| s.get(0).and_then(|v| v.parse::<u32>().ok()))
+        .and_then(|s| s.first().and_then(|v| v.parse::<u32>().ok()))
         .unwrap_or(target_win.w as u32);
     let target_h = args
         .geometry
@@ -62,12 +63,8 @@ pub async fn run_transform(
         .and_then(|s| s.get(1).and_then(|v| v.parse::<u32>().ok()))
         .unwrap_or(target_win.h as u32);
 
-    let pos = if let Some(ref p) = args.geometry.pos {
-        Some((p[0], p[1]))
-    } else {
-        None
-    };
-    
+    let pos = args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
+
     let params = PlacementParams {
         pos,
         offset: None,
@@ -89,7 +86,12 @@ pub async fn run_transform(
     let target_id = target::resolve_target_id(target_win);
 
     backend
-        .transform_window(&target_id, params.clone(), target_win.w as u32, target_win.h as u32)
+        .transform_window(
+            &target_id,
+            params.clone(),
+            target_win.w as u32,
+            target_win.h as u32,
+        )
         .await?;
 
     apply_focus_policy(backend, &target_id, &args.focus_modifiers, no_wait).await?;
@@ -140,12 +142,7 @@ pub async fn run_transform(
         };
 
         if let Some(actual_rect) = actual_rect_opt {
-            crate::diagnostics::verify_and_report_placement(
-                &params,
-                actual_rect,
-                None,
-                false,
-            );
+            crate::diagnostics::verify_and_report_placement(&params, actual_rect, None, false);
         }
     }
 

@@ -94,7 +94,9 @@ pub async fn run_defocus(
     }
 
     let (mode, destination) = args.mode_and_destination();
-    backend.defocus_window(&target_id, mode, destination).await?;
+    backend
+        .defocus_window(&target_id, mode, destination)
+        .await?;
 
     if !no_wait {
         let _ = crate::commands::wait_for_state_change(

@@ -18,8 +18,8 @@ pub async fn run_query(
                 println!("{}", serde_json::to_string(&layout)?);
             } else {
                 println!(
-                    "{:<7}  {:<15}  {:<6}  {:<6}  {:<6}  {}",
-                    "MONITOR", "GEOMETRY", "X", "Y", "WIDTH", "HEIGHT"
+                    "{:<7}  {:<15}  {:<6}  {:<6}  {:<6}  HEIGHT",
+                    "MONITOR", "GEOMETRY", "X", "Y", "WIDTH"
                 );
                 for (i, area) in layout.iter().enumerate() {
                     let geom = format!("{}x{}@{},{}", area.width, area.height, area.x, area.y);
@@ -71,14 +71,13 @@ pub async fn run_query(
                 let focused_w = 7;
 
                 println!(
-                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<geom_w$}  {:<focused_w$}  {}",
-                    "ID", "PID", "CLASS", "GEOMETRY", "FOCUSED", "TITLE"
+                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<geom_w$}  {:<focused_w$}  TITLE",
+                    "ID", "PID", "CLASS", "GEOMETRY", "FOCUSED"
                 );
                 for w in &windows {
-                    let id_str = w
-                        .id
-                        .map(|id| id.to_string())
-                        .unwrap_or_else(|| "-".to_string());
+                    let id_str =
+                        w.id.map(|id| id.to_string())
+                            .unwrap_or_else(|| "-".to_string());
                     let pid_str = w
                         .pid
                         .map(|pid| pid.to_string())
@@ -99,9 +98,9 @@ pub async fn run_query(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use spawn_at_core::geometry::Rect;
     use crate::platform::DriverError;
     use crate::target::WindowMetadata;
+    use spawn_at_core::geometry::Rect;
 
     struct MockQueryBackend {
         workareas: Vec<Rect>,
@@ -111,7 +110,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl crate::platform::Driver for MockQueryBackend {
-        async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
             Ok(crate::platform::Armed::default())
         }
     }
@@ -218,8 +220,18 @@ mod tests {
     #[test]
     fn test_characterization_query_layout_json_schema() {
         let workareas = vec![
-            Rect { x: 0, y: 32, width: 1920, height: 1048 },
-            Rect { x: 1920, y: 0, width: 2560, height: 1440 },
+            Rect {
+                x: 0,
+                y: 32,
+                width: 1920,
+                height: 1048,
+            },
+            Rect {
+                x: 1920,
+                y: 0,
+                width: 2560,
+                height: 1440,
+            },
         ];
         let json_str = serde_json::to_string(&workareas).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json_str).unwrap();
@@ -297,4 +309,3 @@ mod tests {
         assert_eq!(arr[1]["maximized"], true);
     }
 }
-

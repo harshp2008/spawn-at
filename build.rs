@@ -39,7 +39,10 @@ fn main() {
         })
         .unwrap_or_else(|| "0000000".to_string());
 
-    println!("cargo:rustc-env=SPAWN_AT_DIRTY={}", if is_dirty { "true" } else { "false" });
+    println!(
+        "cargo:rustc-env=SPAWN_AT_DIRTY={}",
+        if is_dirty { "true" } else { "false" }
+    );
     println!("cargo:rustc-env=SPAWN_AT_DIFF_HASH={}", diff_hash);
 
     // Check if HEAD exactly matches a release git tag

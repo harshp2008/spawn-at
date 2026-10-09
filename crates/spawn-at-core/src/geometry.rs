@@ -237,10 +237,7 @@ pub fn compute_screen_anchor(
             workarea.x + (workarea.width as i32) / 2,
             workarea.y + (workarea.height as i32) / 2,
         ),
-        Anchor::TopLeft => (
-            workarea.x + margin_left,
-            workarea.y + margin_top,
-        ),
+        Anchor::TopLeft => (workarea.x + margin_left, workarea.y + margin_top),
         Anchor::TopRight => (
             workarea.x + (workarea.width as i32) - margin_right,
             workarea.y + margin_top,
@@ -285,7 +282,15 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
     let margin_right = params.margin_right.unwrap_or(params.margin);
 
     let (anchor_x, anchor_y) = if let Some(anchor) = params.anchor {
-        compute_screen_anchor(wa, anchor, margin_top, margin_bottom, margin_left, margin_right, params.cursor_pos)
+        compute_screen_anchor(
+            wa,
+            anchor,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            params.cursor_pos,
+        )
     } else if let Some(pos) = params.pos {
         pos
     } else if let Some(cursor) = params.cursor_pos {
@@ -317,7 +322,12 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
         (target_x, target_y)
     };
 
-    let raw_rect = Rect { x, y, width: w, height: h };
+    let raw_rect = Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    };
     if params.clamp {
         clamp_to_bounds(
             raw_rect,
@@ -456,42 +466,20 @@ pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagn
 
             let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
                 match anchor {
-                    Anchor::Center => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
-                    Anchor::TopLeft => (
-                        wa.x + ml,
-                        wa.y + mt,
-                    ),
-                    Anchor::TopRight => (
-                        wa.x + (wa.width as i32) - mr,
-                        wa.y + mt,
-                    ),
-                    Anchor::BottomLeft => (
-                        wa.x + ml,
-                        wa.y + (wa.height as i32) - mb,
-                    ),
+                    Anchor::Center => (wa.x + (wa.width as i32) / 2, wa.y + (wa.height as i32) / 2),
+                    Anchor::TopLeft => (wa.x + ml, wa.y + mt),
+                    Anchor::TopRight => (wa.x + (wa.width as i32) - mr, wa.y + mt),
+                    Anchor::BottomLeft => (wa.x + ml, wa.y + (wa.height as i32) - mb),
                     Anchor::BottomRight => (
                         wa.x + (wa.width as i32) - mr,
                         wa.y + (wa.height as i32) - mb,
                     ),
-                    Anchor::Top => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + mt,
-                    ),
-                    Anchor::Bottom => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + (wa.height as i32) - mb,
-                    ),
-                    Anchor::Left => (
-                        wa.x + ml,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
-                    Anchor::Right => (
-                        wa.x + (wa.width as i32) - mr,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
+                    Anchor::Top => (wa.x + (wa.width as i32) / 2, wa.y + mt),
+                    Anchor::Bottom => {
+                        (wa.x + (wa.width as i32) / 2, wa.y + (wa.height as i32) - mb)
+                    }
+                    Anchor::Left => (wa.x + ml, wa.y + (wa.height as i32) / 2),
+                    Anchor::Right => (wa.x + (wa.width as i32) - mr, wa.y + (wa.height as i32) / 2),
                     Anchor::Cursor => {
                         if let Some(cursor) = params.cursor_pos {
                             (cursor.0, cursor.1)
@@ -550,7 +538,12 @@ mod tests {
 
     #[test]
     fn test_apply_anchor_center() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let (x, y) = apply_anchor(wa, 800, 600, Anchor::Center, 16);
         assert_eq!(x, (1920 - 800) / 2);
         assert_eq!(y, (1080 - 600) / 2);
@@ -558,19 +551,48 @@ mod tests {
 
     #[test]
     fn test_apply_anchor_corners() {
-        let wa = Rect { x: 100, y: 50, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 100,
+            y: 50,
+            width: 1920,
+            height: 1080,
+        };
         let margin = 20;
         let win_w = 400;
         let win_h = 300;
 
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin), (120, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin), (100 + 1920 - 400 - 20, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin), (120, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin), (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Top, margin), (100 + (1920 - 400) / 2, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin), (100 + (1920 - 400) / 2, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Left, margin), (120, 50 + (1080 - 300) / 2));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Right, margin), (100 + 1920 - 400 - 20, 50 + (1080 - 300) / 2));
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin),
+            (120, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin),
+            (100 + 1920 - 400 - 20, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin),
+            (120, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin),
+            (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Top, margin),
+            (100 + (1920 - 400) / 2, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin),
+            (100 + (1920 - 400) / 2, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Left, margin),
+            (120, 50 + (1080 - 300) / 2)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Right, margin),
+            (100 + 1920 - 400 - 20, 50 + (1080 - 300) / 2)
+        );
     }
 
     #[test]
@@ -580,55 +602,143 @@ mod tests {
         let win_w = 200;
         let win_h = 100;
 
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft), (500, 400));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight), (300, 400));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft), (500, 300));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight), (300, 300));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center), (400, 350));
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft),
+            (500, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight),
+            (300, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft),
+            (500, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight),
+            (300, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center),
+            (400, 350)
+        );
     }
 
     #[test]
     fn test_clamp_to_bounds_within() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let r = Rect { x: 100, y: 100, width: 500, height: 400 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let r = Rect {
+            x: 100,
+            y: 100,
+            width: 500,
+            height: 400,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
         assert_eq!(clamped, r);
     }
 
     #[test]
     fn test_clamp_to_bounds_outside() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let r = Rect { x: 2000, y: -50, width: 500, height: 400 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let r = Rect {
+            x: 2000,
+            y: -50,
+            width: 500,
+            height: 400,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
-        assert_eq!(clamped, Rect { x: 1920 - 500 - 16, y: 16, width: 500, height: 400 });
+        assert_eq!(
+            clamped,
+            Rect {
+                x: 1920 - 500 - 16,
+                y: 16,
+                width: 500,
+                height: 400
+            }
+        );
     }
 
     #[test]
     fn test_clamp_to_bounds_oversized() {
-        let wa = Rect { x: 0, y: 0, width: 1000, height: 800 };
-        let r = Rect { x: 500, y: 500, width: 1200, height: 900 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1000,
+            height: 800,
+        };
+        let r = Rect {
+            x: 500,
+            y: 500,
+            width: 1200,
+            height: 900,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
-        assert_eq!(clamped, Rect { x: 16, y: 16, width: 1200, height: 900 });
+        assert_eq!(
+            clamped,
+            Rect {
+                x: 16,
+                y: 16,
+                width: 1200,
+                height: 900
+            }
+        );
     }
 
     #[test]
     fn test_resolve_workarea() {
-        let wa1 = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let wa2 = Rect { x: 1920, y: 0, width: 2560, height: 1440 };
+        let wa1 = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let wa2 = Rect {
+            x: 1920,
+            y: 0,
+            width: 2560,
+            height: 1440,
+        };
         let workareas = vec![wa1, wa2];
 
         assert_eq!(resolve_workarea(&workareas, (0, 0), "0").unwrap(), wa1);
         assert_eq!(resolve_workarea(&workareas, (0, 0), "1").unwrap(), wa2);
         assert_eq!(resolve_workarea(&workareas, (0, 0), "99").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (0, 0), "primary").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (500, 300), "cursor").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (2200, 500), "cursor").unwrap(), wa2);
-        assert_eq!(resolve_workarea(&workareas, (9999, 9999), "cursor").unwrap(), wa1);
+        assert_eq!(
+            resolve_workarea(&workareas, (0, 0), "primary").unwrap(),
+            wa1
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (500, 300), "cursor").unwrap(),
+            wa1
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (2200, 500), "cursor").unwrap(),
+            wa2
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (9999, 9999), "cursor").unwrap(),
+            wa1
+        );
     }
 
     #[test]
     fn test_diagnostics_oversized() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((3000, 2000)),
             anchor: Some(Anchor::BottomRight),
@@ -638,12 +748,20 @@ mod tests {
             ..Default::default()
         };
         let diags = check_geometry_diagnostics(&params);
-        assert_eq!(diags, vec![GeometryDiagnostic::Oversized { w: 3000, h: 2000 }]);
+        assert_eq!(
+            diags,
+            vec![GeometryDiagnostic::Oversized { w: 3000, h: 2000 }]
+        );
     }
 
     #[test]
     fn test_diagnostics_sub_minimum() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((30, 20)),
             anchor: Some(Anchor::BottomRight),
@@ -653,12 +771,20 @@ mod tests {
             ..Default::default()
         };
         let diags = check_geometry_diagnostics(&params);
-        assert_eq!(diags, vec![GeometryDiagnostic::SubMinimumSize { w: 30, h: 20 }]);
+        assert_eq!(
+            diags,
+            vec![GeometryDiagnostic::SubMinimumSize { w: 30, h: 20 }]
+        );
     }
 
     #[test]
     fn test_diagnostics_repositioned() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((800, 600)),
             anchor: Some(Anchor::BottomRight),
@@ -685,7 +811,12 @@ mod tests {
 
     #[test]
     fn test_apply_anchor_all_variants_exhaustive() {
-        let wa = Rect { x: 100, y: 200, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 100,
+            y: 200,
+            width: 1920,
+            height: 1080,
+        };
         let (win_w, win_h) = (800, 600);
         let margin = 24;
 
@@ -779,37 +910,77 @@ mod tests {
 
     #[test]
     fn test_clamp_to_bounds_negative_and_oversized() {
-        let bounds = Rect { x: -1920, y: 0, width: 1920, height: 1080 }; // Left monitor
-        let normal_rect = Rect { x: -1000, y: 200, width: 500, height: 400 };
+        let bounds = Rect {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }; // Left monitor
+        let normal_rect = Rect {
+            x: -1000,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
 
         // Inside bounds: untouched
         let clamped = clamp_to_bounds(normal_rect, bounds, 0, 0, 0, 0, 0);
         assert_eq!(clamped, normal_rect);
 
         // Overflow left: clamped to bounds.x (-1920)
-        let overflow_left = Rect { x: -2500, y: 200, width: 500, height: 400 };
+        let overflow_left = Rect {
+            x: -2500,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
         let clamped_left = clamp_to_bounds(overflow_left, bounds, 0, 0, 0, 0, 10);
         assert_eq!(clamped_left.x, -1920 + 10);
 
         // Overflow right: clamped to bounds.x + width - win_w
-        let overflow_right = Rect { x: 500, y: 200, width: 500, height: 400 };
+        let overflow_right = Rect {
+            x: 500,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
         let clamped_right = clamp_to_bounds(overflow_right, bounds, 0, 0, 0, 0, 10);
         assert_eq!(clamped_right.x, -1920 + 1920 - 10 - 500); // -510
 
         // Window larger than workarea (2500px wide in 1920px monitor)
-        let huge_rect = Rect { x: 0, y: 0, width: 2500, height: 1500 };
+        let huge_rect = Rect {
+            x: 0,
+            y: 0,
+            width: 2500,
+            height: 1500,
+        };
         let clamped_huge = clamp_to_bounds(huge_rect, bounds, 0, 0, 0, 0, 16);
         // max_x < min_x -> pins to min_x
         assert_eq!(clamped_huge.x, -1920 + 16);
-        assert_eq!(clamped_huge.y, 0 + 16);
+        assert_eq!(clamped_huge.y, 16);
     }
 
     #[test]
     fn test_resolve_workarea_multi_monitor_and_errors() {
         let monitors = vec![
-            Rect { x: 0, y: 0, width: 1920, height: 1080 },        // Monitor 0: Primary
-            Rect { x: 1920, y: 0, width: 2560, height: 1440 },     // Monitor 1: Right
-            Rect { x: -1920, y: 0, width: 1920, height: 1080 },    // Monitor 2: Left
+            Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }, // Monitor 0: Primary
+            Rect {
+                x: 1920,
+                y: 0,
+                width: 2560,
+                height: 1440,
+            }, // Monitor 1: Right
+            Rect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }, // Monitor 2: Left
         ];
 
         // Cursor resolution
@@ -827,30 +998,63 @@ mod tests {
         );
 
         // Primary / Index resolution
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "primary").unwrap(), monitors[0]);
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "0").unwrap(), monitors[0]);
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "1").unwrap(), monitors[1]);
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "2").unwrap(), monitors[2]);
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "primary").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "0").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "1").unwrap(),
+            monitors[1]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "2").unwrap(),
+            monitors[2]
+        );
 
         // Out-of-bounds index falls back to primary monitor (monitors[0])
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "99").unwrap(), monitors[0]);
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "99").unwrap(),
+            monitors[0]
+        );
         // Unrecognized string falls back to primary monitor
-        assert_eq!(resolve_workarea(&monitors, (0, 0), "invalid_spec").unwrap(), monitors[0]);
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "invalid_spec").unwrap(),
+            monitors[0]
+        );
         // Empty monitor list returns Err
         assert!(resolve_workarea(&[], (0, 0), "primary").is_err());
     }
 
     #[test]
     fn test_50_permutations_anchor_cross_pivot_matrix() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let anchors = [
-            Anchor::Center, Anchor::TopLeft, Anchor::TopRight,
-            Anchor::BottomLeft, Anchor::BottomRight, Anchor::Top,
-            Anchor::Bottom, Anchor::Left, Anchor::Right, Anchor::Cursor,
+            Anchor::Center,
+            Anchor::TopLeft,
+            Anchor::TopRight,
+            Anchor::BottomLeft,
+            Anchor::BottomRight,
+            Anchor::Top,
+            Anchor::Bottom,
+            Anchor::Left,
+            Anchor::Right,
+            Anchor::Cursor,
         ];
         let pivots = [
-            Pivot::TopLeft, Pivot::TopRight, Pivot::BottomLeft,
-            Pivot::BottomRight, Pivot::Center,
+            Pivot::TopLeft,
+            Pivot::TopRight,
+            Pivot::BottomLeft,
+            Pivot::BottomRight,
+            Pivot::Center,
         ];
 
         let mut count = 0;
@@ -858,8 +1062,8 @@ mod tests {
             for pivot in &pivots {
                 let (ax, ay) = apply_anchor(wa, 800, 600, *anchor, 20);
                 let (px, py) = apply_pivot(ax, ay, 800, 600, *pivot);
-                assert!(px >= -10000 && px <= 10000);
-                assert!(py >= -10000 && py <= 10000);
+                assert!((-10000..=10000).contains(&px));
+                assert!((-10000..=10000).contains(&py));
                 count += 1;
             }
         }

@@ -67,32 +67,30 @@ async fn main() {
 
     match cli.command {
         Commands::Install(mut args) => {
-            if !args.headless && std::io::stdout().is_terminal() {
-                if !args.skip_bin {
-                    println!("\x1b[1;36m=== Binary Installation Setup ===\x1b[0m\n");
-                    let choices = &[
-                        "Current user only (~/.local/bin) [Recommended]",
-                        "System-wide for all users (/usr/local/bin - requires sudo)",
-                        "Skip binary installation (compositor setup only)",
-                    ];
-                    let selection = dialoguer::Select::new()
-                        .with_prompt("Where would you like to install the 'spawn-at' executable?")
-                        .items(choices)
-                        .default(0)
-                        .interact();
+            if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
+                println!("\x1b[1;36m=== Binary Installation Setup ===\x1b[0m\n");
+                let choices = &[
+                    "Current user only (~/.local/bin) [Recommended]",
+                    "System-wide for all users (/usr/local/bin - requires sudo)",
+                    "Skip binary installation (compositor setup only)",
+                ];
+                let selection = dialoguer::Select::new()
+                    .with_prompt("Where would you like to install the 'spawn-at' executable?")
+                    .items(choices)
+                    .default(0)
+                    .interact();
 
-                    match selection {
-                        Ok(0) => args.scope = InstallScope::User,
-                        Ok(1) => args.scope = InstallScope::System,
-                        Ok(2) => args.skip_bin = true,
-                        Err(e) => {
-                            crate::diagnostics::render_error(&format!("Error during selection: {}", e));
-                            std::process::exit(1);
-                        }
-                        _ => {}
+                match selection {
+                    Ok(0) => args.scope = InstallScope::User,
+                    Ok(1) => args.scope = InstallScope::System,
+                    Ok(2) => args.skip_bin = true,
+                    Err(e) => {
+                        crate::diagnostics::render_error(&format!("Error during selection: {}", e));
+                        std::process::exit(1);
                     }
-                    println!();
+                    _ => {}
                 }
+                println!();
             }
 
             if !args.skip_bin {
@@ -102,7 +100,10 @@ async fn main() {
                         && !args.headless
                         && std::io::stdout().is_terminal()
                     {
-                        crate::diagnostics::render_error(&format!("System installation failed: {}", e));
+                        crate::diagnostics::render_error(&format!(
+                            "System installation failed: {}",
+                            e
+                        ));
                         let fallback = Confirm::new()
                             .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
                             .default(true)
@@ -118,7 +119,10 @@ async fn main() {
                     }
 
                     if !recovered {
-                        crate::diagnostics::render_error(&format!("Error during binary installation: {}", e));
+                        crate::diagnostics::render_error(&format!(
+                            "Error during binary installation: {}",
+                            e
+                        ));
                         std::process::exit(1);
                     }
                 }
@@ -177,40 +181,44 @@ async fn main() {
             cfg.update.channel = channel;
             cfg.update.notify = notify;
             if let Err(e) = cfg.save() {
-                crate::diagnostics::render_warning(&format!("Failed to save update configuration: {}", e));
+                crate::diagnostics::render_warning(&format!(
+                    "Failed to save update configuration: {}",
+                    e
+                ));
             }
 
             if let Err(e) = crate::config::install_login_autostart_entry() {
-                crate::diagnostics::render_warning(&format!("Failed to set up login update check: {}", e));
+                crate::diagnostics::render_warning(&format!(
+                    "Failed to set up login update check: {}",
+                    e
+                ));
             }
         }
         Commands::Uninstall(mut args) => {
-            if !args.headless && std::io::stdout().is_terminal() {
-                if !args.skip_bin {
-                    println!("\x1b[1;36m=== Binary Uninstallation Setup ===\x1b[0m\n");
-                    let choices = &[
-                        "Remove binary from current user directory (~/.local/bin) [Recommended]",
-                        "Remove binary from system-wide directory (/usr/local/bin - requires sudo)",
-                        "Skip binary removal (compositor cleanup only)",
-                    ];
-                    let selection = dialoguer::Select::new()
-                        .with_prompt("Do you want to remove the global 'spawn-at' executable?")
-                        .items(choices)
-                        .default(0)
-                        .interact();
+            if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
+                println!("\x1b[1;36m=== Binary Uninstallation Setup ===\x1b[0m\n");
+                let choices = &[
+                    "Remove binary from current user directory (~/.local/bin) [Recommended]",
+                    "Remove binary from system-wide directory (/usr/local/bin - requires sudo)",
+                    "Skip binary removal (compositor cleanup only)",
+                ];
+                let selection = dialoguer::Select::new()
+                    .with_prompt("Do you want to remove the global 'spawn-at' executable?")
+                    .items(choices)
+                    .default(0)
+                    .interact();
 
-                    match selection {
-                        Ok(0) => args.scope = InstallScope::User,
-                        Ok(1) => args.scope = InstallScope::System,
-                        Ok(2) => args.skip_bin = true,
-                        Err(e) => {
-                            crate::diagnostics::render_error(&format!("Error during selection: {}", e));
-                            std::process::exit(1);
-                        }
-                        _ => {}
+                match selection {
+                    Ok(0) => args.scope = InstallScope::User,
+                    Ok(1) => args.scope = InstallScope::System,
+                    Ok(2) => args.skip_bin = true,
+                    Err(e) => {
+                        crate::diagnostics::render_error(&format!("Error during selection: {}", e));
+                        std::process::exit(1);
                     }
-                    println!();
+                    _ => {}
                 }
+                println!();
             }
 
             if !args.skip_bin {
@@ -242,7 +250,9 @@ async fn main() {
             }
         }
         Commands::Transform(transform_args) => {
-            if let Err(e) = commands::run_transform(driver.as_ref(), transform_args, cli.no_wait).await {
+            if let Err(e) =
+                commands::run_transform(driver.as_ref(), transform_args, cli.no_wait).await
+            {
                 crate::diagnostics::render_error(&e.to_string());
                 std::process::exit(1);
             }

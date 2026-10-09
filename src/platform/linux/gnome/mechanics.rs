@@ -4,8 +4,8 @@
 //! for the GNOME Wayland Shell extension.
 
 use serde::{Deserialize, Serialize};
-use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
 use spawn_at_core::driver::Entry;
+use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
 
 /// Raw serialization payload expected by the GNOME Shell extension for anchored positioning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,7 +49,11 @@ pub enum Instruction {
 }
 
 /// Translates declarative `PlacementParams` into a low-level `PlacementPayload`.
-pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: u32) -> PlacementPayload {
+pub fn calculate_placement(
+    params: &PlacementParams,
+    current_w: u32,
+    current_h: u32,
+) -> PlacementPayload {
     let intended_w = params.size.map(|s| s.0).unwrap_or(current_w);
     let intended_h = params.size.map(|s| s.1).unwrap_or(current_h);
 
@@ -132,7 +136,10 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
     let mut instructions = vec![Instruction::Cloak];
 
     if let Some(size) = entry.placement.size {
-        instructions.push(Instruction::SetSize { w: size.0, h: size.1 });
+        instructions.push(Instruction::SetSize {
+            w: size.0,
+            h: size.1,
+        });
     }
 
     instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
@@ -189,7 +196,7 @@ mod tests {
             assert_eq!(payload.intended_w, 800);
             assert_eq!(payload.intended_h, 600);
             assert_eq!(payload.screen_anchor_x, 1920 - 25); // 1895
-            assert_eq!(payload.screen_anchor_y, 40 + 20);   // 60
+            assert_eq!(payload.screen_anchor_y, 40 + 20); // 60
             assert_eq!(payload.pivot_u, 1.0);
             assert_eq!(payload.pivot_v, 0.0);
             assert_eq!(payload.offset_x, 10);

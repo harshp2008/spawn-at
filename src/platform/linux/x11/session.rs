@@ -7,8 +7,8 @@ use crate::target::{self, WindowSelector};
 use x11rb::connection::Connection;
 use x11rb::protocol::randr::ConnectionExt as _;
 use x11rb::protocol::xproto::{
-    AtomEnum, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask,
-    InputFocus, Window,
+    AtomEnum, ClientMessageEvent, ConfigureWindowAux, ConnectionExt as _, EventMask, InputFocus,
+    Window,
 };
 use x11rb::rust_connection::RustConnection;
 
@@ -34,7 +34,9 @@ impl X11Session {
         let atoms = Atoms::new(&conn)
             .map_err(|e| DriverError::Execution(format!("Failed to intern atoms: {}", e).into()))?
             .reply()
-            .map_err(|e| DriverError::Execution(format!("Failed to get atom replies: {}", e).into()))?;
+            .map_err(|e| {
+                DriverError::Execution(format!("Failed to get atom replies: {}", e).into())
+            })?;
         Ok(Self {
             conn,
             screen_num,
@@ -196,10 +198,14 @@ impl X11Session {
             .and_then(|r| r.value32().and_then(|mut it| it.next()));
 
         let mut title = String::new();
-        if let Ok(c) = self
-            .conn
-            .get_property(false, win, self.atoms._NET_WM_NAME, self.atoms.UTF8_STRING, 0, 1024)
-        {
+        if let Ok(c) = self.conn.get_property(
+            false,
+            win,
+            self.atoms._NET_WM_NAME,
+            self.atoms.UTF8_STRING,
+            0,
+            1024,
+        ) {
             if let Ok(r) = c.reply() {
                 if !r.value.is_empty() {
                     title = String::from_utf8_lossy(&r.value).to_string();
@@ -207,9 +213,9 @@ impl X11Session {
             }
         }
         if title.is_empty() {
-            if let Ok(c) = self
-                .conn
-                .get_property(false, win, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 1024)
+            if let Ok(c) =
+                self.conn
+                    .get_property(false, win, AtomEnum::WM_NAME, AtomEnum::STRING, 0, 1024)
             {
                 if let Ok(r) = c.reply() {
                     if !r.value.is_empty() {
@@ -220,13 +226,17 @@ impl X11Session {
         }
 
         let mut class = String::new();
-        if let Ok(c) = self
-            .conn
-            .get_property(false, win, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 1024)
+        if let Ok(c) =
+            self.conn
+                .get_property(false, win, AtomEnum::WM_CLASS, AtomEnum::STRING, 0, 1024)
         {
             if let Ok(r) = c.reply() {
                 if !r.value.is_empty() {
-                    let parts: Vec<&[u8]> = r.value.split(|&b| b == 0).filter(|s| !s.is_empty()).collect();
+                    let parts: Vec<&[u8]> = r
+                        .value
+                        .split(|&b| b == 0)
+                        .filter(|s| !s.is_empty())
+                        .collect();
                     if parts.len() >= 2 {
                         class = String::from_utf8_lossy(parts[1]).to_string();
                     } else if let Some(first) = parts.first() {
@@ -255,14 +265,10 @@ impl X11Session {
 
         let mut maximized = false;
         let mut minimized = false;
-        if let Ok(c) = self.conn.get_property(
-            false,
-            win,
-            self.atoms._NET_WM_STATE,
-            AtomEnum::ATOM,
-            0,
-            64,
-        ) {
+        if let Ok(c) =
+            self.conn
+                .get_property(false, win, self.atoms._NET_WM_STATE, AtomEnum::ATOM, 0, 64)
+        {
             if let Ok(r) = c.reply() {
                 if let Some(atoms) = r.value32() {
                     let mut max_h = false;
@@ -332,8 +338,8 @@ impl X11Session {
             focused: false,
         };
 
-        let matched = target::resolve_target(&windows, &selector)
-            .map_err(DriverError::TargetNotFound)?;
+        let matched =
+            target::resolve_target(&windows, &selector).map_err(DriverError::TargetNotFound)?;
         let win_num = matched
             .id
             .ok_or_else(|| DriverError::TargetNotFound("Window missing ID".into()))?;
@@ -351,14 +357,10 @@ impl X11Session {
     ) -> bool {
         // Query _NET_WM_PID
         let mut win_pid: Option<u32> = None;
-        if let Ok(pid_prop) = self.conn.get_property(
-            false,
-            win,
-            self.atoms._NET_WM_PID,
-            AtomEnum::CARDINAL,
-            0,
-            1,
-        ) {
+        if let Ok(pid_prop) =
+            self.conn
+                .get_property(false, win, self.atoms._NET_WM_PID, AtomEnum::CARDINAL, 0, 1)
+        {
             if let Ok(reply) = pid_prop.reply() {
                 if let Some(mut it) = reply.value32() {
                     win_pid = it.next();
@@ -386,7 +388,9 @@ impl X11Session {
         // Debug logging for every match attempt
         x11_debug!(
             "[spawn-at-x11] Checking match for window {:?} (PID: {:?}, StartupID: {:?})",
-            win, win_pid, win_startup_id
+            win,
+            win_pid,
+            win_startup_id
         );
 
         // 1. Direct PID or process-tree descendant match
@@ -405,14 +409,10 @@ impl X11Session {
 
         // 3. Application class match (only for newly created windows, not pre-existing)
         if !is_preexisting && !app_hint.is_empty() && app_hint != "*" {
-            if let Ok(class_prop) = self.conn.get_property(
-                false,
-                win,
-                AtomEnum::WM_CLASS,
-                AtomEnum::ANY,
-                0,
-                512,
-            ) {
+            if let Ok(class_prop) =
+                self.conn
+                    .get_property(false, win, AtomEnum::WM_CLASS, AtomEnum::ANY, 0, 512)
+            {
                 if let Ok(reply) = class_prop.reply() {
                     let class_str = String::from_utf8_lossy(&reply.value).to_lowercase();
                     if class_str.contains(&app_hint.to_lowercase()) {
@@ -442,7 +442,13 @@ impl X11Session {
         if let Ok(tree) = self.conn.query_tree(win) {
             if let Ok(reply) = tree.reply() {
                 for &child in &reply.children {
-                    if self.check_single_window_match(child, child_pid, app_hint, startup_id, is_preexisting) {
+                    if self.check_single_window_match(
+                        child,
+                        child_pid,
+                        app_hint,
+                        startup_id,
+                        is_preexisting,
+                    ) {
                         return Some(child);
                     }
                 }
@@ -466,7 +472,9 @@ impl X11Session {
     ) -> Result<(), DriverError> {
         x11_debug!(
             "[spawn-at-x11] Sending _NET_MOVERESIZE_WINDOW for win={:?}, pos={:?}, size={:?}",
-            win, pos, size
+            win,
+            pos,
+            size
         );
 
         // Bit flags according to EWMH specification:
@@ -507,13 +515,18 @@ impl X11Session {
             aux = aux.width(w).height(h);
         }
         let _ = self.conn.configure_window(win, &aux);
-        self.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+        self.conn
+            .flush()
+            .map_err(|e| DriverError::Execution(e.into()))?;
         Ok(())
     }
 
     /// Activates and raises a window using EWMH `_NET_ACTIVE_WINDOW` ClientMessage.
     pub fn activate_window(&self, win: Window) -> Result<(), DriverError> {
-        x11_debug!("[spawn-at-x11] Sending _NET_ACTIVE_WINDOW ClientMessage for win={:?}", win);
+        x11_debug!(
+            "[spawn-at-x11] Sending _NET_ACTIVE_WINDOW ClientMessage for win={:?}",
+            win
+        );
 
         let event = ClientMessageEvent::new(
             32,
@@ -527,8 +540,12 @@ impl X11Session {
             EventMask::SUBSTRUCTURE_REDIRECT | EventMask::SUBSTRUCTURE_NOTIFY,
             event,
         );
-        let _ = self.conn.set_input_focus(InputFocus::POINTER_ROOT, win, x11rb::CURRENT_TIME);
-        self.conn.flush().map_err(|e| DriverError::Execution(e.into()))?;
+        let _ = self
+            .conn
+            .set_input_focus(InputFocus::POINTER_ROOT, win, x11rb::CURRENT_TIME);
+        self.conn
+            .flush()
+            .map_err(|e| DriverError::Execution(e.into()))?;
         Ok(())
     }
 }

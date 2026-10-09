@@ -38,7 +38,7 @@ impl WindowSelector {
             let win_class = window.class.to_lowercase();
             let query = target_class.to_lowercase();
             let exact = win_class == query;
-            let suffix_match = win_class.split('.').last() == Some(query.as_str());
+            let suffix_match = win_class.split('.').next_back() == Some(query.as_str());
 
             if !exact && !suffix_match {
                 return false;
@@ -47,7 +47,11 @@ impl WindowSelector {
 
         // 4. Title match: Substring match (case-insensitive)
         if let Some(ref target_title) = self.title {
-            if !window.title.to_lowercase().contains(&target_title.to_lowercase()) {
+            if !window
+                .title
+                .to_lowercase()
+                .contains(&target_title.to_lowercase())
+            {
                 return false;
             }
         }
@@ -107,10 +111,13 @@ pub fn resolve_target<'a>(
     if selector.focused {
         let active = match windows.iter().find(|w| w.focused) {
             Some(w) => w,
-            None => return Err("Target not found: no active window currently has focus.".to_string()),
+            None => {
+                return Err("Target not found: no active window currently has focus.".to_string())
+            }
         };
 
-        let has_filter = selector.class.is_some() || selector.title.is_some() || selector.pid.is_some();
+        let has_filter =
+            selector.class.is_some() || selector.title.is_some() || selector.pid.is_some();
         if !has_filter {
             return Ok(active);
         }
@@ -122,10 +129,8 @@ pub fn resolve_target<'a>(
         }
     }
 
-    let mut matching: Vec<&'a WindowMetadata> = windows
-        .iter()
-        .filter(|win| selector.matches(win))
-        .collect();
+    let mut matching: Vec<&'a WindowMetadata> =
+        windows.iter().filter(|win| selector.matches(win)).collect();
 
     if matching.is_empty() {
         if let Some(ref target) = selector.class {
@@ -340,7 +345,9 @@ mod tests {
         };
         let res = resolve_target(&windows, &selector);
         assert!(res.is_err());
-        assert!(res.unwrap_err().contains("No active window matched criteria"));
+        assert!(res
+            .unwrap_err()
+            .contains("No active window matched criteria"));
     }
 
     #[test]
@@ -480,8 +487,11 @@ mod tests {
         let err = res.unwrap_err();
         assert!(err.contains("Ambiguous window selector matched 2 active windows."));
         assert!(err.contains("1. -c org.gnome.Calculator (PID: 76342, Title: \"Calculator\")"));
-        assert!(err.contains("2. -c io.github.qalculate.calculator (PID: 81204, Title: \"Qalculate!\")"));
-        assert!(err.contains("Please disambiguate by using the full reverse-DNS class, PID (--pid), or Title (-t)."));
+        assert!(err
+            .contains("2. -c io.github.qalculate.calculator (PID: 81204, Title: \"Qalculate!\")"));
+        assert!(err.contains(
+            "Please disambiguate by using the full reverse-DNS class, PID (--pid), or Title (-t)."
+        ));
     }
 
     #[test]

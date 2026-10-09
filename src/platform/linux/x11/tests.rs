@@ -81,7 +81,7 @@ fn test_calculate_rect_top_left_with_margins() {
 
     let rect = calculate_rect_from_placement(&params, 400, 300);
     assert_eq!(rect.x, 100 + 50); // 150
-    assert_eq!(rect.y, 50 + 30);  // 80
+    assert_eq!(rect.y, 50 + 30); // 80
     assert_eq!(rect.width, 400);
     assert_eq!(rect.height, 300);
 }
@@ -104,15 +104,15 @@ fn test_calculate_rect_explicit_pos_and_pivot() {
 
     let rect = calculate_rect_from_placement(&params, 200, 100);
     assert_eq!(rect.x, 500 - 100); // 400
-    assert_eq!(rect.y, 400 - 50);  // 350
+    assert_eq!(rect.y, 400 - 50); // 350
     assert_eq!(rect.width, 200);
     assert_eq!(rect.height, 100);
 }
 
 #[test]
 fn test_compare_x11_and_mechanics_anchor_outputs() {
-    use spawn_at_core::geometry::{Anchor, Pivot};
     use crate::platform::linux::gnome::mechanics::calculate_placement;
+    use spawn_at_core::geometry::{Anchor, Pivot};
 
     let wa = Rect {
         x: 100,
@@ -171,11 +171,9 @@ fn test_compare_x11_and_mechanics_anchor_outputs() {
             let mt = params.margin_top.unwrap();
             let mb = params.margin_bottom.unwrap();
 
-            let raw_x = payload.screen_anchor_x
-                - (payload.pivot_u * (win_w as f64)).round() as i32
+            let raw_x = payload.screen_anchor_x - (payload.pivot_u * (win_w as f64)).round() as i32
                 + payload.offset_x;
-            let raw_y = payload.screen_anchor_y
-                - (payload.pivot_v * (win_h as f64)).round() as i32
+            let raw_y = payload.screen_anchor_y - (payload.pivot_v * (win_h as f64)).round() as i32
                 + payload.offset_y;
 
             let min_x = wa.x + ml;
@@ -235,7 +233,12 @@ fn test_x11_clamp_false_bypasses_bounds() {
     let params = PlacementParams {
         pos: Some((2500, -500)),
         size: Some((400, 300)),
-        workarea: Rect { x: 0, y: 0, width: 1920, height: 1080 },
+        workarea: Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        },
         clamp: false,
         ..Default::default()
     };
@@ -246,7 +249,12 @@ fn test_x11_clamp_false_bypasses_bounds() {
     let clamped_params = PlacementParams {
         pos: Some((2500, -500)),
         size: Some((400, 300)),
-        workarea: Rect { x: 0, y: 0, width: 1920, height: 1080 },
+        workarea: Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        },
         clamp: true,
         ..Default::default()
     };

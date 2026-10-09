@@ -9,8 +9,8 @@ use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::{
-    AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt as _,
-    EventMask, MapState, PropMode, Window,
+    AtomEnum, ChangeWindowAttributesAux, ConfigureWindowAux, ConnectionExt as _, EventMask,
+    MapState, PropMode, Window,
 };
 use x11rb::wrapper::ConnectionExt as _;
 
@@ -34,7 +34,9 @@ impl X11Session {
 
         x11_debug!(
             "[spawn-at-x11] Starting interception for PID: {} | App: {} | Startup ID: {}",
-            child_pid, entry.app_hint, entry.key
+            child_pid,
+            entry.app_hint,
+            entry.key
         );
 
         // Step 1: Calculate provisional target coordinates using spawn-at-core geometry math
@@ -46,7 +48,9 @@ impl X11Session {
         let _ = self.conn.change_window_attributes(self.root, &aux);
         let _ = self.conn.flush();
 
-        x11_debug!("[spawn-at-x11] Listening for X11 CreateNotify/MapRequest events on root window...");
+        x11_debug!(
+            "[spawn-at-x11] Listening for X11 CreateNotify/MapRequest events on root window..."
+        );
 
         // Record pre-existing windows on the display
         let mut pre_existing: HashSet<Window> = HashSet::new();
@@ -65,7 +69,9 @@ impl X11Session {
 
         // Check if the window already appeared right before event listener registration
         for &win in &pre_existing {
-            if let Some(matched) = self.find_matching_window(win, child_pid, &entry.app_hint, &entry.key, true) {
+            if let Some(matched) =
+                self.find_matching_window(win, child_pid, &entry.app_hint, &entry.key, true)
+            {
                 x11_debug!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
                 target_win = Some(matched);
                 break;
@@ -84,7 +90,11 @@ impl X11Session {
                     _ => None,
                 };
 
-                x11_debug!("[spawn-at-x11] Event received: {:?} for window ID: {:?}", event, win_id);
+                x11_debug!(
+                    "[spawn-at-x11] Event received: {:?} for window ID: {:?}",
+                    event,
+                    win_id
+                );
 
                 if let Some(w) = win_id {
                     if !pre_existing.contains(&w) && !candidate_windows.contains(&w) {
@@ -116,7 +126,9 @@ impl X11Session {
 
             // Periodically re-evaluate candidate windows for asynchronously updated properties
             for &cand in &candidate_windows {
-                if let Some(matched) = self.find_matching_window(cand, child_pid, &entry.app_hint, &entry.key, false) {
+                if let Some(matched) =
+                    self.find_matching_window(cand, child_pid, &entry.app_hint, &entry.key, false)
+                {
                     x11_debug!("[spawn-at-x11] MATCH FOUND! Window ID: {}", matched);
                     target_win = Some(matched);
                     break;
@@ -146,7 +158,10 @@ impl X11Session {
         // before the window maps to eliminate the default top-left flash.
         x11_debug!(
             "[spawn-at-x11] Setting WM_NORMAL_HINTS to x={}, y={}, w={}, h={}",
-            prov_rect.x, prov_rect.y, prov_w, prov_h
+            prov_rect.x,
+            prov_rect.y,
+            prov_w,
+            prov_h
         );
 
         let mut hints = [0u32; 18];
@@ -242,21 +257,31 @@ impl X11Session {
             actual_h = prov_h;
         }
 
-        x11_debug!("[spawn-at-x11] Actual mapped geometry: w={}, h={}", actual_w, actual_h);
+        x11_debug!(
+            "[spawn-at-x11] Actual mapped geometry: w={}, h={}",
+            actual_w,
+            actual_h
+        );
 
         // Step 7: Recalculate anchor coordinates with negotiated dimensions
         let final_rect = calculate_rect_from_placement(&entry.placement, actual_w, actual_h);
         x11_debug!(
             "[spawn-at-x11] Final calculated position: x={}, y={}",
-            final_rect.x, final_rect.y
+            final_rect.x,
+            final_rect.y
         );
 
         // Step 8: Apply final placement adjustment via _NET_MOVERESIZE_WINDOW
         x11_debug!(
             "[spawn-at-x11] Applying final move_resize to x={}, y={}",
-            final_rect.x, final_rect.y
+            final_rect.x,
+            final_rect.y
         );
-        let _ = self.move_resize(win, Some((final_rect.x, final_rect.y)), entry.placement.size);
+        let _ = self.move_resize(
+            win,
+            Some((final_rect.x, final_rect.y)),
+            entry.placement.size,
+        );
 
         // Apply batch focus policy
         if batch.focus == FocusIntent::Exclusive {

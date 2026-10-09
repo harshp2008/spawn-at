@@ -36,8 +36,9 @@ fn windows_destination_info(scope: InstallScope) -> &'static str {
 fn get_target_dir(scope: InstallScope) -> Result<PathBuf, String> {
     match scope {
         InstallScope::User => {
-            let home = std::env::var("HOME")
-                .map_err(|_| "Failed to determine $HOME directory for binary installation.".to_string())?;
+            let home = std::env::var("HOME").map_err(|_| {
+                "Failed to determine $HOME directory for binary installation.".to_string()
+            })?;
             Ok(PathBuf::from(home).join(".local/bin"))
         }
         InstallScope::System => Ok(PathBuf::from("/usr/local/bin")),
@@ -102,7 +103,10 @@ pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
     };
 
     if same_file {
-        println!("Source and destination are identical ({}), skipping file copy.", dest_file.display());
+        println!(
+            "Source and destination are identical ({}), skipping file copy.",
+            dest_file.display()
+        );
     } else {
         match fs::copy(&src, &dest_file) {
             Ok(_) => {
@@ -119,16 +123,31 @@ pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
             }
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
                 crate::platform::escalate::copy_elevated(&src, &dest_file)?;
-                println!("Successfully copied binary via elevated privileges to: {}", dest_file.display());
+                println!(
+                    "Successfully copied binary via elevated privileges to: {}",
+                    dest_file.display()
+                );
             }
-            Err(e) => return Err(format!("Failed to copy binary to '{}': {}", dest_file.display(), e)),
+            Err(e) => {
+                return Err(format!(
+                    "Failed to copy binary to '{}': {}",
+                    dest_file.display(),
+                    e
+                ))
+            }
         }
     }
 
     if !is_in_path(&target_dir) {
-        crate::diagnostics::render_warning(&format!("'{}' is not currently in your $PATH.", target_dir.display()));
+        crate::diagnostics::render_warning(&format!(
+            "'{}' is not currently in your $PATH.",
+            target_dir.display()
+        ));
         println!("To run 'spawn-at' globally, add it to your shell startup file:");
-        println!("  echo 'export PATH=\"{}:$PATH\"' >> ~/.bashrc", target_dir.display());
+        println!(
+            "  echo 'export PATH=\"{}:$PATH\"' >> ~/.bashrc",
+            target_dir.display()
+        );
         println!("  (or ~/.zshrc / ~/.profile depending on your shell)");
     } else {
         println!("Verified: '{}' is in $PATH.", target_dir.display());
@@ -158,12 +177,24 @@ pub fn uninstall_binary(scope: InstallScope) -> Result<(), String> {
             Ok(_) => println!("Successfully removed binary: {}", dest_file.display()),
             Err(e) if e.kind() == io::ErrorKind::PermissionDenied => {
                 crate::platform::escalate::remove_elevated(&dest_file)?;
-                println!("Successfully removed binary via elevated privileges: {}", dest_file.display());
+                println!(
+                    "Successfully removed binary via elevated privileges: {}",
+                    dest_file.display()
+                );
             }
-            Err(e) => return Err(format!("Failed to remove binary '{}': {}", dest_file.display(), e)),
+            Err(e) => {
+                return Err(format!(
+                    "Failed to remove binary '{}': {}",
+                    dest_file.display(),
+                    e
+                ))
+            }
         }
     } else {
-        println!("Binary not found at '{}', skipping removal.", dest_file.display());
+        println!(
+            "Binary not found at '{}', skipping removal.",
+            dest_file.display()
+        );
     }
 
     Ok(())
@@ -185,8 +216,14 @@ mod tests {
 
     #[test]
     fn test_macos_windows_stubs() {
-        assert_eq!(macos_destination_info(InstallScope::User), "~/.local/bin/spawn-at");
-        assert_eq!(macos_destination_info(InstallScope::System), "/usr/local/bin/spawn-at");
+        assert_eq!(
+            macos_destination_info(InstallScope::User),
+            "~/.local/bin/spawn-at"
+        );
+        assert_eq!(
+            macos_destination_info(InstallScope::System),
+            "/usr/local/bin/spawn-at"
+        );
         assert!(windows_destination_info(InstallScope::User).contains("LOCALAPPDATA"));
         assert!(windows_destination_info(InstallScope::System).contains("ProgramFiles"));
     }

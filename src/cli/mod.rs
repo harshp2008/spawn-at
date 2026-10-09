@@ -9,8 +9,8 @@ mod tests;
 
 pub use args::*;
 
-use clap::{Parser, Subcommand};
 use crate::platform::{InstallArgs, UninstallArgs};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]
 #[command(

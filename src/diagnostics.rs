@@ -27,16 +27,16 @@ pub fn detect_color_capability_for_stream(is_terminal: bool) -> ColorCapability 
     if !is_terminal {
         return ColorCapability::Disabled;
     }
-    if std::env::var_os("NO_COLOR").map_or(false, |v| !v.is_empty()) {
+    if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
         return ColorCapability::Disabled;
     }
-    if std::env::var("TERM").map_or(false, |t| t == "dumb") {
+    if std::env::var("TERM").is_ok_and(|t| t == "dumb") {
         return ColorCapability::Disabled;
     }
-    if std::env::var("COLORTERM").map_or(false, |ct| ct == "truecolor" || ct == "24bit") {
+    if std::env::var("COLORTERM").is_ok_and(|ct| ct == "truecolor" || ct == "24bit") {
         return ColorCapability::TrueColor;
     }
-    if std::env::var("TERM").map_or(false, |t| t.contains("256color")) {
+    if std::env::var("TERM").is_ok_and(|t| t.contains("256color")) {
         return ColorCapability::Color256;
     }
     ColorCapability::Basic
@@ -67,20 +67,29 @@ pub fn format_label(level: DiagnosticLevel, cap: ColorCapability) -> String {
         },
         ColorCapability::TrueColor => match level {
             DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
-            DiagnosticLevel::Warning => "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => {
+                "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m".to_string()
+            }
             DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
         },
     }
 }
 
 /// Formats a complete labeled message given a level, message body, and color capability.
-pub fn format_message_with_capability(level: DiagnosticLevel, msg: &str, cap: ColorCapability) -> String {
+pub fn format_message_with_capability(
+    level: DiagnosticLevel,
+    msg: &str,
+    cap: ColorCapability,
+) -> String {
     format!("{} {}", format_label(level, cap), msg)
 }
 
 /// Renders a diagnostic message directly to stderr with color detection.
 pub fn render_diagnostic_message(level: DiagnosticLevel, msg: &str) {
-    eprintln!("{}", format_message_with_capability(level, msg, detect_color_capability()));
+    eprintln!(
+        "{}",
+        format_message_with_capability(level, msg, detect_color_capability())
+    );
 }
 
 /// Centralized renderer for user-facing INFO diagnostics.
@@ -101,10 +110,7 @@ pub fn render_error(msg: &str) {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Diagnostic {
     /// Window mapped/transformed successfully at target position and size.
-    PlacedSuccess {
-        pos: (i32, i32),
-        size: (u32, u32),
-    },
+    PlacedSuccess { pos: (i32, i32), size: (u32, u32) },
     /// The requested size was below toolkit minimums and was expanded.
     SizeRaisedToMinimum {
         requested: (u32, u32),
@@ -180,7 +186,14 @@ impl Diagnostic {
                 } else {
                     format!(
                         "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
-                        requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
+                        requested.0,
+                        requested.1,
+                        actual.0,
+                        actual.1,
+                        placed_pos.0,
+                        placed_pos.1,
+                        actual.0,
+                        actual.1
                     )
                 }
             }
@@ -191,7 +204,14 @@ impl Diagnostic {
             } => {
                 format!(
                     "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
-                    requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
+                    requested.0,
+                    requested.1,
+                    actual.0,
+                    actual.1,
+                    placed_pos.0,
+                    placed_pos.1,
+                    actual.0,
+                    actual.1
                 )
             }
             Diagnostic::PositionNotReached {
@@ -203,7 +223,12 @@ impl Diagnostic {
             } => {
                 let mut msg = format!(
                     "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
-                    actual_pos.0, actual_pos.1, actual_size.0, actual_size.1, expected_pos.0, expected_pos.1
+                    actual_pos.0,
+                    actual_pos.1,
+                    actual_size.0,
+                    actual_size.1,
+                    expected_pos.0,
+                    expected_pos.1
                 );
                 if *clamped_to_workarea {
                     if let Some(req) = requested_size {
@@ -240,11 +265,7 @@ impl Diagnostic {
                     app_hint, pid, timeout_ms
                 )
             }
-            Diagnostic::ReusedExistingWindow {
-                class,
-                title,
-                pid,
-            } => {
+            Diagnostic::ReusedExistingWindow { class, title, pid } => {
                 let pid_str = pid.map(|p| format!(" (PID: {})", p)).unwrap_or_default();
                 format!(
                     "Application reused an existing window{}: class '{}', title '{}'. Spawn-at does not reposition pre-existing windows on spawn.",
@@ -278,25 +299,28 @@ pub fn evaluate_placement_diagnostics(
     let mut diags = Vec::new();
 
     // Calculate expected position based on requested parameters
-    let expected_for_requested = calculate_rect_from_placement(params, actual_rect.width, actual_rect.height);
+    let expected_for_requested =
+        calculate_rect_from_placement(params, actual_rect.width, actual_rect.height);
     let pos_reached_for_requested = (actual_rect.x - expected_for_requested.x).abs() <= 1
         && (actual_rect.y - expected_for_requested.y).abs() <= 1;
 
     // Also calculate expected position based on actual settled size (e.g. for anchored windows raised to minimum)
     let mut params_for_actual = params.clone();
     params_for_actual.size = Some((actual_rect.width, actual_rect.height));
-    let expected_for_actual = calculate_rect_from_placement(&params_for_actual, actual_rect.width, actual_rect.height);
+    let expected_for_actual =
+        calculate_rect_from_placement(&params_for_actual, actual_rect.width, actual_rect.height);
 
-    let is_maximized_like = actual_rect.width >= params.workarea.width && actual_rect.height >= params.workarea.height;
+    let is_maximized_like =
+        actual_rect.width >= params.workarea.width && actual_rect.height >= params.workarea.height;
     let pos_reached_for_actual = !is_maximized_like
         && (actual_rect.x - expected_for_actual.x).abs() <= 1
         && (actual_rect.y - expected_for_actual.y).abs() <= 1;
 
     let pos_reached = pos_reached_for_requested || pos_reached_for_actual;
 
-    let size_differs = params.size.map_or(false, |req| {
-        req.0 != actual_rect.width || req.1 != actual_rect.height
-    });
+    let size_differs = params
+        .size
+        .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
 
     if pos_reached {
         if size_differs {
@@ -323,7 +347,8 @@ pub fn evaluate_placement_diagnostics(
         }
     } else {
         // Position was not reached
-        let is_off_screen = !params.clamp && (actual_rect.x < params.workarea.x || actual_rect.y < params.workarea.y);
+        let is_off_screen = !params.clamp
+            && (actual_rect.x < params.workarea.x || actual_rect.y < params.workarea.y);
         if is_off_screen {
             diags.push(Diagnostic::OffScreenUnclamped {
                 actual_pos: (actual_rect.x, actual_rect.y),
@@ -407,7 +432,9 @@ mod tests {
         }
 
         let msg = diags[0].format_message();
-        assert!(msg.contains("Requested size (30x20), window minimum is 362x130; placed at (1542, 934) [362x130]"));
+        assert!(msg.contains(
+            "Requested size (30x20), window minimum is 362x130; placed at (1542, 934) [362x130]"
+        ));
     }
 
     #[test]
@@ -448,7 +475,9 @@ mod tests {
         }
 
         let msg = diags[0].format_message();
-        assert!(msg.contains("Final size differs from the requested size (30x30); clamped to the work area."));
+        assert!(msg.contains(
+            "Final size differs from the requested size (30x30); clamped to the work area."
+        ));
     }
 
     #[test]
@@ -631,7 +660,10 @@ mod tests {
 
     #[test]
     fn test_not_a_tty_disables_color() {
-        assert_eq!(detect_color_capability_for_stream(false), ColorCapability::Disabled);
+        assert_eq!(
+            detect_color_capability_for_stream(false),
+            ColorCapability::Disabled
+        );
     }
 
     #[test]
@@ -641,11 +673,17 @@ mod tests {
         let orig_term = std::env::var("TERM").ok();
 
         std::env::set_var("NO_COLOR", "1");
-        assert_eq!(detect_color_capability_for_stream(true), ColorCapability::Disabled);
+        assert_eq!(
+            detect_color_capability_for_stream(true),
+            ColorCapability::Disabled
+        );
 
         std::env::remove_var("NO_COLOR");
         std::env::set_var("TERM", "dumb");
-        assert_eq!(detect_color_capability_for_stream(true), ColorCapability::Disabled);
+        assert_eq!(
+            detect_color_capability_for_stream(true),
+            ColorCapability::Disabled
+        );
 
         // Restore environment
         match orig_no_color {
@@ -673,8 +711,11 @@ mod tests {
                 let path = entry.path();
                 if path.is_dir() {
                     check_dir(&path, violations);
-                } else if path.extension().map_or(false, |ext| ext == "rs") {
-                    if path.file_name().map_or(false, |name| name == "diagnostics.rs") {
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    if path
+                        .file_name()
+                        .is_some_and(|name| name == "diagnostics.rs")
+                    {
                         continue;
                     }
                     let content = std::fs::read_to_string(&path).unwrap_or_default();
@@ -715,4 +756,3 @@ mod tests {
         );
     }
 }
-

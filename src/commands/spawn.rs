@@ -22,7 +22,9 @@ pub async fn run_spawn(
     no_wait: bool,
 ) -> Result<(), DriverError> {
     if spawn_args.command.is_empty() {
-        return Err(DriverError::Execution("No command specified to spawn.".into()));
+        return Err(DriverError::Execution(
+            "No command specified to spawn.".into(),
+        ));
     }
 
     if let Err(e) = spawn_args.validate() {
@@ -34,11 +36,17 @@ pub async fn run_spawn(
     let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
     let workareas = driver.get_workareas().await.unwrap_or_default();
 
-    let target_workarea = if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-        resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
-    } else {
-        resolve_workarea(&workareas, (cursor_x, cursor_y), &spawn_args.geometry.monitor).unwrap_or_default()
-    };
+    let target_workarea =
+        if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
+            resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+        } else {
+            resolve_workarea(
+                &workareas,
+                (cursor_x, cursor_y),
+                &spawn_args.geometry.monitor,
+            )
+            .unwrap_or_default()
+        };
 
     let pos = spawn_args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
     let size = spawn_args.geometry.size.as_ref().and_then(|s| {
@@ -89,16 +97,12 @@ pub async fn run_spawn(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis();
-    let entry_key = format!(
-        "spawn-at-{}-{}_TIME{}",
-        std::process::id(),
-        ts_ms,
-        ts_ms
-    );
+    let entry_key = format!("spawn-at-{}-{}_TIME{}", std::process::id(), ts_ms, ts_ms);
 
-    let app_hint = spawn_args.class.clone().unwrap_or_else(|| {
-        driver.resolve_id(&spawn_args.command, None)
-    });
+    let app_hint = spawn_args
+        .class
+        .clone()
+        .unwrap_or_else(|| driver.resolve_id(&spawn_args.command, None));
 
     let batch = Batch {
         id: 1,
@@ -155,10 +159,9 @@ pub async fn run_spawn(
                     let _ = driver.disarm(token).await;
                 }
             }
-            return Err(DriverError::Execution(format!(
-                "Failed to spawn command '{}': {}",
-                spawn_args.command[0], e
-            ).into()));
+            return Err(DriverError::Execution(
+                format!("Failed to spawn command '{}': {}", spawn_args.command[0], e).into(),
+            ));
         }
     };
 
@@ -272,12 +275,7 @@ pub async fn run_spawn(
                 }
             }
 
-            crate::diagnostics::verify_and_report_placement(
-                &params,
-                final_rect,
-                None,
-                size_raised,
-            );
+            crate::diagnostics::verify_and_report_placement(&params, final_rect, None, size_raised);
         }
     }
 
@@ -425,7 +423,10 @@ mod tests {
             &self,
             _target_id: &str,
         ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
-            self.calls.lock().unwrap().push("prepare_claim_wait_fallback".into());
+            self.calls
+                .lock()
+                .unwrap()
+                .push("prepare_claim_wait_fallback".into());
             Ok(None) // Extension lacks signal or driver does not support claim wait
         }
 
@@ -439,7 +440,10 @@ mod tests {
         }
 
         async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
-            self.calls.lock().unwrap().push("get_windows_polling".into());
+            self.calls
+                .lock()
+                .unwrap()
+                .push("get_windows_polling".into());
             Ok(vec![WindowMetadata {
                 id: Some(202),
                 pid: Some(std::process::id()),
@@ -482,4 +486,3 @@ mod tests {
         assert!(recorded.contains(&"get_windows_polling".to_string()));
     }
 }
-

@@ -102,7 +102,10 @@ pub fn normalize_channel(ch: &str) -> &'static str {
         "stable" => "stable",
         "beta" => "beta",
         other => {
-            update_debug!("[spawn-at-debug] Unrecognized or missing channel '{}', defaulting to 'stable'", other);
+            update_debug!(
+                "[spawn-at-debug] Unrecognized or missing channel '{}', defaulting to 'stable'",
+                other
+            );
             "stable"
         }
     }
@@ -204,7 +207,10 @@ pub fn fetch_github_releases() -> Result<Vec<GitHubRelease>, String> {
 }
 
 /// Resolves the candidate release based on the configured channel and current build version.
-pub fn resolve_target_release(channel: &str, running_ver_str: Option<&str>) -> Result<Option<GitHubRelease>, String> {
+pub fn resolve_target_release(
+    channel: &str,
+    running_ver_str: Option<&str>,
+) -> Result<Option<GitHubRelease>, String> {
     let effective_channel = normalize_channel(channel);
     let releases = if effective_channel == "stable" {
         match fetch_github_latest_release() {
@@ -220,7 +226,10 @@ pub fn resolve_target_release(channel: &str, running_ver_str: Option<&str>) -> R
         fetch_github_releases()?
     };
 
-    Ok(find_update_candidate(&releases, effective_channel, running_ver_str).map(|(r, _)| r.clone()))
+    Ok(
+        find_update_candidate(&releases, effective_channel, running_ver_str)
+            .map(|(r, _)| r.clone()),
+    )
 }
 
 /// Resolves the latest available release for the channel unconditionally (for force installations).
@@ -239,7 +248,13 @@ pub fn resolve_latest_release_for_channel(channel: &str) -> Result<Option<GitHub
     let candidate = releases
         .into_iter()
         .filter(|r| !r.draft)
-        .filter(|r| if effective_channel == "stable" { !r.prerelease } else { true })
+        .filter(|r| {
+            if effective_channel == "stable" {
+                !r.prerelease
+            } else {
+                true
+            }
+        })
         .filter_map(|r| parse_semver(&r.tag_name).map(|v| (r, v)))
         .max_by(|a, b| a.1.cmp(&b.1))
         .map(|(r, _)| r);
@@ -307,11 +322,7 @@ pub fn supports_utf8() -> bool {
         .or_else(|_| std::env::var("LANG"))
         .unwrap_or_default()
         .to_uppercase();
-    if lang == "C" || lang == "POSIX" {
-        false
-    } else {
-        true
-    }
+    !(lang == "C" || lang == "POSIX")
 }
 
 /// Queries current terminal width in columns if available.
@@ -331,10 +342,14 @@ pub fn terminal_width() -> Option<usize> {
             ws_xpixel: 0,
             ws_ypixel: 0,
         };
-        if libc::ioctl(libc::STDERR_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0 && winsize.ws_col > 0 {
+        if libc::ioctl(libc::STDERR_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0
+            && winsize.ws_col > 0
+        {
             return Some(winsize.ws_col as usize);
         }
-        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0 && winsize.ws_col > 0 {
+        if libc::ioctl(libc::STDOUT_FILENO, libc::TIOCGWINSZ, &mut winsize) == 0
+            && winsize.ws_col > 0
+        {
             return Some(winsize.ws_col as usize);
         }
     }
@@ -369,25 +384,37 @@ pub fn format_update_banner(
 
     let (line1, line2, compat_line) = match cap {
         ColorCapability::Disabled => {
-            let l1 = format!("Update available  {} {} {}", clean_current, arrow, clean_latest);
+            let l1 = format!(
+                "Update available  {} {} {}",
+                clean_current, arrow, clean_latest
+            );
             let l2 = "Run  spawn-at update  to update".to_string();
             let l3 = compat_note_str.map(|s| s.to_string());
             (l1, l2, l3)
         }
         ColorCapability::Basic => {
-            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l1 = format!(
+                "Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m",
+                clean_current, arrow, clean_latest
+            );
             let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
             let l3 = compat_note_str.map(|s| format!("\x1b[33m{}\x1b[0m", s));
             (l1, l2, l3)
         }
         ColorCapability::Color256 => {
-            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l1 = format!(
+                "Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m",
+                clean_current, arrow, clean_latest
+            );
             let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
             let l3 = compat_note_str.map(|s| format!("\x1b[38;5;208m{}\x1b[0m", s));
             (l1, l2, l3)
         }
         ColorCapability::TrueColor => {
-            let l1 = format!("Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m", clean_current, arrow, clean_latest);
+            let l1 = format!(
+                "Update available  \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m",
+                clean_current, arrow, clean_latest
+            );
             let l2 = "Run  \x1b[36mspawn-at update\x1b[0m  to update".to_string();
             let l3 = compat_note_str.map(|s| format!("\x1b[38;2;255;140;0m{}\x1b[0m", s));
             (l1, l2, l3)
@@ -407,7 +434,10 @@ pub fn format_update_banner(
         if tw < total_box_width {
             let mut fallback = match cap {
                 ColorCapability::Disabled => {
-                    format!("Update available: {} {} {}\nRun 'spawn-at update' to update", clean_current, arrow, clean_latest)
+                    format!(
+                        "Update available: {} {} {}\nRun 'spawn-at update' to update",
+                        clean_current, arrow, clean_latest
+                    )
                 }
                 _ => {
                     format!("Update available: \x1b[2m{}\x1b[0m {} \x1b[32m{}\x1b[0m\nRun \x1b[36mspawn-at update\x1b[0m to update", clean_current, arrow, clean_latest)
@@ -434,10 +464,16 @@ pub fn format_update_banner(
 
     let bar_left = format!("  {border_col}{v}{border_rst}   ");
     let bar_right = format!("{border_col}{v}{border_rst}\n");
-    let empty_row = format!("  {border_col}{v}{border_rst}{}{border_col}{v}{border_rst}\n", " ".repeat(inner_width));
+    let empty_row = format!(
+        "  {border_col}{v}{border_rst}{}{border_col}{v}{border_rst}\n",
+        " ".repeat(inner_width)
+    );
 
     let mut out = String::new();
-    out.push_str(&format!("  {border_col}{tl}{}{tr}{border_rst}\n", h.repeat(inner_width)));
+    out.push_str(&format!(
+        "  {border_col}{tl}{}{tr}{border_rst}\n",
+        h.repeat(inner_width)
+    ));
     out.push_str(&empty_row);
 
     let pad1 = inner_width.saturating_sub(w1 + 3);
@@ -452,7 +488,10 @@ pub fn format_update_banner(
     }
 
     out.push_str(&empty_row);
-    out.push_str(&format!("  {border_col}{bl}{}{br}{border_rst}", h.repeat(inner_width)));
+    out.push_str(&format!(
+        "  {border_col}{bl}{}{br}{border_rst}",
+        h.repeat(inner_width)
+    ));
 
     out
 }
@@ -472,7 +511,11 @@ pub fn should_render_update_notice(stderr_is_tty: bool, stdout_is_tty: bool, not
 /// Hook called at the end of `main()` to render update notifications if appropriate.
 pub fn render_update_notice_if_available() {
     // 1. Must be an interactive TTY on both stderr and stdout
-    if !should_render_update_notice(std::io::stderr().is_terminal(), std::io::stdout().is_terminal(), true) {
+    if !should_render_update_notice(
+        std::io::stderr().is_terminal(),
+        std::io::stdout().is_terminal(),
+        true,
+    ) {
         return;
     }
 
@@ -519,10 +562,19 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         .assets
         .iter()
         .find(|a| a.name == asset_name)
-        .ok_or_else(|| format!("Release {} is missing pre-built binary asset '{}'", release.tag_name, asset_name))?;
+        .ok_or_else(|| {
+            format!(
+                "Release {} is missing pre-built binary asset '{}'",
+                release.tag_name, asset_name
+            )
+        })?;
 
     // Secure temporary directory with 0700 permissions
-    let tmp_dir = std::env::temp_dir().join(format!("spawn-at-update-{}-{}", release.tag_name, std::process::id()));
+    let tmp_dir = std::env::temp_dir().join(format!(
+        "spawn-at-update-{}-{}",
+        release.tag_name,
+        std::process::id()
+    ));
     let _ = fs::remove_dir_all(&tmp_dir);
     fs::create_dir_all(&tmp_dir).map_err(|e| format!("Failed to create tmp dir: {}", e))?;
 
@@ -575,19 +627,25 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     }
 
     // Deploy extensions from the new binary itself
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .to_uppercase();
     if desktop.contains("GNOME") {
         println!("Deploying GNOME Shell extension via newly unpacked binary...");
         let ext_status = Command::new(&new_binary)
             .args(["install", "--skip-bin", "--headless"])
             .status();
         if let Err(e) = ext_status {
-            crate::diagnostics::render_warning(&format!("Failed to install GNOME extension from new binary: {}", e));
+            crate::diagnostics::render_warning(&format!(
+                "Failed to install GNOME extension from new binary: {}",
+                e
+            ));
         }
     }
 
     // Identify target installation path
-    let current_exe = std::env::current_exe().map_err(|e| format!("Failed to locate current binary: {}", e))?;
+    let current_exe =
+        std::env::current_exe().map_err(|e| format!("Failed to locate current binary: {}", e))?;
     println!("Replacing binary at: {}", current_exe.display());
 
     // Replace the running binary atomically
@@ -597,7 +655,11 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     if let Err(e) = fs::copy(&new_binary, &current_exe) {
         // Rollback on failure
         let _ = fs::rename(&backup_path, &current_exe);
-        return Err(format!("Failed to copy new binary to '{}': {}", current_exe.display(), e));
+        return Err(format!(
+            "Failed to copy new binary to '{}': {}",
+            current_exe.display(),
+            e
+        ));
     }
     let _ = fs::remove_file(&backup_path);
 
@@ -608,7 +670,9 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     }
 
     // Check session type for reload prompt
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default().to_uppercase();
+    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .to_uppercase();
     if desktop.contains("GNOME") {
         let is_wayland = crate::platform::linux::gnome::is_wayland_session();
         if std::io::stdout().is_terminal() {
@@ -618,7 +682,9 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
                     "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
                 ];
                 let choice = Select::new()
-                    .with_prompt("Do you want to log out of your session now to complete the reload?")
+                    .with_prompt(
+                        "Do you want to log out of your session now to complete the reload?",
+                    )
                     .items(choices)
                     .default(0)
                     .interact();
@@ -639,7 +705,9 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
             if prompt_choice {
                 if is_wayland {
                     println!("Logging out to complete GNOME Shell extension upgrade...");
-                    let _ = Command::new("gnome-session-quit").args(["--logout", "--no-prompt"]).spawn();
+                    let _ = Command::new("gnome-session-quit")
+                        .args(["--logout", "--no-prompt"])
+                        .spawn();
                 } else {
                     crate::platform::linux::gnome::restart_gnome_shell_x11();
                 }
@@ -660,7 +728,10 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     cfg.update.last_check_time = current_timestamp_secs();
     let _ = cfg.save();
 
-    println!("\x1b[1;32mSuccessfully upgraded spawn-at to {}!\x1b[0m", release.tag_name);
+    println!(
+        "\x1b[1;32mSuccessfully upgraded spawn-at to {}!\x1b[0m",
+        release.tag_name
+    );
     Ok(())
 }
 
@@ -684,10 +755,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
                 }
                 if let Some(v) = parse_semver(&r.tag_name) {
                     if r.prerelease {
-                        if highest_beta.as_ref().map_or(true, |(_, bv)| v > *bv) {
+                        if highest_beta.as_ref().is_none_or(|(_, bv)| v > *bv) {
                             highest_beta = Some((r.tag_name, v));
                         }
-                    } else if highest_stable.as_ref().map_or(true, |(_, sv)| v > *sv) {
+                    } else if highest_stable.as_ref().is_none_or(|(_, sv)| v > *sv) {
                         highest_stable = Some((r.tag_name, v));
                     }
                 }
@@ -771,18 +842,24 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
         }
     };
 
-    let rel_type = if release.prerelease { "Pre-release" } else { "Official Release" };
+    let rel_type = if release.prerelease {
+        "Pre-release"
+    } else {
+        "Official Release"
+    };
     println!("Selected version: {} ({})\n", release.tag_name, rel_type);
 
     if let (Some(cur_v), Some(tgt_v)) = (&running_semver, parse_semver(&release.tag_name)) {
         if is_v01_to_v02_upgrade(cur_v, &tgt_v) {
-            println!("Note: spawn-at v0.2 CLI is not backward-compatible with v0.1 command syntax.\n");
+            println!(
+                "Note: spawn-at v0.2 CLI is not backward-compatible with v0.1 command syntax.\n"
+            );
         }
     }
 
-    let has_update = running_semver.as_ref().map_or(false, |cur| {
-        parse_semver(&release.tag_name).map_or(false, |tgt| tgt > *cur)
-    });
+    let has_update = running_semver
+        .as_ref()
+        .is_some_and(|cur| parse_semver(&release.tag_name).is_some_and(|tgt| tgt > *cur));
 
     // Interactive TUI Menu
     if !args.headless && std::io::stdout().is_terminal() {
@@ -807,7 +884,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
                 perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
             }
             1 => {
-                let channels = &["Official releases only (stable) [Recommended]", "Include beta/pre-releases (beta)"];
+                let channels = &[
+                    "Official releases only (stable) [Recommended]",
+                    "Include beta/pre-releases (beta)",
+                ];
                 let ch_sel = Select::new()
                     .with_prompt("Select release channel:")
                     .items(channels)
@@ -816,7 +896,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
                 let new_ch = if ch_sel == 1 { "beta" } else { "stable" };
                 config.update.channel = new_ch.to_string();
                 config.save().map_err(Box::<dyn std::error::Error>::from)?;
-                println!("Updated channel to '{}'. Re-checking GitHub for releases...\n", new_ch);
+                println!(
+                    "Updated channel to '{}'. Re-checking GitHub for releases...\n",
+                    new_ch
+                );
                 return run_update(args);
             }
             2 => {
@@ -891,7 +974,10 @@ pub mod tests {
             mock_release("v0.1.0", false, false),
         ];
         let cand = find_update_candidate(&releases, "beta", Some("0.2.0-beta.1"));
-        assert!(cand.is_none(), "0.1.1 is older than 0.2.0-beta.1, must not be offered");
+        assert!(
+            cand.is_none(),
+            "0.1.1 is older than 0.2.0-beta.1, must not be offered"
+        );
     }
 
     #[test]
@@ -977,42 +1063,74 @@ pub mod tests {
 
     #[test]
     fn test_banner_snapshot_color_on() {
-        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::TrueColor, true, Some(80));
+        let banner = format_update_banner(
+            "0.2.0-beta.1",
+            "0.2.0",
+            ColorCapability::TrueColor,
+            true,
+            Some(80),
+        );
 
         // Exact escape sequences:
         // Yellow border: \x1b[33m
         assert!(banner.contains("\x1b[33m╭"), "Top left yellow corner");
         assert!(banner.contains("╮\x1b[0m"), "Top right yellow corner reset");
         assert!(banner.contains("\x1b[33m╰"), "Bottom left yellow corner");
-        assert!(banner.contains("╯\x1b[0m"), "Bottom right yellow corner reset");
+        assert!(
+            banner.contains("╯\x1b[0m"),
+            "Bottom right yellow corner reset"
+        );
 
         // Old version dim: \x1b[2m
-        assert!(banner.contains("\x1b[2m0.2.0-beta.1\x1b[0m"), "Old version dim");
+        assert!(
+            banner.contains("\x1b[2m0.2.0-beta.1\x1b[0m"),
+            "Old version dim"
+        );
 
         // Plain arrow: ' → ' (without escape surrounding it)
-        assert!(banner.contains("\x1b[0m → \x1b[32m"), "Plain arrow between dim and green");
+        assert!(
+            banner.contains("\x1b[0m → \x1b[32m"),
+            "Plain arrow between dim and green"
+        );
 
         // New version green: \x1b[32m
         assert!(banner.contains("\x1b[32m0.2.0\x1b[0m"), "New version green");
 
         // Command cyan: \x1b[36m
-        assert!(banner.contains("\x1b[36mspawn-at update\x1b[0m"), "Command cyan");
+        assert!(
+            banner.contains("\x1b[36mspawn-at update\x1b[0m"),
+            "Command cyan"
+        );
 
         // Verify every line has identical visible width
         let lines: Vec<&str> = banner.lines().collect();
         assert!(lines.len() >= 5);
         let expected_w = visible_width(lines[0]);
         for line in &lines {
-            assert_eq!(visible_width(line), expected_w, "Line visible width mismatch: {:?}", line);
+            assert_eq!(
+                visible_width(line),
+                expected_w,
+                "Line visible width mismatch: {:?}",
+                line
+            );
         }
     }
 
     #[test]
     fn test_banner_snapshot_color_off() {
-        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, true, Some(80));
+        let banner = format_update_banner(
+            "0.2.0-beta.1",
+            "0.2.0",
+            ColorCapability::Disabled,
+            true,
+            Some(80),
+        );
 
         // No ANSI escape codes
-        assert!(!banner.contains("\x1b"), "Color off must contain no ANSI escapes");
+        assert!(
+            !banner.contains("\x1b"),
+            "Color off must contain no ANSI escapes"
+        );
 
         // UTF-8 box characters present
         assert!(banner.contains('╭'));
@@ -1034,7 +1152,13 @@ pub mod tests {
 
     #[test]
     fn test_banner_snapshot_ascii_color_off() {
-        let banner = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, false, Some(80));
+        let banner = format_update_banner(
+            "0.2.0-beta.1",
+            "0.2.0",
+            ColorCapability::Disabled,
+            false,
+            Some(80),
+        );
 
         // No ANSI escapes
         assert!(!banner.contains("\x1b"));
@@ -1056,9 +1180,12 @@ pub mod tests {
 
     #[test]
     fn test_banner_with_compat_note_color_on() {
-        let banner = format_update_banner("0.1.0", "0.2.0", ColorCapability::TrueColor, true, Some(80));
+        let banner =
+            format_update_banner("0.1.0", "0.2.0", ColorCapability::TrueColor, true, Some(80));
         // Orange compatibility note in TrueColor: \x1b[38;2;255;140;0m
-        assert!(banner.contains("\x1b[38;2;255;140;0mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+        assert!(banner.contains(
+            "\x1b[38;2;255;140;0mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"
+        ));
 
         let lines: Vec<&str> = banner.lines().collect();
         let expected_w = visible_width(lines[0]);
@@ -1067,12 +1194,17 @@ pub mod tests {
         }
 
         // Test 256-color fallback
-        let banner_256 = format_update_banner("0.1.0", "0.2.0", ColorCapability::Color256, true, Some(80));
-        assert!(banner_256.contains("\x1b[38;5;208mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+        let banner_256 =
+            format_update_banner("0.1.0", "0.2.0", ColorCapability::Color256, true, Some(80));
+        assert!(banner_256.contains(
+            "\x1b[38;5;208mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"
+        ));
 
         // Test 16-color fallback
-        let banner_basic = format_update_banner("0.1.0", "0.2.0", ColorCapability::Basic, true, Some(80));
-        assert!(banner_basic.contains("\x1b[33mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
+        let banner_basic =
+            format_update_banner("0.1.0", "0.2.0", ColorCapability::Basic, true, Some(80));
+        assert!(banner_basic
+            .contains("\x1b[33mNote: The v0.2 CLI is not compatible with v0.1 commands\x1b[0m"));
     }
 
     #[test]
@@ -1085,7 +1217,12 @@ pub mod tests {
         ];
 
         for (cur, lat) in version_pairs {
-            for cap in [ColorCapability::Disabled, ColorCapability::Basic, ColorCapability::Color256, ColorCapability::TrueColor] {
+            for cap in [
+                ColorCapability::Disabled,
+                ColorCapability::Basic,
+                ColorCapability::Color256,
+                ColorCapability::TrueColor,
+            ] {
                 for utf8 in [true, false] {
                     let banner = format_update_banner(cur, lat, cap, utf8, Some(100));
                     let lines: Vec<&str> = banner.lines().collect();
@@ -1107,14 +1244,27 @@ pub mod tests {
     #[test]
     fn test_banner_narrow_terminal_fallback() {
         // Box is around 40-50 chars wide. A terminal width of 30 should trigger plain fallback.
-        let fallback = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::TrueColor, true, Some(30));
+        let fallback = format_update_banner(
+            "0.2.0-beta.1",
+            "0.2.0",
+            ColorCapability::TrueColor,
+            true,
+            Some(30),
+        );
         assert!(!fallback.contains('╭'), "Should not contain box characters");
         assert!(!fallback.contains('│'), "Should not contain box characters");
-        assert!(fallback.contains("Update available: \x1b[2m0.2.0-beta.1\x1b[0m → \x1b[32m0.2.0\x1b[0m"));
+        assert!(fallback
+            .contains("Update available: \x1b[2m0.2.0-beta.1\x1b[0m → \x1b[32m0.2.0\x1b[0m"));
         assert!(fallback.contains("Run \x1b[36mspawn-at update\x1b[0m to update"));
 
         // Disabled color narrow terminal
-        let fallback_plain = format_update_banner("0.2.0-beta.1", "0.2.0", ColorCapability::Disabled, true, Some(30));
+        let fallback_plain = format_update_banner(
+            "0.2.0-beta.1",
+            "0.2.0",
+            ColorCapability::Disabled,
+            true,
+            Some(30),
+        );
         assert!(!fallback_plain.contains("\x1b"));
         assert!(fallback_plain.contains("Update available: 0.2.0-beta.1 → 0.2.0"));
         assert!(fallback_plain.contains("Run 'spawn-at update' to update"));

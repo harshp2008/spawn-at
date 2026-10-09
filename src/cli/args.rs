@@ -172,7 +172,12 @@ pub struct TransformArgs {
 
 impl TransformArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if self.id.is_none() && self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
+        if self.id.is_none()
+            && self.class.is_none()
+            && self.title.is_none()
+            && self.pid.is_none()
+            && !self.focused
+        {
             return Err(
                 "At least one window selector must be specified: --id, --class (-c), --title (-t), --pid, or --focused".to_string(),
             );
@@ -226,7 +231,12 @@ pub struct WindowTargetArgs {
 
 impl WindowTargetArgs {
     pub fn validate(&self) -> Result<(), String> {
-        if self.id.is_none() && self.class.is_none() && self.title.is_none() && self.pid.is_none() && !self.focused {
+        if self.id.is_none()
+            && self.class.is_none()
+            && self.title.is_none()
+            && self.pid.is_none()
+            && !self.focused
+        {
             return Err(
                 "At least one window selector must be specified: --id, --class (-c), --title (-t), --pid, or --focused".to_string(),
             );
@@ -259,7 +269,6 @@ impl CloseArgs {
         self.target.validate()
     }
 }
-
 
 impl From<WindowTargetArgs> for crate::target::WindowSelector {
     fn from(args: WindowTargetArgs) -> Self {

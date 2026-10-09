@@ -10,7 +10,9 @@ use std::process::Command;
 pub fn copy_elevated(src: &Path, dest: &Path) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
-        println!("\x1b[1;33mPermission denied.\x1b[0m Requesting administrative privileges via sudo...");
+        println!(
+            "\x1b[1;33mPermission denied.\x1b[0m Requesting administrative privileges via sudo..."
+        );
         let status = Command::new("sudo")
             .args(["install", "-D", "-m", "755"])
             .arg(src)
@@ -61,7 +63,9 @@ pub fn copy_elevated(src: &Path, dest: &Path) -> Result<(), String> {
 pub fn remove_elevated(dest: &Path) -> Result<(), String> {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {
-        println!("\x1b[1;33mPermission denied.\x1b[0m Requesting administrative privileges via sudo...");
+        println!(
+            "\x1b[1;33mPermission denied.\x1b[0m Requesting administrative privileges via sudo..."
+        );
         let status = Command::new("sudo")
             .args(["rm", "-f"])
             .arg(dest)

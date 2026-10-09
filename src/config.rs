@@ -103,7 +103,8 @@ impl UpdateConfig {
 impl Config {
     /// Returns path to `~/.config/spawn-at/config.toml`.
     pub fn config_path() -> Result<PathBuf, String> {
-        let home = std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
+        let home =
+            std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
         Ok(PathBuf::from(home).join(".config/spawn-at/config.toml"))
     }
 
@@ -143,8 +144,9 @@ impl Config {
     pub fn save(&self) -> Result<(), String> {
         let path = Self::config_path()?;
         if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create config dir '{}': {}", parent.display(), e))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                format!("Failed to create config dir '{}': {}", parent.display(), e)
+            })?;
         }
         let serialized = toml::to_string_pretty(self)
             .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?;
@@ -164,7 +166,8 @@ pub fn current_timestamp_secs() -> u64 {
 
 /// Path to XDG autostart entry: `~/.config/autostart/spawn-at-update-check.desktop`
 pub fn autostart_desktop_path() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
+    let home =
+        std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
     Ok(PathBuf::from(home).join(".config/autostart/spawn-at-update-check.desktop"))
 }
 
@@ -226,8 +229,14 @@ mod tests {
 
         let deserialized: Config = toml::from_str(&toml_str).unwrap();
         assert_eq!(deserialized.update.channel, "beta");
-        assert_eq!(deserialized.update.cached_stable_version.as_deref(), Some("v0.2.0"));
-        assert_eq!(deserialized.update.cached_beta_version.as_deref(), Some("v0.2.0-beta.2"));
+        assert_eq!(
+            deserialized.update.cached_stable_version.as_deref(),
+            Some("v0.2.0")
+        );
+        assert_eq!(
+            deserialized.update.cached_beta_version.as_deref(),
+            Some("v0.2.0-beta.2")
+        );
     }
 
     #[test]
@@ -244,7 +253,10 @@ mod tests {
             .expect("Old config with latest_cached_version must load without errors");
         assert_eq!(cfg.update.channel, "stable");
         assert_eq!(cfg.update.latest_cached_version.as_deref(), Some("v0.1.0"));
-        assert_eq!(cfg.update.cached_version_for_channel("stable"), Some("v0.1.0"));
+        assert_eq!(
+            cfg.update.cached_version_for_channel("stable"),
+            Some("v0.1.0")
+        );
     }
 
     #[test]

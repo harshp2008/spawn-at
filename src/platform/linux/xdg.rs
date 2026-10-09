@@ -49,9 +49,7 @@ pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> 
 
     // Direct mapping for daemonized/split binaries where Mutter's wm_class
     // diverges from the .desktop filename or command binary
-    const KNOWN_WM_CLASS_OVERRIDES: &[(&str, &str)] = &[
-        ("gnome-terminal", "org.gnome.Terminal"),
-    ];
+    const KNOWN_WM_CLASS_OVERRIDES: &[(&str, &str)] = &[("gnome-terminal", "org.gnome.Terminal")];
 
     for &(bin, target_class) in KNOWN_WM_CLASS_OVERRIDES {
         if bin_name == bin {
@@ -129,12 +127,9 @@ fn match_desktop_file(content: &str, path: &Path, bin_name: &str) -> Option<Stri
         if let Some(exec_part) = trimmed.strip_prefix("Exec=") {
             let exec_cmd = exec_part.trim();
             // Handle optional "env VAR=VAL ... <binary>" or "flatpak run <id>" prefixes
-            let tokens: Vec<&str> = exec_cmd.split_whitespace().collect();
-            let mut iter = tokens.iter();
-
             let mut candidate_bin = "";
-            while let Some(token) = iter.next() {
-                if *token == "env" || token.contains('=') {
+            for token in exec_cmd.split_whitespace() {
+                if token == "env" || token.contains('=') {
                     continue;
                 }
                 candidate_bin = token.trim_matches(|c| c == '"' || c == '\'');
