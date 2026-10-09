@@ -1019,11 +1019,21 @@ impl Driver for X11Driver {
     /// Arms launch environment variables (`DESKTOP_STARTUP_ID`, `XDG_ACTIVATION_TOKEN`).
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
         let mut launch_env = Vec::new();
+        let mut armed_token = None;
         for entry in &batch.entries {
             launch_env.push(("XDG_ACTIVATION_TOKEN".to_string(), entry.key.clone()));
             launch_env.push(("DESKTOP_STARTUP_ID".to_string(), entry.key.clone()));
+            armed_token = Some(entry.key.clone());
         }
-        Ok(Armed { launch_env })
+        Ok(Armed {
+            launch_env,
+            token: armed_token,
+        })
+    }
+
+    /// Disarm is a no-op on X11 as startup IDs are handled statelessly.
+    async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
+        Ok(true)
     }
 }
 

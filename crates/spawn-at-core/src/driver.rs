@@ -69,6 +69,8 @@ pub struct Armed {
     /// Key-value environment variables to inject into spawned child processes
     /// (e.g. `XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`).
     pub launch_env: Vec<(String, String)>,
+    /// Optional identifier or token corresponding to this armed registration.
+    pub token: Option<String>,
 }
 
 /// Error type produced by driver arming and execution.
@@ -117,4 +119,9 @@ impl From<String> for DriverError {
 pub trait Driver: Send + Sync {
     /// Arms the compositor with the declarative batch intent before processes are launched.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError>;
+
+    /// Disarms a previously armed token (best-effort, idempotent).
+    async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
+        Ok(false)
+    }
 }

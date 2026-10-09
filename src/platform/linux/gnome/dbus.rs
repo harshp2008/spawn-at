@@ -10,7 +10,10 @@ use zbus::proxy;
     interface = "org.gnome.Shell.Extensions.SpawnAt"
 )]
 pub trait SpawnAt {
+    #[zbus(property)]
+    fn protocol_version(&self) -> zbus::Result<u32>;
     fn arm_spawn(&self, target_id: &str, instructions_json: &str) -> zbus::Result<()>;
+    fn disarm_spawn(&self, target_id: &str) -> zbus::Result<bool>;
     fn execute_batch(&self, target_id: &str, instructions_json: &str) -> zbus::Result<()>;
     fn get_cursor(&self) -> zbus::Result<(i32, i32)>;
     fn get_pointer(&self) -> zbus::Result<(i32, i32)>;

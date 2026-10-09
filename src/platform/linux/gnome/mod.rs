@@ -302,11 +302,23 @@ impl GnomeWaylandDriver {
 // 5. Pre-Map Arming Driver Trait
 // ============================================================================
 
+pub const EXPECTED_PROTOCOL_VERSION: u32 = 1;
+
 #[async_trait::async_trait]
 impl Driver for GnomeWaylandDriver {
     /// Arms the GNOME Shell extension with declarative batch entries translated to low-level instructions.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+        // Check extension protocol version; warn on mismatch without hard-failing
+        let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
+        if ext_version < EXPECTED_PROTOCOL_VERSION {
+            eprintln!(
+                "\x1b[1;33m[spawn-at] Warning:\x1b[0m Extension protocol mismatch (detected older extension). \
+                 Please log out and back in to load the updated extension."
+            );
+        }
+
         let mut launch_env = Vec::new();
+        let mut armed_token = None;
         let is_solitary = batch.entries.len() == 1;
 
         for entry in &batch.entries {
@@ -338,9 +350,21 @@ impl Driver for GnomeWaylandDriver {
 
             launch_env.push(("XDG_ACTIVATION_TOKEN".to_string(), entry.key.clone()));
             launch_env.push(("DESKTOP_STARTUP_ID".to_string(), entry.key.clone()));
+            armed_token = Some(target_id.to_string());
         }
 
-        Ok(Armed { launch_env })
+        Ok(Armed {
+            launch_env,
+            token: armed_token,
+        })
+    }
+
+    /// Disarms a pending target in the GNOME Shell extension (best-effort, idempotent).
+    async fn disarm(&self, token: &str) -> Result<bool, DriverError> {
+        self.proxy
+            .disarm_spawn(token)
+            .await
+            .map_err(|e| DriverError::IpcError(format!("Failed to disarm spawn on D-Bus: {}", e)))
     }
 }
 

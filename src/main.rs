@@ -344,29 +344,36 @@ async fn main() {
                 .filter_map(|w| w.id)
                 .collect();
 
-            // 3. Arm the driver with the declarative batch intent
-            let armed = match driver.arm(batch.clone()).await {
-                Ok(a) => a,
+            // 3. Arm the driver with the declarative batch intent (fail-open on arm failure)
+            let armed_opt = match driver.arm(batch.clone()).await {
+                Ok(a) => Some(a),
                 Err(e) => {
                     eprintln!(
-                        "\x1b[1;31mPlacement Error\x1b[0m [driver: {}]: {}",
+                        "\x1b[1;33m[spawn-at] Warning:\x1b[0m Placement arming failed [driver: {}]: {}. Launching application without placement.",
                         driver.name(),
                         e
                     );
-                    std::process::exit(1);
+                    None
                 }
             };
 
             // 4. Launch child process with armed environment variables
             let mut cmd = std::process::Command::new(&spawn_args.command[0]);
             cmd.args(&spawn_args.command[1..]);
-            for (k, v) in armed.launch_env {
-                cmd.env(k, v);
+            if let Some(ref armed) = armed_opt {
+                for (k, v) in &armed.launch_env {
+                    cmd.env(k, v);
+                }
             }
 
             let child = match cmd.spawn() {
                 Ok(child) => child,
                 Err(e) => {
+                    if let Some(ref armed) = armed_opt {
+                        if let Some(ref token) = armed.token {
+                            let _ = driver.disarm(token).await;
+                        }
+                    }
                     eprintln!(
                         "\x1b[1;31mExecution Error\x1b[0m: Failed to spawn command '{}': {}",
                         spawn_args.command[0], e
@@ -375,33 +382,35 @@ async fn main() {
                 }
             };
 
-            // Polymorphic post-spawn interception hook
-            if let Err(e) = driver.post_spawn(child.id(), &batch).await {
-                eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m Window post-spawn hook failed: {}", e);
-            }
+            if let Some(ref _armed) = armed_opt {
+                // Polymorphic post-spawn interception hook
+                if let Err(e) = driver.post_spawn(child.id(), &batch).await {
+                    eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m Window post-spawn hook failed: {}", e);
+                }
 
-            if !cli.no_wait {
-                match commands::wait_for_spawn(
-                    driver.as_ref(),
-                    child.id(),
-                    &app_hint,
-                    &entry_key,
-                    &pre_existing_ids,
-                    Duration::from_millis(2000),
-                )
-                .await
-                {
-                    Ok(win) => {
-                        eprintln!(
-                            "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned.",
-                            win.w, win.h
-                        );
-                    }
-                    Err(e) => {
-                        eprintln!(
-                            "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
-                            e
-                        );
+                if !cli.no_wait {
+                    match commands::wait_for_spawn(
+                        driver.as_ref(),
+                        child.id(),
+                        &app_hint,
+                        &entry_key,
+                        &pre_existing_ids,
+                        Duration::from_millis(2000),
+                    )
+                    .await
+                    {
+                        Ok(win) => {
+                            eprintln!(
+                                "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned.",
+                                win.w, win.h
+                            );
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
+                                e
+                            );
+                        }
                     }
                 }
             }

@@ -55,9 +55,14 @@ import { validateInstructions } from './validator.js';
 const DBUS_IFACE = `
 <node>
   <interface name="org.gnome.Shell.Extensions.SpawnAt">
+    <property name="ProtocolVersion" type="u" access="read"/>
     <method name="ArmSpawn">
       <arg type="s" name="target_id" direction="in"/>
       <arg type="s" name="instructions_json" direction="in"/>
+    </method>
+    <method name="DisarmSpawn">
+      <arg type="s" name="target_id" direction="in"/>
+      <arg type="b" name="disarmed" direction="out"/>
     </method>
     <method name="ExecuteBatch">
       <arg type="s" name="target_id" direction="in"/>
@@ -1836,6 +1841,25 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
     // 14. D-BUS API
     // =======================================================================
+
+    get ProtocolVersion() {
+        return 1;
+    }
+
+    DisarmSpawn(target_id) {
+        if (!target_id)
+            return false;
+        if (target_id === '*' && this._wildcardTarget) {
+            this._clearWildcard();
+            return true;
+        }
+        if (this._armedSpawns && this._armedSpawns.has(target_id)) {
+            this._armedSpawns.delete(target_id);
+            this._releaseHeldIfIdle();
+            return true;
+        }
+        return false;
+    }
 
     ArmSpawn(target_id, instructions_json) {
         this._t0 = GLib.get_monotonic_time();
