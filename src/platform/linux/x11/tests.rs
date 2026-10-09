@@ -8,6 +8,7 @@ fn test_x11_driver_capabilities() {
     let driver = X11Driver;
     assert_eq!(driver.name(), "X11");
     assert!(driver.supports_runtime_transform());
+    assert!(!driver.supports_claim_wait());
 }
 
 #[tokio::test]

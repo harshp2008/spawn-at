@@ -18,6 +18,7 @@
 pub mod cli;
 pub mod commands;
 pub mod config;
+pub mod diagnostics;
 pub mod platform;
 pub mod target;
 pub mod update;

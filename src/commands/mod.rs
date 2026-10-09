@@ -228,12 +228,16 @@ pub async fn wait_for_spawn(
                 }
             }
 
-            // Application hint match (class exact, reverse-DNS suffix, daemon suffix, or title substring)
-            if !app_hint_clean.is_empty()
-                && app_hint_clean != "*"
-                && match_window_app_hint(app_hint_clean, &w.class, &w.title)
-            {
-                return true;
+            // Application hint match (class exact, reverse-DNS suffix, daemon suffix, app_id, or title substring)
+            if !app_hint_clean.is_empty() && app_hint_clean != "*" {
+                if match_window_app_hint(app_hint_clean, &w.class, &w.title) {
+                    return true;
+                }
+                if let Some(ref app_id) = w.app_id {
+                    if match_window_app_hint(app_hint_clean, app_id, &w.title) {
+                        return true;
+                    }
+                }
             }
 
             // If wildcard or no app hint, any new mapped window is accepted
@@ -263,6 +267,26 @@ pub async fn wait_for_spawn(
         }
 
         tokio::time::sleep(poll_interval).await;
+    }
+
+    // Check if an existing window was activated instead of creating a new window
+    let windows = driver.get_windows().await.unwrap_or_default();
+    if let Some(existing) = windows.iter().find(|w| {
+        w.id.map_or(false, |id| pre_existing_ids.contains(&id))
+            && (!app_hint_clean.is_empty() && (
+                match_window_app_hint(app_hint_clean, &w.class, &w.title)
+                || w.app_id.as_ref().map_or(false, |aid| match_window_app_hint(app_hint_clean, aid, &w.title))
+            ))
+    }) {
+        let diag = crate::diagnostics::Diagnostic::ReusedExistingWindow {
+            class: existing.class.clone(),
+            title: existing.title.clone(),
+            pid: existing.pid,
+        };
+        crate::diagnostics::render_diagnostic(&diag);
+        return Err(DriverError::Execution(
+            "Application reused an existing window; not repositioned.".into(),
+        ));
     }
 
     Err(DriverError::TargetNotFound(format!(
@@ -382,6 +406,7 @@ mod tests {
             pid: Some(5001),
             title: "Terminal - Alacritty".into(),
             class: "Alacritty".into(),
+            app_id: None,
             x: 10,
             y: 20,
             w: 800,
@@ -436,6 +461,7 @@ mod tests {
                 pid: Some(6000),
                 title: "Mock Window".into(),
                 class: "mock-app".into(),
+                app_id: None,
                 x: if is_max { 0 } else { 100 },
                 y: if is_max { 0 } else { 100 },
                 w: if is_max { 1920 } else { 800 },
@@ -495,6 +521,7 @@ mod tests {
                     pid: Some(1000),
                     title: "Pre-existing App".into(),
                     class: "org.gnome.Calculator".into(),
+                    app_id: None,
                     x: 0,
                     y: 0,
                     w: 300,
@@ -512,6 +539,7 @@ mod tests {
                     pid: Some(9999), // Different PID (D-Bus activated)
                     title: "Calculator".into(),
                     class: "org.gnome.Calculator".into(),
+                    app_id: None,
                     x: 100,
                     y: 100,
                     w: 367,
@@ -622,6 +650,7 @@ mod tests {
                         pid: Some(1250560), // Server daemon PID, NOT the launcher PID (1250555)
                         title: "harsh@harsh: ~".into(),
                         class: "Gnome-terminal".into(),
+                        app_id: Some("org.gnome.Terminal".into()),
                         x: 200,
                         y: 200,
                         w: 800,

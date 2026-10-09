@@ -120,7 +120,7 @@ impl GeometryArgs {
     }
 }
 
-#[derive(Args, Debug, Clone)]
+#[derive(Args, Debug, Clone, Default)]
 pub struct SpawnArgs {
     /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
     #[arg(short = 'c', long)]

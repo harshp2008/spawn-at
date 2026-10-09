@@ -11,8 +11,7 @@ use crate::commands::wait_for_spawn;
 use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
-    calculate_rect_from_placement, check_geometry_diagnostics, resolve_workarea, Anchor,
-    GeometryDiagnostic,
+    check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, Rect,
 };
 use std::time::Duration;
 
@@ -123,6 +122,9 @@ pub async fn run_spawn(
         .filter_map(|w| w.id)
         .collect();
 
+    // 2. Prepare claim wait subscription BEFORE calling arm (prevents missing fast claims)
+    let claim_waiter = driver.prepare_claim_wait(&app_hint).await.ok().flatten();
+
     // 3. Arm the driver with the declarative batch intent (fail-open on arm failure)
     let armed_opt = match driver.arm(batch.clone()).await {
         Ok(a) => Some(a),
@@ -167,58 +169,287 @@ pub async fn run_spawn(
         }
 
         if !no_wait {
-            match wait_for_spawn(
-                driver,
-                child.id(),
-                &app_hint,
-                &entry_key,
-                &pre_existing_ids,
-                Duration::from_millis(2000),
-            )
-            .await
-            {
-                Ok(win) => {
-                    let final_win = if let Some(id) = win.id {
-                        driver
-                            .get_windows()
-                            .await
-                            .ok()
-                            .and_then(|wins| wins.into_iter().find(|w| w.id == Some(id)))
-                            .unwrap_or(win)
-                    } else {
-                        win
-                    };
+            let mut claim_result: Option<(u64, Rect, bool)> = None;
 
-                    let expected = calculate_rect_from_placement(
-                        &params,
-                        final_win.w as u32,
-                        final_win.h as u32,
-                    );
-
-                    let x_diff = (final_win.x - expected.x).abs();
-                    let y_diff = (final_win.y - expected.y).abs();
-
-                    if x_diff <= 1 && y_diff <= 1 {
-                        eprintln!(
-                            "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned at ({}, {}).",
-                            final_win.w, final_win.h, final_win.x, final_win.y
-                        );
-                    } else {
-                        eprintln!(
-                            "\x1b[1;33m[spawn-at] Warning:\x1b[0m Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}). Window was not positioned at target.",
-                            final_win.x, final_win.y, final_win.w, final_win.h, expected.x, expected.y
-                        );
+            if let Some(mut waiter) = claim_waiter {
+                match waiter.wait_claim(Duration::from_millis(2000)).await {
+                    Ok(claim) => {
+                        claim_result = Some((
+                            claim.window_id,
+                            Rect {
+                                x: claim.x,
+                                y: claim.y,
+                                width: claim.w,
+                                height: claim.h,
+                            },
+                            claim.size_raised,
+                        ));
+                    }
+                    Err(DriverError::Execution(e)) => {
+                        eprintln!("\x1b[1;33m[spawn-at] Warning:\x1b[0m {}", e);
+                    }
+                    Err(_) => {
+                        // Claim signal timed out or was not received for this specific target;
+                        // fall back to polling below.
                     }
                 }
-                Err(e) => {
-                    eprintln!(
-                        "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
-                        e
-                    );
+            }
+
+            let (win_id, mut final_rect, size_raised) = match claim_result {
+                Some((id, rect, raised)) => (Some(id), rect, raised),
+                None => {
+                    match wait_for_spawn(
+                        driver,
+                        child.id(),
+                        &app_hint,
+                        &entry_key,
+                        &pre_existing_ids,
+                        Duration::from_millis(2000),
+                    )
+                    .await
+                    {
+                        Ok(w) => {
+                            let id = w.id;
+                            (
+                                id,
+                                Rect {
+                                    x: w.x,
+                                    y: w.y,
+                                    width: w.w as u32,
+                                    height: w.h as u32,
+                                },
+                                false,
+                            )
+                        }
+                        Err(e) => {
+                            if !e.to_string().contains("reused an existing window") {
+                                eprintln!(
+                                    "\x1b[1;33m[spawn-at] Warning:\x1b[0m Timed out waiting for window to map: {}",
+                                    e
+                                );
+                            }
+                            return Ok(());
+                        }
+                    }
+                }
+            };
+
+            // Settle re-check (~150-300ms) before final geometry diagnostics
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            if let Some(id) = win_id {
+                if let Ok(settled_rect) = driver.get_window_rect(id).await {
+                    final_rect = settled_rect;
                 }
             }
+
+            crate::diagnostics::verify_and_report_placement(
+                &params,
+                final_rect,
+                None,
+                size_raised,
+            );
         }
     }
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::platform::{Armed, Batch, ClaimResult, ClaimSubscription, Driver, WindowMetadata};
+    use std::sync::{Arc, Mutex};
+
+    struct TestClaimSub;
+
+    #[async_trait::async_trait]
+    impl ClaimSubscription for TestClaimSub {
+        async fn wait_claim(&mut self, _timeout: Duration) -> Result<ClaimResult, DriverError> {
+            Ok(ClaimResult {
+                target_id: "test-app".into(),
+                success: true,
+                window_id: 101,
+                x: 100,
+                y: 100,
+                w: 400,
+                h: 300,
+                size_raised: false,
+                error: String::new(),
+            })
+        }
+    }
+
+    struct OrderingMockBackend {
+        calls: Arc<Mutex<Vec<String>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Driver for OrderingMockBackend {
+        async fn arm(&self, _batch: Batch) -> Result<Armed, DriverError> {
+            self.calls.lock().unwrap().push("arm".into());
+            Ok(Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for OrderingMockBackend {
+        fn name(&self) -> &'static str {
+            "OrderingMock"
+        }
+
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "test-app".into()
+        }
+
+        fn supports_claim_wait(&self) -> bool {
+            true
+        }
+
+        async fn prepare_claim_wait(
+            &self,
+            _target_id: &str,
+        ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+            self.calls.lock().unwrap().push("prepare_claim_wait".into());
+            Ok(Some(Box::new(TestClaimSub)))
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
+            Ok(vec![Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }])
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            Ok(vec![WindowMetadata {
+                id: Some(101),
+                pid: Some(std::process::id()),
+                title: "Test".into(),
+                class: "test-app".into(),
+                app_id: Some("test-app".into()),
+                x: 100,
+                y: 100,
+                w: 400,
+                h: 300,
+                focused: true,
+                maximized: false,
+                minimized: false,
+            }])
+        }
+    }
+
+    #[tokio::test]
+    async fn test_subscribe_before_arm_ordering() {
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let backend = OrderingMockBackend {
+            calls: calls.clone(),
+        };
+
+        let args = SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        let res = run_spawn(&backend, args, false).await;
+        assert!(res.is_ok());
+
+        let recorded = calls.lock().unwrap().clone();
+        assert_eq!(recorded.len(), 2);
+        assert_eq!(recorded[0], "prepare_claim_wait");
+        assert_eq!(recorded[1], "arm");
+    }
+
+    struct FallbackMockBackend {
+        calls: Arc<Mutex<Vec<String>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Driver for FallbackMockBackend {
+        async fn arm(&self, _batch: Batch) -> Result<Armed, DriverError> {
+            self.calls.lock().unwrap().push("arm".into());
+            Ok(Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for FallbackMockBackend {
+        fn name(&self) -> &'static str {
+            "FallbackMock"
+        }
+
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "true".into()
+        }
+
+        fn supports_claim_wait(&self) -> bool {
+            false
+        }
+
+        async fn prepare_claim_wait(
+            &self,
+            _target_id: &str,
+        ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+            self.calls.lock().unwrap().push("prepare_claim_wait_fallback".into());
+            Ok(None) // Extension lacks signal or driver does not support claim wait
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
+            Ok(vec![Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }])
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            self.calls.lock().unwrap().push("get_windows_polling".into());
+            Ok(vec![WindowMetadata {
+                id: Some(202),
+                pid: Some(std::process::id()),
+                title: "Fallback Test".into(),
+                class: "true".into(),
+                app_id: Some("true".into()),
+                x: 50,
+                y: 50,
+                w: 400,
+                h: 300,
+                focused: true,
+                maximized: false,
+                minimized: false,
+            }])
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fallback_to_polling_when_claim_wait_unsupported() {
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let backend = FallbackMockBackend {
+            calls: calls.clone(),
+        };
+
+        let args = SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        let res = run_spawn(&backend, args, false).await;
+        assert!(res.is_ok());
+
+        let recorded = calls.lock().unwrap().clone();
+        assert!(recorded.contains(&"prepare_claim_wait_fallback".to_string()));
+        assert!(recorded.contains(&"arm".to_string()));
+        assert!(recorded.contains(&"get_windows_polling".to_string()));
+    }
+}
+

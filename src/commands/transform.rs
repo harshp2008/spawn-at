@@ -119,6 +119,33 @@ pub async fn run_transform(
             std::time::Duration::from_millis(2000),
         )
         .await;
+
+        // Settle delay (~150-300ms) before evaluating diagnostics
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+
+        let actual_rect_opt = if let Some(id) = target_win.id {
+            backend.get_window_rect(id).await.ok()
+        } else {
+            backend.get_windows().await.ok().and_then(|wins| {
+                wins.into_iter()
+                    .find(|w| w.class == target_win.class)
+                    .map(|w| spawn_at_core::geometry::Rect {
+                        x: w.x,
+                        y: w.y,
+                        width: w.w as u32,
+                        height: w.h as u32,
+                    })
+            })
+        };
+
+        if let Some(actual_rect) = actual_rect_opt {
+            crate::diagnostics::verify_and_report_placement(
+                &params,
+                actual_rect,
+                None,
+                false,
+            );
+        }
     }
 
     Ok(())

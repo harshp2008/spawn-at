@@ -286,6 +286,7 @@ impl X11Session {
             pid,
             title,
             class,
+            app_id: None,
             x,
             y,
             w: geom.width as i32,
