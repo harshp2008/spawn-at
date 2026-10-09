@@ -126,6 +126,10 @@ pub struct SpawnArgs {
     #[arg(short = 'c', long)]
     pub class: Option<String>,
 
+    /// Output single structured JSON object on stdout upon mapping
+    #[arg(long)]
+    pub json: bool,
+
     #[command(flatten)]
     pub geometry: GeometryArgs,
 

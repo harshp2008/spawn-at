@@ -712,3 +712,22 @@ fn test_short_a_flag_rejected() {
         assert_eq!(s.command, vec!["-a", "center", "gedit"]);
     }
 }
+
+#[test]
+fn test_spawn_json_flag_parsing() {
+    let cli = Cli::try_parse_from(["spawn-at", "spawn", "--json", "--anchor", "center", "gedit"]).unwrap();
+    if let Commands::Spawn(s) = cli.command {
+        assert!(s.json);
+        assert_eq!(s.geometry.anchor, Some(Anchor::Center));
+        assert_eq!(s.command, vec!["gedit"]);
+    } else {
+        panic!("Expected Spawn variant");
+    }
+
+    let cli_no_json = Cli::try_parse_from(["spawn-at", "spawn", "--anchor", "center", "gedit"]).unwrap();
+    if let Commands::Spawn(s) = cli_no_json.command {
+        assert!(!s.json);
+    } else {
+        panic!("Expected Spawn variant");
+    }
+}

@@ -191,7 +191,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 
 | Command | Description |
 | :--- | :--- |
-| `spawn <cmd...>` | Pre-arm geometry and launch a new app. |
+| `spawn <cmd...>` | Pre-arm geometry and launch a new app (`--json` outputs single structured result object on stdout). |
 | `transform` | Reposition and resize an already-open window. |
 | `focus` / `defocus` | Raise a window, or give focus away (`--to-desktop`, `--to-window <ID>`). |
 | `maximize` / `minimize` / `restore` | Change window state. |
@@ -207,13 +207,16 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor`. |
 | `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
 | `--monitor` | Monitor index, `cursor`, or `primary` (default). |
-| `--area` | `workarea` (default) or `screen`. |
+| `--area` | `workarea` (default) or `screen`. Sets the reference boundary for anchors, margins, and clamping. |
 | `-m, --margin <PX>` | Margin on all sides (default 16). |
 | `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
-| `--clamp <true\|false>` | Keeps the window inside the work area minus the margin, for both anchors and `--pos` (default true). |
+| `--clamp <true\|false>` | Keeps the window inside the chosen area minus the margin, for both anchors and `--pos` (default true). |
+| `--json` | Output single structured JSON object on stdout (`spawn`, `query layout`, `query windows`). Diagnostics stay on stderr. |
 | `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
 | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
 | `--no-wait` | Exit without waiting for the compositor. |
+
+Rounding rule: Edge and center anchors center the window along each axis using integer division, rounding down any half-pixel remainder towards the coordinate origin.
 
 </details>
 

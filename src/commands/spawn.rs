@@ -13,7 +13,21 @@ use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
     check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, Rect,
 };
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
+/// Structured JSON output emitted to stdout when `--json` is supplied to `spawn-at spawn`.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
+pub struct SpawnOutputJson {
+    pub window_id: Option<u64>,
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+    pub size_raised: bool,
+    pub reused_existing_window: bool,
+    pub source: String,
+}
 
 /// Executes the spawn subcommand pipeline.
 pub async fn run_spawn(
@@ -165,10 +179,38 @@ pub async fn run_spawn(
         }
     };
 
+    if armed_opt.is_none() && spawn_args.json && !no_wait {
+        let output = SpawnOutputJson {
+            window_id: None,
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+            size_raised: false,
+            reused_existing_window: false,
+            source: "poll".to_string(),
+        };
+        println!("{}", serde_json::to_string(&output).unwrap());
+    }
+
     if let Some(ref _armed) = armed_opt {
         // Polymorphic post-spawn interception hook
         if let Err(e) = driver.post_spawn(child.id(), &batch).await {
             crate::diagnostics::render_warning(&format!("Window post-spawn hook failed: {}", e));
+        }
+
+        if no_wait && spawn_args.json {
+            let output = SpawnOutputJson {
+                window_id: None,
+                x: 0,
+                y: 0,
+                w: 0,
+                h: 0,
+                size_raised: false,
+                reused_existing_window: false,
+                source: "poll".to_string(),
+            };
+            println!("{}", serde_json::to_string(&output).unwrap());
         }
 
         if !no_wait {
@@ -198,6 +240,12 @@ pub async fn run_spawn(
                 }
             }
 
+            let source = if claim_result.is_some() {
+                "claim"
+            } else {
+                "poll"
+            };
+
             let (win_id, mut final_rect, size_raised) = match claim_result {
                 Some((id, rect, raised)) => (Some(id), rect, raised),
                 None => {
@@ -225,11 +273,46 @@ pub async fn run_spawn(
                             )
                         }
                         Err(e) => {
-                            if !e.to_string().contains("reused an existing window") {
+                            let is_reused = e.to_string().contains("reused an existing window");
+                            if !is_reused {
                                 crate::diagnostics::render_warning(&format!(
                                     "Timed out waiting for window to map: {}",
                                     e
                                 ));
+                            }
+
+                            if spawn_args.json {
+                                let (x, y, w, h) = if is_reused {
+                                    let existing_win = driver.get_windows().await.ok().and_then(|windows| {
+                                        windows.into_iter().find(|win| {
+                                            win.id.is_some_and(|id| pre_existing_ids.contains(&id))
+                                                && (!app_hint.is_empty()
+                                                    && (crate::commands::match_window_app_hint(&app_hint, &win.class, &win.title)
+                                                        || win.app_id.as_ref().is_some_and(|aid| {
+                                                            crate::commands::match_window_app_hint(&app_hint, aid, &win.title)
+                                                        })))
+                                        })
+                                    });
+                                    if let Some(ew) = existing_win {
+                                        (ew.x, ew.y, ew.w as u32, ew.h as u32)
+                                    } else {
+                                        (0, 0, 0, 0)
+                                    }
+                                } else {
+                                    (0, 0, 0, 0)
+                                };
+
+                                let output = SpawnOutputJson {
+                                    window_id: None,
+                                    x,
+                                    y,
+                                    w,
+                                    h,
+                                    size_raised: false,
+                                    reused_existing_window: is_reused,
+                                    source: "poll".to_string(),
+                                };
+                                println!("{}", serde_json::to_string(&output).unwrap());
                             }
                             return Ok(());
                         }
@@ -273,6 +356,20 @@ pub async fn run_spawn(
                         }
                     }
                 }
+            }
+
+            if spawn_args.json {
+                let output = SpawnOutputJson {
+                    window_id: win_id,
+                    x: final_rect.x,
+                    y: final_rect.y,
+                    w: final_rect.width,
+                    h: final_rect.height,
+                    size_raised,
+                    reused_existing_window: false,
+                    source: source.to_string(),
+                };
+                println!("{}", serde_json::to_string(&output).unwrap());
             }
 
             crate::diagnostics::verify_and_report_placement(&params, final_rect, None, size_raised);
@@ -484,5 +581,86 @@ mod tests {
         assert!(recorded.contains(&"prepare_claim_wait_fallback".to_string()));
         assert!(recorded.contains(&"arm".to_string()));
         assert!(recorded.contains(&"get_windows_polling".to_string()));
+    }
+
+    #[test]
+    fn test_spawn_output_json_shapes() {
+        // 1. Success via claim
+        let success_claim = SpawnOutputJson {
+            window_id: Some(101),
+            x: 16,
+            y: 56,
+            w: 400,
+            h: 300,
+            size_raised: false,
+            reused_existing_window: false,
+            source: "claim".to_string(),
+        };
+        let json_val: serde_json::Value = serde_json::to_value(&success_claim).unwrap();
+        assert_eq!(json_val["window_id"], 101);
+        assert_eq!(json_val["x"], 16);
+        assert_eq!(json_val["y"], 56);
+        assert_eq!(json_val["w"], 400);
+        assert_eq!(json_val["h"], 300);
+        assert_eq!(json_val["size_raised"], false);
+        assert_eq!(json_val["reused_existing_window"], false);
+        assert_eq!(json_val["source"], "claim");
+
+        // 2. Success via fallback (poll)
+        let success_fallback = SpawnOutputJson {
+            window_id: Some(202),
+            x: 50,
+            y: 50,
+            w: 400,
+            h: 300,
+            size_raised: true,
+            reused_existing_window: false,
+            source: "poll".to_string(),
+        };
+        let json_val: serde_json::Value = serde_json::to_value(&success_fallback).unwrap();
+        assert_eq!(json_val["window_id"], 202);
+        assert_eq!(json_val["size_raised"], true);
+        assert_eq!(json_val["reused_existing_window"], false);
+        assert_eq!(json_val["source"], "poll");
+
+        // 3. Reused existing window (window_id null, reused_existing_window true)
+        let reused = SpawnOutputJson {
+            window_id: None,
+            x: 100,
+            y: 150,
+            w: 800,
+            h: 600,
+            size_raised: false,
+            reused_existing_window: true,
+            source: "poll".to_string(),
+        };
+        let json_val: serde_json::Value = serde_json::to_value(&reused).unwrap();
+        assert!(json_val["window_id"].is_null());
+        assert_eq!(json_val["x"], 100);
+        assert_eq!(json_val["y"], 150);
+        assert_eq!(json_val["w"], 800);
+        assert_eq!(json_val["h"], 600);
+        assert_eq!(json_val["reused_existing_window"], true);
+        assert_eq!(json_val["source"], "poll");
+
+        // 4. Timeout (window_id null, reused_existing_window false)
+        let timeout = SpawnOutputJson {
+            window_id: None,
+            x: 0,
+            y: 0,
+            w: 0,
+            h: 0,
+            size_raised: false,
+            reused_existing_window: false,
+            source: "poll".to_string(),
+        };
+        let json_val: serde_json::Value = serde_json::to_value(&timeout).unwrap();
+        assert!(json_val["window_id"].is_null());
+        assert_eq!(json_val["x"], 0);
+        assert_eq!(json_val["y"], 0);
+        assert_eq!(json_val["w"], 0);
+        assert_eq!(json_val["h"], 0);
+        assert_eq!(json_val["reused_existing_window"], false);
+        assert_eq!(json_val["source"], "poll");
     }
 }

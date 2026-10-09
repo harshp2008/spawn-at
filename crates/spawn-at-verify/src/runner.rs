@@ -416,6 +416,9 @@ impl TestRunner {
                         cmd.arg(sarg);
                     }
                 } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
+                    if !test.action.args.contains(&"--json".to_string()) {
+                        cmd.arg("--json");
+                    }
                     cmd.arg("--");
                     cmd.arg(sys_app);
                     for sarg in &sub.args {
@@ -638,8 +641,20 @@ fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), St
     verify_rect_tolerance(expected, expected, expect_rect.tolerance_px)
 }
 
-/// Extracts claimed window ID from command output (e.g. from SpawnClaimed signal or trace/log output).
+/// Extracts claimed window ID from command output (e.g. from `spawn-at spawn --json` or SpawnClaimed signal).
 pub fn extract_claimed_window_id(stdout: &str, stderr: &str) -> Option<u64> {
+    // 1. Try parsing structured JSON output from `spawn-at spawn --json`
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+        if let Some(id) = val.get("window_id").and_then(|v| v.as_u64()) {
+            return Some(id);
+        }
+        if val.get("window_id").is_some() {
+            // Explicit JSON was produced with null window_id (e.g. reused window or timeout);
+            // do not fallback to accidental regex matches
+            return None;
+        }
+    }
+
     let re = Regex::new(r#"(?i)(?:window_id|window id|claimed window)\s*[:=]?\s*(\d+)"#).ok()?;
     if let Some(caps) = re.captures(stdout).or_else(|| re.captures(stderr)) {
         caps.get(1)?.as_str().parse().ok()
@@ -651,6 +666,26 @@ pub fn extract_claimed_window_id(stdout: &str, stderr: &str) -> Option<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_extract_claimed_window_id_from_json_and_fallback() {
+        // 1. JSON with window_id (success/fallback)
+        let json_success = r#"{"window_id":12345,"x":16,"y":56,"w":400,"h":300,"size_raised":false,"reused_existing_window":false,"source":"claim"}"#;
+        assert_eq!(extract_claimed_window_id(json_success, ""), Some(12345));
+
+        // 2. JSON with null window_id (reused window)
+        let json_reused = r#"{"window_id":null,"x":16,"y":56,"w":400,"h":300,"size_raised":false,"reused_existing_window":true,"source":"poll"}"#;
+        assert_eq!(extract_claimed_window_id(json_reused, ""), None);
+
+        // 3. JSON with null window_id (timeout)
+        let json_timeout = r#"{"window_id":null,"x":0,"y":0,"w":0,"h":0,"size_raised":false,"reused_existing_window":false,"source":"poll"}"#;
+        assert_eq!(extract_claimed_window_id(json_timeout, ""), None);
+
+        // 4. Non-JSON fallback regex match
+        let text_fallback = "Compositor claimed window: 99999 successfully";
+        assert_eq!(extract_claimed_window_id(text_fallback, ""), Some(99999));
+        assert_eq!(extract_claimed_window_id("", text_fallback), Some(99999));
+    }
 
     #[test]
     fn test_pattern_match_literal_and_regex() {
