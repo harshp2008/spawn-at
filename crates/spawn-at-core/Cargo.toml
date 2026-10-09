@@ -12,3 +12,6 @@ clap = { version = "4.5", features = ["derive"], optional = true }
 [features]
 default = ["clap"]
 clap = ["dep:clap"]
+
+[dev-dependencies]
+serde_json = "1.0"

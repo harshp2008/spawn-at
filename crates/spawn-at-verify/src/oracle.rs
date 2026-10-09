@@ -83,13 +83,36 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
 
         // If pivot is explicitly given, align window's pivot to anchor point.
         // Otherwise, use matching default pivot for the anchor.
-        let pivot_str = if let Some(p) = &params.pivot {
-            p.as_str()
+        if let Some(p) = &params.pivot {
+            apply_pivot_offset(ax, ay, w, h, p.as_str())?
         } else {
-            anchor_str
-        };
-
-        apply_pivot_offset(ax, ay, w, h, pivot_str)?
+            // Documented rule: centering is origin + floor((area_size - window_size) / 2);
+            // an odd remainder puts the extra pixel on the right/bottom.
+            match anchor_str {
+                "top" | "top-center" => (workarea.x + (wa_w - w_i32) / 2, workarea.y + mt),
+                "bottom" | "bottom-center" => (
+                    workarea.x + (wa_w - w_i32) / 2,
+                    workarea.y + wa_h - h_i32 - mb,
+                ),
+                "left" => (workarea.x + ml, workarea.y + (wa_h - h_i32) / 2),
+                "right" => (
+                    workarea.x + wa_w - mr - w_i32,
+                    workarea.y + (wa_h - h_i32) / 2,
+                ),
+                "center" => (
+                    workarea.x + (wa_w - w_i32) / 2,
+                    workarea.y + (wa_h - h_i32) / 2,
+                ),
+                "top-left" => (workarea.x + ml, workarea.y + mt),
+                "top-right" => (workarea.x + wa_w - mr - w_i32, workarea.y + mt),
+                "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb - h_i32),
+                "bottom-right" => (
+                    workarea.x + wa_w - mr - w_i32,
+                    workarea.y + wa_h - mb - h_i32,
+                ),
+                other => return Err(format!("Unknown anchor '{}'", other)),
+            }
+        }
     };
 
     if params.clamp {
@@ -120,13 +143,13 @@ fn apply_pivot_offset(px: i32, py: i32, w: u32, h: u32, pivot: &str) -> Result<(
 
     match pivot {
         "top-left" => Ok((px, py)),
-        "top" | "top-center" => Ok((px - w_i32 / 2, py)),
+        "top" | "top-center" => Ok((px - (w_i32 + 1) / 2, py)),
         "top-right" => Ok((px - w_i32, py)),
-        "left" => Ok((px, py - h_i32 / 2)),
-        "center" => Ok((px - w_i32 / 2, py - h_i32 / 2)),
-        "right" => Ok((px - w_i32, py - h_i32 / 2)),
+        "left" => Ok((px, py - (h_i32 + 1) / 2)),
+        "center" => Ok((px - (w_i32 + 1) / 2, py - (h_i32 + 1) / 2)),
+        "right" => Ok((px - w_i32, py - (h_i32 + 1) / 2)),
         "bottom-left" => Ok((px, py - h_i32)),
-        "bottom" | "bottom-center" => Ok((px - w_i32 / 2, py - h_i32)),
+        "bottom" | "bottom-center" => Ok((px - (w_i32 + 1) / 2, py - h_i32)),
         "bottom-right" => Ok((px - w_i32, py - h_i32)),
         other => Err(format!("Unknown pivot '{}'", other)),
     }
@@ -275,12 +298,11 @@ mod tests {
     fn test_golden_center_with_odd_sizes() {
         // Work area: x=0, y=40, w=1920, h=1040. Margin: 0. Window: 401x301 (odd sizes).
         // Anchor: center
-        //   ax = workarea.x + workarea.w / 2 = 0 + 1920 / 2 = 960
-        //   ay = workarea.y + workarea.h / 2 = 40 + 1040 / 2 = 560
-        // Pivot: center
-        //   x = ax - width / 2 = 960 - 401 / 2 = 960 - 200 = 760 (integer arithmetic)
-        //   y = ay - height / 2 = 560 - 301 / 2 = 560 - 150 = 410 (integer arithmetic)
-        // Expected: (760, 410, 401, 301)
+        // Documented rule: centering is origin + floor((area_size - window_size) / 2);
+        // an odd remainder puts the extra pixel on the right/bottom.
+        // x = 0 + floor((1920 - 401) / 2) = floor(1519 / 2) = 759
+        // y = 40 + floor((1040 - 301) / 2) = 40 + floor(739 / 2) = 40 + 369 = 409
+        // Expected: (759, 409, 401, 301)
         let wa = Rect::new(0, 40, 1920, 1040);
         let params = OracleParams {
             anchor: Some("center".into()),
@@ -289,7 +311,7 @@ mod tests {
             ..Default::default()
         };
         let rect = calculate_expected_rect(wa, &params).unwrap();
-        assert_eq!(rect, Rect::new(760, 410, 401, 301));
+        assert_eq!(rect, Rect::new(759, 409, 401, 301));
     }
 
     #[test]
@@ -651,5 +673,94 @@ mod tests {
         assert!(verify_rect_tolerance(actual_exact, expected, 1).is_ok());
         assert!(verify_rect_tolerance(actual_1px, expected, 1).is_ok());
         assert!(verify_rect_tolerance(actual_far, expected, 1).is_err());
+    }
+
+    #[test]
+    fn test_oracle_reads_shared_golden_placement_vectors() {
+        use std::fs;
+        use std::path::PathBuf;
+
+        #[derive(serde::Deserialize)]
+        struct GoldenFile {
+            vectors: Vec<GoldenVector>,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct GoldenVector {
+            name: String,
+            workarea: RectJson,
+            window_size: SizeJson,
+            anchor: Option<String>,
+            pivot: Option<String>,
+            pos: Option<[i32; 2]>,
+            margin: i32,
+            margin_top: Option<i32>,
+            margin_bottom: Option<i32>,
+            margin_left: Option<i32>,
+            margin_right: Option<i32>,
+            clamp: bool,
+            expected: RectJson,
+            #[allow(dead_code)]
+            arithmetic: String,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct RectJson {
+            x: i32,
+            y: i32,
+            width: u32,
+            height: u32,
+        }
+
+        #[derive(serde::Deserialize)]
+        struct SizeJson {
+            width: u32,
+            height: u32,
+        }
+
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let golden_path = manifest_dir.join("../../verify/golden/placement.json");
+        let content = fs::read_to_string(&golden_path).unwrap_or_else(|e| {
+            panic!("Failed to read golden vectors at {:?}: {}", golden_path, e)
+        });
+
+        let parsed: GoldenFile = serde_json::from_str(&content)
+            .unwrap_or_else(|e| panic!("Failed to parse golden placement JSON: {}", e));
+
+        for vec in &parsed.vectors {
+            let wa = Rect::new(
+                vec.workarea.x,
+                vec.workarea.y,
+                vec.workarea.width,
+                vec.workarea.height,
+            );
+
+            let params = OracleParams {
+                anchor: vec.anchor.clone(),
+                pivot: vec.pivot.clone(),
+                explicit_pos: vec.pos.map(|p| (p[0], p[1])),
+                size: (vec.window_size.width, vec.window_size.height),
+                margin: vec.margin,
+                margin_top: vec.margin_top,
+                margin_bottom: vec.margin_bottom,
+                margin_left: vec.margin_left,
+                margin_right: vec.margin_right,
+                clamp: vec.clamp,
+            };
+
+            let calculated = calculate_expected_rect(wa, &params)
+                .unwrap_or_else(|e| panic!("Failed calculating vector '{}': {}", vec.name, e));
+
+            let expected = Rect::new(
+                vec.expected.x,
+                vec.expected.y,
+                vec.expected.width,
+                vec.expected.height,
+            );
+
+            // Assert exact 0-pixel tolerance for mathematical placement vectors
+            verify_rect_tolerance(calculated, expected, 0)
+                .unwrap_or_else(|e| panic!("Vector '{}' failed at tolerance 0: {}", vec.name, e));
+        }
     }
 }

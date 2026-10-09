@@ -715,7 +715,8 @@ fn test_short_a_flag_rejected() {
 
 #[test]
 fn test_spawn_json_flag_parsing() {
-    let cli = Cli::try_parse_from(["spawn-at", "spawn", "--json", "--anchor", "center", "gedit"]).unwrap();
+    let cli = Cli::try_parse_from(["spawn-at", "spawn", "--json", "--anchor", "center", "gedit"])
+        .unwrap();
     if let Commands::Spawn(s) = cli.command {
         assert!(s.json);
         assert_eq!(s.geometry.anchor, Some(Anchor::Center));
@@ -724,7 +725,8 @@ fn test_spawn_json_flag_parsing() {
         panic!("Expected Spawn variant");
     }
 
-    let cli_no_json = Cli::try_parse_from(["spawn-at", "spawn", "--anchor", "center", "gedit"]).unwrap();
+    let cli_no_json =
+        Cli::try_parse_from(["spawn-at", "spawn", "--anchor", "center", "gedit"]).unwrap();
     if let Commands::Spawn(s) = cli_no_json.command {
         assert!(!s.json);
     } else {

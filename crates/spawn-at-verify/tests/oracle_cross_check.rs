@@ -104,63 +104,76 @@ fn test_oracle_vs_core_cross_check_matrix() {
             },
             "negative-origin (-1920, 0)",
         ),
+        (
+            OracleRect::new(0, 40, 1921, 1039),
+            CoreRect {
+                x: 0,
+                y: 40,
+                width: 1921,
+                height: 1039,
+            },
+            "odd dimensions (1921x1039)",
+        ),
     ];
 
-    let win_size = (400, 300);
+    let win_sizes = [(400, 300), (367, 514), (401, 301), (513, 513), (1, 1)];
 
     let mut total_compared = 0;
     let mut mismatches = Vec::new();
 
     for (oracle_wa, core_wa, wa_desc) in &workareas {
-        for anchor in &SCREEN_ANCHORS {
-            for pivot in &PIVOTS {
-                for &margin in &margins {
-                    for &clamp in &clamp_modes {
-                        total_compared += 1;
+        for &win_size in &win_sizes {
+            for anchor in &SCREEN_ANCHORS {
+                for pivot in &PIVOTS {
+                    for &margin in &margins {
+                        for &clamp in &clamp_modes {
+                            total_compared += 1;
 
-                        let oracle_params = OracleParams {
-                            anchor: Some(anchor.to_string()),
-                            pivot: Some(pivot.to_string()),
-                            explicit_pos: None,
-                            size: win_size,
-                            margin,
-                            margin_top: None,
-                            margin_bottom: None,
-                            margin_left: None,
-                            margin_right: None,
-                            clamp,
-                        };
+                            let oracle_params = OracleParams {
+                                anchor: Some(anchor.to_string()),
+                                pivot: Some(pivot.to_string()),
+                                explicit_pos: None,
+                                size: win_size,
+                                margin,
+                                margin_top: None,
+                                margin_bottom: None,
+                                margin_left: None,
+                                margin_right: None,
+                                clamp,
+                            };
 
-                        let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
-                            .expect("Oracle calculation failed");
+                            let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
+                                .expect("Oracle calculation failed");
 
-                        let core_params = CoreParams {
-                            pos: None,
-                            offset: None,
-                            anchor: Some(map_anchor(anchor)),
-                            pivot: Some(map_pivot(pivot)),
-                            size: Some(win_size),
-                            margin,
-                            margin_top: None,
-                            margin_bottom: None,
-                            margin_left: None,
-                            margin_right: None,
-                            area: Some(Area::Workarea),
-                            cursor_pos: None,
-                            workarea: *core_wa,
-                            clamp,
-                        };
+                            let core_params = CoreParams {
+                                pos: None,
+                                offset: None,
+                                anchor: Some(map_anchor(anchor)),
+                                pivot: Some(map_pivot(pivot)),
+                                size: Some(win_size),
+                                margin,
+                                margin_top: None,
+                                margin_bottom: None,
+                                margin_left: None,
+                                margin_right: None,
+                                area: Some(Area::Workarea),
+                                cursor_pos: None,
+                                workarea: *core_wa,
+                                clamp,
+                            };
 
-                        let core_rect =
-                            calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
-                        let mapped_core = core_to_oracle_rect(core_rect);
+                            let core_rect =
+                                calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
+                            let mapped_core = core_to_oracle_rect(core_rect);
 
-                        if oracle_rect != mapped_core {
-                            mismatches.push(format!(
-                                "Mismatch [{wa_desc}] for anchor='{anchor}', pivot='{pivot}', margin={margin}, clamp={clamp}: oracle=[{}, {}, {}x{}], core=[{}, {}, {}x{}]",
-                                oracle_rect.x, oracle_rect.y, oracle_rect.w, oracle_rect.h,
-                                mapped_core.x, mapped_core.y, mapped_core.w, mapped_core.h
-                            ));
+                            if oracle_rect != mapped_core {
+                                mismatches.push(format!(
+                                    "Mismatch [{wa_desc}] for size={}x{}, anchor='{anchor}', pivot='{pivot}', margin={margin}, clamp={clamp}: oracle=[{}, {}, {}x{}], core=[{}, {}, {}x{}]",
+                                    win_size.0, win_size.1,
+                                    oracle_rect.x, oracle_rect.y, oracle_rect.w, oracle_rect.h,
+                                    mapped_core.x, mapped_core.y, mapped_core.w, mapped_core.h
+                                ));
+                            }
                         }
                     }
                 }
@@ -333,7 +346,6 @@ fn test_oracle_vs_core_default_pivot_cross_check() {
     // for all 9 screen anchors across multiple workareas, margins, and clamp modes.
     let margins = [0, 16, 24];
     let clamp_modes = [true, false];
-    let win_size = (400, 300);
 
     let workareas = [
         (
@@ -366,63 +378,78 @@ fn test_oracle_vs_core_default_pivot_cross_check() {
             },
             "negative-origin (-1920, 0)",
         ),
+        (
+            OracleRect::new(0, 40, 1921, 1039),
+            CoreRect {
+                x: 0,
+                y: 40,
+                width: 1921,
+                height: 1039,
+            },
+            "odd dimensions (1921x1039)",
+        ),
     ];
+
+    let win_sizes = [(400, 300), (367, 514), (401, 301), (513, 513), (1, 1)];
 
     let mut checked_cases = 0;
 
     for (oracle_wa, core_wa, wa_name) in &workareas {
-        for margin in &margins {
-            for &clamp in &clamp_modes {
-                for anchor_str in &SCREEN_ANCHORS {
-                    let oracle_params = OracleParams {
-                        anchor: Some(anchor_str.to_string()),
-                        pivot: None, // Default pivot
-                        explicit_pos: None,
-                        size: win_size,
-                        margin: *margin,
-                        margin_top: None,
-                        margin_bottom: None,
-                        margin_left: None,
-                        margin_right: None,
-                        clamp,
-                    };
+        for &win_size in &win_sizes {
+            for margin in &margins {
+                for &clamp in &clamp_modes {
+                    for anchor_str in &SCREEN_ANCHORS {
+                        let oracle_params = OracleParams {
+                            anchor: Some(anchor_str.to_string()),
+                            pivot: None, // Default pivot
+                            explicit_pos: None,
+                            size: win_size,
+                            margin: *margin,
+                            margin_top: None,
+                            margin_bottom: None,
+                            margin_left: None,
+                            margin_right: None,
+                            clamp,
+                        };
 
-                    let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
-                        .expect("Oracle calculation failed");
+                        let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
+                            .expect("Oracle calculation failed");
 
-                    let core_params = CoreParams {
-                        pos: None,
-                        offset: None,
-                        anchor: Some(map_anchor(anchor_str)),
-                        pivot: None, // Default pivot
-                        size: Some(win_size),
-                        margin: *margin,
-                        margin_top: None,
-                        margin_bottom: None,
-                        margin_left: None,
-                        margin_right: None,
-                        area: Some(Area::Workarea),
-                        cursor_pos: None,
-                        workarea: *core_wa,
-                        clamp,
-                    };
+                        let core_params = CoreParams {
+                            pos: None,
+                            offset: None,
+                            anchor: Some(map_anchor(anchor_str)),
+                            pivot: None, // Default pivot
+                            size: Some(win_size),
+                            margin: *margin,
+                            margin_top: None,
+                            margin_bottom: None,
+                            margin_left: None,
+                            margin_right: None,
+                            area: Some(Area::Workarea),
+                            cursor_pos: None,
+                            workarea: *core_wa,
+                            clamp,
+                        };
 
-                    let core_rect =
-                        calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
-                    let mapped_core = core_to_oracle_rect(core_rect);
+                        let core_rect =
+                            calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
+                        let mapped_core = core_to_oracle_rect(core_rect);
 
-                    assert_eq!(
-                        oracle_rect, mapped_core,
-                        "Default pivot mismatch on {wa_name}: anchor='{anchor_str}', margin={margin}, clamp={clamp}"
-                    );
-                    checked_cases += 1;
+                        assert_eq!(
+                            oracle_rect, mapped_core,
+                            "Default pivot mismatch on {wa_name}: size={}x{}, anchor='{anchor_str}', margin={margin}, clamp={clamp}",
+                            win_size.0, win_size.1
+                        );
+                        checked_cases += 1;
+                    }
                 }
             }
         }
     }
 
     assert_eq!(
-        checked_cases, 162,
-        "Expected 162 default-pivot cross-check cases (9 anchors x 3 workareas x 3 margins x 2 clamp modes)"
+        checked_cases, 1080,
+        "Expected 1080 default-pivot cross-check cases (9 anchors x 4 workareas x 5 sizes x 3 margins x 2 clamp modes)"
     );
 }

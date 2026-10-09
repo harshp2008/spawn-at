@@ -966,6 +966,7 @@ dependencies = [
  "async-trait",
  "clap",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

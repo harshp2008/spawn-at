@@ -9,11 +9,11 @@
 use crate::cli::args::SpawnArgs;
 use crate::commands::wait_for_spawn;
 use crate::platform::{CompositorBackend, DriverError, PlacementParams};
+use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
     check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, Rect,
 };
-use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 /// Structured JSON output emitted to stdout when `--json` is supplied to `spawn-at spawn`.
@@ -283,16 +283,23 @@ pub async fn run_spawn(
 
                             if spawn_args.json {
                                 let (x, y, w, h) = if is_reused {
-                                    let existing_win = driver.get_windows().await.ok().and_then(|windows| {
-                                        windows.into_iter().find(|win| {
-                                            win.id.is_some_and(|id| pre_existing_ids.contains(&id))
-                                                && (!app_hint.is_empty()
-                                                    && (crate::commands::match_window_app_hint(&app_hint, &win.class, &win.title)
-                                                        || win.app_id.as_ref().is_some_and(|aid| {
-                                                            crate::commands::match_window_app_hint(&app_hint, aid, &win.title)
-                                                        })))
-                                        })
-                                    });
+                                    let existing_win =
+                                        driver.get_windows().await.ok().and_then(|windows| {
+                                            windows.into_iter().find(|win| {
+                                                win.id.is_some_and(|id| {
+                                                    pre_existing_ids.contains(&id)
+                                                }) && (!app_hint.is_empty()
+                                                    && (crate::commands::match_window_app_hint(
+                                                        &app_hint, &win.class, &win.title,
+                                                    ) || win.app_id.as_ref().is_some_and(
+                                                        |aid| {
+                                                            crate::commands::match_window_app_hint(
+                                                                &app_hint, aid, &win.title,
+                                                            )
+                                                        },
+                                                    )))
+                                            })
+                                        });
                                     if let Some(ew) = existing_win {
                                         (ew.x, ew.y, ew.w as u32, ew.h as u32)
                                     } else {

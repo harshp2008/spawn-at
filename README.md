@@ -216,7 +216,18 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
 | `--no-wait` | Exit without waiting for the compositor. |
 
-Rounding rule: Edge and center anchors center the window along each axis using integer division, rounding down any half-pixel remainder towards the coordinate origin.
+Centering and rounding rule: Centering along an axis is computed as `origin + floor((area_size - window_size) / 2)`. An odd remainder puts the extra pixel on the right/bottom.
+
+Default pivots: When `--pivot` is omitted, each anchor defaults to its matching alignment point:
+- `center`: `center` (centered horizontally and vertically)
+- `top`: top-center (centers along the top edge)
+- `bottom`: bottom-center (centers along the bottom edge)
+- `left`: left-center (centers along the left edge)
+- `right`: right-center (centers along the right edge)
+- `top-left`, `top-right`, `bottom-left`, `bottom-right`: matching corner
+- `cursor`: `top-left`
+
+Margins and centering: Edge and center anchors center along their axis relative to the **whole reference area** (not the margin-inset area). Directional margins (`--mt`, `--mb`, `--ml`, `--mr`) offset the anchored boundary edge. Clamping subsequently enforces all directional margins if the window dimensions exceed the available inset bounds.
 
 </details>
 

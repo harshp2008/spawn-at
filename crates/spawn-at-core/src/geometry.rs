@@ -307,11 +307,20 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
         apply_pivot(target_x, target_y, w, h, pivot)
     } else if let Some(anchor) = params.anchor {
         match anchor {
-            Anchor::Top => (target_x - (w as i32) / 2, target_y),
-            Anchor::Bottom => (target_x - (w as i32) / 2, target_y - (h as i32)),
-            Anchor::Left => (target_x, target_y - (h as i32) / 2),
-            Anchor::Right => (target_x - (w as i32), target_y - (h as i32) / 2),
-            Anchor::Center => (target_x - (w as i32) / 2, target_y - (h as i32) / 2),
+            Anchor::Top => (wa.x + (wa.width as i32 - w as i32) / 2 + ox, target_y),
+            Anchor::Bottom => (
+                wa.x + (wa.width as i32 - w as i32) / 2 + ox,
+                target_y - (h as i32),
+            ),
+            Anchor::Left => (target_x, wa.y + (wa.height as i32 - h as i32) / 2 + oy),
+            Anchor::Right => (
+                target_x - (w as i32),
+                wa.y + (wa.height as i32 - h as i32) / 2 + oy,
+            ),
+            Anchor::Center => (
+                wa.x + (wa.width as i32 - w as i32) / 2 + ox,
+                wa.y + (wa.height as i32 - h as i32) / 2 + oy,
+            ),
             Anchor::TopLeft => (target_x, target_y),
             Anchor::TopRight => (target_x - (w as i32), target_y),
             Anchor::BottomLeft => (target_x, target_y - (h as i32)),
@@ -358,7 +367,7 @@ pub fn apply_pivot(
         Pivot::TopRight => (target_x - w, target_y),
         Pivot::BottomLeft => (target_x, target_y - h),
         Pivot::BottomRight => (target_x - w, target_y - h),
-        Pivot::Center => (target_x - w / 2, target_y - h / 2),
+        Pivot::Center => (target_x - (w + 1) / 2, target_y - (h + 1) / 2),
     }
 }
 
