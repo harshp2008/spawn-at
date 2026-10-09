@@ -5,7 +5,7 @@ use spawn_at_core::geometry::{Anchor, Area, Pivot};
 
 #[derive(Subcommand, Debug, Clone, PartialEq, Eq)]
 pub enum QueryCommands {
-    /// Fetch and print layout of all work areas
+    /// Fetch and print layout of monitors, work areas, and insets
     Layout {
         /// Output raw JSON instead of human-readable table
         #[arg(long)]
@@ -80,7 +80,7 @@ pub struct GeometryArgs {
     #[arg(long = "margin-right", alias = "mr")]
     pub margin_right: Option<i32>,
 
-    /// Constrain window strictly within monitor/workarea bounds
+    /// Keep window strictly inside the chosen area minus the margin (--clamp false allows absolute coordinates outside)
     #[arg(
         long,
         default_value = "true",

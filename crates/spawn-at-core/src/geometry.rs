@@ -26,6 +26,87 @@ pub struct Rect {
     pub height: u32,
 }
 
+/// A rectangle representation specifically formatted for layout introspection ({ x, y, w, h }).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutRect {
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+}
+
+impl From<Rect> for LayoutRect {
+    fn from(r: Rect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            w: r.width,
+            h: r.height,
+        }
+    }
+}
+
+impl From<LayoutRect> for Rect {
+    fn from(r: LayoutRect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            width: r.w,
+            height: r.h,
+        }
+    }
+}
+
+/// Derived insets (screen boundary minus usable workarea) in logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutInsets {
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
+    pub left: i32,
+}
+
+/// Introspection metadata for an individual display monitor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MonitorInfo {
+    pub index: usize,
+    pub name: Option<String>,
+    pub primary: bool,
+    pub scale: Option<f64>,
+    pub screen: Option<LayoutRect>,
+    pub workarea: Option<LayoutRect>,
+    pub insets: Option<LayoutInsets>,
+}
+
+impl MonitorInfo {
+    /// Computes derived insets from screen and workarea rectangles if both are available.
+    pub fn compute_insets(
+        screen: Option<LayoutRect>,
+        workarea: Option<LayoutRect>,
+    ) -> Option<LayoutInsets> {
+        let (s, w) = (screen?, workarea?);
+        let top = w.y - s.y;
+        let left = w.x - s.x;
+        let right = (s.x + s.w as i32) - (w.x + w.w as i32);
+        let bottom = (s.y + s.h as i32) - (w.y + w.h as i32);
+        Some(LayoutInsets {
+            top,
+            right,
+            bottom,
+            left,
+        })
+    }
+}
+
+/// Comprehensive compositor monitor layout schema (version 1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MonitorLayout {
+    pub schema_version: u32,
+    pub monitors: Vec<MonitorInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
 /// Defines the origin point for window placement relative to a bounding workarea.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
@@ -1077,5 +1158,57 @@ mod tests {
             }
         }
         assert_eq!(count, 50);
+    }
+
+    #[test]
+    fn test_monitor_layout_compute_insets_and_schema() {
+        let screen = LayoutRect {
+            x: 0,
+            y: 0,
+            w: 1920,
+            h: 1080,
+        };
+        let workarea = LayoutRect {
+            x: 0,
+            y: 40,
+            w: 1920,
+            h: 1040,
+        };
+        let insets = MonitorInfo::compute_insets(Some(screen), Some(workarea)).unwrap();
+        assert_eq!(
+            insets,
+            LayoutInsets {
+                top: 40,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
+        );
+
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![MonitorInfo {
+                index: 0,
+                name: Some("DP-1".to_string()),
+                primary: true,
+                scale: Some(1.0),
+                screen: Some(screen),
+                workarea: Some(workarea),
+                insets: Some(insets),
+            }],
+            note: None,
+        };
+
+        let json = serde_json::to_string(&layout).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["schema_version"], 1);
+        assert_eq!(parsed["monitors"][0]["index"], 0);
+        assert_eq!(parsed["monitors"][0]["name"], "DP-1");
+        assert_eq!(parsed["monitors"][0]["primary"], true);
+        assert_eq!(parsed["monitors"][0]["scale"], 1.0);
+        assert_eq!(parsed["monitors"][0]["screen"]["w"], 1920);
+        assert_eq!(parsed["monitors"][0]["workarea"]["h"], 1040);
+        assert_eq!(parsed["monitors"][0]["insets"]["top"], 40);
+        assert!(parsed.get("note").is_none());
     }
 }

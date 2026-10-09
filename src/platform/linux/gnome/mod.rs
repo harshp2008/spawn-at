@@ -55,8 +55,8 @@ pub mod dbus;
 pub mod mechanics;
 
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, PlacementParams, Rect,
-    UninstallArgs, WindowMetadata, WindowState,
+    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, MonitorInfo, MonitorLayout,
+    PlacementParams, Rect, UninstallArgs, WindowMetadata, WindowState,
 };
 use clap::Args;
 use dialoguer::{Confirm, Select};
@@ -877,10 +877,66 @@ impl CompositorBackend for GnomeWaylandDriver {
     }
 
     async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
-        match self.get_workareas().await {
-            Ok(areas) if !areas.is_empty() => Ok(areas),
-            _ => Ok(crate::platform::linux::query_x11_monitors()),
+        let layout = self.get_layout().await?;
+        let screens: Vec<Rect> = layout
+            .monitors
+            .into_iter()
+            .filter_map(|m| m.screen.map(Rect::from))
+            .collect();
+        if !screens.is_empty() {
+            return Ok(screens);
         }
+        let x11_screens = crate::platform::linux::query_x11_monitors();
+        if !x11_screens.is_empty() {
+            return Ok(x11_screens);
+        }
+        self.get_workareas().await
+    }
+
+    async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+        let version = self.proxy.protocol_version().await.unwrap_or(0);
+        if version >= 4 {
+            if let Ok(json) = self.proxy.get_layout().await {
+                if let Ok(mut layout) = serde_json::from_str::<MonitorLayout>(&json) {
+                    for m in &mut layout.monitors {
+                        if m.insets.is_none() {
+                            m.insets = MonitorInfo::compute_insets(m.screen, m.workarea);
+                        }
+                    }
+                    return Ok(layout);
+                }
+            }
+        }
+
+        // Stale extension or protocol < 4 degradation:
+        // Degrades to the work area only, with screen set to null and a note. No guessed values.
+        let workareas = self.get_workareas().await.unwrap_or_default();
+        let monitors = workareas
+            .into_iter()
+            .enumerate()
+            .map(|(i, wa)| MonitorInfo {
+                index: i,
+                name: None,
+                primary: i == 0,
+                scale: None,
+                screen: None,
+                workarea: Some(wa.into()),
+                insets: None,
+            })
+            .collect();
+        let note = Some(format!(
+            "extension is older than the CLI expects (protocol {}, need 4): run `spawn-at install` and log out and back in",
+            version
+        ));
+        Ok(MonitorLayout {
+            schema_version: 1,
+            monitors,
+            note,
+        })
+    }
+
+    async fn protocol_version(&self) -> Option<u32> {
+        Some(self.proxy.protocol_version().await.unwrap_or(0))
     }
 
     async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
@@ -1253,6 +1309,41 @@ mod tests {
         fn close_window(&self, target_id: &str) -> bool {
             target_id == "valid_id"
         }
+
+        fn get_workareas(&self) -> String {
+            r#"[{"x": 0, "y": 40, "width": 1920, "height": 1040}]"#.to_string()
+        }
+    }
+
+    struct StubProtocol4;
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubProtocol4 {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            4
+        }
+
+        fn get_layout(&self) -> String {
+            r#"{
+                "schema_version": 1,
+                "monitors": [
+                    {
+                        "index": 0,
+                        "name": "DP-1",
+                        "primary": true,
+                        "scale": 1.0,
+                        "screen": { "x": 0, "y": 0, "w": 1920, "h": 1080 },
+                        "workarea": { "x": 0, "y": 40, "w": 1920, "h": 1040 }
+                    }
+                ]
+            }"#
+            .to_string()
+        }
+
+        fn get_workareas(&self) -> String {
+            r#"[{"x": 0, "y": 40, "width": 1920, "height": 1040}]"#.to_string()
+        }
     }
 
     struct StubProtocol2;
@@ -1373,5 +1464,112 @@ mod tests {
             err_str,
             "extension is older than the CLI expects (protocol 3, need 3): run `spawn-at install` and log out and back in"
         );
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_get_layout_against_stub_protocol_4() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol4";
+        conn.object_server().at(path, StubProtocol4).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert_eq!(driver.protocol_version().await, Some(4));
+
+        let layout = driver.get_layout().await.unwrap();
+        assert_eq!(layout.schema_version, 1);
+        assert_eq!(layout.monitors.len(), 1);
+        let m = &layout.monitors[0];
+        assert_eq!(m.index, 0);
+        assert_eq!(m.name.as_deref(), Some("DP-1"));
+        assert!(m.primary);
+        assert_eq!(m.scale, Some(1.0));
+        assert_eq!(
+            m.screen,
+            Some(crate::platform::LayoutRect {
+                x: 0,
+                y: 0,
+                w: 1920,
+                h: 1080
+            })
+        );
+        assert_eq!(
+            m.workarea,
+            Some(crate::platform::LayoutRect {
+                x: 0,
+                y: 40,
+                w: 1920,
+                h: 1040
+            })
+        );
+        assert_eq!(
+            m.insets,
+            Some(crate::platform::LayoutInsets {
+                top: 40,
+                right: 0,
+                bottom: 0,
+                left: 0
+            })
+        );
+        assert!(layout.note.is_none());
+
+        let screens = driver.get_monitors().await.unwrap();
+        assert_eq!(
+            screens,
+            vec![Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080
+            }]
+        );
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_get_layout_stale_extension_degradation_protocol_3() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol3Degradation";
+        conn.object_server().at(path, StubProtocol3).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert_eq!(driver.protocol_version().await, Some(3));
+
+        let layout = driver.get_layout().await.unwrap();
+        assert_eq!(layout.schema_version, 1);
+        assert_eq!(layout.monitors.len(), 1);
+        let m = &layout.monitors[0];
+        assert_eq!(m.index, 0);
+        assert!(m.screen.is_none());
+        assert!(m.insets.is_none());
+        assert_eq!(
+            m.workarea,
+            Some(crate::platform::LayoutRect {
+                x: 0,
+                y: 40,
+                w: 1920,
+                h: 1040
+            })
+        );
+        assert!(layout.note.is_some());
+        assert!(layout.note.unwrap().contains("protocol 3, need 4"));
     }
 }

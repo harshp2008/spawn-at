@@ -22,7 +22,9 @@ use clap::Args;
 pub use spawn_at_core::driver::{
     Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency,
 };
-pub use spawn_at_core::geometry::{PlacementParams, Rect};
+pub use spawn_at_core::geometry::{
+    LayoutInsets, LayoutRect, MonitorInfo, MonitorLayout, PlacementParams, Rect,
+};
 use std::time::Duration;
 
 /// The result reported when a compositor claims and finishes placement of an armed window.
@@ -178,6 +180,34 @@ pub trait CompositorBackend: Driver + Send + Sync {
     /// Query active windows.
     async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
         Err(DriverError::UnsupportedCapability("get_windows"))
+    }
+
+    /// Query monitor layout (screens, workareas, scales, and insets).
+    async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+        let workareas = self.get_workareas().await?;
+        let monitors = workareas
+            .into_iter()
+            .enumerate()
+            .map(|(i, wa)| MonitorInfo {
+                index: i,
+                name: None,
+                primary: i == 0,
+                scale: None,
+                screen: None,
+                workarea: Some(wa.into()),
+                insets: None,
+            })
+            .collect();
+        Ok(MonitorLayout {
+            schema_version: 1,
+            monitors,
+            note: None,
+        })
+    }
+
+    /// Query compositor extension protocol version if supported (None for X11 / unversioned backends).
+    async fn protocol_version(&self) -> Option<u32> {
+        None
     }
 
     // --- Core Actions ---

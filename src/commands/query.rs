@@ -13,25 +13,47 @@ pub async fn run_query(
 ) -> Result<(), Box<dyn std::error::Error>> {
     match cmd {
         QueryCommands::Layout { json } => {
-            let layout = backend.get_workareas().await?;
+            let layout = backend.get_layout().await?;
             if json {
                 println!("{}", serde_json::to_string(&layout)?);
             } else {
                 println!(
-                    "{:<7}  {:<15}  {:<6}  {:<6}  {:<6}  HEIGHT",
-                    "MONITOR", "GEOMETRY", "X", "Y", "WIDTH"
+                    "{:<3}  {:<12}  {:<7}  {:<5}  {:<17}  {:<17}  INSETS (T/R/B/L)",
+                    "MON", "NAME", "PRIMARY", "SCALE", "SCREEN", "WORKAREA"
                 );
-                for (i, area) in layout.iter().enumerate() {
-                    let geom = format!("{}x{}@{},{}", area.width, area.height, area.x, area.y);
+                for m in &layout.monitors {
+                    let mon_str = format!("{}", m.index);
+                    let name_str = m.name.as_deref().unwrap_or("-");
+                    let primary_str = if m.primary { "yes" } else { "no" };
+                    let scale_str = m
+                        .scale
+                        .map(|s| format!("{}", s))
+                        .unwrap_or_else(|| "-".to_string());
+                    let screen_str = m
+                        .screen
+                        .map(|s| format!("{}x{}@{},{}", s.w, s.h, s.x, s.y))
+                        .unwrap_or_else(|| "-".to_string());
+                    let workarea_str = m
+                        .workarea
+                        .map(|w| format!("{}x{}@{},{}", w.w, w.h, w.x, w.y))
+                        .unwrap_or_else(|| "-".to_string());
+                    let insets_str = m
+                        .insets
+                        .map(|ins| format!("{}/{}/{}/{}", ins.top, ins.right, ins.bottom, ins.left))
+                        .unwrap_or_else(|| "-".to_string());
                     println!(
-                        "{:<7}  {:<15}  {:<6}  {:<6}  {:<6}  {}",
-                        format!("#{}", i),
-                        geom,
-                        area.x,
-                        area.y,
-                        area.width,
-                        area.height
+                        "{:<3}  {:<12}  {:<7}  {:<5}  {:<17}  {:<17}  {}",
+                        mon_str,
+                        name_str,
+                        primary_str,
+                        scale_str,
+                        screen_str,
+                        workarea_str,
+                        insets_str
                     );
+                }
+                if let Some(ref note) = layout.note {
+                    println!("\nNote: {}", note);
                 }
             }
         }
@@ -100,10 +122,11 @@ mod tests {
     use super::*;
     use crate::platform::DriverError;
     use crate::target::WindowMetadata;
-    use spawn_at_core::geometry::Rect;
+    use spawn_at_core::geometry::{LayoutInsets, LayoutRect, MonitorInfo, MonitorLayout, Rect};
 
     struct MockQueryBackend {
         workareas: Vec<Rect>,
+        layout: Option<MonitorLayout>,
         windows: Vec<WindowMetadata>,
         cursor: (i32, i32),
     }
@@ -132,6 +155,31 @@ mod tests {
         async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
             Ok(self.workareas.clone())
         }
+        async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+            if let Some(ref l) = self.layout {
+                Ok(l.clone())
+            } else {
+                let workareas = self.get_workareas().await?;
+                let monitors = workareas
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, wa)| MonitorInfo {
+                        index: i,
+                        name: None,
+                        primary: i == 0,
+                        scale: None,
+                        screen: None,
+                        workarea: Some(wa.into()),
+                        insets: None,
+                    })
+                    .collect();
+                Ok(MonitorLayout {
+                    schema_version: 1,
+                    monitors,
+                    note: None,
+                })
+            }
+        }
         async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
             Ok(self.windows.clone())
         }
@@ -141,6 +189,7 @@ mod tests {
     async fn test_run_query_pointer() {
         let backend = MockQueryBackend {
             workareas: vec![],
+            layout: None,
             windows: vec![],
             cursor: (100, 200),
         };
@@ -151,6 +200,7 @@ mod tests {
     async fn test_run_query_windows_table_and_json() {
         let backend = MockQueryBackend {
             workareas: vec![],
+            layout: None,
             windows: vec![
                 WindowMetadata {
                     id: Some(706192865),
@@ -204,6 +254,34 @@ mod tests {
                 width: 1920,
                 height: 1080,
             }],
+            layout: Some(MonitorLayout {
+                schema_version: 1,
+                monitors: vec![MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".to_string()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: Some(LayoutInsets {
+                        top: 40,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                    }),
+                }],
+                note: Some("Testing note".to_string()),
+            }),
             windows: vec![],
             cursor: (0, 0),
         };
@@ -219,37 +297,85 @@ mod tests {
 
     #[test]
     fn test_characterization_query_layout_json_schema() {
-        let workareas = vec![
-            Rect {
-                x: 0,
-                y: 32,
-                width: 1920,
-                height: 1048,
-            },
-            Rect {
-                x: 1920,
-                y: 0,
-                width: 2560,
-                height: 1440,
-            },
-        ];
-        let json_str = serde_json::to_string(&workareas).unwrap();
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".to_string()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 32,
+                        w: 1920,
+                        h: 1048,
+                    }),
+                    insets: Some(LayoutInsets {
+                        top: 32,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                    }),
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("HDMI-1".to_string()),
+                    primary: false,
+                    scale: Some(1.25),
+                    screen: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 2560,
+                        h: 1440,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 2560,
+                        h: 1440,
+                    }),
+                    insets: Some(LayoutInsets {
+                        top: 0,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                    }),
+                },
+            ],
+            note: None,
+        };
+        let json_str = serde_json::to_string(&layout).unwrap();
         let val: serde_json::Value = serde_json::from_str(&json_str).unwrap();
 
-        assert!(val.is_array());
-        let arr = val.as_array().unwrap();
-        assert_eq!(arr.len(), 2);
+        assert_eq!(val["schema_version"], 1);
+        let monitors = val["monitors"].as_array().unwrap();
+        assert_eq!(monitors.len(), 2);
 
-        // Check exact schema keys
-        assert_eq!(arr[0]["x"], 0);
-        assert_eq!(arr[0]["y"], 32);
-        assert_eq!(arr[0]["width"], 1920);
-        assert_eq!(arr[0]["height"], 1048);
-
-        assert_eq!(arr[1]["x"], 1920);
-        assert_eq!(arr[1]["y"], 0);
-        assert_eq!(arr[1]["width"], 2560);
-        assert_eq!(arr[1]["height"], 1440);
+        // Check exact schema keys and values
+        assert_eq!(monitors[0]["index"], 0);
+        assert_eq!(monitors[0]["name"], "DP-1");
+        assert_eq!(monitors[0]["primary"], true);
+        assert_eq!(monitors[0]["scale"], 1.0);
+        assert_eq!(monitors[0]["screen"]["x"], 0);
+        assert_eq!(monitors[0]["screen"]["y"], 0);
+        assert_eq!(monitors[0]["screen"]["w"], 1920);
+        assert_eq!(monitors[0]["screen"]["h"], 1080);
+        assert_eq!(monitors[0]["workarea"]["x"], 0);
+        assert_eq!(monitors[0]["workarea"]["y"], 32);
+        assert_eq!(monitors[0]["workarea"]["w"], 1920);
+        assert_eq!(monitors[0]["workarea"]["h"], 1048);
+        assert_eq!(monitors[0]["insets"]["top"], 32);
+        assert_eq!(monitors[0]["insets"]["right"], 0);
+        assert_eq!(monitors[0]["insets"]["bottom"], 0);
+        assert_eq!(monitors[0]["insets"]["left"], 0);
+        assert!(val.get("note").is_none());
     }
 
     #[test]

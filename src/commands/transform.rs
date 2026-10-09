@@ -36,17 +36,37 @@ pub async fn run_transform(
     };
     let target_win = target::resolve_target(&windows, &selector)?;
 
-    // 2. Query active workareas and cursor coordinates
-    let workareas = backend.get_workareas().await?;
+    // 2. Protocol version check and boundary resolution
+    if args.geometry.area == geometry::Area::Screen {
+        if let Some(v) = backend.protocol_version().await {
+            if v < 4 {
+                return Err(format!(
+                    "extension is older than the CLI expects (protocol {}, need 4): run `spawn-at install` and log out and back in",
+                    v
+                )
+                .into());
+            }
+        }
+    }
+
+    let boundary_rects = if args.geometry.area == geometry::Area::Screen {
+        backend.get_monitors().await?
+    } else {
+        backend.get_workareas().await?
+    };
     let (cursor_x, cursor_y) = backend.get_cursor_position().await?;
 
-    // 3. Resolve target workarea from --monitor (or cursor location if --anchor cursor / --monitor cursor)
+    // 3. Resolve target boundary from --monitor (or cursor location if --anchor cursor / --monitor cursor)
     let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
-    let target_workarea =
+    let target_boundary =
         if is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-            geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor")?
+            geometry::resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor")?
         } else {
-            geometry::resolve_workarea(&workareas, (cursor_x, cursor_y), &args.geometry.monitor)?
+            geometry::resolve_workarea(
+                &boundary_rects,
+                (cursor_x, cursor_y),
+                &args.geometry.monitor,
+            )?
         };
 
     // 4. Calculate target position and size via geometry solver
@@ -78,7 +98,7 @@ pub async fn run_transform(
         margin_right: args.geometry.margin_right,
         area: Some(args.geometry.area),
         cursor_pos: Some((cursor_x, cursor_y)),
-        workarea: target_workarea,
+        workarea: target_boundary,
         clamp: args.geometry.clamp,
     };
 

@@ -31,6 +31,9 @@ export const DBUS_IFACE = `
     <method name="GetWorkareas">
       <arg type="s" name="json_layout" direction="out"/>
     </method>
+    <method name="GetLayout">
+      <arg type="s" name="json_layout" direction="out"/>
+    </method>
     <method name="GetWindows">
       <arg type="s" name="json_windows" direction="out"/>
     </method>

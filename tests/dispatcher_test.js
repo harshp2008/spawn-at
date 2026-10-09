@@ -21,7 +21,9 @@ globalThis.global = {
         get_n_monitors: () => 1,
         get_monitor_geometry: () => ({ x: 0, y: 0, width: 1920, height: 1080 }),
         get_workspace_manager: () => ({
-            get_active_workspace: () => ({}),
+            get_active_workspace: () => ({
+                get_work_area_for_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }),
+            }),
         }),
         get_tab_list: () => [],
         unset_input_focus: () => {},
@@ -296,9 +298,23 @@ test('dispatcher: emits SpawnClaimed signal with failure status on error', async
     ext.disable();
 });
 
-test('dispatcher: ProtocolVersion property is 3', () => {
+test('dispatcher: ProtocolVersion property is 4', () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
-    assert.equal(ext.ProtocolVersion, 3);
+    assert.equal(ext.ProtocolVersion, 4);
+});
+
+test('dispatcher: GetLayout returns schema_version 1 monitors', () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    const jsonStr = ext.GetLayout();
+    const layout = JSON.parse(jsonStr);
+    assert.equal(layout.schema_version, 1);
+    assert.ok(Array.isArray(layout.monitors));
+    assert.equal(layout.monitors.length, 1);
+    const m = layout.monitors[0];
+    assert.equal(m.index, 0);
+    assert.equal(m.primary, true);
+    assert.deepEqual(m.screen, { x: 0, y: 0, w: 1920, h: 1080 });
+    assert.deepEqual(m.workarea, { x: 0, y: 40, w: 1920, h: 1040 });
 });
 
 test('dispatcher: CloseWindow deletes target window gracefully', () => {

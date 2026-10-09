@@ -157,23 +157,34 @@ fn probe_layout(bin_path: &Path) -> Result<(usize, Option<Rect>), String> {
     let parsed: serde_json::Value = serde_json::from_slice(&output.stdout)
         .map_err(|e| format!("Failed to parse layout json: {}", e))?;
 
-    let monitors_count = parsed
-        .get("monitors")
-        .and_then(|m| m.as_array())
-        .map(|a| a.len())
-        .unwrap_or(1);
+    let monitors_arr = parsed.get("monitors").and_then(|m| m.as_array());
+    let monitors_count = monitors_arr.map(|a| a.len()).unwrap_or(1);
 
-    let primary_workarea = parsed
-        .get("workareas")
-        .and_then(|w| w.as_array())
-        .and_then(|a| a.first())
-        .and_then(|val| {
+    let primary_workarea = if let Some(monitors) = monitors_arr {
+        let m = monitors
+            .iter()
+            .find(|m| m.get("primary").and_then(|p| p.as_bool()).unwrap_or(false))
+            .or_else(|| monitors.first());
+        m.and_then(|m| m.get("workarea")).and_then(|val| {
             let x = val.get("x")?.as_i64()? as i32;
             let y = val.get("y")?.as_i64()? as i32;
             let w = val.get("w")?.as_u64()? as u32;
             let h = val.get("h")?.as_u64()? as u32;
             Some(Rect::new(x, y, w, h))
-        });
+        })
+    } else {
+        parsed
+            .get("workareas")
+            .and_then(|w| w.as_array())
+            .and_then(|a| a.first())
+            .and_then(|val| {
+                let x = val.get("x")?.as_i64()? as i32;
+                let y = val.get("y")?.as_i64()? as i32;
+                let w = val.get("w")?.as_u64()? as u32;
+                let h = val.get("h")?.as_u64()? as u32;
+                Some(Rect::new(x, y, w, h))
+            })
+    };
 
     Ok((monitors_count, primary_workarea))
 }

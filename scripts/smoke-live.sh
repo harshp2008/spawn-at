@@ -23,10 +23,10 @@ echo "========================================================"
 LAYOUT_JSON=$("$BIN" query layout --json)
 echo "Active layout: $LAYOUT_JSON"
 
-WA_X=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)[0]['x'])")
-WA_Y=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)[0]['y'])")
-WA_W=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)[0]['width'])")
-WA_H=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; print(json.load(sys.stdin)[0]['height'])")
+WA_X=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); wa = data['monitors'][0]['workarea'] if 'monitors' in data else data[0]; print(wa['x'])")
+WA_Y=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); wa = data['monitors'][0]['workarea'] if 'monitors' in data else data[0]; print(wa['y'])")
+WA_W=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); wa = data['monitors'][0]['workarea'] if 'monitors' in data else data[0]; print(wa.get('w', wa.get('width')))")
+WA_H=$(echo "$LAYOUT_JSON" | python3 -c "import sys, json; data = json.load(sys.stdin); wa = data['monitors'][0]['workarea'] if 'monitors' in data else data[0]; print(wa.get('h', wa.get('height')))")
 
 echo "Target workarea: ($WA_X, $WA_Y) ${WA_W}x${WA_H}"
 echo ""

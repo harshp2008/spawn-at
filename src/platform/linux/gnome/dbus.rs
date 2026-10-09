@@ -14,6 +14,7 @@ pub trait SpawnAt {
     fn get_cursor(&self) -> zbus::Result<(i32, i32)>;
     fn get_pointer(&self) -> zbus::Result<(i32, i32)>;
     fn get_workareas(&self) -> zbus::Result<String>;
+    fn get_layout(&self) -> zbus::Result<String>;
     fn get_windows(&self) -> zbus::Result<String>;
     fn move_window(&self, app_id: &str, x: i32, y: i32) -> zbus::Result<()>;
     fn focus_window(&self, target: &str) -> zbus::Result<bool>;

@@ -12,7 +12,7 @@ use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
-    check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic, Rect,
+    check_geometry_diagnostics, resolve_workarea, Anchor, Area, GeometryDiagnostic, Rect,
 };
 use std::time::Duration;
 
@@ -48,14 +48,33 @@ pub async fn run_spawn(
     // 1. Calculate target geometry parameters
     let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
     let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
-    let workareas = driver.get_workareas().await.unwrap_or_default();
 
-    let target_workarea =
+    if spawn_args.geometry.area == Area::Screen {
+        if let Some(v) = driver.protocol_version().await {
+            if v < 4 {
+                return Err(DriverError::Execution(
+                    format!(
+                        "extension is older than the CLI expects (protocol {}, need 4): run `spawn-at install` and log out and back in",
+                        v
+                    )
+                    .into(),
+                ));
+            }
+        }
+    }
+
+    let boundary_rects = if spawn_args.geometry.area == Area::Screen {
+        driver.get_monitors().await.unwrap_or_default()
+    } else {
+        driver.get_workareas().await.unwrap_or_default()
+    };
+
+    let target_boundary =
         if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-            resolve_workarea(&workareas, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+            resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor").unwrap_or_default()
         } else {
             resolve_workarea(
-                &workareas,
+                &boundary_rects,
                 (cursor_x, cursor_y),
                 &spawn_args.geometry.monitor,
             )
@@ -86,7 +105,7 @@ pub async fn run_spawn(
         margin_right: spawn_args.geometry.margin_right,
         area: Some(spawn_args.geometry.area),
         cursor_pos: Some((cursor_x, cursor_y)),
-        workarea: target_workarea,
+        workarea: target_boundary,
         clamp: spawn_args.geometry.clamp,
     };
 

@@ -2,7 +2,7 @@
 
 use super::atoms::{x11_debug, Atoms};
 use super::process::is_process_descendant;
-use crate::platform::{DriverError, Rect, WindowMetadata};
+use crate::platform::{DriverError, LayoutRect, MonitorInfo, MonitorLayout, Rect, WindowMetadata};
 use crate::target::{self, WindowSelector};
 use x11rb::connection::Connection;
 use x11rb::protocol::randr::ConnectionExt as _;
@@ -139,6 +139,85 @@ impl X11Session {
             }
         }
         self.fetch_monitors()
+    }
+
+    /// Queries comprehensive monitor layout: RANDR screen rectangles and _NET_WORKAREA per-monitor approximations.
+    pub fn fetch_layout(&self) -> Result<MonitorLayout, DriverError> {
+        let screens = self.fetch_monitors()?;
+        let global_wa = if let Ok(cookie) = self.conn.get_property(
+            false,
+            self.root,
+            self.atoms._NET_WORKAREA,
+            AtomEnum::CARDINAL,
+            0,
+            4,
+        ) {
+            cookie.reply().ok().and_then(|reply| {
+                let mut iter = reply.value32()?;
+                let (x, y, w, h) = (iter.next()?, iter.next()?, iter.next()?, iter.next()?);
+                Some(Rect {
+                    x: x as i32,
+                    y: y as i32,
+                    width: w,
+                    height: h,
+                })
+            })
+        } else {
+            None
+        };
+
+        let monitors = screens
+            .into_iter()
+            .enumerate()
+            .map(|(i, screen_rect)| {
+                let wa = if let Some(g) = global_wa {
+                    let rx = screen_rect.x.max(g.x);
+                    let ry = screen_rect.y.max(g.y);
+                    let r_right =
+                        (screen_rect.x + screen_rect.width as i32).min(g.x + g.width as i32);
+                    let r_bottom =
+                        (screen_rect.y + screen_rect.height as i32).min(g.y + g.height as i32);
+                    let rw = if r_right > rx {
+                        (r_right - rx) as u32
+                    } else {
+                        screen_rect.width
+                    };
+                    let rh = if r_bottom > ry {
+                        (r_bottom - ry) as u32
+                    } else {
+                        screen_rect.height
+                    };
+                    LayoutRect {
+                        x: rx,
+                        y: ry,
+                        w: rw,
+                        h: rh,
+                    }
+                } else {
+                    LayoutRect::from(screen_rect)
+                };
+
+                let screen_layout = LayoutRect::from(screen_rect);
+                let insets = MonitorInfo::compute_insets(Some(screen_layout), Some(wa));
+                MonitorInfo {
+                    index: i,
+                    name: None,
+                    primary: i == 0,
+                    scale: None,
+                    screen: Some(screen_layout),
+                    workarea: Some(wa),
+                    insets,
+                }
+            })
+            .collect();
+
+        Ok(MonitorLayout {
+            schema_version: 1,
+            monitors,
+            note: Some(
+                "Per-monitor work area is an approximation derived from _NET_WORKAREA.".to_string(),
+            ),
+        })
     }
 
     /// Queries all open windows on the X11 server via `_NET_CLIENT_LIST`.

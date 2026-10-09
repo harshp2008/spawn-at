@@ -37,9 +37,16 @@ Both implementations adhere to the **identical D-Bus interface specification (`P
 
 Both trees implement the exact same D-Bus contract:
 - **Interface:** `org.gnome.Shell.Extensions.SpawnAt`
-- **ProtocolVersion:** `2` (uint32 property)
+- **ProtocolVersion:** `4` (uint32 property; bumped from 2 to 3 for CloseWindow, and 3 to 4 for GetLayout)
 - **Signal:** `SpawnClaimed(target_id: s, success: b, window_id: t, x: i, y: i, w: u, h: u, size_raised: b, error: s)`
-- **Methods:** `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `SetLogging`.
+- **Methods:** `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `SetLogging`, `CloseWindow`.
+
+### 3.1 Unverified Meta APIs on GNOME 42–44
+In `GetLayout()`, several monitor introspection APIs differ or are optional across Mutter versions:
+- `global.display.get_monitor_scale(index)`: Marked **UNVERIFIED on GNOME 42–44**. Mutter's monitor scaling introspection API evolved during the GNOME 42 to 45 transition. It is guarded with optional chaining / existence checks and falls back safely to `null`.
+- `global.backend.get_monitor_manager().get_monitors()[i].get_connector()`: Marked **UNVERIFIED on GNOME 42–44**. Connector naming via `MetaMonitorManager` is guarded with `_try` and falls back to `null`.
+- `Main.layoutManager.monitors[i].connector`: Checked first, but may be undefined on certain legacy configurations. Falls back to `null`.
+No guessed values are returned; any unverified or missing introspection data is reported as `null`.
 
 An automated contract parity test (`test_legacy_and_modern_dbus_xml_parity`) verifies character-for-character equivalence of the XML interface definition.
 

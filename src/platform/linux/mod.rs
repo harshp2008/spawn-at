@@ -3,8 +3,8 @@ pub mod x11;
 pub mod xdg;
 
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, PlacementParams, Rect,
-    UninstallArgs, WindowMetadata, WindowState,
+    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, MonitorLayout,
+    PlacementParams, Rect, UninstallArgs, WindowMetadata, WindowState,
 };
 use x11rb::connection::Connection as _;
 
@@ -185,6 +185,14 @@ impl CompositorBackend for LinuxBackend {
         self.driver.get_windows().await
     }
 
+    async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+        self.driver.get_layout().await
+    }
+
+    async fn protocol_version(&self) -> Option<u32> {
+        self.driver.protocol_version().await
+    }
+
     async fn transform_window(
         &self,
         target_id: &str,
@@ -247,7 +255,7 @@ impl CompositorBackend for LinuxBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::platform::ClaimSubscription;
+    use crate::platform::{ClaimSubscription, LayoutInsets, LayoutRect, MonitorInfo};
     use std::sync::{Arc, Mutex};
 
     #[derive(Default)]
@@ -392,6 +400,43 @@ mod tests {
                 maximized: false,
                 minimized: false,
             }])
+        }
+
+        async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+            self.tracker.record("get_layout");
+            Ok(MonitorLayout {
+                schema_version: 1,
+                monitors: vec![MonitorInfo {
+                    index: 0,
+                    name: Some("mock".to_string()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: Some(LayoutInsets {
+                        top: 40,
+                        right: 0,
+                        bottom: 0,
+                        left: 0,
+                    }),
+                }],
+                note: None,
+            })
+        }
+
+        async fn protocol_version(&self) -> Option<u32> {
+            self.tracker.record("protocol_version");
+            Some(4)
         }
 
         async fn transform_window(
@@ -560,6 +605,16 @@ mod tests {
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].id, Some(999));
         assert!(tracker.has_called("get_windows"));
+
+        // 14a. get_layout
+        let layout = backend.get_layout().await.unwrap();
+        assert_eq!(layout.schema_version, 1);
+        assert_eq!(layout.monitors.len(), 1);
+        assert!(tracker.has_called("get_layout"));
+
+        // 14b. protocol_version
+        assert_eq!(backend.protocol_version().await, Some(4));
+        assert!(tracker.has_called("protocol_version"));
 
         // 15. transform_window
         let dummy_params = PlacementParams::default();

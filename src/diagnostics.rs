@@ -3,7 +3,7 @@
 //! Provides typed diagnostic messages and a unified reporting pipeline for both
 //! `spawn` and `transform` commands across all platforms.
 
-use spawn_at_core::geometry::{calculate_rect_from_placement, PlacementParams, Rect};
+use spawn_at_core::geometry::{calculate_rect_from_placement, Area, PlacementParams, Rect};
 use std::io::IsTerminal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,6 +135,7 @@ pub enum Diagnostic {
         expected_pos: (i32, i32),
         requested_size: Option<(u32, u32)>,
         clamped_to_workarea: bool,
+        area: Option<Area>,
     },
     /// Window placed off-screen because clamping was disabled (`--clamp false`).
     OffScreenUnclamped {
@@ -251,7 +252,12 @@ impl Diagnostic {
                 expected_pos,
                 requested_size,
                 clamped_to_workarea,
+                area,
             } => {
+                let area_str = match area {
+                    Some(Area::Screen) => "screen",
+                    _ => "work area",
+                };
                 if *clamped_to_workarea {
                     if let Some(req) = requested_size {
                         if req.0 != actual_size.0 || req.1 != actual_size.1 {
@@ -265,15 +271,15 @@ impl Diagnostic {
                                 expected_pos.1
                             );
                             msg.push_str(&format!(
-                                " Final size differs from the requested size ({}x{}); clamped to the work area.",
-                                req.0, req.1
+                                " Final size differs from the requested size ({}x{}); clamped to the {}.",
+                                req.0, req.1, area_str
                             ));
                             return msg;
                         }
                     }
                     format!(
-                        "Requested ({}, {}); clamped to ({}, {}) inside the work area.",
-                        expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1
+                        "Requested ({}, {}); clamped to ({}, {}) inside the {}.",
+                        expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1, area_str
                     )
                 } else {
                     let mut msg = format!(
@@ -362,6 +368,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 expected_pos: (req_x, req_y),
                 requested_size: params.size,
                 clamped_to_workarea: true,
+                area: params.area,
             });
             return diags;
         }
@@ -431,6 +438,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 expected_pos: (expected_for_requested.x, expected_for_requested.y),
                 requested_size: params.size,
                 clamped_to_workarea: params.clamp,
+                area: params.area,
             });
         }
     }
@@ -564,6 +572,7 @@ mod tests {
                 expected_pos,
                 requested_size,
                 clamped_to_workarea,
+                ..
             } => {
                 assert_eq!(*actual_pos, (0, 40));
                 assert_eq!(*actual_size, (1920, 1040));
@@ -578,6 +587,20 @@ mod tests {
         assert!(msg.contains(
             "Final size differs from the requested size (30x30); clamped to the work area."
         ));
+    }
+
+    #[test]
+    fn test_diagnostic_screen_area_clamped() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (16, 16),
+            actual_size: (367, 514),
+            expected_pos: (100, 0),
+            requested_size: Some((367, 514)),
+            clamped_to_workarea: true,
+            area: Some(Area::Screen),
+        };
+        let msg = diag.format_message();
+        assert!(msg.contains("Requested (100, 0); clamped to (16, 16) inside the screen."));
     }
 
     #[test]

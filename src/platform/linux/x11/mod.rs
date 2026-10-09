@@ -18,8 +18,8 @@ pub use atoms::Atoms;
 pub use session::X11Session;
 
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, PlacementParams, Rect, WindowMetadata,
-    WindowState,
+    Armed, Batch, CompositorBackend, Driver, DriverError, MonitorLayout, PlacementParams, Rect,
+    WindowMetadata, WindowState,
 };
 use x11rb::connection::Connection as _;
 use x11rb::protocol::xproto::{
@@ -121,6 +121,16 @@ impl CompositorBackend for X11Driver {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
             session.fetch_windows()
+        })
+        .await
+        .map_err(|e| DriverError::Execution(e.into()))?
+    }
+
+    /// Queries monitor layout: screen rectangles from RANDR and approximate per-monitor work areas from _NET_WORKAREA.
+    async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+        tokio::task::spawn_blocking(|| {
+            let session = X11Session::connect()?;
+            session.fetch_layout()
         })
         .await
         .map_err(|e| DriverError::Execution(e.into()))?

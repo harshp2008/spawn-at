@@ -1012,7 +1012,7 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
 
     get ProtocolVersion() {
-        return 3;
+        return 4;
     }
 
     DisarmSpawn(target_id) {
@@ -1111,6 +1111,38 @@ export default class SpawnAtExtension extends Extension {
             areas.push({ x: rect.x, y: rect.y, w: rect.width, h: rect.height });
         }
         return JSON.stringify(areas);
+    }
+
+    GetLayout() {
+        const workspace = global.display.get_workspace_manager().get_active_workspace();
+        const count = global.display.get_n_monitors();
+        const primaryIndex = this._try(() => global.display.get_primary_monitor(), 0);
+        const monitors = [];
+
+        for (let i = 0; i < count; i++) {
+            const screenGeom = this._try(() => global.display.get_monitor_geometry(i), null);
+            const waGeom = this._try(() => workspace.get_work_area_for_monitor(i), null);
+            const scale = this._try(() => global.display.get_monitor_scale?.(i), null);
+            const name = this._try(() => {
+                if (typeof Main !== 'undefined' && Main.layoutManager?.monitors?.[i]?.connector)
+                    return Main.layoutManager.monitors[i].connector;
+                const mm = global.backend?.get_monitor_manager?.();
+                return mm?.get_monitors?.()?.[i]?.get_connector?.() || null;
+            }, null);
+
+            monitors.push({
+                index: i,
+                name: name || null,
+                primary: i === primaryIndex,
+                scale: typeof scale === 'number' ? scale : null,
+                screen: screenGeom ? { x: screenGeom.x, y: screenGeom.y, w: screenGeom.width, h: screenGeom.height } : null,
+                workarea: waGeom ? { x: waGeom.x, y: waGeom.y, w: waGeom.width, h: waGeom.height } : null,
+            });
+        }
+        return JSON.stringify({
+            schema_version: 1,
+            monitors,
+        });
     }
 
     GetWindows() {
