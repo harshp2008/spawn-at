@@ -161,7 +161,23 @@ impl Diagnostic {
             Diagnostic::PlacedSuccess { .. } => DiagnosticLevel::Info,
             Diagnostic::SizeRaisedToMinimum { .. } => DiagnosticLevel::Info,
             Diagnostic::FinalSizeDiffers { .. } => DiagnosticLevel::Info,
-            Diagnostic::PositionNotReached { .. } => DiagnosticLevel::Warning,
+            Diagnostic::PositionNotReached {
+                clamped_to_workarea,
+                requested_size,
+                actual_size,
+                ..
+            } => {
+                if *clamped_to_workarea {
+                    if let Some(req) = requested_size {
+                        if req.0 != actual_size.0 || req.1 != actual_size.1 {
+                            return DiagnosticLevel::Warning;
+                        }
+                    }
+                    DiagnosticLevel::Info
+                } else {
+                    DiagnosticLevel::Warning
+                }
+            }
             Diagnostic::OffScreenUnclamped { .. } => DiagnosticLevel::Warning,
             Diagnostic::WindowNeverMapped { .. } => DiagnosticLevel::Warning,
             Diagnostic::ReusedExistingWindow { .. } => DiagnosticLevel::Warning,
@@ -683,14 +699,14 @@ mod tests {
         let diags_0_40 =
             evaluate_placement_diagnostics_for_action(&params_0_40, actual_0_40, None, false, true);
         assert_eq!(diags_0_40.len(), 1);
-        assert_eq!(diags_0_40[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(diags_0_40[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_0_40[0].message_body(),
             "Requested (0, 40); clamped to (16, 56) inside the work area."
         );
         assert_eq!(
             diags_0_40[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] WARNING: Requested (0, 40); clamped to (16, 56) inside the work area."
+            "[spawn-at] INFO: Requested (0, 40); clamped to (16, 56) inside the work area."
         );
 
         // 2. `transform --pos 5000 5000` lands at (1537, 550)
@@ -716,14 +732,14 @@ mod tests {
         let diags_5000 =
             evaluate_placement_diagnostics_for_action(&params_5000, actual_5000, None, false, true);
         assert_eq!(diags_5000.len(), 1);
-        assert_eq!(diags_5000[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(diags_5000[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_5000[0].message_body(),
             "Requested (5000, 5000); clamped to (1537, 550) inside the work area."
         );
         assert_eq!(
             diags_5000[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] WARNING: Requested (5000, 5000); clamped to (1537, 550) inside the work area."
+            "[spawn-at] INFO: Requested (5000, 5000); clamped to (1537, 550) inside the work area."
         );
     }
 
