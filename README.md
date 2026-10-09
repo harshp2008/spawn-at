@@ -210,7 +210,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `--area` | `workarea` (default) or `screen`. |
 | `-m, --margin <PX>` | Margin on all sides (default 16). |
 | `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
-| `--clamp <true\|false>` | Keep the window inside the area (default true). |
+| `--clamp <true\|false>` | Keeps the window inside the work area minus the margin, for both anchors and `--pos` (default true). |
 | `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
 | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
 | `--no-wait` | Exit without waiting for the compositor. |

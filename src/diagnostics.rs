@@ -110,7 +110,11 @@ pub fn render_error(msg: &str) {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Diagnostic {
     /// Window mapped/transformed successfully at target position and size.
-    PlacedSuccess { pos: (i32, i32), size: (u32, u32) },
+    PlacedSuccess {
+        pos: (i32, i32),
+        size: (u32, u32),
+        is_transform: bool,
+    },
     /// The requested size was below toolkit minimums and was expanded.
     SizeRaisedToMinimum {
         requested: (u32, u32),
@@ -166,11 +170,22 @@ impl Diagnostic {
 
     pub fn message_body(&self) -> String {
         match self {
-            Diagnostic::PlacedSuccess { pos, size } => {
-                format!(
-                    "Window mapped at final size ({}x{}) and positioned at ({}, {}).",
-                    size.0, size.1, pos.0, pos.1
-                )
+            Diagnostic::PlacedSuccess {
+                pos,
+                size,
+                is_transform,
+            } => {
+                if *is_transform {
+                    format!(
+                        "Window transformed at final size ({}x{}) and positioned at ({}, {}).",
+                        size.0, size.1, pos.0, pos.1
+                    )
+                } else {
+                    format!(
+                        "Window mapped at final size ({}x{}) and positioned at ({}, {}).",
+                        size.0, size.1, pos.0, pos.1
+                    )
+                }
             }
             Diagnostic::SizeRaisedToMinimum {
                 requested,
@@ -221,18 +236,18 @@ impl Diagnostic {
                 requested_size,
                 clamped_to_workarea,
             } => {
-                let mut msg = format!(
-                    "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
-                    actual_pos.0,
-                    actual_pos.1,
-                    actual_size.0,
-                    actual_size.1,
-                    expected_pos.0,
-                    expected_pos.1
-                );
                 if *clamped_to_workarea {
                     if let Some(req) = requested_size {
                         if req.0 != actual_size.0 || req.1 != actual_size.1 {
+                            let mut msg = format!(
+                                "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                                actual_pos.0,
+                                actual_pos.1,
+                                actual_size.0,
+                                actual_size.1,
+                                expected_pos.0,
+                                expected_pos.1
+                            );
                             msg.push_str(&format!(
                                 " Final size differs from the requested size ({}x{}); clamped to the work area.",
                                 req.0, req.1
@@ -240,11 +255,32 @@ impl Diagnostic {
                             return msg;
                         }
                     }
-                    msg.push_str(" Clamped to the work area.");
+                    format!(
+                        "Requested ({}, {}); clamped to ({}, {}) inside the work area.",
+                        expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1
+                    )
                 } else {
+                    let mut msg = format!(
+                        "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                        actual_pos.0,
+                        actual_pos.1,
+                        actual_size.0,
+                        actual_size.1,
+                        expected_pos.0,
+                        expected_pos.1
+                    );
+                    if let Some(req) = requested_size {
+                        if req.0 != actual_size.0 || req.1 != actual_size.1 {
+                            msg.push_str(&format!(
+                                " Final size differs from the requested size ({}x{}); window was not positioned at target.",
+                                req.0, req.1
+                            ));
+                            return msg;
+                        }
+                    }
                     msg.push_str(" Window was not positioned at target.");
+                    msg
                 }
-                msg
             }
             Diagnostic::OffScreenUnclamped {
                 actual_pos,
@@ -290,13 +326,30 @@ pub fn render_diagnostic(diag: &Diagnostic) {
 
 /// Evaluates a window's final placed geometry against the desired placement parameters,
 /// returning the appropriate diagnostics.
-pub fn evaluate_placement_diagnostics(
+pub fn evaluate_placement_diagnostics_for_action(
     params: &PlacementParams,
     actual_rect: Rect,
     min_size: Option<(u32, u32)>,
     size_raised: bool,
+    is_transform: bool,
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
+
+    // When explicit `--pos` was requested and clamp is enabled:
+    // If the final position differs from requested because of clamping, say so through the
+    // diagnostics layer using the existing clamped-to-work-area diagnostic.
+    if let Some((req_x, req_y)) = params.pos {
+        if params.clamp && (actual_rect.x != req_x || actual_rect.y != req_y) {
+            diags.push(Diagnostic::PositionNotReached {
+                actual_pos: (actual_rect.x, actual_rect.y),
+                actual_size: (actual_rect.width, actual_rect.height),
+                expected_pos: (req_x, req_y),
+                requested_size: params.size,
+                clamped_to_workarea: true,
+            });
+            return diags;
+        }
+    }
 
     // Calculate expected position based on requested parameters
     let expected_for_requested =
@@ -343,6 +396,7 @@ pub fn evaluate_placement_diagnostics(
             diags.push(Diagnostic::PlacedSuccess {
                 pos: (actual_rect.x, actual_rect.y),
                 size: (actual_rect.width, actual_rect.height),
+                is_transform,
             });
         }
     } else {
@@ -368,14 +422,44 @@ pub fn evaluate_placement_diagnostics(
     diags
 }
 
-/// Unified entrypoint called by both `spawn` and `transform` after applying placement.
+/// Evaluates a window's final placed geometry against the desired placement parameters.
+pub fn evaluate_placement_diagnostics(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+) -> Vec<Diagnostic> {
+    evaluate_placement_diagnostics_for_action(params, actual_rect, min_size, size_raised, false)
+}
+
+/// Unified entrypoint called by `spawn` after applying placement.
 pub fn verify_and_report_placement(
     params: &PlacementParams,
     actual_rect: Rect,
     min_size: Option<(u32, u32)>,
     size_raised: bool,
 ) {
-    let diags = evaluate_placement_diagnostics(params, actual_rect, min_size, size_raised);
+    let diags = evaluate_placement_diagnostics_for_action(
+        params,
+        actual_rect,
+        min_size,
+        size_raised,
+        false,
+    );
+    for diag in diags {
+        render_diagnostic(&diag);
+    }
+}
+
+/// Unified entrypoint called by `transform` after applying placement.
+pub fn verify_and_report_transform(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+) {
+    let diags =
+        evaluate_placement_diagnostics_for_action(params, actual_rect, min_size, size_raised, true);
     for diag in diags {
         render_diagnostic(&diag);
     }
@@ -533,9 +617,8 @@ mod tests {
     }
 
     #[test]
-    fn test_spawn_and_transform_diagnostics_parity() {
-        // Both spawn and transform commands invoke evaluate_placement_diagnostics.
-        // Verify that an identical placement situation produces identical diagnostics.
+    fn test_spawn_and_transform_diagnostics_wording() {
+        // Test exact wording for spawn (mapped) vs transform (transformed)
         let params = PlacementParams {
             anchor: Some(Anchor::Center),
             size: Some((800, 600)),
@@ -551,19 +634,96 @@ mod tests {
             height: 600,
         };
 
-        let diags_spawn = evaluate_placement_diagnostics(&params, actual, None, false);
-        let diags_transform = evaluate_placement_diagnostics(&params, actual, None, false);
+        let diags_spawn =
+            evaluate_placement_diagnostics_for_action(&params, actual, None, false, false);
+        let diags_transform =
+            evaluate_placement_diagnostics_for_action(&params, actual, None, false, true);
 
-        assert_eq!(diags_spawn, diags_transform);
         assert_eq!(diags_spawn.len(), 1);
+        assert_eq!(diags_transform.len(), 1);
         assert_eq!(diags_spawn[0].level(), DiagnosticLevel::Info);
-        assert_eq!(
-            diags_spawn[0].format_message_with_capability(ColorCapability::TrueColor),
-            diags_transform[0].format_message_with_capability(ColorCapability::TrueColor)
-        );
+        assert_eq!(diags_transform[0].level(), DiagnosticLevel::Info);
+
+        // Spawn keeps original wording: "Window mapped..."
         assert_eq!(
             diags_spawn[0].format_message_with_capability(ColorCapability::Disabled),
-            diags_transform[0].format_message_with_capability(ColorCapability::Disabled)
+            "[spawn-at] INFO: Window mapped at final size (800x600) and positioned at (560, 260)."
+        );
+        // Transform uses transform-fitting wording: "Window transformed..."
+        assert_eq!(
+            diags_transform[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Window transformed at final size (800x600) and positioned at (560, 260)."
+        );
+    }
+
+    #[test]
+    fn test_clamped_explicit_pos_diagnostic_exact_text() {
+        // Live-confirmed cases on host machine:
+        // Window 367x514 on 1920x1040 at (0, 40) with margin 16.
+        // 1. `transform --pos 0 40` lands at (16, 56)
+        let params_0_40 = PlacementParams {
+            pos: Some((0, 40)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_0_40 = Rect {
+            x: 16,
+            y: 56,
+            width: 367,
+            height: 514,
+        };
+        let diags_0_40 =
+            evaluate_placement_diagnostics_for_action(&params_0_40, actual_0_40, None, false, true);
+        assert_eq!(diags_0_40.len(), 1);
+        assert_eq!(diags_0_40[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(
+            diags_0_40[0].message_body(),
+            "Requested (0, 40); clamped to (16, 56) inside the work area."
+        );
+        assert_eq!(
+            diags_0_40[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] WARNING: Requested (0, 40); clamped to (16, 56) inside the work area."
+        );
+
+        // 2. `transform --pos 5000 5000` lands at (1537, 550)
+        let params_5000 = PlacementParams {
+            pos: Some((5000, 5000)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_5000 = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        let diags_5000 =
+            evaluate_placement_diagnostics_for_action(&params_5000, actual_5000, None, false, true);
+        assert_eq!(diags_5000.len(), 1);
+        assert_eq!(diags_5000[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(
+            diags_5000[0].message_body(),
+            "Requested (5000, 5000); clamped to (1537, 550) inside the work area."
+        );
+        assert_eq!(
+            diags_5000[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] WARNING: Requested (5000, 5000); clamped to (1537, 550) inside the work area."
         );
     }
 

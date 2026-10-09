@@ -142,7 +142,7 @@ pub async fn run_transform(
         };
 
         if let Some(actual_rect) = actual_rect_opt {
-            crate::diagnostics::verify_and_report_placement(&params, actual_rect, None, false);
+            crate::diagnostics::verify_and_report_transform(&params, actual_rect, None, false);
         }
     }
 
