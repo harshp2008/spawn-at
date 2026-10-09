@@ -80,22 +80,104 @@ pub fn matches_target(win: &WindowMetadata, target_id: &str) -> bool {
         }
     }
 
-    // Class match (case-insensitive exact or reverse-DNS segment match)
-    let win_class_lower = win.class.to_lowercase();
-    let target_lower = target_id.to_lowercase();
-    if win_class_lower == target_lower {
-        return true;
-    }
-    if win_class_lower.split('.').last() == Some(target_lower.as_str()) {
+    // Class / title match using app hint matching logic
+    match_window_app_hint(target_id, &win.class, &win.title)
+}
+
+/// Matches an application hint against a window's class and title.
+///
+/// Designed to support launcher-style applications where the initial launcher process
+/// hands off to a pre-existing daemon/server process (e.g., `gnome-terminal` -> `gnome-terminal-server`,
+/// or reverse-DNS `org.gnome.Terminal` vs WM_CLASS `Gnome-terminal`), while maintaining strict
+/// filtering so non-wildcard queries do not match arbitrary unrelated windows.
+pub fn match_window_app_hint(app_hint: &str, win_class: &str, win_title: &str) -> bool {
+    let hint = app_hint.trim();
+    if hint.is_empty() || hint == "*" {
         return true;
     }
 
-    // Title match
-    if win.title.to_lowercase().contains(&target_lower) {
+    let hint_lower = hint.to_lowercase();
+    let class_lower = win_class.trim().to_lowercase();
+    let title_lower = win_title.trim().to_lowercase();
+
+    // 1. Direct class match
+    if class_lower == hint_lower {
         return true;
+    }
+
+    // 2. Reverse-DNS last segment match (e.g. "org.gnome.Calculator" <-> "calculator")
+    if let Some(last) = class_lower.split('.').next_back() {
+        if !last.is_empty() && last == hint_lower {
+            return true;
+        }
+    }
+    if let Some(last) = hint_lower.split('.').next_back() {
+        if !last.is_empty() && last == class_lower {
+            return true;
+        }
+    }
+
+    // 3. Title substring match
+    if !hint_lower.is_empty() && title_lower.contains(&hint_lower) {
+        return true;
+    }
+
+    // 4. Dot-separated multi-segment match for reverse-DNS vs hyphenated WM_CLASS
+    // (e.g., "org.gnome.Terminal" dot segments ["org", "gnome", "terminal"]
+    // matching last two segments joined as "gnome-terminal" or "gnometerminal")
+    let hint_dots: Vec<&str> = hint_lower.split('.').collect();
+    let class_dots: Vec<&str> = class_lower.split('.').collect();
+
+    if hint_dots.len() > 1 {
+        for start in 1..hint_dots.len() {
+            let trailing_hyphen = hint_dots[start..].join("-");
+            let trailing_concat = hint_dots[start..].join("");
+            if trailing_hyphen == class_lower || trailing_concat == class_lower.replace('-', "") {
+                return true;
+            }
+        }
+    }
+
+    if class_dots.len() > 1 {
+        for start in 1..class_dots.len() {
+            let trailing_hyphen = class_dots[start..].join("-");
+            let trailing_concat = class_dots[start..].join("");
+            if trailing_hyphen == hint_lower || trailing_concat == hint_lower.replace('-', "") {
+                return true;
+            }
+        }
+    }
+
+    // 5. Launcher daemon suffix normalization (e.g., "gnome-terminal-server" vs "gnome-terminal")
+    let base_hint = strip_daemon_suffix(&hint_lower);
+    let base_class = strip_daemon_suffix(&class_lower);
+
+    if base_hint != hint_lower || base_class != class_lower {
+        if base_hint == class_lower || hint_lower == base_class || base_hint == base_class {
+            return true;
+        }
+        if let Some(last) = base_class.split('.').next_back() {
+            if !last.is_empty() && last == base_hint {
+                return true;
+            }
+        }
+        if let Some(last) = base_hint.split('.').next_back() {
+            if !last.is_empty() && last == base_class {
+                return true;
+            }
+        }
     }
 
     false
+}
+
+fn strip_daemon_suffix(s: &str) -> &str {
+    s.strip_suffix("-server")
+        .or_else(|| s.strip_suffix(".server"))
+        .or_else(|| s.strip_suffix("-daemon"))
+        .or_else(|| s.strip_suffix(".daemon"))
+        .or_else(|| s.strip_suffix("-service"))
+        .unwrap_or(s)
 }
 
 /// Blocks by polling `driver.get_windows()` until a window matching the spawned process
@@ -146,22 +228,12 @@ pub async fn wait_for_spawn(
                 }
             }
 
-            // Application hint match (class exact, reverse-DNS suffix, or title substring)
-            if !app_hint_clean.is_empty() && app_hint_clean != "*" {
-                let win_class_lower = w.class.to_lowercase();
-                let hint_lower = app_hint_clean.to_lowercase();
-                if win_class_lower == hint_lower {
-                    return true;
-                }
-                if win_class_lower.split('.').last() == Some(hint_lower.as_str()) {
-                    return true;
-                }
-                if hint_lower.split('.').last() == Some(win_class_lower.as_str()) {
-                    return true;
-                }
-                if w.title.to_lowercase().contains(&hint_lower) {
-                    return true;
-                }
+            // Application hint match (class exact, reverse-DNS suffix, daemon suffix, or title substring)
+            if !app_hint_clean.is_empty()
+                && app_hint_clean != "*"
+                && match_window_app_hint(app_hint_clean, &w.class, &w.title)
+            {
+                return true;
             }
 
             // If wildcard or no app hint, any new mapped window is accepted
@@ -500,5 +572,86 @@ mod tests {
         .await;
 
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_match_window_app_hint_launcher_style_apps() {
+        // gnome-terminal-server override vs Gnome-terminal class
+        assert!(match_window_app_hint("gnome-terminal-server", "Gnome-terminal", ""));
+        // org.gnome.Terminal vs Gnome-terminal class
+        assert!(match_window_app_hint("org.gnome.Terminal", "Gnome-terminal", ""));
+        // gnome-terminal vs org.gnome.Terminal
+        assert!(match_window_app_hint("gnome-terminal", "org.gnome.Terminal", ""));
+        // Calculator reverse-DNS vs hyphenated
+        assert!(match_window_app_hint("org.gnome.Calculator", "gnome-calculator", ""));
+        assert!(match_window_app_hint("calculator", "org.gnome.Calculator", ""));
+        // Exact matches
+        assert!(match_window_app_hint("Alacritty", "alacritty", ""));
+        // Wildcards
+        assert!(match_window_app_hint("*", "Alacritty", ""));
+        assert!(match_window_app_hint("", "Alacritty", ""));
+        // Negative matches: must not falsely match
+        assert!(!match_window_app_hint("gnome-terminal-server", "Alacritty", ""));
+        assert!(!match_window_app_hint("alacritty", "Google-chrome", ""));
+        assert!(!match_window_app_hint("term", "Gnome-terminal", ""));
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_spawn_launcher_daemon_handoff() {
+        struct LauncherMockBackend;
+
+        #[async_trait::async_trait]
+        impl crate::platform::Driver for LauncherMockBackend {
+            async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+                Ok(crate::platform::Armed::default())
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl CompositorBackend for LauncherMockBackend {
+            fn name(&self) -> &'static str {
+                "LauncherMock"
+            }
+            fn resolve_id(&self, _cmd: &[String], _cls: Option<&str>) -> String {
+                "org.gnome.Terminal".into()
+            }
+            async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+                Ok(vec![
+                    WindowMetadata {
+                        id: Some(55),
+                        pid: Some(1250560), // Server daemon PID, NOT the launcher PID (1250555)
+                        title: "harsh@harsh: ~".into(),
+                        class: "Gnome-terminal".into(),
+                        x: 200,
+                        y: 200,
+                        w: 800,
+                        h: 500,
+                        focused: true,
+                        maximized: false,
+                        minimized: false,
+                    },
+                ])
+            }
+        }
+
+        let backend = LauncherMockBackend;
+        let mut pre_existing = std::collections::HashSet::new();
+        pre_existing.insert(10); // Window 55 is new
+
+        // Test with app_hint = "org.gnome.Terminal" (launcher PID 1250555 != server PID 1250560)
+        let res = wait_for_spawn(
+            &backend,
+            1250555,
+            "org.gnome.Terminal",
+            "",
+            &pre_existing,
+            Duration::from_millis(500),
+        )
+        .await;
+
+        assert!(res.is_ok());
+        let win = res.unwrap();
+        assert_eq!(win.id, Some(55));
+        assert_eq!(win.class, "Gnome-terminal");
     }
 }

@@ -11,7 +11,8 @@ use crate::commands::wait_for_spawn;
 use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
-    check_geometry_diagnostics, resolve_workarea, Anchor, GeometryDiagnostic,
+    calculate_rect_from_placement, check_geometry_diagnostics, resolve_workarea, Anchor,
+    GeometryDiagnostic,
 };
 use std::time::Duration;
 
@@ -105,7 +106,7 @@ pub async fn run_spawn(
         entries: vec![Entry {
             key: entry_key.clone(),
             app_hint: app_hint.clone(),
-            placement: params,
+            placement: params.clone(),
         }],
         reveal: Reveal::Together,
         focus: FocusIntent::Exclusive,
@@ -177,10 +178,37 @@ pub async fn run_spawn(
             .await
             {
                 Ok(win) => {
-                    eprintln!(
-                        "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned.",
-                        win.w, win.h
+                    let final_win = if let Some(id) = win.id {
+                        driver
+                            .get_windows()
+                            .await
+                            .ok()
+                            .and_then(|wins| wins.into_iter().find(|w| w.id == Some(id)))
+                            .unwrap_or(win)
+                    } else {
+                        win
+                    };
+
+                    let expected = calculate_rect_from_placement(
+                        &params,
+                        final_win.w as u32,
+                        final_win.h as u32,
                     );
+
+                    let x_diff = (final_win.x - expected.x).abs();
+                    let y_diff = (final_win.y - expected.y).abs();
+
+                    if x_diff <= 1 && y_diff <= 1 {
+                        eprintln!(
+                            "[spawn-at] INFO: Window mapped at final size ({}x{}) and positioned at ({}, {}).",
+                            final_win.w, final_win.h, final_win.x, final_win.y
+                        );
+                    } else {
+                        eprintln!(
+                            "\x1b[1;33m[spawn-at] Warning:\x1b[0m Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}). Window was not positioned at target.",
+                            final_win.x, final_win.y, final_win.w, final_win.h, expected.x, expected.y
+                        );
+                    }
                 }
                 Err(e) => {
                     eprintln!(

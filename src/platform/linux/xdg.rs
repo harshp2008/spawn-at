@@ -50,7 +50,7 @@ pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> 
     // Direct mapping for daemonized/split binaries where Mutter's wm_class
     // diverges from the .desktop filename or command binary
     const KNOWN_WM_CLASS_OVERRIDES: &[(&str, &str)] = &[
-        ("gnome-terminal", "gnome-terminal-server"),
+        ("gnome-terminal", "org.gnome.Terminal"),
     ];
 
     for &(bin, target_class) in KNOWN_WM_CLASS_OVERRIDES {
