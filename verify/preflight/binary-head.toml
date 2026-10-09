@@ -1,0 +1,31 @@
+id = "preflight/binary-head"
+title = "Binary version matches repository HEAD"
+description = "Verifies that the spawn-at executable under test was compiled from the exact current repository git commit, avoiding testing stale binaries."
+kind = "auto"
+required = true
+tags = ["preflight"]
+
+[requires]
+session = ["wayland", "x11"]
+backend = ["gnome", "x11"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "system:git"
+profile = "plain"
+args = ["rev-parse", "HEAD"]
+
+[action]
+command = "preflight-binary-check"
+repeatable = true
+args = []
+
+[expect]
+exit_code = 0
+stderr_absent = ["Error", "WARNING"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false

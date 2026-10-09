@@ -1,0 +1,5 @@
+name = "full"
+description = "Comprehensive verification suite executing all categories excluding manual setup."
+categories = ["preflight", "placement", "cloak", "launchers", "apps", "transform", "lifecycle", "query", "diagnostics", "resilience", "regression"]
+tags = ["!manual-setup"]
+required_only = false

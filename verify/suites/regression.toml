@@ -1,0 +1,5 @@
+name = "regression"
+description = "Regression suite testing all historical bug fixes and edge cases."
+categories = ["regression"]
+tags = []
+required_only = false

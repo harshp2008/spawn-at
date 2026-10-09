@@ -1,0 +1,44 @@
+id = "placement/bottom-right"
+title = "Bottom-right anchor placement"
+description = "Spawns a window at the bottom-right corner of the primary work area with a 16px boundary margin and validates the placed geometry against the independent arithmetic oracle."
+kind = "both"
+required = true
+tags = ["visual", "wayland-only", "gnome-only", "needs-fixture"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "45-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = ["--title", "Verify-Placement-BottomRight", "--app-id", "verify.placement.bottomright"]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--anchor", "bottom-right",
+    "--size", "400", "300",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["Error", "WARNING"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Verify the window appears precisely in the bottom-right corner of the screen with a 16px inset margin from the panel/dock edge, without jumping or repositioning."

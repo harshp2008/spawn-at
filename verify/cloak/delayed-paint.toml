@@ -1,0 +1,47 @@
+id = "cloak/delayed-paint"
+title = "Zero-flicker cold-start with delayed first paint"
+description = "Tests window cold-start masking when an application delays attaching its first graphic buffer by 150ms. Validates that the window is cloaked before map and never visible at off-target geometry."
+kind = "both"
+required = true
+tags = ["visual", "wayland-only", "gnome-only", "needs-fixture"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "45-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "delayed-paint"
+args = [
+    "--title", "Verify-Cloak-DelayedPaint",
+    "--app-id", "verify.cloak.delayedpaint",
+    "--paint-delay-ms", "150"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--anchor", "center",
+    "--size", "500", "350"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["Error", "WARNING"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = true
+
+[expect.rect]
+anchor = "center"
+size = [500, 350]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Look closely at the screen center: the window must emerge already sized at 500x350 and positioned at center. There must be zero initial flicker, center-jump, or unstyled flash in the top-left or screen origin."

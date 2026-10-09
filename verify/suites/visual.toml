@@ -1,0 +1,5 @@
+name = "visual"
+description = "Interactive visual verification tests requiring human review or screen observation."
+categories = ["placement", "cloak", "launchers", "apps", "transform"]
+tags = ["visual"]
+required_only = false
