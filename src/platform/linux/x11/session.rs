@@ -366,6 +366,14 @@ impl X11Session {
             }
         }
 
+        let state = if minimized {
+            Some("minimized".to_string())
+        } else if maximized {
+            Some("maximized".to_string())
+        } else {
+            Some("normal".to_string())
+        };
+
         Ok(WindowMetadata {
             id: Some(win as u64),
             pid,
@@ -379,6 +387,9 @@ impl X11Session {
             focused,
             maximized,
             minimized,
+            monitor: None,
+            state,
+            workspace: None,
         })
     }
 

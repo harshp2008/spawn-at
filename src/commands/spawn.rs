@@ -567,6 +567,7 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }])
         }
     }
@@ -660,6 +661,7 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }])
         }
     }

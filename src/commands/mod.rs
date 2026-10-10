@@ -515,6 +515,7 @@ mod tests {
             focused: true,
             maximized: false,
             minimized: false,
+            ..Default::default()
         };
 
         // Match by numeric window ID
@@ -573,6 +574,7 @@ mod tests {
                 focused: true,
                 maximized: is_max,
                 minimized: false,
+                ..Default::default()
             }])
         }
     }
@@ -636,6 +638,7 @@ mod tests {
                     focused: false,
                     maximized: false,
                     minimized: false,
+                    ..Default::default()
                 },
             ];
 
@@ -654,6 +657,7 @@ mod tests {
                     focused: true,
                     maximized: false,
                     minimized: false,
+                    ..Default::default()
                 });
             }
 
@@ -791,6 +795,7 @@ mod tests {
                     focused: true,
                     maximized: false,
                     minimized: false,
+                    ..Default::default()
                 }])
             }
         }
@@ -892,6 +897,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: true,
             stale_extension: false,
@@ -930,6 +936,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: true,
             stale_extension: false,
@@ -968,6 +975,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: true,
             stale_extension: true,
@@ -1011,6 +1019,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: false,
             stale_extension: false,
@@ -1050,6 +1059,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: true,
             stale_extension: false,
@@ -1095,6 +1105,7 @@ mod tests {
                 focused: false,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             }]),
             close_supported: true,
             stale_extension: false,
@@ -1146,6 +1157,7 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             };
             Self {
                 initial_rect,
@@ -1175,6 +1187,7 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                ..Default::default()
             };
             Self {
                 initial_rect,

@@ -1012,7 +1012,7 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
 
     get ProtocolVersion() {
-        return 4;
+        return 5;
     }
 
     DisarmSpawn(target_id) {
@@ -1150,6 +1150,17 @@ export default class SpawnAtExtension extends Extension {
         const windows = this._getMRUWindows(workspace);
         return JSON.stringify(windows.map(win => {
             const frame = win.get_frame_rect();
+            const ws = win.get_workspace ? win.get_workspace() : null;
+            const wsIndex = (ws && typeof ws.index === 'function') ? ws.index() : null;
+            let state = 'normal';
+            if (win.minimized) {
+                state = 'minimized';
+            } else if (this._isFullscreen(win)) {
+                state = 'fullscreen';
+            } else if (this._isMaximized(win)) {
+                state = 'maximized';
+            }
+
             return {
                 id: win.get_id ? win.get_id() : null,
                 pid: win.get_pid ? win.get_pid() : -1,
@@ -1163,6 +1174,9 @@ export default class SpawnAtExtension extends Extension {
                 focused: win.has_focus(),
                 maximized: this._isMaximized(win),
                 minimized: Boolean(win.minimized),
+                monitor: typeof win.get_monitor === 'function' ? win.get_monitor() : 0,
+                state,
+                workspace: wsIndex,
             };
         }));
     }

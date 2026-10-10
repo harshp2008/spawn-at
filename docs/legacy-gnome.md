@@ -37,7 +37,7 @@ Both implementations adhere to the **identical D-Bus interface specification (`P
 
 Both trees implement the exact same D-Bus contract:
 - **Interface:** `org.gnome.Shell.Extensions.SpawnAt`
-- **ProtocolVersion:** `4` (uint32 property; bumped from 2 to 3 for CloseWindow, and 3 to 4 for GetLayout)
+- **ProtocolVersion:** `5` (uint32 property; bumped from 2 to 3 for CloseWindow, 3 to 4 for GetLayout, and 4 to 5 for monitor/state/workspace in GetWindows)
 - **Signal:** `SpawnClaimed(target_id: s, success: b, window_id: t, x: i, y: i, w: u, h: u, size_raised: b, error: s)`
 - **Methods:** `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `SetLogging`, `CloseWindow`.
 

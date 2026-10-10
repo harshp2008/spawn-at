@@ -196,7 +196,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `focus` / `defocus` | Raise a window, or give focus away (`--to-desktop`, `--to-window <ID>`). |
 | `maximize` / `minimize` / `restore` | Change window state. |
 | `close` | Request graceful closure of a target window. |
-| `query layout\|pointer\|windows` | Print monitors, cursor position, or open windows. `--json` on layout and windows. |
+| `query layout\|pointer\|windows` | Print monitors, cursor position, or open windows (`query windows` reports `GEOMETRY` in global screen coordinates, and a maximized window sits at the work area's origin). `--json` on layout and windows. |
 | `install` / `uninstall` | Manage the binary and the GNOME Shell extension. |
 | `update` | Check for or apply releases (`--check`, `--channel`, `--force`). |
 

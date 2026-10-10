@@ -438,9 +438,24 @@ test('dispatcher: emits SpawnClaimed signal with failure status on error', async
     ext.disable();
 });
 
-test('dispatcher: ProtocolVersion property is 4', () => {
+test('dispatcher: ProtocolVersion property is 5', () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
-    assert.equal(ext.ProtocolVersion, 4);
+    assert.equal(ext.ProtocolVersion, 5);
+});
+
+test('dispatcher: GetWindows returns protocol 5 metadata (monitor, state, workspace)', () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    const { window } = createMockWindowAndActor();
+    window.get_workspace = () => ({ index: () => 1 });
+    window.minimized = false;
+    ext._getMRUWindows = () => [window];
+
+    const jsonStr = ext.GetWindows();
+    const windows = JSON.parse(jsonStr);
+    assert.equal(windows.length, 1);
+    assert.equal(windows[0].monitor, 0);
+    assert.equal(windows[0].state, 'normal');
+    assert.equal(windows[0].workspace, 1);
 });
 
 test('dispatcher: GetLayout returns schema_version 1 monitors', () => {

@@ -399,6 +399,9 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                monitor: Some(0),
+                state: Some("normal".into()),
+                workspace: Some(1),
             }])
         }
 
@@ -436,7 +439,7 @@ mod tests {
 
         async fn protocol_version(&self) -> Option<u32> {
             self.tracker.record("protocol_version");
-            Some(4)
+            Some(5)
         }
 
         async fn transform_window(
@@ -604,6 +607,9 @@ mod tests {
         let windows = backend.get_windows().await.unwrap();
         assert_eq!(windows.len(), 1);
         assert_eq!(windows[0].id, Some(999));
+        assert_eq!(windows[0].monitor, Some(0));
+        assert_eq!(windows[0].state.as_deref(), Some("normal"));
+        assert_eq!(windows[0].workspace, Some(1));
         assert!(tracker.has_called("get_windows"));
 
         // 14a. get_layout
@@ -613,7 +619,7 @@ mod tests {
         assert!(tracker.has_called("get_layout"));
 
         // 14b. protocol_version
-        assert_eq!(backend.protocol_version().await, Some(4));
+        assert_eq!(backend.protocol_version().await, Some(5));
         assert!(tracker.has_called("protocol_version"));
 
         // 15. transform_window

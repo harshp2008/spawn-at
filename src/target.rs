@@ -81,6 +81,12 @@ pub struct WindowMetadata {
     pub maximized: bool,
     #[serde(default)]
     pub minimized: bool,
+    #[serde(default)]
+    pub monitor: Option<i32>,
+    #[serde(default)]
+    pub state: Option<String>,
+    #[serde(default)]
+    pub workspace: Option<i32>,
 }
 
 /// Resolves a window target from a list of window metadata entries based on `WindowSelector` criteria.

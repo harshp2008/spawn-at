@@ -62,7 +62,25 @@ pub async fn run_query(
             println!("{}, {}", x, y);
         }
         QueryCommands::Windows { json } => {
-            let windows = backend.get_windows().await?;
+            let protocol = backend.protocol_version().await;
+            let is_older = match protocol {
+                Some(v) if v < 5 => Some(v),
+                _ => None,
+            };
+            if let Some(v) = is_older {
+                crate::diagnostics::render_info(&format!(
+                    "extension is older than the CLI expects (protocol {}, need 5): MON and STATE are unavailable; run `spawn-at install` and log out and back in",
+                    v
+                ));
+            }
+            let mut windows = backend.get_windows().await?;
+            if is_older.is_some() {
+                for w in &mut windows {
+                    w.monitor = None;
+                    w.state = None;
+                }
+            }
+
             if json {
                 println!("{}", serde_json::to_string(&windows)?);
             } else {
@@ -84,6 +102,18 @@ pub async fn run_query(
                     .max()
                     .unwrap_or(5)
                     .max(5);
+                let mon_w = windows
+                    .iter()
+                    .map(|w| w.monitor.map(|m| m.to_string().len()).unwrap_or(1))
+                    .max()
+                    .unwrap_or(3)
+                    .max(3);
+                let state_w = windows
+                    .iter()
+                    .map(|w| w.state.as_deref().unwrap_or("-").len())
+                    .max()
+                    .unwrap_or(5)
+                    .max(5);
                 let geom_w = windows
                     .iter()
                     .map(|w| format!("{}x{}@{},{}", w.w, w.h, w.x, w.y).len())
@@ -93,8 +123,8 @@ pub async fn run_query(
                 let focused_w = 7;
 
                 println!(
-                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<geom_w$}  {:<focused_w$}  TITLE",
-                    "ID", "PID", "CLASS", "GEOMETRY", "FOCUSED"
+                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<focused_w$}  TITLE",
+                    "ID", "PID", "CLASS", "MON", "STATE", "GEOMETRY", "FOCUSED"
                 );
                 for w in &windows {
                     let id_str =
@@ -104,11 +134,16 @@ pub async fn run_query(
                         .pid
                         .map(|pid| pid.to_string())
                         .unwrap_or_else(|| "-".to_string());
+                    let mon_str = w
+                        .monitor
+                        .map(|m| m.to_string())
+                        .unwrap_or_else(|| "-".to_string());
+                    let state_str = w.state.clone().unwrap_or_else(|| "-".to_string());
                     let geom_str = format!("{}x{}@{},{}", w.w, w.h, w.x, w.y);
                     let focused_str = if w.focused { "*" } else { "" };
                     println!(
-                        "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<geom_w$}  {:<focused_w$}  {}",
-                        id_str, pid_str, w.class, geom_str, focused_str, w.title
+                        "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<focused_w$}  {}",
+                        id_str, pid_str, w.class, mon_str, state_str, geom_str, focused_str, w.title
                     );
                 }
             }
@@ -129,6 +164,7 @@ mod tests {
         layout: Option<MonitorLayout>,
         windows: Vec<WindowMetadata>,
         cursor: (i32, i32),
+        protocol: Option<u32>,
     }
 
     #[async_trait::async_trait]
@@ -183,6 +219,9 @@ mod tests {
         async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
             Ok(self.windows.clone())
         }
+        async fn protocol_version(&self) -> Option<u32> {
+            self.protocol
+        }
     }
 
     #[tokio::test]
@@ -192,6 +231,7 @@ mod tests {
             layout: None,
             windows: vec![],
             cursor: (100, 200),
+            protocol: None,
         };
         assert!(run_query(&backend, QueryCommands::Pointer).await.is_ok());
     }
@@ -215,6 +255,9 @@ mod tests {
                     focused: true,
                     maximized: false,
                     minimized: false,
+                    monitor: Some(0),
+                    state: Some("normal".to_string()),
+                    workspace: Some(1),
                 },
                 WindowMetadata {
                     id: Some(706192866),
@@ -229,9 +272,13 @@ mod tests {
                     focused: false,
                     maximized: false,
                     minimized: false,
+                    monitor: Some(0),
+                    state: Some("normal".to_string()),
+                    workspace: Some(1),
                 },
             ],
             cursor: (0, 0),
+            protocol: Some(5),
         };
 
         // Human readable table output
@@ -243,6 +290,44 @@ mod tests {
         assert!(run_query(&backend, QueryCommands::Windows { json: true })
             .await
             .is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_run_query_windows_stale_extension_protocol_4_warning() {
+        crate::diagnostics::start_capturing_diagnostics();
+        let backend = MockQueryBackend {
+            workareas: vec![],
+            layout: None,
+            windows: vec![WindowMetadata {
+                id: Some(101),
+                pid: Some(202),
+                title: "Editor".to_string(),
+                class: "editor".to_string(),
+                app_id: None,
+                x: 0,
+                y: 0,
+                w: 800,
+                h: 600,
+                focused: true,
+                maximized: false,
+                minimized: false,
+                monitor: Some(0),
+                state: Some("normal".to_string()),
+                workspace: Some(1),
+            }],
+            cursor: (0, 0),
+            protocol: Some(4),
+        };
+
+        assert!(run_query(&backend, QueryCommands::Windows { json: false })
+            .await
+            .is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        assert!(diags.iter().any(|(level, msg)| {
+            *level == crate::diagnostics::DiagnosticLevel::Info
+                && msg.contains("extension is older than the CLI expects (protocol 4, need 5): MON and STATE are unavailable; run `spawn-at install` and log out and back in")
+        }));
     }
 
     #[tokio::test]
@@ -284,6 +369,7 @@ mod tests {
             }),
             windows: vec![],
             cursor: (0, 0),
+            protocol: None,
         };
 
         assert!(run_query(&backend, QueryCommands::Layout { json: false })
@@ -394,6 +480,9 @@ mod tests {
                 focused: true,
                 maximized: false,
                 minimized: false,
+                monitor: Some(0),
+                state: Some("normal".to_string()),
+                workspace: Some(1),
             },
             WindowMetadata {
                 id: None,
@@ -408,6 +497,9 @@ mod tests {
                 focused: false,
                 maximized: true,
                 minimized: false,
+                monitor: None,
+                state: Some("maximized".to_string()),
+                workspace: None,
             },
         ];
         let json_str = serde_json::to_string(&windows).unwrap();
@@ -429,9 +521,15 @@ mod tests {
         assert_eq!(arr[0]["focused"], true);
         assert_eq!(arr[0]["maximized"], false);
         assert_eq!(arr[0]["minimized"], false);
+        assert_eq!(arr[0]["monitor"], 0);
+        assert_eq!(arr[0]["state"], "normal");
+        assert_eq!(arr[0]["workspace"], 1);
 
         assert!(arr[1]["id"].is_null());
         assert!(arr[1]["pid"].is_null());
         assert_eq!(arr[1]["maximized"], true);
+        assert!(arr[1]["monitor"].is_null());
+        assert_eq!(arr[1]["state"], "maximized");
+        assert!(arr[1]["workspace"].is_null());
     }
 }

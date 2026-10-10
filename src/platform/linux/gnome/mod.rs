@@ -1381,6 +1381,59 @@ mod tests {
         fn get_workareas(&self) -> String {
             r#"[{"x": 0, "y": 40, "width": 1920, "height": 1040}]"#.to_string()
         }
+
+        fn get_windows(&self) -> String {
+            r#"[
+                {
+                    "id": 101,
+                    "pid": 202,
+                    "title": "Calculator",
+                    "class": "gnome-calculator",
+                    "app_id": "gnome-calculator",
+                    "x": 100,
+                    "y": 150,
+                    "w": 500,
+                    "h": 400,
+                    "focused": true,
+                    "maximized": false,
+                    "minimized": false
+                }
+            ]"#
+            .to_string()
+        }
+    }
+
+    struct StubProtocol5;
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubProtocol5 {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            5
+        }
+
+        fn get_windows(&self) -> String {
+            r#"[
+                {
+                    "id": 101,
+                    "pid": 202,
+                    "title": "Calculator",
+                    "class": "gnome-calculator",
+                    "app_id": "gnome-calculator",
+                    "x": 100,
+                    "y": 150,
+                    "w": 500,
+                    "h": 400,
+                    "focused": true,
+                    "maximized": false,
+                    "minimized": false,
+                    "monitor": 0,
+                    "state": "normal",
+                    "workspace": 1
+                }
+            ]"#
+            .to_string()
+        }
     }
 
     struct StubProtocol2;
@@ -1608,5 +1661,61 @@ mod tests {
         );
         assert!(layout.note.is_some());
         assert!(layout.note.unwrap().contains("protocol 3, need 4"));
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_get_windows_against_stub_protocol_5() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol5";
+        conn.object_server().at(path, StubProtocol5).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert_eq!(driver.protocol_version().await, Some(5));
+
+        let windows = driver.get_windows().await.unwrap();
+        assert_eq!(windows.len(), 1);
+        let win = &windows[0];
+        assert_eq!(win.id, Some(101));
+        assert_eq!(win.monitor, Some(0));
+        assert_eq!(win.state.as_deref(), Some("normal"));
+        assert_eq!(win.workspace, Some(1));
+    }
+
+    #[tokio::test]
+    async fn test_gnome_driver_get_windows_against_stub_protocol_4_older_extension() {
+        let conn = zbus::Connection::session().await.unwrap();
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestProtocol4Windows";
+        conn.object_server().at(path, StubProtocol4).await.unwrap();
+
+        let unique_name = conn.unique_name().unwrap().to_owned();
+        let proxy = dbus::SpawnAtProxy::builder(&conn)
+            .destination(unique_name)
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+
+        let driver = GnomeWaylandDriver::from_proxy(proxy);
+        assert_eq!(driver.protocol_version().await, Some(4));
+
+        let windows = driver.get_windows().await.unwrap();
+        assert_eq!(windows.len(), 1);
+        let win = &windows[0];
+        assert_eq!(win.id, Some(101));
+        assert!(win.monitor.is_none());
+        assert!(win.state.is_none());
+        assert!(win.workspace.is_none());
     }
 }

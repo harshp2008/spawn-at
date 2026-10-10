@@ -13,7 +13,7 @@ pub enum QueryCommands {
     },
     /// Fetch and print current pointer coordinates
     Pointer,
-    /// Fetch and print list of all open windows with metadata
+    /// Fetch and print list of all open windows with metadata (GEOMETRY is in global screen coordinates, and a maximized window sits at the work area's origin)
     Windows {
         /// Output raw JSON instead of human-readable table
         #[arg(long)]

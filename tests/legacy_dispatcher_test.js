@@ -111,9 +111,24 @@ test('contract: interface XML parity between modern and legacy D-Bus definitions
     assert.equal(legacyIface.trim(), modernIface.trim(), 'Legacy and modern D-Bus interface XML must match character-for-character');
 });
 
-test('dispatcher (legacy): ProtocolVersion property is 4', () => {
+test('dispatcher (legacy): ProtocolVersion property is 5', () => {
     const ext = new SpawnAtExtension();
-    assert.equal(ext.ProtocolVersion, 4);
+    assert.equal(ext.ProtocolVersion, 5);
+});
+
+test('dispatcher (legacy): GetWindows returns protocol 5 metadata (monitor, state, workspace)', () => {
+    const ext = new SpawnAtExtension();
+    const { window } = createMockWindowAndActor();
+    window.get_workspace = () => ({ index: () => 1 });
+    window.minimized = false;
+    ext._getMRUWindows = () => [window];
+
+    const jsonStr = ext.GetWindows();
+    const windows = JSON.parse(jsonStr);
+    assert.equal(windows.length, 1);
+    assert.equal(windows[0].monitor, 0);
+    assert.equal(windows[0].state, 'normal');
+    assert.equal(windows[0].workspace, 1);
 });
 
 test('dispatcher (legacy): GetLayout returns schema_version 1 monitors', () => {
