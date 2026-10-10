@@ -103,8 +103,6 @@ pub fn calculate_placement(
         )
     } else if let Some(pos) = params.pos {
         (pos.0, pos.1)
-    } else if let Some(cursor) = params.cursor_pos {
-        (cursor.0, cursor.1)
     } else {
         (wa.x + margin_left, wa.y + margin_top)
     };
@@ -132,7 +130,7 @@ pub fn calculate_placement(
 
 /// Constructs the cold-start instruction pipeline for a given declarative entry.
 pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
-    let payload = calculate_placement(&entry.placement, 0, 0);
+    let has_move = entry.placement.anchor.is_some() || entry.placement.pos.is_some();
     let mut instructions = vec![Instruction::Cloak];
 
     if let Some(size) = entry.placement.size {
@@ -143,7 +141,12 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
     }
 
     instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
-    instructions.push(Instruction::SetPositionAnchored(payload));
+
+    if has_move {
+        let payload = calculate_placement(&entry.placement, 0, 0);
+        instructions.push(Instruction::SetPositionAnchored(payload));
+    }
+
     instructions.push(Instruction::Uncloak);
 
     instructions
@@ -153,6 +156,184 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
 mod tests {
     use super::*;
     use spawn_at_core::geometry::{Anchor, Area, Pivot, Rect};
+
+    #[test]
+    fn test_golden_instruction_batch_resize_only() {
+        let entry = Entry {
+            key: "test-resize-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                size: Some((500, 400)),
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300}},"Uncloak"]"#
+        );
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_pos_only() {
+        let entry = Entry {
+            key: "test-pos-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                pos: Some((100, 200)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.len(), 4);
+
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+            assert_eq!(payload.screen_anchor_x, 100);
+            assert_eq!(payload.screen_anchor_y, 200);
+            assert_eq!(payload.pivot_u, 0.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 2");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_anchor_only() {
+        let entry = Entry {
+            key: "test-anchor-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::Center),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+            assert_eq!(payload.screen_anchor_x, 1920 / 2);
+            assert_eq!(payload.screen_anchor_y, 40 + 1040 / 2);
+            assert_eq!(payload.pivot_u, 0.5);
+            assert_eq!(payload.pivot_v, 0.5);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 2");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_anchor_and_offset() {
+        let entry = Entry {
+            key: "test-anchor-offset".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::TopRight),
+                offset: Some((15, -10)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+            assert_eq!(payload.screen_anchor_x, 1920 - 16);
+            assert_eq!(payload.screen_anchor_y, 40 + 16);
+            assert_eq!(payload.pivot_u, 1.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 15);
+            assert_eq!(payload.offset_y, -10);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 2");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_cursor_no_pivot() {
+        let entry = Entry {
+            key: "test-cursor-no-pivot".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::Cursor),
+                cursor_pos: Some((500, 300)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+            assert_eq!(payload.screen_anchor_x, 500);
+            assert_eq!(payload.screen_anchor_y, 300);
+            // Must default to top-left (0.0, 0.0)
+            assert_eq!(payload.pivot_u, 0.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 2");
+        }
+    }
 
     #[test]
     fn test_golden_build_instructions_for_entry() {

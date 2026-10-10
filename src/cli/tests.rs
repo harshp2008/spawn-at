@@ -47,8 +47,8 @@ fn test_negative_size_fails_validation() {
 }
 
 #[test]
-fn test_anchor_and_pos_conflict_fails_validation() {
-    let args = vec![
+fn test_anchor_with_pos_or_offset_succeeds() {
+    let args1 = vec![
         "spawn-at",
         "transform",
         "--class",
@@ -57,12 +57,102 @@ fn test_anchor_and_pos_conflict_fails_validation() {
         "center",
         "--pos",
         "10",
+        "20",
+    ];
+    let cli1 = Cli::try_parse_from(args1).expect("Parsing anchor with pos should succeed");
+    if let Commands::Transform(t_args) = cli1.command {
+        assert!(t_args.validate().is_ok());
+        assert_eq!(t_args.geometry.pos_or_offset(), Some((10, 20)));
+    } else {
+        panic!("Expected Transform command variant");
+    }
+
+    let args2 = vec![
+        "spawn-at",
+        "transform",
+        "--class",
+        "org.gnome.Calculator",
+        "--anchor",
+        "center",
+        "-o",
+        "15",
+        "-25",
+    ];
+    let cli2 = Cli::try_parse_from(args2).expect("Parsing anchor with offset should succeed");
+    if let Commands::Transform(t_args) = cli2.command {
+        assert!(t_args.validate().is_ok());
+        assert_eq!(t_args.geometry.pos_or_offset(), Some((15, -25)));
+    } else {
+        panic!("Expected Transform command variant");
+    }
+}
+
+#[test]
+fn test_pos_and_offset_alias_conflict_fails_validation() {
+    let args = vec![
+        "spawn-at",
+        "transform",
+        "--class",
+        "org.gnome.Calculator",
+        "--pos",
         "10",
+        "10",
+        "--offset",
+        "20",
+        "20",
     ];
     let cli = Cli::try_parse_from(args).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli.command {
         let err = t_args.validate().unwrap_err();
-        assert!(err.contains("Conflicting arguments: Cannot specify both --pos and --anchor."));
+        assert!(
+            err.contains("Conflicting arguments: Cannot specify both --pos (-p) and --offset (-o)")
+        );
+    } else {
+        panic!("Expected Transform command variant");
+    }
+}
+
+#[test]
+fn test_pos_specified_multiple_times_fails() {
+    let args = vec![
+        "spawn-at",
+        "transform",
+        "--class",
+        "org.gnome.Calculator",
+        "-p",
+        "10",
+        "10",
+        "--pos",
+        "20",
+        "20",
+    ];
+    let cli = Cli::try_parse_from(args).expect("Parsing should succeed");
+    if let Commands::Transform(t_args) = cli.command {
+        let err = t_args.validate().unwrap_err();
+        assert!(err.contains("Cannot specify --pos (-p) multiple times."));
+    } else {
+        panic!("Expected Transform command variant");
+    }
+}
+
+#[test]
+fn test_offset_specified_multiple_times_fails() {
+    let args = vec![
+        "spawn-at",
+        "transform",
+        "--class",
+        "org.gnome.Calculator",
+        "-o",
+        "10",
+        "10",
+        "--offset",
+        "20",
+        "20",
+    ];
+    let cli = Cli::try_parse_from(args).expect("Parsing should succeed");
+    if let Commands::Transform(t_args) = cli.command {
+        let err = t_args.validate().unwrap_err();
+        assert!(err.contains("Cannot specify --offset (-o) multiple times."));
     } else {
         panic!("Expected Transform command variant");
     }

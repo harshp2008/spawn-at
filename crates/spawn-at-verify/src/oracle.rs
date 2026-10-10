@@ -78,6 +78,7 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
             "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb),
             "bottom" | "bottom-center" => (workarea.x + wa_w / 2, workarea.y + wa_h - mb),
             "bottom-right" => (workarea.x + wa_w - mr, workarea.y + wa_h - mb),
+            "cursor" => (workarea.x + ml, workarea.y + mt),
             other => return Err(format!("Unknown anchor '{}'", other)),
         };
 
@@ -103,7 +104,7 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
                     workarea.x + (wa_w - w_i32) / 2,
                     workarea.y + (wa_h - h_i32) / 2,
                 ),
-                "top-left" => (workarea.x + ml, workarea.y + mt),
+                "top-left" | "cursor" => (workarea.x + ml, workarea.y + mt),
                 "top-right" => (workarea.x + wa_w - mr - w_i32, workarea.y + mt),
                 "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb - h_i32),
                 "bottom-right" => (

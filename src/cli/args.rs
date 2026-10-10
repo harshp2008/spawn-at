@@ -32,15 +32,27 @@ pub struct GeometryArgs {
     #[arg(long, value_enum)]
     pub pivot: Option<Pivot>,
 
-    /// Absolute target screen coordinates [X, Y]
+    /// Absolute target screen coordinates [X, Y], or anchor offset when --anchor is specified
     #[arg(
         short = 'p',
         long,
         num_args = 2,
         value_names = ["X", "Y"],
-        allow_hyphen_values = true
+        allow_hyphen_values = true,
+        action = clap::ArgAction::Append
     )]
     pub pos: Option<Vec<i32>>,
+
+    /// Absolute target screen coordinates [X, Y], or anchor offset when --anchor is specified (alias for --pos / -p)
+    #[arg(
+        short = 'o',
+        long,
+        num_args = 2,
+        value_names = ["X", "Y"],
+        allow_hyphen_values = true,
+        action = clap::ArgAction::Append
+    )]
+    pub offset: Option<Vec<i32>>,
 
     /// Target window dimensions [W, H]
     #[arg(
@@ -110,13 +122,40 @@ impl GeometryArgs {
             }
         }
 
-        if self.anchor.is_some() && self.pos.is_some() {
+        if self.pos.is_some() && self.offset.is_some() {
             return Err(
-                "Conflicting arguments: Cannot specify both --pos and --anchor.".to_string(),
+                "Conflicting arguments: Cannot specify both --pos (-p) and --offset (-o); they are aliases for the same option.".to_string(),
             );
         }
 
+        if let Some(ref p) = self.pos {
+            if p.len() > 2 {
+                return Err("Cannot specify --pos (-p) multiple times.".to_string());
+            }
+        }
+
+        if let Some(ref o) = self.offset {
+            if o.len() > 2 {
+                return Err("Cannot specify --offset (-o) multiple times.".to_string());
+            }
+        }
+
         Ok(())
+    }
+
+    /// Returns resolved (X, Y) coordinate pair from either --pos or --offset if specified.
+    pub fn pos_or_offset(&self) -> Option<(i32, i32)> {
+        if let Some(ref p) = self.pos {
+            if p.len() == 2 {
+                return Some((p[0], p[1]));
+            }
+        }
+        if let Some(ref o) = self.offset {
+            if o.len() == 2 {
+                return Some((o[0], o[1]));
+            }
+        }
+        None
     }
 }
 
@@ -155,9 +194,7 @@ fn levenshtein(a: &str, b: &str) -> usize {
         curr[0] = i + 1;
         for (j, &cb) in b_bytes.iter().enumerate() {
             let cost = if ca == cb { 0 } else { 1 };
-            curr[j + 1] = (prev[j + 1] + 1)
-                .min(curr[j] + 1)
-                .min(prev[j] + cost);
+            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
         }
         prev.copy_from_slice(&curr);
     }
@@ -182,6 +219,7 @@ pub fn find_option_suggestion(token: &str) -> Option<&'static str> {
                 "--class",
                 "--json",
                 "--pos",
+                "--offset",
                 "--size",
                 "--anchor",
                 "--pivot",

@@ -47,7 +47,13 @@ pub async fn run_spawn(
 
     // 1. Calculate target geometry parameters
     let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
-    let (cursor_x, cursor_y) = driver.get_cursor_position().await.unwrap_or((0, 0));
+    let needs_cursor =
+        is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor");
+    let (cursor_x, cursor_y) = if needs_cursor {
+        driver.get_cursor_position().await.unwrap_or((0, 0))
+    } else {
+        (0, 0)
+    };
 
     if spawn_args.geometry.area == Area::Screen {
         if let Some(v) = driver.protocol_version().await {
@@ -69,19 +75,24 @@ pub async fn run_spawn(
         driver.get_workareas().await.unwrap_or_default()
     };
 
-    let target_boundary =
-        if is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-            resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor").unwrap_or_default()
-        } else {
-            resolve_workarea(
-                &boundary_rects,
-                (cursor_x, cursor_y),
-                &spawn_args.geometry.monitor,
-            )
-            .unwrap_or_default()
-        };
+    let target_boundary = if needs_cursor {
+        resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+    } else {
+        resolve_workarea(
+            &boundary_rects,
+            (cursor_x, cursor_y),
+            &spawn_args.geometry.monitor,
+        )
+        .unwrap_or_default()
+    };
 
-    let pos = spawn_args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
+    let pos_or_offset = spawn_args.geometry.pos_or_offset();
+    let (pos, offset) = if spawn_args.geometry.anchor.is_some() {
+        (None, pos_or_offset)
+    } else {
+        (pos_or_offset, None)
+    };
+
     let size = spawn_args.geometry.size.as_ref().and_then(|s| {
         if s.len() == 2 {
             let w = s[0].parse::<u32>().ok()?;
@@ -92,9 +103,15 @@ pub async fn run_spawn(
         }
     });
 
+    let cursor_pos = if needs_cursor {
+        Some((cursor_x, cursor_y))
+    } else {
+        None
+    };
+
     let params = PlacementParams {
         pos,
-        offset: None,
+        offset,
         size,
         anchor: spawn_args.geometry.anchor,
         pivot: spawn_args.geometry.pivot,
@@ -104,7 +121,7 @@ pub async fn run_spawn(
         margin_left: spawn_args.geometry.margin_left,
         margin_right: spawn_args.geometry.margin_right,
         area: Some(spawn_args.geometry.area),
-        cursor_pos: Some((cursor_x, cursor_y)),
+        cursor_pos,
         workarea: target_boundary,
         clamp: spawn_args.geometry.clamp,
     };

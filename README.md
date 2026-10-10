@@ -202,7 +202,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 
 | Flag | Description |
 | :--- | :--- |
-| `-p, --pos <X> <Y>` | Absolute position in pixels. |
+| `-p, --pos <X> <Y>` / `-o, --offset <X> <Y>` | Absolute position in pixels, or offset from anchor when `--anchor` is specified (aliases for the same option). |
 | `-s, --size <W> <H>` | Window size in pixels. |
 | `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor`. |
 | `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
@@ -218,14 +218,13 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 
 Centering and rounding rule: Centering along an axis is computed as `origin + floor((area_size - window_size) / 2)`. An odd remainder puts the extra pixel on the right/bottom.
 
-Default pivots: When `--pivot` is omitted, each anchor defaults to its matching alignment point:
-- `center`: `center` (centered horizontally and vertically)
-- `top`: top-center (centers along the top edge)
-- `bottom`: bottom-center (centers along the bottom edge)
-- `left`: left-center (centers along the left edge)
-- `right`: right-center (centers along the right edge)
-- `top-left`, `top-right`, `bottom-left`, `bottom-right`: matching corner
-- `cursor`: `top-left`
+Placement defaults: A window moves only when requested.
+- Neither `--anchor` nor `-p`/`-o` given: no move instruction is sent. With `--size` alone: resize only (on transform the window keeps its top-left; on spawn the app opens where it opens, resized).
+- `-p` / `-o` without `--anchor`: absolute position; pivot defaults to `top-left`.
+- `-p` / `-o` with `--anchor`: offset from the anchor point.
+- `--pivot` without `--anchor` and without `-p`/`-o` on `transform`: resize around that point of the window (center keeps center fixed, bottom-right keeps that corner fixed); no move otherwise.
+- Default pivots: When `--pivot` is omitted, each anchor defaults to its matching alignment point (`center` -> `center`, `top` -> top-center, `bottom` -> bottom-center, `left` -> left-center, `right` -> right-center, corners -> matching corner, `cursor` -> `top-left`).
+- Clamping applies by default after any move or resize (if the result leaves the area, clamped inside with an INFO note; `--clamp false` disables).
 
 Margins and centering: Edge and center anchors center along their axis relative to the **whole reference area** (not the margin-inset area). Directional margins (`--mt`, `--mb`, `--ml`, `--mr`) offset the anchored boundary edge. Clamping subsequently enforces all directional margins if the window dimensions exceed the available inset bounds.
 

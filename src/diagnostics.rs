@@ -332,6 +332,38 @@ pub fn evaluate_placement_diagnostics_for_action(
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
+    let has_move = params.pos.is_some() || params.anchor.is_some();
+    if !has_move {
+        let size_differs = params
+            .size
+            .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
+
+        if size_differs {
+            let requested = params.size.unwrap();
+            if size_raised || min_size.is_some() {
+                diags.push(Diagnostic::SizeRaisedToMinimum {
+                    requested,
+                    minimum: min_size.or(Some((actual_rect.width, actual_rect.height))),
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            } else {
+                diags.push(Diagnostic::FinalSizeDiffers {
+                    requested,
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            }
+        } else {
+            diags.push(Diagnostic::PlacedSuccess {
+                pos: (actual_rect.x, actual_rect.y),
+                size: (actual_rect.width, actual_rect.height),
+                is_transform,
+            });
+        }
+        return diags;
+    }
+
     // The expected position must be computed with the ACTUAL final size and the same clamp/anchor/area
     let mut params_for_actual = params.clone();
     params_for_actual.size = Some((actual_rect.width, actual_rect.height));

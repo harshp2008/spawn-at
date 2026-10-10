@@ -142,6 +142,15 @@ pub enum Area {
     Screen,
 }
 
+impl std::fmt::Display for Area {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Area::Workarea => write!(f, "workarea"),
+            Area::Screen => write!(f, "screen"),
+        }
+    }
+}
+
 /// Defines which corner of the window aligns with the target coordinate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
@@ -374,8 +383,6 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
         )
     } else if let Some(pos) = params.pos {
         pos
-    } else if let Some(cursor) = params.cursor_pos {
-        cursor
     } else {
         (wa.x + margin_left, wa.y + margin_top)
     };
@@ -580,8 +587,6 @@ pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagn
                 }
             } else if let Some(pos) = params.pos {
                 (pos.0, pos.1)
-            } else if let Some(cursor) = params.cursor_pos {
-                (cursor.0, cursor.1)
             } else {
                 (wa.x + ml, wa.y + mt)
             };
@@ -1210,5 +1215,124 @@ mod tests {
         assert_eq!(parsed["monitors"][0]["workarea"]["h"], 1040);
         assert_eq!(parsed["monitors"][0]["insets"]["top"], 40);
         assert!(parsed.get("note").is_none());
+    }
+
+    #[test]
+    fn test_new_matrix_and_cursor_default_pivot() {
+        let wa = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+
+        // 1. -p without --anchor defaults to TopLeft pivot
+        let params_pos = PlacementParams {
+            pos: Some((200, 300)),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_pos, 400, 300);
+        assert_eq!(rect.x, 200);
+        assert_eq!(rect.y, 300);
+
+        // 2. -p with --pivot
+        let params_pos_pivot = PlacementParams {
+            pos: Some((200, 300)),
+            pivot: Some(Pivot::Center),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_pos_pivot, 400, 300);
+        assert_eq!(rect.x, 200 - 200); // 0
+        assert_eq!(rect.y, 300 - 150); // 150
+
+        // 3. --anchor without --pivot defaults to matching anchor
+        let params_anchor_center = PlacementParams {
+            anchor: Some(Anchor::Center),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_anchor_center, 400, 300);
+        assert_eq!(rect.x, (1920 - 400) / 2);
+        assert_eq!(rect.y, 40 + (1040 - 300) / 2);
+
+        // 4. --anchor cursor without --pivot defaults to TopLeft
+        let params_cursor = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            cursor_pos: Some((500, 400)),
+            size: Some((300, 200)),
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_cursor, 300, 200);
+        assert_eq!(rect.x, 500);
+        assert_eq!(rect.y, 400);
+
+        // 5. --anchor with offset
+        let params_anchor_offset = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            offset: Some((25, 35)),
+            size: Some((300, 200)),
+            margin: 10,
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_anchor_offset, 300, 200);
+        assert_eq!(rect.x, wa.x + 10 + 25);
+        assert_eq!(rect.y, wa.y + 10 + 35);
+
+        // 6. Area::Screen vs Area::Workarea
+        let params_screen = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Screen),
+            workarea: screen,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_screen = calculate_rect_from_placement(&params_screen, 300, 200);
+        assert_eq!(rect_screen.x, 16);
+        assert_eq!(rect_screen.y, 16);
+
+        let params_wa = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Workarea),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_wa = calculate_rect_from_placement(&params_wa, 300, 200);
+        assert_eq!(rect_wa.x, 16);
+        assert_eq!(rect_wa.y, 40 + 16);
+
+        // 7. Odd sizes (e.g. 501x333) with Center anchor
+        let params_odd = PlacementParams {
+            anchor: Some(Anchor::Center),
+            size: Some((501, 333)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_odd = calculate_rect_from_placement(&params_odd, 501, 333);
+        assert_eq!(rect_odd.x, (1920 - 501) / 2);
+        assert_eq!(rect_odd.y, 40 + (1040 - 333) / 2);
     }
 }

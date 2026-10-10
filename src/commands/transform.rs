@@ -49,25 +49,30 @@ pub async fn run_transform(
         }
     }
 
+    // 3. Resolve target boundary from --monitor (or cursor location if --anchor cursor / --monitor cursor)
+    let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
+    let needs_cursor = is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor");
+    let (cursor_x, cursor_y) = if needs_cursor {
+        backend.get_cursor_position().await?
+    } else {
+        (0, 0)
+    };
+
     let boundary_rects = if args.geometry.area == geometry::Area::Screen {
         backend.get_monitors().await?
     } else {
         backend.get_workareas().await?
     };
-    let (cursor_x, cursor_y) = backend.get_cursor_position().await?;
 
-    // 3. Resolve target boundary from --monitor (or cursor location if --anchor cursor / --monitor cursor)
-    let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
-    let target_boundary =
-        if is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor") {
-            geometry::resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor")?
-        } else {
-            geometry::resolve_workarea(
-                &boundary_rects,
-                (cursor_x, cursor_y),
-                &args.geometry.monitor,
-            )?
-        };
+    let target_boundary = if needs_cursor {
+        geometry::resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor")?
+    } else {
+        geometry::resolve_workarea(
+            &boundary_rects,
+            (cursor_x, cursor_y),
+            &args.geometry.monitor,
+        )?
+    };
 
     // 4. Calculate target position and size via geometry solver
     let target_w = args
@@ -83,21 +88,122 @@ pub async fn run_transform(
         .and_then(|s| s.get(1).and_then(|v| v.parse::<u32>().ok()))
         .unwrap_or(target_win.h as u32);
 
-    let pos = args.geometry.pos.as_ref().map(|p| (p[0], p[1]));
+    let pos_or_offset = args.geometry.pos_or_offset();
+    let has_anchor = args.geometry.anchor.is_some();
+    let has_pos_or_offset = pos_or_offset.is_some();
+
+    let mt = args.geometry.margin_top.unwrap_or(args.geometry.margin);
+    let mb = args.geometry.margin_bottom.unwrap_or(args.geometry.margin);
+    let ml = args.geometry.margin_left.unwrap_or(args.geometry.margin);
+    let mr = args.geometry.margin_right.unwrap_or(args.geometry.margin);
+
+    let (pos, offset, anchor, pivot) = if has_anchor {
+        (
+            None,
+            pos_or_offset,
+            args.geometry.anchor,
+            args.geometry.pivot,
+        )
+    } else if has_pos_or_offset {
+        (
+            pos_or_offset,
+            None,
+            None,
+            args.geometry.pivot.or(Some(geometry::Pivot::TopLeft)),
+        )
+    } else if let Some(p) = args.geometry.pivot {
+        let (px, py) = match p {
+            geometry::Pivot::TopLeft => (target_win.x, target_win.y),
+            geometry::Pivot::TopRight => (target_win.x + target_win.w, target_win.y),
+            geometry::Pivot::BottomLeft => (target_win.x, target_win.y + target_win.h),
+            geometry::Pivot::BottomRight => {
+                (target_win.x + target_win.w, target_win.y + target_win.h)
+            }
+            geometry::Pivot::Center => (
+                target_win.x + target_win.w / 2,
+                target_win.y + target_win.h / 2,
+            ),
+        };
+        let (unclamped_x, unclamped_y) = geometry::apply_pivot(px, py, target_w, target_h, p);
+        let (final_x, final_y) = if args.geometry.clamp {
+            let raw_rect = geometry::Rect {
+                x: unclamped_x,
+                y: unclamped_y,
+                width: target_w,
+                height: target_h,
+            };
+            let clamped = geometry::clamp_to_bounds(raw_rect, target_boundary, mt, mb, ml, mr, 0);
+            if clamped.x != unclamped_x || clamped.y != unclamped_y {
+                crate::diagnostics::render_info(&format!(
+                    "Window left chosen area; clamped to ({}, {}) inside the {}.",
+                    clamped.x, clamped.y, args.geometry.area
+                ));
+            }
+            (clamped.x, clamped.y)
+        } else {
+            (unclamped_x, unclamped_y)
+        };
+        if final_x != target_win.x || final_y != target_win.y {
+            (
+                Some((final_x, final_y)),
+                None,
+                None,
+                Some(geometry::Pivot::TopLeft),
+            )
+        } else {
+            (None, None, None, None)
+        }
+    } else {
+        if args.geometry.size.is_some() && args.geometry.clamp {
+            let raw_rect = geometry::Rect {
+                x: target_win.x,
+                y: target_win.y,
+                width: target_w,
+                height: target_h,
+            };
+            let clamped = geometry::clamp_to_bounds(raw_rect, target_boundary, mt, mb, ml, mr, 0);
+            if clamped.x != target_win.x || clamped.y != target_win.y {
+                crate::diagnostics::render_info(&format!(
+                    "Window left chosen area; clamped to ({}, {}) inside the {}.",
+                    clamped.x, clamped.y, args.geometry.area
+                ));
+                (
+                    Some((clamped.x, clamped.y)),
+                    None,
+                    None,
+                    Some(geometry::Pivot::TopLeft),
+                )
+            } else {
+                (None, None, None, None)
+            }
+        } else {
+            (None, None, None, None)
+        }
+    };
+
+    let cursor_pos = if needs_cursor {
+        Some((cursor_x, cursor_y))
+    } else {
+        None
+    };
 
     let params = PlacementParams {
         pos,
-        offset: None,
-        anchor: args.geometry.anchor,
-        pivot: args.geometry.pivot,
-        size: Some((target_w, target_h)),
+        offset,
+        anchor,
+        pivot,
+        size: if args.geometry.size.is_some() {
+            Some((target_w, target_h))
+        } else {
+            None
+        },
         margin: args.geometry.margin,
         margin_top: args.geometry.margin_top,
         margin_bottom: args.geometry.margin_bottom,
         margin_left: args.geometry.margin_left,
         margin_right: args.geometry.margin_right,
         area: Some(args.geometry.area),
-        cursor_pos: Some((cursor_x, cursor_y)),
+        cursor_pos,
         workarea: target_boundary,
         clamp: args.geometry.clamp,
     };
@@ -122,16 +228,24 @@ pub async fn run_transform(
         } else if args.focus_modifiers.defocus {
             crate::commands::ExpectedState::Focused(false)
         } else {
-            let (target_x, target_y) = if let Some(pos) = params.pos {
-                (Some(pos.0), Some(pos.1))
+            let (target_x, target_y) = if let Some(p) = params.pos {
+                (Some(p.0), Some(p.1))
             } else {
                 (None, None)
             };
             crate::commands::ExpectedState::Geometry {
                 x: target_x,
                 y: target_y,
-                w: Some(target_w),
-                h: Some(target_h),
+                w: if args.geometry.size.is_some() {
+                    Some(target_w)
+                } else {
+                    None
+                },
+                h: if args.geometry.size.is_some() {
+                    Some(target_h)
+                } else {
+                    None
+                },
             }
         };
 

@@ -138,6 +138,42 @@ test('dispatcher: executes Rust golden entry instruction pipeline in exact order
     ext.disable();
 });
 
+test('dispatcher: executes Rust golden resize-only instruction pipeline without move', async () => {
+    // Golden JSON from mechanics.rs test_golden_instruction_batch_resize_only
+    const goldenResizeOnlyJson = JSON.stringify([
+        "Cloak",
+        { SetSize: { w: 500, h: 400 } },
+        { WaitForCommit: { timeout_ms: 300 } },
+        "Uncloak",
+    ]);
+
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const executedSteps = [];
+    const origLogTime = ext.logTime.bind(ext);
+    ext.logTime = (tag, extra, win) => {
+        if (tag === 'BATCH_STEP') {
+            executedSteps.push(extra.replace('inst=', ''));
+        }
+        origLogTime(tag, extra, win);
+    };
+
+    const validated = validateInstructions(goldenResizeOnlyJson);
+    const { window, actor } = createMockWindowAndActor();
+
+    await ext._runBatch(window, actor, validated);
+
+    assert.deepEqual(executedSteps, [
+        'Cloak',
+        'SetSize',
+        'WaitForCommit',
+        'Uncloak',
+    ]);
+
+    ext.disable();
+});
+
 test('dispatcher: executes Rust golden transform instruction pipeline in exact order', async () => {
     // Golden JSON from mechanics.rs test_golden_transform_batch_instructions
     const goldenTransformJson = JSON.stringify([

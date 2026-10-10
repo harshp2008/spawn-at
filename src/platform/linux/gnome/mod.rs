@@ -841,19 +841,24 @@ impl CompositorBackend for GnomeWaylandDriver {
         current_w: u32,
         current_h: u32,
     ) -> Result<(), DriverError> {
-        let payload = mechanics::calculate_placement(&params, current_w, current_h);
-        let instructions = vec![
+        let has_move = params.anchor.is_some() || params.pos.is_some();
+        let mut instructions = vec![
             mechanics::Instruction::Snapshot,
             mechanics::Instruction::Cloak,
-            mechanics::Instruction::SetSize {
-                w: payload.intended_w,
-                h: payload.intended_h,
-            },
-            mechanics::Instruction::WaitForCommit { timeout_ms: 500 },
-            mechanics::Instruction::SetPositionAnchored(payload),
-            mechanics::Instruction::Uncloak,
-            mechanics::Instruction::DestroySnapshot,
         ];
+        if let Some(size) = params.size {
+            instructions.push(mechanics::Instruction::SetSize {
+                w: size.0,
+                h: size.1,
+            });
+        }
+        instructions.push(mechanics::Instruction::WaitForCommit { timeout_ms: 500 });
+        if has_move {
+            let payload = mechanics::calculate_placement(&params, current_w, current_h);
+            instructions.push(mechanics::Instruction::SetPositionAnchored(payload));
+        }
+        instructions.push(mechanics::Instruction::Uncloak);
+        instructions.push(mechanics::Instruction::DestroySnapshot);
         let instructions_json = serde_json::to_string(&instructions)
             .map_err(|e| DriverError::Execution(format!("Serialization error: {}", e).into()))?;
 
