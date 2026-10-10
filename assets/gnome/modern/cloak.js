@@ -19,6 +19,7 @@ export class CloakManager {
             clearTimeout: id => clearTimeout(id),
         };
         this.Clutter = options.Clutter || (typeof globalThis !== 'undefined' && globalThis.Clutter ? globalThis.Clutter : null);
+        this._helper = options.helper || null;
         this.cloakedActors = new Set();
         this.watchdogs = new Map();
         this.snapshots = new Map();
@@ -131,7 +132,7 @@ export class CloakManager {
     }
 
     /** Creates a Clutter.Clone snapshot of the actor. */
-    createSnapshot(actor) {
+    createSnapshot(actor, window = null) {
         if (!actor || this.snapshots.has(actor) || !this.Clutter?.Clone)
             return;
         try {
@@ -141,11 +142,15 @@ export class CloakManager {
             const clone = new this.Clutter.Clone({ source: actor, x: actor.x, y: actor.y });
             parent.add_child?.(clone);
             this.snapshots.set(actor, clone);
+            const isVisible = Boolean(typeof clone.is_visible === 'function' ? clone.is_visible() : clone.visible);
+            const parentName = parent.constructor?.name || (typeof parent.toString === 'function' ? parent.toString() : 'Actor');
+            const extra = `visible=${isVisible} pos=(${clone.x},${clone.y}) size=(${clone.width}x${clone.height}) opacity=${clone.opacity} parent=${parentName}`;
+            this._helper?.logTime('SNAPSHOT_CREATED', extra, window);
         } catch (_e) {}
     }
 
     /** Destroys an existing snapshot clone. */
-    destroySnapshot(actor) {
+    destroySnapshot(actor, window = null) {
         const clone = this.snapshots.get(actor);
         if (!clone)
             return;
@@ -153,6 +158,7 @@ export class CloakManager {
             clone.destroy?.();
         } catch (_e) {}
         this.snapshots.delete(actor);
+        this._helper?.logTime('SNAPSHOT_DESTROYED', '', window);
     }
 
     /** Unconditionally uncloaks all actors and tears down all listeners during disable(). */

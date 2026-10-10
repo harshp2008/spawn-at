@@ -530,3 +530,126 @@ test('dispatcher: unmaximizes window before placement and re-asserts if client r
 
     ext.disable();
 });
+
+test('dispatcher (modern): structured trace logging captures snapshot, actor geometry, and window state transitions', async () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    actor.x = 100;
+    actor.y = 100;
+    actor.width = 640;
+    actor.height = 480;
+    actor.opacity = 255;
+    actor.get_parent = () => ({
+        constructor: { name: 'MetaWindowActor' },
+        add_child: () => {},
+    });
+    window.get_compositor_private = () => actor;
+    window.minimize = () => { window.minimized = true; };
+    window.unminimize = () => { window.minimized = false; };
+    window.raise = () => {};
+    window.activate = () => {};
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => {
+        logs.push(args.join(' '));
+    };
+
+    try {
+        ext.SetLogging(true);
+
+        const batch = [
+            { name: 'Snapshot', args: {} },
+            { name: 'Cloak', args: {} },
+            { name: 'SetSize', args: { w: 800, h: 600 } },
+            { name: 'WaitForCommit', args: { timeout_ms: 10 } },
+            {
+                name: 'SetPositionAnchored',
+                args: {
+                    intended_w: 800,
+                    intended_h: 600,
+                    screen_anchor_x: 200,
+                    screen_anchor_y: 200,
+                    pivot_u: 0.0,
+                    pivot_v: 0.0,
+                    offset_x: 0,
+                    offset_y: 0,
+                    area: 'workarea',
+                    margin_top: 0,
+                    margin_bottom: 0,
+                    margin_left: 0,
+                    margin_right: 0,
+                    clamp: true,
+                },
+            },
+            { name: 'Uncloak', args: {} },
+            { name: 'DestroySnapshot', args: {} },
+        ];
+
+        await ext._runBatch(window, actor, batch, 'test-app');
+
+        ext._focusWindowObject(window);
+        ext.SetWindowState('101', 'minimize');
+        ext.SetWindowState('101', 'unminimize');
+
+        ext.SetLogging(false);
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+
+    // 1. Snapshot created & destroyed
+    const snapshotCreated = timeLogs.find(l => l.includes('SNAPSHOT_CREATED'));
+    assert.ok(snapshotCreated, 'Should emit SNAPSHOT_CREATED trace');
+    assert.match(snapshotCreated, /visible=(true|false)/, 'SNAPSHOT_CREATED should report clone visibility');
+    assert.match(snapshotCreated, /pos=\(\d+,\d+\)/, 'SNAPSHOT_CREATED should report clone position');
+    assert.match(snapshotCreated, /size=\(\d+x\d+\)/, 'SNAPSHOT_CREATED should report clone size');
+    assert.match(snapshotCreated, /opacity=\d+/, 'SNAPSHOT_CREATED should report clone opacity');
+    assert.match(snapshotCreated, /parent=\w+/, 'SNAPSHOT_CREATED should report parent name');
+
+    const snapshotDestroyed = timeLogs.find(l => l.includes('SNAPSHOT_DESTROYED'));
+    assert.ok(snapshotDestroyed, 'Should emit SNAPSHOT_DESTROYED trace');
+
+    // 2. Cloak, SetSize, SetPositionAnchored, Uncloak actor states
+    const cloakLog = timeLogs.find(l => l.includes('| CLOAK '));
+    assert.ok(cloakLog, 'Should emit CLOAK trace');
+    assert.match(cloakLog, /opacity=0 frame=\(100,100,640x480\)/);
+
+    const setSizeLog = timeLogs.find(l => l.includes('| AFTER_SET_SIZE '));
+    assert.ok(setSizeLog, 'Should emit AFTER_SET_SIZE trace');
+    assert.match(setSizeLog, /opacity=0 frame=\(100,100,800x600\)/);
+
+    const setPosLog = timeLogs.find(l => l.includes('| AFTER_SET_POSITION_ANCHORED '));
+    assert.ok(setPosLog, 'Should emit AFTER_SET_POSITION_ANCHORED trace');
+    assert.match(setPosLog, /opacity=0 frame=\(200,200,800x600\)/);
+
+    const uncloakLog = timeLogs.find(l => l.includes('| UNCLOAK '));
+    assert.ok(uncloakLog, 'Should emit UNCLOAK trace');
+    assert.match(uncloakLog, /opacity=255 frame=\(200,200,800x600\)/);
+
+    // 3. Raise, activate, minimize, unminimize
+    const raiseLog = timeLogs.find(l => l.includes('| RAISE '));
+    assert.ok(raiseLog, 'Should emit RAISE trace');
+    assert.match(raiseLog, /opacity=255 frame=\(200,200,800x600\)/);
+
+    const activateLog = timeLogs.find(l => l.includes('| ACTIVATE '));
+    assert.ok(activateLog, 'Should emit ACTIVATE trace');
+    assert.match(activateLog, /opacity=255 frame=\(200,200,800x600\)/);
+
+    const minimizeLog = timeLogs.find(l => l.includes('| MINIMIZE '));
+    assert.ok(minimizeLog, 'Should emit MINIMIZE trace');
+    assert.match(minimizeLog, /opacity=255 frame=\(200,200,800x600\)/);
+
+    const unminimizeLog = timeLogs.find(l => l.includes('| UNMINIMIZE '));
+    assert.ok(unminimizeLog, 'Should emit UNMINIMIZE trace');
+    assert.match(unminimizeLog, /opacity=255 frame=\(200,200,800x600\)/);
+});
+

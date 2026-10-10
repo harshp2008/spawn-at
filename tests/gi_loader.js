@@ -87,7 +87,18 @@ export async function resolve(specifier, context, nextResolve) {
         } else if (specifier === 'gi://Clutter') {
             mockSource = `
                 export default {
-                    Clone: class {},
+                    Clone: class {
+                        constructor(props = {}) {
+                            Object.assign(this, props);
+                            this.visible = true;
+                            this.width = props.source?.width || 640;
+                            this.height = props.source?.height || 480;
+                            this.opacity = props.source?.opacity ?? 255;
+                        }
+                        destroy() {
+                            this._destroyed = true;
+                        }
+                    },
                     Actor: class {
                         constructor(props = {}) {
                             Object.assign(this, props);

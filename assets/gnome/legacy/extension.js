@@ -72,7 +72,7 @@ class SpawnAtExtension {
                 setTimeout: (cb, ms) => this._addTimer(ms, cb),
                 clearTimeout: id => this._removeTimer(id),
             },
-            { Clutter }
+            { Clutter, helper: this }
         );
 
         // Initialize commit and pulse managers
@@ -234,6 +234,19 @@ class SpawnAtExtension {
         if (typeof window.get_compositor_private === 'function')
             return window.get_compositor_private();
         return global.window_manager.get_window_actor_for_meta_window?.(window) ?? null;
+    }
+
+    _logActorTrace(tag, actor, window, extra = '') {
+        const opacity = (actor && typeof actor.opacity === 'number') ? actor.opacity : -1;
+        let frameStr = 'frame=(0,0,0x0)';
+        if (window && typeof window.get_frame_rect === 'function') {
+            const f = window.get_frame_rect();
+            frameStr = `frame=(${f.x},${f.y},${f.width}x${f.height})`;
+        } else if (actor && typeof actor.x === 'number') {
+            frameStr = `frame=(${actor.x},${actor.y},${actor.width || 0}x${actor.height || 0})`;
+        }
+        const msg = `opacity=${opacity} ${frameStr}${extra ? ' ' + extra : ''}`.trim();
+        this.logTime(tag, msg, window);
     }
 
     _suppressMapAnimation(window) {
@@ -638,9 +651,9 @@ class SpawnAtExtension {
                 this.logTime('BATCH_STEP', `inst=${op.name}`, window);
 
                 switch (op.name) {
-                    case 'Snapshot':            this._cloakManager.createSnapshot(actor); break;
-                    case 'Cloak':               this._cloak(actor); break;
-                    case 'DestroySnapshot':     this._cloakManager.destroySnapshot(actor); break;
+                    case 'Snapshot':            this._cloakManager.createSnapshot(actor, window); break;
+                    case 'Cloak':               this._cloak(actor); this._logActorTrace('CLOAK', actor, window); break;
+                    case 'DestroySnapshot':     this._cloakManager.destroySnapshot(actor, window); break;
                     case 'SetSize':             this._stepSetSize(ctx, op.args); break;
                     case 'WaitForCommit':       await this._stepWaitForCommit(ctx, op.args); break;
                     case 'SetPositionAnchored': this._stepPosition(ctx, op.args); break;
@@ -651,8 +664,10 @@ class SpawnAtExtension {
                 }
             }
         } finally {
-            if (!ctx.revealed)
+            if (!ctx.revealed) {
                 this._uncloak(actor);
+                this._logActorTrace('UNCLOAK', actor, window);
+            }
         }
     }
 
@@ -699,6 +714,8 @@ class SpawnAtExtension {
             window.move_resize_frame(true, preFrame.x, preFrame.y, safeW, safeH);
         else
             window.resize(true, safeW, safeH);
+
+        this._logActorTrace('AFTER_SET_SIZE', ctx.actor, window);
     }
 
     async _stepWaitForCommit(ctx, args) {
@@ -731,6 +748,8 @@ class SpawnAtExtension {
             `actor=(${actor.x},${actor.y}) ` +
             `delta=(${postFrame.x - preFrame.x},${postFrame.y - preFrame.y})`,
             window);
+
+        this._logActorTrace('AFTER_SET_POSITION_ANCHORED', actor, window);
     }
 
     async _stepUncloak(ctx, args) {
@@ -805,6 +824,7 @@ class SpawnAtExtension {
         const { window, actor } = ctx;
         this._uncloak(actor);
         ctx.revealed = true;
+        this._logActorTrace('UNCLOAK', actor, window);
 
         const rect = window.get_frame_rect();
         const buf = window.get_buffer_rect ? window.get_buffer_rect() : rect;
@@ -955,7 +975,8 @@ class SpawnAtExtension {
     }
 
     _findWindow(target) {
-        const workspace = global.display.get_workspace_manager().get_active_workspace();
+        const wm = global.workspace_manager || (global.display && global.display.get_workspace_manager ? global.display.get_workspace_manager() : null);
+        const workspace = wm ? wm.get_active_workspace() : null;
         const windows = this._getMRUWindows(workspace);
 
         const targetNum = parseInt(target, 10);
@@ -976,6 +997,11 @@ class SpawnAtExtension {
     }
 
     _focusWindowObject(window) {
+        const actor = this._getActor(window);
+        this._logActorTrace('RAISE', actor, window);
+        if (typeof window.raise === 'function')
+            window.raise();
+        this._logActorTrace('ACTIVATE', actor, window);
         window.activate(global.get_current_time());
         return true;
     }
@@ -991,16 +1017,27 @@ class SpawnAtExtension {
         if (mode === 'window' && destination) {
             const destWin = this._findWindow(destination);
             if (destWin) {
+                const actor = this._getActor(destWin);
+                this._logActorTrace('RAISE', actor, destWin);
+                if (typeof destWin.raise === 'function')
+                    destWin.raise();
+                this._logActorTrace('ACTIVATE', actor, destWin);
                 destWin.activate(global.get_current_time());
                 return true;
             }
         }
 
-        const workspace = global.display.get_workspace_manager().get_active_workspace();
+        const wm = global.workspace_manager || (global.display && global.display.get_workspace_manager ? global.display.get_workspace_manager() : null);
+        const workspace = wm ? wm.get_active_workspace() : null;
         const next = this._getMRUWindows(workspace)
             .find(w => w !== window && !w.minimized && !w.skip_taskbar);
 
         if (next) {
+            const actor = this._getActor(next);
+            this._logActorTrace('RAISE', actor, next);
+            if (typeof next.raise === 'function')
+                next.raise();
+            this._logActorTrace('ACTIVATE', actor, next);
             next.activate(global.get_current_time());
         } else {
             global.display.unset_input_focus(global.get_current_time());
@@ -1227,18 +1264,28 @@ class SpawnAtExtension {
             case 'unmaximize':
                 this._unmaximize(window);
                 return true;
-            case 'minimize':
+            case 'minimize': {
+                const actor = this._getActor(window);
+                this._logActorTrace('MINIMIZE', actor, window);
                 window.minimize();
                 return true;
-            case 'unminimize':
+            }
+            case 'unminimize': {
+                const actor = this._getActor(window);
+                this._logActorTrace('UNMINIMIZE', actor, window);
                 window.unminimize();
                 return true;
-            case 'restore':
-                if (window.minimized)
+            }
+            case 'restore': {
+                if (window.minimized) {
+                    const actor = this._getActor(window);
+                    this._logActorTrace('UNMINIMIZE', actor, window);
                     window.unminimize();
+                }
                 if (this._isMaximized(window))
                     this._unmaximize(window);
                 return true;
+            }
             default:
                 return false;
         }

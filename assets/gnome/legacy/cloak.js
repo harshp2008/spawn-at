@@ -10,6 +10,7 @@ var CloakManager = class CloakManager {
             clearTimeout: id => clearTimeout(id),
         };
         this.Clutter = options.Clutter || (typeof globalThis !== 'undefined' && globalThis.Clutter ? globalThis.Clutter : (typeof imports !== 'undefined' && imports.gi ? imports.gi.Clutter : null));
+        this._helper = options.helper || null;
         this.cloakedActors = new Set();
         this.watchdogs = new Map();
         this.snapshots = new Map();
@@ -108,7 +109,7 @@ var CloakManager = class CloakManager {
         }
     }
 
-    createSnapshot(actor) {
+    createSnapshot(actor, window = null) {
         if (!actor || this.snapshots.has(actor) || !this.Clutter?.Clone)
             return;
         try {
@@ -118,10 +119,14 @@ var CloakManager = class CloakManager {
             const clone = new this.Clutter.Clone({ source: actor, x: actor.x, y: actor.y });
             parent.add_child?.(clone);
             this.snapshots.set(actor, clone);
+            const isVisible = Boolean(typeof clone.is_visible === 'function' ? clone.is_visible() : clone.visible);
+            const parentName = parent.constructor?.name || (typeof parent.toString === 'function' ? parent.toString() : 'Actor');
+            const extra = `visible=${isVisible} pos=(${clone.x},${clone.y}) size=(${clone.width}x${clone.height}) opacity=${clone.opacity} parent=${parentName}`;
+            this._helper?.logTime('SNAPSHOT_CREATED', extra, window);
         } catch (_e) {}
     }
 
-    destroySnapshot(actor) {
+    destroySnapshot(actor, window = null) {
         const clone = this.snapshots.get(actor);
         if (!clone)
             return;
@@ -129,6 +134,7 @@ var CloakManager = class CloakManager {
             clone.destroy?.();
         } catch (_e) {}
         this.snapshots.delete(actor);
+        this._helper?.logTime('SNAPSHOT_DESTROYED', '', window);
     }
 
     disable() {
