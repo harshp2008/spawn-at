@@ -48,6 +48,20 @@ In `GetLayout()`, several monitor introspection APIs differ or are optional acro
 - `Main.layoutManager.monitors[i].connector`: Checked first, but may be undefined on certain legacy configurations. Falls back to `null`.
 No guessed values are returned; any unverified or missing introspection data is reported as `null`.
 
+### 3.2 Unverified APIs in Transformation, Snapshot Gating & Animation Suppression
+
+The zero-flicker transformation pipeline introduced gating for snapshot generation and unminimize animation suppression. **Only GNOME Shell 46 was directly inspected on this system; GNOME Shell 42–44, 45, and 47–48 are UNVERIFIED live and rely on defensive checks and graceful degradation.**
+
+| API | Verification Status (GNOME 42–44) | Verification Status (GNOME 45, 47–48) | Inspected Reference (GNOME 46) | Guard & Fallback Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| `window.is_hidden()` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46 (`Meta.Window.is_hidden`). | Guarded via `typeof window.is_hidden === 'function'`. Fallback evaluates `Boolean(window.minimized)`. If absent, minimized state is still detected via the `minimized` property. |
+| `window.located_on_workspace(ws)` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46. | Guarded via `typeof window.located_on_workspace === 'function'`. If absent or returning false, checks `window.is_on_all_workspaces()`. If the method is missing entirely, workspace filtering safely defaults to passing the window. |
+| `global.display.sort_windows_by_stacking(windows)` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46 (`MetaDisplay.sort_windows_by_stacking`). | Guarded via `typeof global.display?.sort_windows_by_stacking === 'function'`. If missing, `_isWindowFullyCovered()` returns `false` (fail-safe: snapshot is retained, ensuring zero chance of false-positive cloaking without a snapshot). |
+| `Main.wm.skipNextEffect(actor)` / `_skippedActors` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** (internal Shell implementation details) | Present in GNOME Shell 46 `windowManager.js` (`skipNextEffect(actor)` backed by `_skippedActors` Set). | Guarded with: (1) `typeof Main.wm.skipNextEffect === 'function'`, (2) fallback to `Main.wm._skippedActors?.add(actor)`, (3) duplicate checks on `global.window_manager`, and (4) an outer `try { ... } catch (_e) {}`. If missing, **only the animation suppression fails**—the window is still placed, sized, and uncloaked correctly. |
+
+> [!NOTE]
+> **Tracing Overhead Inference**: The determination that tracing causes animation stutter is an inference directly supported by live testing (choppy minimize animation with `SetLogging(true)`, smooth with `SetLogging(false)`), where synchronous logging and GObject introspection on the compositor thread perturbed Clutter's 16.6ms animation cycle.
+
 An automated contract parity test (`test_legacy_and_modern_dbus_xml_parity`) verifies character-for-character equivalence of the XML interface definition.
 
 ---

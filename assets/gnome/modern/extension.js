@@ -48,6 +48,7 @@ export default class SpawnAtExtension extends Extension {
         this._heldWindows = new Set();
         this._batchQueue = [];
         this._batchBusy = false;
+        this._currentBatchItem = null;
         this._armedSpawns = new Map();
         this._wildcardTarget = null;
         this._wildcardTimeoutId = 0;
@@ -106,6 +107,7 @@ export default class SpawnAtExtension extends Extension {
         this._disabled = true;
         this._batchQueue = [];
         this._batchBusy = false;
+        this._currentBatchItem = null;
 
         // Disarm reactive anchors
         for (const window of [...this._anchors.keys()])
@@ -554,8 +556,26 @@ export default class SpawnAtExtension extends Extension {
     // 5. SERIALIZED BATCH QUEUE
     // =======================================================================
 
+    _findBatchForWindow(window) {
+        if (!window)
+            return null;
+        if (this._currentBatchItem && this._currentBatchItem.window === window)
+            return this._currentBatchItem;
+        if (Array.isArray(this._batchQueue))
+            return this._batchQueue.find(item => item.window === window) || null;
+        return null;
+    }
+
     _enqueueBatch(window, actor, instructions, targetId = '') {
-        this._batchQueue.push({ window, actor, instructions, targetId });
+        const item = {
+            window,
+            actor,
+            instructions,
+            targetId,
+            deferredFocus: false,
+            focusApplied: false,
+        };
+        this._batchQueue.push(item);
         this._processQueue();
     }
 
@@ -564,10 +584,12 @@ export default class SpawnAtExtension extends Extension {
             return;
 
         this._batchBusy = true;
-        const { window, actor, instructions, targetId } = this._batchQueue.shift();
+        const item = this._batchQueue.shift();
+        this._currentBatchItem = item;
+        const { window, actor, instructions, targetId } = item;
 
         try {
-            await this._runBatch(window, actor, instructions, targetId);
+            await this._runBatch(window, actor, instructions, targetId, item);
         } catch (e) {
             console.error(`[SpawnAt] Batch processing failed in mutex queue: ${e}`);
             const winId = typeof window.get_id === 'function' ? window.get_id() : 0;
@@ -583,7 +605,13 @@ export default class SpawnAtExtension extends Extension {
                 this._dbusManager?.emitSignal('SpawnClaimed', params);
             } catch (_err) {}
             this._uncloak(actor);
+            if (item.deferredFocus && !item.focusApplied) {
+                this.logTime('DEFERRED_FOCUS_FALLBACK', 'batch failed; applying deferred focus', window);
+                this._focusWindowObject(window);
+                item.focusApplied = true;
+            }
         } finally {
+            this._currentBatchItem = null;
             this._batchBusy = false;
             this._processQueue();
         }
@@ -608,7 +636,7 @@ export default class SpawnAtExtension extends Extension {
         return null;
     }
 
-    async _runBatch(window, actor, instructions, targetId = '') {
+    async _runBatch(window, actor, instructions, targetId = '', item = null) {
         const ops = instructions
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
@@ -620,6 +648,7 @@ export default class SpawnAtExtension extends Extension {
             window,
             actor,
             targetId,
+            item: item || this._findBatchForWindow(window),
             targetW: null,
             targetH: null,
             safeW: null,
@@ -788,16 +817,23 @@ export default class SpawnAtExtension extends Extension {
         this._reanchorIfResized(ctx);
 
         const isCurrentlyMinimized = Boolean(ctx.window.minimized || (typeof ctx.window.is_hidden === 'function' && ctx.window.is_hidden()));
+        const hasDeferredFocus = Boolean(ctx.item?.deferredFocus);
         if (ctx.wasMinimized || isCurrentlyMinimized) {
             this.logTime('PRE_REVEAL_UNMINIMIZE', 'unminimizing prior to uncloak', ctx.window);
             this._skipWindowEffects(ctx.actor);
             if (typeof ctx.window.unminimize === 'function')
                 ctx.window.unminimize();
             this._focusWindowObject(ctx.window);
+            if (ctx.item)
+                ctx.item.focusApplied = true;
             this._skipWindowEffects(ctx.actor);
-        } else if (ctx.wasCovered) {
-            this.logTime('PRE_REVEAL_RAISE', 'window was covered; raising prior to uncloak', ctx.window);
+        } else if (ctx.wasCovered || hasDeferredFocus) {
+            this.logTime('PRE_REVEAL_RAISE',
+                hasDeferredFocus ? 'raising prior to uncloak (deferred focus)' : 'window was covered; raising prior to uncloak',
+                ctx.window);
             this._focusWindowObject(ctx.window);
+            if (ctx.item)
+                ctx.item.focusApplied = true;
         }
 
         await this._commitLatch.waitForFrames(global.stage, 1, FRAME_WAIT_CEILING_MS);
@@ -807,6 +843,9 @@ export default class SpawnAtExtension extends Extension {
         this._reveal(ctx);
     }
 
+    // Suppresses window animations (e.g. unminimize/map) for the actor.
+    // Note: Inspected on GNOME Shell 46 (Ubuntu 24.04). Behavior on GNOME 42-44, 45, and 47-48
+    // is unverified live and protected by feature-checks and try/catch fail-open semantics.
     _skipWindowEffects(actor) {
         if (!actor)
             return;
@@ -1427,7 +1466,21 @@ export default class SpawnAtExtension extends Extension {
 
     FocusWindow(target) {
         const window = this._findWindow(target);
-        return window ? this._focusWindowObject(window) : false;
+        if (!window)
+            return false;
+
+        const pendingItem = this._findBatchForWindow(window);
+        if (pendingItem) {
+            if (pendingItem.focusApplied) {
+                this.logTime('FOCUS_BATCH_ALREADY_APPLIED', `windowId=${window.get_id?.()}`, window);
+                return true;
+            }
+            pendingItem.deferredFocus = true;
+            this.logTime('FOCUS_DEFERRED', `windowId=${window.get_id?.()}`, window);
+            return true;
+        }
+
+        return this._focusWindowObject(window);
     }
 
     DefocusWindow(target, mode, destination) {

@@ -683,4 +683,138 @@ test('dispatcher (legacy): cloak/uncloak balance and snapshot destruction on err
     assert.equal(ext._cloakManager.snapshots.size, 0);
 });
 
+test('dispatcher (legacy): defers FocusWindow to batch reveal resulting in exactly one RAISE/ACTIVATE pair', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    window.minimized = true;
+    actor.get_parent = () => ({ add_child: () => {} });
+    window.get_compositor_private = () => actor;
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const batch = [
+            'Snapshot',
+            'Cloak',
+            { SetSize: { w: 500, h: 400 } },
+            { WaitForCommit: { timeout_ms: 20 } },
+            'Uncloak',
+        ];
+
+        // ExecuteBatch enqueues asynchronously and returns immediately over D-Bus
+        ext.ExecuteBatch(String(window.get_id()), JSON.stringify(batch));
+
+        // CLI calls FocusWindow immediately after ExecuteBatch returns:
+        const focusRes = ext.FocusWindow(String(window.get_id()));
+        assert.equal(focusRes, true, 'FocusWindow on pending batch must report success');
+
+        // Allow batch and microtasks to complete
+        await new Promise(r => setTimeout(r, 60));
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+    const deferredLog = timeLogs.find(l => l.includes('FOCUS_DEFERRED'));
+    assert.ok(deferredLog, 'Must emit FOCUS_DEFERRED when batch is active or queued');
+
+    const raiseLogs = timeLogs.filter(l => l.includes('| RAISE '));
+    const activateLogs = timeLogs.filter(l => l.includes('| ACTIVATE '));
+
+    // Must fire exactly ONCE: inside batch uncloak
+    assert.equal(raiseLogs.length, 1, 'Deferred FocusWindow must result in exactly one RAISE before reveal');
+    assert.equal(activateLogs.length, 1, 'Deferred FocusWindow must result in exactly one ACTIVATE before reveal');
+});
+
+test('dispatcher (legacy): failed batch executes deferred focus fallback and does not leave window cloaked', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    actor.get_parent = () => ({ add_child: () => {} });
+    window.get_compositor_private = () => actor;
+    window.move_resize_frame = () => {
+        throw new Error('Simulated compositor failure during batch');
+    };
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const batch = [
+            'Snapshot',
+            'Cloak',
+            { SetSize: { w: 500, h: 400 } },
+            'Uncloak',
+        ];
+
+        ext.ExecuteBatch(String(window.get_id()), JSON.stringify(batch));
+        ext.FocusWindow(String(window.get_id()));
+
+        await new Promise(r => setTimeout(r, 60));
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+
+    assert.equal(actor.opacity, 255, 'Actor must be uncloaked even if batch failed');
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+    const fallbackLog = timeLogs.find(l => l.includes('DEFERRED_FOCUS_FALLBACK'));
+    assert.ok(fallbackLog, 'Must execute DEFERRED_FOCUS_FALLBACK on batch failure');
+    const raiseLogs = timeLogs.filter(l => l.includes('| RAISE '));
+    const activateLogs = timeLogs.filter(l => l.includes('| ACTIVATE '));
+    assert.equal(raiseLogs.length, 1, 'Deferred focus fallback must raise window once');
+    assert.equal(activateLogs.length, 1, 'Deferred focus fallback must activate window once');
+});
+
+test('dispatcher (legacy): FocusWindow on window without pending batch focuses immediately', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    actor.get_parent = () => ({ add_child: () => {} });
+    window.get_compositor_private = () => actor;
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const res = ext.FocusWindow(String(window.get_id()));
+        assert.equal(res, true, 'FocusWindow must succeed');
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+    const raiseLogs = timeLogs.filter(l => l.includes('| RAISE '));
+    const activateLogs = timeLogs.filter(l => l.includes('| ACTIVATE '));
+    assert.equal(raiseLogs.length, 1, 'Immediate focus must raise window once');
+    assert.equal(activateLogs.length, 1, 'Immediate focus must activate window once');
+    assert.equal(timeLogs.some(l => l.includes('FOCUS_DEFERRED')), false, 'Must not defer focus when no batch exists');
+});
+
+
 
