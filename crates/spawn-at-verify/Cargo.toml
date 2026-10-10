@@ -2,6 +2,7 @@
 name = "spawn-at-verify"
 version = "0.1.0"
 edition = "2021"
+publish = false
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -11,6 +12,27 @@ toml = "1.1.6"
 regex = "1.10"
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros", "process", "time", "io-util"] }
 libc = "0.2"
+winit = { version = "0.29", optional = true }
+softbuffer = { version = "0.4", optional = true }
+signal-hook = { version = "0.3", optional = true }
+
+[features]
+default = []
+fixture = ["dep:winit", "dep:softbuffer", "dep:signal-hook"]
+
+[[bin]]
+name = "spawn-at-verify"
+path = "src/main.rs"
+
+[[bin]]
+name = "fixture"
+path = "src/bin/fixture.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "fixture_test"
+path = "tests/fixture_test.rs"
+required-features = ["fixture"]
 
 [dev-dependencies]
 spawn-at-core = { path = "../spawn-at-core" }

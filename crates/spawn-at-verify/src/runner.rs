@@ -393,7 +393,7 @@ impl TestRunner {
                     if !fixture_bin.exists() {
                         let (final_status, disagreement) = resolve_final_status(
                             test.kind,
-                            AutoStatus::Skipped,
+                            AutoStatus::Error,
                             &HumanVerdict::default(),
                         );
                         return TestResult {
@@ -401,7 +401,7 @@ impl TestRunner {
                             title: test.title.clone(),
                             kind: test.kind,
                             required: test.required,
-                            auto_status: AutoStatus::Skipped,
+                            auto_status: AutoStatus::Error,
                             human_verdict: HumanVerdict::default(),
                             final_status,
                             disagreement,
@@ -409,11 +409,17 @@ impl TestRunner {
                             exit_code: None,
                             stdout: String::new(),
                             stderr: String::new(),
-                            message: Some("Fixture binary not found; skipping fixture test".into()),
+                            message: Some(format!(
+                                "Fixture binary not found at {}; run `cargo build -p spawn-at-verify --bin fixture --features fixture`",
+                                fixture_bin.display()
+                            )),
                             log_slice: None,
                         };
                     }
 
+                    if !test.action.args.contains(&"--json".to_string()) {
+                        cmd.arg("--json");
+                    }
                     cmd.arg("--");
                     cmd.arg(&fixture_bin);
                     for sarg in &sub.args {
@@ -740,5 +746,68 @@ mod tests {
         let (st, dis) = resolve_final_status(TestKind::Both, AutoStatus::AutoPass, &human_fail);
         assert_eq!(st, FinalStatus::Fail);
         assert!(dis);
+    }
+
+    #[test]
+    fn test_missing_fixture_binary_fails_with_clear_error_message() {
+        let runner = TestRunner::new(
+            TestRegistry {
+                tests: vec![],
+                suites: std::collections::HashMap::new(),
+            },
+            RunOptions {
+                bin_path: PathBuf::from("/nonexistent/bin/spawn-at"),
+                ..Default::default()
+            },
+        );
+
+        let test = TestDefinition {
+            id: "test/missing-fixture".into(),
+            title: "Missing Fixture Test".into(),
+            description: "Verifies early failure on missing fixture".into(),
+            kind: TestKind::Auto,
+            required: true,
+            tags: vec!["needs-fixture".into()],
+            requires: crate::schema::TestRequires::default(),
+            subject: Some(crate::schema::TestSubject {
+                app: "fixture".into(),
+                profile: "plain".into(),
+                args: vec![],
+            }),
+            action: crate::schema::TestAction {
+                command: "spawn".into(),
+                repeatable: false,
+                args: vec!["--anchor".into(), "center".into()],
+            },
+            expect: crate::schema::TestExpect::default(),
+            human: None,
+            matrix: None,
+            regression: None,
+        };
+
+        let mut tracker = WindowTracker::new_with_preexisting(&[]);
+        let preflight = PreflightReport {
+            repo_head: None,
+            detected_commit: None,
+            repo_dirty: false,
+            is_dirty_build: false,
+            verdict: PreflightVerdict::Pass,
+            binary_version_output: String::new(),
+        };
+
+        let env_info = EnvironmentInfo {
+            session_type: "wayland".into(),
+            desktop: "gnome".into(),
+            gnome_version: Some(46),
+            monitors_count: 1,
+            primary_workarea: None,
+        };
+
+        let result = runner.execute_single_test(&test, &preflight, &env_info, &mut tracker);
+        assert_eq!(result.auto_status, AutoStatus::Error);
+        assert_eq!(result.final_status, FinalStatus::Error);
+        let msg = result.message.expect("expected error message");
+        assert!(msg.contains("Fixture binary not found at"));
+        assert!(msg.contains("cargo build -p spawn-at-verify --bin fixture --features fixture"));
     }
 }
