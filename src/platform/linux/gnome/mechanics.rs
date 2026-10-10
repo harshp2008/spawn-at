@@ -138,9 +138,8 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
             w: size.0,
             h: size.1,
         });
+        instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
     }
-
-    instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
 
     if has_move {
         let payload = calculate_placement(&entry.placement, 0, 0);
@@ -199,13 +198,13 @@ mod tests {
         };
 
         let instructions = build_instructions_for_entry(&entry);
-        assert_eq!(instructions.len(), 4);
+        assert_eq!(instructions.len(), 3);
 
         let json = serde_json::to_string(&instructions).unwrap();
         let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.len(), 4);
+        assert_eq!(deserialized.len(), 3);
 
-        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
             assert_eq!(payload.screen_anchor_x, 100);
             assert_eq!(payload.screen_anchor_y, 200);
             assert_eq!(payload.pivot_u, 0.0);
@@ -214,7 +213,7 @@ mod tests {
             assert_eq!(payload.offset_y, 0);
             assert!(payload.clamp);
         } else {
-            panic!("Expected SetPositionAnchored at index 2");
+            panic!("Expected SetPositionAnchored at index 1");
         }
     }
 
@@ -239,11 +238,11 @@ mod tests {
         };
 
         let instructions = build_instructions_for_entry(&entry);
-        assert_eq!(instructions.len(), 4);
+        assert_eq!(instructions.len(), 3);
 
         let json = serde_json::to_string(&instructions).unwrap();
         let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
-        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
             assert_eq!(payload.screen_anchor_x, 1920 / 2);
             assert_eq!(payload.screen_anchor_y, 40 + 1040 / 2);
             assert_eq!(payload.pivot_u, 0.5);
@@ -252,7 +251,7 @@ mod tests {
             assert_eq!(payload.offset_y, 0);
             assert!(payload.clamp);
         } else {
-            panic!("Expected SetPositionAnchored at index 2");
+            panic!("Expected SetPositionAnchored at index 1");
         }
     }
 
@@ -278,11 +277,11 @@ mod tests {
         };
 
         let instructions = build_instructions_for_entry(&entry);
-        assert_eq!(instructions.len(), 4);
+        assert_eq!(instructions.len(), 3);
 
         let json = serde_json::to_string(&instructions).unwrap();
         let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
-        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
             assert_eq!(payload.screen_anchor_x, 1920 - 16);
             assert_eq!(payload.screen_anchor_y, 40 + 16);
             assert_eq!(payload.pivot_u, 1.0);
@@ -291,7 +290,7 @@ mod tests {
             assert_eq!(payload.offset_y, -10);
             assert!(payload.clamp);
         } else {
-            panic!("Expected SetPositionAnchored at index 2");
+            panic!("Expected SetPositionAnchored at index 1");
         }
     }
 
@@ -317,11 +316,11 @@ mod tests {
         };
 
         let instructions = build_instructions_for_entry(&entry);
-        assert_eq!(instructions.len(), 4);
+        assert_eq!(instructions.len(), 3);
 
         let json = serde_json::to_string(&instructions).unwrap();
         let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
-        if let Instruction::SetPositionAnchored(ref payload) = deserialized[2] {
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
             assert_eq!(payload.screen_anchor_x, 500);
             assert_eq!(payload.screen_anchor_y, 300);
             // Must default to top-left (0.0, 0.0)
@@ -331,7 +330,7 @@ mod tests {
             assert_eq!(payload.offset_y, 0);
             assert!(payload.clamp);
         } else {
-            panic!("Expected SetPositionAnchored at index 2");
+            panic!("Expected SetPositionAnchored at index 1");
         }
     }
 
@@ -435,5 +434,46 @@ mod tests {
         assert_eq!(arr[4]["SetPositionAnchored"]["area"], "screen");
         assert_eq!(arr[5], "Uncloak");
         assert_eq!(arr[6], "DestroySnapshot");
+    }
+
+    #[test]
+    fn test_golden_transform_batch_pos_only_instructions() {
+        let payload = PlacementPayload {
+            intended_w: 500,
+            intended_h: 400,
+            screen_anchor_x: 960,
+            screen_anchor_y: 540,
+            pivot_u: 0.5,
+            pivot_v: 0.5,
+            offset_x: 0,
+            offset_y: 0,
+            area: Some("screen".to_string()),
+            margin_top: 16,
+            margin_bottom: 16,
+            margin_left: 16,
+            margin_right: 16,
+            clamp: true,
+        };
+
+        // Position-only transform skips SetSize and WaitForCommit
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_w"], 500);
+        assert_eq!(arr[3], "Uncloak");
+        assert_eq!(arr[4], "DestroySnapshot");
     }
 }

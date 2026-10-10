@@ -84,8 +84,34 @@ pub fn format_message_with_capability(
     format!("{} {}", format_label(level, cap), msg)
 }
 
+thread_local! {
+    static DIAGNOSTIC_SINK: std::cell::RefCell<Option<Vec<(DiagnosticLevel, String)>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+pub fn start_capturing_diagnostics() {
+    DIAGNOSTIC_SINK.with(|sink| {
+        *sink.borrow_mut() = Some(Vec::new());
+    });
+}
+
+pub fn take_captured_diagnostics() -> Option<Vec<(DiagnosticLevel, String)>> {
+    DIAGNOSTIC_SINK.with(|sink| sink.borrow_mut().take())
+}
+
 /// Renders a diagnostic message directly to stderr with color detection.
 pub fn render_diagnostic_message(level: DiagnosticLevel, msg: &str) {
+    let captured = DIAGNOSTIC_SINK.with(|sink| {
+        if let Some(ref mut vec) = *sink.borrow_mut() {
+            vec.push((level, msg.to_string()));
+            true
+        } else {
+            false
+        }
+    });
+    if captured {
+        return;
+    }
     eprintln!(
         "{}",
         format_message_with_capability(level, msg, detect_color_capability())
@@ -136,6 +162,7 @@ pub enum Diagnostic {
         requested_size: Option<(u32, u32)>,
         clamped_to_workarea: bool,
         area: Option<Area>,
+        is_transform: bool,
     },
     /// Window placed off-screen because clamping was disabled (`--clamp false`).
     OffScreenUnclamped {
@@ -246,6 +273,7 @@ impl Diagnostic {
                 requested_size,
                 clamped_to_workarea,
                 area,
+                is_transform,
             } => {
                 let area_str = match area {
                     Some(Area::Screen) => "screen",
@@ -257,8 +285,14 @@ impl Diagnostic {
                         expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1, area_str
                     )
                 } else {
+                    let prefix = if *is_transform {
+                        "Window at"
+                    } else {
+                        "Window mapped at"
+                    };
                     let mut msg = format!(
-                        "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                        "{} ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                        prefix,
                         actual_pos.0,
                         actual_pos.1,
                         actual_size.0,
@@ -395,6 +429,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                     requested_size: params.size,
                     clamped_to_workarea: true,
                     area: params.area,
+                    is_transform,
                 });
                 return diags;
             }
@@ -453,6 +488,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 requested_size: params.size,
                 clamped_to_workarea: false,
                 area: params.area,
+                is_transform,
             });
         }
     }
@@ -751,9 +787,29 @@ mod tests {
             requested_size: Some((367, 514)),
             clamped_to_workarea: true,
             area: Some(Area::Screen),
+            is_transform: false,
         };
         let msg = diag.format_message();
         assert!(msg.contains("Requested (100, 0); clamped to (16, 16) inside the screen."));
+    }
+
+    #[test]
+    fn test_diagnostic_transform_position_not_reached_uses_window_at() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (125, 175),
+            actual_size: (600, 600),
+            expected_pos: (836, 464),
+            requested_size: None,
+            clamped_to_workarea: false,
+            area: Some(Area::Workarea),
+            is_transform: true,
+        };
+        let msg = diag.message_body();
+        assert_eq!(
+            msg,
+            "Window at (125, 175) [600x600] but expected position was (836, 464). Window was not positioned at target."
+        );
+        assert!(!msg.contains("mapped"));
     }
 
     #[test]

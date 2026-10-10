@@ -357,6 +357,83 @@ pub async fn wait_for_state_change(
     )))
 }
 
+/// Polls the compositor driver until the target window's reported geometry equals
+/// the expected target geometry or `timeout` expires, returning the last known geometry.
+pub async fn settle_window_geometry(
+    backend: &dyn CompositorBackend,
+    window_id: Option<u64>,
+    target_id: &str,
+    params: &spawn_at_core::geometry::PlacementParams,
+    timeout: Duration,
+) -> Option<spawn_at_core::geometry::Rect> {
+    let start = Instant::now();
+    let poll_interval = Duration::from_millis(25);
+    let mut last_seen_rect: Option<spawn_at_core::geometry::Rect> = None;
+
+    while start.elapsed() < timeout {
+        let current_rect = if let Some(id) = window_id {
+            match backend.get_window_rect(id).await {
+                Ok(r) => Some(r),
+                Err(_) => backend.get_windows().await.ok().and_then(|wins| {
+                    wins.into_iter()
+                        .find(|w| w.id == Some(id) || matches_target(w, target_id))
+                        .map(|w| spawn_at_core::geometry::Rect {
+                            x: w.x,
+                            y: w.y,
+                            width: w.w as u32,
+                            height: w.h as u32,
+                        })
+                }),
+            }
+        } else {
+            backend.get_windows().await.ok().and_then(|wins| {
+                wins.into_iter()
+                    .find(|w| matches_target(w, target_id))
+                    .map(|w| spawn_at_core::geometry::Rect {
+                        x: w.x,
+                        y: w.y,
+                        width: w.w as u32,
+                        height: w.h as u32,
+                    })
+            })
+        };
+
+        if let Some(rect) = current_rect {
+            last_seen_rect = Some(rect);
+
+            let has_move = params.pos.is_some() || params.anchor.is_some();
+            let mut params_for_actual = params.clone();
+            params_for_actual.size = Some((rect.width, rect.height));
+            let expected_for_actual = spawn_at_core::geometry::calculate_rect_from_placement(
+                &params_for_actual,
+                rect.width,
+                rect.height,
+            );
+
+            let pos_matches = if has_move {
+                (rect.x - expected_for_actual.x).abs() <= 1
+                    && (rect.y - expected_for_actual.y).abs() <= 1
+            } else {
+                true
+            };
+
+            let size_matches = if let Some(req_size) = params.size {
+                rect.width >= req_size.0 && rect.height >= req_size.1
+            } else {
+                true
+            };
+
+            if pos_matches && size_matches {
+                return Some(rect);
+            }
+        }
+
+        tokio::time::sleep(poll_interval).await;
+    }
+
+    last_seen_rect
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1039,5 +1116,368 @@ mod tests {
             err_msg,
             "Window 'Unsaved Document' did not close within 150ms; window remains present."
         );
+    }
+
+    struct SimulatedDriver {
+        initial_rect: spawn_at_core::geometry::Rect,
+        target_rect: spawn_at_core::geometry::Rect,
+        stale_duration: Option<Duration>,
+        start_time: std::sync::Mutex<Option<Instant>>,
+        windows: std::sync::Mutex<Vec<WindowMetadata>>,
+        is_spawn: bool,
+    }
+
+    impl SimulatedDriver {
+        fn new_for_transform(
+            initial_rect: spawn_at_core::geometry::Rect,
+            target_rect: spawn_at_core::geometry::Rect,
+            stale_duration: Option<Duration>,
+        ) -> Self {
+            let win = WindowMetadata {
+                id: Some(42),
+                pid: Some(std::process::id()),
+                title: "Simulated App".into(),
+                class: "true".into(),
+                app_id: Some("true".into()),
+                x: initial_rect.x,
+                y: initial_rect.y,
+                w: initial_rect.width as i32,
+                h: initial_rect.height as i32,
+                focused: true,
+                maximized: false,
+                minimized: false,
+            };
+            Self {
+                initial_rect,
+                target_rect,
+                stale_duration,
+                start_time: std::sync::Mutex::new(None),
+                windows: std::sync::Mutex::new(vec![win]),
+                is_spawn: false,
+            }
+        }
+
+        fn new_for_spawn(
+            initial_rect: spawn_at_core::geometry::Rect,
+            target_rect: spawn_at_core::geometry::Rect,
+            stale_duration: Option<Duration>,
+        ) -> Self {
+            let win = WindowMetadata {
+                id: Some(42),
+                pid: Some(999999),
+                title: "Simulated App".into(),
+                class: "true".into(),
+                app_id: Some("true".into()),
+                x: initial_rect.x,
+                y: initial_rect.y,
+                w: initial_rect.width as i32,
+                h: initial_rect.height as i32,
+                focused: true,
+                maximized: false,
+                minimized: false,
+            };
+            Self {
+                initial_rect,
+                target_rect,
+                stale_duration,
+                start_time: std::sync::Mutex::new(None),
+                windows: std::sync::Mutex::new(vec![win]),
+                is_spawn: true,
+            }
+        }
+
+        fn current_rect(&self) -> spawn_at_core::geometry::Rect {
+            if let Some(dur) = self.stale_duration {
+                let lock = self.start_time.lock().unwrap();
+                if let Some(st) = *lock {
+                    if st.elapsed() >= dur {
+                        return self.target_rect;
+                    }
+                }
+            }
+            self.initial_rect
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::platform::Driver for SimulatedDriver {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
+            let mut lock = self.start_time.lock().unwrap();
+            *lock = Some(Instant::now());
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for SimulatedDriver {
+        fn name(&self) -> &'static str {
+            "SimulatedDriver"
+        }
+
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "true".into()
+        }
+
+        fn supports_runtime_transform(&self) -> bool {
+            true
+        }
+
+        async fn protocol_version(&self) -> Option<u32> {
+            Some(4)
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<spawn_at_core::geometry::Rect>, DriverError> {
+            Ok(vec![spawn_at_core::geometry::Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            }])
+        }
+
+        async fn get_monitors(&self) -> Result<Vec<spawn_at_core::geometry::Rect>, DriverError> {
+            Ok(vec![spawn_at_core::geometry::Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }])
+        }
+
+        async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
+            Ok((786, 414))
+        }
+
+        async fn focus_window(&self, _id: &str) -> Result<(), DriverError> {
+            Ok(())
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            if self.is_spawn && self.start_time.lock().unwrap().is_none() {
+                return Ok(Vec::new());
+            }
+            let r = self.current_rect();
+            let mut wins = self.windows.lock().unwrap().clone();
+            if let Some(w) = wins.first_mut() {
+                w.x = r.x;
+                w.y = r.y;
+                w.w = r.width as i32;
+                w.h = r.height as i32;
+            }
+            Ok(wins)
+        }
+
+        async fn get_window_rect(
+            &self,
+            id: u64,
+        ) -> Result<spawn_at_core::geometry::Rect, DriverError> {
+            if id == 42 {
+                Ok(self.current_rect())
+            } else {
+                Err(DriverError::TargetNotFound(format!(
+                    "Window {} not found",
+                    id
+                )))
+            }
+        }
+
+        async fn transform_window(
+            &self,
+            _target_id: &str,
+            _params: spawn_at_core::geometry::PlacementParams,
+            _current_w: u32,
+            _current_h: u32,
+        ) -> Result<(), DriverError> {
+            let mut lock = self.start_time.lock().unwrap();
+            *lock = Some(Instant::now());
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stale_geometry_settles_without_warning_transform() {
+        let driver = SimulatedDriver::new_for_transform(
+            spawn_at_core::geometry::Rect {
+                x: 125,
+                y: 175,
+                width: 600,
+                height: 600,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 836,
+                y: 464,
+                width: 600,
+                height: 600,
+            },
+            Some(Duration::from_millis(50)),
+        );
+        let args = TransformArgs {
+            id: Some(42),
+            geometry: crate::cli::args::GeometryArgs {
+                anchor: Some(spawn_at_core::geometry::Anchor::Cursor),
+                offset: Some(vec![50, 50]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_transform(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert!(
+            warnings.is_empty(),
+            "Expected no warnings when stale geometry settles, got: {:?}",
+            warnings
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stationary_window_warns_after_timeout_transform() {
+        let driver = SimulatedDriver::new_for_transform(
+            spawn_at_core::geometry::Rect {
+                x: 125,
+                y: 175,
+                width: 600,
+                height: 600,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 836,
+                y: 464,
+                width: 600,
+                height: 600,
+            },
+            None, // Window never moves
+        );
+        let args = TransformArgs {
+            id: Some(42),
+            geometry: crate::cli::args::GeometryArgs {
+                anchor: Some(spawn_at_core::geometry::Anchor::Cursor),
+                offset: Some(vec![50, 50]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_transform(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "Expected 1 warning when window never moves, got: {:?}",
+            warnings
+        );
+        assert!(
+            warnings[0].1.contains("Window at (125, 175) [600x600] but expected position was (836, 464). Window was not positioned at target.")
+        );
+        assert!(
+            !warnings[0].1.contains("mapped"),
+            "Transform diagnostic must never say 'mapped'"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stale_geometry_settles_without_warning_spawn() {
+        let driver = SimulatedDriver::new_for_spawn(
+            spawn_at_core::geometry::Rect {
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 300,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 200,
+                y: 200,
+                width: 400,
+                height: 300,
+            },
+            Some(Duration::from_millis(50)),
+        );
+        let args = crate::cli::SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                pos: Some(vec![200, 200]),
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_spawn(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert!(
+            warnings.is_empty(),
+            "Expected no warnings when stale geometry settles on spawn, got: {:?}",
+            warnings
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stationary_window_warns_after_timeout_spawn() {
+        let driver = SimulatedDriver::new_for_spawn(
+            spawn_at_core::geometry::Rect {
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 300,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 200,
+                y: 200,
+                width: 400,
+                height: 300,
+            },
+            None, // Window never moves
+        );
+        let args = crate::cli::SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                pos: Some(vec![200, 200]),
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_spawn(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "Expected 1 warning when window never moves on spawn, got: {:?}",
+            warnings
+        );
+        assert!(warnings[0].1.contains(
+            "Window mapped at (100, 100) [400x300] but expected position was (200, 200)"
+        ));
     }
 }

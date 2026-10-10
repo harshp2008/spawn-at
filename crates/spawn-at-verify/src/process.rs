@@ -44,10 +44,7 @@ fn drain_nonblocking<R: Read>(reader: &mut R, buf: &mut Vec<u8>) {
 }
 
 /// Executes a `Command` with a strict timeout, never hanging on pipes held by background processes.
-pub fn execute_with_timeout(
-    mut cmd: Command,
-    timeout: Duration,
-) -> Result<ProcessOutput, String> {
+pub fn execute_with_timeout(mut cmd: Command, timeout: Duration) -> Result<ProcessOutput, String> {
     use std::os::unix::process::CommandExt;
 
     cmd.stdin(Stdio::null());
@@ -134,8 +131,8 @@ mod tests {
         ]);
 
         let start = Instant::now();
-        let result = execute_with_timeout(cmd, Duration::from_secs(5))
-            .expect("execute_with_timeout failed");
+        let result =
+            execute_with_timeout(cmd, Duration::from_secs(5)).expect("execute_with_timeout failed");
 
         // Must complete almost immediately (< 500ms), NOT hanging on sleep 999
         assert!(

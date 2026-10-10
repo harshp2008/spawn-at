@@ -228,8 +228,11 @@ pub async fn run_transform(
         } else if args.focus_modifiers.defocus {
             crate::commands::ExpectedState::Focused(false)
         } else {
-            let (target_x, target_y) = if let Some(p) = params.pos {
-                (Some(p.0), Some(p.1))
+            let (target_x, target_y) = if params.pos.is_some() || params.anchor.is_some() {
+                let exp_rect = spawn_at_core::geometry::calculate_rect_from_placement(
+                    &params, target_w, target_h,
+                );
+                (Some(exp_rect.x), Some(exp_rect.y))
             } else {
                 (None, None)
             };
@@ -257,23 +260,14 @@ pub async fn run_transform(
         )
         .await;
 
-        // Settle delay (~150-300ms) before evaluating diagnostics
-        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-
-        let actual_rect_opt = if let Some(id) = target_win.id {
-            backend.get_window_rect(id).await.ok()
-        } else {
-            backend.get_windows().await.ok().and_then(|wins| {
-                wins.into_iter()
-                    .find(|w| w.class == target_win.class)
-                    .map(|w| spawn_at_core::geometry::Rect {
-                        x: w.x,
-                        y: w.y,
-                        width: w.w as u32,
-                        height: w.h as u32,
-                    })
-            })
-        };
+        let actual_rect_opt = crate::commands::settle_window_geometry(
+            backend,
+            target_win.id,
+            &target_id,
+            &params,
+            std::time::Duration::from_millis(300),
+        )
+        .await;
 
         if let Some(actual_rect) = actual_rect_opt {
             let (_raised_w, _raised_h, size_raised) = if let Some(req) = params.size {
@@ -283,7 +277,12 @@ pub async fn run_transform(
             } else {
                 (false, false, false)
             };
-            crate::diagnostics::verify_and_report_transform(&params, actual_rect, None, size_raised);
+            crate::diagnostics::verify_and_report_transform(
+                &params,
+                actual_rect,
+                None,
+                size_raised,
+            );
         }
     }
 

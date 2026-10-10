@@ -374,13 +374,19 @@ pub async fn run_spawn(
                 }
             };
 
-            // Settle re-check (~150-300ms) before final geometry diagnostics
-            tokio::time::sleep(Duration::from_millis(200)).await;
+            // Settle re-check before final geometry diagnostics
+            if let Some(settled_rect) = crate::commands::settle_window_geometry(
+                driver,
+                win_id,
+                &app_hint,
+                &params,
+                Duration::from_millis(300),
+            )
+            .await
+            {
+                final_rect = settled_rect;
+            }
             if let Some(id) = win_id {
-                if let Ok(settled_rect) = driver.get_window_rect(id).await {
-                    final_rect = settled_rect;
-                }
-
                 // If explicit placement was requested and the client re-maximized itself, re-assert once, bounded.
                 let has_explicit_placement =
                     params.size.is_some() || params.pos.is_some() || params.anchor.is_some();
@@ -789,6 +795,7 @@ mod tests {
         // spawn returns immediately and child does not hold any inherited pipe.
         assert!(start.elapsed() < std::time::Duration::from_millis(500));
         let _ = child.kill();
+        let _ = child.wait();
     }
 
     #[test]
@@ -813,6 +820,7 @@ mod tests {
         }
 
         let _ = child.kill();
+        let _ = child.wait();
     }
 
     #[test]
@@ -837,5 +845,6 @@ mod tests {
         }
 
         let _ = child.kill();
+        let _ = child.wait();
     }
 }

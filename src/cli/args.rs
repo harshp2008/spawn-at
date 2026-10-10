@@ -319,7 +319,8 @@ impl TransformArgs {
 
         if !has_size && !has_pos && !has_anchor {
             return Err(
-                "nothing to change: give --size, -p/-o, --anchor, or --pivot with --size".to_string(),
+                "nothing to change: give --size, -p/-o, --anchor, or --pivot with --size"
+                    .to_string(),
             );
         }
 

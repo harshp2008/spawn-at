@@ -231,6 +231,110 @@ test('dispatcher: executes Rust golden transform instruction pipeline in exact o
     ext.disable();
 });
 
+test('dispatcher: executes Rust golden position-only entry pipeline without WaitForCommit', async () => {
+    // Golden JSON from mechanics.rs test_golden_instruction_batch_pos_only
+    const goldenPosOnlyJson = JSON.stringify([
+        "Cloak",
+        {
+            SetPositionAnchored: {
+                intended_w: 0,
+                intended_h: 0,
+                screen_anchor_x: 100,
+                screen_anchor_y: 200,
+                pivot_u: 0.0,
+                pivot_v: 0.0,
+                offset_x: 0,
+                offset_y: 0,
+                area: "workarea",
+                margin_top: 16,
+                margin_bottom: 16,
+                margin_left: 16,
+                margin_right: 16,
+                clamp: true,
+            },
+        },
+        "Uncloak",
+    ]);
+
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const executedSteps = [];
+    const origLogTime = ext.logTime.bind(ext);
+    ext.logTime = (tag, extra, win) => {
+        if (tag === 'BATCH_STEP') {
+            executedSteps.push(extra.replace('inst=', ''));
+        }
+        origLogTime(tag, extra, win);
+    };
+
+    const validated = validateInstructions(goldenPosOnlyJson);
+    const { window, actor } = createMockWindowAndActor();
+
+    await ext._runBatch(window, actor, validated);
+
+    assert.deepEqual(executedSteps, [
+        'Cloak',
+        'SetPositionAnchored',
+        'Uncloak',
+    ]);
+
+    ext.disable();
+});
+
+test('dispatcher: executes Rust golden position-only transform pipeline without WaitForCommit', async () => {
+    // Golden JSON from mechanics.rs test_golden_transform_batch_pos_only_instructions
+    const goldenTransformPosOnlyJson = JSON.stringify([
+        "Snapshot",
+        "Cloak",
+        {
+            SetPositionAnchored: {
+                intended_w: 500,
+                intended_h: 400,
+                screen_anchor_x: 960,
+                screen_anchor_y: 540,
+                pivot_u: 0.5,
+                pivot_v: 0.5,
+                offset_x: 0,
+                offset_y: 0,
+                area: "screen",
+                margin_top: 16,
+                margin_bottom: 16,
+                margin_left: 16,
+                margin_right: 16,
+                clamp: true,
+            },
+        },
+        "Uncloak",
+        "DestroySnapshot",
+    ]);
+
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const executedSteps = [];
+    ext.logTime = (tag, extra) => {
+        if (tag === 'BATCH_STEP') {
+            executedSteps.push(extra.replace('inst=', ''));
+        }
+    };
+
+    const validated = validateInstructions(goldenTransformPosOnlyJson);
+    const { window, actor } = createMockWindowAndActor();
+
+    await ext._runBatch(window, actor, validated);
+
+    assert.deepEqual(executedSteps, [
+        'Snapshot',
+        'Cloak',
+        'SetPositionAnchored',
+        'Uncloak',
+        'DestroySnapshot',
+    ]);
+
+    ext.disable();
+});
+
 test('dispatcher: unknown instruction causes immediate test failure rather than silent ignore', async () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
     ext.enable();

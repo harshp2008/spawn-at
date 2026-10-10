@@ -214,7 +214,9 @@ fn test_pivot_parsing_and_conflicts() {
     if let Commands::Transform(t_args) = cli.command {
         assert_eq!(t_args.geometry.pivot, Some(Pivot::Center));
         let err = t_args.validate().unwrap_err();
-        assert!(err.contains("nothing to change: give --size, -p/-o, --anchor, or --pivot with --size"));
+        assert!(
+            err.contains("nothing to change: give --size, -p/-o, --anchor, or --pivot with --size")
+        );
     } else {
         panic!("Expected Transform command variant");
     }
@@ -282,12 +284,7 @@ fn test_pivot_parsing_and_conflicts() {
 #[test]
 fn test_transform_nothing_to_change_fails_validation() {
     // 1. Selector only, no geometry changes
-    let args_empty = vec![
-        "spawn-at",
-        "transform",
-        "--class",
-        "org.gnome.Calculator",
-    ];
+    let args_empty = vec!["spawn-at", "transform", "--class", "org.gnome.Calculator"];
     let cli_empty = Cli::try_parse_from(args_empty).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli_empty.command {
         let err = t_args.validate().unwrap_err();
@@ -300,14 +297,7 @@ fn test_transform_nothing_to_change_fails_validation() {
     }
 
     // 2. Only --pivot center without --size
-    let args_pivot_only = vec![
-        "spawn-at",
-        "transform",
-        "--id",
-        "123",
-        "--pivot",
-        "center",
-    ];
+    let args_pivot_only = vec!["spawn-at", "transform", "--id", "123", "--pivot", "center"];
     let cli_po = Cli::try_parse_from(args_pivot_only).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli_po.command {
         let err = t_args.validate().unwrap_err();
@@ -337,15 +327,7 @@ fn test_transform_nothing_to_change_fails_validation() {
     }
 
     // 4. With -p only -> valid
-    let args_pos = vec![
-        "spawn-at",
-        "transform",
-        "--id",
-        "123",
-        "-p",
-        "100",
-        "200",
-    ];
+    let args_pos = vec!["spawn-at", "transform", "--id", "123", "-p", "100", "200"];
     let cli_p = Cli::try_parse_from(args_pos).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli_p.command {
         assert!(t_args.validate().is_ok());
@@ -354,15 +336,7 @@ fn test_transform_nothing_to_change_fails_validation() {
     }
 
     // 5. With -o only -> valid
-    let args_off = vec![
-        "spawn-at",
-        "transform",
-        "--id",
-        "123",
-        "-o",
-        "50",
-        "50",
-    ];
+    let args_off = vec!["spawn-at", "transform", "--id", "123", "-o", "50", "50"];
     let cli_o = Cli::try_parse_from(args_off).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli_o.command {
         assert!(t_args.validate().is_ok());
@@ -371,14 +345,7 @@ fn test_transform_nothing_to_change_fails_validation() {
     }
 
     // 6. With --anchor only -> valid
-    let args_anc = vec![
-        "spawn-at",
-        "transform",
-        "--id",
-        "123",
-        "--anchor",
-        "center",
-    ];
+    let args_anc = vec!["spawn-at", "transform", "--id", "123", "--anchor", "center"];
     let cli_a = Cli::try_parse_from(args_anc).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli_a.command {
         assert!(t_args.validate().is_ok());

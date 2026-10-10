@@ -883,8 +883,8 @@ impl CompositorBackend for GnomeWaylandDriver {
                 w: size.0,
                 h: size.1,
             });
+            instructions.push(mechanics::Instruction::WaitForCommit { timeout_ms: 500 });
         }
-        instructions.push(mechanics::Instruction::WaitForCommit { timeout_ms: 500 });
         if has_move {
             let payload = mechanics::calculate_placement(&params, current_w, current_h);
             instructions.push(mechanics::Instruction::SetPositionAnchored(payload));
