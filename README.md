@@ -217,11 +217,36 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | **Target & command** | `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
 | | `<COMMAND>...` | Command to spawn along with any trailing flags/arguments. |
 
+### Coordinate Model
+
+`--area` sets the coordinate space; `--anchor` / `--pivot` choose the reference point; `-p` / `-o` is the offset/position; `--clamp`, `-m`, and `--mt`/`--mb`/`--ml`/`--mr` bound the result.
+
+- **`--area workarea` (default)**: The usable work area of the target monitor (excluding top bar, docks, panels). `-p` / `-o` is relative to that area's raw top-left corner `(wa.x, wa.y)`. Clamped inside the work area minus margins.
+- **`--area screen`**: The full physical rectangle of the target monitor `(screen.x, screen.y)`. `-p` / `-o` is relative to that monitor's raw top-left corner. Clamped inside the screen rectangle minus margins.
+- **`--area unbounded`**: The global desktop layout across all monitors (the exact same coordinate space as `GEOMETRY` in `query windows`). `-p` / `-o` are absolute global coordinates. No margin, no border, and no clamp.
+  - Allowed with `unbounded`: `-p` / `-o`, `--pivot`, `--size`, `--anchor cursor`.
+  - Rejected with a clear error: any other `--anchor`, `--clamp`, `-m` / `--mt` / `--mb` / `--ml` / `--mr`, `--monitor`.
+  - Windows straddling monitors are allowed by Mutter; `spawn-at` prints an `INFO` diagnostic naming the straddled monitors without modifying coordinates.
+
+#### Concrete Examples
+
+Assuming a display with screen `1920x1080@(0,0)`, work area `1920x1040@(0,40)` (top bar height 40px), and default margin 16:
+- `spawn-at spawn -p 700 300 app` &rarr; screen `(700, 340)` (offset relative to work area top-left `(0, 40)`).
+- `spawn-at spawn --area screen -p 700 300 app` &rarr; screen `(700, 300)` (offset relative to screen top-left `(0, 0)`).
+- `spawn-at spawn --area unbounded -p 700 300 app` &rarr; screen `(700, 300)` (absolute desktop coordinate).
+- `spawn-at spawn -p 0 0 app` &rarr; screen `(16, 56)` (requested `(0, 0)` in work area; clamped to margin `16px` &rarr; `(0+16, 40+16)`).
+
+#### `-p` vs Anchors
+
+- **Without `--anchor`**: The reference point is the area's **raw top-left corner** (no margin added to the requested position). Margins still define the clamping boundary. Default pivot is `top-left`.
+- **With `--anchor`**: Anchor points include margins (e.g. `top-left` anchor is positioned at `(wa.x + ml, wa.y + mt)`). `-p` / `-o` acts as an offset from that anchored reference point.
+- **`--pivot`**: Defines which point of the window aligns with the target position or anchor (`top-left`, `top-right`, `bottom-left`, `bottom-right`, `center`).
+
 Centering and rounding rule: Centering along an axis is computed as `origin + floor((area_size - window_size) / 2)`. An odd remainder puts the extra pixel on the right/bottom.
 
 Placement defaults: A window moves only when requested.
 - Neither `--anchor` nor `-p`/`-o` given: no move instruction is sent. With `--size` alone: resize only (on transform the window keeps its top-left; on spawn the app opens where it opens, resized).
-- `-p` / `-o` without `--anchor`: absolute position; pivot defaults to `top-left`.
+- `-p` / `-o` without `--anchor`: position relative to the reference area; pivot defaults to `top-left`.
 - `-p` / `-o` with `--anchor`: offset from the anchor point.
 - `--pivot` without `--anchor` and without `-p`/`-o` on `transform`: resize around that point of the window (center keeps center fixed, bottom-right keeps that corner fixed); no move otherwise.
 - Default pivots: When `--pivot` is omitted, each anchor defaults to its matching alignment point (`center` -> `center`, `top` -> top-center, `bottom` -> bottom-center, `left` -> left-center, `right` -> right-center, corners -> matching corner, `cursor` -> `top-left`).
