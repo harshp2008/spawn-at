@@ -10,4 +10,5 @@ pub mod process;
 pub mod report;
 pub mod runner;
 pub mod schema;
+pub mod trace;
 pub mod tracker;

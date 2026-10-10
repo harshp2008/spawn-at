@@ -34,5 +34,14 @@ name = "fixture_test"
 path = "tests/fixture_test.rs"
 required-features = ["fixture"]
 
+[[test]]
+name = "oracle_cross_check"
+path = "tests/oracle_cross_check.rs"
+
+[[test]]
+name = "trace_analyser_test"
+path = "tests/trace_analyser_test.rs"
+
+
 [dev-dependencies]
 spawn-at-core = { path = "../spawn-at-core" }

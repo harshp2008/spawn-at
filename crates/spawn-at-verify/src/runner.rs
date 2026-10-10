@@ -485,6 +485,7 @@ impl TestRunner {
         // Attribute test-spawned windows strictly belonging to this test.
         // It must come only from that test's own spawn (the window id from the SpawnClaimed
         // signal or the claim result, or the fixture's own app id), never "any new window since the snapshot".
+        let mut attributed_id: Option<u64> = None;
         if test.action.command == "spawn" {
             let claimed_id = extract_claimed_window_id(&stdout, &stderr);
             let subject_app = test.subject.as_ref().map(|s| s.app.as_str());
@@ -496,6 +497,7 @@ impl TestRunner {
                     subject_app,
                     claimed_id,
                 ) {
+                    attributed_id = outcome.registered_id;
                     if let Some(err_msg) = outcome.error_message {
                         let (final_status, disagreement) = resolve_final_status(
                             test.kind,
@@ -523,6 +525,19 @@ impl TestRunner {
             }
         }
 
+        let transform_target_id = if test.action.command == "transform" {
+            test.action.args.windows(2).find_map(|w| {
+                if w[0] == "--id" {
+                    w[1].parse::<u64>().ok()
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
+        let target_id = attributed_id.or(transform_target_id);
+
         // Validate expectations
         let auto_status = match validate_expectations(test, exit_code, &stderr, env_info) {
             Ok(()) => AutoStatus::AutoPass,
@@ -547,6 +562,45 @@ impl TestRunner {
                 };
             }
         };
+
+        // Validate trace invariants if never_visible_off_target expectation is set and logs were captured
+        let auto_status =
+            if auto_status == AutoStatus::AutoPass && test.expect.never_visible_off_target {
+                if let Some(ref slice) = log_slice {
+                    let mut analyser = crate::trace::TraceAnalyser::new();
+                    if let Some(tid) = target_id {
+                        analyser = analyser.with_target_window_id(tid);
+                    }
+                    let report = analyser.analyse(slice);
+                    if !report.is_pass() {
+                        let err_msg = format!("Trace verification failed: {:?}", report.violations);
+                        let (final_status, disagreement) = resolve_final_status(
+                            test.kind,
+                            AutoStatus::AutoFail,
+                            &HumanVerdict::default(),
+                        );
+                        return TestResult {
+                            id: test.id.clone(),
+                            title: test.title.clone(),
+                            kind: test.kind,
+                            required: test.required,
+                            auto_status: AutoStatus::AutoFail,
+                            human_verdict: HumanVerdict::default(),
+                            final_status,
+                            disagreement,
+                            duration_ms,
+                            exit_code: Some(exit_code),
+                            stdout,
+                            stderr,
+                            message: Some(err_msg),
+                            log_slice,
+                        };
+                    }
+                }
+                auto_status
+            } else {
+                auto_status
+            };
 
         let (final_status, disagreement) =
             resolve_final_status(test.kind, auto_status, &HumanVerdict::default());
