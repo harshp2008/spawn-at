@@ -164,16 +164,9 @@ impl Diagnostic {
             Diagnostic::FinalSizeDiffers { .. } => DiagnosticLevel::Info,
             Diagnostic::PositionNotReached {
                 clamped_to_workarea,
-                requested_size,
-                actual_size,
                 ..
             } => {
                 if *clamped_to_workarea {
-                    if let Some(req) = requested_size {
-                        if req.0 != actual_size.0 || req.1 != actual_size.1 {
-                            return DiagnosticLevel::Warning;
-                        }
-                    }
                     DiagnosticLevel::Info
                 } else {
                     DiagnosticLevel::Warning
@@ -259,24 +252,6 @@ impl Diagnostic {
                     _ => "work area",
                 };
                 if *clamped_to_workarea {
-                    if let Some(req) = requested_size {
-                        if req.0 != actual_size.0 || req.1 != actual_size.1 {
-                            let mut msg = format!(
-                                "Window mapped at ({}, {}) [{}x{}] but expected position was ({}, {}).",
-                                actual_pos.0,
-                                actual_pos.1,
-                                actual_size.0,
-                                actual_size.1,
-                                expected_pos.0,
-                                expected_pos.1
-                            );
-                            msg.push_str(&format!(
-                                " Final size differs from the requested size ({}x{}); clamped to the {}.",
-                                req.0, req.1, area_str
-                            ));
-                            return msg;
-                        }
-                    }
                     format!(
                         "Requested ({}, {}); clamped to ({}, {}) inside the {}.",
                         expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1, area_str
@@ -357,30 +332,7 @@ pub fn evaluate_placement_diagnostics_for_action(
 ) -> Vec<Diagnostic> {
     let mut diags = Vec::new();
 
-    // When explicit `--pos` was requested and clamp is enabled:
-    // If the final position differs from requested because of clamping, say so through the
-    // diagnostics layer using the existing clamped-to-work-area diagnostic.
-    if let Some((req_x, req_y)) = params.pos {
-        if params.clamp && (actual_rect.x != req_x || actual_rect.y != req_y) {
-            diags.push(Diagnostic::PositionNotReached {
-                actual_pos: (actual_rect.x, actual_rect.y),
-                actual_size: (actual_rect.width, actual_rect.height),
-                expected_pos: (req_x, req_y),
-                requested_size: params.size,
-                clamped_to_workarea: true,
-                area: params.area,
-            });
-            return diags;
-        }
-    }
-
-    // Calculate expected position based on requested parameters
-    let expected_for_requested =
-        calculate_rect_from_placement(params, actual_rect.width, actual_rect.height);
-    let pos_reached_for_requested = (actual_rect.x - expected_for_requested.x).abs() <= 1
-        && (actual_rect.y - expected_for_requested.y).abs() <= 1;
-
-    // Also calculate expected position based on actual settled size (e.g. for anchored windows raised to minimum)
+    // The expected position must be computed with the ACTUAL final size and the same clamp/anchor/area
     let mut params_for_actual = params.clone();
     params_for_actual.size = Some((actual_rect.width, actual_rect.height));
     let expected_for_actual =
@@ -388,17 +340,34 @@ pub fn evaluate_placement_diagnostics_for_action(
 
     let is_maximized_like =
         actual_rect.width >= params.workarea.width && actual_rect.height >= params.workarea.height;
-    let pos_reached_for_actual = !is_maximized_like
+    let requested_is_maximized = params
+        .size
+        .is_some_and(|(w, h)| w >= params.workarea.width && h >= params.workarea.height);
+
+    let pos_reached = (!is_maximized_like || requested_is_maximized)
         && (actual_rect.x - expected_for_actual.x).abs() <= 1
         && (actual_rect.y - expected_for_actual.y).abs() <= 1;
 
-    let pos_reached = pos_reached_for_requested || pos_reached_for_actual;
-
-    let size_differs = params
-        .size
-        .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
-
     if pos_reached {
+        // When explicit `--pos` was requested and clamp altered the coordinates:
+        if let Some((req_x, req_y)) = params.pos {
+            if params.clamp && (expected_for_actual.x != req_x || expected_for_actual.y != req_y) {
+                diags.push(Diagnostic::PositionNotReached {
+                    actual_pos: (actual_rect.x, actual_rect.y),
+                    actual_size: (actual_rect.width, actual_rect.height),
+                    expected_pos: (req_x, req_y),
+                    requested_size: params.size,
+                    clamped_to_workarea: true,
+                    area: params.area,
+                });
+                return diags;
+            }
+        }
+
+        let size_differs = params
+            .size
+            .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
+
         if size_differs {
             let requested = params.size.unwrap();
             if size_raised || min_size.is_some() {
@@ -423,7 +392,7 @@ pub fn evaluate_placement_diagnostics_for_action(
             });
         }
     } else {
-        // Position was not reached
+        // Position was not reached (real mismatch)
         let is_off_screen = !params.clamp
             && (actual_rect.x < params.workarea.x || actual_rect.y < params.workarea.y);
         if is_off_screen {
@@ -432,12 +401,17 @@ pub fn evaluate_placement_diagnostics_for_action(
                 actual_size: (actual_rect.width, actual_rect.height),
             });
         } else {
+            let expected_pos = if let Some(p) = params.pos {
+                p
+            } else {
+                (expected_for_actual.x, expected_for_actual.y)
+            };
             diags.push(Diagnostic::PositionNotReached {
                 actual_pos: (actual_rect.x, actual_rect.y),
                 actual_size: (actual_rect.width, actual_rect.height),
-                expected_pos: (expected_for_requested.x, expected_for_requested.y),
+                expected_pos,
                 requested_size: params.size,
-                clamped_to_workarea: params.clamp,
+                clamped_to_workarea: false,
                 area: params.area,
             });
         }
@@ -578,15 +552,82 @@ mod tests {
                 assert_eq!(*actual_size, (1920, 1040));
                 assert_eq!(*expected_pos, (100, 1000));
                 assert_eq!(*requested_size, Some((30, 30)));
-                assert!(*clamped_to_workarea);
+                assert!(!*clamped_to_workarea);
             }
             other => panic!("Expected PositionNotReached, got {:?}", other),
         }
 
-        let msg = diags[0].format_message();
-        assert!(msg.contains(
-            "Final size differs from the requested size (30x30); clamped to the work area."
-        ));
+        assert_eq!(diags[0].level(), DiagnosticLevel::Warning);
+        let msg = diags[0].format_message_with_capability(ColorCapability::Disabled);
+        assert_eq!(
+            msg,
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
+    }
+
+    #[test]
+    fn test_raised_size_clamped_pos_info_exact_text() {
+        let params = PlacementParams {
+            pos: Some((0, 0)),
+            size: Some((20, 30)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 16,
+            y: 16,
+            width: 338,
+            height: 93,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags[0].message_body(),
+            "Requested (0, 0); clamped to (16, 16) inside the screen."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0); clamped to (16, 16) inside the screen."
+        );
+    }
+
+    #[test]
+    fn test_raised_size_real_mismatch_warning_exact_text() {
+        let params = PlacementParams {
+            pos: Some((100, 1000)),
+            size: Some((30, 30)),
+            workarea: sample_workarea(),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        // Maximized text editor mapped at (0, 40) [1920x1040] instead of clamped target
+        let actual = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(
+            diags[0].message_body(),
+            "Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
     }
 
     #[test]
