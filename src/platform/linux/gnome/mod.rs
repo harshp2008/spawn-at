@@ -721,9 +721,25 @@ impl CompositorBackend for GnomeWaylandDriver {
         if should_restart {
             if is_wayland {
                 println!("Logging out to complete GNOME Shell extension initialization...");
-                let _ = Command::new("gnome-session-quit")
+                let mut quit_cmd = Command::new("gnome-session-quit");
+                quit_cmd
                     .args(["--logout", "--no-prompt"])
-                    .spawn();
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null());
+                #[cfg(unix)]
+                {
+                    use std::os::unix::process::CommandExt;
+                    unsafe {
+                        quit_cmd.pre_exec(|| {
+                            if libc::setsid() < 0 {
+                                libc::setpgid(0, 0);
+                            }
+                            Ok(())
+                        });
+                    }
+                }
+                let _ = quit_cmd.spawn();
             } else {
                 restart_gnome_shell_x11();
             }
@@ -817,9 +833,25 @@ impl CompositorBackend for GnomeWaylandDriver {
         if should_restart {
             if is_wayland {
                 println!("Logging out to complete uninstallation...");
-                let _ = Command::new("gnome-session-quit")
+                let mut quit_cmd = Command::new("gnome-session-quit");
+                quit_cmd
                     .args(["--logout", "--no-prompt"])
-                    .spawn();
+                    .stdin(std::process::Stdio::null())
+                    .stdout(std::process::Stdio::null())
+                    .stderr(std::process::Stdio::null());
+                #[cfg(unix)]
+                {
+                    use std::os::unix::process::CommandExt;
+                    unsafe {
+                        quit_cmd.pre_exec(|| {
+                            if libc::setsid() < 0 {
+                                libc::setpgid(0, 0);
+                            }
+                            Ok(())
+                        });
+                    }
+                }
+                let _ = quit_cmd.spawn();
             } else {
                 restart_gnome_shell_x11();
             }

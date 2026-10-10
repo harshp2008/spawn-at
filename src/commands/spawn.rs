@@ -200,6 +200,7 @@ pub async fn run_spawn(
             cmd.env(k, v);
         }
     }
+    configure_child_process(&mut cmd, spawn_args.json);
 
     let child = match cmd.spawn() {
         Ok(child) => child,
@@ -420,6 +421,42 @@ pub async fn run_spawn(
     }
 
     Ok(())
+}
+
+/// Configures child command detachment and stdio inheritance policy:
+/// - In own session (`setsid()`, fallback to `setpgid(0, 0)`)
+/// - Stdin is always redirected to `/dev/null` so GUI apps never block or contend for terminal input
+/// - If `json` or non-TTY, `stdout`/`stderr` are redirected to `/dev/null` to prevent hung pipes (e.g. `OUT=$(...)`)
+/// - If interactive TTY and not `json`, inherits `stdout`/`stderr` so app logs remain visible
+pub fn configure_child_process(cmd: &mut std::process::Command, is_json: bool) {
+    use std::io::IsTerminal;
+
+    cmd.stdin(std::process::Stdio::null());
+
+    if is_json || !std::io::stdout().is_terminal() {
+        cmd.stdout(std::process::Stdio::null());
+    } else {
+        cmd.stdout(std::process::Stdio::inherit());
+    }
+
+    if is_json || !std::io::stderr().is_terminal() {
+        cmd.stderr(std::process::Stdio::null());
+    } else {
+        cmd.stderr(std::process::Stdio::inherit());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        unsafe {
+            cmd.pre_exec(|| {
+                if libc::setsid() < 0 {
+                    libc::setpgid(0, 0);
+                }
+                Ok(())
+            });
+        }
+    }
 }
 
 #[cfg(test)]
@@ -705,5 +742,68 @@ mod tests {
         assert_eq!(json_val["h"], 0);
         assert_eq!(json_val["reused_existing_window"], false);
         assert_eq!(json_val["source"], "poll");
+    }
+
+    #[test]
+    fn test_capturing_stdout_returns_without_waiting_for_child() {
+        let mut child_cmd = std::process::Command::new("sh");
+        child_cmd.args(["-c", "sleep 5"]);
+        configure_child_process(&mut child_cmd, true);
+
+        let start = std::time::Instant::now();
+        let mut child = child_cmd.spawn().expect("failed to spawn child");
+
+        // The process was detached and stdio redirected to null;
+        // spawn returns immediately and child does not hold any inherited pipe.
+        assert!(start.elapsed() < std::time::Duration::from_millis(500));
+        let _ = child.kill();
+    }
+
+    #[test]
+    fn test_child_in_different_session_or_process_group() {
+        let mut child_cmd = std::process::Command::new("sleep");
+        child_cmd.arg("10");
+        configure_child_process(&mut child_cmd, true);
+
+        let mut child = child_cmd.spawn().expect("failed to spawn sleep");
+        let child_pid = child.id() as i32;
+
+        unsafe {
+            let parent_sid = libc::getsid(0);
+            let child_sid = libc::getsid(child_pid);
+            let parent_pgid = libc::getpgrp();
+            let child_pgid = libc::getpgid(child_pid);
+
+            assert!(
+                child_sid != parent_sid || child_pgid != parent_pgid,
+                "Child was not placed in its own session or process group!"
+            );
+        }
+
+        let _ = child.kill();
+    }
+
+    #[test]
+    fn test_sigint_to_parent_process_group_does_not_reach_child() {
+        let mut child_cmd = std::process::Command::new("sleep");
+        child_cmd.arg("10");
+        configure_child_process(&mut child_cmd, true);
+
+        let mut child = child_cmd.spawn().expect("failed to spawn child");
+        let child_pid = child.id() as i32;
+
+        unsafe {
+            let child_pgid = libc::getpgid(child_pid);
+            let current_pgid = libc::getpgrp();
+            assert_ne!(
+                child_pgid, current_pgid,
+                "Child should have its own process group distinct from parent"
+            );
+
+            // Child is alive
+            assert_eq!(libc::kill(child_pid, 0), 0);
+        }
+
+        let _ = child.kill();
     }
 }

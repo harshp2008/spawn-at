@@ -277,12 +277,25 @@ pub fn trigger_background_check_if_needed(cfg: &mut Config) {
         let _ = cfg.save();
 
         if let Ok(exe) = std::env::current_exe() {
-            let _ = Command::new(exe)
+            let mut bg_cmd = Command::new(exe);
+            bg_cmd
                 .args(["update", "--check", "--headless"])
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn();
+                .stderr(std::process::Stdio::null());
+            #[cfg(unix)]
+            {
+                use std::os::unix::process::CommandExt;
+                unsafe {
+                    bg_cmd.pre_exec(|| {
+                        if libc::setsid() < 0 {
+                            libc::setpgid(0, 0);
+                        }
+                        Ok(())
+                    });
+                }
+            }
+            let _ = bg_cmd.spawn();
         }
     }
 }
@@ -705,9 +718,25 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
             if prompt_choice {
                 if is_wayland {
                     println!("Logging out to complete GNOME Shell extension upgrade...");
-                    let _ = Command::new("gnome-session-quit")
+                    let mut quit_cmd = Command::new("gnome-session-quit");
+                    quit_cmd
                         .args(["--logout", "--no-prompt"])
-                        .spawn();
+                        .stdin(std::process::Stdio::null())
+                        .stdout(std::process::Stdio::null())
+                        .stderr(std::process::Stdio::null());
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::process::CommandExt;
+                        unsafe {
+                            quit_cmd.pre_exec(|| {
+                                if libc::setsid() < 0 {
+                                    libc::setpgid(0, 0);
+                                }
+                                Ok(())
+                            });
+                        }
+                    }
+                    let _ = quit_cmd.spawn();
                 } else {
                     crate::platform::linux::gnome::restart_gnome_shell_x11();
                 }
