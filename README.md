@@ -204,7 +204,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | :--- | :--- |
 | `-p, --pos <X> <Y>` / `-o, --offset <X> <Y>` | Absolute position in pixels, or offset from anchor when `--anchor` is specified (aliases for the same option). |
 | `-s, --size <W> <H>` | Window size in pixels. |
-| `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor`. |
+| `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor` (cursor defaults to `top-left` pivot). |
 | `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
 | `--monitor` | Monitor index, `cursor`, or `primary` (default). |
 | `--area` | `workarea` (default) or `screen`. Sets the reference boundary for anchors, margins, and clamping. |

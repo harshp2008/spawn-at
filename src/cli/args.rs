@@ -24,7 +24,7 @@ pub enum QueryCommands {
 /// Shared spatial geometry and layout arguments for positioning windows.
 #[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct GeometryArgs {
-    /// Screen anchor target or cursor
+    /// Screen anchor target or cursor (defaults to top-left pivot when --pivot is omitted)
     #[arg(long, value_enum)]
     pub anchor: Option<Anchor>,
 
