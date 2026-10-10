@@ -338,6 +338,63 @@ test('dispatcher: executes Rust golden position-only transform pipeline without 
     ext.disable();
 });
 
+test('dispatcher: executes Rust golden unbounded transform instruction pipeline without clamp', async () => {
+    // Golden JSON from mechanics.rs test_golden_transform_batch_unbounded_instructions
+    const goldenUnboundedJson = JSON.stringify([
+        "Snapshot",
+        "Cloak",
+        {
+            SetPositionAnchored: {
+                intended_w: 367,
+                intended_h: 514,
+                screen_anchor_x: -50,
+                screen_anchor_y: 100,
+                pivot_u: 0.0,
+                pivot_v: 0.0,
+                offset_x: 0,
+                offset_y: 0,
+                margin_top: 0,
+                margin_bottom: 0,
+                margin_left: 0,
+                margin_right: 0,
+                clamp: false,
+            },
+        },
+        "Uncloak",
+        "DestroySnapshot",
+    ]);
+
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const executedSteps = [];
+    ext.logTime = (tag, extra) => {
+        if (tag === 'BATCH_STEP') {
+            executedSteps.push(extra.replace('inst=', ''));
+        }
+    };
+
+    const validated = validateInstructions(goldenUnboundedJson);
+    const { window, actor } = createMockWindowAndActor();
+
+    await ext._runBatch(window, actor, validated);
+
+    assert.deepEqual(executedSteps, [
+        'Snapshot',
+        'Cloak',
+        'SetPositionAnchored',
+        'Uncloak',
+        'DestroySnapshot',
+    ]);
+
+    // Position must be placed at exactly (-50, 100) with NO clamp applied
+    const frame = window.get_frame_rect();
+    assert.equal(frame.x, -50);
+    assert.equal(frame.y, 100);
+
+    ext.disable();
+});
+
 test('dispatcher: unknown instruction causes immediate test failure rather than silent ignore', async () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
     ext.enable();

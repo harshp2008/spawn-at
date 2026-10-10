@@ -18,7 +18,7 @@ pub struct PlacementPayload {
     pub pivot_v: f64,
     pub offset_x: i32,
     pub offset_y: i32,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub area: Option<String>,
     #[serde(default)]
     pub margin_top: i32,
@@ -127,11 +127,11 @@ pub fn calculate_placement(
         pivot_v,
         offset_x,
         offset_y,
-        area: params.area.map(|a| match a {
-            Area::Workarea => "workarea".to_string(),
-            Area::Screen => "screen".to_string(),
-            Area::Unbounded => "unbounded".to_string(),
-        }),
+        area: match params.area {
+            Some(Area::Workarea) => Some("workarea".to_string()),
+            Some(Area::Screen) => Some("screen".to_string()),
+            Some(Area::Unbounded) | None => None,
+        },
         margin_top: if is_unbounded { 0 } else { margin_top },
         margin_bottom: if is_unbounded { 0 } else { margin_bottom },
         margin_left: if is_unbounded { 0 } else { margin_left },
@@ -485,6 +485,46 @@ mod tests {
         assert_eq!(arr[0], "Snapshot");
         assert_eq!(arr[1], "Cloak");
         assert_eq!(arr[2]["SetPositionAnchored"]["intended_w"], 500);
+        assert_eq!(arr[3], "Uncloak");
+        assert_eq!(arr[4], "DestroySnapshot");
+    }
+
+    #[test]
+    fn test_golden_transform_batch_unbounded_instructions() {
+        let params = PlacementParams {
+            pos: Some((-50, 100)),
+            area: Some(Area::Unbounded),
+            clamp: false,
+            ..Default::default()
+        };
+        let payload = calculate_placement(&params, 367, 514);
+        assert_eq!(payload.screen_anchor_x, -50);
+        assert_eq!(payload.screen_anchor_y, 100);
+        assert_eq!(payload.area, None);
+        assert!(!payload.clamp);
+
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_w"], 367);
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_h"], 514);
+        assert_eq!(arr[2]["SetPositionAnchored"]["screen_anchor_x"], -50);
+        assert_eq!(arr[2]["SetPositionAnchored"]["screen_anchor_y"], 100);
+        assert!(arr[2]["SetPositionAnchored"].get("area").is_none());
+        assert_eq!(arr[2]["SetPositionAnchored"]["clamp"], false);
         assert_eq!(arr[3], "Uncloak");
         assert_eq!(arr[4], "DestroySnapshot");
     }

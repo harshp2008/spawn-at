@@ -197,9 +197,10 @@ impl Diagnostic {
             Diagnostic::FinalSizeDiffers { .. } => DiagnosticLevel::Info,
             Diagnostic::PositionNotReached {
                 clamped_to_workarea,
+                area,
                 ..
             } => {
-                if *clamped_to_workarea {
+                if *clamped_to_workarea || *area == Some(Area::Unbounded) {
                     DiagnosticLevel::Info
                 } else {
                     DiagnosticLevel::Warning
@@ -323,6 +324,18 @@ impl Diagnostic {
                     } else {
                         "Window mapped at"
                     };
+                    if area_kind == Area::Unbounded {
+                        return format!(
+                            "{} ({}, {}) [{}x{}]; compositor adjusted position from requested ({}, {}) to maintain visibility.",
+                            prefix,
+                            actual_pos.0,
+                            actual_pos.1,
+                            actual_size.0,
+                            actual_size.1,
+                            expected_pos.0,
+                            expected_pos.1
+                        );
+                    }
                     let mut msg = format!(
                         "{} ({}, {}) [{}x{}] but expected position was ({}, {}).",
                         prefix,
@@ -899,6 +912,26 @@ mod tests {
             "Window at (125, 175) [600x600] but expected position was (836, 464). Window was not positioned at target."
         );
         assert!(!msg.contains("mapped"));
+    }
+
+    #[test]
+    fn test_diagnostic_unbounded_compositor_adjustment() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (-292, 100),
+            actual_size: (367, 514),
+            expected_pos: (-320, 100),
+            requested_size: None,
+            clamped_to_workarea: false,
+            area: Some(Area::Unbounded),
+            is_transform: true,
+            workarea: Rect::default(),
+        };
+        assert_eq!(diag.level(), DiagnosticLevel::Info);
+        let msg = diag.message_body();
+        assert_eq!(
+            msg,
+            "Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility."
+        );
     }
 
     #[test]

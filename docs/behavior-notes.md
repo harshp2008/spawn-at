@@ -69,14 +69,22 @@ Unbounded mode provides raw coordinate access across the multi-monitor desktop.
   `"Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded: unbounded mode has no margins."`
 - `--monitor`:
   `"Cannot specify --monitor with --area unbounded: unbounded mode uses global desktop coordinates."`
+*(Pinned by: `src/cli/tests.rs::test_unbounded_allowed_and_rejected_options`)*
+
+### Batch Dispatch and Extension Parity
+- Instruction batches for unbounded transforms serialize `area: None` and `clamp: false`, bypassing bounds checking and margin clamping completely.
+*(Pinned by: `src/platform/linux/gnome/mechanics.rs::test_golden_transform_batch_unbounded_instructions` and `tests/dispatcher_test.js::"dispatcher: executes Rust golden unbounded transform instruction pipeline without clamp"`)*
 
 ### Straddling Monitors
 When a window's target geometry spans multiple monitors in unbounded mode:
 - `spawn-at` prints an `INFO` diagnostic indicating that the window straddles monitors (naming the intersecting monitors).
 - Coordinates are never altered or snapped.
+*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_window_straddles_monitors_helper`)*
 
 ### Mutter Compositor Boundaries
-- Mutter enforces an internal minimum visibility constraint (approximately 75px of the window surface must remain on an active monitor). If an unbounded coordinate places a window almost entirely off-screen, Mutter will snap the window back just enough to maintain this minimum visible handle.
+- Mutter enforces an internal minimum visibility constraint (approximately 75px of the window surface must remain on an active monitor). If an unbounded coordinate places a window almost entirely off-screen, Mutter snaps the window back just enough to maintain this minimum visible handle.
+- The CLI reports the real final position and explains that the compositor adjusted it (`INFO: Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility.`).
+*(Pinned by: `src/diagnostics.rs::test_diagnostic_unbounded_compositor_adjustment`)*
 
 ---
 
@@ -85,12 +93,15 @@ When a window's target geometry spans multiple monitors in unbounded mode:
 When `--monitor` is omitted:
 
 1. **`spawn` Command**:
-   - Defaults to the primary monitor (index `0` or monitor flagged `is_primary`).
+   - Defaults to the primary monitor (the monitor flagged `primary: true` in `MonitorLayout`).
+   - If no monitor is flagged primary, falls back to index `0` and emits an `INFO` diagnostic message: `"No monitor flagged as primary; falling back to index 0."`.
    - If `--anchor cursor` is specified, uses the monitor containing the current cursor position.
+*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero` and `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back`)*
 
 2. **`transform` Command**:
    - Defaults to the window's **current monitor**—specifically the monitor with the largest pixel overlap area with the window's current rectangle.
    - If the window does not overlap any monitor (e.g. positioned off-screen), falls back to the primary monitor.
+*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_find_monitor_with_largest_overlap`)*
 
 ---
 
@@ -102,9 +113,11 @@ In `spawn-at query windows`:
 - `query windows --area screen`: `REL` displays the position relative to the window's current monitor's full screen rectangle.
 - `query windows --area unbounded`: `REL` repeats the `GEOMETRY` desktop coordinates.
 - JSON output includes `x`, `y`, `rel: { x, y }`, and `"area"`.
+*(Pinned by: `src/commands/query.rs::test_query_windows_json_rel_and_area_fields` and `src/commands/query.rs::test_query_windows_unbounded_repeats_geometry`)*
 
 ### Round-Trip Guarantee
 Reading the `REL` values from `query windows` and passing them to `transform -p X Y` reproduces the exact same screen position:
 1. **Workarea Mode**: `query windows` (REL `(X, Y)`) &rarr; `transform -p X Y` &rarr; same position.
 2. **Screen Mode**: `query windows --area screen` (REL `(X, Y)`) &rarr; `transform --area screen -p X Y` &rarr; same position.
 3. **Unbounded Mode**: `query windows --area unbounded` (REL / GEOMETRY `(X, Y)`) &rarr; `transform --area unbounded -p X Y` &rarr; same position.
+*(Pinned by: `src/commands/query.rs::test_query_windows_round_trip_all_area_modes` and `crates/spawn-at-verify/tests/oracle_cross_check.rs::test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check`)*
