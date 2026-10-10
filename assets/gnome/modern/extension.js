@@ -53,6 +53,7 @@ export default class SpawnAtExtension extends Extension {
         this._wildcardTarget = null;
         this._wildcardTimeoutId = 0;
         this._anchors = new Map();
+        this._skippedEffectsActors = new Set();
 
         // Initialize logging module
         this._logger = new SessionLogger();
@@ -142,6 +143,15 @@ export default class SpawnAtExtension extends Extension {
             this._try(() => this._dummy.destroy());
             this._dummy = null;
         }
+
+        // Cleanup lingering skipped effects
+        if (this._skippedEffectsActors) {
+            for (const actor of this._skippedEffectsActors)
+                this._clearSkippedEffects(actor);
+            this._skippedEffectsActors.clear();
+        }
+        if (this._currentBatchItem?.actor)
+            this._clearSkippedEffects(this._currentBatchItem.actor);
 
         // Flush persistent logs
         this._logger?.flushSync();
@@ -613,6 +623,7 @@ export default class SpawnAtExtension extends Extension {
                 this._dbusManager?.emitSignal('SpawnClaimed', params);
             } catch (_err) {}
             this._uncloak(actor);
+            this._clearSkippedEffects(actor);
             if (item.deferredFocus && !item.focusApplied) {
                 this.logTime('DEFERRED_FOCUS_FALLBACK', 'batch failed; applying deferred focus', window);
                 this._focusWindowObject(window);
@@ -717,6 +728,7 @@ export default class SpawnAtExtension extends Extension {
             if (this._cloakManager?.snapshots?.has(actor)) {
                 this._cloakManager.destroySnapshot(actor, window);
             }
+            this._clearSkippedEffects(actor);
             this._logger?.flush();
         }
     }
@@ -833,6 +845,7 @@ export default class SpawnAtExtension extends Extension {
             this._skipWindowEffects(ctx.actor);
             if (typeof ctx.window.unminimize === 'function')
                 ctx.window.unminimize();
+            this._clearSkippedEffects(ctx.actor);
             this._focusWindowObject(ctx.window);
             if (ctx.item)
                 ctx.item.focusApplied = true;
@@ -874,6 +887,19 @@ export default class SpawnAtExtension extends Extension {
             actor.remove_all_transitions?.();
             actor.set_scale?.(1.0, 1.0);
             actor.set_pivot_point?.(0, 0);
+            this._skippedEffectsActors?.add(actor);
+        } catch (_e) {}
+    }
+
+    _clearSkippedEffects(actor) {
+        if (!actor)
+            return;
+        try {
+            this._skippedEffectsActors?.delete(actor);
+            if (typeof Main !== 'undefined' && Main.wm && Main.wm._skippedActors)
+                Main.wm._skippedActors.delete(actor);
+            if (global.window_manager && global.window_manager._skippedActors)
+                global.window_manager._skippedActors.delete(actor);
         } catch (_e) {}
     }
 

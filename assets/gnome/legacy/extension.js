@@ -15,7 +15,9 @@
 
 const { Gio, Meta, GLib, Clutter } = imports.gi;
 const ExtensionUtils = (typeof imports !== 'undefined' && imports.misc) ? imports.misc.extensionUtils : null;
-const Main = (typeof imports !== 'undefined' && imports.ui) ? imports.ui.main : (globalThis.Main || null);
+function _getMain() {
+    return (typeof imports !== 'undefined' && imports.ui) ? imports.ui.main : (globalThis.Main || null);
+}
 const Me = ExtensionUtils ? ExtensionUtils.getCurrentExtension() : null;
 
 let DBusManager, CloakManager, CommitLatch, FocusPulse, computeAnchoredPosition, SessionLogger, validateInstructions;
@@ -62,6 +64,7 @@ class SpawnAtExtension {
         this._wildcardTarget = null;
         this._wildcardTimeoutId = 0;
         this._anchors = new Map();
+        this._skippedEffectsActors = new Set();
 
         // Initialize logging module
         this._logger = new SessionLogger();
@@ -151,6 +154,15 @@ class SpawnAtExtension {
             this._try(() => this._dummy.destroy());
             this._dummy = null;
         }
+
+        // Cleanup lingering skipped effects
+        if (this._skippedEffectsActors) {
+            for (const actor of this._skippedEffectsActors)
+                this._clearSkippedEffects(actor);
+            this._skippedEffectsActors.clear();
+        }
+        if (this._currentBatchItem?.actor)
+            this._clearSkippedEffects(this._currentBatchItem.actor);
 
         // Flush persistent logs
         this._logger?.flushSync();
@@ -622,6 +634,7 @@ class SpawnAtExtension {
                 this._dbusManager?.emitSignal('SpawnClaimed', params);
             } catch (_err) {}
             this._uncloak(actor);
+            this._clearSkippedEffects(actor);
             if (item.deferredFocus && !item.focusApplied) {
                 this.logTime('DEFERRED_FOCUS_FALLBACK', 'batch failed; applying deferred focus', window);
                 this._focusWindowObject(window);
@@ -726,6 +739,7 @@ class SpawnAtExtension {
             if (this._cloakManager?.snapshots?.has(actor)) {
                 this._cloakManager.destroySnapshot(actor, window);
             }
+            this._clearSkippedEffects(actor);
             this._logger?.flush();
         }
     }
@@ -842,6 +856,7 @@ class SpawnAtExtension {
             this._skipWindowEffects(ctx.actor);
             if (typeof ctx.window.unminimize === 'function')
                 ctx.window.unminimize();
+            this._clearSkippedEffects(ctx.actor);
             this._focusWindowObject(ctx.window);
             if (ctx.item)
                 ctx.item.focusApplied = true;
@@ -867,12 +882,13 @@ class SpawnAtExtension {
     _skipWindowEffects(actor) {
         if (!actor)
             return;
+        const main = _getMain();
         try {
-            if (typeof Main !== 'undefined' && Main.wm) {
-                if (typeof Main.wm.skipNextEffect === 'function')
-                    Main.wm.skipNextEffect(actor);
-                else if (Main.wm._skippedActors && typeof Main.wm._skippedActors.add === 'function')
-                    Main.wm._skippedActors.add(actor);
+            if (main && main.wm) {
+                if (typeof main.wm.skipNextEffect === 'function')
+                    main.wm.skipNextEffect(actor);
+                else if (main.wm._skippedActors && typeof main.wm._skippedActors.add === 'function')
+                    main.wm._skippedActors.add(actor);
             }
             if (global.window_manager) {
                 if (typeof global.window_manager.skipNextEffect === 'function')
@@ -883,6 +899,20 @@ class SpawnAtExtension {
             actor.remove_all_transitions?.();
             actor.set_scale?.(1.0, 1.0);
             actor.set_pivot_point?.(0, 0);
+            this._skippedEffectsActors?.add(actor);
+        } catch (_e) {}
+    }
+
+    _clearSkippedEffects(actor) {
+        if (!actor)
+            return;
+        const main = _getMain();
+        try {
+            this._skippedEffectsActors?.delete(actor);
+            if (main && main.wm && main.wm._skippedActors)
+                main.wm._skippedActors.delete(actor);
+            if (global.window_manager && global.window_manager._skippedActors)
+                global.window_manager._skippedActors.delete(actor);
         } catch (_e) {}
     }
 

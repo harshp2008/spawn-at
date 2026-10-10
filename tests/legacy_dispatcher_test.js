@@ -1096,6 +1096,164 @@ test('dispatcher (legacy): actor operation sequences are identical with logging 
     }
 });
 
+test('dispatcher (legacy): skipped effects set is clean after transform-of-minimized, allowing subsequent minimize to animate', async () => {
+    const mockWm = {
+        _skippedActors: new Set(),
+        skipNextEffect: (a) => mockWm._skippedActors.add(a),
+    };
+    globalThis.imports.ui = {
+        main: {
+            wm: mockWm,
+            layoutManager: { monitors: [] },
+        },
+    };
+    globalThis.Main = globalThis.imports.ui.main;
+
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    window.minimized = true;
+    window.unminimize = () => {
+        window.minimized = false;
+    };
+    actor.get_parent = () => ({
+        constructor: { name: 'MetaWindowActor' },
+        add_child: () => {},
+    });
+    window.get_compositor_private = () => actor;
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    try {
+        const batch = [
+            { name: 'Snapshot', args: {} },
+            { name: 'Cloak', args: {} },
+            {
+                name: 'SetPositionAnchored',
+                args: {
+                    intended_w: 640,
+                    intended_h: 480,
+                    screen_anchor_x: 200,
+                    screen_anchor_y: 200,
+                    pivot_u: 0.0,
+                    pivot_v: 0.0,
+                    offset_x: 0,
+                    offset_y: 0,
+                    area: 'workarea',
+                    margin_top: 0,
+                    margin_bottom: 0,
+                    margin_left: 0,
+                    margin_right: 0,
+                    clamp: true,
+                },
+            },
+            { name: 'Uncloak', args: {} },
+            { name: 'DestroySnapshot', args: {} },
+        ];
+
+        await ext._runBatch(window, actor, batch, 'test-transform-minimized');
+
+        // Assert 1: skipped effects set is clean immediately after transform
+        assert.equal(mockWm._skippedActors.has(actor), false, 'mockWm._skippedActors must not contain actor after transform of minimized window');
+        assert.equal(ext._skippedEffectsActors.has(actor), false, 'ext._skippedEffectsActors must not contain actor');
+
+        // Assert 2: subsequent Shell minimize animation is NOT skipped
+        let animationPlayed = false;
+        const mockShellMinimizeWindow = (a) => {
+            // Shell 46 windowManager.js line 1137: if (this._skippedActors.delete(actor)) return false;
+            if (mockWm._skippedActors.delete(a)) {
+                return; // instant skip
+            }
+            animationPlayed = true; // ease animation plays
+        };
+
+        mockShellMinimizeWindow(actor);
+        assert.equal(animationPlayed, true, 'Subsequent minimize must play animation because skipped actors set was clean');
+    } finally {
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+});
+
+test('dispatcher (legacy): error mid-batch leaves skipped effects set clean', async () => {
+    const mockWm = {
+        _skippedActors: new Set(),
+        skipNextEffect: (a) => mockWm._skippedActors.add(a),
+    };
+    globalThis.imports.ui = {
+        main: {
+            wm: mockWm,
+            layoutManager: { monitors: [] },
+        },
+    };
+    globalThis.Main = globalThis.imports.ui.main;
+
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    window.minimized = true;
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    // Batch that calls _skipWindowEffects and then throws an error mid-batch
+    ext._skipWindowEffects(actor);
+    assert.equal(mockWm._skippedActors.has(actor), true, 'Actor should initially be in skipped actors');
+    assert.equal(ext._skippedEffectsActors.has(actor), true, 'Actor should be tracked in ext._skippedEffectsActors');
+
+    const failingBatch = [
+        { name: 'Cloak', args: {} },
+        { name: 'UnknownFailingInstruction', args: {} },
+    ];
+
+    const origError = console.error;
+    console.error = () => {};
+    try {
+        await ext._runBatch(window, actor, failingBatch, 'test-failing-batch');
+    } catch (_e) {
+        // Expected to throw
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+    }
+
+    assert.equal(mockWm._skippedActors.has(actor), false, 'mockWm._skippedActors must be cleaned up after batch failure');
+    assert.equal(ext._skippedEffectsActors.has(actor), false, 'ext._skippedEffectsActors must be cleaned up after batch failure');
+
+    ext.disable();
+});
+
+test('dispatcher (legacy): disable() leaves skipped effects set clean', async () => {
+    const mockWm = {
+        _skippedActors: new Set(),
+        skipNextEffect: (a) => mockWm._skippedActors.add(a),
+    };
+    globalThis.imports.ui = {
+        main: {
+            wm: mockWm,
+            layoutManager: { monitors: [] },
+        },
+    };
+    globalThis.Main = globalThis.imports.ui.main;
+
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { actor } = createMockWindowAndActor();
+
+    ext._skipWindowEffects(actor);
+    assert.equal(mockWm._skippedActors.has(actor), true, 'Actor added to mockWm._skippedActors');
+    assert.equal(ext._skippedEffectsActors.has(actor), true, 'Actor tracked in ext._skippedEffectsActors');
+
+    ext.disable();
+
+    assert.equal(mockWm._skippedActors.has(actor), false, 'mockWm._skippedActors must be clean after disable()');
+    assert.equal(ext._skippedEffectsActors.size, 0, 'ext._skippedEffectsActors must be empty after disable()');
+});
+
 
 
 
