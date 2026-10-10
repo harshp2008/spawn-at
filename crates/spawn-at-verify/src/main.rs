@@ -32,6 +32,8 @@ enum Commands {
     Check(CheckArgs),
     /// Re-render or inspect past verification reports
     Report(ReportArgs),
+    /// Interactive Terminal UI for test execution and human review
+    Tui(TuiArgs),
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -156,6 +158,29 @@ struct CheckArgs {
 struct ReportArgs {
     /// Path to session report directory or report.json [default: latest in verify-results/]
     path: Option<PathBuf>,
+}
+
+#[derive(Args, Debug)]
+struct TuiArgs {
+    /// Path to spawn-at binary under test [default: target/debug/spawn-at]
+    #[arg(long)]
+    bin: Option<PathBuf>,
+
+    /// Path to verify test library directory [default: auto-detected verify/]
+    #[arg(long)]
+    dir: Option<PathBuf>,
+
+    /// Run a predefined test suite (e.g. quick, release-gate, visual)
+    #[arg(long)]
+    suite: Option<String>,
+
+    /// Select by category path prefix
+    #[arg(long)]
+    category: Option<String>,
+
+    /// Select by tag (can be specified multiple times)
+    #[arg(long = "tag")]
+    tags: Vec<String>,
 }
 
 fn resolve_verify_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
@@ -487,6 +512,30 @@ fn main() {
             };
 
             println!("{}", render_markdown_report(&report));
+        }
+        Commands::Tui(tui_args) => {
+            #[cfg(feature = "tui")]
+            {
+                let tui_args = spawn_at_verify::tui::TuiArgs {
+                    bin: tui_args.bin,
+                    dir: tui_args.dir,
+                    suite: tui_args.suite,
+                    category: tui_args.category,
+                    tags: tui_args.tags,
+                };
+                if let Err(e) = spawn_at_verify::tui::run_tui(tui_args) {
+                    eprintln!("TUI Error: {}", e);
+                    exit(1);
+                }
+            }
+            #[cfg(not(feature = "tui"))]
+            {
+                let _ = tui_args;
+                eprintln!(
+                    "Error: TUI feature is not compiled in.\nRun with: cargo run -p spawn-at-verify --features tui,fixture -- tui"
+                );
+                exit(1);
+            }
         }
     }
 }

@@ -12,3 +12,6 @@ pub mod runner;
 pub mod schema;
 pub mod trace;
 pub mod tracker;
+
+#[cfg(feature = "tui")]
+pub mod tui;

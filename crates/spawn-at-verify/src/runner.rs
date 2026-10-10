@@ -258,7 +258,7 @@ impl TestRunner {
         Ok((preflight, env_info, results))
     }
 
-    fn execute_single_test(
+    pub fn execute_single_test(
         &self,
         test: &TestDefinition,
         preflight: &PreflightReport,
@@ -421,9 +421,19 @@ impl TestRunner {
                         cmd.arg("--json");
                     }
                     cmd.arg("--");
-                    cmd.arg(&fixture_bin);
+                    let mut has_exit_after = false;
                     for sarg in &sub.args {
+                        if sarg == "--exit-after-ms" {
+                            has_exit_after = true;
+                        }
                         cmd.arg(sarg);
+                    }
+                    // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
+                    // if test harness crashes or receives SIGKILL mid-execution. 10,000ms comfortably
+                    // outlasts the default 5s test step timeout while bounding fixture lifetime.
+                    if !has_exit_after {
+                        cmd.arg("--exit-after-ms");
+                        cmd.arg("10000");
                     }
                 } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
                     if !test.action.args.contains(&"--json".to_string()) {

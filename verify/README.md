@@ -198,6 +198,8 @@ The fixture helper binary (`crates/spawn-at-verify/src/bin/fixture.rs`) supports
 - **Protocol Option**: `--protocol <auto|wayland|x11>`
 - **Actual Protocol Tracking**: The runner records per test window which protocol was actually used (derived from compositor trace/log or `query windows` output).
 - **Strict Protocol Enforcement**: A test requiring native Wayland fails or skips if the window was mapped under XWayland.
+- **Bounded Lifetime Backstop**: The runner always injects `--exit-after-ms 10000` to fixture spawns if not specified in test arguments. This ensures that even under an abrupt test harness crash or `kill -9`, fixture processes automatically self-terminate after 10,000ms (comfortably outlasting the default 5s step timeout).
+- **Missing Binary Guard**: If a test requires the fixture and `target/debug/fixture` is missing, it fails fast with a clear diagnostic instructing the user to build it via `cargo build -p spawn-at-verify --bin fixture --features fixture`.
 
 ---
 
@@ -221,11 +223,23 @@ The GNOME Shell extension emits structured JSON events when logging is enabled v
 ## 9. TUI & Web Interface
 
 ### Terminal User Interface (TUI)
-- **Left Pane**: Category tree with status glyphs (`✔`, `✖`, `●`, `⊘`) and progress counters.
-- **Center Pane**: Test title, description, preconditions, execution steps, oracle expectation, watch text, automated result, human verdict, and run count.
-- **Right/Bottom Pane**: Live log viewer with "spawn-at only" filter toggle, auto-scroll, and search.
-- **Status & Footer**: Key binding hints, unverified required test counters, and preflight status.
-- **SSH Copy Support**: Copies logs using OSC 52 escape sequences and writes temporary disk logs for remote retrieval.
+Run with real fixture cases:
+```bash
+cargo run -p spawn-at-verify --features tui,fixture -- tui
+```
+
+- **Missing Fixture Warning Banner**: If the fixture binary is missing, the TUI displays a prominent warning banner at the top instructing how to build it (`cargo build -p spawn-at-verify --bin fixture --features fixture`).
+- **Keybindings**:
+  - `j` / `Down`, `k` / `Up`: Navigate test cases
+  - `r`: Execute currently selected test
+  - `a`: Execute all tests matching current filter
+  - `v`: Open human visual review verdict modal (`[P]` Pass, `[F]` Fail, `[S]` Skip, `[K]` Flaky, `[Esc]` Cancel)
+  - `f`: Cycle filter modes (`All` -> `Human Only` -> `Auto Only` -> `Failed Only`)
+  - `q` / `Ctrl+C`: Graceful teardown
+- **Raw Mode Ctrl+C & Signal Safety**: In terminal raw mode, `Ctrl+C` arrives as a crossterm key event. Both `Ctrl+C` and external `SIGTERM`/`SIGHUP` signals execute the exact same unified teardown:
+  1. Restores terminal raw mode, leaves alternate screen, and restores cursor visibility.
+  2. Safely cleans up test-spawned windows via `spawn-at close --id <ID>`.
+  3. Faithfully restores the initial GNOME Shell extension logging state (recorded at startup from `session.log` / `SPAWN_AT_DEBUG`); never blindly disables logging if the user had it turned on.
 
 ### Web UI
 - Served via `spawn-at-verify serve --bind 127.0.0.1:<PORT>` or concurrently inside `tui --web`.
