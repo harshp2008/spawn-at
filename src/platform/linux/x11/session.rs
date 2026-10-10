@@ -384,6 +384,8 @@ impl X11Session {
             y,
             w: geom.width as i32,
             h: geom.height as i32,
+            rel: None,
+            area: None,
             focused,
             maximized,
             minimized,

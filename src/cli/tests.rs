@@ -846,7 +846,34 @@ fn test_characterization_all_subcommands_parsing() {
     assert!(matches!(
         cli.command,
         Commands::Query {
-            cmd: QueryCommands::Windows { json: true }
+            cmd: QueryCommands::Windows {
+                json: true,
+                area: Area::Workarea,
+            }
+        }
+    ));
+
+    let cli = Cli::try_parse_from(["spawn-at", "query", "windows", "--area", "screen"]).unwrap();
+    assert!(matches!(
+        cli.command,
+        Commands::Query {
+            cmd: QueryCommands::Windows {
+                json: false,
+                area: Area::Screen,
+            }
+        }
+    ));
+
+    let cli =
+        Cli::try_parse_from(["spawn-at", "query", "windows", "--area", "unbounded", "--json"])
+            .unwrap();
+    assert!(matches!(
+        cli.command,
+        Commands::Query {
+            cmd: QueryCommands::Windows {
+                json: true,
+                area: Area::Unbounded,
+            }
         }
     ));
 

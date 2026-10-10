@@ -13,11 +13,18 @@ pub enum QueryCommands {
     },
     /// Fetch and print current pointer coordinates
     Pointer,
-    /// Fetch and print list of all open windows with metadata (GEOMETRY is in global screen coordinates, and a maximized window sits at the work area's origin)
+    /// Fetch and print list of all open windows with metadata.
+    ///
+    /// GEOMETRY is reported in screen coordinates.
+    /// REL is the position relative to the monitor's work area (default), or relative to the area chosen by --area (screen or unbounded; unbounded repeats GEOMETRY position).
     Windows {
         /// Output raw JSON instead of human-readable table
         #[arg(long)]
         json: bool,
+
+        /// Coordinate space for REL column (workarea, screen, or unbounded)
+        #[arg(long, value_enum, default_value = "workarea")]
+        area: Area,
     },
 }
 

@@ -60,6 +60,12 @@ impl WindowSelector {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+pub struct RelPosition {
+    pub x: i32,
+    pub y: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct WindowMetadata {
     #[serde(default)]
     pub id: Option<u64>,
@@ -75,6 +81,10 @@ pub struct WindowMetadata {
     pub y: i32,
     pub w: i32,
     pub h: i32,
+    #[serde(default)]
+    pub rel: Option<RelPosition>,
+    #[serde(default)]
+    pub area: Option<String>,
     #[serde(default)]
     pub focused: bool,
     #[serde(default)]

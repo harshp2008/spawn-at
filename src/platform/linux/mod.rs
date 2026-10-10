@@ -396,6 +396,8 @@ mod tests {
                 y: 20,
                 w: 30,
                 h: 40,
+                rel: None,
+                area: None,
                 focused: true,
                 maximized: false,
                 minimized: false,

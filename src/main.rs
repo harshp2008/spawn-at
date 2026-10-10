@@ -61,7 +61,7 @@ async fn main() {
         || match &cli.command {
             Commands::Query { cmd } => match cmd {
                 crate::cli::QueryCommands::Layout { json } => *json,
-                crate::cli::QueryCommands::Windows { json } => *json,
+                crate::cli::QueryCommands::Windows { json, .. } => *json,
                 crate::cli::QueryCommands::Pointer => false,
             },
             _ => false,

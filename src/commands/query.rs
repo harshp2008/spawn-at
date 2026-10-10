@@ -5,6 +5,8 @@
 
 use crate::cli::QueryCommands;
 use crate::platform::CompositorBackend;
+use crate::target::RelPosition;
+use spawn_at_core::geometry::{Area, LayoutRect};
 
 /// Executes the `query` subcommand: fetches requested compositor state and prints to stdout.
 pub async fn run_query(
@@ -61,7 +63,7 @@ pub async fn run_query(
             let (x, y) = backend.get_cursor_position().await?;
             println!("{}, {}", x, y);
         }
-        QueryCommands::Windows { json } => {
+        QueryCommands::Windows { json, area } => {
             let protocol = backend.protocol_version().await;
             let is_older = match protocol {
                 Some(v) if v < 5 => Some(v),
@@ -78,6 +80,94 @@ pub async fn run_query(
                 for w in &mut windows {
                     w.monitor = None;
                     w.state = None;
+                }
+            }
+
+            // Retrieve layout or fallback monitor information to compute relative coordinates
+            let layout_opt = backend.get_layout().await.ok();
+            let workareas_fallback = if layout_opt.is_none() {
+                backend.get_workareas().await.ok()
+            } else {
+                None
+            };
+            let monitors_fallback = if layout_opt.is_none() {
+                backend.get_monitors().await.ok()
+            } else {
+                None
+            };
+
+            for w in &mut windows {
+                match area {
+                    Area::Unbounded => {
+                        w.rel = Some(RelPosition { x: w.x, y: w.y });
+                        w.area = Some("unbounded".to_string());
+                    }
+                    Area::Screen => {
+                        if let Some(mon_idx) = w.monitor {
+                            let screen_rect = if let Some(ref layout) = layout_opt {
+                                layout
+                                    .monitors
+                                    .iter()
+                                    .find(|m| m.index as i32 == mon_idx)
+                                    .and_then(|m| m.screen)
+                            } else if let Some(ref mons) = monitors_fallback {
+                                if (mon_idx as usize) < mons.len() {
+                                    Some(LayoutRect::from(mons[mon_idx as usize]))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            if let Some(s) = screen_rect {
+                                w.rel = Some(RelPosition {
+                                    x: w.x - s.x,
+                                    y: w.y - s.y,
+                                });
+                                w.area = Some("screen".to_string());
+                            } else {
+                                w.rel = None;
+                                w.area = None;
+                            }
+                        } else {
+                            w.rel = None;
+                            w.area = None;
+                        }
+                    }
+                    Area::Workarea => {
+                        if let Some(mon_idx) = w.monitor {
+                            let workarea_rect = if let Some(ref layout) = layout_opt {
+                                layout
+                                    .monitors
+                                    .iter()
+                                    .find(|m| m.index as i32 == mon_idx)
+                                    .and_then(|m| m.workarea)
+                            } else if let Some(ref was) = workareas_fallback {
+                                if (mon_idx as usize) < was.len() {
+                                    Some(LayoutRect::from(was[mon_idx as usize]))
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            };
+
+                            if let Some(wa) = workarea_rect {
+                                w.rel = Some(RelPosition {
+                                    x: w.x - wa.x,
+                                    y: w.y - wa.y,
+                                });
+                                w.area = Some("workarea".to_string());
+                            } else {
+                                w.rel = None;
+                                w.area = None;
+                            }
+                        } else {
+                            w.rel = None;
+                            w.area = None;
+                        }
+                    }
                 }
             }
 
@@ -120,11 +210,23 @@ pub async fn run_query(
                     .max()
                     .unwrap_or(8)
                     .max(8);
+                let rel_w = windows
+                    .iter()
+                    .map(|w| {
+                        if let Some(ref r) = w.rel {
+                            format!("{},{}", r.x, r.y).len()
+                        } else {
+                            1
+                        }
+                    })
+                    .max()
+                    .unwrap_or(3)
+                    .max(3);
                 let focused_w = 7;
 
                 println!(
-                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<focused_w$}  TITLE",
-                    "ID", "PID", "CLASS", "MON", "STATE", "GEOMETRY", "FOCUSED"
+                    "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<rel_w$}  {:<focused_w$}  TITLE",
+                    "ID", "PID", "CLASS", "MON", "STATE", "GEOMETRY", "REL", "FOCUSED"
                 );
                 for w in &windows {
                     let id_str =
@@ -140,10 +242,15 @@ pub async fn run_query(
                         .unwrap_or_else(|| "-".to_string());
                     let state_str = w.state.clone().unwrap_or_else(|| "-".to_string());
                     let geom_str = format!("{}x{}@{},{}", w.w, w.h, w.x, w.y);
+                    let rel_str = if let Some(ref r) = w.rel {
+                        format!("{},{}", r.x, r.y)
+                    } else {
+                        "-".to_string()
+                    };
                     let focused_str = if w.focused { "*" } else { "" };
                     println!(
-                        "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<focused_w$}  {}",
-                        id_str, pid_str, w.class, mon_str, state_str, geom_str, focused_str, w.title
+                        "{:<id_w$}  {:<pid_w$}  {:<class_w$}  {:<mon_w$}  {:<state_w$}  {:<geom_w$}  {:<rel_w$}  {:<focused_w$}  {}",
+                        id_str, pid_str, w.class, mon_str, state_str, geom_str, rel_str, focused_str, w.title
                     );
                 }
             }
@@ -252,6 +359,8 @@ mod tests {
                     y: 40,
                     w: 1920,
                     h: 1040,
+                    rel: None,
+                    area: None,
                     focused: true,
                     maximized: false,
                     minimized: false,
@@ -269,6 +378,8 @@ mod tests {
                     y: 514,
                     w: 450,
                     h: 550,
+                    rel: None,
+                    area: None,
                     focused: false,
                     maximized: false,
                     minimized: false,
@@ -281,15 +392,49 @@ mod tests {
             protocol: Some(5),
         };
 
-        // Human readable table output
-        assert!(run_query(&backend, QueryCommands::Windows { json: false })
-            .await
-            .is_ok());
+        // Human readable table output (default workarea)
+        assert!(run_query(
+            &backend,
+            QueryCommands::Windows {
+                json: false,
+                area: Area::Workarea,
+            }
+        )
+        .await
+        .is_ok());
 
         // JSON output
-        assert!(run_query(&backend, QueryCommands::Windows { json: true })
-            .await
-            .is_ok());
+        assert!(run_query(
+            &backend,
+            QueryCommands::Windows {
+                json: true,
+                area: Area::Workarea,
+            }
+        )
+        .await
+        .is_ok());
+
+        // Screen area
+        assert!(run_query(
+            &backend,
+            QueryCommands::Windows {
+                json: true,
+                area: Area::Screen,
+            }
+        )
+        .await
+        .is_ok());
+
+        // Unbounded area
+        assert!(run_query(
+            &backend,
+            QueryCommands::Windows {
+                json: true,
+                area: Area::Unbounded,
+            }
+        )
+        .await
+        .is_ok());
     }
 
     #[tokio::test]
@@ -314,14 +459,21 @@ mod tests {
                 monitor: Some(0),
                 state: Some("normal".to_string()),
                 workspace: Some(1),
+                ..Default::default()
             }],
             cursor: (0, 0),
             protocol: Some(4),
         };
 
-        assert!(run_query(&backend, QueryCommands::Windows { json: false })
-            .await
-            .is_ok());
+        assert!(run_query(
+            &backend,
+            QueryCommands::Windows {
+                json: false,
+                area: Area::Workarea,
+            }
+        )
+        .await
+        .is_ok());
 
         let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
         assert!(diags.iter().any(|(level, msg)| {
@@ -477,6 +629,8 @@ mod tests {
                 y: 20,
                 w: 800,
                 h: 600,
+                rel: Some(crate::target::RelPosition { x: 10, y: 0 }),
+                area: Some("workarea".to_string()),
                 focused: true,
                 maximized: false,
                 minimized: false,
@@ -494,6 +648,8 @@ mod tests {
                 y: 0,
                 w: 1920,
                 h: 1080,
+                rel: None,
+                area: None,
                 focused: false,
                 maximized: true,
                 minimized: false,
@@ -518,6 +674,9 @@ mod tests {
         assert_eq!(arr[0]["y"], 20);
         assert_eq!(arr[0]["w"], 800);
         assert_eq!(arr[0]["h"], 600);
+        assert_eq!(arr[0]["rel"]["x"], 10);
+        assert_eq!(arr[0]["rel"]["y"], 0);
+        assert_eq!(arr[0]["area"], "workarea");
         assert_eq!(arr[0]["focused"], true);
         assert_eq!(arr[0]["maximized"], false);
         assert_eq!(arr[0]["minimized"], false);
@@ -527,6 +686,8 @@ mod tests {
 
         assert!(arr[1]["id"].is_null());
         assert!(arr[1]["pid"].is_null());
+        assert!(arr[1]["rel"].is_null());
+        assert!(arr[1]["area"].is_null());
         assert_eq!(arr[1]["maximized"], true);
         assert!(arr[1]["monitor"].is_null());
         assert_eq!(arr[1]["state"], "maximized");
