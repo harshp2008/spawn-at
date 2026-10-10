@@ -112,6 +112,8 @@ var CloakManager = class CloakManager {
     createSnapshot(actor, window = null) {
         if (!actor || this.snapshots.has(actor) || !this.Clutter?.Clone)
             return;
+        if (window && (window.minimized || (typeof window.is_hidden === 'function' && window.is_hidden())))
+            return;
         try {
             const parent = actor.get_parent?.();
             if (!parent)

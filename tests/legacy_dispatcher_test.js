@@ -89,6 +89,9 @@ function createMockWindowAndActor() {
         disconnect: () => {},
         unmaximize: () => {},
         is_maximized: () => false,
+        raise: () => {},
+        activate: () => {},
+        unminimize: () => { window.minimized = false; },
         delete: () => {
             window._deleted = true;
         },
@@ -392,4 +395,292 @@ test('dispatcher (legacy): structured trace logging captures snapshot, actor geo
     assert.ok(unminimizeLog, 'Should emit UNMINIMIZE trace');
     assert.match(unminimizeLog, /opacity=255 frame=\(200,200,800x600\)/);
 });
+
+test('dispatcher (legacy): snapshot gating for minimized window and pre-reveal unminimize sequence', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    window.minimized = true;
+    window.unminimize = () => { window.minimized = false; };
+    window.raise = () => {};
+    window.activate = () => {};
+    actor.get_parent = () => ({
+        constructor: { name: 'MetaWindowActor' },
+        add_child: () => {},
+    });
+    window.get_compositor_private = () => actor;
+
+    const prevTabList = globalThis.global.display.get_tab_list;
+    globalThis.global.display.get_tab_list = () => [window];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const batch = [
+            { name: 'Snapshot', args: {} },
+            { name: 'Cloak', args: {} },
+            {
+                name: 'SetPositionAnchored',
+                args: {
+                    intended_w: 640,
+                    intended_h: 480,
+                    screen_anchor_x: 200,
+                    screen_anchor_y: 200,
+                    pivot_u: 0.0,
+                    pivot_v: 0.0,
+                    offset_x: 0,
+                    offset_y: 0,
+                    area: 'workarea',
+                    margin_top: 0,
+                    margin_bottom: 0,
+                    margin_left: 0,
+                    margin_right: 0,
+                    clamp: true,
+                },
+            },
+            { name: 'Uncloak', args: {} },
+            { name: 'DestroySnapshot', args: {} },
+        ];
+
+        await ext._runBatch(window, actor, batch, 'test-minimized');
+    } finally {
+        console.error = origError;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+    const skipLog = timeLogs.find(l => l.includes('SNAPSHOT_SKIPPED'));
+    assert.ok(skipLog, 'Should emit SNAPSHOT_SKIPPED trace');
+    assert.match(skipLog, /reason="minimized"/);
+
+    const snapshotCreated = timeLogs.find(l => l.includes('SNAPSHOT_CREATED'));
+    assert.equal(snapshotCreated, undefined, 'Must not create snapshot clone for minimized window');
+
+    const preRevealUnminimize = timeLogs.find(l => l.includes('PRE_REVEAL_UNMINIMIZE'));
+    assert.ok(preRevealUnminimize, 'Should emit PRE_REVEAL_UNMINIMIZE trace prior to uncloak');
+
+    const raiseIdx = timeLogs.findIndex(l => l.includes('| RAISE '));
+    const activateIdx = timeLogs.findIndex(l => l.includes('| ACTIVATE '));
+    const uncloakIdx = timeLogs.findIndex(l => l.includes('| UNCLOAK ') && l.includes('opacity=255'));
+
+    assert.ok(raiseIdx !== -1, 'RAISE should be logged');
+    assert.ok(activateIdx !== -1, 'ACTIVATE should be logged');
+    assert.ok(uncloakIdx !== -1, 'UNCLOAK should be logged');
+    assert.ok(raiseIdx < uncloakIdx, 'RAISE must occur before UNCLOAK');
+    assert.ok(activateIdx < uncloakIdx, 'ACTIVATE must occur before UNCLOAK');
+    assert.equal(window.minimized, false, 'Window must be unminimized');
+    assert.equal(actor.opacity, 255, 'Actor opacity must be 255 after reveal');
+});
+
+test('dispatcher (legacy): snapshot gating for fully covered window (single and union)', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    // 1. Single covering window
+    const { window: winA, actor: actA } = createMockWindowAndActor();
+    winA.get_frame_rect = () => ({ x: 100, y: 100, width: 400, height: 300 });
+    winA.get_compositor_private = () => actA;
+    actA.get_parent = () => ({ add_child: () => {} });
+
+    const { window: winB, actor: actB } = createMockWindowAndActor();
+    winB.get_frame_rect = () => ({ x: 50, y: 50, width: 600, height: 500 });
+    winB.get_compositor_private = () => actB;
+    actB.opacity = 255;
+    actB.visible = true;
+
+    const mockWs = {
+        list_windows: () => [winA, winB],
+        get_work_area_for_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }),
+    };
+
+    const prevGlobalWsMgr = globalThis.global.workspace_manager;
+    const prevWsMgr = globalThis.global.display.get_workspace_manager;
+    const prevSort = globalThis.global.display.sort_windows_by_stacking;
+    const prevTabList = globalThis.global.display.get_tab_list;
+
+    globalThis.global.workspace_manager = {
+        get_active_workspace: () => mockWs,
+    };
+    globalThis.global.display.get_workspace_manager = () => ({
+        get_active_workspace: () => mockWs,
+    });
+    globalThis.global.display.sort_windows_by_stacking = () => [winA, winB];
+    globalThis.global.display.get_tab_list = () => [winA, winB];
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const batch = [
+            { name: 'Snapshot', args: {} },
+            { name: 'Cloak', args: {} },
+            {
+                name: 'SetPositionAnchored',
+                args: {
+                    intended_w: 400,
+                    intended_h: 300,
+                    screen_anchor_x: 200,
+                    screen_anchor_y: 200,
+                    pivot_u: 0.0,
+                    pivot_v: 0.0,
+                    offset_x: 0,
+                    offset_y: 0,
+                    area: 'workarea',
+                    margin_top: 0,
+                    margin_bottom: 0,
+                    margin_left: 0,
+                    margin_right: 0,
+                    clamp: true,
+                },
+            },
+            { name: 'Uncloak', args: {} },
+            { name: 'DestroySnapshot', args: {} },
+        ];
+
+        await ext._runBatch(winA, actA, batch, 'test-covered-single');
+
+        const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+        const skipLog = timeLogs.find(l => l.includes('SNAPSHOT_SKIPPED'));
+        assert.ok(skipLog, 'Should emit SNAPSHOT_SKIPPED trace');
+        assert.match(skipLog, /reason="covered"/);
+
+        const preRevealRaise = timeLogs.find(l => l.includes('PRE_REVEAL_RAISE'));
+        assert.ok(preRevealRaise, 'Should emit PRE_REVEAL_RAISE for covered window');
+
+        const raiseIdx = timeLogs.findIndex(l => l.includes('| RAISE '));
+        const uncloakIdx = timeLogs.findIndex(l => l.includes('| UNCLOAK ') && l.includes('opacity=255'));
+        assert.ok(raiseIdx < uncloakIdx, 'RAISE must precede UNCLOAK');
+
+        // 2. Union of covering windows
+        logs.length = 0;
+        const { window: winLeft, actor: actLeft } = createMockWindowAndActor();
+        winLeft.get_frame_rect = () => ({ x: 100, y: 100, width: 200, height: 300 });
+        winLeft.get_compositor_private = () => actLeft;
+        actLeft.opacity = 255;
+        actLeft.visible = true;
+
+        const { window: winRight, actor: actRight } = createMockWindowAndActor();
+        winRight.get_frame_rect = () => ({ x: 300, y: 100, width: 200, height: 300 });
+        winRight.get_compositor_private = () => actRight;
+        actRight.opacity = 255;
+        actRight.visible = true;
+
+        mockWs.list_windows = () => [winA, winLeft, winRight];
+        globalThis.global.display.sort_windows_by_stacking = () => [winA, winLeft, winRight];
+
+        await ext._runBatch(winA, actA, batch, 'test-covered-union');
+        const unionLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+        const unionSkip = unionLogs.find(l => l.includes('SNAPSHOT_SKIPPED'));
+        assert.ok(unionSkip, 'Should emit SNAPSHOT_SKIPPED for union coverage');
+        assert.match(unionSkip, /reason="covered"/);
+
+        // 3. Partial coverage (conservative: snapshot kept)
+        logs.length = 0;
+        mockWs.list_windows = () => [winA, winLeft];
+        globalThis.global.display.sort_windows_by_stacking = () => [winA, winLeft];
+
+        await ext._runBatch(winA, actA, batch, 'test-covered-partial');
+        const partialLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+        const createdLog = partialLogs.find(l => l.includes('SNAPSHOT_CREATED'));
+        assert.ok(createdLog, 'Snapshot must be created for partially covered window');
+    } finally {
+        console.error = origError;
+        globalThis.global.workspace_manager = prevGlobalWsMgr;
+        globalThis.global.display.get_workspace_manager = prevWsMgr;
+        globalThis.global.display.sort_windows_by_stacking = prevSort;
+        globalThis.global.display.get_tab_list = prevTabList;
+        ext.disable();
+    }
+});
+
+test('dispatcher (legacy): snapshot gating for inactive workspace window', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    const activeWs = { list_windows: () => [window], get_work_area_for_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }) };
+
+    window.located_on_workspace = (ws) => ws !== activeWs;
+    window.is_on_all_workspaces = () => false;
+    actor.get_parent = () => ({ add_child: () => {} });
+    window.get_compositor_private = () => actor;
+
+    const prevGlobalWsMgr = globalThis.global.workspace_manager;
+    const prevWsMgr = globalThis.global.display.get_workspace_manager;
+    globalThis.global.workspace_manager = {
+        get_active_workspace: () => activeWs,
+    };
+    globalThis.global.display.get_workspace_manager = () => ({
+        get_active_workspace: () => activeWs,
+    });
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        const batch = [
+            { name: 'Snapshot', args: {} },
+            { name: 'Cloak', args: {} },
+            { name: 'Uncloak', args: {} },
+        ];
+        await ext._runBatch(window, actor, batch, 'test-inactive-ws');
+    } finally {
+        console.error = origError;
+        globalThis.global.workspace_manager = prevGlobalWsMgr;
+        globalThis.global.display.get_workspace_manager = prevWsMgr;
+        ext.disable();
+    }
+
+    const timeLogs = logs.filter(l => l.includes('[spawn-at-time]'));
+    const skipLog = timeLogs.find(l => l.includes('SNAPSHOT_SKIPPED'));
+    assert.ok(skipLog, 'Should emit SNAPSHOT_SKIPPED for window on inactive workspace');
+    assert.match(skipLog, /reason="hidden_or_inactive_workspace"/);
+    assert.equal(actor.opacity, 255, 'Actor must be uncloaked');
+});
+
+test('dispatcher (legacy): cloak/uncloak balance and snapshot destruction on error and disable', async () => {
+    const ext = new SpawnAtExtension();
+    ext.enable();
+
+    const { window, actor } = createMockWindowAndActor();
+    actor.get_parent = () => ({ add_child: () => {} });
+    window.get_compositor_private = () => actor;
+
+    // 1. Error mid-batch ensures uncloak and snapshot destruction in finally
+    const invalidBatch = [
+        { name: 'Snapshot', args: {} },
+        { name: 'Cloak', args: {} },
+        { name: 'NonExistentInstruction', args: {} },
+    ];
+
+    await assert.rejects(
+        async () => ext._runBatch(window, actor, invalidBatch, 'test-error'),
+        /Unknown instruction/
+    );
+
+    assert.equal(actor.opacity, 255, 'Actor opacity must be restored to 255 on error mid-batch');
+    assert.equal(ext._cloakManager.snapshots.has(actor), false, 'Snapshot must be destroyed on error');
+    assert.equal(ext._cloakManager.cloakedActors.has(actor), false, 'Actor must be removed from cloaked set');
+
+    // 2. Uncloak balance on disable()
+    ext._cloak(actor);
+    assert.equal(actor.opacity, 0, 'Actor should be cloaked');
+    assert.equal(ext._cloakManager.cloakedActors.has(actor), true);
+
+    ext.disable();
+    assert.equal(actor.opacity, 255, 'Actor must be uncloaked on extension disable()');
+    assert.equal(ext._cloakManager.cloakedActors.size, 0);
+    assert.equal(ext._cloakManager.watchdogs.size, 0);
+    assert.equal(ext._cloakManager.snapshots.size, 0);
+});
+
 

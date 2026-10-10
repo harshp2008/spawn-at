@@ -16,6 +16,16 @@ export async function resolve(specifier, context, nextResolve) {
                     disable() {}
                 }
             `;
+        } else if (specifier === 'resource:///org/gnome/shell/ui/main.js') {
+            mockSource = `
+                export const wm = {
+                    skipNextEffect: (actor) => {},
+                    _skippedActors: new Set(),
+                };
+                export const layoutManager = {
+                    monitors: [],
+                };
+            `;
         } else if (specifier === 'gi://Meta') {
             mockSource = `
                 export default {

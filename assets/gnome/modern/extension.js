@@ -14,6 +14,7 @@
  */
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
@@ -612,6 +613,9 @@ export default class SpawnAtExtension extends Extension {
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
 
+        const wasMinimized = Boolean(window.minimized || (typeof window.is_hidden === 'function' && window.is_hidden()));
+        const wasCovered = this._isWindowFullyCovered(window);
+
         const ctx = {
             window,
             actor,
@@ -627,6 +631,8 @@ export default class SpawnAtExtension extends Extension {
             positionedW: -1,
             positionedH: -1,
             revealed: false,
+            wasMinimized,
+            wasCovered,
         };
 
         const sizeOp = ops.find(op => op.name === 'SetSize');
@@ -642,7 +648,18 @@ export default class SpawnAtExtension extends Extension {
                 this.logTime('BATCH_STEP', `inst=${op.name}`, window);
 
                 switch (op.name) {
-                    case 'Snapshot':            this._cloakManager.createSnapshot(actor, window); break;
+                    case 'Snapshot':
+                        if (this._isSnapshotEligible(window, actor)) {
+                            this._cloakManager.createSnapshot(actor, window);
+                        } else {
+                            const reason = (window.minimized || (typeof window.is_hidden === 'function' && window.is_hidden()))
+                                ? 'minimized'
+                                : (this._isWindowFullyCovered(window)
+                                    ? 'covered'
+                                    : 'hidden_or_inactive_workspace');
+                            this.logTime('SNAPSHOT_SKIPPED', `reason="${reason}"`, window);
+                        }
+                        break;
                     case 'Cloak':               this._cloak(actor); this._logActorTrace('CLOAK', actor, window); break;
                     case 'DestroySnapshot':     this._cloakManager.destroySnapshot(actor, window); break;
                     case 'SetSize':             this._stepSetSize(ctx, op.args); break;
@@ -658,6 +675,9 @@ export default class SpawnAtExtension extends Extension {
             if (!ctx.revealed) {
                 this._uncloak(actor);
                 this._logActorTrace('UNCLOAK', actor, window);
+            }
+            if (this._cloakManager?.snapshots?.has(actor)) {
+                this._cloakManager.destroySnapshot(actor, window);
             }
         }
     }
@@ -767,11 +787,46 @@ export default class SpawnAtExtension extends Extension {
 
         this._reanchorIfResized(ctx);
 
+        const isCurrentlyMinimized = Boolean(ctx.window.minimized || (typeof ctx.window.is_hidden === 'function' && ctx.window.is_hidden()));
+        if (ctx.wasMinimized || isCurrentlyMinimized) {
+            this.logTime('PRE_REVEAL_UNMINIMIZE', 'unminimizing prior to uncloak', ctx.window);
+            this._skipWindowEffects(ctx.actor);
+            if (typeof ctx.window.unminimize === 'function')
+                ctx.window.unminimize();
+            this._focusWindowObject(ctx.window);
+            this._skipWindowEffects(ctx.actor);
+        } else if (ctx.wasCovered) {
+            this.logTime('PRE_REVEAL_RAISE', 'window was covered; raising prior to uncloak', ctx.window);
+            this._focusWindowObject(ctx.window);
+        }
+
         await this._commitLatch.waitForFrames(global.stage, 1, FRAME_WAIT_CEILING_MS);
         if (this._disabled)
             return;
 
         this._reveal(ctx);
+    }
+
+    _skipWindowEffects(actor) {
+        if (!actor)
+            return;
+        try {
+            if (typeof Main !== 'undefined' && Main.wm) {
+                if (typeof Main.wm.skipNextEffect === 'function')
+                    Main.wm.skipNextEffect(actor);
+                else if (Main.wm._skippedActors && typeof Main.wm._skippedActors.add === 'function')
+                    Main.wm._skippedActors.add(actor);
+            }
+            if (global.window_manager) {
+                if (typeof global.window_manager.skipNextEffect === 'function')
+                    global.window_manager.skipNextEffect(actor);
+                else if (global.window_manager._skippedActors && typeof global.window_manager._skippedActors.add === 'function')
+                    global.window_manager._skippedActors.add(actor);
+            }
+            actor.remove_all_transitions?.();
+            actor.set_scale?.(1.0, 1.0);
+            actor.set_pivot_point?.(0, 0);
+        } catch (_e) {}
     }
 
     _isToolkitClamped(ctx) {
@@ -965,6 +1020,151 @@ export default class SpawnAtExtension extends Extension {
         }, []);
     }
 
+    _isWindowFullyCovered(window, workspace = null) {
+        return this._try(() => {
+            if (!window || typeof window.get_frame_rect !== 'function')
+                return false;
+
+            const targetRect = window.get_frame_rect();
+            if (!targetRect || targetRect.width <= 0 || targetRect.height <= 0)
+                return false;
+
+            const wsMgr = global.workspace_manager || (typeof global.display?.get_workspace_manager === 'function'
+                ? global.display.get_workspace_manager()
+                : null);
+            const ws = workspace || (wsMgr && typeof wsMgr.get_active_workspace === 'function'
+                ? wsMgr.get_active_workspace()
+                : null);
+
+            if (!ws || typeof ws.list_windows !== 'function')
+                return false;
+
+            const windows = ws.list_windows();
+            if (!Array.isArray(windows) || windows.length <= 1)
+                return false;
+
+            if (typeof global.display?.sort_windows_by_stacking !== 'function')
+                return false;
+
+            const stacked = global.display.sort_windows_by_stacking(windows);
+            if (!Array.isArray(stacked))
+                return false;
+
+            const idx = stacked.indexOf(window);
+            if (idx === -1 || idx === stacked.length - 1)
+                return false;
+
+            const aboveWindows = stacked.slice(idx + 1);
+            const coveringRects = [];
+
+            for (const aboveWin of aboveWindows) {
+                if (!aboveWin || aboveWin === window)
+                    continue;
+
+                if (aboveWin.minimized || (typeof aboveWin.is_hidden === 'function' && aboveWin.is_hidden()))
+                    continue;
+
+                if (aboveWin.is_override_redirect?.())
+                    continue;
+
+                if (typeof aboveWin.located_on_workspace === 'function' && !aboveWin.located_on_workspace(ws)) {
+                    if (!(typeof aboveWin.is_on_all_workspaces === 'function' && aboveWin.is_on_all_workspaces()))
+                        continue;
+                }
+
+                const aboveActor = this._getActor(aboveWin);
+                if (aboveActor) {
+                    const isVis = typeof aboveActor.is_visible === 'function' ? aboveActor.is_visible() : aboveActor.visible;
+                    if (isVis === false)
+                        continue;
+                    if (typeof aboveActor.opacity === 'number' && aboveActor.opacity < 255)
+                        continue;
+                }
+
+                if (typeof aboveWin.get_frame_rect === 'function') {
+                    const r = aboveWin.get_frame_rect();
+                    if (r && r.width > 0 && r.height > 0) {
+                        // Fast path: if a single window above completely encloses targetRect
+                        if (r.x <= targetRect.x && r.y <= targetRect.y &&
+                            (r.x + r.width) >= (targetRect.x + targetRect.width) &&
+                            (r.y + r.height) >= (targetRect.y + targetRect.height)) {
+                            return true;
+                        }
+                        coveringRects.push(r);
+                    }
+                }
+            }
+
+            if (coveringRects.length === 0)
+                return false;
+
+            // Multi-window coverage: subtract all covering rectangles from targetRect
+            let regions = [{ ...targetRect }];
+
+            for (const cov of coveringRects) {
+                const nextRegions = [];
+                for (const reg of regions) {
+                    const left = Math.max(reg.x, cov.x);
+                    const top = Math.max(reg.y, cov.y);
+                    const right = Math.min(reg.x + reg.width, cov.x + cov.width);
+                    const bottom = Math.min(reg.y + reg.height, cov.y + cov.height);
+
+                    if (right <= left || bottom <= top) {
+                        nextRegions.push(reg);
+                        continue;
+                    }
+
+                    if (top > reg.y) {
+                        nextRegions.push({ x: reg.x, y: reg.y, width: reg.width, height: top - reg.y });
+                    }
+                    if (reg.y + reg.height > bottom) {
+                        nextRegions.push({ x: reg.x, y: bottom, width: reg.width, height: (reg.y + reg.height) - bottom });
+                    }
+                    if (left > reg.x) {
+                        nextRegions.push({ x: reg.x, y: top, width: left - reg.x, height: bottom - top });
+                    }
+                    if (reg.x + reg.width > right) {
+                        nextRegions.push({ x: right, y: top, width: (reg.x + reg.width) - right, height: bottom - top });
+                    }
+                }
+                regions = nextRegions;
+                if (regions.length === 0)
+                    return true;
+            }
+
+            return regions.length === 0;
+        }, false);
+    }
+
+    _isSnapshotEligible(window, actor) {
+        if (!window || !actor)
+            return false;
+        if (actor.is_destroyed?.())
+            return false;
+
+        if (window.minimized || (typeof window.is_hidden === 'function' && window.is_hidden()))
+            return false;
+
+        const isVis = typeof actor.is_visible === 'function' ? actor.is_visible() : actor.visible;
+        if (isVis === false)
+            return false;
+
+        const wsMgr = global.workspace_manager || (typeof global.display?.get_workspace_manager === 'function'
+            ? global.display.get_workspace_manager()
+            : null);
+        const activeWs = wsMgr?.get_active_workspace?.();
+        if (activeWs && typeof window.located_on_workspace === 'function') {
+            const onAll = typeof window.is_on_all_workspaces === 'function' && window.is_on_all_workspaces();
+            if (!onAll && !window.located_on_workspace(activeWs))
+                return false;
+        }
+
+        if (this._isWindowFullyCovered(window, activeWs))
+            return false;
+
+        return true;
+    }
+
     _findWindow(target) {
         const workspace = global.display.get_workspace_manager().get_active_workspace();
         const windows = this._getMRUWindows(workspace);
@@ -992,7 +1192,8 @@ export default class SpawnAtExtension extends Extension {
         if (typeof window.raise === 'function')
             window.raise();
         this._logActorTrace('ACTIVATE', actor, window);
-        window.activate(global.get_current_time());
+        if (typeof window.activate === 'function')
+            window.activate(global.get_current_time());
         return true;
     }
 
