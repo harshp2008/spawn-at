@@ -149,3 +149,106 @@ fn test_fixture_signal_termination() {
         status
     );
 }
+
+fn spawn_at_binary_path() -> PathBuf {
+    let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    path.pop(); // crates/
+    path.pop(); // repo root
+    path.push("target");
+    path.push("debug");
+    path.push("spawn-at");
+    path
+}
+
+#[test]
+#[ignore = "requires live display session with spawn-at query windows (opens test windows)"]
+fn test_fixture_size_matches_query_windows_on_all_protocols() {
+    let fixture_bin = fixture_binary_path();
+    let spawn_at_bin = spawn_at_binary_path();
+    if !spawn_at_bin.exists() {
+        panic!("spawn-at binary not found at {:?}", spawn_at_bin);
+    }
+
+    let protocols_to_test = [
+        ("wayland", std::env::var_os("WAYLAND_DISPLAY").is_some()),
+        ("x11", std::env::var_os("DISPLAY").is_some()),
+    ];
+
+    let req_w = 400u32;
+    let req_h = 300u32;
+
+    for (proto, available) in protocols_to_test {
+        if !available {
+            continue;
+        }
+
+        // Spawn fixture
+        let mut child = Command::new(&fixture_bin)
+            .args([
+                "--protocol",
+                proto,
+                "--width",
+                &req_w.to_string(),
+                "--height",
+                &req_h.to_string(),
+                "--exit-after-ms",
+                "5000",
+                "--print-ready",
+            ])
+            .spawn()
+            .unwrap_or_else(|e| panic!("failed to spawn fixture for protocol {}: {}", proto, e));
+
+        let child_pid = child.id() as u64;
+
+        // Poll query windows for up to 3 seconds until window appears
+        let mut found_geometry = None;
+        let start = Instant::now();
+        while start.elapsed() < Duration::from_secs(3) {
+            std::thread::sleep(Duration::from_millis(150));
+            if let Ok(output) = Command::new(&spawn_at_bin)
+                .args(["query", "windows", "--json"])
+                .output()
+            {
+                if let Ok(val) = serde_json::from_slice::<serde_json::Value>(&output.stdout) {
+                    if let Some(arr) = val.as_array() {
+                        for win in arr {
+                            if win.get("pid").and_then(|p| p.as_u64()) == Some(child_pid) {
+                                let w = win.get("w").and_then(|v| v.as_u64());
+                                let h = win.get("h").and_then(|v| v.as_u64());
+                                if let (Some(w), Some(h)) = (w, h) {
+                                    found_geometry = Some((w as u32, h as u32));
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            if found_geometry.is_some() {
+                break;
+            }
+        }
+
+        // Terminate fixture process cleanly
+        let _ = child.kill();
+        let _ = child.wait();
+
+        let (actual_w, actual_h) = found_geometry.unwrap_or_else(|| {
+            panic!(
+                "fixture window with pid {} was not reported by query windows on protocol {}",
+                child_pid, proto
+            )
+        });
+
+        assert_eq!(
+            actual_w, req_w,
+            "protocol {}: width mismatch (requested {}, query windows reported {})",
+            proto, req_w, actual_w
+        );
+        assert_eq!(
+            actual_h, req_h,
+            "protocol {}: height mismatch (requested {}, query windows reported {})",
+            proto, req_h, actual_h
+        );
+    }
+}

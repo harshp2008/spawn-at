@@ -192,15 +192,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut window_builder = winit::window::WindowBuilder::new()
         .with_title(&args.title)
-        .with_inner_size(winit::dpi::LogicalSize::new(args.width, args.height))
         .with_decorations(args.decorations == DecorationMode::On);
 
-    if let (Some(mw), Some(mh)) = (args.min_width, args.min_height) {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, mh));
-    } else if let Some(mw) = args.min_width {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, 0));
-    } else if let Some(mh) = args.min_height {
-        window_builder = window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(0, mh));
+    if backend_str == "x11" {
+        window_builder =
+            window_builder.with_inner_size(winit::dpi::PhysicalSize::new(args.width, args.height));
+        if let (Some(mw), Some(mh)) = (args.min_width, args.min_height) {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(mw, mh));
+        } else if let Some(mw) = args.min_width {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(mw, 0));
+        } else if let Some(mh) = args.min_height {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(0, mh));
+        }
+    } else {
+        window_builder =
+            window_builder.with_inner_size(winit::dpi::LogicalSize::new(args.width, args.height));
+        if let (Some(mw), Some(mh)) = (args.min_width, args.min_height) {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, mh));
+        } else if let Some(mw) = args.min_width {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, 0));
+        } else if let Some(mh) = args.min_height {
+            window_builder =
+                window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(0, mh));
+        }
     }
 
     // Set Wayland app_id and X11 WM_CLASS
@@ -218,6 +237,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let window = std::rc::Rc::new(window_builder.build(&event_loop)?);
+    let scale_factor = window.scale_factor();
     let context = softbuffer::Context::new(window.clone())?;
     let mut surface = softbuffer::Surface::new(&context, window.clone())?;
 
@@ -249,8 +269,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             painted = true;
             if args.print_ready && !ready_printed {
                 println!(
-                    "[fixture] READY protocol={} pid={} title=\"{}\" size={}x{}",
-                    backend_str, pid, args.title, size.width, size.height
+                    "[fixture] READY protocol={} pid={} title=\"{}\" size={}x{} scale_factor={:.2}",
+                    backend_str, pid, args.title, size.width, size.height, scale_factor
                 );
                 ready_printed = true;
             }
@@ -291,8 +311,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         painted = true;
                         if args.print_ready && !ready_printed {
                             println!(
-                                "[fixture] READY protocol={} pid={} title=\"{}\" size={}x{}",
-                                backend_str, pid, args.title, size.width, size.height
+                                "[fixture] READY protocol={} pid={} title=\"{}\" size={}x{} scale_factor={:.2}",
+                                backend_str, pid, args.title, size.width, size.height, scale_factor
                             );
                             ready_printed = true;
                         }
