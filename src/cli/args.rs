@@ -313,6 +313,16 @@ impl TransformArgs {
 
         self.geometry.validate()?;
 
+        let has_size = self.geometry.size.is_some();
+        let has_pos = self.geometry.pos.is_some() || self.geometry.offset.is_some();
+        let has_anchor = self.geometry.anchor.is_some();
+
+        if !has_size && !has_pos && !has_anchor {
+            return Err(
+                "nothing to change: give --size, -p/-o, --anchor, or --pivot with --size".to_string(),
+            );
+        }
+
         Ok(())
     }
 }

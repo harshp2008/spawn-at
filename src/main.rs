@@ -46,7 +46,7 @@ async fn main() {
 
     if let Err(e) = cli.validate() {
         crate::diagnostics::render_error(&e);
-        std::process::exit(1);
+        std::process::exit(2);
     }
 
     if let Commands::Update(update_args) = cli.command {
