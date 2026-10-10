@@ -1066,5 +1066,105 @@ test('dispatcher (modern): FocusWindow on window without pending batch focuses i
     assert.equal(timeLogs.some(l => l.includes('FOCUS_DEFERRED')), false, 'Must not defer focus when no batch exists');
 });
 
+test('dispatcher (modern): trace calls with logging disabled return immediately with zero GObject inspections', () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    try {
+        ext.SetLogging(false);
+        assert.equal(ext.isLoggingEnabled(), false, 'Logging must report disabled');
+
+        const callCounts = {
+            get_id: 0,
+            get_pid: 0,
+            get_wm_class: 0,
+            get_gtk_application_id: 0,
+            get_sandboxed_app_id: 0,
+            get_client_type: 0,
+            get_window_type: 0,
+            get_frame_rect: 0,
+            opacity_get: 0,
+        };
+
+        const countingWindow = {
+            get_id: () => { callCounts.get_id++; return 999; },
+            get_pid: () => { callCounts.get_pid++; return 888; },
+            get_wm_class: () => { callCounts.get_wm_class++; return 'org.test.App'; },
+            get_gtk_application_id: () => { callCounts.get_gtk_application_id++; return 'org.test.App'; },
+            get_sandboxed_app_id: () => { callCounts.get_sandboxed_app_id++; return ''; },
+            get_client_type: () => { callCounts.get_client_type++; return 0; },
+            get_window_type: () => { callCounts.get_window_type++; return 0; },
+            get_frame_rect: () => { callCounts.get_frame_rect++; return { x: 10, y: 10, width: 100, height: 100 }; },
+        };
+
+        const countingActor = {
+            get opacity() { callCounts.opacity_get++; return 255; },
+            get x() { return 10; },
+            get y() { return 10; },
+            get width() { return 100; },
+            get height() { return 100; },
+        };
+
+        // 1. Direct logTime call on extension
+        ext.logTime('TEST_BENCH_TAG', 'extra diagnostic info', countingWindow);
+
+        // 2. Direct _logActorTrace call on extension
+        ext._logActorTrace('TEST_ACTOR_TAG', countingActor, countingWindow, 'extra info');
+
+        // 3. Direct logTime call on SessionLogger instance
+        ext._logger.logTime('TEST_LOGGER_DIRECT', 'extra', countingWindow);
+
+        // Assert strictly zero calls were made to any GObject getter or property
+        assert.equal(callCounts.get_id, 0, 'Must not inspect window ID');
+        assert.equal(callCounts.get_pid, 0, 'Must not inspect window PID');
+        assert.equal(callCounts.get_wm_class, 0, 'Must not inspect WM_CLASS');
+        assert.equal(callCounts.get_gtk_application_id, 0, 'Must not inspect App ID');
+        assert.equal(callCounts.get_sandboxed_app_id, 0, 'Must not inspect Sandboxed App ID');
+        assert.equal(callCounts.get_client_type, 0, 'Must not inspect Client Type');
+        assert.equal(callCounts.get_window_type, 0, 'Must not inspect Window Type');
+        assert.equal(callCounts.get_frame_rect, 0, 'Must not inspect Frame Rect');
+        assert.equal(callCounts.opacity_get, 0, 'Must not inspect Actor Opacity');
+
+        // 4. Verify that when logging is enabled, introspection does occur
+        ext.SetLogging(true);
+        ext.logTime('TEST_ENABLED', '', countingWindow);
+        assert.ok(callCounts.get_id > 0, 'Window ID must be queried when logging is enabled');
+    } finally {
+        ext.disable();
+    }
+});
+
+test('dispatcher (modern): trace event buffer drops and warns when exceeding capacity', () => {
+    const ext = new SpawnAtExtension({ path: '/dummy' });
+    ext.enable();
+
+    const logs = [];
+    const origError = console.error;
+    console.error = (...args) => { logs.push(args.join(' ')); };
+
+    try {
+        ext.SetLogging(true);
+        ext._logger.flush();
+        logs.length = 0;
+        ext._logger._maxBufferSize = 3;
+
+        for (let i = 0; i < 7; i++) {
+            ext.logTime(`EVENT_${i}`);
+        }
+
+        ext._logger.flush();
+
+        const dropWarning = logs.find(l => l.includes('WARNING: 4 trace events were dropped due to buffer capacity'));
+        assert.ok(dropWarning, 'Must emit drop warning reporting exactly 4 dropped events');
+
+        const timeLogs = logs.filter(l => l.includes('[spawn-at-time]') && l.includes('EVENT_'));
+        assert.equal(timeLogs.length, 3, 'Must retain exactly maxBufferSize events in buffer');
+    } finally {
+        console.error = origError;
+        ext.disable();
+    }
+});
+
+
 
 

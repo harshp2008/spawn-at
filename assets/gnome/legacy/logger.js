@@ -1,8 +1,46 @@
 /**
  * spawn-at — persistent session logging and enriched telemetry (Legacy GNOME 42-44).
+ *
+ * Maintains diagnostic logs at ~/.local/state/spawn-at/session.log
+ * with mode 0600 in a mode 0700 directory. Rotates logs across login sessions
+ * and enforces a 5MB size ceiling.
+ *
+ * Telemetry events are buffered in memory and flushed asynchronously off
+ * the hot path to avoid perturbing compositor animation loops.
  */
 
 const { Gio, GLib, Meta } = imports.gi;
+
+// Cache of precomputed Meta.WindowType enum names to avoid Object.entries iteration on every trace
+let _windowTypeMap = null;
+
+function getWindowTypeName(typeInt) {
+    if (!_windowTypeMap) {
+        _windowTypeMap = new Map();
+        if (Meta && Meta.WindowType) {
+            for (const [name, val] of Object.entries(Meta.WindowType)) {
+                _windowTypeMap.set(val, name);
+            }
+        }
+    }
+    return _windowTypeMap.get(typeInt) ?? 'UNKNOWN';
+}
+
+// WeakMap cache for immutable window properties (id, pid)
+const _windowImmutableCache = new WeakMap();
+
+function getImmutableWindowMeta(window) {
+    let cached = _windowImmutableCache.get(window);
+    if (!cached) {
+        let id = -1;
+        let pid = -1;
+        try { id = window.get_id?.() ?? -1; } catch (_e) {}
+        try { pid = window.get_pid?.() ?? -1; } catch (_e) {}
+        cached = { id, pid };
+        _windowImmutableCache.set(window, cached);
+    }
+    return cached;
+}
 
 var SessionLogger = class SessionLogger {
     constructor() {
@@ -14,6 +52,13 @@ var SessionLogger = class SessionLogger {
         this._loggingEnabled = undefined;
         this._t0 = 0;
         this._disabled = false;
+
+        // In-memory trace event buffer with capacity cap and drop counter
+        this._eventBuffer = [];
+        this._maxBufferSize = 1000;
+        this._droppedEvents = 0;
+        this._flushScheduled = false;
+        this._flushSourceId = null;
     }
 
     init() {
@@ -21,6 +66,10 @@ var SessionLogger = class SessionLogger {
         this._logWriting = false;
         this._logFlushScheduled = false;
         this._disabled = false;
+        this._eventBuffer = [];
+        this._droppedEvents = 0;
+        this._flushScheduled = false;
+        this._flushSourceId = null;
 
         try {
             const stateDir = GLib.build_filenamev([GLib.get_user_state_dir(), 'spawn-at']);
@@ -46,8 +95,9 @@ var SessionLogger = class SessionLogger {
                     const st = markerFile.create(Gio.FileCreateFlags.NONE, null);
                     st.close(null);
                 } catch (_e) {}
-                this.queueLogLine(`=== SPAWN-AT SESSION STARTED: ${new Date().toISOString()} ===`);
-            } else {
+                if (this.isLoggingEnabled())
+                    this.queueLogLine(`=== SPAWN-AT SESSION STARTED: ${new Date().toISOString()} ===`);
+            } else if (this.isLoggingEnabled()) {
                 this.queueLogLine(`--- SPAWN-AT EXTENSION RE-ENABLED: ${new Date().toISOString()} ---`);
             }
 
@@ -65,7 +115,7 @@ var SessionLogger = class SessionLogger {
 
         if (!this._logWriting && !this._logFlushScheduled) {
             this._logFlushScheduled = true;
-            GLib.idle_add(GLib.PRIORITY_LOW, () => {
+            GLib.idle_add(GLib.PRIORITY_LOW ?? 300, () => {
                 this._logFlushScheduled = false;
                 this._flushLogQueue();
                 return GLib.SOURCE_REMOVE;
@@ -97,7 +147,7 @@ var SessionLogger = class SessionLogger {
         try {
             this._sessionLogFile.append_to_async(
                 Gio.FileCreateFlags.NONE,
-                GLib.PRIORITY_LOW,
+                GLib.PRIORITY_LOW ?? 300,
                 null,
                 (file, res) => {
                     try {
@@ -107,12 +157,12 @@ var SessionLogger = class SessionLogger {
 
                         stream.write_bytes_async(
                             bytes,
-                            GLib.PRIORITY_LOW,
+                            GLib.PRIORITY_LOW ?? 300,
                             null,
                             (s, wres) => {
                                 try {
                                     s.write_bytes_finish(wres);
-                                    s.close_async(GLib.PRIORITY_LOW, null, (cs, cres) => {
+                                    s.close_async(GLib.PRIORITY_LOW ?? 300, null, (cs, cres) => {
                                         try { cs.close_finish(cres); } catch (_e) {}
                                         this._logWriting = false;
                                         if (this._pendingLogLines.length > 0)
@@ -134,7 +184,43 @@ var SessionLogger = class SessionLogger {
         }
     }
 
+    /**
+     * Flushes buffered in-memory trace events to journald and session.log.
+     */
+    flush() {
+        if (this._flushSourceId && GLib.source_remove) {
+            GLib.source_remove(this._flushSourceId);
+            this._flushSourceId = null;
+        }
+        this._flushScheduled = false;
+
+        if (this._droppedEvents > 0) {
+            const dropMsg = `WARNING: ${this._droppedEvents} trace events were dropped due to buffer capacity`;
+            if (typeof console !== 'undefined' && console.error)
+                console.error(`[spawn-at-time] ${dropMsg}`);
+            else if (typeof log !== 'undefined')
+                log(`[spawn-at-time] ${dropMsg}`);
+            this.queueLogLine(`[${new Date().toISOString()}] ${dropMsg}`);
+            this._droppedEvents = 0;
+        }
+
+        if (this._eventBuffer.length === 0)
+            return;
+
+        const events = this._eventBuffer.splice(0);
+        const iso = new Date().toISOString();
+
+        for (const payload of events) {
+            if (typeof console !== 'undefined' && console.error)
+                console.error(`[spawn-at-time] ${payload}`);
+            else if (typeof log !== 'undefined')
+                log(`[spawn-at-time] ${payload}`);
+            this.queueLogLine(`[${iso}] ${payload}`);
+        }
+    }
+
     flushSync() {
+        this.flush();
         this._disabled = true;
         if (!this._sessionLogFile || !this._pendingLogLines || this._pendingLogLines.length === 0)
             return;
@@ -154,18 +240,26 @@ var SessionLogger = class SessionLogger {
         if (this._loggingEnabled !== undefined)
             return this._loggingEnabled;
         const env = GLib.getenv('SPAWN_AT_DEBUG');
-        this._loggingEnabled = env !== '0' && env !== 'false';
+        this._loggingEnabled = env === '1' || env === 'true';
         return this._loggingEnabled;
     }
 
     setLogging(enabled) {
+        const prev = this._loggingEnabled;
         this._loggingEnabled = Boolean(enabled);
-        this.logTime('SET_LOGGING', `enabled=${this._loggingEnabled}`);
+        if (this._loggingEnabled) {
+            this.logTime('SET_LOGGING', `enabled=true`);
+        } else if (prev) {
+            this.logTime('SET_LOGGING', `enabled=false`);
+            this.flush();
+        }
     }
 
     formatWindowMeta(window) {
         if (!window)
             return 'win=[none]';
+
+        const { id, pid } = getImmutableWindowMeta(window);
 
         let clientType = -1;
         try { clientType = window.get_client_type?.(); } catch (_e) {}
@@ -179,24 +273,11 @@ var SessionLogger = class SessionLogger {
 
         let typeInt = -1;
         try { typeInt = window.get_window_type?.(); } catch (_e) {}
+        const windowType = getWindowTypeName(typeInt);
 
-        let windowType = 'UNKNOWN';
-        if (Meta.WindowType) {
-            for (const [name, val] of Object.entries(Meta.WindowType)) {
-                if (val === typeInt) {
-                    windowType = name;
-                    break;
-                }
-            }
-        }
-
-        let id = -1;
-        let pid = -1;
         let wmClass = '';
         let appId = '';
 
-        try { id = window.get_id?.() ?? -1; } catch (_e) {}
-        try { pid = window.get_pid?.() ?? -1; } catch (_e) {}
         try { wmClass = window.get_wm_class?.() || ''; } catch (_e) {}
         try {
             appId = window.get_gtk_application_id?.() ||
@@ -207,6 +288,9 @@ var SessionLogger = class SessionLogger {
     }
 
     logTime(tag, extra = '', window = null) {
+        if (!this.isLoggingEnabled())
+            return;
+
         const nowUs = GLib.get_monotonic_time();
         if (!this._t0)
             this._t0 = nowUs;
@@ -214,14 +298,20 @@ var SessionLogger = class SessionLogger {
         const winInfo = window ? (` ${this.formatWindowMeta(window)}`) : '';
         const payload = `+${elapsedMs}ms | ${tag}${winInfo} ${extra}`.trim();
 
-        const iso = new Date().toISOString();
-        this.queueLogLine(`[${iso}] ${payload}`);
+        if (this._eventBuffer.length >= this._maxBufferSize) {
+            this._droppedEvents++;
+        } else {
+            this._eventBuffer.push(payload);
+        }
 
-        if (this.isLoggingEnabled()) {
-            if (typeof console !== 'undefined' && console.error)
-                console.error(`[spawn-at-time] ${payload}`);
-            else if (typeof log !== 'undefined')
-                log(`[spawn-at-time] ${payload}`);
+        if (!this._flushScheduled && !this._disabled) {
+            this._flushScheduled = true;
+            this._flushSourceId = GLib.idle_add(GLib.PRIORITY_LOW ?? 300, () => {
+                this._flushScheduled = false;
+                this._flushSourceId = null;
+                this.flush();
+                return GLib.SOURCE_REMOVE;
+            });
         }
     }
 };

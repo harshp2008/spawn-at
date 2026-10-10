@@ -37,9 +37,12 @@ export async function resolve(specifier, context, nextResolve) {
             `;
         } else if (specifier === 'gi://GLib') {
             mockSource = `
+                let _nextSourceId = 1;
+                const _sourceMap = new Map();
                 export default {
                     PRIORITY_DEFAULT: 0,
                     PRIORITY_DEFAULT_IDLE: 100,
+                    PRIORITY_LOW: 300,
                     SOURCE_REMOVE: false,
                     SOURCE_CONTINUE: true,
                     get_monotonic_time: () => Date.now() * 1000,
@@ -49,13 +52,37 @@ export async function resolve(specifier, context, nextResolve) {
                     getenv: () => null,
                     Bytes: class { constructor() {} },
                     timeout_add: (_p, ms, cb) => setTimeout(cb, Math.min(ms, 5)),
-                    source_remove: (id) => clearTimeout(id),
-                    idle_add: (_p, cb) => { setImmediate(cb); return 1; },
+                    source_remove: (id) => {
+                        const imm = _sourceMap.get(id);
+                        if (imm) {
+                            clearImmediate(imm);
+                            _sourceMap.delete(id);
+                        } else {
+                            clearTimeout(id);
+                        }
+                    },
+                    idle_add: (_p, cb) => {
+                        const id = _nextSourceId++;
+                        const imm = setImmediate(() => {
+                            _sourceMap.delete(id);
+                            cb();
+                        });
+                        _sourceMap.set(id, imm);
+                        return id;
+                    },
                     build_filenamev: (parts) => parts.join('/'),
                     file_get_contents: () => [false, new Uint8Array()],
                     mkdir_with_parents: () => 0,
                     Source: {
-                        remove: (id) => clearTimeout(id),
+                        remove: (id) => {
+                            const imm = _sourceMap.get(id);
+                            if (imm) {
+                                clearImmediate(imm);
+                                _sourceMap.delete(id);
+                            } else {
+                                clearTimeout(id);
+                            }
+                        },
                     },
                     Variant: class {
                         constructor(format, value) {

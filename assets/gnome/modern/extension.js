@@ -154,7 +154,13 @@ export default class SpawnAtExtension extends Extension {
     // 2. LOGGING DELEGATES
     // =======================================================================
 
+    isLoggingEnabled() {
+        return this._logger?.isLoggingEnabled() ?? false;
+    }
+
     logTime(tag, extra = '', window = null) {
+        if (!this.isLoggingEnabled())
+            return;
         this._logger?.logTime(tag, extra, window);
     }
 
@@ -231,6 +237,8 @@ export default class SpawnAtExtension extends Extension {
     }
 
     _logActorTrace(tag, actor, window, extra = '') {
+        if (!this.isLoggingEnabled())
+            return;
         const opacity = (actor && typeof actor.opacity === 'number') ? actor.opacity : -1;
         let frameStr = 'frame=(0,0,0x0)';
         if (window && typeof window.get_frame_rect === 'function') {
@@ -611,6 +619,7 @@ export default class SpawnAtExtension extends Extension {
                 item.focusApplied = true;
             }
         } finally {
+            this._logger?.flush();
             this._currentBatchItem = null;
             this._batchBusy = false;
             this._processQueue();
@@ -708,6 +717,7 @@ export default class SpawnAtExtension extends Extension {
             if (this._cloakManager?.snapshots?.has(actor)) {
                 this._cloakManager.destroySnapshot(actor, window);
             }
+            this._logger?.flush();
         }
     }
 
@@ -1473,19 +1483,25 @@ export default class SpawnAtExtension extends Extension {
         if (pendingItem) {
             if (pendingItem.focusApplied) {
                 this.logTime('FOCUS_BATCH_ALREADY_APPLIED', `windowId=${window.get_id?.()}`, window);
+                this._logger?.flush();
                 return true;
             }
             pendingItem.deferredFocus = true;
             this.logTime('FOCUS_DEFERRED', `windowId=${window.get_id?.()}`, window);
+            this._logger?.flush();
             return true;
         }
 
-        return this._focusWindowObject(window);
+        const res = this._focusWindowObject(window);
+        this._logger?.flush();
+        return res;
     }
 
     DefocusWindow(target, mode, destination) {
         const window = this._findWindow(target);
-        return window ? this._defocusWindowObject(window, mode, destination) : false;
+        const res = window ? this._defocusWindowObject(window, mode, destination) : false;
+        this._logger?.flush();
+        return res;
     }
 
     SetWindowState(target, state) {
@@ -1495,24 +1511,29 @@ export default class SpawnAtExtension extends Extension {
 
         this._disarmAnchor(window, 'EXTERNAL_STATE');
 
+        let res = false;
         switch (state) {
             case 'maximize':
                 this._maximize(window);
-                return true;
+                res = true;
+                break;
             case 'unmaximize':
                 this._unmaximize(window);
-                return true;
+                res = true;
+                break;
             case 'minimize': {
                 const actor = this._getActor(window);
                 this._logActorTrace('MINIMIZE', actor, window);
                 window.minimize();
-                return true;
+                res = true;
+                break;
             }
             case 'unminimize': {
                 const actor = this._getActor(window);
                 this._logActorTrace('UNMINIMIZE', actor, window);
                 window.unminimize();
-                return true;
+                res = true;
+                break;
             }
             case 'restore': {
                 if (window.minimized) {
@@ -1522,11 +1543,15 @@ export default class SpawnAtExtension extends Extension {
                 }
                 if (this._isMaximized(window))
                     this._unmaximize(window);
-                return true;
+                res = true;
+                break;
             }
             default:
-                return false;
+                res = false;
+                break;
         }
+        this._logger?.flush();
+        return res;
     }
 
     CloseWindow(target) {
