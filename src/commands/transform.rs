@@ -49,29 +49,69 @@ pub async fn run_transform(
         }
     }
 
-    // 3. Resolve target boundary from --monitor (or cursor location if --anchor cursor / --monitor cursor)
+    // 3. Resolve target boundary from --monitor (or window's current monitor if omitted)
     let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
-    let needs_cursor = is_cursor_anchor || args.geometry.monitor.eq_ignore_ascii_case("cursor");
+    let is_cursor_monitor = args
+        .geometry
+        .monitor
+        .as_deref()
+        .is_some_and(|m| m.eq_ignore_ascii_case("cursor"));
+    let needs_cursor = is_cursor_anchor || is_cursor_monitor;
     let (cursor_x, cursor_y) = if needs_cursor {
         backend.get_cursor_position().await?
     } else {
         (0, 0)
     };
 
-    let boundary_rects = if args.geometry.area == geometry::Area::Screen {
-        backend.get_monitors().await?
-    } else {
-        backend.get_workareas().await?
-    };
+    let is_unbounded = args.geometry.area == geometry::Area::Unbounded;
 
-    let target_boundary = if needs_cursor {
-        geometry::resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor")?
+    let target_boundary = if is_unbounded {
+        geometry::Rect::default()
+    } else if let Some(ref mon_sel) = args.geometry.monitor {
+        let boundary_rects = if args.geometry.area == geometry::Area::Screen {
+            backend.get_monitors().await?
+        } else {
+            backend.get_workareas().await?
+        };
+        geometry::resolve_workarea(&boundary_rects, (cursor_x, cursor_y), mon_sel)?
     } else {
-        geometry::resolve_workarea(
-            &boundary_rects,
-            (cursor_x, cursor_y),
-            &args.geometry.monitor,
-        )?
+        let layout_res = backend.get_layout().await;
+        if let Ok(layout) = layout_res {
+            let win_rect = geometry::Rect {
+                x: target_win.x,
+                y: target_win.y,
+                width: target_win.w as u32,
+                height: target_win.h as u32,
+            };
+            let chosen = geometry::find_monitor_with_largest_overlap(&layout, win_rect)
+                .or_else(|| {
+                    let idx = target_win.monitor.unwrap_or(0).max(0) as usize;
+                    layout.monitors.iter().find(|m| m.index == idx)
+                })
+                .or_else(|| layout.monitors.first());
+
+            if let Some(m) = chosen {
+                if args.geometry.area == geometry::Area::Screen {
+                    m.screen.map(geometry::Rect::from).unwrap_or_default()
+                } else {
+                    m.workarea.map(geometry::Rect::from).unwrap_or_default()
+                }
+            } else {
+                geometry::Rect::default()
+            }
+        } else {
+            let boundary_rects = if args.geometry.area == geometry::Area::Screen {
+                backend.get_monitors().await?
+            } else {
+                backend.get_workareas().await?
+            };
+            let mon_idx = target_win.monitor.unwrap_or(0).max(0) as usize;
+            if mon_idx < boundary_rects.len() {
+                boundary_rects[mon_idx]
+            } else {
+                boundary_rects.first().copied().unwrap_or_default()
+            }
+        }
     };
 
     // 4. Calculate target position and size via geometry solver
@@ -92,10 +132,28 @@ pub async fn run_transform(
     let has_anchor = args.geometry.anchor.is_some();
     let has_pos_or_offset = pos_or_offset.is_some();
 
-    let mt = args.geometry.margin_top.unwrap_or(args.geometry.margin);
-    let mb = args.geometry.margin_bottom.unwrap_or(args.geometry.margin);
-    let ml = args.geometry.margin_left.unwrap_or(args.geometry.margin);
-    let mr = args.geometry.margin_right.unwrap_or(args.geometry.margin);
+    let mt = if is_unbounded {
+        0
+    } else {
+        args.geometry.margin_top.unwrap_or(args.geometry.margin())
+    };
+    let mb = if is_unbounded {
+        0
+    } else {
+        args.geometry
+            .margin_bottom
+            .unwrap_or(args.geometry.margin())
+    };
+    let ml = if is_unbounded {
+        0
+    } else {
+        args.geometry.margin_left.unwrap_or(args.geometry.margin())
+    };
+    let mr = if is_unbounded {
+        0
+    } else {
+        args.geometry.margin_right.unwrap_or(args.geometry.margin())
+    };
 
     let (pos, offset, anchor, pivot) = if has_anchor {
         (
@@ -125,7 +183,7 @@ pub async fn run_transform(
             ),
         };
         let (unclamped_x, unclamped_y) = geometry::apply_pivot(px, py, target_w, target_h, p);
-        let (final_x, final_y) = if args.geometry.clamp {
+        let (final_x, final_y) = if !is_unbounded && args.geometry.clamp() {
             let raw_rect = geometry::Rect {
                 x: unclamped_x,
                 y: unclamped_y,
@@ -133,19 +191,15 @@ pub async fn run_transform(
                 height: target_h,
             };
             let clamped = geometry::clamp_to_bounds(raw_rect, target_boundary, mt, mb, ml, mr, 0);
-            if clamped.x != unclamped_x || clamped.y != unclamped_y {
-                crate::diagnostics::render_info(&format!(
-                    "Window left chosen area; clamped to ({}, {}) inside the {}.",
-                    clamped.x, clamped.y, args.geometry.area
-                ));
-            }
             (clamped.x, clamped.y)
         } else {
             (unclamped_x, unclamped_y)
         };
         if final_x != target_win.x || final_y != target_win.y {
+            let ref_x = if is_unbounded { 0 } else { target_boundary.x };
+            let ref_y = if is_unbounded { 0 } else { target_boundary.y };
             (
-                Some((final_x, final_y)),
+                Some((final_x - ref_x, final_y - ref_y)),
                 None,
                 None,
                 Some(geometry::Pivot::TopLeft),
@@ -154,7 +208,7 @@ pub async fn run_transform(
             (None, None, None, None)
         }
     } else {
-        if args.geometry.size.is_some() && args.geometry.clamp {
+        if args.geometry.size.is_some() && !is_unbounded && args.geometry.clamp() {
             let raw_rect = geometry::Rect {
                 x: target_win.x,
                 y: target_win.y,
@@ -163,12 +217,10 @@ pub async fn run_transform(
             };
             let clamped = geometry::clamp_to_bounds(raw_rect, target_boundary, mt, mb, ml, mr, 0);
             if clamped.x != target_win.x || clamped.y != target_win.y {
-                crate::diagnostics::render_info(&format!(
-                    "Window left chosen area; clamped to ({}, {}) inside the {}.",
-                    clamped.x, clamped.y, args.geometry.area
-                ));
+                let ref_x = target_boundary.x;
+                let ref_y = target_boundary.y;
                 (
-                    Some((clamped.x, clamped.y)),
+                    Some((clamped.x - ref_x, clamped.y - ref_y)),
                     None,
                     None,
                     Some(geometry::Pivot::TopLeft),
@@ -197,15 +249,39 @@ pub async fn run_transform(
         } else {
             None
         },
-        margin: args.geometry.margin,
-        margin_top: args.geometry.margin_top,
-        margin_bottom: args.geometry.margin_bottom,
-        margin_left: args.geometry.margin_left,
-        margin_right: args.geometry.margin_right,
+        margin: if is_unbounded {
+            0
+        } else {
+            args.geometry.margin()
+        },
+        margin_top: if is_unbounded {
+            None
+        } else {
+            args.geometry.margin_top
+        },
+        margin_bottom: if is_unbounded {
+            None
+        } else {
+            args.geometry.margin_bottom
+        },
+        margin_left: if is_unbounded {
+            None
+        } else {
+            args.geometry.margin_left
+        },
+        margin_right: if is_unbounded {
+            None
+        } else {
+            args.geometry.margin_right
+        },
         area: Some(args.geometry.area),
         cursor_pos,
         workarea: target_boundary,
-        clamp: args.geometry.clamp,
+        clamp: if is_unbounded {
+            false
+        } else {
+            args.geometry.clamp()
+        },
     };
 
     // 5. Execute transform via backend
@@ -283,6 +359,12 @@ pub async fn run_transform(
                 None,
                 size_raised,
             );
+            if is_unbounded {
+                let monitors = backend.get_monitors().await.unwrap_or_default();
+                if geometry::window_straddles_monitors(actual_rect, &monitors) {
+                    crate::diagnostics::render_info("Window straddles monitors.");
+                }
+            }
         }
     }
 

@@ -63,8 +63,16 @@ pub fn calculate_placement(
     let margin_left = params.margin_left.unwrap_or(params.margin);
     let margin_right = params.margin_right.unwrap_or(params.margin);
 
-    let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
-    let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
+    let offset_x = if params.anchor.is_some() {
+        params.offset.map(|o| o.0).unwrap_or(0)
+    } else {
+        0
+    };
+    let offset_y = if params.anchor.is_some() {
+        params.offset.map(|o| o.1).unwrap_or(0)
+    } else {
+        0
+    };
 
     let (pivot_u, pivot_v) = if let Some(pivot) = params.pivot {
         match pivot {
@@ -91,6 +99,8 @@ pub fn calculate_placement(
         (0.0, 0.0)
     };
 
+    let is_unbounded = params.area == Some(Area::Unbounded);
+
     let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
         spawn_at_core::geometry::compute_screen_anchor(
             wa,
@@ -101,8 +111,9 @@ pub fn calculate_placement(
             margin_right,
             params.cursor_pos,
         )
-    } else if let Some(pos) = params.pos {
-        (pos.0, pos.1)
+    } else if let Some(pos) = params.pos.or(params.offset) {
+        let (ref_x, ref_y) = if is_unbounded { (0, 0) } else { (wa.x, wa.y) };
+        (ref_x + pos.0, ref_y + pos.1)
     } else {
         (wa.x + margin_left, wa.y + margin_top)
     };
@@ -119,12 +130,13 @@ pub fn calculate_placement(
         area: params.area.map(|a| match a {
             Area::Workarea => "workarea".to_string(),
             Area::Screen => "screen".to_string(),
+            Area::Unbounded => "unbounded".to_string(),
         }),
-        margin_top,
-        margin_bottom,
-        margin_left,
-        margin_right,
-        clamp: params.clamp,
+        margin_top: if is_unbounded { 0 } else { margin_top },
+        margin_bottom: if is_unbounded { 0 } else { margin_bottom },
+        margin_left: if is_unbounded { 0 } else { margin_left },
+        margin_right: if is_unbounded { 0 } else { margin_right },
+        clamp: if is_unbounded { false } else { params.clamp },
     }
 }
 
@@ -206,7 +218,7 @@ mod tests {
 
         if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
             assert_eq!(payload.screen_anchor_x, 100);
-            assert_eq!(payload.screen_anchor_y, 200);
+            assert_eq!(payload.screen_anchor_y, 240);
             assert_eq!(payload.pivot_u, 0.0);
             assert_eq!(payload.pivot_v, 0.0);
             assert_eq!(payload.offset_x, 0);

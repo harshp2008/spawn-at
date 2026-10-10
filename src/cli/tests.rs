@@ -160,16 +160,17 @@ fn test_offset_specified_multiple_times_fails() {
 
 #[test]
 fn test_clamp_flag_parsing() {
-    // 1. Default (omitted) -> clamp is true
+    // 1. Default (omitted) -> clamp is None, helper returns true
     let args_default = vec!["spawn-at", "transform", "--class", "org.gnome.Calculator"];
     let cli = Cli::try_parse_from(args_default).expect("Parsing should succeed");
     if let Commands::Transform(t_args) = cli.command {
-        assert!(t_args.geometry.clamp);
+        assert_eq!(t_args.geometry.clamp, None);
+        assert!(t_args.geometry.clamp());
     } else {
         panic!("Expected Transform command variant");
     }
 
-    // 2. Bare flag --clamp -> clamp is true
+    // 2. Bare flag --clamp -> clamp is Some(true)
     let args_bare = vec![
         "spawn-at",
         "transform",
@@ -179,12 +180,13 @@ fn test_clamp_flag_parsing() {
     ];
     let cli = Cli::try_parse_from(args_bare).expect("Parsing bare --clamp should succeed");
     if let Commands::Transform(t_args) = cli.command {
-        assert!(t_args.geometry.clamp);
+        assert_eq!(t_args.geometry.clamp, Some(true));
+        assert!(t_args.geometry.clamp());
     } else {
         panic!("Expected Transform command variant");
     }
 
-    // 3. Explicit --clamp=false
+    // 3. Explicit --clamp=false -> clamp is Some(false)
     let args_false = vec![
         "spawn-at",
         "transform",
@@ -194,7 +196,8 @@ fn test_clamp_flag_parsing() {
     ];
     let cli = Cli::try_parse_from(args_false).expect("Parsing --clamp=false should succeed");
     if let Commands::Transform(t_args) = cli.command {
-        assert!(!t_args.geometry.clamp);
+        assert_eq!(t_args.geometry.clamp, Some(false));
+        assert!(!t_args.geometry.clamp());
     } else {
         panic!("Expected Transform command variant");
     }
@@ -381,7 +384,7 @@ fn test_area_and_margins_parsing() {
         assert_eq!(s_args.geometry.margin_bottom, Some(20));
         assert_eq!(s_args.geometry.margin_left, Some(30));
         assert_eq!(s_args.geometry.margin_right, Some(40));
-        assert_eq!(s_args.geometry.margin, 16);
+        assert_eq!(s_args.geometry.margin, Some(16));
         assert_eq!(s_args.command, vec!["gedit"]);
         assert!(s_args.validate().is_ok());
     } else {
@@ -808,14 +811,14 @@ fn test_characterization_all_subcommands_parsing() {
             s.geometry.size,
             Some(vec!["800".to_string(), "600".to_string()])
         );
-        assert_eq!(s.geometry.margin, 24);
+        assert_eq!(s.geometry.margin, Some(24));
         assert_eq!(s.geometry.margin_top, Some(12));
         assert_eq!(s.geometry.margin_bottom, Some(14));
         assert_eq!(s.geometry.margin_left, Some(16));
         assert_eq!(s.geometry.margin_right, Some(18));
-        assert_eq!(s.geometry.monitor, "DP-1");
+        assert_eq!(s.geometry.monitor.as_deref(), Some("DP-1"));
         assert_eq!(s.geometry.area, Area::Screen);
-        assert!(!s.geometry.clamp);
+        assert!(!s.geometry.clamp());
         assert!(s.focus_modifiers.no_focus);
         assert_eq!(s.command, vec!["my-app", "arg1", "--flag"]);
     } else {
@@ -974,5 +977,126 @@ fn test_spawn_dash_command_without_suggestion() {
         );
     } else {
         panic!("Expected Spawn variant");
+    }
+}
+
+#[test]
+fn test_unbounded_allowed_and_rejected_options() {
+    // 1. Allowed: -p, --pivot, --size, --anchor cursor
+    let args_ok = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "-p",
+        "700",
+        "300",
+        "--pivot",
+        "center",
+        "--size",
+        "800",
+        "600",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_ok).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        assert!(s.validate().is_ok());
+    }
+
+    let args_cursor = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "--anchor",
+        "cursor",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_cursor).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        assert!(s.validate().is_ok());
+    }
+
+    // 2. Rejected: non-cursor anchor
+    let args_bad_anchor = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "--anchor",
+        "top-left",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_bad_anchor).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(
+            err.contains("Cannot specify --anchor (except --anchor cursor) with --area unbounded.")
+        );
+    }
+
+    // 3. Rejected: --clamp
+    let args_clamp = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "--clamp=true",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_clamp).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(err.contains("Cannot specify --clamp with --area unbounded"));
+    }
+
+    // 4. Rejected: -m
+    let args_margin = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "-m",
+        "16",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_margin).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(err
+            .contains("Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded"));
+    }
+
+    // 5. Rejected: --mt
+    let args_mt = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "--mt",
+        "16",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_mt).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(err
+            .contains("Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded"));
+    }
+
+    // 6. Rejected: --monitor
+    let args_monitor = vec![
+        "spawn-at",
+        "spawn",
+        "--area",
+        "unbounded",
+        "--monitor",
+        "0",
+        "app",
+    ];
+    let cli = Cli::try_parse_from(args_monitor).expect("Parsing should succeed");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(err.contains("Cannot specify --monitor with --area unbounded"));
     }
 }

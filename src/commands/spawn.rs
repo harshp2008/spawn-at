@@ -51,8 +51,12 @@ pub async fn run_spawn(
 
     // 1. Calculate target geometry parameters
     let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
-    let needs_cursor =
-        is_cursor_anchor || spawn_args.geometry.monitor.eq_ignore_ascii_case("cursor");
+    let is_cursor_monitor = spawn_args
+        .geometry
+        .monitor
+        .as_deref()
+        .is_some_and(|m| m.eq_ignore_ascii_case("cursor"));
+    let needs_cursor = is_cursor_anchor || is_cursor_monitor;
     let (cursor_x, cursor_y) = if needs_cursor {
         driver.get_cursor_position().await.unwrap_or((0, 0))
     } else {
@@ -73,21 +77,46 @@ pub async fn run_spawn(
         }
     }
 
-    let boundary_rects = if spawn_args.geometry.area == Area::Screen {
-        driver.get_monitors().await.unwrap_or_default()
-    } else {
-        driver.get_workareas().await.unwrap_or_default()
-    };
+    let is_unbounded = spawn_args.geometry.area == Area::Unbounded;
 
-    let target_boundary = if needs_cursor {
-        resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor").unwrap_or_default()
+    let target_boundary = if is_unbounded {
+        Rect::default()
     } else {
-        resolve_workarea(
-            &boundary_rects,
-            (cursor_x, cursor_y),
-            &spawn_args.geometry.monitor,
-        )
-        .unwrap_or_default()
+        let layout_res = driver.get_layout().await;
+        if let Ok(layout) = layout_res {
+            let (chosen, fallback) = spawn_at_core::geometry::resolve_monitor_from_layout(
+                &layout,
+                (cursor_x, cursor_y),
+                spawn_args.geometry.monitor.as_deref(),
+            );
+            if fallback {
+                crate::diagnostics::render_debug(
+                    "No monitor flagged primary; falling back to monitor index 0.",
+                );
+            }
+            if let Some(m) = chosen {
+                if spawn_args.geometry.area == Area::Screen {
+                    m.screen.map(Rect::from).unwrap_or_default()
+                } else {
+                    m.workarea.map(Rect::from).unwrap_or_default()
+                }
+            } else {
+                Rect::default()
+            }
+        } else {
+            let boundary_rects = if spawn_args.geometry.area == Area::Screen {
+                driver.get_monitors().await.unwrap_or_default()
+            } else {
+                driver.get_workareas().await.unwrap_or_default()
+            };
+            if needs_cursor {
+                resolve_workarea(&boundary_rects, (cursor_x, cursor_y), "cursor")
+                    .unwrap_or_default()
+            } else {
+                let mon_str = spawn_args.geometry.monitor.as_deref().unwrap_or("primary");
+                resolve_workarea(&boundary_rects, (cursor_x, cursor_y), mon_str).unwrap_or_default()
+            }
+        }
     };
 
     let pos_or_offset = spawn_args.geometry.pos_or_offset();
@@ -119,15 +148,39 @@ pub async fn run_spawn(
         size,
         anchor: spawn_args.geometry.anchor,
         pivot: spawn_args.geometry.pivot,
-        margin: spawn_args.geometry.margin,
-        margin_top: spawn_args.geometry.margin_top,
-        margin_bottom: spawn_args.geometry.margin_bottom,
-        margin_left: spawn_args.geometry.margin_left,
-        margin_right: spawn_args.geometry.margin_right,
+        margin: if is_unbounded {
+            0
+        } else {
+            spawn_args.geometry.margin()
+        },
+        margin_top: if is_unbounded {
+            None
+        } else {
+            spawn_args.geometry.margin_top
+        },
+        margin_bottom: if is_unbounded {
+            None
+        } else {
+            spawn_args.geometry.margin_bottom
+        },
+        margin_left: if is_unbounded {
+            None
+        } else {
+            spawn_args.geometry.margin_left
+        },
+        margin_right: if is_unbounded {
+            None
+        } else {
+            spawn_args.geometry.margin_right
+        },
         area: Some(spawn_args.geometry.area),
         cursor_pos,
         workarea: target_boundary,
-        clamp: spawn_args.geometry.clamp,
+        clamp: if is_unbounded {
+            false
+        } else {
+            spawn_args.geometry.clamp()
+        },
     };
 
     for diag in check_geometry_diagnostics(&params) {
@@ -443,6 +496,12 @@ pub async fn run_spawn(
             }
 
             crate::diagnostics::verify_and_report_placement(&params, final_rect, None, size_raised);
+            if is_unbounded {
+                let monitors = driver.get_monitors().await.unwrap_or_default();
+                if spawn_at_core::geometry::window_straddles_monitors(final_rect, &monitors) {
+                    crate::diagnostics::render_info("Window straddles monitors.");
+                }
+            }
         }
     }
 

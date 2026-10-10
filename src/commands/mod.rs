@@ -1415,7 +1415,7 @@ mod tests {
             },
             spawn_at_core::geometry::Rect {
                 x: 200,
-                y: 200,
+                y: 240,
                 width: 400,
                 height: 300,
             },
@@ -1490,7 +1490,7 @@ mod tests {
             warnings
         );
         assert!(warnings[0].1.contains(
-            "Window mapped at (100, 100) [400x300] but expected position was (200, 200)"
+            "Window mapped at (100, 100) [400x300] but expected position was (200, 240)"
         ));
     }
 }

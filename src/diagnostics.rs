@@ -133,6 +133,11 @@ pub fn render_error(msg: &str) {
     render_diagnostic_message(DiagnosticLevel::Error, msg);
 }
 
+/// Centralized renderer for debug messages.
+pub fn render_debug(msg: &str) {
+    eprintln!("[spawn-at] DEBUG: {}", msg);
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Diagnostic {
     /// Window mapped/transformed successfully at target position and size.
@@ -163,6 +168,7 @@ pub enum Diagnostic {
         clamped_to_workarea: bool,
         area: Option<Area>,
         is_transform: bool,
+        workarea: Rect,
     },
     /// Window placed off-screen because clamping was disabled (`--clamp false`).
     OffScreenUnclamped {
@@ -274,16 +280,43 @@ impl Diagnostic {
                 clamped_to_workarea,
                 area,
                 is_transform,
+                workarea,
             } => {
-                let area_str = match area {
-                    Some(Area::Screen) => "screen",
-                    _ => "work area",
-                };
+                let area_kind = area.unwrap_or(Area::Workarea);
                 if *clamped_to_workarea {
-                    format!(
-                        "Requested ({}, {}); clamped to ({}, {}) inside the {}.",
-                        expected_pos.0, expected_pos.1, actual_pos.0, actual_pos.1, area_str
-                    )
+                    let (ref_x, ref_y) = match area_kind {
+                        Area::Unbounded => (0, 0),
+                        Area::Screen | Area::Workarea => (workarea.x, workarea.y),
+                    };
+                    let req_rel = (expected_pos.0 - ref_x, expected_pos.1 - ref_y);
+                    let clamped_rel = (actual_pos.0 - ref_x, actual_pos.1 - ref_y);
+                    let show_screen = actual_pos != &clamped_rel;
+                    let screen_suffix = if show_screen {
+                        format!(" [screen ({}, {})]", actual_pos.0, actual_pos.1)
+                    } else {
+                        String::new()
+                    };
+
+                    match area_kind {
+                        Area::Workarea => {
+                            format!(
+                                "Requested ({}, {}) in the work area; clamped to ({}, {}){}.",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1, screen_suffix
+                            )
+                        }
+                        Area::Screen => {
+                            format!(
+                                "Requested ({}, {}) on the screen; clamped to ({}, {}){}.",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1, screen_suffix
+                            )
+                        }
+                        Area::Unbounded => {
+                            format!(
+                                "Requested ({}, {}) on the desktop; clamped to ({}, {}).",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1
+                            )
+                        }
+                    }
                 } else {
                     let prefix = if *is_transform {
                         "Window at"
@@ -439,6 +472,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                     clamped_to_workarea: true,
                     area: params.area,
                     is_transform,
+                    workarea: params.workarea,
                 });
                 return diags;
             }
@@ -485,11 +519,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 actual_size: (actual_rect.width, actual_rect.height),
             });
         } else {
-            let expected_pos = if let Some(p) = params.pos {
-                p
-            } else {
-                (expected_for_actual.x, expected_for_actual.y)
-            };
+            let expected_pos = (expected_for_actual.x, expected_for_actual.y);
             diags.push(Diagnostic::PositionNotReached {
                 actual_pos: (actual_rect.x, actual_rect.y),
                 actual_size: (actual_rect.width, actual_rect.height),
@@ -498,6 +528,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 clamped_to_workarea: false,
                 area: params.area,
                 is_transform,
+                workarea: params.workarea,
             });
         }
     }
@@ -608,7 +639,7 @@ mod tests {
     fn test_diagnostic_size_raised_height_only() {
         let params = PlacementParams {
             size: Some((500, 400)),
-            pos: Some((50, 90)),
+            pos: Some((50, 50)),
             workarea: sample_workarea(),
             clamp: true,
             ..Default::default()
@@ -632,7 +663,7 @@ mod tests {
     fn test_diagnostic_size_raised_width_only() {
         let params = PlacementParams {
             size: Some((400, 500)),
-            pos: Some((50, 90)),
+            pos: Some((50, 50)),
             workarea: sample_workarea(),
             clamp: true,
             ..Default::default()
@@ -656,7 +687,7 @@ mod tests {
     fn test_diagnostic_size_raised_both() {
         let params = PlacementParams {
             size: Some((400, 400)),
-            pos: Some((50, 90)),
+            pos: Some((50, 50)),
             workarea: sample_workarea(),
             clamp: true,
             ..Default::default()
@@ -707,7 +738,7 @@ mod tests {
             } => {
                 assert_eq!(*actual_pos, (0, 40));
                 assert_eq!(*actual_size, (1920, 1040));
-                assert_eq!(*expected_pos, (100, 1000));
+                assert_eq!(*expected_pos, (0, 40));
                 assert_eq!(*requested_size, Some((30, 30)));
                 assert!(!*clamped_to_workarea);
             }
@@ -718,7 +749,7 @@ mod tests {
         let msg = diags[0].format_message_with_capability(ColorCapability::Disabled);
         assert_eq!(
             msg,
-            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (0, 40). Final size differs from the requested size (30x30); window was not positioned at target."
         );
     }
 
@@ -749,11 +780,46 @@ mod tests {
         assert_eq!(diags[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags[0].message_body(),
-            "Requested (0, 0); clamped to (16, 16) inside the screen."
+            "Requested (0, 0) on the screen; clamped to (16, 16)."
         );
         assert_eq!(
             diags[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (0, 0); clamped to (16, 16) inside the screen."
+            "[spawn-at] INFO: Requested (0, 0) on the screen; clamped to (16, 16)."
+        );
+    }
+
+    #[test]
+    fn test_workarea_clamped_pos_info_exact_text() {
+        let params = PlacementParams {
+            pos: Some((0, 0)),
+            size: Some((20, 30)),
+            area: Some(Area::Workarea),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 16,
+            y: 56,
+            width: 338,
+            height: 93,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags[0].message_body(),
+            "Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
         );
     }
 
@@ -779,11 +845,11 @@ mod tests {
         assert_eq!(diags[0].level(), DiagnosticLevel::Warning);
         assert_eq!(
             diags[0].message_body(),
-            "Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+            "Window mapped at (0, 40) [1920x1040] but expected position was (16, 56). Final size differs from the requested size (30x30); window was not positioned at target."
         );
         assert_eq!(
             diags[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (100, 1000). Final size differs from the requested size (30x30); window was not positioned at target."
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (16, 56). Final size differs from the requested size (30x30); window was not positioned at target."
         );
     }
 
@@ -797,9 +863,15 @@ mod tests {
             clamped_to_workarea: true,
             area: Some(Area::Screen),
             is_transform: false,
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
         };
         let msg = diag.format_message();
-        assert!(msg.contains("Requested (100, 0); clamped to (16, 16) inside the screen."));
+        assert!(msg.contains("Requested (100, 0) on the screen; clamped to (16, 16)."));
     }
 
     #[test]
@@ -812,6 +884,7 @@ mod tests {
             clamped_to_workarea: false,
             area: Some(Area::Workarea),
             is_transform: true,
+            workarea: sample_workarea(),
         };
         let msg = diag.message_body();
         assert_eq!(
@@ -857,15 +930,15 @@ mod tests {
 
         let actual = Rect {
             x: -500,
-            y: -200,
+            y: -160,
             width: 800,
             height: 600,
         };
 
-        // When clamp is false and expected is (-500, -200)
+        // When clamp is false and expected is (-500, -160)
         let expected = calculate_rect_from_placement(&params, actual.width, actual.height);
         assert_eq!(expected.x, -500);
-        assert_eq!(expected.y, -200);
+        assert_eq!(expected.y, -160);
 
         // Position was reached at requested offscreen coordinates
         let diags = evaluate_placement_diagnostics(&params, actual, None, false);
@@ -917,9 +990,9 @@ mod tests {
     fn test_clamped_explicit_pos_diagnostic_exact_text() {
         // Live-confirmed cases on host machine:
         // Window 367x514 on 1920x1040 at (0, 40) with margin 16.
-        // 1. `transform --pos 0 40` lands at (16, 56)
-        let params_0_40 = PlacementParams {
-            pos: Some((0, 40)),
+        // 1. `transform --pos 0 0` lands at (16, 56)
+        let params_0_0 = PlacementParams {
+            pos: Some((0, 0)),
             size: Some((367, 514)),
             workarea: Rect {
                 x: 0,
@@ -931,23 +1004,23 @@ mod tests {
             clamp: true,
             ..Default::default()
         };
-        let actual_0_40 = Rect {
+        let actual_0_0 = Rect {
             x: 16,
             y: 56,
             width: 367,
             height: 514,
         };
-        let diags_0_40 =
-            evaluate_placement_diagnostics_for_action(&params_0_40, actual_0_40, None, false, true);
-        assert_eq!(diags_0_40.len(), 1);
-        assert_eq!(diags_0_40[0].level(), DiagnosticLevel::Info);
+        let diags_0_0 =
+            evaluate_placement_diagnostics_for_action(&params_0_0, actual_0_0, None, false, true);
+        assert_eq!(diags_0_0.len(), 1);
+        assert_eq!(diags_0_0[0].level(), DiagnosticLevel::Info);
         assert_eq!(
-            diags_0_40[0].message_body(),
-            "Requested (0, 40); clamped to (16, 56) inside the work area."
+            diags_0_0[0].message_body(),
+            "Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
         );
         assert_eq!(
-            diags_0_40[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (0, 40); clamped to (16, 56) inside the work area."
+            diags_0_0[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
         );
 
         // 2. `transform --pos 5000 5000` lands at (1537, 550)
@@ -976,11 +1049,11 @@ mod tests {
         assert_eq!(diags_5000[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_5000[0].message_body(),
-            "Requested (5000, 5000); clamped to (1537, 550) inside the work area."
+            "Requested (5000, 5000) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
         );
         assert_eq!(
             diags_5000[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (5000, 5000); clamped to (1537, 550) inside the work area."
+            "[spawn-at] INFO: Requested (5000, 5000) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
         );
     }
 
@@ -1022,11 +1095,11 @@ mod tests {
         assert_eq!(diags_cursor_transform[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_cursor_transform[0].message_body(),
-            "Requested (1618, 797); clamped to (1537, 550) inside the work area."
+            "Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
         );
         assert_eq!(
             diags_cursor_transform[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (1618, 797); clamped to (1537, 550) inside the work area."
+            "[spawn-at] INFO: Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
         );
         // Spawn
         let diags_cursor_spawn = evaluate_placement_diagnostics_for_action(
@@ -1040,7 +1113,7 @@ mod tests {
         assert_eq!(diags_cursor_spawn[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_cursor_spawn[0].message_body(),
-            "Requested (1618, 797); clamped to (1537, 550) inside the work area."
+            "Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
         );
 
         // 2. Cursor anchor with offset on screen area
@@ -1077,11 +1150,11 @@ mod tests {
         assert_eq!(diags_cursor_screen[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_cursor_screen[0].message_body(),
-            "Requested (1618, 797); clamped to (1537, 550) inside the screen."
+            "Requested (1618, 797) on the screen; clamped to (1537, 550)."
         );
         assert_eq!(
             diags_cursor_screen[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (1618, 797); clamped to (1537, 550) inside the screen."
+            "[spawn-at] INFO: Requested (1618, 797) on the screen; clamped to (1537, 550)."
         );
 
         // 3. Screen anchor (TopRight) with offset on work area
@@ -1116,11 +1189,11 @@ mod tests {
         assert_eq!(diags_topright[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_topright[0].message_body(),
-            "Requested (1637, 56); clamped to (1537, 56) inside the work area."
+            "Requested (1637, 16) in the work area; clamped to (1537, 16) [screen (1537, 56)]."
         );
         assert_eq!(
             diags_topright[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (1637, 56); clamped to (1537, 56) inside the work area."
+            "[spawn-at] INFO: Requested (1637, 16) in the work area; clamped to (1537, 16) [screen (1537, 56)]."
         );
 
         // 4. Screen anchor (TopLeft) with negative offset on screen area
@@ -1156,11 +1229,11 @@ mod tests {
         assert_eq!(diags_topleft[0].level(), DiagnosticLevel::Info);
         assert_eq!(
             diags_topleft[0].message_body(),
-            "Requested (-34, -34); clamped to (16, 16) inside the screen."
+            "Requested (-34, -34) on the screen; clamped to (16, 16)."
         );
         assert_eq!(
             diags_topleft[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Requested (-34, -34); clamped to (16, 16) inside the screen."
+            "[spawn-at] INFO: Requested (-34, -34) on the screen; clamped to (16, 16)."
         );
     }
 

@@ -140,6 +140,7 @@ pub enum Area {
     #[default]
     Workarea,
     Screen,
+    Unbounded,
 }
 
 impl std::fmt::Display for Area {
@@ -147,6 +148,7 @@ impl std::fmt::Display for Area {
         match self {
             Area::Workarea => write!(f, "workarea"),
             Area::Screen => write!(f, "screen"),
+            Area::Unbounded => write!(f, "unbounded"),
         }
     }
 }
@@ -248,6 +250,119 @@ pub fn resolve_workarea(
 
     // Default to primary monitor
     Ok(workareas[0])
+}
+
+/// Resolves a target monitor from a layout schema, pointer coordinates, and an optional monitor selector.
+/// Returns the chosen `MonitorInfo` and a boolean indicating if it fell back to index 0 because no monitor was flagged primary.
+pub fn resolve_monitor_from_layout<'a>(
+    layout: &'a MonitorLayout,
+    pointer: (i32, i32),
+    monitor_selector: Option<&str>,
+) -> (Option<&'a MonitorInfo>, bool) {
+    if layout.monitors.is_empty() {
+        return (None, false);
+    }
+
+    if let Some(sel) = monitor_selector {
+        let sel_lower = sel.trim().to_lowercase();
+        if sel_lower == "cursor" {
+            let (px, py) = pointer;
+            for m in &layout.monitors {
+                let rect = m.screen.or(m.workarea).map(Rect::from).unwrap_or_default();
+                let right = rect.x.saturating_add(rect.width as i32);
+                let bottom = rect.y.saturating_add(rect.height as i32);
+                if px >= rect.x && px < right && py >= rect.y && py < bottom {
+                    return (Some(m), false);
+                }
+            }
+            // Fallback to primary if cursor is outside all monitors
+            if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+                return (Some(primary), false);
+            }
+            return (layout.monitors.first(), true);
+        }
+
+        if let Ok(idx) = sel_lower.parse::<usize>() {
+            if let Some(m) = layout.monitors.iter().find(|m| m.index == idx) {
+                return (Some(m), false);
+            }
+            return (layout.monitors.first(), false);
+        }
+
+        if sel_lower == "primary" {
+            if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+                return (Some(primary), false);
+            }
+            return (layout.monitors.first(), true);
+        }
+
+        // Match by connector name (case-insensitive)
+        if let Some(m) = layout.monitors.iter().find(|m| {
+            m.name
+                .as_deref()
+                .is_some_and(|n| n.eq_ignore_ascii_case(sel))
+        }) {
+            return (Some(m), false);
+        }
+
+        // Fallback to primary or first
+        if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+            return (Some(primary), false);
+        }
+        return (layout.monitors.first(), true);
+    }
+
+    // When monitor selector is None, spawn defaults to true primary monitor
+    if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+        (Some(primary), false)
+    } else {
+        (layout.monitors.first(), true)
+    }
+}
+
+/// Finds the monitor in the layout that has the largest pixel overlap with the given window rectangle.
+pub fn find_monitor_with_largest_overlap<'a>(
+    layout: &'a MonitorLayout,
+    window_rect: Rect,
+) -> Option<&'a MonitorInfo> {
+    let mut best_m = None;
+    let mut best_overlap_area = 0i64;
+
+    for m in &layout.monitors {
+        let geom = m.screen.or(m.workarea).map(Rect::from).unwrap_or_default();
+        let overlap_w = (window_rect.x + window_rect.width as i32).min(geom.x + geom.width as i32)
+            - window_rect.x.max(geom.x);
+        let overlap_h = (window_rect.y + window_rect.height as i32)
+            .min(geom.y + geom.height as i32)
+            - window_rect.y.max(geom.y);
+        if overlap_w > 0 && overlap_h > 0 {
+            let area = (overlap_w as i64) * (overlap_h as i64);
+            if area > best_overlap_area {
+                best_overlap_area = area;
+                best_m = Some(m);
+            }
+        }
+    }
+
+    best_m
+}
+
+/// Returns true if the window geometry intersects more than one monitor rectangle in the layout.
+pub fn window_straddles_monitors(win_rect: Rect, monitors: &[Rect]) -> bool {
+    let mut count = 0;
+    for m in monitors {
+        let overlap_w =
+            (win_rect.x + win_rect.width as i32).min(m.x + m.width as i32) - win_rect.x.max(m.x);
+        let overlap_h =
+            (win_rect.y + win_rect.height as i32).min(m.y + m.height as i32) - win_rect.y.max(m.y);
+        if overlap_w > 0 && overlap_h > 0 {
+            count += 1;
+            if count > 1 {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Computes the top-left origin coordinates `(x, y)` for a window of size `(win_w, win_h)`
@@ -371,6 +486,8 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
     let margin_left = params.margin_left.unwrap_or(params.margin);
     let margin_right = params.margin_right.unwrap_or(params.margin);
 
+    let is_unbounded = params.area == Some(Area::Unbounded);
+
     let (anchor_x, anchor_y) = if let Some(anchor) = params.anchor {
         compute_screen_anchor(
             wa,
@@ -381,13 +498,18 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
             margin_right,
             params.cursor_pos,
         )
-    } else if let Some(pos) = params.pos {
-        pos
+    } else if let Some(pos) = params.pos.or(params.offset) {
+        let (ref_x, ref_y) = if is_unbounded { (0, 0) } else { (wa.x, wa.y) };
+        (ref_x + pos.0, ref_y + pos.1)
     } else {
         (wa.x + margin_left, wa.y + margin_top)
     };
 
-    let (ox, oy) = params.offset.unwrap_or((0, 0));
+    let (ox, oy) = if params.anchor.is_some() {
+        params.offset.unwrap_or((0, 0))
+    } else {
+        (0, 0)
+    };
     let target_x = anchor_x + ox;
     let target_y = anchor_y + oy;
 
@@ -425,7 +547,7 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
         width: w,
         height: h,
     };
-    if params.clamp {
+    if !is_unbounded && params.clamp {
         clamp_to_bounds(
             raw_rect,
             wa,
@@ -1232,7 +1354,7 @@ mod tests {
             height: 1080,
         };
 
-        // 1. -p without --anchor defaults to TopLeft pivot
+        // 1. -p without --anchor defaults to TopLeft pivot relative to workarea top-left (wa.x=0, wa.y=40)
         let params_pos = PlacementParams {
             pos: Some((200, 300)),
             size: Some((400, 300)),
@@ -1242,9 +1364,9 @@ mod tests {
         };
         let rect = calculate_rect_from_placement(&params_pos, 400, 300);
         assert_eq!(rect.x, 200);
-        assert_eq!(rect.y, 300);
+        assert_eq!(rect.y, 340);
 
-        // 2. -p with --pivot
+        // 2. -p with --pivot relative to workarea top-left
         let params_pos_pivot = PlacementParams {
             pos: Some((200, 300)),
             pivot: Some(Pivot::Center),
@@ -1255,7 +1377,7 @@ mod tests {
         };
         let rect = calculate_rect_from_placement(&params_pos_pivot, 400, 300);
         assert_eq!(rect.x, 200 - 200); // 0
-        assert_eq!(rect.y, 300 - 150); // 150
+        assert_eq!(rect.y, 340 - 150); // 190
 
         // 3. --anchor without --pivot defaults to matching anchor
         let params_anchor_center = PlacementParams {
@@ -1296,7 +1418,7 @@ mod tests {
         assert_eq!(rect.x, wa.x + 10 + 25);
         assert_eq!(rect.y, wa.y + 10 + 35);
 
-        // 6. Area::Screen vs Area::Workarea
+        // 6. Area::Screen vs Area::Workarea vs Area::Unbounded
         let params_screen = PlacementParams {
             anchor: Some(Anchor::TopLeft),
             size: Some((300, 200)),
@@ -1323,6 +1445,20 @@ mod tests {
         assert_eq!(rect_wa.x, 16);
         assert_eq!(rect_wa.y, 40 + 16);
 
+        // Unbounded area: global coordinates, no margin, no clamp
+        let params_unbounded = PlacementParams {
+            pos: Some((700, 300)),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Unbounded),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_unbounded = calculate_rect_from_placement(&params_unbounded, 300, 200);
+        assert_eq!(rect_unbounded.x, 700);
+        assert_eq!(rect_unbounded.y, 300);
+
         // 7. Odd sizes (e.g. 501x333) with Center anchor
         let params_odd = PlacementParams {
             anchor: Some(Anchor::Center),
@@ -1334,5 +1470,211 @@ mod tests {
         let rect_odd = calculate_rect_from_placement(&params_odd, 501, 333);
         assert_eq!(rect_odd.x, (1920 - 501) / 2);
         assert_eq!(rect_odd.y, 40 + (1040 - 333) / 2);
+    }
+
+    #[test]
+    fn test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("HDMI-1".into()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // When --monitor is omitted (None), must pick monitor 1 (HDMI-1) because it is primary
+        let (chosen, fallback) = resolve_monitor_from_layout(&layout, (0, 0), None);
+        assert_eq!(chosen.unwrap().index, 1);
+        assert!(!fallback);
+
+        // When --monitor is explicitly "0", picks index 0
+        let (chosen_0, _) = resolve_monitor_from_layout(&layout, (0, 0), Some("0"));
+        assert_eq!(chosen_0.unwrap().index, 0);
+
+        // When --monitor is explicitly "primary", picks index 1
+        let (chosen_prim, _) = resolve_monitor_from_layout(&layout, (0, 0), Some("primary"));
+        assert_eq!(chosen_prim.unwrap().index, 1);
+    }
+
+    #[test]
+    fn test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("VGA-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("VGA-2".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1024,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1024,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // Neither monitor is flagged primary; falls back to index 0 with fallback flag true
+        let (chosen, fallback) = resolve_monitor_from_layout(&layout, (0, 0), None);
+        assert_eq!(chosen.unwrap().index, 0);
+        assert!(fallback);
+    }
+
+    #[test]
+    fn test_find_monitor_with_largest_overlap() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".into()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("HDMI-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // Window mostly on monitor 1 (x: 1800, width: 400 -> 120px on mon 0, 280px on mon 1)
+        let win = Rect {
+            x: 1800,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        let best = find_monitor_with_largest_overlap(&layout, win).unwrap();
+        assert_eq!(best.index, 1);
+    }
+
+    #[test]
+    fn test_window_straddles_monitors_helper() {
+        let monitors = [
+            Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            Rect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        ];
+
+        let straddling = Rect {
+            x: 1800,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        assert!(window_straddles_monitors(straddling, &monitors));
+
+        let single = Rect {
+            x: 100,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        assert!(!window_straddles_monitors(single, &monitors));
     }
 }

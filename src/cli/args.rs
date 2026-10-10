@@ -65,16 +65,16 @@ pub struct GeometryArgs {
     pub size: Option<Vec<String>>,
 
     /// Target monitor selector (<INDEX>, 'cursor', or 'primary')
-    #[arg(long, default_value = "primary")]
-    pub monitor: String,
+    #[arg(long)]
+    pub monitor: Option<String>,
 
-    /// Boundary reference area ('workarea' or 'screen')
+    /// Boundary reference area ('workarea', 'screen', or 'unbounded')
     #[arg(long, value_enum, default_value_t = Area::Workarea)]
     pub area: Area,
 
     /// Universal margin in pixels applied to all boundaries
-    #[arg(short = 'm', long, default_value_t = 16)]
-    pub margin: i32,
+    #[arg(short = 'm', long)]
+    pub margin: Option<i32>,
 
     /// Top boundary margin in pixels
     #[arg(long = "margin-top", alias = "mt")]
@@ -95,16 +95,62 @@ pub struct GeometryArgs {
     /// Keep window strictly inside the chosen area minus the margin (--clamp false allows absolute coordinates outside)
     #[arg(
         long,
-        default_value = "true",
         default_missing_value = "true",
         num_args = 0..=1,
         action = clap::ArgAction::Set
     )]
-    pub clamp: bool,
+    pub clamp: Option<bool>,
 }
 
 impl GeometryArgs {
+    pub fn clamp(&self) -> bool {
+        if self.area == Area::Unbounded {
+            false
+        } else {
+            self.clamp.unwrap_or(true)
+        }
+    }
+
+    pub fn margin(&self) -> i32 {
+        if self.area == Area::Unbounded {
+            0
+        } else {
+            self.margin.unwrap_or(16)
+        }
+    }
+
     pub fn validate(&self) -> Result<(), String> {
+        if self.area == Area::Unbounded {
+            if self.monitor.is_some() {
+                return Err(
+                    "Cannot specify --monitor with --area unbounded: unbounded mode uses global desktop coordinates.".to_string(),
+                );
+            }
+            if self.clamp.is_some() {
+                return Err(
+                    "Cannot specify --clamp with --area unbounded: unbounded mode is never clamped.".to_string(),
+                );
+            }
+            if self.margin.is_some()
+                || self.margin_top.is_some()
+                || self.margin_bottom.is_some()
+                || self.margin_left.is_some()
+                || self.margin_right.is_some()
+            {
+                return Err(
+                    "Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded: unbounded mode has no margins.".to_string(),
+                );
+            }
+            if let Some(anchor) = self.anchor {
+                if anchor != Anchor::Cursor {
+                    return Err(
+                        "Cannot specify --anchor (except --anchor cursor) with --area unbounded."
+                            .to_string(),
+                    );
+                }
+            }
+        }
+
         if let Some(ref s) = self.size {
             if s.len() != 2 {
                 return Err(
