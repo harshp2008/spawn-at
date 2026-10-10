@@ -160,10 +160,12 @@ impl Default for TraceAnalyser {
         Self {
             target_window_id: None,
             target_geometry: None,
-            // Data-derived warning budget: operations without resize take ~3-10ms;
-            // operations with buffer commit take 1-3 refresh ticks (~16-50ms).
-            // 100ms provides a generous ceiling for normal multi-frame commits while
-            // detecting pathological stalls as a non-fatal warning.
+            // PROVISIONAL warning budget: 100.0ms.
+            // Operations without resize measure ~3-10ms (from GNOME 46 Wayland fixture trace).
+            // However, operations with client buffer resize (-s) require configure round-trips
+            // and _waitForCommit frame synchronization, and have NOT yet been measured in a real trace.
+            // This 100ms threshold is therefore PROVISIONAL (guessed, not measured for size changes).
+            // V6 qualification must capture a real trace with -s to calibrate this budget from empirical data.
             warning_budget_ms: 100.0,
             require_pre_reveal_unminimize: false,
         }
