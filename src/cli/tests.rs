@@ -733,3 +733,59 @@ fn test_spawn_json_flag_parsing() {
         panic!("Expected Spawn variant");
     }
 }
+
+#[test]
+fn test_spawn_flag_trap_unknown_option_with_suggestion() {
+    let args = vec![
+        "spawn-at",
+        "spawn",
+        "-p",
+        "0",
+        "0",
+        "--size",
+        "20",
+        "30",
+        "--area",
+        "screen",
+        "--no-clamp",
+        "gnome-terminal",
+    ];
+    let cli = Cli::try_parse_from(args).expect("Parsing should succeed before validation");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert!(err.contains(
+            "unknown option '--no-clamp'; to run a command that starts with '-', put it after --"
+        ));
+        assert!(err.contains("--clamp false"));
+    } else {
+        panic!("Expected Spawn variant");
+    }
+}
+
+#[test]
+fn test_spawn_dash_command_after_double_dash_succeeds() {
+    let args = vec!["spawn-at", "spawn", "--", "-my-tool"];
+    let cli = Cli::try_parse_from(args).expect("Parsing should succeed");
+    if let Commands::Spawn(mut s) = cli.command {
+        s.after_double_dash = true;
+        assert!(s.validate().is_ok());
+        assert_eq!(s.command, vec!["-my-tool"]);
+    } else {
+        panic!("Expected Spawn variant");
+    }
+}
+
+#[test]
+fn test_spawn_dash_command_without_suggestion() {
+    let args = vec!["spawn-at", "spawn", "--xyz-random-opt", "gnome-terminal"];
+    let cli = Cli::try_parse_from(args).expect("Parsing should succeed before validation");
+    if let Commands::Spawn(s) = cli.command {
+        let err = s.validate().unwrap_err();
+        assert_eq!(
+            err,
+            "unknown option '--xyz-random-opt'; to run a command that starts with '-', put it after --"
+        );
+    } else {
+        panic!("Expected Spawn variant");
+    }
+}

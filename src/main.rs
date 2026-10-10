@@ -37,7 +37,17 @@ async fn main() {
         return;
     }
 
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+    if raw_args.iter().any(|a| a == "--") {
+        if let Commands::Spawn(ref mut s) = cli.command {
+            s.after_double_dash = true;
+        }
+    }
+
+    if let Err(e) = cli.validate() {
+        crate::diagnostics::render_error(&e);
+        std::process::exit(1);
+    }
 
     if let Commands::Update(update_args) = cli.command {
         if let Err(e) = crate::update::run_update(update_args) {

@@ -29,6 +29,22 @@ pub struct Cli {
     pub command: Commands,
 }
 
+impl Cli {
+    pub fn validate(&self) -> Result<(), String> {
+        match &self.command {
+            Commands::Spawn(s) => s.validate(),
+            Commands::Transform(t) => t.validate(),
+            Commands::Focus(f) => f.validate(),
+            Commands::Defocus(d) => d.validate(),
+            Commands::Maximize(m) => m.validate(),
+            Commands::Minimize(m) => m.validate(),
+            Commands::Restore(r) => r.validate(),
+            Commands::Close(c) => c.validate(),
+            _ => Ok(()),
+        }
+    }
+}
+
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Install the embedded GNOME Shell extension and binary to $PATH

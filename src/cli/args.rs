@@ -139,11 +139,97 @@ pub struct SpawnArgs {
     /// Command to spawn along with any trailing flags/arguments
     #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
     pub command: Vec<String>,
+
+    /// Whether the command was preceded by '--' in the raw invocation
+    #[arg(skip)]
+    pub after_double_dash: bool,
+}
+
+fn levenshtein(a: &str, b: &str) -> usize {
+    let a_bytes = a.as_bytes();
+    let b_bytes = b.as_bytes();
+    let mut prev = (0..=b_bytes.len()).collect::<Vec<_>>();
+    let mut curr = vec![0; b_bytes.len() + 1];
+
+    for (i, &ca) in a_bytes.iter().enumerate() {
+        curr[0] = i + 1;
+        for (j, &cb) in b_bytes.iter().enumerate() {
+            let cost = if ca == cb { 0 } else { 1 };
+            curr[j + 1] = (prev[j + 1] + 1)
+                .min(curr[j] + 1)
+                .min(prev[j] + cost);
+        }
+        prev.copy_from_slice(&curr);
+    }
+    prev[b_bytes.len()]
+}
+
+pub fn find_option_suggestion(token: &str) -> Option<&'static str> {
+    match token {
+        "--no-clamp" | "-no-clamp" => Some("--clamp false"),
+        "--clamp" => Some("--clamp false"),
+        "--no-margin" => Some("--margin 0"),
+        "--screen" => Some("--area screen"),
+        "--workarea" => Some("--area workarea"),
+        "--cursor" => Some("--anchor cursor"),
+        "--center" => Some("--anchor center"),
+        "--top-left" => Some("--anchor top-left"),
+        "--top-right" => Some("--anchor top-right"),
+        "--bottom-left" => Some("--anchor bottom-left"),
+        "--bottom-right" => Some("--anchor bottom-right"),
+        _ => {
+            const KNOWN_OPTIONS: &[&str] = &[
+                "--class",
+                "--json",
+                "--pos",
+                "--size",
+                "--anchor",
+                "--pivot",
+                "--margin",
+                "--margin-top",
+                "--margin-bottom",
+                "--margin-left",
+                "--margin-right",
+                "--area",
+                "--clamp",
+                "--monitor",
+                "--focus",
+                "--no-focus",
+                "--defocus",
+                "--no-wait",
+            ];
+            let mut best_match = None;
+            let mut min_dist = usize::MAX;
+            for &opt in KNOWN_OPTIONS {
+                let dist = levenshtein(token, opt);
+                if dist <= 3 && dist < min_dist {
+                    min_dist = dist;
+                    best_match = Some(opt);
+                }
+            }
+            best_match
+        }
+    }
 }
 
 impl SpawnArgs {
     pub fn validate(&self) -> Result<(), String> {
-        self.geometry.validate()
+        self.geometry.validate()?;
+
+        if let Some(cmd) = self.command.first() {
+            if cmd.starts_with('-') && !self.after_double_dash {
+                let suggestion = find_option_suggestion(cmd);
+                let mut err = format!(
+                    "unknown option '{cmd}'; to run a command that starts with '-', put it after --"
+                );
+                if let Some(sugg) = suggestion {
+                    err.push_str(&format!(". Did you mean '{sugg}'?"));
+                }
+                return Err(err);
+            }
+        }
+
+        Ok(())
     }
 }
 
