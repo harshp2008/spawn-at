@@ -382,34 +382,146 @@ fn test_scope_notice_in_report_summary() {
 }
 
 // =======================================================================
-// 6. Real Trace Drop-in Fixture Test (Requirement 7)
+// 6. Real Trace Golden Fixture Test (Requirement 2 & 7)
 // =======================================================================
 
 #[test]
-fn test_real_trace_drop_in_fixture() {
+fn test_real_trace_golden_assertions() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");
     let fixture_path = Path::new(manifest_dir).join("tests/fixtures/real_trace.log");
 
-    if !fixture_path.exists() {
-        println!(
-            "NOTE: Drop-in real trace fixture '{}' not present yet. Skipping verification until captured and supplied.",
-            fixture_path.display()
-        );
-        return;
-    }
+    assert!(
+        fixture_path.exists(),
+        "Required golden fixture '{}' must exist",
+        fixture_path.display()
+    );
 
     let raw = std::fs::read_to_string(&fixture_path).expect("failed to read real_trace.log");
-    let analyser = TraceAnalyser::new();
+    let analyser = TraceAnalyser::new().with_target_window_id(870905755);
     let report = analyser.analyse(&raw);
 
-    println!("{}", report.summary());
+    // 0 violations
     assert!(
         report.is_pass(),
-        "Real-trace drop-in fixture failed verification:\n{}",
+        "Real-trace fixture failed with violations:\n{}",
         report.summary()
     );
-    assert!(
-        !report.events.is_empty(),
-        "Real-trace drop-in fixture contained no parsed events"
+    assert_eq!(report.violations.len(), 0);
+
+    // 3 placement lifecycles
+    assert_eq!(
+        report.lifecycles.len(),
+        3,
+        "Expected exactly 3 placement lifecycles in real trace"
     );
+
+    // 3 reveals (UNCLOAK)
+    let uncloak_events: Vec<_> = report
+        .events
+        .iter()
+        .filter(|e| e.tag == "UNCLOAK")
+        .collect();
+    assert_eq!(uncloak_events.len(), 3, "Expected exactly 3 UNCLOAK events");
+
+    // Final frames: (100,140,400x300), (200,240,400x300), (300,340,400x300)
+    assert_eq!(
+        report.lifecycles[0].final_frame,
+        Some(TraceRect {
+            x: 100,
+            y: 140,
+            w: 400,
+            h: 300
+        }),
+        "Lifecycle #0 final frame mismatch"
+    );
+    assert_eq!(
+        report.lifecycles[1].final_frame,
+        Some(TraceRect {
+            x: 200,
+            y: 240,
+            w: 400,
+            h: 300
+        }),
+        "Lifecycle #1 final frame mismatch"
+    );
+    assert_eq!(
+        report.lifecycles[2].final_frame,
+        Some(TraceRect {
+            x: 300,
+            y: 340,
+            w: 400,
+            h: 300
+        }),
+        "Lifecycle #2 final frame mismatch"
+    );
+
+    // SNAPSHOT_CREATED in the 2nd lifecycle
+    assert!(
+        report.lifecycles[1]
+            .events
+            .iter()
+            .any(|e| e.tag == "SNAPSHOT_CREATED"),
+        "Lifecycle #1 must contain SNAPSHOT_CREATED"
+    );
+
+    // SNAPSHOT_SKIPPED reason="minimized" in the 3rd lifecycle
+    assert!(
+        report.lifecycles[2]
+            .events
+            .iter()
+            .any(|e| e.tag == "SNAPSHOT_SKIPPED" && e.extra.contains("reason=\"minimized\"")),
+        "Lifecycle #2 must contain SNAPSHOT_SKIPPED reason=\"minimized\""
+    );
+
+    // PRE_REVEAL_UNMINIMIZE before the 3rd UNCLOAK
+    let lc2_events = &report.lifecycles[2].events;
+    let unminimize_idx = lc2_events
+        .iter()
+        .position(|e| e.tag == "PRE_REVEAL_UNMINIMIZE")
+        .expect("Lifecycle #2 must contain PRE_REVEAL_UNMINIMIZE");
+    let uncloak_idx = lc2_events
+        .iter()
+        .position(|e| e.tag == "UNCLOAK")
+        .expect("Lifecycle #2 must contain UNCLOAK");
+    assert!(
+        unminimize_idx < uncloak_idx,
+        "PRE_REVEAL_UNMINIMIZE (#{}) must precede UNCLOAK (#{}) in lifecycle #2",
+        unminimize_idx,
+        uncloak_idx
+    );
+
+    // No watchdog in trace
+    assert!(
+        !report
+            .events
+            .iter()
+            .any(|e| e.tag == "WATCHDOG_EXPIRED" || e.raw.contains("Watchdog deadline reached")),
+        "No watchdog expiration must occur in real trace"
+    );
+
+    // ANCHOR_RELEASED reason=EXTERNAL_CLOSE at the end
+    let last_event = report.events.last().expect("Events must not be empty");
+    assert_eq!(
+        last_event.tag, "ANCHOR_RELEASED",
+        "Last event must be ANCHOR_RELEASED"
+    );
+    assert!(
+        last_event.extra.contains("reason=EXTERNAL_CLOSE"),
+        "Last event reason must be EXTERNAL_CLOSE, got: {}",
+        last_event.extra
+    );
+
+    // Measured cloak->uncloak durations are all under the 100ms warning budget
+    assert_eq!(report.warnings.len(), 0);
+    for lc in &report.lifecycles {
+        let dur = lc
+            .cloak_duration_ms
+            .expect("Cloak duration must be measured");
+        assert!(
+            dur < 100.0,
+            "Lifecycle #{} cloak duration ({:.2}ms) should be under 100ms",
+            lc.index,
+            dur
+        );
+    }
 }

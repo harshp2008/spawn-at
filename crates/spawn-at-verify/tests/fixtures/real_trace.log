@@ -1,0 +1,63 @@
+[2026-10-10T21:51:07.861Z] +4285602.14ms | ARM_SPAWN target="fixture"
+[2026-10-10T21:51:07.883Z] +4285611.63ms | WINDOW_CREATED win=[id=870905755 pid=680698 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[2026-10-10T21:51:08.217Z] +4285949.10ms | ACTOR_MAP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland]
+[2026-10-10T21:51:08.217Z] +4285949.17ms | DISPATCH win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] instructionsCount=3
+[2026-10-10T21:51:08.217Z] +4285949.45ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Cloak
+[2026-10-10T21:51:08.217Z] +4285949.51ms | CLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(100,140,400x300)
+[2026-10-10T21:51:08.217Z] +4285949.53ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[2026-10-10T21:51:08.217Z] +4285949.67ms | FALLBACK_USED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(400x300)
+[2026-10-10T21:51:08.217Z] +4285949.73ms | APPLY_ANCHOR win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] eff=(400x300) bounds=(0,40,1920x1040) final=(100,140)
+[2026-10-10T21:51:08.217Z] +4285949.78ms | POSITION_SET win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] preFrame=(100,140,400x300) postFrame=(100,140,400x300) bufferRect=(100,140,400x300) actor=(100,140) delta=(0,0)
+[2026-10-10T21:51:08.217Z] +4285949.81ms | AFTER_SET_POSITION_ANCHORED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(100,140,400x300)
+[2026-10-10T21:51:08.217Z] +4285949.90ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[2026-10-10T21:51:08.217Z] +4285949.93ms | UNCLOAK_4A win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[2026-10-10T21:51:08.217Z] +4285950.81ms | UNCLOAK_4B win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[2026-10-10T21:51:08.217Z] +4285950.85ms | UNCLOAK_4C win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
+[2026-10-10T21:51:08.217Z] +4285957.61ms | UNCLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(100,140,400x300)
+[2026-10-10T21:51:08.217Z] +4285957.62ms | UNCLOAK_4D_REVEAL win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] requestedSize=(nullxnull) postFrame=(100,140,400x300) bufferRect=(100,140,400x300)
+[2026-10-10T21:51:08.217Z] +4285957.64ms | ANCHOR_ARMED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland]
+[2026-10-10T21:51:09.268Z] +4287004.69ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Snapshot
+[2026-10-10T21:51:09.268Z] +4287005.10ms | SNAPSHOT_CREATED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] visible=true pos=(100,140) size=(400x300) opacity=255 parent=Meta_WindowGroup
+[2026-10-10T21:51:09.268Z] +4287005.14ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Cloak
+[2026-10-10T21:51:09.268Z] +4287005.29ms | CLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(100,140,400x300)
+[2026-10-10T21:51:09.268Z] +4287005.31ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[2026-10-10T21:51:09.268Z] +4287005.43ms | FALLBACK_USED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(400x300)
+[2026-10-10T21:51:09.268Z] +4287005.46ms | APPLY_ANCHOR win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] eff=(400x300) bounds=(0,40,1920x1040) final=(200,240)
+[2026-10-10T21:51:09.268Z] +4287005.55ms | POSITION_SET win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] preFrame=(100,140,400x300) postFrame=(200,240,400x300) bufferRect=(200,240,400x300) actor=(200,240) delta=(100,100)
+[2026-10-10T21:51:09.268Z] +4287005.58ms | AFTER_SET_POSITION_ANCHORED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(200,240,400x300)
+[2026-10-10T21:51:09.268Z] +4287005.59ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[2026-10-10T21:51:09.268Z] +4287005.61ms | UNCLOAK_4A win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[2026-10-10T21:51:09.268Z] +4287005.68ms | UNCLOAK_4B win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[2026-10-10T21:51:09.268Z] +4287005.70ms | UNCLOAK_4C win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
+[2026-10-10T21:51:09.268Z] +4287008.46ms | UNCLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(200,240,400x300)
+[2026-10-10T21:51:09.268Z] +4287008.51ms | UNCLOAK_4D_REVEAL win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] requestedSize=(nullxnull) postFrame=(200,240,400x300) bufferRect=(200,240,400x300)
+[2026-10-10T21:51:09.268Z] +4287008.55ms | ANCHOR_RELEASED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason=REARM
+[2026-10-10T21:51:09.268Z] +4287008.59ms | ANCHOR_ARMED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland]
+[2026-10-10T21:51:09.268Z] +4287008.75ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=DestroySnapshot
+[2026-10-10T21:51:09.268Z] +4287008.83ms | SNAPSHOT_DESTROYED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland]
+[2026-10-10T21:51:09.270Z] +4287011.34ms | RAISE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(200,240,400x300)
+[2026-10-10T21:51:09.270Z] +4287011.38ms | ACTIVATE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(200,240,400x300)
+[2026-10-10T21:51:10.293Z] +4288033.33ms | ANCHOR_RELEASED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_STATE
+[2026-10-10T21:51:10.293Z] +4288033.55ms | MINIMIZE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(200,240,400x300)
+[2026-10-10T21:51:11.337Z] +4289072.71ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Snapshot
+[2026-10-10T21:51:11.337Z] +4289072.75ms | SNAPSHOT_SKIPPED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason="minimized"
+[2026-10-10T21:51:11.337Z] +4289072.75ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Cloak
+[2026-10-10T21:51:11.337Z] +4289072.81ms | CLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(200,240,400x300)
+[2026-10-10T21:51:11.337Z] +4289072.82ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[2026-10-10T21:51:11.337Z] +4289072.92ms | FALLBACK_USED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(400x300)
+[2026-10-10T21:51:11.337Z] +4289072.94ms | APPLY_ANCHOR win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] eff=(400x300) bounds=(0,40,1920x1040) final=(300,340)
+[2026-10-10T21:51:11.337Z] +4289073.01ms | POSITION_SET win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] preFrame=(200,240,400x300) postFrame=(300,340,400x300) bufferRect=(300,340,400x300) actor=(300,340) delta=(100,100)
+[2026-10-10T21:51:11.337Z] +4289073.04ms | AFTER_SET_POSITION_ANCHORED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(300,340,400x300)
+[2026-10-10T21:51:11.337Z] +4289073.05ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[2026-10-10T21:51:11.337Z] +4289073.07ms | UNCLOAK_4A win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[2026-10-10T21:51:11.337Z] +4289073.14ms | UNCLOAK_4B win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[2026-10-10T21:51:11.337Z] +4289073.16ms | UNCLOAK_4C win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
+[2026-10-10T21:51:11.337Z] +4289073.16ms | PRE_REVEAL_UNMINIMIZE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] unminimizing prior to uncloak
+[2026-10-10T21:51:11.337Z] +4289073.21ms | RAISE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(300,340,400x300)
+[2026-10-10T21:51:11.337Z] +4289073.24ms | ACTIVATE win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=0 frame=(300,340,400x300)
+[2026-10-10T21:51:11.337Z] +4289078.14ms | FOCUS_BATCH_ALREADY_APPLIED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] windowId=870905755
+[2026-10-10T21:51:11.342Z] +4289082.65ms | UNCLOAK win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] opacity=255 frame=(300,340,400x300)
+[2026-10-10T21:51:11.342Z] +4289082.68ms | UNCLOAK_4D_REVEAL win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] requestedSize=(nullxnull) postFrame=(300,340,400x300) bufferRect=(300,340,400x300)
+[2026-10-10T21:51:11.342Z] +4289082.71ms | ANCHOR_ARMED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland]
+[2026-10-10T21:51:11.342Z] +4289082.82ms | BATCH_STEP win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] inst=DestroySnapshot
+[2026-10-10T21:51:12.364Z] +4290104.62ms | ANCHOR_RELEASED win=[id=870905755 pid=680698 class="spawn-at-fixture" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
