@@ -419,13 +419,22 @@ pub fn evaluate_placement_diagnostics_for_action(
         && (actual_rect.y - expected_for_actual.y).abs() <= 1;
 
     if pos_reached {
-        // When explicit `--pos` was requested and clamp altered the coordinates:
-        if let Some((req_x, req_y)) = params.pos {
-            if params.clamp && (expected_for_actual.x != req_x || expected_for_actual.y != req_y) {
+        // When explicit `--pos` or `--anchor` was requested and clamp altered the coordinates:
+        if params.clamp {
+            let mut params_unclamped = params_for_actual.clone();
+            params_unclamped.clamp = false;
+            let unclamped_for_actual = calculate_rect_from_placement(
+                &params_unclamped,
+                actual_rect.width,
+                actual_rect.height,
+            );
+            if unclamped_for_actual.x != expected_for_actual.x
+                || unclamped_for_actual.y != expected_for_actual.y
+            {
                 diags.push(Diagnostic::PositionNotReached {
                     actual_pos: (actual_rect.x, actual_rect.y),
                     actual_size: (actual_rect.width, actual_rect.height),
-                    expected_pos: (req_x, req_y),
+                    expected_pos: (unclamped_for_actual.x, unclamped_for_actual.y),
                     requested_size: params.size,
                     clamped_to_workarea: true,
                     area: params.area,
@@ -972,6 +981,186 @@ mod tests {
         assert_eq!(
             diags_5000[0].format_message_with_capability(ColorCapability::Disabled),
             "[spawn-at] INFO: Requested (5000, 5000); clamped to (1537, 550) inside the work area."
+        );
+    }
+
+    #[test]
+    fn test_anchor_placement_clamped_bounds_exact_text() {
+        use spawn_at_core::geometry::Anchor;
+
+        // 1. Cursor anchor with offset on work area (transform & spawn)
+        let params_cursor_work = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            offset: Some((50, 50)),
+            cursor_pos: Some((1568, 747)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_cursor_work = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        // Transform
+        let diags_cursor_transform = evaluate_placement_diagnostics_for_action(
+            &params_cursor_work,
+            actual_cursor_work,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_cursor_transform.len(), 1);
+        assert_eq!(diags_cursor_transform[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_transform[0].message_body(),
+            "Requested (1618, 797); clamped to (1537, 550) inside the work area."
+        );
+        assert_eq!(
+            diags_cursor_transform[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1618, 797); clamped to (1537, 550) inside the work area."
+        );
+        // Spawn
+        let diags_cursor_spawn = evaluate_placement_diagnostics_for_action(
+            &params_cursor_work,
+            actual_cursor_work,
+            None,
+            false,
+            false,
+        );
+        assert_eq!(diags_cursor_spawn.len(), 1);
+        assert_eq!(diags_cursor_spawn[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_spawn[0].message_body(),
+            "Requested (1618, 797); clamped to (1537, 550) inside the work area."
+        );
+
+        // 2. Cursor anchor with offset on screen area
+        let params_cursor_screen = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            offset: Some((50, 50)),
+            cursor_pos: Some((1568, 747)),
+            size: Some((367, 514)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_cursor_screen = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        let diags_cursor_screen = evaluate_placement_diagnostics_for_action(
+            &params_cursor_screen,
+            actual_cursor_screen,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_cursor_screen.len(), 1);
+        assert_eq!(diags_cursor_screen[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_screen[0].message_body(),
+            "Requested (1618, 797); clamped to (1537, 550) inside the screen."
+        );
+        assert_eq!(
+            diags_cursor_screen[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1618, 797); clamped to (1537, 550) inside the screen."
+        );
+
+        // 3. Screen anchor (TopRight) with offset on work area
+        let params_topright = PlacementParams {
+            anchor: Some(Anchor::TopRight),
+            offset: Some((100, 0)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_topright = Rect {
+            x: 1537,
+            y: 56,
+            width: 367,
+            height: 514,
+        };
+        let diags_topright = evaluate_placement_diagnostics_for_action(
+            &params_topright,
+            actual_topright,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_topright.len(), 1);
+        assert_eq!(diags_topright[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_topright[0].message_body(),
+            "Requested (1637, 56); clamped to (1537, 56) inside the work area."
+        );
+        assert_eq!(
+            diags_topright[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1637, 56); clamped to (1537, 56) inside the work area."
+        );
+
+        // 4. Screen anchor (TopLeft) with negative offset on screen area
+        let params_topleft = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            offset: Some((-50, -50)),
+            size: Some((367, 514)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_topleft = Rect {
+            x: 16,
+            y: 16,
+            width: 367,
+            height: 514,
+        };
+        let diags_topleft = evaluate_placement_diagnostics_for_action(
+            &params_topleft,
+            actual_topleft,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_topleft.len(), 1);
+        assert_eq!(diags_topleft[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_topleft[0].message_body(),
+            "Requested (-34, -34); clamped to (16, 16) inside the screen."
+        );
+        assert_eq!(
+            diags_topleft[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (-34, -34); clamped to (16, 16) inside the screen."
         );
     }
 
