@@ -763,13 +763,7 @@ mod tests {
 
         // 1. Workarea mode round-trip
         let mut wins = base_windows.clone();
-        compute_relative_window_coordinates(
-            &mut wins,
-            Some(&layout),
-            None,
-            None,
-            Area::Workarea,
-        );
+        compute_relative_window_coordinates(&mut wins, Some(&layout), None, None, Area::Workarea);
         let rel = wins[0].rel.as_ref().unwrap();
         assert_eq!(rel.x, 700);
         assert_eq!(rel.y, 260);
@@ -780,19 +774,14 @@ mod tests {
             clamp: false,
             ..Default::default()
         };
-        let target_wa = calculate_rect_from_placement(&params_wa, wins[0].w as u32, wins[0].h as u32);
+        let target_wa =
+            calculate_rect_from_placement(&params_wa, wins[0].w as u32, wins[0].h as u32);
         assert_eq!(target_wa.x, 700);
         assert_eq!(target_wa.y, 300);
 
         // 2. Screen mode round-trip
         let mut wins = base_windows.clone();
-        compute_relative_window_coordinates(
-            &mut wins,
-            Some(&layout),
-            None,
-            None,
-            Area::Screen,
-        );
+        compute_relative_window_coordinates(&mut wins, Some(&layout), None, None, Area::Screen);
         let rel = wins[0].rel.as_ref().unwrap();
         assert_eq!(rel.x, 700);
         assert_eq!(rel.y, 300);
@@ -810,13 +799,7 @@ mod tests {
 
         // 3. Unbounded mode round-trip (using GEOMETRY or REL)
         let mut wins = base_windows.clone();
-        compute_relative_window_coordinates(
-            &mut wins,
-            Some(&layout),
-            None,
-            None,
-            Area::Unbounded,
-        );
+        compute_relative_window_coordinates(&mut wins, Some(&layout), None, None, Area::Unbounded);
         let rel = wins[0].rel.as_ref().unwrap();
         assert_eq!(rel.x, wins[0].x);
         assert_eq!(rel.y, wins[0].y);

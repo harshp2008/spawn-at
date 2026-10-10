@@ -200,21 +200,22 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `install` / `uninstall` | Manage the binary and the GNOME Shell extension. |
 | `update` | Check for or apply releases (`--check`, `--channel`, `--force`). |
 
-| Flag | Description |
-| :--- | :--- |
-| `-p, --pos <X> <Y>` / `-o, --offset <X> <Y>` | Absolute position in pixels, or offset from anchor when `--anchor` is specified (aliases for the same option). |
-| `-s, --size <W> <H>` | Window size in pixels. |
-| `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor` (cursor defaults to `top-left` pivot). |
-| `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
-| `--monitor` | Monitor index, `cursor`, or `primary` (default). |
-| `--area` | `workarea` (default) or `screen`. Sets the reference boundary for anchors, margins, and clamping. |
-| `-m, --margin <PX>` | Margin on all sides (default 16). |
-| `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
-| `--clamp <true\|false>` | Keeps the window inside the chosen area minus the margin; with `--clamp false`, `--pos` is an absolute coordinate and the area is irrelevant (default true). |
-| `--json` | Output single structured JSON object on stdout (`spawn`, `query layout`, `query windows`). Diagnostics stay on stderr. |
-| `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
-| `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
-| `--no-wait` | Exit without waiting for the compositor. |
+| Group | Flag | Description |
+| :--- | :--- | :--- |
+| **Reference area** | `--area` | `workarea` (default), `screen`, or `unbounded`. Sets the reference boundary and coordinate space for positions, anchors, margins, and clamping. |
+| | `--monitor` | Monitor index, `cursor`, or `primary` (default). |
+| **Anchor and pivot** | `--anchor` | `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`, `top`, `bottom`, `left`, `right`, `cursor` (cursor defaults to `top-left` pivot). |
+| | `--pivot` | Which point of the window sits on the anchor: `center`, `top-left`, `top-right`, `bottom-left`, `bottom-right`. |
+| **Position and size** | `-p, --pos <X> <Y>` / `-o, --offset <X> <Y>` | Absolute position in pixels within the chosen area, or offset from anchor when `--anchor` is specified (aliases for the same option). |
+| | `-s, --size <W> <H>` | Window size in pixels. |
+| **Bounds** | `--clamp <true\|false>` | Keeps the window inside the chosen area minus the margin (default true; rejected with `--area unbounded`). |
+| | `-m, --margin <PX>` | Universal margin in pixels (default 16; rejected with `--area unbounded`). |
+| | `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
+| **Behavior** | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
+| | `--json` | Output single structured JSON object on stdout (`spawn`, `query layout`, `query windows`). Diagnostics stay on stderr. |
+| | `--no-wait` | Exit without waiting for the compositor. |
+| **Target & command** | `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |
+| | `<COMMAND>...` | Command to spawn along with any trailing flags/arguments. |
 
 Centering and rounding rule: Centering along an axis is computed as `origin + floor((area_size - window_size) / 2)`. An odd remainder puts the extra pixel on the right/bottom.
 

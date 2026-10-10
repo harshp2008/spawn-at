@@ -22,7 +22,7 @@ use clap::{Parser, Subcommand};
 )]
 pub struct Cli {
     /// Do not wait for compositor to apply changes before exiting
-    #[arg(long, global = true)]
+    #[arg(long, global = true, help_heading = "Behavior", display_order = 5)]
     pub no_wait: bool,
 
     #[command(subcommand)]

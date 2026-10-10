@@ -68,7 +68,12 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
 
     let is_unbounded = params.area.as_deref() == Some("unbounded");
 
-    let (mut x, mut y) = if let Some((px, py)) = params.explicit_pos.or(if params.anchor.is_none() { params.offset } else { None }) {
+    let (mut x, mut y) = if let Some((px, py)) =
+        params.explicit_pos.or(if params.anchor.is_none() {
+            params.offset
+        } else {
+            None
+        }) {
         let (ref_x, ref_y) = if is_unbounded {
             (0, 0)
         } else {
@@ -93,7 +98,9 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
             "bottom" | "bottom-center" => (workarea.x + wa_w / 2 + ox, workarea.y + wa_h - mb + oy),
             "bottom-right" => (workarea.x + wa_w - mr + ox, workarea.y + wa_h - mb + oy),
             "cursor" => {
-                let (cx, cy) = params.cursor_pos.unwrap_or((workarea.x + ml, workarea.y + mt));
+                let (cx, cy) = params
+                    .cursor_pos
+                    .unwrap_or((workarea.x + ml, workarea.y + mt));
                 (cx + ox, cy + oy)
             }
             other => return Err(format!("Unknown anchor '{}'", other)),
@@ -107,7 +114,9 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
             // Documented rule: centering is origin + floor((area_size - window_size) / 2);
             // an odd remainder puts the extra pixel on the right/bottom.
             match anchor_str {
-                "top" | "top-center" => (workarea.x + (wa_w - w_i32) / 2 + ox, workarea.y + mt + oy),
+                "top" | "top-center" => {
+                    (workarea.x + (wa_w - w_i32) / 2 + ox, workarea.y + mt + oy)
+                }
                 "bottom" | "bottom-center" => (
                     workarea.x + (wa_w - w_i32) / 2 + ox,
                     workarea.y + wa_h - h_i32 - mb + oy,
@@ -123,7 +132,9 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
                 ),
                 "top-left" => (workarea.x + ml + ox, workarea.y + mt + oy),
                 "cursor" => {
-                    let (cx, cy) = params.cursor_pos.unwrap_or((workarea.x + ml, workarea.y + mt));
+                    let (cx, cy) = params
+                        .cursor_pos
+                        .unwrap_or((workarea.x + ml, workarea.y + mt));
                     (cx + ox, cy + oy)
                 }
                 "top-right" => (workarea.x + wa_w - mr - w_i32 + ox, workarea.y + mt + oy),

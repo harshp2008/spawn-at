@@ -31,12 +31,25 @@ pub enum QueryCommands {
 /// Shared spatial geometry and layout arguments for positioning windows.
 #[derive(Args, Debug, Clone, Default, PartialEq, Eq)]
 pub struct GeometryArgs {
+    /// Boundary reference area ('workarea', 'screen', or 'unbounded')
+    #[arg(
+        long,
+        value_enum,
+        default_value_t = Area::Workarea,
+        help_heading = "Reference area"
+    )]
+    pub area: Area,
+
+    /// Target monitor selector (<INDEX>, 'cursor', or 'primary')
+    #[arg(long, help_heading = "Reference area")]
+    pub monitor: Option<String>,
+
     /// Screen anchor target or cursor (defaults to top-left pivot when --pivot is omitted)
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, help_heading = "Anchor and pivot")]
     pub anchor: Option<Anchor>,
 
     /// Window alignment pivot point relative to target
-    #[arg(long, value_enum)]
+    #[arg(long, value_enum, help_heading = "Anchor and pivot")]
     pub pivot: Option<Pivot>,
 
     /// Absolute target screen coordinates [X, Y], or anchor offset when --anchor is specified
@@ -46,7 +59,8 @@ pub struct GeometryArgs {
         num_args = 2,
         value_names = ["X", "Y"],
         allow_hyphen_values = true,
-        action = clap::ArgAction::Append
+        action = clap::ArgAction::Append,
+        help_heading = "Position and size"
     )]
     pub pos: Option<Vec<i32>>,
 
@@ -57,7 +71,8 @@ pub struct GeometryArgs {
         num_args = 2,
         value_names = ["X", "Y"],
         allow_hyphen_values = true,
-        action = clap::ArgAction::Append
+        action = clap::ArgAction::Append,
+        help_heading = "Position and size"
     )]
     pub offset: Option<Vec<i32>>,
 
@@ -67,46 +82,40 @@ pub struct GeometryArgs {
         long,
         num_args = 2,
         value_names = ["W", "H"],
-        allow_hyphen_values = true
+        allow_hyphen_values = true,
+        help_heading = "Position and size"
     )]
     pub size: Option<Vec<String>>,
-
-    /// Target monitor selector (<INDEX>, 'cursor', or 'primary')
-    #[arg(long)]
-    pub monitor: Option<String>,
-
-    /// Boundary reference area ('workarea', 'screen', or 'unbounded')
-    #[arg(long, value_enum, default_value_t = Area::Workarea)]
-    pub area: Area,
-
-    /// Universal margin in pixels applied to all boundaries
-    #[arg(short = 'm', long)]
-    pub margin: Option<i32>,
-
-    /// Top boundary margin in pixels
-    #[arg(long = "margin-top", alias = "mt")]
-    pub margin_top: Option<i32>,
-
-    /// Bottom boundary margin in pixels
-    #[arg(long = "margin-bottom", alias = "mb")]
-    pub margin_bottom: Option<i32>,
-
-    /// Left boundary margin in pixels
-    #[arg(long = "margin-left", alias = "ml")]
-    pub margin_left: Option<i32>,
-
-    /// Right boundary margin in pixels
-    #[arg(long = "margin-right", alias = "mr")]
-    pub margin_right: Option<i32>,
 
     /// Keep window strictly inside the chosen area minus the margin (--clamp false allows absolute coordinates outside)
     #[arg(
         long,
         default_missing_value = "true",
         num_args = 0..=1,
-        action = clap::ArgAction::Set
+        action = clap::ArgAction::Set,
+        help_heading = "Bounds"
     )]
     pub clamp: Option<bool>,
+
+    /// Universal margin in pixels applied to all boundaries
+    #[arg(short = 'm', long, help_heading = "Bounds")]
+    pub margin: Option<i32>,
+
+    /// Top boundary margin in pixels
+    #[arg(long = "margin-top", alias = "mt", help_heading = "Bounds")]
+    pub margin_top: Option<i32>,
+
+    /// Bottom boundary margin in pixels
+    #[arg(long = "margin-bottom", alias = "mb", help_heading = "Bounds")]
+    pub margin_bottom: Option<i32>,
+
+    /// Left boundary margin in pixels
+    #[arg(long = "margin-left", alias = "ml", help_heading = "Bounds")]
+    pub margin_left: Option<i32>,
+
+    /// Right boundary margin in pixels
+    #[arg(long = "margin-right", alias = "mr", help_heading = "Bounds")]
+    pub margin_right: Option<i32>,
 }
 
 impl GeometryArgs {
@@ -214,22 +223,27 @@ impl GeometryArgs {
 
 #[derive(Args, Debug, Clone, Default)]
 pub struct SpawnArgs {
-    /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
-    #[arg(short = 'c', long)]
-    pub class: Option<String>,
-
-    /// Output single structured JSON object on stdout upon mapping
-    #[arg(long)]
-    pub json: bool,
-
     #[command(flatten)]
     pub geometry: GeometryArgs,
 
     #[command(flatten)]
     pub focus_modifiers: FocusModifierArgs,
 
+    /// Output single structured JSON object on stdout upon mapping
+    #[arg(long, help_heading = "Behavior", display_order = 4)]
+    pub json: bool,
+
+    /// Explicit Wayland App ID or WM_CLASS override (e.g. org.gnome.TextEditor or '*')
+    #[arg(short = 'c', long)]
+    pub class: Option<String>,
+
     /// Command to spawn along with any trailing flags/arguments
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true, required = true)]
+    #[arg(
+        trailing_var_arg = true,
+        allow_hyphen_values = true,
+        required = true,
+        help_heading = "Command"
+    )]
     pub command: Vec<String>,
 
     /// Whether the command was preceded by '--' in the raw invocation
@@ -331,15 +345,19 @@ pub struct TransformArgs {
     #[arg(long)]
     pub id: Option<u64>,
 
+    /// Target window by class / application ID
     #[arg(short = 'c', long)]
     pub class: Option<String>,
 
+    /// Target window by title substring
     #[arg(short = 't', long)]
     pub title: Option<String>,
 
+    /// Target window by process ID (PID)
     #[arg(long)]
     pub pid: Option<u32>,
 
+    /// Target currently focused window
     #[arg(long)]
     pub focused: bool,
 
@@ -385,15 +403,30 @@ impl TransformArgs {
 #[derive(Debug, Args, Clone, Default, PartialEq, Eq)]
 pub struct FocusModifierArgs {
     /// Explicitly focus the target window (default behavior for action commands)
-    #[arg(long, conflicts_with_all = ["no_focus", "defocus"])]
+    #[arg(
+        long,
+        conflicts_with_all = ["no_focus", "defocus"],
+        help_heading = "Behavior",
+        display_order = 1
+    )]
     pub focus: bool,
 
     /// Passive: do not alter focus state; leave active input where it currently is
-    #[arg(long, conflicts_with_all = ["focus", "defocus"])]
+    #[arg(
+        long,
+        conflicts_with_all = ["focus", "defocus"],
+        help_heading = "Behavior",
+        display_order = 2
+    )]
     pub no_focus: bool,
 
     /// Active: forcibly strip/yield focus from the target window to the previous window
-    #[arg(long, conflicts_with_all = ["focus", "no_focus"])]
+    #[arg(
+        long,
+        conflicts_with_all = ["focus", "no_focus"],
+        help_heading = "Behavior",
+        display_order = 3
+    )]
     pub defocus: bool,
 }
 

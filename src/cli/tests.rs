@@ -864,9 +864,15 @@ fn test_characterization_all_subcommands_parsing() {
         }
     ));
 
-    let cli =
-        Cli::try_parse_from(["spawn-at", "query", "windows", "--area", "unbounded", "--json"])
-            .unwrap();
+    let cli = Cli::try_parse_from([
+        "spawn-at",
+        "query",
+        "windows",
+        "--area",
+        "unbounded",
+        "--json",
+    ])
+    .unwrap();
     assert!(matches!(
         cli.command,
         Commands::Query {
@@ -1126,4 +1132,116 @@ fn test_unbounded_allowed_and_rejected_options() {
         let err = s.validate().unwrap_err();
         assert!(err.contains("Cannot specify --monitor with --area unbounded"));
     }
+}
+
+#[test]
+fn test_help_headings_order_and_grouping_snapshot() {
+    let mut cmd = Cli::command();
+    cmd.build();
+    let spawn_cmd = cmd.find_subcommand_mut("spawn").unwrap();
+    let help_text = spawn_cmd.render_help().to_string();
+
+    // Verify presence and order of headings:
+    // Reference area -> Anchor and pivot -> Position and size -> Bounds -> Behavior -> Command
+    let pos_ref = help_text
+        .find("Reference area:")
+        .expect("Missing 'Reference area:' heading");
+    let pos_anchor = help_text
+        .find("Anchor and pivot:")
+        .expect("Missing 'Anchor and pivot:' heading");
+    let pos_pos = help_text
+        .find("Position and size:")
+        .expect("Missing 'Position and size:' heading");
+    let pos_bounds = help_text
+        .find("Bounds:")
+        .expect("Missing 'Bounds:' heading");
+    let pos_behavior = help_text
+        .find("Behavior:")
+        .expect("Missing 'Behavior:' heading");
+    let pos_cmd = help_text
+        .find("Command:")
+        .expect("Missing 'Command:' heading");
+
+    assert!(
+        pos_ref < pos_anchor
+            && pos_anchor < pos_pos
+            && pos_pos < pos_bounds
+            && pos_bounds < pos_behavior
+            && pos_behavior < pos_cmd,
+        "Help headings must appear in order: Reference area, Anchor and pivot, Position and size, Bounds, Behavior, Command.\nActual help text:\n{help_text}"
+    );
+
+    // Verify Reference area flags
+    let ref_section = &help_text[pos_ref..pos_anchor];
+    assert!(ref_section.contains("--area"));
+    assert!(ref_section.contains("--monitor"));
+
+    // Verify Anchor and pivot flags
+    let anchor_section = &help_text[pos_anchor..pos_pos];
+    assert!(anchor_section.contains("--anchor"));
+    assert!(anchor_section.contains("--pivot"));
+
+    // Verify Position and size flags
+    let pos_section = &help_text[pos_pos..pos_bounds];
+    assert!(pos_section.contains("--pos") || pos_section.contains("-p"));
+    assert!(pos_section.contains("--offset") || pos_section.contains("-o"));
+    assert!(pos_section.contains("--size") || pos_section.contains("-s"));
+
+    // Verify Bounds flags
+    let bounds_section = &help_text[pos_bounds..pos_behavior];
+    assert!(bounds_section.contains("--clamp"));
+    assert!(bounds_section.contains("--margin") || bounds_section.contains("-m"));
+    assert!(bounds_section.contains("--margin-top") || bounds_section.contains("mt"));
+    assert!(bounds_section.contains("--margin-bottom") || bounds_section.contains("mb"));
+    assert!(bounds_section.contains("--margin-left") || bounds_section.contains("ml"));
+    assert!(bounds_section.contains("--margin-right") || bounds_section.contains("mr"));
+
+    // Verify Behavior flags order: --focus, --no-focus, --defocus, --json, --no-wait
+    let behavior_section = &help_text[pos_behavior..pos_cmd];
+    let pos_focus = behavior_section.find("--focus").expect("Missing --focus");
+    let pos_no_focus = behavior_section
+        .find("--no-focus")
+        .expect("Missing --no-focus");
+    let pos_defocus = behavior_section
+        .find("--defocus")
+        .expect("Missing --defocus");
+    let pos_json = behavior_section.find("--json").expect("Missing --json");
+    let pos_no_wait = behavior_section
+        .find("--no-wait")
+        .expect("Missing --no-wait");
+
+    assert!(
+        pos_focus < pos_no_focus
+            && pos_no_focus < pos_defocus
+            && pos_defocus < pos_json
+            && pos_json < pos_no_wait,
+        "Behavior flags must be ordered: --focus, --no-focus, --defocus, --json, --no-wait.\nActual section:\n{behavior_section}"
+    );
+
+    // Verify transform help output headings
+    let mut root_cmd = Cli::command();
+    root_cmd.build();
+    let transform_cmd = root_cmd.find_subcommand_mut("transform").unwrap();
+    let transform_help = transform_cmd.render_help().to_string();
+
+    let t_ref = transform_help
+        .find("Reference area:")
+        .expect("Transform missing 'Reference area:' heading");
+    let t_anchor = transform_help
+        .find("Anchor and pivot:")
+        .expect("Transform missing 'Anchor and pivot:' heading");
+    let t_pos = transform_help
+        .find("Position and size:")
+        .expect("Transform missing 'Position and size:' heading");
+    let t_bounds = transform_help
+        .find("Bounds:")
+        .expect("Transform missing 'Bounds:' heading");
+    let t_behavior = transform_help
+        .find("Behavior:")
+        .expect("Transform missing 'Behavior:' heading");
+
+    assert!(
+        t_ref < t_anchor && t_anchor < t_pos && t_pos < t_bounds && t_bounds < t_behavior,
+        "Transform help headings must appear in order: Reference area, Anchor and pivot, Position and size, Bounds, Behavior.\nActual:\n{transform_help}"
+    );
 }

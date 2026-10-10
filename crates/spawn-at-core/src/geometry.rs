@@ -321,10 +321,10 @@ pub fn resolve_monitor_from_layout<'a>(
 }
 
 /// Finds the monitor in the layout that has the largest pixel overlap with the given window rectangle.
-pub fn find_monitor_with_largest_overlap<'a>(
-    layout: &'a MonitorLayout,
+pub fn find_monitor_with_largest_overlap(
+    layout: &MonitorLayout,
     window_rect: Rect,
-) -> Option<&'a MonitorInfo> {
+) -> Option<&MonitorInfo> {
     let mut best_m = None;
     let mut best_overlap_area = 0i64;
 
