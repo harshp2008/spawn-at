@@ -23,6 +23,9 @@ pub struct OracleParams {
     pub anchor: Option<String>,
     pub pivot: Option<String>,
     pub explicit_pos: Option<(i32, i32)>,
+    pub offset: Option<(i32, i32)>,
+    pub area: Option<String>,
+    pub cursor_pos: Option<(i32, i32)>,
     pub size: (u32, u32),
     pub margin: i32,
     pub margin_top: Option<i32>,
@@ -38,6 +41,9 @@ impl Default for OracleParams {
             anchor: None,
             pivot: None,
             explicit_pos: None,
+            offset: None,
+            area: None,
+            cursor_pos: None,
             size: (400, 300),
             margin: 0,
             margin_top: None,
@@ -60,25 +66,36 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     let ml = params.margin_left.unwrap_or(params.margin);
     let mr = params.margin_right.unwrap_or(params.margin);
 
-    let (mut x, mut y) = if let Some((px, py)) = params.explicit_pos {
+    let is_unbounded = params.area.as_deref() == Some("unbounded");
+
+    let (mut x, mut y) = if let Some((px, py)) = params.explicit_pos.or(if params.anchor.is_none() { params.offset } else { None }) {
+        let (ref_x, ref_y) = if is_unbounded {
+            (0, 0)
+        } else {
+            (workarea.x, workarea.y)
+        };
         let pivot_str = params.pivot.as_deref().unwrap_or("top-left");
-        apply_pivot_offset(px, py, w, h, pivot_str)?
+        apply_pivot_offset(ref_x + px, ref_y + py, w, h, pivot_str)?
     } else {
         let anchor_str = params.anchor.as_deref().unwrap_or("center");
         let (wa_w, wa_h) = (workarea.w as i32, workarea.h as i32);
+        let (ox, oy) = params.offset.unwrap_or((0, 0));
 
         // Documented semantic: Anchor determines reference point on the workarea boundary/margin.
         let (ax, ay) = match anchor_str {
-            "top-left" => (workarea.x + ml, workarea.y + mt),
-            "top" | "top-center" => (workarea.x + wa_w / 2, workarea.y + mt),
-            "top-right" => (workarea.x + wa_w - mr, workarea.y + mt),
-            "left" => (workarea.x + ml, workarea.y + wa_h / 2),
-            "center" => (workarea.x + wa_w / 2, workarea.y + wa_h / 2),
-            "right" => (workarea.x + wa_w - mr, workarea.y + wa_h / 2),
-            "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb),
-            "bottom" | "bottom-center" => (workarea.x + wa_w / 2, workarea.y + wa_h - mb),
-            "bottom-right" => (workarea.x + wa_w - mr, workarea.y + wa_h - mb),
-            "cursor" => (workarea.x + ml, workarea.y + mt),
+            "top-left" => (workarea.x + ml + ox, workarea.y + mt + oy),
+            "top" | "top-center" => (workarea.x + wa_w / 2 + ox, workarea.y + mt + oy),
+            "top-right" => (workarea.x + wa_w - mr + ox, workarea.y + mt + oy),
+            "left" => (workarea.x + ml + ox, workarea.y + wa_h / 2 + oy),
+            "center" => (workarea.x + wa_w / 2 + ox, workarea.y + wa_h / 2 + oy),
+            "right" => (workarea.x + wa_w - mr + ox, workarea.y + wa_h / 2 + oy),
+            "bottom-left" => (workarea.x + ml + ox, workarea.y + wa_h - mb + oy),
+            "bottom" | "bottom-center" => (workarea.x + wa_w / 2 + ox, workarea.y + wa_h - mb + oy),
+            "bottom-right" => (workarea.x + wa_w - mr + ox, workarea.y + wa_h - mb + oy),
+            "cursor" => {
+                let (cx, cy) = params.cursor_pos.unwrap_or((workarea.x + ml, workarea.y + mt));
+                (cx + ox, cy + oy)
+            }
             other => return Err(format!("Unknown anchor '{}'", other)),
         };
 
@@ -90,33 +107,37 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
             // Documented rule: centering is origin + floor((area_size - window_size) / 2);
             // an odd remainder puts the extra pixel on the right/bottom.
             match anchor_str {
-                "top" | "top-center" => (workarea.x + (wa_w - w_i32) / 2, workarea.y + mt),
+                "top" | "top-center" => (workarea.x + (wa_w - w_i32) / 2 + ox, workarea.y + mt + oy),
                 "bottom" | "bottom-center" => (
-                    workarea.x + (wa_w - w_i32) / 2,
-                    workarea.y + wa_h - h_i32 - mb,
+                    workarea.x + (wa_w - w_i32) / 2 + ox,
+                    workarea.y + wa_h - h_i32 - mb + oy,
                 ),
-                "left" => (workarea.x + ml, workarea.y + (wa_h - h_i32) / 2),
+                "left" => (workarea.x + ml + ox, workarea.y + (wa_h - h_i32) / 2 + oy),
                 "right" => (
-                    workarea.x + wa_w - mr - w_i32,
-                    workarea.y + (wa_h - h_i32) / 2,
+                    workarea.x + wa_w - mr - w_i32 + ox,
+                    workarea.y + (wa_h - h_i32) / 2 + oy,
                 ),
                 "center" => (
-                    workarea.x + (wa_w - w_i32) / 2,
-                    workarea.y + (wa_h - h_i32) / 2,
+                    workarea.x + (wa_w - w_i32) / 2 + ox,
+                    workarea.y + (wa_h - h_i32) / 2 + oy,
                 ),
-                "top-left" | "cursor" => (workarea.x + ml, workarea.y + mt),
-                "top-right" => (workarea.x + wa_w - mr - w_i32, workarea.y + mt),
-                "bottom-left" => (workarea.x + ml, workarea.y + wa_h - mb - h_i32),
+                "top-left" => (workarea.x + ml + ox, workarea.y + mt + oy),
+                "cursor" => {
+                    let (cx, cy) = params.cursor_pos.unwrap_or((workarea.x + ml, workarea.y + mt));
+                    (cx + ox, cy + oy)
+                }
+                "top-right" => (workarea.x + wa_w - mr - w_i32 + ox, workarea.y + mt + oy),
+                "bottom-left" => (workarea.x + ml + ox, workarea.y + wa_h - mb - h_i32 + oy),
                 "bottom-right" => (
-                    workarea.x + wa_w - mr - w_i32,
-                    workarea.y + wa_h - mb - h_i32,
+                    workarea.x + wa_w - mr - w_i32 + ox,
+                    workarea.y + wa_h - mb - h_i32 + oy,
                 ),
                 other => return Err(format!("Unknown anchor '{}'", other)),
             }
         }
     };
 
-    if params.clamp {
+    if !is_unbounded && params.clamp {
         let wa_w = workarea.w as i32;
         let wa_h = workarea.h as i32;
 
@@ -440,15 +461,16 @@ mod tests {
     }
 
     #[test]
-    fn test_golden_clamp_explicit_pos_0_40() {
+    fn test_golden_clamp_explicit_pos_0_0() {
         // Live-confirmed case on host machine:
         // Window size: 367x514. Work area: 1920x1040 at (0, 40). Default margin: 16.
-        // Command: `transform --pos 0 40`
+        // Command: `transform -p 0 0`
         //
         // Arithmetic:
         // Work area bounds: wa.x = 0, wa.y = 40, wa.w = 1920, wa.h = 1040.
         // Margins: ml = 16, mr = 16, mt = 16, mb = 16.
-        // Requested position (unclamped): px = 0, py = 40.
+        // Relative position: px = 0, py = 0 relative to wa top-left (0, 40).
+        // Requested position (unclamped): raw_x = 0 + 0 = 0, raw_y = 40 + 0 = 40.
         // Clamp boundaries (work area minus margin):
         //   min_x = wa.x + ml = 0 + 16 = 16
         //   max_x = wa.x + wa.w - mr - win_w = 0 + 1920 - 16 - 367 = 1537
@@ -461,7 +483,7 @@ mod tests {
         // Expected rect: Rect(16, 56, 367, 514)
         let wa = Rect::new(0, 40, 1920, 1040);
         let params = OracleParams {
-            explicit_pos: Some((0, 40)),
+            explicit_pos: Some((0, 0)),
             size: (367, 514),
             margin: 16,
             clamp: true,
@@ -694,6 +716,8 @@ mod tests {
             anchor: Option<String>,
             pivot: Option<String>,
             pos: Option<[i32; 2]>,
+            offset: Option<[i32; 2]>,
+            area: Option<String>,
             margin: i32,
             margin_top: Option<i32>,
             margin_bottom: Option<i32>,
@@ -740,6 +764,9 @@ mod tests {
                 anchor: vec.anchor.clone(),
                 pivot: vec.pivot.clone(),
                 explicit_pos: vec.pos.map(|p| (p[0], p[1])),
+                offset: vec.offset.map(|o| (o[0], o[1])),
+                area: vec.area.clone(),
+                cursor_pos: None,
                 size: (vec.window_size.width, vec.window_size.height),
                 margin: vec.margin,
                 margin_top: vec.margin_top,

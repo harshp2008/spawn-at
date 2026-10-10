@@ -133,6 +133,9 @@ fn test_oracle_vs_core_cross_check_matrix() {
                                 anchor: Some(anchor.to_string()),
                                 pivot: Some(pivot.to_string()),
                                 explicit_pos: None,
+                                offset: None,
+                                area: Some("workarea".to_string()),
+                                cursor_pos: None,
                                 size: win_size,
                                 margin,
                                 margin_top: None,
@@ -230,6 +233,9 @@ fn test_oracle_vs_core_directional_margins_cross_check() {
                     anchor: Some(anchor.to_string()),
                     pivot: Some(pivot.to_string()),
                     explicit_pos: None,
+                    offset: None,
+                    area: Some("workarea".to_string()),
+                    cursor_pos: None,
                     size: win_size,
                     margin: 16,
                     margin_top: mt,
@@ -296,9 +302,12 @@ fn test_oracle_vs_core_cursor_anchor_cross_check() {
         for pivot in &PIVOTS {
             for &clamp in &[false, true] {
                 let oracle_params = OracleParams {
-                    anchor: None,
+                    anchor: Some("cursor".to_string()),
                     pivot: Some(pivot.to_string()),
-                    explicit_pos: Some((cx, cy)),
+                    explicit_pos: None,
+                    offset: None,
+                    area: Some("workarea".to_string()),
+                    cursor_pos: Some((cx, cy)),
                     size: win_size,
                     margin: 0,
                     margin_top: None,
@@ -403,6 +412,9 @@ fn test_oracle_vs_core_default_pivot_cross_check() {
                             anchor: Some(anchor_str.to_string()),
                             pivot: None, // Default pivot
                             explicit_pos: None,
+                            offset: None,
+                            area: Some("workarea".to_string()),
+                            cursor_pos: None,
                             size: win_size,
                             margin: *margin,
                             margin_top: None,
@@ -452,4 +464,114 @@ fn test_oracle_vs_core_default_pivot_cross_check() {
         checked_cases, 1080,
         "Expected 1080 default-pivot cross-check cases (9 anchors x 4 workareas x 5 sizes x 3 margins x 2 clamp modes)"
     );
+}
+
+#[test]
+fn test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check() {
+    let positions = [(0, 0), (700, 300), (-100, -50), (200, 150), (3000, 2000)];
+    let pivots = ["top-left", "center", "bottom-right"];
+    let win_sizes = [(367, 514), (400, 300), (1, 1)];
+
+    let workareas = [
+        (
+            OracleRect::new(0, 40, 1920, 1040),
+            CoreRect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            "primary workarea (0, 40)",
+        ),
+        (
+            OracleRect::new(200, 100, 1600, 900),
+            CoreRect {
+                x: 200,
+                y: 100,
+                width: 1600,
+                height: 900,
+            },
+            "offset workarea (200, 100)",
+        ),
+        (
+            OracleRect::new(-1920, 0, 1920, 1080),
+            CoreRect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            "negative-origin monitor (-1920, 0)",
+        ),
+    ];
+
+    let area_modes = [
+        ("workarea", Area::Workarea, true),
+        ("workarea", Area::Workarea, false),
+        ("screen", Area::Screen, true),
+        ("screen", Area::Screen, false),
+        ("unbounded", Area::Unbounded, false),
+    ];
+
+    let mut count = 0;
+
+    for (oracle_wa, core_wa, wa_desc) in &workareas {
+        for &win_size in &win_sizes {
+            for &pivot in &pivots {
+                for &(pos_x, pos_y) in &positions {
+                    for &(area_name, core_area, clamp) in &area_modes {
+                        count += 1;
+                        let margin = if area_name == "unbounded" { 0 } else { 16 };
+
+                        let oracle_params = OracleParams {
+                            anchor: None,
+                            pivot: Some(pivot.to_string()),
+                            explicit_pos: Some((pos_x, pos_y)),
+                            offset: None,
+                            area: Some(area_name.to_string()),
+                            cursor_pos: None,
+                            size: win_size,
+                            margin,
+                            margin_top: None,
+                            margin_bottom: None,
+                            margin_left: None,
+                            margin_right: None,
+                            clamp,
+                        };
+
+                        let oracle_rect = calculate_expected_rect(*oracle_wa, &oracle_params)
+                            .expect("Oracle calculation failed");
+
+                        let core_params = CoreParams {
+                            pos: Some((pos_x, pos_y)),
+                            offset: None,
+                            anchor: None,
+                            pivot: Some(map_pivot(pivot)),
+                            size: Some(win_size),
+                            margin,
+                            margin_top: None,
+                            margin_bottom: None,
+                            margin_left: None,
+                            margin_right: None,
+                            area: Some(core_area),
+                            cursor_pos: None,
+                            workarea: *core_wa,
+                            clamp,
+                        };
+
+                        let core_rect =
+                            calculate_rect_from_placement(&core_params, win_size.0, win_size.1);
+                        let mapped_core = core_to_oracle_rect(core_rect);
+
+                        assert_eq!(
+                            oracle_rect, mapped_core,
+                            "Mismatch on [{wa_desc}] area={area_name}, pos=({pos_x},{pos_y}), pivot={pivot}, clamp={clamp}: oracle={oracle_rect:?}, core={mapped_core:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    println!("Explicit position 3-area-modes cross check passed across {count} configurations!");
 }

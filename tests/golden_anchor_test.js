@@ -88,8 +88,11 @@ function buildPayload(vec) {
                 break;
         }
     } else if (vec.pos) {
-        screen_anchor_x = vec.pos[0];
-        screen_anchor_y = vec.pos[1];
+        const is_unbounded = vec.area === 'unbounded';
+        const ref_x = is_unbounded ? 0 : wa.x;
+        const ref_y = is_unbounded ? 0 : wa.y;
+        screen_anchor_x = ref_x + vec.pos[0];
+        screen_anchor_y = ref_y + vec.pos[1];
     }
 
     return {
@@ -103,7 +106,7 @@ function buildPayload(vec) {
         margin_bottom: mb,
         margin_left: ml,
         margin_right: mr,
-        clamp: vec.clamp,
+        clamp: vec.area === 'unbounded' ? false : vec.clamp,
     };
 }
 

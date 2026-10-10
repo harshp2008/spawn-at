@@ -19,6 +19,7 @@ struct GoldenVector {
     pivot: Option<String>,
     pos: Option<[i32; 2]>,
     offset: Option<[i32; 2]>,
+    area: Option<String>,
     margin: i32,
     margin_top: Option<i32>,
     margin_bottom: Option<i32>,
@@ -89,6 +90,12 @@ fn test_core_reads_shared_golden_placement_vectors() {
             height: vec.workarea.height,
         };
 
+        let area = match vec.area.as_deref() {
+            Some("screen") => Area::Screen,
+            Some("unbounded") => Area::Unbounded,
+            _ => Area::Workarea,
+        };
+
         let params = PlacementParams {
             pos: vec.pos.map(|p| (p[0], p[1])),
             offset: vec.offset.map(|o| (o[0], o[1])),
@@ -100,7 +107,7 @@ fn test_core_reads_shared_golden_placement_vectors() {
             margin_bottom: vec.margin_bottom,
             margin_left: vec.margin_left,
             margin_right: vec.margin_right,
-            area: Some(Area::Workarea),
+            area: Some(area),
             cursor_pos: None,
             workarea: wa,
             clamp: vec.clamp,
