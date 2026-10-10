@@ -441,11 +441,17 @@ pub fn evaluate_placement_diagnostics_for_action(
     let expected_for_actual =
         calculate_rect_from_placement(&params_for_actual, actual_rect.width, actual_rect.height);
 
-    let is_maximized_like =
-        actual_rect.width >= params.workarea.width && actual_rect.height >= params.workarea.height;
-    let requested_is_maximized = params
-        .size
-        .is_some_and(|(w, h)| w >= params.workarea.width && h >= params.workarea.height);
+    let is_maximized_like = params.area != Some(Area::Unbounded)
+        && params.workarea.width > 0
+        && params.workarea.height > 0
+        && actual_rect.width >= params.workarea.width
+        && actual_rect.height >= params.workarea.height;
+    let requested_is_maximized = params.area != Some(Area::Unbounded)
+        && params.workarea.width > 0
+        && params.workarea.height > 0
+        && params
+            .size
+            .is_some_and(|(w, h)| w >= params.workarea.width && h >= params.workarea.height);
 
     let pos_reached = (!is_maximized_like || requested_is_maximized)
         && (actual_rect.x - expected_for_actual.x).abs() <= 1
@@ -512,6 +518,7 @@ pub fn evaluate_placement_diagnostics_for_action(
     } else {
         // Position was not reached (real mismatch)
         let is_off_screen = !params.clamp
+            && params.area != Some(Area::Unbounded)
             && (actual_rect.x < params.workarea.x || actual_rect.y < params.workarea.y);
         if is_off_screen {
             diags.push(Diagnostic::OffScreenUnclamped {

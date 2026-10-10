@@ -5,8 +5,8 @@
 
 use crate::cli::QueryCommands;
 use crate::platform::CompositorBackend;
-use crate::target::RelPosition;
-use spawn_at_core::geometry::{Area, LayoutRect};
+use crate::target::{RelPosition, WindowMetadata};
+use spawn_at_core::geometry::{Area, LayoutRect, MonitorLayout, Rect};
 
 /// Executes the `query` subcommand: fetches requested compositor state and prints to stdout.
 pub async fn run_query(
@@ -96,80 +96,13 @@ pub async fn run_query(
                 None
             };
 
-            for w in &mut windows {
-                match area {
-                    Area::Unbounded => {
-                        w.rel = Some(RelPosition { x: w.x, y: w.y });
-                        w.area = Some("unbounded".to_string());
-                    }
-                    Area::Screen => {
-                        if let Some(mon_idx) = w.monitor {
-                            let screen_rect = if let Some(ref layout) = layout_opt {
-                                layout
-                                    .monitors
-                                    .iter()
-                                    .find(|m| m.index as i32 == mon_idx)
-                                    .and_then(|m| m.screen)
-                            } else if let Some(ref mons) = monitors_fallback {
-                                if (mon_idx as usize) < mons.len() {
-                                    Some(LayoutRect::from(mons[mon_idx as usize]))
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            };
-
-                            if let Some(s) = screen_rect {
-                                w.rel = Some(RelPosition {
-                                    x: w.x - s.x,
-                                    y: w.y - s.y,
-                                });
-                                w.area = Some("screen".to_string());
-                            } else {
-                                w.rel = None;
-                                w.area = None;
-                            }
-                        } else {
-                            w.rel = None;
-                            w.area = None;
-                        }
-                    }
-                    Area::Workarea => {
-                        if let Some(mon_idx) = w.monitor {
-                            let workarea_rect = if let Some(ref layout) = layout_opt {
-                                layout
-                                    .monitors
-                                    .iter()
-                                    .find(|m| m.index as i32 == mon_idx)
-                                    .and_then(|m| m.workarea)
-                            } else if let Some(ref was) = workareas_fallback {
-                                if (mon_idx as usize) < was.len() {
-                                    Some(LayoutRect::from(was[mon_idx as usize]))
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            };
-
-                            if let Some(wa) = workarea_rect {
-                                w.rel = Some(RelPosition {
-                                    x: w.x - wa.x,
-                                    y: w.y - wa.y,
-                                });
-                                w.area = Some("workarea".to_string());
-                            } else {
-                                w.rel = None;
-                                w.area = None;
-                            }
-                        } else {
-                            w.rel = None;
-                            w.area = None;
-                        }
-                    }
-                }
-            }
+            compute_relative_window_coordinates(
+                &mut windows,
+                layout_opt.as_ref(),
+                workareas_fallback.as_deref(),
+                monitors_fallback.as_deref(),
+                area,
+            );
 
             if json {
                 println!("{}", serde_json::to_string(&windows)?);
@@ -257,6 +190,89 @@ pub async fn run_query(
         }
     }
     Ok(())
+}
+
+pub fn compute_relative_window_coordinates(
+    windows: &mut [WindowMetadata],
+    layout_opt: Option<&MonitorLayout>,
+    workareas_fallback: Option<&[Rect]>,
+    monitors_fallback: Option<&[Rect]>,
+    area: Area,
+) {
+    for w in windows {
+        match area {
+            Area::Unbounded => {
+                w.rel = Some(RelPosition { x: w.x, y: w.y });
+                w.area = Some("unbounded".to_string());
+            }
+            Area::Screen => {
+                if let Some(mon_idx) = w.monitor {
+                    let screen_rect = if let Some(layout) = layout_opt {
+                        layout
+                            .monitors
+                            .iter()
+                            .find(|m| m.index as i32 == mon_idx)
+                            .and_then(|m| m.screen)
+                    } else if let Some(mons) = monitors_fallback {
+                        if (mon_idx as usize) < mons.len() {
+                            Some(LayoutRect::from(mons[mon_idx as usize]))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    if let Some(s) = screen_rect {
+                        w.rel = Some(RelPosition {
+                            x: w.x - s.x,
+                            y: w.y - s.y,
+                        });
+                        w.area = Some("screen".to_string());
+                    } else {
+                        w.rel = None;
+                        w.area = None;
+                    }
+                } else {
+                    w.rel = None;
+                    w.area = None;
+                }
+            }
+            Area::Workarea => {
+                if let Some(mon_idx) = w.monitor {
+                    let workarea_rect = if let Some(layout) = layout_opt {
+                        layout
+                            .monitors
+                            .iter()
+                            .find(|m| m.index as i32 == mon_idx)
+                            .and_then(|m| m.workarea)
+                    } else if let Some(was) = workareas_fallback {
+                        if (mon_idx as usize) < was.len() {
+                            Some(LayoutRect::from(was[mon_idx as usize]))
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+
+                    if let Some(wa) = workarea_rect {
+                        w.rel = Some(RelPosition {
+                            x: w.x - wa.x,
+                            y: w.y - wa.y,
+                        });
+                        w.area = Some("workarea".to_string());
+                    } else {
+                        w.rel = None;
+                        w.area = None;
+                    }
+                } else {
+                    w.rel = None;
+                    w.area = None;
+                }
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -692,5 +708,127 @@ mod tests {
         assert!(arr[1]["monitor"].is_null());
         assert_eq!(arr[1]["state"], "maximized");
         assert!(arr[1]["workspace"].is_null());
+    }
+
+    #[test]
+    fn test_query_windows_round_trip_all_area_modes() {
+        use spawn_at_core::geometry::{calculate_rect_from_placement, PlacementParams, Rect};
+
+        let wa = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![spawn_at_core::geometry::MonitorInfo {
+                index: 0,
+                name: None,
+                primary: true,
+                scale: None,
+                screen: Some(screen.into()),
+                workarea: Some(wa.into()),
+                insets: None,
+            }],
+            note: None,
+        };
+
+        let base_windows = vec![WindowMetadata {
+            id: Some(4067358578),
+            pid: Some(408727),
+            title: "Calculator".to_string(),
+            class: "org.gnome.Calculator".to_string(),
+            app_id: None,
+            x: 700,
+            y: 300,
+            w: 367,
+            h: 514,
+            rel: None,
+            area: None,
+            focused: false,
+            maximized: false,
+            minimized: false,
+            monitor: Some(0),
+            state: Some("normal".to_string()),
+            workspace: Some(1),
+        }];
+
+        // 1. Workarea mode round-trip
+        let mut wins = base_windows.clone();
+        compute_relative_window_coordinates(
+            &mut wins,
+            Some(&layout),
+            None,
+            None,
+            Area::Workarea,
+        );
+        let rel = wins[0].rel.as_ref().unwrap();
+        assert_eq!(rel.x, 700);
+        assert_eq!(rel.y, 260);
+        let params_wa = PlacementParams {
+            pos: Some((rel.x, rel.y)),
+            area: Some(Area::Workarea),
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let target_wa = calculate_rect_from_placement(&params_wa, wins[0].w as u32, wins[0].h as u32);
+        assert_eq!(target_wa.x, 700);
+        assert_eq!(target_wa.y, 300);
+
+        // 2. Screen mode round-trip
+        let mut wins = base_windows.clone();
+        compute_relative_window_coordinates(
+            &mut wins,
+            Some(&layout),
+            None,
+            None,
+            Area::Screen,
+        );
+        let rel = wins[0].rel.as_ref().unwrap();
+        assert_eq!(rel.x, 700);
+        assert_eq!(rel.y, 300);
+        let params_screen = PlacementParams {
+            pos: Some((rel.x, rel.y)),
+            area: Some(Area::Screen),
+            workarea: screen,
+            clamp: false,
+            ..Default::default()
+        };
+        let target_screen =
+            calculate_rect_from_placement(&params_screen, wins[0].w as u32, wins[0].h as u32);
+        assert_eq!(target_screen.x, 700);
+        assert_eq!(target_screen.y, 300);
+
+        // 3. Unbounded mode round-trip (using GEOMETRY or REL)
+        let mut wins = base_windows.clone();
+        compute_relative_window_coordinates(
+            &mut wins,
+            Some(&layout),
+            None,
+            None,
+            Area::Unbounded,
+        );
+        let rel = wins[0].rel.as_ref().unwrap();
+        assert_eq!(rel.x, wins[0].x);
+        assert_eq!(rel.y, wins[0].y);
+        let params_unbounded = PlacementParams {
+            pos: Some((wins[0].x, wins[0].y)),
+            area: Some(Area::Unbounded),
+            clamp: false,
+            ..Default::default()
+        };
+        let target_unbounded =
+            calculate_rect_from_placement(&params_unbounded, wins[0].w as u32, wins[0].h as u32);
+        assert_eq!(target_unbounded.x, 700);
+        assert_eq!(target_unbounded.y, 300);
     }
 }
