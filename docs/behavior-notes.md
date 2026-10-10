@@ -72,8 +72,8 @@ Unbounded mode provides raw coordinate access across the multi-monitor desktop.
 *(Pinned by: `src/cli/tests.rs::test_unbounded_allowed_and_rejected_options`)*
 
 ### Batch Dispatch and Extension Parity
-- Instruction batches for unbounded transforms serialize `area: None` and `clamp: false`, bypassing bounds checking and margin clamping completely.
-*(Pinned by: `src/platform/linux/gnome/mechanics.rs::test_golden_transform_batch_unbounded_instructions` and `tests/dispatcher_test.js::"dispatcher: executes Rust golden unbounded transform instruction pipeline without clamp"`)*
+- Unbounded mode is expressed on the wire (D-Bus instruction payload) as `area` omitted (`None`) plus `clamp: false`. This avoids unknown-area validation rejections in existing extensions while ensuring `anchor.js` completely bypasses bounds checking and margin clamping (`x = rawX`, `y = rawY`).
+*(Pinned by: Rust golden test `src/platform/linux/gnome/mechanics.rs::test_golden_transform_batch_unbounded_instructions` and Node dispatcher test `tests/dispatcher_test.js::"dispatcher: executes Rust golden unbounded transform instruction pipeline without clamp"`)*
 
 ### Straddling Monitors
 When a window's target geometry spans multiple monitors in unbounded mode:
@@ -83,6 +83,8 @@ When a window's target geometry spans multiple monitors in unbounded mode:
 
 ### Mutter Compositor Boundaries
 - Mutter enforces an internal minimum visibility constraint (approximately 75px of the window surface must remain on an active monitor). If an unbounded coordinate places a window almost entirely off-screen, Mutter snaps the window back just enough to maintain this minimum visible handle.
+- **Observed on**: GNOME Shell 46, Wayland, single monitor.
+- **Other environments**: X11 and other GNOME/Mutter versions are unknown.
 - The CLI reports the real final position and explains that the compositor adjusted it (`INFO: Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility.`).
 *(Pinned by: `src/diagnostics.rs::test_diagnostic_unbounded_compositor_adjustment`)*
 
