@@ -123,3 +123,23 @@ Reading the `REL` values from `query windows` and passing them to `transform -p 
 2. **Screen Mode**: `query windows --area screen` (REL `(X, Y)`) &rarr; `transform --area screen -p X Y` &rarr; same position.
 3. **Unbounded Mode**: `query windows --area unbounded` (REL / GEOMETRY `(X, Y)`) &rarr; `transform --area unbounded -p X Y` &rarr; same position.
 *(Pinned by: `src/commands/query.rs::test_query_windows_round_trip_all_area_modes` and `crates/spawn-at-verify/tests/oracle_cross_check.rs::test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check`)*
+
+---
+
+## 6. Window Animation Behavior per Command
+
+The GNOME Shell extension manages window transitions to balance native desktop feel with flicker-free programmatic placement:
+
+| Command / Operation | Animation Behavior | Code Mechanism & Rationale |
+| :--- | :--- | :--- |
+| `spawn-at minimize` | **Plays normal animation** (shrinks into dock / panel) | Invokes `MetaWindow.minimize()` without adding the actor to the window manager's skipped-effects set (`Main.wm.skipNextEffect` / `_skippedActors`), allowing Clutter/Mutter animation transitions to run smoothly. |
+| `spawn-at restore` / `unminimize` | **Plays normal animation** (zooms back from dock) | Invokes `MetaWindow.unminimize()` without animation suppression. |
+| `spawn-at transform` on minimized window | **Animation deliberately suppressed** (no jump / dock glide) | Deliberately calls `_skipWindowEffects(ctx.actor)` prior to `unminimize()`. This adds the actor to `Main.wm._skippedActors` and resets transitions/scale/pivot, ensuring the window appears directly at the newly computed target geometry without visual gliding. The skip entry is consumed on unminimize, ensuring `_skippedActors` is not poisoned for subsequent commands. |
+| `spawn-at transform` on covered window | **Plays normal focus transitions** | Covered windows are raised and focused while cloaked (`_focusWindowObject`) without suppressing animations. |
+| Window resizes (`SetSize` / `transform -s`) | **Plays normal resize transitions** | Normal resizing animation behavior is preserved; `_skipWindowEffects` is not invoked. |
+
+### Logging Parity Invariant
+- Actor operations and window animations are **strictly identical** whether telemetry logging is enabled (`SetLogging(true)`) or disabled (`SetLogging(false)`).
+- Trace hooks (`_logActorTrace`, `logTime`) are strictly read-only observers that inspect properties without altering transitions, scale, opacity, or the compositor's skipped-effects set.
+*(Pinned by: Node parity tests `tests/dispatcher_test.js::"dispatcher (modern): actor operation sequences are identical with logging on and off across all scenarios"` and `tests/legacy_dispatcher_test.js::"dispatcher (legacy): actor operation sequences are identical with logging on and off across all scenarios"`)*
+

@@ -836,7 +836,6 @@ export default class SpawnAtExtension extends Extension {
             this._focusWindowObject(ctx.window);
             if (ctx.item)
                 ctx.item.focusApplied = true;
-            this._skipWindowEffects(ctx.actor);
         } else if (ctx.wasCovered || hasDeferredFocus) {
             this.logTime('PRE_REVEAL_RAISE',
                 hasDeferredFocus ? 'raising prior to uncloak (deferred focus)' : 'window was covered; raising prior to uncloak',

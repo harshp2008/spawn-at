@@ -915,6 +915,187 @@ test('dispatcher (legacy): trace event buffer drops and warns when exceeding cap
     }
 });
 
+test('dispatcher (legacy): actor operation sequences are identical with logging on and off across all scenarios', async () => {
+    if (!globalThis.imports.ui) {
+        globalThis.imports.ui = {
+            main: {
+                wm: {
+                    skipNextEffect: () => {},
+                    _skippedActors: new Set(),
+                },
+                layoutManager: { monitors: [] },
+            },
+        };
+    }
+    const Main = globalThis.imports.ui.main;
+    const scenarios = ['visible', 'covered', 'minimized', 'covered_deferred_focus'];
+
+    for (const scenario of scenarios) {
+        async function runScenario(loggingEnabled) {
+            const ext = new SpawnAtExtension();
+            ext.enable();
+            ext.SetLogging(loggingEnabled);
+
+            const operations = [];
+            let frameRect = { x: 100, y: 100, width: 640, height: 480 };
+            let currentOpacity = 255;
+
+            const win = {
+                get_frame_rect: () => ({ ...frameRect }),
+                get_buffer_rect: () => ({ ...frameRect }),
+                get_id: () => 101,
+                get_pid: () => 5432,
+                get_wm_class: () => 'org.gnome.TextEditor',
+                get_client_type: () => 0,
+                get_monitor: () => 0,
+                get_work_area_current_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }),
+                get_work_area_for_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }),
+                move_resize_frame: (_userOp, x, y, w, h) => {
+                    frameRect = { x, y, width: w, height: h };
+                    operations.push(`frame:move_resize(${x},${y},${w}x${h})`);
+                },
+                move_frame: (_userOp, x, y) => {
+                    frameRect.x = x;
+                    frameRect.y = y;
+                    operations.push(`frame:move(${x},${y})`);
+                },
+                connect: () => 1,
+                disconnect: () => {},
+                has_focus: () => true,
+                raise: () => {
+                    operations.push('window:raise');
+                },
+                activate: () => {
+                    operations.push('window:activate');
+                },
+                unminimize: () => {
+                    win.minimized = false;
+                    operations.push('window:unminimize');
+                },
+                minimized: scenario === 'minimized',
+            };
+
+            const act = {
+                get opacity() { return currentOpacity; },
+                set opacity(v) {
+                    currentOpacity = v;
+                    operations.push(`opacity:${v}`);
+                },
+                x: 100,
+                y: 100,
+                width: 640,
+                height: 480,
+                get_stage: () => globalThis.global.stage,
+                is_destroyed: () => false,
+                connect: () => 1,
+                disconnect: () => {},
+                remove_all_transitions: () => {
+                    operations.push('transitions:remove_all');
+                },
+                set_scale: (sx, sy) => {
+                    operations.push(`scale:${sx},${sy}`);
+                },
+                set_pivot_point: (px, py) => {
+                    operations.push(`pivot:${px},${py}`);
+                },
+                show: () => {
+                    operations.push('actor:show');
+                },
+                get_parent: () => ({
+                    constructor: { name: 'MetaWindowActor' },
+                    add_child: () => {},
+                }),
+            };
+            win.get_compositor_private = () => act;
+
+            const prevTabList = globalThis.global.display.get_tab_list;
+            const prevWsMgr = globalThis.global.workspace_manager;
+            const prevDispWsMgr = globalThis.global.display.get_workspace_manager;
+            const prevSort = globalThis.global.display.sort_windows_by_stacking;
+
+            const mockWs = {
+                list_windows: () => [win],
+                get_work_area_for_monitor: () => ({ x: 0, y: 40, width: 1920, height: 1040 }),
+            };
+            globalThis.global.workspace_manager = mockWs;
+            globalThis.global.display.get_workspace_manager = () => ({ get_active_workspace: () => mockWs });
+            globalThis.global.display.get_tab_list = () => [win];
+            globalThis.global.display.sort_windows_by_stacking = () => [win];
+
+            let coveringWin = null;
+            let coveringAct = null;
+            if (scenario === 'covered' || scenario === 'covered_deferred_focus') {
+                const cov = createMockWindowAndActor();
+                coveringWin = cov.window;
+                coveringAct = cov.actor;
+                coveringWin.get_frame_rect = () => ({ x: 0, y: 0, width: 1920, height: 1080 });
+                coveringWin.get_compositor_private = () => coveringAct;
+                coveringAct.opacity = 255;
+                coveringAct.visible = true;
+                mockWs.list_windows = () => [win, coveringWin];
+                globalThis.global.display.sort_windows_by_stacking = () => [win, coveringWin];
+                globalThis.global.display.get_tab_list = () => [win, coveringWin];
+            }
+
+            const origSkip = Main.wm.skipNextEffect;
+            Main.wm.skipNextEffect = (a) => {
+                operations.push('wm:skipNextEffect');
+                if (typeof origSkip === 'function') origSkip(a);
+                Main.wm._skippedActors.add(a);
+            };
+
+            const batch = [
+                { name: 'Snapshot', args: {} },
+                { name: 'Cloak', args: {} },
+                {
+                    name: 'SetPositionAnchored',
+                    args: {
+                        intended_w: 640,
+                        intended_h: 480,
+                        screen_anchor_x: 200,
+                        screen_anchor_y: 200,
+                        pivot_u: 0.0,
+                        pivot_v: 0.0,
+                        offset_x: 0,
+                        offset_y: 0,
+                        area: 'workarea',
+                        margin_top: 0,
+                        margin_bottom: 0,
+                        margin_left: 0,
+                        margin_right: 0,
+                        clamp: true,
+                    },
+                },
+                { name: 'Uncloak', args: {} },
+                { name: 'DestroySnapshot', args: {} },
+            ];
+
+            const item = scenario === 'covered_deferred_focus' ? { deferredFocus: true } : null;
+
+            const origError = console.error;
+            console.error = () => {};
+            try {
+                await ext._runBatch(win, act, batch, `test-${scenario}`, item);
+            } finally {
+                console.error = origError;
+                Main.wm.skipNextEffect = origSkip;
+                globalThis.global.display.get_tab_list = prevTabList;
+                globalThis.global.workspace_manager = prevWsMgr;
+                globalThis.global.display.get_workspace_manager = prevDispWsMgr;
+                globalThis.global.display.sort_windows_by_stacking = prevSort;
+                ext.disable();
+            }
+
+            return operations;
+        }
+
+        const opsOff = await runScenario(false);
+        const opsOn = await runScenario(true);
+        assert.deepStrictEqual(opsOn, opsOff, `Actor operations must be identical with logging ON and OFF for scenario "${scenario}"`);
+        assert.ok(opsOn.length > 0, `Scenario "${scenario}" must have recorded operations`);
+    }
+});
+
 
 
 
