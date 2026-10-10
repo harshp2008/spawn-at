@@ -199,26 +199,26 @@ impl Diagnostic {
             }
             Diagnostic::SizeRaisedToMinimum {
                 requested,
-                minimum,
+                minimum: _,
                 actual,
                 placed_pos,
             } => {
-                if let Some(min) = minimum {
+                let raised_w = actual.0 > requested.0;
+                let raised_h = actual.1 > requested.1;
+                if raised_w && !raised_h {
                     format!(
-                        "Requested size ({}x{}), window minimum is {}x{}; placed at ({}, {}) [{}x{}].",
-                        requested.0, requested.1, min.0, min.1, placed_pos.0, placed_pos.1, actual.0, actual.1
+                        "Requested size ({}x{}); window minimum width is {}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.0, placed_pos.0, placed_pos.1, actual.0, actual.1
+                    )
+                } else if !raised_w && raised_h {
+                    format!(
+                        "Requested size ({}x{}); window minimum height is {}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
                     )
                 } else {
                     format!(
-                        "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
-                        requested.0,
-                        requested.1,
-                        actual.0,
-                        actual.1,
-                        placed_pos.0,
-                        placed_pos.1,
-                        actual.0,
-                        actual.1
+                        "Requested size ({}x{}); window minimum is {}x{}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
                     )
                 }
             }
@@ -340,7 +340,11 @@ pub fn evaluate_placement_diagnostics_for_action(
 
         if size_differs {
             let requested = params.size.unwrap();
-            if size_raised || min_size.is_some() {
+            let is_raised = size_raised
+                || min_size.is_some()
+                || actual_rect.width > requested.0
+                || actual_rect.height > requested.1;
+            if is_raised {
                 diags.push(Diagnostic::SizeRaisedToMinimum {
                     requested,
                     minimum: min_size.or(Some((actual_rect.width, actual_rect.height))),
@@ -402,7 +406,11 @@ pub fn evaluate_placement_diagnostics_for_action(
 
         if size_differs {
             let requested = params.size.unwrap();
-            if size_raised || min_size.is_some() {
+            let is_raised = size_raised
+                || min_size.is_some()
+                || actual_rect.width > requested.0
+                || actual_rect.height > requested.1;
+            if is_raised {
                 diags.push(Diagnostic::SizeRaisedToMinimum {
                     requested,
                     minimum: min_size.or(Some((actual_rect.width, actual_rect.height))),
@@ -547,8 +555,80 @@ mod tests {
 
         let msg = diags[0].format_message();
         assert!(msg.contains(
-            "Requested size (30x20), window minimum is 362x130; placed at (1542, 934) [362x130]"
+            "Requested size (30x20); window minimum is 362x130, placed at (1542, 934) [362x130]."
         ));
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_height_only() {
+        let params = PlacementParams {
+            size: Some((500, 400)),
+            pos: Some((50, 90)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 500,
+            height: 514,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (500x400); window minimum height is 514, placed at (50, 90) [500x514]."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_width_only() {
+        let params = PlacementParams {
+            size: Some((400, 500)),
+            pos: Some((50, 90)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 514,
+            height: 500,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (400x500); window minimum width is 514, placed at (50, 90) [514x500]."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_both() {
+        let params = PlacementParams {
+            size: Some((400, 400)),
+            pos: Some((50, 90)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 500,
+            height: 514,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (400x400); window minimum is 500x514, placed at (50, 90) [500x514]."
+        );
     }
 
     #[test]

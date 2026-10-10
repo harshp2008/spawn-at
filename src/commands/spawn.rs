@@ -25,6 +25,10 @@ pub struct SpawnOutputJson {
     pub w: u32,
     pub h: u32,
     pub size_raised: bool,
+    #[serde(default)]
+    pub raised_w: bool,
+    #[serde(default)]
+    pub raised_h: bool,
     pub reused_existing_window: bool,
     pub source: String,
 }
@@ -224,6 +228,8 @@ pub async fn run_spawn(
             w: 0,
             h: 0,
             size_raised: false,
+            raised_w: false,
+            raised_h: false,
             reused_existing_window: false,
             source: "poll".to_string(),
         };
@@ -244,6 +250,8 @@ pub async fn run_spawn(
                 w: 0,
                 h: 0,
                 size_raised: false,
+                raised_w: false,
+                raised_h: false,
                 reused_existing_window: false,
                 source: "poll".to_string(),
             };
@@ -353,6 +361,8 @@ pub async fn run_spawn(
                                     w,
                                     h,
                                     size_raised: false,
+                                    raised_w: false,
+                                    raised_h: false,
                                     reused_existing_window: is_reused,
                                     source: "poll".to_string(),
                                 };
@@ -402,6 +412,14 @@ pub async fn run_spawn(
                 }
             }
 
+            let (raised_w, raised_h, size_raised) = if let Some(req) = params.size {
+                let rw = final_rect.width > req.0;
+                let rh = final_rect.height > req.1;
+                (rw, rh, rw || rh || size_raised)
+            } else {
+                (false, false, false)
+            };
+
             if spawn_args.json {
                 let output = SpawnOutputJson {
                     window_id: win_id,
@@ -410,6 +428,8 @@ pub async fn run_spawn(
                     w: final_rect.width,
                     h: final_rect.height,
                     size_raised,
+                    raised_w,
+                    raised_h,
                     reused_existing_window: false,
                     source: source.to_string(),
                 };
@@ -673,6 +693,8 @@ mod tests {
             w: 400,
             h: 300,
             size_raised: false,
+            raised_w: false,
+            raised_h: false,
             reused_existing_window: false,
             source: "claim".to_string(),
         };
@@ -683,23 +705,29 @@ mod tests {
         assert_eq!(json_val["w"], 400);
         assert_eq!(json_val["h"], 300);
         assert_eq!(json_val["size_raised"], false);
+        assert_eq!(json_val["raised_w"], false);
+        assert_eq!(json_val["raised_h"], false);
         assert_eq!(json_val["reused_existing_window"], false);
         assert_eq!(json_val["source"], "claim");
 
-        // 2. Success via fallback (poll)
+        // 2. Success via fallback (poll with height raised)
         let success_fallback = SpawnOutputJson {
             window_id: Some(202),
             x: 50,
             y: 50,
             w: 400,
-            h: 300,
+            h: 514,
             size_raised: true,
+            raised_w: false,
+            raised_h: true,
             reused_existing_window: false,
             source: "poll".to_string(),
         };
         let json_val: serde_json::Value = serde_json::to_value(&success_fallback).unwrap();
         assert_eq!(json_val["window_id"], 202);
         assert_eq!(json_val["size_raised"], true);
+        assert_eq!(json_val["raised_w"], false);
+        assert_eq!(json_val["raised_h"], true);
         assert_eq!(json_val["reused_existing_window"], false);
         assert_eq!(json_val["source"], "poll");
 
@@ -711,6 +739,8 @@ mod tests {
             w: 800,
             h: 600,
             size_raised: false,
+            raised_w: false,
+            raised_h: false,
             reused_existing_window: true,
             source: "poll".to_string(),
         };
@@ -731,6 +761,8 @@ mod tests {
             w: 0,
             h: 0,
             size_raised: false,
+            raised_w: false,
+            raised_h: false,
             reused_existing_window: false,
             source: "poll".to_string(),
         };

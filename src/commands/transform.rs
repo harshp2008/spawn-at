@@ -276,7 +276,14 @@ pub async fn run_transform(
         };
 
         if let Some(actual_rect) = actual_rect_opt {
-            crate::diagnostics::verify_and_report_transform(&params, actual_rect, None, false);
+            let (_raised_w, _raised_h, size_raised) = if let Some(req) = params.size {
+                let rw = actual_rect.width > req.0;
+                let rh = actual_rect.height > req.1;
+                (rw, rh, rw || rh)
+            } else {
+                (false, false, false)
+            };
+            crate::diagnostics::verify_and_report_transform(&params, actual_rect, None, size_raised);
         }
     }
 
