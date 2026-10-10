@@ -24,6 +24,9 @@ pub struct SpawnOutputJson {
     pub y: i32,
     pub w: u32,
     pub h: u32,
+    pub rel_x: i32,
+    pub rel_y: i32,
+    pub area: String,
     pub size_raised: bool,
     #[serde(default)]
     pub raised_w: bool,
@@ -118,6 +121,13 @@ pub async fn run_spawn(
             }
         }
     };
+
+    let (ref_x, ref_y) = if is_unbounded {
+        (0, 0)
+    } else {
+        (target_boundary.x, target_boundary.y)
+    };
+    let area_str = spawn_args.geometry.area.to_string();
 
     let pos_or_offset = spawn_args.geometry.pos_or_offset();
     let (pos, offset) = if spawn_args.geometry.anchor.is_some() {
@@ -280,6 +290,9 @@ pub async fn run_spawn(
             y: 0,
             w: 0,
             h: 0,
+            rel_x: 0 - ref_x,
+            rel_y: 0 - ref_y,
+            area: area_str.clone(),
             size_raised: false,
             raised_w: false,
             raised_h: false,
@@ -302,6 +315,9 @@ pub async fn run_spawn(
                 y: 0,
                 w: 0,
                 h: 0,
+                rel_x: 0 - ref_x,
+                rel_y: 0 - ref_y,
+                area: area_str.clone(),
                 size_raised: false,
                 raised_w: false,
                 raised_h: false,
@@ -413,6 +429,9 @@ pub async fn run_spawn(
                                     y,
                                     w,
                                     h,
+                                    rel_x: x - ref_x,
+                                    rel_y: y - ref_y,
+                                    area: area_str.clone(),
                                     size_raised: false,
                                     raised_w: false,
                                     raised_h: false,
@@ -486,6 +505,9 @@ pub async fn run_spawn(
                     y: final_rect.y,
                     w: final_rect.width,
                     h: final_rect.height,
+                    rel_x: final_rect.x - ref_x,
+                    rel_y: final_rect.y - ref_y,
+                    area: area_str.clone(),
                     size_raised,
                     raised_w,
                     raised_h,
@@ -759,6 +781,9 @@ mod tests {
             y: 56,
             w: 400,
             h: 300,
+            rel_x: 16,
+            rel_y: 16,
+            area: "workarea".to_string(),
             size_raised: false,
             raised_w: false,
             raised_h: false,
@@ -771,6 +796,9 @@ mod tests {
         assert_eq!(json_val["y"], 56);
         assert_eq!(json_val["w"], 400);
         assert_eq!(json_val["h"], 300);
+        assert_eq!(json_val["rel_x"], 16);
+        assert_eq!(json_val["rel_y"], 16);
+        assert_eq!(json_val["area"], "workarea");
         assert_eq!(json_val["size_raised"], false);
         assert_eq!(json_val["raised_w"], false);
         assert_eq!(json_val["raised_h"], false);
@@ -784,6 +812,9 @@ mod tests {
             y: 50,
             w: 400,
             h: 514,
+            rel_x: 50,
+            rel_y: 50,
+            area: "screen".to_string(),
             size_raised: true,
             raised_w: false,
             raised_h: true,
@@ -792,6 +823,11 @@ mod tests {
         };
         let json_val: serde_json::Value = serde_json::to_value(&success_fallback).unwrap();
         assert_eq!(json_val["window_id"], 202);
+        assert_eq!(json_val["x"], 50);
+        assert_eq!(json_val["y"], 50);
+        assert_eq!(json_val["rel_x"], 50);
+        assert_eq!(json_val["rel_y"], 50);
+        assert_eq!(json_val["area"], "screen");
         assert_eq!(json_val["size_raised"], true);
         assert_eq!(json_val["raised_w"], false);
         assert_eq!(json_val["raised_h"], true);
@@ -805,6 +841,9 @@ mod tests {
             y: 150,
             w: 800,
             h: 600,
+            rel_x: 100,
+            rel_y: 110,
+            area: "workarea".to_string(),
             size_raised: false,
             raised_w: false,
             raised_h: false,
@@ -817,6 +856,9 @@ mod tests {
         assert_eq!(json_val["y"], 150);
         assert_eq!(json_val["w"], 800);
         assert_eq!(json_val["h"], 600);
+        assert_eq!(json_val["rel_x"], 100);
+        assert_eq!(json_val["rel_y"], 110);
+        assert_eq!(json_val["area"], "workarea");
         assert_eq!(json_val["reused_existing_window"], true);
         assert_eq!(json_val["source"], "poll");
 
@@ -827,6 +869,9 @@ mod tests {
             y: 0,
             w: 0,
             h: 0,
+            rel_x: 0,
+            rel_y: -40,
+            area: "workarea".to_string(),
             size_raised: false,
             raised_w: false,
             raised_h: false,
@@ -839,6 +884,9 @@ mod tests {
         assert_eq!(json_val["y"], 0);
         assert_eq!(json_val["w"], 0);
         assert_eq!(json_val["h"], 0);
+        assert_eq!(json_val["rel_x"], 0);
+        assert_eq!(json_val["rel_y"], -40);
+        assert_eq!(json_val["area"], "workarea");
         assert_eq!(json_val["reused_existing_window"], false);
         assert_eq!(json_val["source"], "poll");
     }
