@@ -217,10 +217,12 @@ impl WindowTracker {
     /// Never touches any pre-existing window.
     pub fn cleanup_test_windows(&mut self, bin_path: &Path) -> Result<Vec<u64>, String> {
         let failed = self.cleanup_with_closer(|id| {
-            let res = Command::new(bin_path)
-                .args(["close", "--id", &id.to_string()])
-                .output();
-            matches!(res, Ok(out) if out.status.success())
+            let mut cmd = Command::new(bin_path);
+            cmd.args(["close", "--id", &id.to_string()]);
+            match crate::process::execute_with_timeout(cmd, std::time::Duration::from_secs(5)) {
+                Ok(out) => out.exit_code == Some(0),
+                Err(_) => false,
+            }
         });
         Ok(failed)
     }
@@ -244,12 +246,12 @@ impl WindowTracker {
 
 /// Helper to query structured window records from `spawn-at query windows --json`.
 pub fn query_window_records(bin_path: &Path) -> Result<Vec<WindowRecord>, String> {
-    let output = Command::new(bin_path)
-        .args(["query", "windows", "--json"])
-        .output()
+    let mut cmd = Command::new(bin_path);
+    cmd.args(["query", "windows", "--json"]);
+    let output = crate::process::execute_with_timeout(cmd, std::time::Duration::from_secs(5))
         .map_err(|e| format!("Failed to run 'query windows --json': {}", e))?;
 
-    if !output.status.success() {
+    if output.exit_code != Some(0) {
         return Ok(Vec::new());
     }
 

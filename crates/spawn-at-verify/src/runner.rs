@@ -141,6 +141,8 @@ pub struct RunOptions {
     pub repeat: usize,
     pub filter: TestFilter,
     pub include_titles: bool,
+    pub step_timeout: std::time::Duration,
+    pub test_timeout: std::time::Duration,
 }
 
 impl Default for RunOptions {
@@ -152,6 +154,8 @@ impl Default for RunOptions {
             repeat: 1,
             filter: TestFilter::default(),
             include_titles: false,
+            step_timeout: std::time::Duration::from_secs(5),
+            test_timeout: std::time::Duration::from_secs(10),
         }
     }
 }
@@ -434,7 +438,7 @@ impl TestRunner {
             .into_iter()
             .collect();
 
-        let output_res = cmd.output();
+        let output_res = crate::process::execute_with_timeout(cmd, self.options.step_timeout);
         let duration_ms = start.elapsed().as_millis() as u64;
         let end_secs = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -470,7 +474,7 @@ impl TestRunner {
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let exit_code = output.status.code().unwrap_or(-1);
+        let exit_code = output.exit_code.unwrap_or(-1);
 
         // Attribute test-spawned windows strictly belonging to this test.
         // It must come only from that test's own spawn (the window id from the SpawnClaimed

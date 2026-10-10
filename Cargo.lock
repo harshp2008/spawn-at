@@ -974,6 +974,7 @@ name = "spawn-at-verify"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "libc",
  "regex",
  "serde",
  "serde_json",

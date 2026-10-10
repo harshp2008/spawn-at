@@ -331,6 +331,7 @@ fn main() {
                     repeat: args.repeat,
                     filter,
                     include_titles: args.include_titles,
+                    ..Default::default()
                 },
             );
 
