@@ -359,7 +359,17 @@ mod tests {
                 ..Default::default()
             })
             .unwrap();
-        assert!(filtered_comb.len() >= 5); // bottom-right + delayed-paint matrix
+        assert_eq!(filtered_comb.len(), 1); // bottom-right
+        assert_eq!(filtered_comb[0].id, "placement/bottom-right");
+
+        // 3. Filter Auto cases
+        let filtered_auto = reg
+            .filter(&TestFilter {
+                kind: Some(TestKind::Auto),
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(filtered_auto.len() >= 4); // delayed-paint matrix (delay-0, 50, 150, 300)
     }
 
     #[test]

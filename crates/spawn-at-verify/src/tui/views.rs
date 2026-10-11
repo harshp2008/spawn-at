@@ -1,13 +1,12 @@
-//! Ratatui Views and UI Widgets for spawn-at-verify TUI.
-
-use super::app::{FilterMode, ModalState, TuiApp};
+use super::app::{ModalState, TuiApp};
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind};
 use crate::schema::TestKind;
+use crate::trace::TraceAnalyser;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Clear, Paragraph, Row, Table, TableState, Wrap},
+    widgets::{Block, Borders, Clear, Padding, Paragraph, Row, Table, TableState, Wrap},
     Frame,
 };
 
@@ -15,18 +14,21 @@ use ratatui::{
 pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
     let area = f.area();
 
+    // 1 line top padding, 1 line bottom padding
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(if !app.fixture_exists { 4 } else { 3 }),
-            Constraint::Min(10),
-            Constraint::Length(2),
+            Constraint::Length(1),                                       // Top padding
+            Constraint::Length(if !app.fixture_exists { 2 } else { 1 }), // Header line (+ banner if fixture missing)
+            Constraint::Min(8),                                          // Content panels
+            Constraint::Length(1),                                       // Command bar
+            Constraint::Length(1),                                       // Bottom padding
         ])
         .split(area);
 
-    draw_header(f, app, chunks[0]);
-    draw_body(f, app, chunks[1]);
-    draw_footer(f, app, chunks[2]);
+    draw_header(f, app, chunks[1]);
+    draw_body(f, app, chunks[2]);
+    draw_footer(f, app, chunks[3]);
 
     if let ModalState::HumanVerdict { test_id } = &app.modal {
         draw_verdict_modal(f, app, test_id, area);
@@ -36,33 +38,7 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
 fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
     let mut lines = Vec::new();
 
-    // Line 1: Title and Environment
-    let env_str = if let Some(env) = &app.env_info {
-        format!(
-            "{} ({}) | GNOME: {} | Monitors: {}",
-            env.desktop,
-            env.session_type,
-            env.gnome_version
-                .map(|v| v.to_string())
-                .unwrap_or_else(|| "N/A".into()),
-            env.monitors_count
-        )
-    } else {
-        "Session probing...".into()
-    };
-
-    lines.push(Line::from(vec![
-        Span::styled(
-            " spawn-at-verify TUI ",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Span::raw(" | "),
-        Span::styled(env_str, Style::default().fg(Color::Gray)),
-    ]));
-
-    // Line 2: Missing fixture banner OR fixture status
+    // Fixture missing banner if needed
     if !app.fixture_exists {
         lines.push(Line::from(vec![
             Span::styled(
@@ -74,44 +50,83 @@ fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
             ),
             Span::styled(
                 format!(
-                    " {} not found. Build with: `cargo build -p spawn-at-verify --bin fixture --features fixture`",
+                    " Run `cargo build -p spawn-at-verify --bin fixture --features fixture` ({})",
                     app.fixture_path.display()
                 ),
                 Style::default()
                     .fg(Color::Yellow)
-                    .bg(Color::Black)
                     .add_modifier(Modifier::BOLD),
             ),
         ]));
     }
 
-    // Line 3: Filter info
-    let filter_style = match app.filter_mode {
-        FilterMode::All => Style::default().fg(Color::White),
-        FilterMode::HumanOnly => Style::default().fg(Color::Yellow),
-        FilterMode::AutoOnly => Style::default().fg(Color::Green),
-        FilterMode::FailedOnly => Style::default().fg(Color::Red),
-    };
+    // Progress counts
+    let all_filtered = app.filtered_tests();
+    let total_count = all_filtered.len();
+    let done_count = all_filtered
+        .iter()
+        .filter(|t| {
+            app.results
+                .get(&t.id)
+                .map(|r| r.final_status != FinalStatus::Pending)
+                .unwrap_or(false)
+        })
+        .count();
+
+    let waiting_count = all_filtered
+        .iter()
+        .filter(|t| match t.kind {
+            TestKind::Human | TestKind::Both => app
+                .results
+                .get(&t.id)
+                .map(|r| r.human_verdict.verdict == HumanVerdictKind::Unset)
+                .unwrap_or(true),
+            TestKind::Auto => false,
+        })
+        .count();
+
+    let filter_label = app.filter_mode.label();
 
     lines.push(Line::from(vec![
-        Span::raw("Filter: ["),
         Span::styled(
-            app.filter_mode.label(),
-            filter_style.add_modifier(Modifier::BOLD),
+            "spawn-at verify",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
         ),
-        Span::raw("] (Press 'f' to cycle) | Showing "),
+        Span::styled(" · ", Style::default().fg(Color::DarkGray)),
+        Span::styled("Filter: ", Style::default().fg(Color::DarkGray)),
         Span::styled(
-            format!(
-                "{}/{}",
-                app.filtered_tests().len(),
-                app.registry.tests.len()
-            ),
-            Style::default().fg(Color::Cyan),
+            format!("{} (f)", filter_label),
+            Style::default()
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" tests"),
+        Span::styled(" · ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            format!("{}/{} done", done_count, total_count),
+            Style::default()
+                .fg(if done_count > 0 {
+                    Color::Green
+                } else {
+                    Color::White
+                })
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(" · ", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            format!("{} waiting for you", waiting_count),
+            Style::default()
+                .fg(if waiting_count > 0 {
+                    Color::Yellow
+                } else {
+                    Color::DarkGray
+                })
+                .add_modifier(Modifier::BOLD),
+        ),
     ]));
 
-    let header_widget = Paragraph::new(lines).block(Block::default().borders(Borders::BOTTOM));
+    let header_widget = Paragraph::new(lines);
     f.render_widget(header_widget, area);
 }
 
@@ -120,154 +135,272 @@ fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
         // Expanded full-screen detail drawer view
         draw_detail_drawer(f, app, area, true);
     } else {
-        // Standard split view: left test suite + right detail drawer
+        // Standard split view: Left test suite + Right overview panel
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
             .split(area);
 
         draw_test_table_pane(f, app, main_chunks[0]);
-        draw_detail_drawer(f, app, main_chunks[1], false);
+        draw_right_panel_default(f, app, main_chunks[1]);
     }
 }
 
 fn draw_test_table_pane(f: &mut Frame, app: &TuiApp, area: Rect) {
-    let selected_test = app.selected_test();
-    let selected_result = selected_test.and_then(|t| app.results.get(&t.id));
-    let has_failure_reason = selected_result
-        .map(|r| {
-            r.final_status == FinalStatus::Fail
-                || r.auto_status == AutoStatus::AutoFail
-                || r.message.is_some()
-        })
-        .unwrap_or(false);
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Min(8),    // Test list
+            Constraint::Length(1), // Kinds legend
+            Constraint::Length(4), // Result box
+        ])
+        .split(area);
 
-    if has_failure_reason {
-        let left_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Min(8), Constraint::Length(4)])
-            .split(area);
-
-        draw_test_table(f, app, left_chunks[0]);
-        draw_failure_summary_box(f, app, selected_result.unwrap(), left_chunks[1]);
-    } else {
-        draw_test_table(f, app, area);
-    }
+    draw_test_table(f, app, chunks[0]);
+    draw_table_legend(f, chunks[1]);
+    draw_result_box(f, app, chunks[2]);
 }
 
-fn draw_failure_summary_box(
-    f: &mut Frame,
-    _app: &TuiApp,
-    res: &crate::runner::TestResult,
-    area: Rect,
-) {
-    let reason_line = if let Some(msg) = &res.message {
-        msg.lines().next().unwrap_or(msg)
-    } else if !res.stderr.is_empty() {
-        res.stderr.lines().next().unwrap_or(&res.stderr)
+fn draw_table_legend(f: &mut Frame, area: Rect) {
+    let line = Line::from(vec![
+        Span::styled(" Kinds: ", Style::default().fg(Color::DarkGray)),
+        Span::styled("auto", Style::default().fg(Color::White)),
+        Span::styled(
+            " = verified by math & trace · ",
+            Style::default().fg(Color::DarkGray),
+        ),
+        Span::styled("you", Style::default().fg(Color::Yellow)),
+        Span::styled(
+            " = visual review only · ",
+            Style::default().fg(Color::DarkGray),
+        ),
+        Span::styled("both", Style::default().fg(Color::Cyan)),
+        Span::styled(" = auto + visual", Style::default().fg(Color::DarkGray)),
+    ]);
+    f.render_widget(Paragraph::new(line), area);
+}
+
+fn get_test_category(id: &str) -> &'static str {
+    if id.starts_with("preflight") {
+        "Preflight"
+    } else if id.starts_with("placement") {
+        "Placement"
+    } else if id.starts_with("cloak") {
+        "Cloak & Delayed Paint"
+    } else if id.starts_with("transform") {
+        "Transform"
+    } else if id.starts_with("lifecycle") {
+        "Lifecycle"
     } else {
-        "Test failed"
-    };
-
-    let p = Paragraph::new(Line::from(vec![
-        Span::styled(
-            "✖ Reason: ",
-            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-        ),
-        Span::styled(
-            reason_line,
-            Style::default()
-                .fg(Color::LightRed)
-                .add_modifier(Modifier::BOLD),
-        ),
-    ]))
-    .block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Failure Summary ")
-            .border_style(Style::default().fg(Color::Red)),
-    )
-    .wrap(Wrap { trim: true });
-
-    f.render_widget(p, area);
+        "General"
+    }
 }
 
 fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
     let filtered = app.filtered_tests();
 
-    let rows: Vec<Row> = filtered
-        .iter()
-        .enumerate()
-        .map(|(i, test)| {
-            let res = app.results.get(&test.id);
+    // Map test definitions to rows with category separator headers
+    let mut rows: Vec<Row> = Vec::new();
+    let mut selected_row_idx: Option<usize> = None;
+    let mut last_category: Option<&str> = None;
 
-            let (status_text, status_style) = if let Some(r) = res {
-                if r.disagreement {
-                    (
-                        "[DISAGREE]",
+    for (test_idx, test) in filtered.iter().enumerate() {
+        let category = get_test_category(&test.id);
+        if last_category != Some(category) {
+            last_category = Some(category);
+            let sep_text = format!(
+                "── {} ────────────────────────────────────────────────",
+                category
+            );
+            rows.push(
+                Row::new(vec![
+                    Span::styled(
+                        sep_text,
                         Style::default()
-                            .fg(Color::Black)
-                            .bg(Color::Yellow)
+                            .fg(Color::DarkGray)
                             .add_modifier(Modifier::BOLD),
-                    )
-                } else {
-                    match r.final_status {
-                        FinalStatus::Pass => (
-                            "[PASS]",
+                    ),
+                    Span::raw(""),
+                    Span::raw(""),
+                    Span::raw(""),
+                ])
+                .style(Style::default().fg(Color::DarkGray)),
+            );
+        }
+
+        if test_idx == app.selected_index {
+            selected_row_idx = Some(rows.len());
+        }
+
+        let res = app.results.get(&test.id);
+
+        let status_span = match res {
+            None => Span::styled("● not run", Style::default().fg(Color::DarkGray)),
+            Some(r) => match test.kind {
+                TestKind::Auto => {
+                    let is_warn = r
+                        .message
+                        .as_deref()
+                        .map(|m| m.contains("Preflight warning"))
+                        .unwrap_or(false);
+                    if is_warn {
+                        Span::styled(
+                            "! warn",
                             Style::default()
-                                .fg(Color::Green)
+                                .fg(Color::Yellow)
                                 .add_modifier(Modifier::BOLD),
-                        ),
-                        FinalStatus::Fail => (
-                            "[FAIL]",
-                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                        ),
-                        FinalStatus::Skipped => ("[SKIP]", Style::default().fg(Color::Yellow)),
-                        FinalStatus::Blocked => ("[BLOCK]", Style::default().fg(Color::DarkGray)),
-                        FinalStatus::Error => (
-                            "[ERROR]",
-                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                        ),
-                        FinalStatus::Flaky => (
-                            "[FLKY]",
-                            Style::default()
-                                .fg(Color::Magenta)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        FinalStatus::Pending => ("[PEND]", Style::default().fg(Color::DarkGray)),
+                        )
+                    } else {
+                        match r.auto_status {
+                            AutoStatus::AutoPass => Span::styled(
+                                "✔ pass",
+                                Style::default()
+                                    .fg(Color::Green)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                            AutoStatus::AutoFail => Span::styled(
+                                "✖ fail",
+                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                            ),
+                            AutoStatus::Skipped => {
+                                Span::styled("⊘ skip", Style::default().fg(Color::DarkGray))
+                            }
+                            AutoStatus::Error => Span::styled(
+                                "✖ error",
+                                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                            ),
+                            AutoStatus::Blocked => {
+                                Span::styled("⊘ blocked", Style::default().fg(Color::DarkGray))
+                            }
+                            AutoStatus::Pending => {
+                                Span::styled("● not run", Style::default().fg(Color::DarkGray))
+                            }
+                            AutoStatus::Running => {
+                                Span::styled("⏳ running", Style::default().fg(Color::Cyan))
+                            }
+                        }
                     }
                 }
-            } else {
-                ("[PEND]", Style::default().fg(Color::DarkGray))
-            };
+                TestKind::Both => {
+                    let auto_char = match r.auto_status {
+                        AutoStatus::AutoPass => "✔",
+                        AutoStatus::AutoFail => "✖",
+                        _ => "●",
+                    };
+                    let human_str = match r.human_verdict.verdict {
+                        HumanVerdictKind::Unset => {
+                            if app.waiting_for_human.as_deref() == Some(&test.id) {
+                                "?"
+                            } else {
+                                "pending"
+                            }
+                        }
+                        HumanVerdictKind::Pass => "✔",
+                        HumanVerdictKind::Fail => "✖",
+                        HumanVerdictKind::Skip => "⊘",
+                        HumanVerdictKind::Flaky => "!",
+                    };
 
-            let kind_str = match test.kind {
-                TestKind::Auto => "auto",
-                TestKind::Human => "human",
-                TestKind::Both => "both",
-            };
+                    let auto_style = if r.auto_status == AutoStatus::AutoPass {
+                        Style::default().fg(Color::Green)
+                    } else if r.auto_status == AutoStatus::AutoFail {
+                        Style::default().fg(Color::Red)
+                    } else {
+                        Style::default().fg(Color::DarkGray)
+                    };
 
-            let req_str = if test.required { "req" } else { "-" };
+                    let human_style = match r.human_verdict.verdict {
+                        HumanVerdictKind::Pass => Style::default().fg(Color::Green),
+                        HumanVerdictKind::Fail => Style::default().fg(Color::Red),
+                        HumanVerdictKind::Skip => Style::default().fg(Color::DarkGray),
+                        _ => {
+                            if app.waiting_for_human.as_deref() == Some(&test.id) {
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD)
+                            } else {
+                                Style::default().fg(Color::Yellow)
+                            }
+                        }
+                    };
 
-            let cursor = if i == app.selected_index { ">" } else { " " };
+                    Span::styled(
+                        format!("auto {} | you: {}", auto_char, human_str),
+                        if r.human_verdict.verdict == HumanVerdictKind::Unset {
+                            human_style
+                        } else {
+                            auto_style
+                        },
+                    )
+                }
+                TestKind::Human => match r.human_verdict.verdict {
+                    HumanVerdictKind::Pass => Span::styled(
+                        "✔ pass",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    HumanVerdictKind::Fail => Span::styled(
+                        "✖ fail",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    HumanVerdictKind::Skip => {
+                        Span::styled("⊘ skip", Style::default().fg(Color::DarkGray))
+                    }
+                    HumanVerdictKind::Flaky => {
+                        Span::styled("! flaky", Style::default().fg(Color::Magenta))
+                    }
+                    HumanVerdictKind::Unset => {
+                        if app.waiting_for_human.as_deref() == Some(&test.id) {
+                            Span::styled(
+                                "? waiting for you",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            )
+                        } else {
+                            Span::styled("● pending", Style::default().fg(Color::Yellow))
+                        }
+                    }
+                },
+            },
+        };
 
-            Row::new(vec![
-                Span::styled(format!("{} {}", cursor, status_text), status_style),
-                Span::raw(&test.id),
-                Span::raw(kind_str),
-                Span::raw(req_str),
-            ])
-        })
-        .collect();
+        let kind_span = match test.kind {
+            TestKind::Auto => Span::styled("auto", Style::default().fg(Color::DarkGray)),
+            TestKind::Human => Span::styled("you", Style::default().fg(Color::Yellow)),
+            TestKind::Both => Span::styled("both", Style::default().fg(Color::Cyan)),
+        };
+
+        let cursor = if test_idx == app.selected_index {
+            ">"
+        } else {
+            " "
+        };
+
+        rows.push(Row::new(vec![
+            status_span,
+            Span::styled(
+                format!("{} {}", cursor, test.id),
+                if test_idx == app.selected_index {
+                    Style::default().add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                },
+            ),
+            kind_span,
+            Span::raw(&test.title),
+        ]));
+    }
 
     let widths = [
-        Constraint::Length(13),
-        Constraint::Min(25),
-        Constraint::Length(8),
-        Constraint::Length(5),
+        Constraint::Length(20), // Status
+        Constraint::Min(26),    // Test ID
+        Constraint::Length(6),  // Kind
+        Constraint::Min(22),    // Title
     ];
 
-    let header_row = Row::new(vec!["Status", "Test ID", "Kind", "Req"])
+    let header_row = Row::new(vec!["Status", "Test ID", "Kind", "Title"])
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -280,7 +413,8 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Test Suite ([Enter/d] Details) "),
+                .title(" Test Suite ")
+                .padding(Padding::horizontal(1)),
         )
         .row_highlight_style(
             Style::default()
@@ -289,11 +423,433 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
         );
 
     let mut state = TableState::default();
-    if !filtered.is_empty() {
-        state.select(Some(app.selected_index.min(filtered.len() - 1)));
+    if let Some(r_idx) = selected_row_idx {
+        state.select(Some(r_idx));
     }
 
     f.render_stateful_widget(table, area, &mut state);
+}
+
+fn draw_result_box(f: &mut Frame, app: &TuiApp, area: Rect) {
+    let test_opt = app.selected_test();
+    let res_opt = test_opt.and_then(|t| app.results.get(&t.id));
+
+    let mut lines = Vec::new();
+
+    if let (Some(test), Some(res)) = (test_opt, res_opt) {
+        // Auto status line
+        match res.auto_status {
+            AutoStatus::AutoPass => {
+                let is_dirty_warn = res
+                    .message
+                    .as_deref()
+                    .map(|m| m.contains("Preflight warning"))
+                    .unwrap_or(false);
+
+                if is_dirty_warn {
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            "! Auto: WARN ",
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            res.message.as_deref().unwrap_or("Warning detected"),
+                            Style::default().fg(Color::Yellow),
+                        ),
+                    ]));
+                } else {
+                    let mut timing_info = String::new();
+                    if let Some(slice) = &res.log_slice {
+                        let report = TraceAnalyser::new().analyse(slice);
+                        if let Some(ms) = report.cloak_duration_ms {
+                            timing_info =
+                                format!(" (cloak: {:.1}ms, budget: 100ms) · Trace: PASS", ms);
+                        } else if report.is_pass() {
+                            timing_info = " · Trace: 0 violations, PASS".into();
+                        }
+                    }
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            "✔ Auto: PASS",
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(timing_info, Style::default().fg(Color::White)),
+                    ]));
+                }
+            }
+            AutoStatus::AutoFail => {
+                let reason = res.message.as_deref().unwrap_or("Verification failed");
+                lines.push(Line::from(vec![
+                    Span::styled(
+                        "✖ Auto: FAIL - ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(reason, Style::default().fg(Color::LightRed)),
+                ]));
+            }
+            AutoStatus::Skipped => {
+                lines.push(Line::from(vec![
+                    Span::styled("⊘ Auto: SKIPPED - ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        res.message.as_deref().unwrap_or("Skipped requirements"),
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]));
+            }
+            AutoStatus::Error => {
+                lines.push(Line::from(vec![
+                    Span::styled(
+                        "✖ Auto: ERROR - ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        res.message.as_deref().unwrap_or("Harness execution error"),
+                        Style::default().fg(Color::LightRed),
+                    ),
+                ]));
+            }
+            AutoStatus::Blocked => {
+                lines.push(Line::from(vec![
+                    Span::styled("⊘ Auto: BLOCKED - ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        res.message.as_deref().unwrap_or("Blocked by preflight"),
+                        Style::default().fg(Color::Gray),
+                    ),
+                ]));
+            }
+            AutoStatus::Pending => {
+                lines.push(Line::styled(
+                    "● Auto: Not executed yet",
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+            AutoStatus::Running => {
+                lines.push(Line::styled(
+                    "⏳ Auto: Running assertions...",
+                    Style::default().fg(Color::Cyan),
+                ));
+            }
+        }
+
+        // Human status line (if relevant)
+        if test.kind == TestKind::Human || test.kind == TestKind::Both {
+            match res.human_verdict.verdict {
+                HumanVerdictKind::Unset => {
+                    if app.waiting_for_human.as_deref() == Some(&test.id) {
+                        lines.push(Line::from(vec![
+                            Span::styled(
+                                "? Visual Review: ",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                            Span::styled(
+                                "Waiting for you! Press 'p' (Pass), 'f' (Fail), 's' (Skip)",
+                                Style::default()
+                                    .fg(Color::White)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                        ]));
+                    } else {
+                        lines.push(Line::styled(
+                            "? Visual Review: Pending execution",
+                            Style::default().fg(Color::Yellow),
+                        ));
+                    }
+                }
+                HumanVerdictKind::Pass => {
+                    lines.push(Line::styled(
+                        "✔ Visual Review: PASS",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ));
+                }
+                HumanVerdictKind::Fail => {
+                    lines.push(Line::styled(
+                        "✖ Visual Review: FAIL",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ));
+                }
+                HumanVerdictKind::Skip => {
+                    lines.push(Line::styled(
+                        "⊘ Visual Review: SKIPPED",
+                        Style::default().fg(Color::DarkGray),
+                    ));
+                }
+                HumanVerdictKind::Flaky => {
+                    lines.push(Line::styled(
+                        "! Visual Review: FLAKY",
+                        Style::default().fg(Color::Magenta),
+                    ));
+                }
+            }
+        }
+    } else {
+        lines.push(Line::styled(
+            "● Not run yet. Select test and press 'r' to execute or 'a' to run all.",
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+
+    let border_color = if let Some(res) = res_opt {
+        if res.final_status == FinalStatus::Fail
+            || res.auto_status == AutoStatus::AutoFail
+            || res.final_status == FinalStatus::Error
+        {
+            Color::Red
+        } else if res.final_status == FinalStatus::Pass || res.auto_status == AutoStatus::AutoPass {
+            Color::Green
+        } else if app.waiting_for_human.is_some() {
+            Color::Yellow
+        } else {
+            Color::DarkGray
+        }
+    } else {
+        Color::DarkGray
+    };
+
+    let p = Paragraph::new(lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Result ")
+                .border_style(Style::default().fg(border_color))
+                .padding(Padding::horizontal(1)),
+        )
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(p, area);
+}
+
+fn draw_right_panel_default(f: &mut Frame, app: &TuiApp, area: Rect) {
+    let test_opt = app.selected_test();
+
+    let mut lines = Vec::new();
+
+    if let Some(test) = test_opt {
+        let res_opt = app.results.get(&test.id);
+
+        // Plain-language title
+        lines.push(Line::styled(
+            &test.title,
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+
+        // ID and Kind
+        let kind_str = match test.kind {
+            TestKind::Auto => "auto (fully verified by math & trace)",
+            TestKind::Human => "you (visual inspection required)",
+            TestKind::Both => "both (auto checks + visual review)",
+        };
+        lines.push(Line::from(vec![
+            Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(&test.id, Style::default().fg(Color::White)),
+            Span::styled(" · Kind: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(kind_str, Style::default().fg(Color::Gray)),
+        ]));
+
+        // Description
+        for desc_line in test.description.lines() {
+            lines.push(Line::styled(desc_line, Style::default().fg(Color::Gray)));
+        }
+        lines.push(Line::raw(""));
+
+        // What to look for
+        lines.push(Line::styled(
+            "What to look for:",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+        if let Some(human) = &test.human {
+            for watch_line in human.watch.lines() {
+                lines.push(Line::from(vec![
+                    Span::styled("• ", Style::default().fg(Color::Yellow)),
+                    Span::styled(
+                        watch_line,
+                        Style::default()
+                            .fg(Color::White)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]));
+            }
+        } else {
+            lines.push(Line::styled(
+                "• Window cold-starts with zero visual flicker; cloaked at frame 0 and revealed only when sized and placed.",
+                Style::default().fg(Color::White),
+            ));
+        }
+        lines.push(Line::raw(""));
+
+        // Outcome Summary
+        lines.push(Line::styled(
+            "Outcome Summary:",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+        if let Some(res) = res_opt {
+            let auto_label = match res.auto_status {
+                AutoStatus::AutoPass => Span::styled(
+                    "PASS",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                AutoStatus::AutoFail => Span::styled(
+                    "FAIL",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                AutoStatus::Skipped => {
+                    Span::styled("SKIPPED", Style::default().fg(Color::DarkGray))
+                }
+                AutoStatus::Error => Span::styled("ERROR", Style::default().fg(Color::Red)),
+                AutoStatus::Blocked => {
+                    Span::styled("BLOCKED", Style::default().fg(Color::DarkGray))
+                }
+                AutoStatus::Pending => Span::styled("PENDING", Style::default().fg(Color::Yellow)),
+                AutoStatus::Running => Span::styled("RUNNING", Style::default().fg(Color::Cyan)),
+            };
+            lines.push(Line::from(vec![
+                Span::styled("• Auto assertions: ", Style::default().fg(Color::Gray)),
+                auto_label,
+                Span::styled(
+                    format!(" ({} ms)", res.duration_ms),
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]));
+
+            if let Some(msg) = &res.message {
+                for msg_line in msg.lines() {
+                    lines.push(Line::from(vec![
+                        Span::styled("• Detail: ", Style::default().fg(Color::Gray)),
+                        Span::styled(msg_line, Style::default().fg(Color::LightRed)),
+                    ]));
+                }
+            }
+
+            if let Some(slice) = &res.log_slice {
+                let report = TraceAnalyser::new().analyse(slice);
+                if let Some(ms) = report.cloak_duration_ms {
+                    lines.push(Line::from(vec![
+                        Span::styled("• Cloak duration: ", Style::default().fg(Color::Gray)),
+                        Span::styled(
+                            format!("{:.1} ms", ms),
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            " (provisional budget: 100 ms)",
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                    ]));
+                }
+                lines.push(Line::from(vec![
+                    Span::styled("• Trace diagnostics: ", Style::default().fg(Color::Gray)),
+                    Span::styled(
+                        if report.is_pass() {
+                            "0 violations recorded"
+                        } else {
+                            "Violations detected"
+                        },
+                        Style::default().fg(if report.is_pass() {
+                            Color::Green
+                        } else {
+                            Color::Red
+                        }),
+                    ),
+                ]));
+            }
+        } else {
+            lines.push(Line::styled(
+                "• Not executed yet",
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+    } else {
+        lines.push(Line::styled(
+            "No test selected",
+            Style::default().fg(Color::DarkGray),
+        ));
+    }
+
+    // Clipping check (Item 14 & 16)
+    let available_height = area.height.saturating_sub(2) as usize;
+    let inner_width = area.width.saturating_sub(4).max(1) as usize;
+
+    let mut total_visual_rows = 0;
+    for line in &lines {
+        let len: usize = line.spans.iter().map(|s| s.content.chars().count()).sum();
+        let rows = if len == 0 {
+            1
+        } else {
+            len.div_ceil(inner_width)
+        };
+        total_visual_rows += rows;
+    }
+
+    let is_clipped = total_visual_rows > available_height;
+
+    let final_lines: Vec<Line> = if is_clipped && available_height > 2 {
+        let hint_rows = if 46 <= inner_width { 2 } else { 3 };
+        let max_rows = available_height.saturating_sub(hint_rows + 2);
+        let mut truncated = Vec::new();
+        let mut cur_rows = 0;
+        for line in lines {
+            let len: usize = line.spans.iter().map(|s| s.content.chars().count()).sum();
+            let rows = if len == 0 {
+                1
+            } else {
+                len.div_ceil(inner_width)
+            };
+            if cur_rows + rows > max_rows {
+                break;
+            }
+            cur_rows += rows;
+            truncated.push(line);
+        }
+        truncated.push(Line::from(vec![Span::styled(
+            "▼ more: press Enter or d to expand details/logs",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
+        truncated
+    } else {
+        let mut padded = lines;
+        if total_visual_rows + 2 <= available_height {
+            padded.push(Line::raw(""));
+            padded.push(Line::styled(
+                "Press Enter or d for full details, oracle diff & trace logs",
+                Style::default().fg(Color::DarkGray),
+            ));
+        } else if total_visual_rows < available_height {
+            padded.push(Line::styled(
+                "Press Enter or d for full details, oracle diff & trace logs",
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+        padded
+    };
+
+    let p = Paragraph::new(final_lines)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Test Overview ")
+                .padding(Padding::horizontal(1)),
+        )
+        .wrap(Wrap { trim: true });
+
+    f.render_widget(p, area);
 }
 
 fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool) {
@@ -333,7 +889,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
             }
         }
 
-        // 2. ORACLE EXPECTED VS ACTUAL GEOMETRY
+        // 2. GEOMETRIC ORACLE EXPECTED VS ACTUAL
         lines.push(Line::styled(
             "--- 1. Geometric Oracle Comparison ---",
             Style::default()
@@ -389,7 +945,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
         }
         lines.push(Line::raw(""));
 
-        // 3. TRACE VIOLATIONS / WARNINGS
+        // 3. TRACE DIAGNOSTICS & TIMELINE
         lines.push(Line::styled(
             "--- 2. Compositor Actor Trace Diagnostics ---",
             Style::default()
@@ -398,17 +954,8 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
         ));
         if let Some(res) = res_opt {
             if let Some(slice) = &res.log_slice {
-                let violations: Vec<&str> = slice
-                    .lines()
-                    .filter(|l| {
-                        l.contains("VIOLATION")
-                            || l.contains("WARNING")
-                            || l.contains("REJECT")
-                            || l.contains("WATCHDOG")
-                    })
-                    .collect();
-
-                if violations.is_empty() {
+                let report = TraceAnalyser::new().analyse(slice);
+                if report.is_pass() {
                     lines.push(Line::from(vec![
                         Span::styled("✓ Trace Clean: ", Style::default().fg(Color::Green)),
                         Span::raw(
@@ -416,18 +963,26 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
                         ),
                     ]));
                 } else {
-                    for v in violations {
+                    for v in &report.violations {
                         lines.push(Line::styled(
-                            format!("  ⚠ {}", v),
+                            format!("  ⚠ {:?}: {}", v.kind, v.message),
                             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                         ));
                     }
                 }
+
+                if let Some(ms) = report.cloak_duration_ms {
+                    lines.push(Line::from(format!(
+                        "Measured Cloak Duration: {:.2}ms (Provisional budget: 100ms)",
+                        ms
+                    )));
+                }
+
                 lines.push(Line::styled(
-                    "Trace Timeline (Recent Events):",
+                    "Trace Event Timeline:",
                     Style::default().fg(Color::DarkGray),
                 ));
-                for l in slice.lines().take(6) {
+                for l in slice.lines().take(12) {
                     lines.push(Line::from(format!("  {}", l)));
                 }
             } else {
@@ -451,7 +1006,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
                     "Stderr Output:",
                     Style::default().fg(Color::LightRed),
                 ));
-                for line in res.stderr.lines().take(10) {
+                for line in res.stderr.lines().take(12) {
                     lines.push(Line::from(format!("  {}", line)));
                 }
             } else {
@@ -466,7 +1021,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
                     "Stdout Output:",
                     Style::default().fg(Color::DarkGray),
                 ));
-                for line in res.stdout.lines().take(5) {
+                for line in res.stdout.lines().take(6) {
                     lines.push(Line::from(format!("  {}", line)));
                 }
             }
@@ -475,10 +1030,10 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
         }
         lines.push(Line::raw(""));
 
-        // 5. HUMAN VISUAL REVIEW WATCH & VERDICT
+        // 5. HUMAN VISUAL REVIEW
         if let Some(human) = &test.human {
             lines.push(Line::styled(
-                "--- 4. 👁 Human Visual Review Watch ---",
+                "--- 4. Visual Review Watch Prompt ---",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
@@ -497,9 +1052,9 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
                     HumanVerdictKind::Fail => "FAIL",
                     HumanVerdictKind::Skip => "SKIP",
                     HumanVerdictKind::Flaky => "FLAKY",
-                    HumanVerdictKind::Unset => "UNSET (Press 'v' to record)",
+                    HumanVerdictKind::Unset => "PENDING",
                 })
-                .unwrap_or("UNSET (Press 'v' to record)");
+                .unwrap_or("PENDING");
 
             lines.push(Line::from(vec![
                 Span::styled("Human Verdict: ", Style::default().fg(Color::Yellow)),
@@ -508,58 +1063,31 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
             lines.push(Line::raw(""));
         }
 
-        // 6. TEST METADATA & ACTIONS
+        // 6. METADATA
         lines.push(Line::styled(
-            "--- 5. Test Metadata & Action ---",
+            "--- 5. Spec Details ---",
             Style::default()
                 .fg(Color::Blue)
                 .add_modifier(Modifier::BOLD),
         ));
         lines.push(Line::from(format!(
-            "ID: {} | Kind: {:?} | Required: {}",
-            test.id, test.kind, test.required
-        )));
-        lines.push(Line::from(format!("Title: {}", test.title)));
-        lines.push(Line::from(format!("Description: {}", test.description)));
-        if let Some(sub) = &test.subject {
-            lines.push(Line::from(format!(
-                "Subject App: {} | Args: {:?}",
-                sub.app, sub.args
-            )));
-        }
-        lines.push(Line::from(format!(
             "Action: {} {:?}",
             test.action.command, test.action.args
         )));
-        if let Some(res) = res_opt {
-            lines.push(Line::from(format!(
-                "Outcome: Final={:?}, Auto={:?}, Duration={}ms, ExitCode={:?}",
-                res.final_status, res.auto_status, res.duration_ms, res.exit_code
-            )));
-            if res.disagreement {
-                lines.push(Line::styled(
-                    "⚠ DISAGREEMENT: Automated outcome and Human visual judgment contradict!",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                ));
-            }
+        if let Some(sub) = &test.subject {
+            lines.push(Line::from(format!("Subject: {} {:?}", sub.app, sub.args)));
         }
     } else {
         lines.push(Line::raw("No test selected."));
     }
 
-    let title_suffix = if is_expanded {
-        format!(
-            " [FULL VIEW - Line: {} | Enter/d/Esc: return, j/k: scroll] ",
-            app.detail_scroll
-        )
-    } else {
-        format!(
-            " [Line: {} | Enter/d: expand, [/]: scroll] ",
-            app.detail_scroll
-        )
-    };
+    let total_lines = lines.len();
+    let current_line = (app.detail_scroll as usize + 1).min(total_lines.max(1));
 
-    let title = format!(" Test Details & Diagnostics{} ", title_suffix);
+    let title = format!(
+        " Test Details & Logs (line {}/{} · j/k scroll, Esc/Enter close) ",
+        current_line, total_lines
+    );
 
     let detail_widget = Paragraph::new(lines)
         .block(
@@ -570,7 +1098,8 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
                     Style::default().fg(Color::Cyan)
                 } else {
                     Style::default()
-                }),
+                })
+                .padding(Padding::horizontal(1)),
         )
         .scroll((app.detail_scroll, 0))
         .wrap(Wrap { trim: true });
@@ -579,15 +1108,23 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool
 }
 
 fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
-    let msg = app.status_message.as_deref().unwrap_or(
-        "[j/k] Navigate | [r] Run | [a] Run All | [v] Visual Verdict | [d/Enter] Details | [f] Filter | [q] Quit",
-    );
+    let msg = if app.waiting_for_human.is_some() {
+        "p: Pass · f: Fail · s: Skip · r: Re-run · Esc: Cancel · q: Quit"
+    } else if app.detail_drawer_open {
+        "j/k: Scroll · Esc/Enter/d: Close drawer · q: Quit"
+    } else {
+        "r: Run · a: Run all · Enter/d: Drawer · f: Filter · v: Verdict · q: Quit"
+    };
 
     let footer_widget = Paragraph::new(Line::from(vec![
-        Span::styled("Commands: ", Style::default().fg(Color::Cyan)),
-        Span::raw(msg),
-    ]))
-    .block(Block::default().borders(Borders::TOP));
+        Span::styled(
+            " Keys: ",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(msg, Style::default().fg(Color::White)),
+    ]));
 
     f.render_widget(footer_widget, area);
 }

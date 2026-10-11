@@ -1,7 +1,7 @@
 id = "cloak/delayed-paint"
-title = "Zero-flicker cold-start with delayed first paint matrix"
-description = "Tests window cold-start masking across a matrix of initial buffer presentation delays (0, 50, 150, 500 ms). Validates that the window is cloaked before map and never visible at off-target geometry."
-kind = "both"
+title = "App paints slowly ({delay} ms)"
+description = "Masks window cold-start while the app takes {delay} ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace."
+kind = "auto"
 required = true
 tags = ["visual", "needs-fixture"]
 
@@ -24,13 +24,15 @@ args = [
     "--app-id", "verify.cloak.delayedpaint",
     "--paint-delay-ms", "{delay}",
     "--width", "500",
-    "--height", "350"
+    "--height", "350",
+    "--expect", "Should appear once, centred"
 ]
 
 [action]
 command = "spawn"
 repeatable = false
 args = [
+    "--class", "verify.cloak.delayedpaint",
     "--anchor", "center",
     "--size", "500", "350",
     "--margin", "16"
@@ -50,4 +52,4 @@ margin = 16
 tolerance_px = 1
 
 [human]
-watch = "Look closely at the screen center: the window must emerge already sized at 500x350 and positioned at center. There must be zero initial flicker, center-jump, or unstyled flash in the top-left or screen origin."
+watch = "Did the window appear once, already in place, with no flash or jump?"

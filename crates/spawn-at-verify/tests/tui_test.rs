@@ -187,7 +187,7 @@ fn test_tui_headless_render_and_missing_fixture_banner() {
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
     // Verify header title
-    assert!(text.contains("spawn-at-verify TUI"));
+    assert!(text.contains("spawn-at verify"));
     // Verify clear missing fixture warning banner
     assert!(
         text.contains("FIXTURE MISSING")
@@ -272,17 +272,34 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
     let buffer = terminal.backend().buffer().clone();
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
 
-    // Verify failure summary box appears on main pane
-    assert!(text.contains("Failure Summary"));
-    assert!(text.contains("✖ Reason:"));
+    // Verify Result box appears on main pane
+    assert!(text.contains("Result"));
+    assert!(text.contains("✖ Auto: FAIL"));
     assert!(text.contains("Window mapped at (100, 200)"));
 
+    // Open detail drawer to verify drawer content ordering
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(app.detail_drawer_open);
+
+    terminal
+        .draw(|f| {
+            draw_ui(f, &app);
+        })
+        .unwrap();
+
+    let drawer_buf = terminal.backend().buffer().clone();
+    let drawer_text: String = drawer_buf
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+
     // Verify detail drawer ordering: failure reason first
-    assert!(text.contains("✖ FAILURE REASON:"));
-    assert!(text.contains("Geometric Oracle Comparison"));
-    assert!(text.contains("Actual Geometry: pos=(100, 200)"));
-    assert!(text.contains("Compositor Actor Trace Diagnostics"));
-    assert!(text.contains("VIOLATION: visible flash"));
+    assert!(drawer_text.contains("✖ FAILURE REASON:"));
+    assert!(drawer_text.contains("Geometric Oracle Comparison"));
+    assert!(drawer_text.contains("Actual Geometry: pos=(100, 200)"));
+    assert!(drawer_text.contains("Compositor Actor Trace Diagnostics"));
+    assert!(drawer_text.contains("VIOLATION: visible flash"));
 }
 
 #[test]
@@ -301,4 +318,246 @@ fn test_logging_state_parser() {
     assert_eq!(parse_logging_state_from_content(sample_on), Some(true));
 
     assert_eq!(parse_logging_state_from_content("no logging line"), None);
+}
+
+#[test]
+fn test_queue_pauses_on_human_case_and_resumes_only_after_verdict() {
+    let mut app = create_test_app();
+
+    // Verify placement/bottom-right is present and kind Both
+    let bottom_right = app
+        .registry
+        .get_test("placement/bottom-right")
+        .expect("placement/bottom-right must exist")
+        .clone();
+    assert_eq!(bottom_right.kind, TestKind::Both);
+
+    // Enqueue an auto test, then the human/both test, then another test
+    app.queue.clear();
+    app.queue.push_back("preflight/binary-head".into());
+    app.queue.push_back("placement/bottom-right".into());
+    app.queue.push_back("cloak/delayed-paint/delay-0".into());
+
+    assert_eq!(app.queue.len(), 3);
+    assert!(app.waiting_for_human.is_none());
+
+    // Start processing queue
+    app.process_queue_step();
+
+    // The queue should have executed preflight/binary-head (Auto),
+    // then executed placement/bottom-right, and PAUSED because bottom-right is TestKind::Both!
+    assert_eq!(
+        app.waiting_for_human,
+        Some("placement/bottom-right".to_string()),
+        "Queue must pause on human/both test"
+    );
+    assert_eq!(
+        app.queue.len(),
+        1,
+        "Remaining auto test must stay in queue while waiting for human verdict"
+    );
+    assert_eq!(app.queue.front().unwrap(), "cloak/delayed-paint/delay-0");
+
+    // Stepping the queue while waiting for human verdict must be a no-op (remains paused)
+    app.process_queue_step();
+    assert_eq!(
+        app.waiting_for_human,
+        Some("placement/bottom-right".to_string())
+    );
+    assert_eq!(app.queue.len(), 1);
+
+    // User dispatches verdict key 'p' (Pass)
+    app.handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE));
+
+    // Waiting flag must be cleared and queue should resume and finish
+    assert!(
+        app.waiting_for_human.is_none(),
+        "Verdict must clear waiting_for_human"
+    );
+    assert!(
+        app.queue.is_empty(),
+        "Queue should resume and process remaining tests to completion"
+    );
+
+    let br_res = app
+        .results
+        .get("placement/bottom-right")
+        .expect("Result must exist for bottom-right");
+    assert_eq!(br_res.human_verdict.verdict, HumanVerdictKind::Pass);
+}
+
+#[test]
+fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    // Set multi-line description on selected test to guarantee overflow in 80x24 terminal
+    let mut long_desc = String::new();
+    for i in 1..=25 {
+        long_desc.push_str(&format!("Detailed behavioral description line {}\n", i));
+    }
+    app.registry.tests[app.selected_index].description = long_desc;
+
+    let overflow_result = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoFail,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Fail,
+        disagreement: false,
+        duration_ms: 120,
+        exit_code: Some(1),
+        stdout: "Standard output captured from run\n".into(),
+        stderr: "Standard error output with diagnostic notes\n".into(),
+        message: Some("Assertions failed: geometry mismatch on placement test".into()),
+        log_slice: Some(
+            "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.50ms | UNCLOAK\n[spawn-at-time] +9.00ms | VIOLATION: visible flicker\n[spawn-at-time] +10.00ms | WATCHDOG: frame timeout"
+                .into(),
+        ),
+    };
+    app.results.insert(test.id.clone(), overflow_result);
+
+    let backend = TestBackend::new(80, 24);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|f| {
+            draw_ui(f, &app);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+    // In 80x24, right panel content overflows and MUST show the clipping hint (Item 14 & 16)
+    assert!(
+        text.contains("more: press Enter or d"),
+        "Buffer at 80x24 must show clipping hint when content overflows"
+    );
+    assert!(
+        text.contains("expand details/logs") || text.contains("expand details"),
+        "Buffer at 80x24 must show expand details action"
+    );
+
+    // Open detail drawer with Enter key
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(app.detail_drawer_open);
+
+    terminal
+        .draw(|f| {
+            draw_ui(f, &app);
+        })
+        .unwrap();
+
+    let drawer_buffer = terminal.backend().buffer().clone();
+    let drawer_text: String = drawer_buffer
+        .content()
+        .iter()
+        .map(|cell| cell.symbol())
+        .collect();
+
+    // Drawer must show scroll hints and key controls
+    assert!(
+        drawer_text.contains("j/k scroll, Esc/Enter close"),
+        "Drawer must show scroll hints and close keys"
+    );
+}
+
+#[test]
+fn test_render_snapshots() {
+    fn dump_buffer(terminal: &Terminal<TestBackend>, width: u16, height: u16) -> String {
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..height {
+            let mut line = String::new();
+            for x in 0..width {
+                line.push_str(buf[(x, y)].symbol());
+            }
+            out.push_str(&line);
+            out.push('\n');
+        }
+        out
+    }
+
+    let width = 100;
+    let height = 26;
+
+    // 1. Idle State
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+    let backend = TestBackend::new(width, height);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let idle_snapshot = dump_buffer(&terminal, width, height);
+
+    // 2. Waiting-for-verdict State
+    let mut wait_app = create_test_app();
+    wait_app.fixture_exists = true;
+    if let Some(pos) = wait_app
+        .filtered_tests()
+        .iter()
+        .position(|t| t.id == "placement/bottom-right")
+    {
+        wait_app.selected_index = pos;
+    }
+    wait_app.waiting_for_human = Some("placement/bottom-right".to_string());
+    wait_app.status_message = Some("Waiting for your verdict on 'placement/bottom-right'".into());
+    let wait_res = spawn_at_verify::runner::TestResult {
+        id: "placement/bottom-right".into(),
+        title: "Window placed in bottom-right corner".into(),
+        kind: TestKind::Both,
+        required: true,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Pending,
+        disagreement: false,
+        duration_ms: 185,
+        exit_code: Some(0),
+        stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+        stderr: String::new(),
+        message: Some("Assertions passed".into()),
+        log_slice: Some(
+            "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
+        ),
+    };
+    wait_app
+        .results
+        .insert("placement/bottom-right".into(), wait_res);
+    let mut wait_term = Terminal::new(TestBackend::new(width, height)).unwrap();
+    wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
+    let waiting_snapshot = dump_buffer(&wait_term, width, height);
+
+    // 3. Failure State
+    let mut fail_app = create_test_app();
+    fail_app.fixture_exists = true;
+    let fail_test = fail_app.selected_test().unwrap().clone();
+    let fail_res = spawn_at_verify::runner::TestResult {
+        id: fail_test.id.clone(),
+        title: fail_test.title.clone(),
+        kind: fail_test.kind,
+        required: fail_test.required,
+        auto_status: AutoStatus::AutoFail,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Fail,
+        disagreement: false,
+        duration_ms: 94,
+        exit_code: Some(1),
+        stdout: r#"{"window_id":870905,"x":1200,"y":600,"w":400,"h":300}"#.into(),
+        stderr: "[spawn-at] ERROR: Geometric target mismatch".into(),
+        message: Some("Window mapped at (1200, 600) but expected (1504, 764)".into()),
+        log_slice: Some("[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.20ms | VIOLATION: visible flicker\n[spawn-at-time] +9.50ms | UNCLOAK".into()),
+    };
+    fail_app.results.insert(fail_test.id.clone(), fail_res);
+    let mut fail_term = Terminal::new(TestBackend::new(width, height)).unwrap();
+    fail_term.draw(|f| draw_ui(f, &fail_app)).unwrap();
+    let fail_snapshot = dump_buffer(&fail_term, width, height);
+    assert!(idle_snapshot.contains("spawn-at verify"));
+    assert!(idle_snapshot.contains("r: Run · a: Run all"));
+
+    assert!(waiting_snapshot.contains("1 waiting for you"));
+    assert!(waiting_snapshot.contains("p: Pass · f: Fail"));
+
+    assert!(fail_snapshot.contains("✖ Auto: FAIL"));
 }

@@ -10,7 +10,7 @@ use crate::runner::{
 use crate::schema::{TestDefinition, TestKind};
 use crate::tracker::WindowTracker;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +64,9 @@ pub struct TuiApp {
     pub should_quit: bool,
     pub detail_scroll: u16,
     pub detail_drawer_open: bool,
+    pub queue: VecDeque<String>,
+    pub waiting_for_human: Option<String>,
+    pub terminal_window_id: Option<u64>,
 }
 
 impl TuiApp {
@@ -83,6 +86,27 @@ impl TuiApp {
         let tracker = WindowTracker::snapshot_startup(&bin_path)
             .unwrap_or_else(|_| WindowTracker::new_with_preexisting(&[]));
 
+        let terminal_window_id = {
+            let mut cmd = std::process::Command::new(&bin_path);
+            cmd.args(["query", "windows", "--json"]);
+            crate::process::execute_with_timeout(cmd, std::time::Duration::from_millis(500))
+                .ok()
+                .and_then(|out| {
+                    serde_json::from_slice::<serde_json::Value>(&out.stdout)
+                        .ok()
+                        .and_then(|v| {
+                            v.as_array().and_then(|arr| {
+                                for item in arr {
+                                    if item.get("focused").and_then(|f| f.as_bool()) == Some(true) {
+                                        return item.get("id").and_then(|id| id.as_u64());
+                                    }
+                                }
+                                None
+                            })
+                        })
+                })
+        };
+
         Ok(Self {
             registry,
             selected_index: 0,
@@ -100,6 +124,9 @@ impl TuiApp {
             should_quit: false,
             detail_scroll: 0,
             detail_drawer_open: false,
+            queue: VecDeque::new(),
+            waiting_for_human: None,
+            terminal_window_id,
         })
     }
 
@@ -162,20 +189,63 @@ impl TuiApp {
         }
     }
 
+    pub fn close_test_windows(&mut self) {
+        let _ = self.tracker.cleanup_test_windows(&self.bin_path);
+        if let Some(term_id) = self.terminal_window_id {
+            let mut cmd = std::process::Command::new(&self.bin_path);
+            cmd.args(["focus", "--id", &term_id.to_string(), "--no-wait"]);
+            let _ =
+                crate::process::execute_with_timeout(cmd, std::time::Duration::from_millis(500));
+        }
+    }
+
     pub fn run_selected(&mut self) {
         if let Some(test) = self.selected_test().cloned() {
-            self.execute_test(&test);
+            self.queue.clear();
+            self.queue.push_back(test.id);
+            self.process_queue_step();
         }
     }
 
     pub fn run_all_filtered(&mut self) {
-        let tests: Vec<TestDefinition> = self.filtered_tests().into_iter().cloned().collect();
-        let total = tests.len();
-        for (i, test) in tests.iter().enumerate() {
-            self.execute_test(test);
-            self.status_message = Some(format!("Ran {}/{} tests...", i + 1, total));
+        self.queue.clear();
+        let ids: Vec<String> = self.filtered_tests().iter().map(|t| t.id.clone()).collect();
+        for id in ids {
+            self.queue.push_back(id);
         }
-        self.status_message = Some(format!("Completed all {} tests.", total));
+        self.process_queue_step();
+    }
+
+    pub fn process_queue_step(&mut self) {
+        if self.waiting_for_human.is_some() {
+            return;
+        }
+
+        while let Some(test_id) = self.queue.pop_front() {
+            if let Some(test) = self.registry.get_test(&test_id).cloned() {
+                if let Some(pos) = self.filtered_tests().iter().position(|t| t.id == test_id) {
+                    self.selected_index = pos;
+                }
+
+                self.execute_test(&test);
+
+                match test.kind {
+                    TestKind::Auto => {
+                        self.close_test_windows();
+                    }
+                    TestKind::Human | TestKind::Both => {
+                        self.waiting_for_human = Some(test.id.clone());
+                        self.status_message = Some(format!(
+                            "Waiting for your verdict on '{}': press 'p' (Pass), 'f' (Fail), 's' (Skip)",
+                            test.id
+                        ));
+                        return; // Sequential queue blocks on human cases!
+                    }
+                }
+            }
+        }
+
+        self.status_message = Some("All tests finished.".into());
     }
 
     fn execute_test(&mut self, test: &TestDefinition) {
@@ -218,8 +288,16 @@ impl TuiApp {
     }
 
     pub fn record_verdict(&mut self, verdict: HumanVerdictKind) {
-        if let ModalState::HumanVerdict { test_id } = &self.modal {
-            if let Some(test) = self.registry.get_test(test_id).cloned() {
+        let target_test_id = self.waiting_for_human.clone().or_else(|| {
+            if let ModalState::HumanVerdict { test_id } = &self.modal {
+                Some(test_id.clone())
+            } else {
+                self.selected_test().map(|t| t.id.clone())
+            }
+        });
+
+        if let Some(test_id) = target_test_id {
+            if let Some(test) = self.registry.get_test(&test_id).cloned() {
                 let mut result =
                     self.results
                         .get(&test.id)
@@ -254,7 +332,13 @@ impl TuiApp {
                     Some(format!("Recorded verdict {:?} for {}", verdict, test.id));
             }
         }
+
+        self.close_test_windows();
+        self.waiting_for_human = None;
         self.modal = ModalState::None;
+
+        // Resume queue!
+        self.process_queue_step();
     }
 
     pub fn close_modal(&mut self) {
@@ -262,13 +346,51 @@ impl TuiApp {
     }
 
     pub fn handle_key(&mut self, key: KeyEvent) {
-        // 1. Raw mode Ctrl+C backstop: always terminates immediately
+        // 1. Raw mode Ctrl+C backstop: closes test windows and terminates immediately
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {
+            self.close_test_windows();
             self.should_quit = true;
             return;
         }
 
-        // 2. Modal interactions
+        // 2. Waiting for human verdict (sequential run queue blocked on human review)
+        if self.waiting_for_human.is_some() {
+            match key.code {
+                KeyCode::Char('p') | KeyCode::Char('P') => {
+                    self.record_verdict(HumanVerdictKind::Pass);
+                }
+                KeyCode::Char('f') | KeyCode::Char('F') => {
+                    self.record_verdict(HumanVerdictKind::Fail);
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    self.record_verdict(HumanVerdictKind::Skip);
+                }
+                KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.record_verdict(HumanVerdictKind::Flaky);
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    if let Some(test_id) = self.waiting_for_human.clone() {
+                        if let Some(test) = self.registry.get_test(&test_id).cloned() {
+                            self.close_test_windows();
+                            self.execute_test(&test);
+                        }
+                    }
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    self.close_test_windows();
+                    self.should_quit = true;
+                }
+                KeyCode::Esc => {
+                    self.close_test_windows();
+                    self.waiting_for_human = None;
+                    self.status_message = Some("Visual review cancelled.".into());
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // 3. Modal interactions
         match &self.modal {
             ModalState::HumanVerdict { .. } => {
                 match key.code {
@@ -294,10 +416,11 @@ impl TuiApp {
             ModalState::None => {}
         }
 
-        // 3. Detail drawer mode keybindings (full scrollable view)
+        // 4. Detail drawer mode keybindings (full scrollable view)
         if self.detail_drawer_open {
             match key.code {
                 KeyCode::Char('q') => {
+                    self.close_test_windows();
                     self.should_quit = true;
                 }
                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
@@ -329,9 +452,10 @@ impl TuiApp {
             return;
         }
 
-        // 4. Normal view keybindings
+        // 5. Normal view keybindings
         match key.code {
             KeyCode::Char('q') => {
+                self.close_test_windows();
                 self.should_quit = true;
             }
             KeyCode::Enter | KeyCode::Char('d') => {

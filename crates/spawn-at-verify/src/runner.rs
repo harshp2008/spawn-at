@@ -373,99 +373,48 @@ impl TestRunner {
         }
 
         // Build command to execute
-        let mut cmd = Command::new(&self.options.bin_path);
-        cmd.arg(&test.action.command);
-        for arg in &test.action.args {
-            cmd.arg(arg);
-        }
+        let fixture_bin = self
+            .options
+            .bin_path
+            .parent()
+            .unwrap_or(Path::new("."))
+            .join("fixture");
 
-        // If subject is defined and action is spawn
+        // If subject is fixture, verify fixture binary exists before running
         if test.action.command == "spawn" {
             if let Some(sub) = &test.subject {
-                if sub.app == "fixture" {
-                    let fixture_bin = self
-                        .options
-                        .bin_path
-                        .parent()
-                        .unwrap_or(Path::new("."))
-                        .join("fixture");
-
-                    if !fixture_bin.exists() {
-                        let (final_status, disagreement) = resolve_final_status(
-                            test.kind,
-                            AutoStatus::Error,
-                            &HumanVerdict::default(),
-                        );
-                        return TestResult {
-                            id: test.id.clone(),
-                            title: test.title.clone(),
-                            kind: test.kind,
-                            required: test.required,
-                            auto_status: AutoStatus::Error,
-                            human_verdict: HumanVerdict::default(),
-                            final_status,
-                            disagreement,
-                            duration_ms: start.elapsed().as_millis() as u64,
-                            exit_code: None,
-                            stdout: String::new(),
-                            stderr: String::new(),
-                            message: Some(format!(
-                                "Fixture binary not found at {}; run `cargo build -p spawn-at-verify --bin fixture --features fixture`",
-                                fixture_bin.display()
-                            )),
-                            log_slice: None,
-                        };
-                    }
-
-                    if !test.action.args.contains(&"--json".to_string()) {
-                        cmd.arg("--json");
-                    }
-                    // If subject specifies a custom --app-id, pass it as --class to spawn-at
-                    // so the compositor extension arms for the fixture's exact WM_CLASS.
-                    if !test.action.args.contains(&"--class".to_string())
-                        && !test.action.args.contains(&"-c".to_string())
-                    {
-                        for pair in sub.args.windows(2) {
-                            if pair[0] == "--app-id" {
-                                cmd.arg("--class");
-                                cmd.arg(&pair[1]);
-                                break;
-                            }
-                        }
-                    }
-                    cmd.arg("--");
-                    cmd.arg(&fixture_bin);
-                    let mut has_exit_after = false;
-                    for sarg in &sub.args {
-                        if sarg == "--exit-after-ms" {
-                            has_exit_after = true;
-                        }
-                        cmd.arg(sarg);
-                    }
-                    // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
-                    // if test harness crashes or receives SIGKILL mid-execution.
-                    // For human visual review (Human/Both), allow 5 minutes (300,000ms) for observation;
-                    // for automated runs, 10,000ms comfortably outlasts the 5s test step timeout.
-                    if !has_exit_after {
-                        cmd.arg("--exit-after-ms");
-                        let timeout = match test.kind {
-                            TestKind::Human | TestKind::Both => "300000",
-                            TestKind::Auto => "10000",
-                        };
-                        cmd.arg(timeout);
-                    }
-                } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
-                    if !test.action.args.contains(&"--json".to_string()) {
-                        cmd.arg("--json");
-                    }
-                    cmd.arg("--");
-                    cmd.arg(sys_app);
-                    for sarg in &sub.args {
-                        cmd.arg(sarg);
-                    }
+                if sub.app == "fixture" && !fixture_bin.exists() {
+                    let (final_status, disagreement) = resolve_final_status(
+                        test.kind,
+                        AutoStatus::Error,
+                        &HumanVerdict::default(),
+                    );
+                    return TestResult {
+                        id: test.id.clone(),
+                        title: test.title.clone(),
+                        kind: test.kind,
+                        required: test.required,
+                        auto_status: AutoStatus::Error,
+                        human_verdict: HumanVerdict::default(),
+                        final_status,
+                        disagreement,
+                        duration_ms: start.elapsed().as_millis() as u64,
+                        exit_code: None,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                        message: Some(format!(
+                            "Fixture binary not found at {}; run `cargo build -p spawn-at-verify --bin fixture --features fixture`",
+                            fixture_bin.display()
+                        )),
+                        log_slice: None,
+                    };
                 }
             }
         }
+
+        let cmd_args = build_action_command_args(test, &fixture_bin);
+        let mut cmd = Command::new(&self.options.bin_path);
+        cmd.args(cmd_args);
 
         // Fresh window snapshot immediately before each test's action
         let pre_action_snapshot: HashSet<u64> = query_window_ids(&self.options.bin_path)
@@ -651,6 +600,67 @@ impl TestRunner {
             log_slice,
         }
     }
+}
+
+/// Builds command line argument vector for executing a test action.
+pub fn build_action_command_args(test: &TestDefinition, fixture_bin: &Path) -> Vec<String> {
+    let mut args = Vec::new();
+    args.push(test.action.command.clone());
+    for arg in &test.action.args {
+        args.push(arg.clone());
+    }
+
+    if test.action.command == "spawn" {
+        if let Some(sub) = &test.subject {
+            if sub.app == "fixture" {
+                if !args.contains(&"--json".to_string()) {
+                    args.push("--json".to_string());
+                }
+                // If action.args does not already contain --class / -c, forward --app-id from subject.args
+                if !args.contains(&"--class".to_string()) && !args.contains(&"-c".to_string()) {
+                    for pair in sub.args.windows(2) {
+                        if pair[0] == "--app-id" {
+                            args.push("--class".to_string());
+                            args.push(pair[1].clone());
+                            break;
+                        }
+                    }
+                }
+                args.push("--".to_string());
+                args.push(fixture_bin.to_string_lossy().to_string());
+                let mut has_exit_after = false;
+                for sarg in &sub.args {
+                    if sarg == "--exit-after-ms" {
+                        has_exit_after = true;
+                    }
+                    args.push(sarg.clone());
+                }
+                // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
+                // if test harness crashes or receives SIGKILL mid-execution.
+                // For human visual review (Human/Both), allow 5 minutes (300,000ms) for observation;
+                // for automated runs, 10,000ms comfortably outlasts the 5s test step timeout.
+                if !has_exit_after {
+                    args.push("--exit-after-ms".to_string());
+                    let timeout = match test.kind {
+                        TestKind::Human | TestKind::Both => "300000",
+                        TestKind::Auto => "10000",
+                    };
+                    args.push(timeout.to_string());
+                }
+            } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
+                if !args.contains(&"--json".to_string()) {
+                    args.push("--json".to_string());
+                }
+                args.push("--".to_string());
+                args.push(sys_app.to_string());
+                for sarg in &sub.args {
+                    args.push(sarg.clone());
+                }
+            }
+        }
+    }
+
+    args
 }
 
 /// Validates automated expectations: exit code, stderr tokens/regexes, and geometric oracle rect.
@@ -892,5 +902,90 @@ mod tests {
         let msg = result.message.expect("expected error message");
         assert!(msg.contains("Fixture binary not found at"));
         assert!(msg.contains("cargo build -p spawn-at-verify --bin fixture --features fixture"));
+    }
+
+    #[test]
+    fn test_build_action_command_args_fixture_and_class() {
+        let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+
+        // 1. Explicit class in action.args: preserved and not duplicated
+        let test_explicit = TestDefinition {
+            id: "test/explicit-class".into(),
+            title: "Explicit Class Test".into(),
+            description: "Tests explicit class passing".into(),
+            kind: TestKind::Auto,
+            required: true,
+            tags: vec![],
+            requires: crate::schema::TestRequires::default(),
+            subject: Some(crate::schema::TestSubject {
+                app: "fixture".into(),
+                profile: "plain".into(),
+                args: vec!["--title".into(), "CustomTitle".into()],
+            }),
+            action: crate::schema::TestAction {
+                command: "spawn".into(),
+                repeatable: false,
+                args: vec![
+                    "--class".into(),
+                    "custom.app.explicit".into(),
+                    "--anchor".into(),
+                    "bottom-right".into(),
+                ],
+            },
+            expect: crate::schema::TestExpect::default(),
+            human: None,
+            matrix: None,
+            regression: None,
+        };
+
+        let args = build_action_command_args(&test_explicit, &fixture_bin);
+        assert!(args.contains(&"--json".to_string()));
+        let class_idx = args.iter().position(|a| a == "--class").unwrap();
+        assert_eq!(args[class_idx + 1], "custom.app.explicit");
+
+        let dash_dash_idx = args.iter().position(|a| a == "--").unwrap();
+        assert_eq!(args[dash_dash_idx + 1], "/path/to/target/debug/fixture");
+        assert_eq!(args[dash_dash_idx + 2], "--title");
+        assert_eq!(args[dash_dash_idx + 3], "CustomTitle");
+
+        // Auto test timeout backstop is 10000ms
+        let exit_idx = args.iter().position(|a| a == "--exit-after-ms").unwrap();
+        assert_eq!(args[exit_idx + 1], "10000");
+
+        // 2. Inferred class from --app-id in subject.args: forwarded as --class
+        let test_inferred = TestDefinition {
+            id: "test/inferred-class".into(),
+            title: "Inferred Class Test".into(),
+            description: "Tests inferred class forwarding".into(),
+            kind: TestKind::Both,
+            required: true,
+            tags: vec![],
+            requires: crate::schema::TestRequires::default(),
+            subject: Some(crate::schema::TestSubject {
+                app: "fixture".into(),
+                profile: "plain".into(),
+                args: vec!["--app-id".into(), "verify.inferred.id".into()],
+            }),
+            action: crate::schema::TestAction {
+                command: "spawn".into(),
+                repeatable: false,
+                args: vec!["--anchor".into(), "center".into()],
+            },
+            expect: crate::schema::TestExpect::default(),
+            human: None,
+            matrix: None,
+            regression: None,
+        };
+
+        let args_inf = build_action_command_args(&test_inferred, &fixture_bin);
+        let inf_class_idx = args_inf.iter().position(|a| a == "--class").unwrap();
+        assert_eq!(args_inf[inf_class_idx + 1], "verify.inferred.id");
+
+        // Human/Both test timeout backstop is 300000ms (5 minutes)
+        let inf_exit_idx = args_inf
+            .iter()
+            .position(|a| a == "--exit-after-ms")
+            .unwrap();
+        assert_eq!(args_inf[inf_exit_idx + 1], "300000");
     }
 }
