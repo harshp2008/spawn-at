@@ -4,12 +4,14 @@ pub mod geometry_section;
 pub mod header_section;
 pub mod info_sections;
 pub mod result_section;
+pub mod timeline_format;
 pub mod timeline_section;
 
 pub use geometry_section::render_geometry_section;
 pub use header_section::render_header_section;
 pub use info_sections::render_info_sections;
 pub use result_section::render_result_section;
+pub use timeline_format::{parse_compact_timeline, ParsedTimelineEvent};
 pub use timeline_section::render_timeline_section;
 
 use super::builder::DrawerBuilder;

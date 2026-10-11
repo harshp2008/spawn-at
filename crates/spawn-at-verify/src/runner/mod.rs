@@ -1,6 +1,7 @@
 //! Test execution engine, results aggregation, and validation checks.
 
 pub mod engine;
+pub mod executor;
 pub mod models;
 pub mod validation;
 

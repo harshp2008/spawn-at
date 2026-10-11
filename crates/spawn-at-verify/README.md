@@ -5,15 +5,45 @@ Verification engine, automated test harness, and interactive qualification TUI f
 ## Module Map
 
 - `src/lib.rs`: Library crate root, feature gates, and module declarations (`#![warn(missing_docs)]`).
-- `src/main.rs`: CLI binary entry point (`run`, `list`, `check`, `report`, `tui`).
-- `src/loader.rs`: TOML test specification discovery, parsing, and filtering engine.
+- `src/main.rs`: CLI binary entry point delegating to `src/cli/`.
+- `src/cli/`: CLI subcommand handlers and argument parsing.
+  - `src/cli/mod.rs`: Top-level CLI dispatcher and subcommand routing.
+  - `src/cli/args.rs`: Clap argument specifications and value parsers.
+  - `src/cli/check.rs`: `check` subcommand handler.
+  - `src/cli/list.rs`: `list` subcommand handler.
+  - `src/cli/report.rs`: `report` subcommand handler.
+  - `src/cli/run.rs`: `run` subcommand handler.
+  - `src/cli/tui.rs`: `tui` subcommand handler.
+  - `src/cli/smoke_eval.rs`: `smoke-eval` internal helper for `scripts/smoke-live.sh`.
+- `src/loader/`: TOML test specification discovery, parsing, and filtering engine.
+  - `src/loader/mod.rs`: Loader exports and public API wiring.
+  - `src/loader/filter.rs`: Combinable test filtering criteria and glob matching.
+  - `src/loader/registry.rs`: Directory scanning, test discovery, and catalog management.
+  - `src/loader/tree.rs`: Hierarchical test tree formatting and summary generation.
+  - `src/loader/tests.rs`: Loader unit tests.
 - `src/log_source.rs`: Platform-agnostic log slicing trait and system journal implementations.
 - `src/preflight.rs`: Preflight build freshness verification and git status inspection.
 - `src/probe.rs`: Desktop compositor probe, monitor topology, and display layout detection.
 - `src/process.rs`: Timeout-bounded child process execution and non-blocking pipe draining.
-- `src/report.rs`: Verification session report models, redaction, and JSON/Markdown export.
-- `src/schema.rs`: TOML test definition schemas, matrix expansion, and validation rules.
-- `src/trace.rs`: Trace log event parser, lifecycle state machine, and budget checks.
+- `src/report/`: Verification session report models, redaction, and export.
+  - `src/report/mod.rs`: Report exports and public API wiring.
+  - `src/report/models.rs`: Verification report and environment data structures.
+  - `src/report/redaction.rs`: Window title redaction and security filtering.
+  - `src/report/builder.rs`: Report assembly and JSON persistence.
+  - `src/report/markdown.rs`: Human-readable Markdown summary generation.
+  - `src/report/tests.rs`: Report unit tests.
+- `src/schema/`: TOML test definition schemas, matrix expansion, and validation rules.
+  - `src/schema/mod.rs`: Schema exports and public API wiring.
+  - `src/schema/types.rs`: Test definition, action, expectation, and verdict structures.
+  - `src/schema/matrix.rs`: Combinatorial test matrix expansion.
+  - `src/schema/suite.rs`: Predefined test suite definition models.
+  - `src/schema/tests.rs`: Schema unit tests.
+- `src/trace/`: Trace log event parser, lifecycle state machine, and budget checks.
+  - `src/trace/mod.rs`: Trace exports and public API wiring.
+  - `src/trace/models.rs`: Trace events, timestamps, and log models.
+  - `src/trace/report.rs`: Lifecycle verification analysis report structures.
+  - `src/trace/parser.rs`: Log parsing and event classification.
+  - `src/trace/analyser.rs`: Lifecycle ordering, budget validation, and violation detection.
 - `src/bin/fixture.rs`: Standalone GUI test fixture window binary entry point.
 - `src/bin/fixture/`: Modular GUI test fixture implementation submodules.
   - `src/bin/fixture/mod.rs`: Module wiring and sub-export declarations.
@@ -23,10 +53,14 @@ Verification engine, automated test harness, and interactive qualification TUI f
 - `src/oracle/`: Mathematical placement oracle and characterization tests.
   - `src/oracle/mod.rs`: Oracle exports and verification helpers.
   - `src/oracle/calculator.rs`: Deterministic geometry calculations, anchors, and pivots.
-  - `src/oracle/tests.rs`: Oracle unit tests and golden placement vector comparisons.
+  - `src/oracle/tests/`: Oracle unit tests and golden placement vector comparisons.
+    - `src/oracle/tests/mod.rs`: Test submodule declarations.
+    - `src/oracle/tests/golden.rs`: Hand-computed golden placement calculations and tolerance checks.
+    - `src/oracle/tests/vectors.rs`: Shared golden placement vector file cross-validation.
 - `src/runner/`: Test execution engine and lifecycle models.
   - `src/runner/mod.rs`: Runner exports and public API wiring.
-  - `src/runner/engine.rs`: TestRunner orchestrator and individual test case execution.
+  - `src/runner/engine.rs`: TestRunner orchestrator and test suite run loop.
+  - `src/runner/executor.rs`: Single test case execution, process management, and log slicing.
   - `src/runner/models.rs`: Execution status models, human verdicts, and options.
   - `src/runner/validation.rs`: Expectation validation, output matching, and argument building.
   - `src/runner/tests.rs`: Runner unit tests and model resolution checks.
@@ -48,7 +82,10 @@ Verification engine, automated test harness, and interactive qualification TUI f
     - `src/tui/views/builder.rs`: Aligned line assembly builder for detail drawer.
     - `src/tui/views/constants.rs`: Single shared drawer grid constants and column offsets.
     - `src/tui/views/footer.rs`: Contextual footer shortcut bars and responsive key grids.
-    - `src/tui/views/modals.rs`: Help overlay and human review verdict dialogs.
+    - `src/tui/views/modals/`: Help overlay and human review verdict dialogs.
+      - `src/tui/views/modals/mod.rs`: Centered layout helpers and modal exports.
+      - `src/tui/views/modals/help.rs`: Keyboard shortcut and navigation help overlay modal.
+      - `src/tui/views/modals/verdict.rs`: Human review verdict input dialog modal.
     - `src/tui/views/theme.rs`: Color styling, status symbols, and formatting utilities.
     - `src/tui/views/wrapping.rs`: Tokenized string wrapping and responsive dimension folding.
     - `src/tui/views/panels/`: Main screen dashboard panels.
@@ -63,7 +100,8 @@ Verification engine, automated test harness, and interactive qualification TUI f
       - `src/tui/views/drawer/header_section.rs`: Drawer title, ID, mode, and scenario description.
       - `src/tui/views/drawer/info_sections.rs`: SUBJECT, ACTION, and EXPECTATIONS sections.
       - `src/tui/views/drawer/result_section.rs`: RESULT verdict, timings, and failure breakdowns.
-      - `src/tui/views/drawer/timeline_section.rs`: TIMELINE events, parsed attributes, and intervals.
+      - `src/tui/views/drawer/timeline_section.rs`: TIMELINE section rendering.
+      - `src/tui/views/drawer/timeline_format.rs`: Timeline event parsing, formatting, and key humanisation.
 - `tests/`: Integration test suites.
   - `tests/category_library_test.rs`: Test suite integrity, category validation, and filtering.
   - `tests/fixture_test.rs`: Fixture binary process lifecycle and protocol behaviors.
