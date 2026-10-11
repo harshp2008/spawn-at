@@ -1,7 +1,7 @@
 //! Headless Integration Tests for spawn-at-verify TUI.
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use ratatui::{backend::TestBackend, Terminal};
+use ratatui::{backend::TestBackend, style::Color, Terminal};
 use spawn_at_verify::runner::{
     AutoStatus, FinalStatus, HumanVerdict, HumanVerdictKind, RunOptions,
 };
@@ -293,12 +293,36 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
         .map(|cell| cell.symbol())
         .collect();
 
-    // Verify detail drawer ordering: failure reason first
-    assert!(drawer_text.contains("✖ FAILURE REASON:"));
-    assert!(drawer_text.contains("Geometric Oracle Comparison"));
-    assert!(drawer_text.contains("Actual Geometry: pos=(100, 200)"));
-    assert!(drawer_text.contains("Compositor Actor Trace Diagnostics"));
-    assert!(drawer_text.contains("VIOLATION: visible flash"));
+    // Verify detail drawer ordering: RESULT, GEOMETRY, TIMELINE visible on screen
+    assert!(drawer_text.contains("RESULT"));
+    assert!(drawer_text.contains("GEOMETRY"));
+    assert!(drawer_text.contains("TIMELINE"));
+
+    // Verify detail drawer ordering across all sections in full drawer content
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 140, true);
+    assert!(plain.contains("RESULT"));
+    assert!(plain.contains("GEOMETRY"));
+    assert!(plain.contains("TIMELINE"));
+    assert!(plain.contains("WHAT TO LOOK FOR"));
+    assert!(plain.contains("SPEC"));
+    assert!(plain.contains("OUTPUT"));
+    let pos_res = plain.find("RESULT").unwrap();
+    let pos_geo = plain.find("GEOMETRY").unwrap();
+    let pos_time = plain.find("TIMELINE").unwrap();
+    let pos_what = plain.find("WHAT TO LOOK FOR").unwrap();
+    let pos_spec = plain.find("SPEC").unwrap();
+    let pos_out = plain.find("OUTPUT").unwrap();
+    assert!(pos_res < pos_geo);
+    assert!(pos_geo < pos_time);
+    assert!(pos_time < pos_what);
+    assert!(pos_what < pos_spec);
+    assert!(pos_spec < pos_out);
+    assert!(!plain.contains("---"));
+    assert!(!plain.contains("1. "));
+    // In raw view, raw trace lines are included
+    let (_raw_lines, raw_plain) =
+        spawn_at_verify::tui::views::build_drawer_content(&app, &test, 140, false);
+    assert!(raw_plain.contains("visible flash"));
 }
 
 #[test]
@@ -432,10 +456,10 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
 
     let buffer = terminal.backend().buffer().clone();
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
-    // In 80x24, right panel content overflows and MUST show the clipping hint
+    // In 80x24, right panel content overflows and MUST show the clipping hint with "d to expand"
     assert!(
-        text.contains("▼ more"),
-        "Buffer at 80x24 must show clipping hint when content overflows"
+        text.contains("▼ more · d to expand"),
+        "Buffer at 80x24 must show clipping hint '▼ more · d to expand' when content overflows"
     );
 
     // Open detail drawer with Enter key
@@ -454,12 +478,22 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
         .iter()
         .map(|cell| cell.symbol())
         .collect();
+    assert!(drawer_text.contains("Details"));
 
-    // Drawer must show scroll hints and key controls
-    assert!(
-        drawer_text.contains("j/k scroll, Esc/Enter close"),
-        "Drawer must show scroll hints and close keys"
-    );
+    // Drawer bar contains "Copy", "Save", "Scroll", "Close" and does NOT contain "Filter", "Fold", "Run"
+    let mut bar_text = String::new();
+    for y in 19..24 {
+        for x in 0..80 {
+            bar_text.push_str(drawer_buffer[(x, y)].symbol());
+        }
+    }
+    assert!(bar_text.contains("Copy"));
+    assert!(bar_text.contains("Save"));
+    assert!(bar_text.contains("Scroll"));
+    assert!(bar_text.contains("Close"));
+    assert!(!bar_text.contains("Filter"));
+    assert!(!bar_text.contains("Fold"));
+    assert!(!bar_text.contains("Run"));
 }
 
 #[test]
@@ -555,7 +589,8 @@ fn test_render_snapshots() {
 
     assert!(waiting_snapshot.contains("1 waiting"));
     assert!(waiting_snapshot.contains("Your verdict:"));
-    assert!(waiting_snapshot.contains("p Pass"));
+    assert!(waiting_snapshot.contains("Pass"));
+    assert!(waiting_snapshot.contains("Fail"));
 
     assert!(fail_snapshot.contains("FAIL"));
 }
@@ -871,8 +906,8 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
         );
         if height >= 22 {
             assert!(
-                rendered.contains("Kind"),
-                "Kind must be visible at narrow width ({} cols, height {})",
+                rendered.contains("Mode"),
+                "Mode must be visible at narrow width ({} cols, height {})",
                 width,
                 height
             );
@@ -1007,9 +1042,9 @@ fn test_help_modal_and_tab_panel_switching() {
 
     assert!(help_rendered.contains("KEYS & COMMANDS"));
     assert!(help_rendered.contains("STATUS SYMBOLS"));
-    assert!(help_rendered.contains("KINDS LEGEND"));
+    assert!(help_rendered.contains("MODES LEGEND"));
     assert!(help_rendered.contains("auto:"));
-    assert!(help_rendered.contains("human:"));
+    assert!(help_rendered.contains("you:"));
     assert!(help_rendered.contains("both:"));
 
     // Esc closes help modal
@@ -1043,25 +1078,25 @@ fn test_render_terminal_below_minimum_size_shows_warning() {
 }
 
 #[test]
+#[ignore]
 fn test_dump_snapshots_to_scratch() {
-    let resolutions = [(60, 20), (60, 28), (70, 28), (80, 28), (100, 28), (140, 28)];
-
+    let resolutions = [(60, 28), (80, 28), (140, 28)];
     let mut out = String::new();
 
     for &(w, h) in &resolutions {
-        // Idle
+        // 1. Idle
         let mut app = create_test_app();
         app.fixture_exists = true;
-        let backend = TestBackend::new(w, h);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_ui(f, &app)).unwrap();
-        let idle_rendered = dump_buffer_to_string(&terminal, w, h);
+        let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        term.draw(|f| draw_ui(f, &app)).unwrap();
         out.push_str(&format!(
-            "=== SNAPSHOT {}x{} - IDLE ===\n{}\n\n",
-            w, h, idle_rendered
+            "### SNAPSHOT {}x{} - IDLE\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&term, w, h)
         ));
 
-        // Waiting for verdict
+        // 2. Waiting for verdict
         let mut wait_app = create_test_app();
         wait_app.fixture_exists = true;
         if let Some(pos) = wait_app
@@ -1081,26 +1116,143 @@ fn test_dump_snapshots_to_scratch() {
             human_verdict: HumanVerdict::default(),
             final_status: FinalStatus::Pending,
             disagreement: false,
-            duration_ms: 185,
+            duration_ms: 35,
             exit_code: Some(0),
-            stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+            stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}"#.into(),
             stderr: String::new(),
             message: Some("Assertions passed".into()),
             log_slice: Some(
-                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
+                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +34.20ms | UNCLOAK".into(),
             ),
         };
         wait_app
             .results
             .insert("placement/bottom-right".into(), wait_res);
-
-        let wait_backend = TestBackend::new(w, h);
-        let mut wait_term = Terminal::new(wait_backend).unwrap();
+        let mut wait_term = Terminal::new(TestBackend::new(w, h)).unwrap();
         wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
-        let wait_rendered = dump_buffer_to_string(&wait_term, w, h);
         out.push_str(&format!(
-            "=== SNAPSHOT {}x{} - WAITING FOR VERDICT ===\n{}\n\n",
-            w, h, wait_rendered
+            "### SNAPSHOT {}x{} - WAITING FOR A HUMAN CASE\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&wait_term, w, h)
+        ));
+
+        // 3. Passed
+        let mut pass_app = create_test_app();
+        pass_app.fixture_exists = true;
+        for t in &pass_app.registry.tests {
+            let res = spawn_at_verify::runner::TestResult {
+                id: t.id.clone(),
+                title: t.title.clone(),
+                kind: t.kind,
+                required: t.required,
+                auto_status: AutoStatus::AutoPass,
+                human_verdict: HumanVerdict {
+                    verdict: HumanVerdictKind::Pass,
+                    note: None,
+                },
+                final_status: FinalStatus::Pass,
+                disagreement: false,
+                duration_ms: 42,
+                exit_code: Some(0),
+                stdout:
+                    r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"source":"claim"}"#
+                        .into(),
+                stderr: String::new(),
+                message: Some("Assertions passed".into()),
+                log_slice: None,
+            };
+            pass_app.results.insert(t.id.clone(), res);
+        }
+        let mut pass_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        pass_term.draw(|f| draw_ui(f, &pass_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - PASSED\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&pass_term, w, h)
+        ));
+
+        // 4. Failed
+        let mut fail_app = create_test_app();
+        fail_app.fixture_exists = true;
+        let fail_test = fail_app.selected_test().unwrap().clone();
+        let fail_res = spawn_at_verify::runner::TestResult {
+            id: fail_test.id.clone(),
+            title: fail_test.title.clone(),
+            kind: fail_test.kind,
+            required: fail_test.required,
+            auto_status: AutoStatus::AutoFail,
+            human_verdict: HumanVerdict::default(),
+            final_status: FinalStatus::Fail,
+            disagreement: false,
+            duration_ms: 94,
+            exit_code: Some(1),
+            stdout: r#"{"window_id":870905,"x":1200,"y":600,"w":400,"h":300}"#.into(),
+            stderr: "[spawn-at] ERROR: Geometric target mismatch".into(),
+            message: Some("Window mapped at (1200, 600) but expected (1504, 764)".into()),
+            log_slice: Some("[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.20ms | VIOLATION: visible flicker\n[spawn-at-time] +9.50ms | UNCLOAK".into()),
+        };
+        fail_app.results.insert(fail_test.id.clone(), fail_res);
+        let mut fail_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        fail_term.draw(|f| draw_ui(f, &fail_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - FAILED\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&fail_term, w, h)
+        ));
+
+        // 5. Help modal
+        let mut help_app = create_test_app();
+        help_app.fixture_exists = true;
+        help_app.modal = ModalState::Help;
+        let mut help_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        help_term.draw(|f| draw_ui(f, &help_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - HELP MODAL\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&help_term, w, h)
+        ));
+
+        // 6. Detail drawer (compact view, scrolled to show at least RESULT, GEOMETRY, TIMELINE)
+        let mut drawer_app = create_test_app();
+        drawer_app.fixture_exists = true;
+        drawer_app.detail_drawer_open = true;
+        let d_test = drawer_app.selected_test().unwrap().clone();
+        let d_res = spawn_at_verify::runner::TestResult {
+            id: d_test.id.clone(),
+            title: d_test.title.clone(),
+            kind: d_test.kind,
+            required: d_test.required,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict { verdict: HumanVerdictKind::Pass, note: None },
+            final_status: FinalStatus::Pass,
+            disagreement: false,
+            duration_ms: 36,
+            exit_code: Some(0),
+            stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}"#.into(),
+            stderr: "[spawn-at] INFO: Window mapped at final size (400x300)\n".into(),
+            message: None,
+            log_slice: Some("\
+[spawn-at-time] +0.0ms | ARM_SPAWN win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] target=verify.placement.bottomright
+[spawn-at-time] +10.0ms | WINDOW_CREATED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] actor found
+[spawn-at-time] +56.1ms | ACTOR_MAP win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +56.2ms | CLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=0 frame=(50,90,400x300)
+[spawn-at-time] +56.3ms | SET_SIZE_REQUEST win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] requested=400x300 clamped=400x300
+[spawn-at-time] +56.4ms | COMMIT_RESOLVED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] 400x300
+[spawn-at-time] +70.0ms | UNCLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=255".into()),
+        };
+        drawer_app.results.insert(d_test.id.clone(), d_res);
+        drawer_app.detail_scroll = if w == 60 { 5 } else { 0 };
+        let mut drawer_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        drawer_term.draw(|f| draw_ui(f, &drawer_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - DETAIL DRAWER\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&drawer_term, w, h)
         ));
     }
 
@@ -1533,4 +1685,873 @@ fn test_result_and_spacing_polish_spec() {
         tall_rendered.contains("more"),
         "Tests box must shrink and show more-hint when Result is made taller at 140x28"
     );
+}
+
+#[test]
+fn test_render_60x20_long_description_and_waiting_drawer_flow() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    if let Some(t) = app.registry.tests.first_mut() {
+        t.description = "Line 1 of long test description\nLine 2 with extensive details about placement\nLine 3 describing boundaries and margins\nLine 4 detailing expectations and behaviors\nLine 5 verifying behavior across resolutions\nLine 6 more text to ensure clipping at small terminal heights".into();
+    }
+
+    let backend = TestBackend::new(60, 20);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let rendered = dump_buffer_to_string(&terminal, 60, 20);
+
+    // 1. Clip hint must name the key: "d to expand"
+    assert!(
+        rendered.contains("d to expand"),
+        "Clip hint at 60x20 must contain 'd to expand', got:\n{}",
+        rendered
+    );
+
+    // 2. Set waiting for human verdict
+    let test_id = app.selected_test().unwrap().id.clone();
+    app.waiting_for_human = Some(test_id.clone());
+
+    // Press 'd' while waiting for verdict
+    app.handle_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
+    assert!(
+        app.detail_drawer_open,
+        "Pressing 'd' while waiting for verdict must open drawer"
+    );
+    assert_eq!(
+        app.waiting_for_human,
+        Some(test_id.clone()),
+        "Waiting state must be preserved"
+    );
+
+    // Esc closes drawer and returns to verdict bar WITHOUT cancelling the test
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!app.detail_drawer_open, "Esc must close detail drawer");
+    assert_eq!(
+        app.waiting_for_human,
+        Some(test_id),
+        "Case must still be waiting after closing drawer"
+    );
+
+    // Re-render and verify verdict bar is showing
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let after_esc = dump_buffer_to_string(&terminal, 60, 20);
+    assert!(
+        after_esc.contains("Your verdict:"),
+        "Verdict bar must be showing after Esc closes drawer"
+    );
+}
+
+#[test]
+fn test_drawer_bar_chips_and_exclusion_of_main_keys() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+    app.detail_drawer_open = true;
+
+    let backend = TestBackend::new(80, 28);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let buf = terminal.backend().buffer().clone();
+
+    // Drawer footer bar is rows 22..28 in 80x28
+    let mut bar_text = String::new();
+    for y in 22..28 {
+        for x in 0..80 {
+            bar_text.push_str(buf[(x, y)].symbol());
+        }
+    }
+
+    // Must contain drawer keys
+    assert!(bar_text.contains("Copy"), "Drawer bar must contain Copy");
+    assert!(bar_text.contains("Save"), "Drawer bar must contain Save");
+    assert!(
+        bar_text.contains("Scroll"),
+        "Drawer bar must contain Scroll"
+    );
+    assert!(bar_text.contains("Close"), "Drawer bar must contain Close");
+    assert!(
+        bar_text.contains("Raw/Compact"),
+        "Drawer bar must contain Raw/Compact"
+    );
+    assert!(bar_text.contains("Help"), "Drawer bar must contain Help");
+
+    // Must NEVER show main-screen keys while drawer is open
+    assert!(
+        !bar_text.contains("Filter"),
+        "Drawer bar must NOT contain Filter"
+    );
+    assert!(
+        !bar_text.contains("Fold"),
+        "Drawer bar must NOT contain Fold"
+    );
+    assert!(!bar_text.contains("Run"), "Drawer bar must NOT contain Run");
+    assert!(!bar_text.contains("All"), "Drawer bar must NOT contain All");
+    assert!(
+        !bar_text.contains("Panel"),
+        "Drawer bar must NOT contain Panel"
+    );
+}
+
+#[test]
+fn test_drawer_sections_order_and_formatting() {
+    let app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+
+    // Sections must appear in exact order: RESULT, GEOMETRY, TIMELINE, WHAT TO LOOK FOR, SPEC, OUTPUT
+    let pos_result = plain.find("RESULT").expect("RESULT section missing");
+    let pos_geometry = plain.find("GEOMETRY").expect("GEOMETRY section missing");
+    let pos_timeline = plain.find("TIMELINE").expect("TIMELINE section missing");
+    let pos_what = plain
+        .find("WHAT TO LOOK FOR")
+        .expect("WHAT TO LOOK FOR section missing");
+    let pos_spec = plain.find("SPEC").expect("SPEC section missing");
+    let pos_output = plain.find("OUTPUT").expect("OUTPUT section missing");
+
+    assert!(pos_result < pos_geometry, "RESULT must precede GEOMETRY");
+    assert!(
+        pos_geometry < pos_timeline,
+        "GEOMETRY must precede TIMELINE"
+    );
+    assert!(
+        pos_timeline < pos_what,
+        "TIMELINE must precede WHAT TO LOOK FOR"
+    );
+    assert!(pos_what < pos_spec, "WHAT TO LOOK FOR must precede SPEC");
+    assert!(pos_spec < pos_output, "SPEC must precede OUTPUT");
+
+    // No "---" and no numbering like "1. Name"
+    assert!(
+        !plain.contains("---"),
+        "Drawer must not contain '---' headings"
+    );
+    assert!(
+        !plain.contains("1. "),
+        "Drawer must not contain numbered headings '1. '"
+    );
+    assert!(
+        !plain.contains("2. "),
+        "Drawer must not contain numbered headings '2. '"
+    );
+    assert!(
+        !plain.contains("3. "),
+        "Drawer must not contain numbered headings '3. '"
+    );
+}
+
+#[test]
+fn test_stdout_window_id_appears_exactly_once_in_compact_drawer() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let unique_win_id = 9876543210u64;
+    let res = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: 35,
+        exit_code: Some(0),
+        stdout: format!(
+            r#"{{"window_id":{},"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}}"#,
+            unique_win_id
+        ),
+        stderr: "[spawn-at] INFO: Window mapped at final size (400x300)\n".into(),
+        message: None,
+        log_slice: None,
+    };
+    app.results.insert(test.id.clone(), res);
+
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+
+    let id_str = unique_win_id.to_string();
+    let count = plain.matches(&id_str).count();
+    assert_eq!(
+        count, 1,
+        "The stdout window_id value '{}' must appear exactly once in the compact drawer, found {}:\n{}",
+        id_str, count, plain
+    );
+}
+
+#[test]
+fn test_compact_timeline_contains_neither_prefix_nor_proto() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let trace_log = "\
+[spawn-at-time] +0.0ms | ARM_SPAWN win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] target=verify.placement.bottomright
+[spawn-at-time] +10.0ms | WINDOW_CREATED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] actor found
+[spawn-at-time] +56.1ms | ACTOR_MAP win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +56.2ms | CLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=0 frame=(50,90,400x300)
+[spawn-at-time] +56.3ms | SET_SIZE_REQUEST win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] requested=400x300 clamped=400x300
+[spawn-at-time] +56.4ms | COMMIT_RESOLVED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] 400x300
+";
+
+    let res = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: 60,
+        exit_code: Some(0),
+        stdout: r#"{"window_id":870906018,"pid":1083136}"#.into(),
+        stderr: String::new(),
+        message: None,
+        log_slice: Some(trace_log.into()),
+    };
+    app.results.insert(test.id.clone(), res);
+
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+
+    // Find the TIMELINE section portion of plain text
+    let timeline_idx = plain.find("TIMELINE").expect("TIMELINE section exists");
+    let next_section_idx = plain
+        .find("WHAT TO LOOK FOR")
+        .expect("WHAT TO LOOK FOR section exists");
+    let timeline_section = &plain[timeline_idx..next_section_idx];
+
+    assert!(
+        !timeline_section.contains("[spawn-at-time]"),
+        "Compact timeline must not contain '[spawn-at-time]', found in:\n{}",
+        timeline_section
+    );
+    assert!(
+        !timeline_section.contains("proto="),
+        "Compact timeline must not contain 'proto=', found in:\n{}",
+        timeline_section
+    );
+}
+
+#[test]
+fn test_label_values_alignment_across_section() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let res = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict {
+            verdict: HumanVerdictKind::Pass,
+            note: None,
+        },
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: 36,
+        exit_code: Some(0),
+        stdout: r#"{"x":1504,"y":764,"w":400,"h":300,"source":"claim"}"#.into(),
+        stderr: String::new(),
+        message: None,
+        log_slice: None,
+    };
+    app.results.insert(test.id.clone(), res);
+
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+
+    // In RESULT section:
+    // "  Verdict       ✔ Pass"
+    // "  Cloak         36 ms..."
+    // "  Trace         ✔ clean..."
+    // Inner padding 2, label column 14 wide -> values start at index 16 (0-based)
+    let mut verified = 0;
+    for line in plain.lines() {
+        if line.starts_with("  Verdict ")
+            || line.starts_with("  Cloak ")
+            || line.starts_with("  Trace ")
+            || line.starts_with("  Budget ")
+        {
+            assert!(line.starts_with("  "), "KV line must start with 2 spaces");
+            let val_char = line.chars().nth(16).unwrap_or(' ');
+            assert_ne!(
+                val_char, ' ',
+                "Value in line '{}' must start at column 16",
+                line
+            );
+            verified += 1;
+        }
+    }
+    assert!(
+        verified >= 3,
+        "Must have verified alignment on at least 3 rows"
+    );
+}
+
+#[test]
+fn test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let temp_dir =
+        std::env::temp_dir().join(format!("spawn-at-verify-test-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&temp_dir);
+    app.report_dir = temp_dir.clone();
+    app.detail_drawer_open = true;
+
+    let (_lines, expected_plain) =
+        spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+
+    // 1. Test 'w': writes file whose content equals full drawer text
+    let res = app.save_drawer_text();
+    assert!(res.is_ok(), "save_drawer_text must succeed: {:?}", res);
+    let path = res.unwrap();
+    assert!(
+        path.exists(),
+        "Saved log file must exist at {}",
+        path.display()
+    );
+    let saved_content = std::fs::read_to_string(&path).expect("read saved file");
+    assert_eq!(
+        saved_content, expected_plain,
+        "Saved file content must equal full drawer text"
+    );
+    let title = app.get_drawer_title(&test.id);
+    assert!(
+        title.contains(&path.display().to_string()),
+        "Drawer title must show path, got: {}",
+        title
+    );
+
+    // 2. Test 'y': hands the same text to clipboard helper via injected fake clipboard
+    use std::sync::{Arc, Mutex};
+    let clipboard_capture = Arc::new(Mutex::new(String::new()));
+    let capture_clone = Arc::clone(&clipboard_capture);
+    app.clipboard_fn = Some(Arc::new(move |text: &str| {
+        *capture_clone.lock().unwrap() = text.to_string();
+        Ok(())
+    }));
+
+    app.copy_drawer_text();
+    let captured = clipboard_capture.lock().unwrap().clone();
+    assert_eq!(
+        captured, expected_plain,
+        "Clipboard helper must receive exact full drawer text"
+    );
+    let title_copied = app.get_drawer_title(&test.id);
+    assert!(
+        title_copied.contains("Copied"),
+        "Drawer title must indicate copy success, got: {}",
+        title_copied
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_question_mark_from_drawer_opens_help_and_esc_returns() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+    app.detail_drawer_open = true;
+
+    // Press '?' from drawer
+    app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+    assert_eq!(
+        app.modal,
+        ModalState::Help,
+        "'?' from drawer must open help modal"
+    );
+
+    let backend = TestBackend::new(80, 25);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let rendered = dump_buffer_to_string(&terminal, 80, 25);
+
+    // Drawer keys first, then main keys
+    assert!(rendered.contains("DRAWER KEYS & COMMANDS"));
+    assert!(rendered.contains("MAIN KEYS & COMMANDS"));
+    let pos_drawer = rendered.find("DRAWER KEYS & COMMANDS").unwrap();
+    let pos_main = rendered.find("MAIN KEYS & COMMANDS").unwrap();
+    assert!(
+        pos_drawer < pos_main,
+        "Help modal from drawer must show DRAWER KEYS before MAIN KEYS"
+    );
+
+    // Esc closes help and returns to drawer
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert_eq!(app.modal, ModalState::None, "Esc must close help modal");
+    assert!(
+        app.detail_drawer_open,
+        "Esc from help must return to drawer (drawer remains open)"
+    );
+
+    // Second Esc closes drawer
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!app.detail_drawer_open, "Second Esc must close drawer");
+}
+
+#[test]
+fn test_no_bare_uppercase_key_bindings_in_bars_or_help() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    let backend = TestBackend::new(80, 28);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    // 1. Normal main screen
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let main_rendered = dump_buffer_to_string(&terminal, 80, 28);
+
+    // 2. Verdict mode
+    app.waiting_for_human = Some("placement/bottom-right".into());
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let verdict_rendered = dump_buffer_to_string(&terminal, 80, 28);
+    app.waiting_for_human = None;
+
+    // 3. Drawer mode
+    app.detail_drawer_open = true;
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let drawer_rendered = dump_buffer_to_string(&terminal, 80, 28);
+
+    // 4. Help overlay (from drawer)
+    app.modal = ModalState::Help;
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let help_drawer_rendered = dump_buffer_to_string(&terminal, 80, 28);
+
+    // 5. Help overlay (from main)
+    app.detail_drawer_open = false;
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let help_main_rendered = dump_buffer_to_string(&terminal, 80, 28);
+
+    let all_screens = [
+        ("main", main_rendered),
+        ("verdict", verdict_rendered),
+        ("drawer", drawer_rendered),
+        ("help_drawer", help_drawer_rendered),
+        ("help_main", help_main_rendered),
+    ];
+
+    // Regex checking for bare uppercase bindings inside brackets like [R], [A], [C], [P], [X], [S], [K]
+    // The ONLY allowed uppercase binding is "Shift+G"
+    let re_bracket_bare = regex::Regex::new(r#"\[([A-FH-Z])\]"#).unwrap();
+    for (name, screen) in &all_screens {
+        if let Some(cap) = re_bracket_bare.captures_iter(screen).next() {
+            panic!(
+                "Screen '{}' contains forbidden bare uppercase binding [{}]:\n{}",
+                name, &cap[1], screen
+            );
+        }
+        assert!(
+            !screen.contains("Shift+C"),
+            "Screen '{}' should not have Shift+C (use lowercase c)",
+            name
+        );
+    }
+}
+
+#[test]
+fn test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings() {
+    for &w in &[60, 80, 140] {
+        let mut app = create_test_app();
+        app.fixture_exists = true;
+        app.detail_drawer_open = true;
+
+        let backend = TestBackend::new(w, 28);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let rendered = dump_buffer_to_string(&terminal, w, 28);
+
+        // Heading lines: RESULT, GEOMETRY, TIMELINE must appear without corruption
+        assert!(
+            rendered.contains("RESULT"),
+            "Heading RESULT must not be clipped at width {}",
+            w
+        );
+        assert!(
+            rendered.contains("GEOMETRY"),
+            "Heading GEOMETRY must not be clipped at width {}",
+            w
+        );
+        if w > 80 {
+            assert!(
+                rendered.contains("TIMELINE"),
+                "Heading TIMELINE must not be clipped at width {}",
+                w
+            );
+        } else {
+            app.detail_scroll = 5;
+            terminal.draw(|f| draw_ui(f, &app)).unwrap();
+            let scrolled_rendered = dump_buffer_to_string(&terminal, w, 28);
+            assert!(
+                scrolled_rendered.contains("TIMELINE"),
+                "Heading TIMELINE must not be clipped at width {}",
+                w
+            );
+        }
+    }
+}
+
+#[test]
+fn test_multisize_drawer_rendering_and_token_wrapping() {
+    let trace_log_12 = "\
+[spawn-at-time] +0.0ms | ARM_SPAWN win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] target=verify.placement.bottomright
+[spawn-at-time] +10.0ms | WINDOW_CREATED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] actor found
+[spawn-at-time] +56.1ms | ACTOR_MAP win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +56.2ms | CLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=0 frame=(50,90,400x300)
+[spawn-at-time] +56.3ms | SET_SIZE_REQUEST win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] requested=400x300 clamped=400x300
+[spawn-at-time] +56.4ms | COMMIT_RESOLVED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] 400x300
+[spawn-at-time] +60.0ms | BUFFER_ATTACH win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +65.0ms | FIRST_FRAME win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +70.0ms | UNCLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=255
+[spawn-at-time] +75.0ms | AT_TARGET win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +80.0ms | FOCUS_IN win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
+[spawn-at-time] +85.0ms | RESTORE win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]";
+
+    for &w in &[50, 60, 70, 80, 100, 140] {
+        for &_h in &[20, 28] {
+            let mut app = create_test_app();
+            let mut test = app.selected_test().unwrap().clone();
+            test.description = "Verifies that the window is placed strictly in the bottom-right corner of the primary display workarea with zero visual displacement or clipping artifact on initial map.".into();
+
+            let res = spawn_at_verify::runner::TestResult {
+                id: test.id.clone(),
+                title: test.title.clone(),
+                kind: test.kind,
+                required: test.required,
+                auto_status: AutoStatus::AutoPass,
+                human_verdict: HumanVerdict {
+                    verdict: HumanVerdictKind::Pass,
+                    note: None,
+                },
+                final_status: FinalStatus::Pass,
+                disagreement: false,
+                duration_ms: 85,
+                exit_code: Some(0),
+                stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}"#.into(),
+                stderr: "[spawn-at] INFO: Window mapped at final size (400x300)\n".into(),
+                message: None,
+                log_slice: Some(trace_log_12.into()),
+            };
+            app.results.insert(test.id.clone(), res);
+
+            let (_lines, plain) =
+                spawn_at_verify::tui::views::build_drawer_content(&app, &test, w as usize, true);
+
+            // Assert tokens are intact on lines where they fit
+            assert!(
+                plain.contains("verify.placement.bottomright"),
+                "ARM_SPAWN target token intact at width {}",
+                w
+            );
+            assert!(
+                plain.contains("400×300"),
+                "Geometry 400×300 token intact at width {}",
+                w
+            );
+            if w >= 60 {
+                assert!(
+                    plain.contains("AT_TARGET"),
+                    "AT_TARGET intact at width {}",
+                    w
+                );
+                assert!(
+                    plain.contains("(50,90,400×300)"),
+                    "Frame rect token intact at width {}",
+                    w
+                );
+            }
+
+            // Check that continuation rows start with 16 spaces (hanging indent)
+            for line in plain.lines() {
+                if line.starts_with("                ") {
+                    let first_char = line.chars().nth(16).unwrap_or(' ');
+                    assert_ne!(
+                        first_char, ' ',
+                        "Continuation line must start content at column 16 at width {}: '{}'",
+                        w, line
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_synthetic_token_hard_wrap_alignment_at_width_50() {
+    let app = create_test_app();
+    let mut test = app.selected_test().unwrap().clone();
+    test.description = "A".repeat(60); // 60-char synthetic unbroken token
+
+    let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 50, true);
+    let desc_lines: Vec<&str> = plain.lines().filter(|l| l.contains("AAAA")).collect();
+    assert!(
+        desc_lines.len() >= 2,
+        "60-char token must wrap into at least 2 lines at width 50"
+    );
+    // Continuation line must have exactly 16 spaces of indent
+    let second_line = desc_lines[1];
+    assert!(
+        second_line.starts_with("                "),
+        "Continuation row must have 16 leading spaces at width 50"
+    );
+    let c = second_line.chars().nth(16).unwrap_or(' ');
+    assert_ne!(c, ' ', "Continuation row must start content at column 16");
+}
+
+#[test]
+fn test_506_9_ms_cloak_yellow_warning_does_not_fail_pass() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let res = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict {
+            verdict: HumanVerdictKind::Pass,
+            note: None,
+        },
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: 507,
+        exit_code: Some(0),
+        stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+        stderr: String::new(),
+        message: Some("Assertions passed".into()),
+        log_slice: Some(
+            "[spawn-at-time] +0.0ms | CLOAK\n[spawn-at-time] +506.9ms | UNCLOAK".into(),
+        ),
+    };
+    app.results.insert(test.id.clone(), res);
+
+    let (lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+    assert!(plain.contains("506.9 ms"));
+    assert!(plain.contains("over provisional budget"));
+    assert!(!plain.contains("Failure:"));
+
+    // Check styling: yellow '!', no red cell in RESULT section
+    let mut found_yellow_warning = false;
+    let mut found_red_in_result = false;
+    let mut in_result = false;
+    for line in &lines {
+        let line_text: String = line.spans.iter().map(|s| s.content.as_ref()).collect();
+        if line_text.contains("RESULT") {
+            in_result = true;
+        } else if line_text.contains("GEOMETRY") {
+            in_result = false;
+        }
+        if in_result {
+            for span in &line.spans {
+                if span.content.contains("!") && span.style.fg == Some(Color::Yellow) {
+                    found_yellow_warning = true;
+                }
+                if span.style.fg == Some(Color::Red) {
+                    found_red_in_result = true;
+                }
+            }
+        }
+    }
+    assert!(
+        found_yellow_warning,
+        "Must render yellow '!' for 506.9 ms cloak budget warning"
+    );
+    assert!(
+        !found_red_in_result,
+        "Passing case with 506.9 ms cloak must have zero red cells in RESULT"
+    );
+}
+
+#[test]
+fn test_failing_case_renders_failure_row_with_real_reason_in_red() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    let res = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoFail,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Fail,
+        disagreement: false,
+        duration_ms: 45,
+        exit_code: Some(1),
+        stdout: r#"{"window_id":870906018,"x":1200,"y":600,"w":400,"h":300}"#.into(),
+        stderr: "[spawn-at] ERROR: Geometric target mismatch".into(),
+        message: Some("Window mapped at (1200, 600) but expected (1504, 764)".into()),
+        log_slice: None,
+    };
+    app.results.insert(test.id.clone(), res);
+
+    let (lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
+    assert!(plain.contains("Failure"));
+    assert!(plain.contains("Window mapped at (1200, 600) but expected (1504, 764)"));
+
+    let mut found_red_failure = false;
+    for line in &lines {
+        for span in &line.spans {
+            if span.content.contains("Window mapped at") && span.style.fg == Some(Color::Red) {
+                found_red_failure = true;
+            }
+        }
+    }
+    assert!(
+        found_red_failure,
+        "Failure row message must be styled in Red"
+    );
+}
+
+#[test]
+fn test_drawer_bar_chips_at_140_and_80() {
+    use spawn_at_verify::tui::views::{render_key_grid, DRAWER_KEYS};
+
+    // State 1 at width 140 (inner width 138)
+    let lines_140 = render_key_grid(DRAWER_KEYS, 138);
+    assert_eq!(
+        lines_140.len(),
+        1,
+        "Drawer bar at 140 wide must be exactly 1 line"
+    );
+    let text_140: String = lines_140[0]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+    assert_eq!(
+        text_140,
+        "[y] Copy   [w] Save   [t] Raw/Compact   [j/k] Scroll   [?] Help   [Esc] Close"
+    );
+
+    // State 2 at width 80 (inner width 78)
+    let lines_80 = render_key_grid(DRAWER_KEYS, 78);
+    assert_eq!(
+        lines_80.len(),
+        2,
+        "Drawer bar at 80 wide must be 3 columns x 2 rows"
+    );
+    let row0: String = lines_80[0]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+    let row1: String = lines_80[1]
+        .spans
+        .iter()
+        .map(|s| s.content.as_ref())
+        .collect();
+
+    assert!(row0.contains("[ y ]"));
+    assert!(row0.contains("[ w ]"));
+    assert!(row0.contains("[ t ]"));
+    assert!(row1.contains("[j/k]"));
+    assert!(row1.contains("[ ? ]"));
+    assert!(row1.contains("[Esc]"));
+}
+
+#[test]
+fn test_drawer_scrolling_keys_in_waiting_state() {
+    let mut app = create_test_app();
+    let test_id = app.selected_test().unwrap().id.clone();
+    app.waiting_for_human = Some(test_id);
+    app.detail_drawer_open = true;
+    app.detail_scroll = 0;
+
+    // j scrolls down
+    app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 1);
+
+    // Down arrow scrolls down
+    app.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 2);
+
+    // k scrolls up
+    app.handle_key(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 1);
+
+    // Up arrow scrolls up
+    app.handle_key(KeyEvent::new(KeyCode::Up, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 0);
+
+    // PgDn scrolls down 8
+    app.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 8);
+
+    // PgUp scrolls up 8
+    app.handle_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 0);
+
+    // Shift+G scrolls to bottom (u16::MAX)
+    app.handle_key(KeyEvent::new(KeyCode::Char('G'), KeyModifiers::SHIFT));
+    assert_eq!(app.detail_scroll, u16::MAX);
+
+    // g scrolls to top (0)
+    app.handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 0);
+}
+
+#[test]
+fn test_done_count_excludes_waiting_human_case() {
+    let mut app = create_test_app();
+    let t0 = app.registry.tests[0].clone();
+    let pass_res = spawn_at_verify::runner::TestResult {
+        id: t0.id.clone(),
+        title: t0.title.clone(),
+        kind: t0.kind,
+        required: t0.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict {
+            verdict: HumanVerdictKind::Pass,
+            note: None,
+        },
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: 10,
+        exit_code: Some(0),
+        stdout: String::new(),
+        stderr: String::new(),
+        message: None,
+        log_slice: None,
+    };
+    app.results.insert(t0.id.clone(), pass_res);
+
+    if let Some(t1) = app
+        .registry
+        .tests
+        .iter()
+        .find(|t| t.kind != TestKind::Auto)
+        .cloned()
+    {
+        app.waiting_for_human = Some(t1.id.clone());
+        let wait_res = spawn_at_verify::runner::TestResult {
+            id: t1.id.clone(),
+            title: t1.title.clone(),
+            kind: t1.kind,
+            required: t1.required,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict::default(),
+            final_status: FinalStatus::Pending,
+            disagreement: false,
+            duration_ms: 10,
+            exit_code: Some(0),
+            stdout: String::new(),
+            stderr: String::new(),
+            message: None,
+            log_slice: None,
+        };
+        app.results.insert(t1.id.clone(), wait_res);
+
+        let backend = TestBackend::new(80, 28);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let rendered = dump_buffer_to_string(&terminal, 80, 28);
+
+        let total = app.registry.tests.len();
+        assert!(
+            rendered.contains(&format!("1/{} done", total)),
+            "Done count must exclude waiting human case"
+        );
+        assert!(rendered.contains("1 waiting"), "Header must show 1 waiting");
+    }
 }

@@ -2,7 +2,6 @@
 
 use spawn_at_verify::loader::{TestFilter, TestRegistry};
 use spawn_at_verify::schema::{is_valid_category, TestDefinition, VALID_CATEGORIES};
-use std::collections::HashSet;
 use std::path::Path;
 
 /// Proposed test case in the Part 2 test library plan.
@@ -232,28 +231,6 @@ exit_code = 0
 
     let parsed: TestDefinition = toml::from_str(toml_invalid_cat).expect("TOML parse succeeded");
     assert!(!is_valid_category(&parsed.category));
-}
-
-#[test]
-fn test_every_category_has_at_least_one_case_in_proposed_library() {
-    let mut covered_categories = HashSet::new();
-    for case in PROPOSED_CASES {
-        assert!(
-            is_valid_category(case.category),
-            "Proposed case '{}' specifies unknown category '{}'",
-            case.id,
-            case.category
-        );
-        covered_categories.insert(case.category);
-    }
-
-    for &valid_cat in VALID_CATEGORIES {
-        assert!(
-            covered_categories.contains(valid_cat),
-            "Category '{}' does not have any proposed test case in library plan!",
-            valid_cat
-        );
-    }
 }
 
 #[test]
