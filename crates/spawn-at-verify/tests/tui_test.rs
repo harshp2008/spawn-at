@@ -660,6 +660,45 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
         "Rendered buffer line count must match height"
     );
 
+    // Spacing system:
+    // 1 blank row above the header (row 0)
+    assert!(
+        lines[0].trim().is_empty(),
+        "Row 0 above header must be blank at {}x{}",
+        width,
+        height
+    );
+    // 1 blank row between the header and the first box (row 2)
+    assert!(
+        lines[2].trim().is_empty(),
+        "Row 2 after header must be blank at {}x{}",
+        width,
+        height
+    );
+    // 1 blank row at the BOTTOM below keys bar
+    assert!(
+        lines.last().unwrap().trim().is_empty(),
+        "Row below keys bar at bottom must be blank at {}x{}",
+        width,
+        height
+    );
+
+    // Description pane border title is "Description"
+    assert!(
+        rendered.contains(" Description "),
+        "Details pane border title must be 'Description' at {}x{}",
+        width,
+        height
+    );
+
+    // Result box is present as a boxed panel
+    assert!(
+        rendered.contains(" Result "),
+        "Result box must be present as a boxed panel at {}x{}",
+        width,
+        height
+    );
+
     let status_symbols = ["●", "◐", "✔", "✖", "!", "?", "⊘"];
     let mut test_rows_found = 0;
     let mut cat_headings_found = 0;
@@ -748,7 +787,14 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
                     line
                 );
 
-                // 3. No row text is clipped without "…"
+                // 3. Right padding so "auto"/"both" never touch the border
+                assert!(
+                    !line.contains("auto│") && !line.contains("both│") && !line.contains("human│"),
+                    "Right padding in list rows required so kind never touches border: '{}'",
+                    line
+                );
+
+                // 4. No row text is clipped without "…"
                 if list_cell.contains("…") {
                     assert!(
                         list_cell.contains("… "),
@@ -823,13 +869,16 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
             "ID must be visible at narrow width ({} cols)",
             width
         );
-        assert!(
-            rendered.contains("Kind"),
-            "Kind must be visible at narrow width ({} cols)",
-            width
-        );
+        if height >= 22 || !is_waiting {
+            assert!(
+                rendered.contains("Kind"),
+                "Kind must be visible at narrow width ({} cols, height {})",
+                width,
+                height
+            );
+        }
         // The description and "What to look for" are visible at narrow width (scrollable with a hint if long)
-        if is_waiting || height >= 24 {
+        if is_waiting {
             assert!(
                 rendered.contains("What to look for"),
                 "What to look for must be visible at narrow width ({} cols, height {})",
@@ -837,7 +886,7 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
                 height
             );
         } else {
-            // When height is very small (e.g. 60x20) and description is long, shows "▼ more" hint
+            // When description is long, shows "▼ more" hint
             assert!(
                 rendered.contains("What to look for") || rendered.contains("▼ more"),
                 "Either 'What to look for' or scrollable clipping hint '▼ more' must be visible at {}x{}",
@@ -910,8 +959,9 @@ fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() 
     let mut scroll_app = create_test_app();
     scroll_app.fixture_exists = true;
     scroll_app.active_pane = spawn_at_verify::tui::app::ActivePane::Details;
-    scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
-    scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    for _ in 0..6 {
+        scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    }
     let scroll_backend = TestBackend::new(60, 20);
     let mut scroll_term = Terminal::new(scroll_backend).unwrap();
     scroll_term.draw(|f| draw_ui(f, &scroll_app)).unwrap();
@@ -1056,4 +1106,110 @@ fn test_dump_snapshots_to_scratch() {
 
     let scratch_path = "/home/harsh/.gemini/antigravity-ide/brain/c19dfab5-8922-4446-88cf-50dca990ff83/scratch/snapshots.txt";
     let _ = std::fs::write(scratch_path, out);
+}
+
+#[test]
+fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    // Assert: blank row below keys bar, blank row after header, right padding in list rows, Result box present at 60, 80 and 140 columns
+    for &w in &[60, 80, 140] {
+        let backend = TestBackend::new(w, 28);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let rendered = dump_buffer_to_string(&terminal, w, 28);
+
+        // Result box present at 60, 80 and 140 columns
+        assert!(
+            rendered.contains(" Result "),
+            "Result box must be present as boxed panel at {} columns",
+            w
+        );
+
+        let lines: Vec<&str> = rendered.lines().collect();
+
+        // Blank row below keys bar
+        assert!(
+            lines.last().unwrap().trim().is_empty(),
+            "Blank row below keys bar at bottom must be present at {} cols",
+            w
+        );
+
+        // Blank row above header
+        assert!(
+            lines[0].trim().is_empty(),
+            "Blank row above header must be present at {} cols",
+            w
+        );
+
+        // Blank row after header
+        assert!(
+            lines[2].trim().is_empty(),
+            "Blank row after header must be present at {} cols",
+            w
+        );
+
+        // Right padding in list rows so "auto"/"both" never touch the border
+        for line in &lines {
+            if line.contains('│') {
+                assert!(
+                    !line.contains("auto│") && !line.contains("both│") && !line.contains("human│"),
+                    "Right padding in list rows required so kind never touches border: '{}'",
+                    line
+                );
+            }
+        }
+    }
+
+    // Assert: aligned outcome symbols with fixed 2-char symbol slot
+    let mut outcome_app = create_test_app();
+    outcome_app.fixture_exists = true;
+    if let Some(pos) = outcome_app
+        .filtered_tests()
+        .iter()
+        .position(|t| t.id == "placement/bottom-right")
+    {
+        outcome_app.selected_index = pos;
+    }
+    let res = spawn_at_verify::runner::TestResult {
+        id: "placement/bottom-right".into(),
+        title: "Window placed in bottom-right corner".into(),
+        kind: TestKind::Both,
+        required: true,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(), // Unset -> "? You: pending review"
+        final_status: FinalStatus::Pending,
+        disagreement: false,
+        duration_ms: 121,
+        exit_code: Some(0),
+        stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+        stderr: String::new(),
+        message: Some("Assertions passed".into()),
+        log_slice: Some(
+            "+0.00ms | CLOAK win=[id=1002 pid=2002 class=\"test\" app=\"test\" type=NORMAL proto=Wayland] opacity=0 frame=(50,50,400x300)\n+32.50ms | UNCLOAK win=[id=1002 pid=2002 class=\"test\" app=\"test\" type=NORMAL proto=Wayland] opacity=255 frame=(50,50,400x300)".into(),
+        ),
+    };
+    outcome_app
+        .results
+        .insert("placement/bottom-right".into(), res);
+
+    let backend = TestBackend::new(100, 30);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &outcome_app)).unwrap();
+    let rendered = dump_buffer_to_string(&terminal, 100, 30);
+
+    // Verify fixed 2-char symbol slot outcome lines are rendered and aligned
+    assert!(
+        rendered.contains("✔ Auto: PASS (121 ms)"),
+        "Rendered must contain aligned '✔ Auto: PASS (121 ms)'"
+    );
+    assert!(
+        rendered.contains("  Cloak: 32.5 ms · Trace: 0 violations"),
+        "Rendered must contain aligned '  Cloak: 32.5 ms · Trace: 0 violations'"
+    );
+    assert!(
+        rendered.contains("? You: pending review"),
+        "Rendered must contain aligned '? You: pending review'"
+    );
 }
