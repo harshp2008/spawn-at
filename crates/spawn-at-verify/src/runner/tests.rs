@@ -240,3 +240,22 @@ fn test_build_action_command_args_fixture_and_class() {
         .unwrap();
     assert_eq!(args_inf[inf_exit_idx + 1], "300000");
 }
+
+/// An automatic test whose geometry was unchecked resolves to `PassUnchecked`, not `Pass`; with a
+/// human pass on a "both" test the unchecked mark is kept.
+#[test]
+fn test_unchecked_auto_pass_resolves_to_pass_unchecked() {
+    let none = HumanVerdict::default();
+    let (f, _) = resolve_final_status(TestKind::Auto, AutoStatus::AutoPassUnchecked, &none);
+    assert_eq!(f, FinalStatus::PassUnchecked);
+    let (f, _) = resolve_final_status(TestKind::Auto, AutoStatus::AutoPass, &none);
+    assert_eq!(f, FinalStatus::Pass);
+    let human_pass = HumanVerdict {
+        verdict: HumanVerdictKind::Pass,
+        note: None,
+    };
+    let (f, disagree) =
+        resolve_final_status(TestKind::Both, AutoStatus::AutoPassUnchecked, &human_pass);
+    assert_eq!(f, FinalStatus::PassUnchecked);
+    assert!(!disagree);
+}
