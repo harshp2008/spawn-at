@@ -1,0 +1,153 @@
+
+  Title         Window placed in bottom-right corner
+
+  ID            placement/bottom-right
+  Mode          both · automatic check + your visual review
+  Description   Spawns a test window anchored to the bottom-right
+                corner of the work area with a 16px boundary
+                margin.
+
+ ── RESULT ────────────────────────────────────────────────────────
+  Verdict       ◐ Pending
+  Cloak         34.2 ms
+  Budget        100 ms (provisional)   ✔ within budget
+  Trace         ✔ clean, no violations
+
+ ── GEOMETRY ──────────────────────────────────────────────────────
+  Field         Expected        Actual          Result  
+  Position      1504, 764       1504, 764          ✔    
+  Size          400×300         400×300            ✔    
+
+  Anchor        bottom-right
+  Margin        16
+  Tolerance     ±1 px
+
+ ── TIMELINE ── window 870906106 · pid 1188809 ────────────────────
+    +0.0 ms  ARM_SPAWN
+               target           verify.placement.bottomright
+
+    +9.1 ms  WINDOW_CREATED
+               actor found      true
+
+   +56.1 ms  ACTOR_MAP
+
+   +56.2 ms  DISPATCH
+               instructions     5
+
+   +56.6 ms  BATCH_STEP
+               instruction      Cloak
+
+   +56.7 ms  CLOAK
+               opacity          0
+               frame            50,90 400×300
+
+   +56.7 ms  BATCH_STEP
+               instruction      SetSize
+
+   +56.7 ms  SET_SIZE_REQUEST
+               requested        400×300
+               clamped safe     400×300
+               reported min     0×0
+               pre-frame        50,90 400×300
+               buffer rect      50,90 400×300
+
+   +56.8 ms  AFTER_SET_SIZE
+               opacity          0
+               frame            50,90 400×300
+
+   +56.8 ms  BATCH_STEP
+               instruction      WaitForCommit
+
+   +56.9 ms  COMMIT_SAMPLE
+               source           initial
+               frame            400×300
+               last             400×300
+
+   +57.0 ms  COMMIT_RESOLVED
+               reason           at target
+               final frame      400×300
+               target           400×300
+               safe             400×300
+
+   +85.7 ms  BATCH_STEP
+               instruction      SetPositionAnchored
+
+   +86.0 ms  FALLBACK_USED
+               reason           min size unreported
+               using frame      400×300
+
+   +86.0 ms  APPLY_ANCHOR
+               effective size   400×300
+               bounds           0,40 1920×1040
+               final frame      1504, 764
+
+   +86.0 ms  POSITION_SET
+               pre-frame        50,90 400×300
+               post-frame       1504,764 400×300
+               buffer rect      1504,764 400×300
+               actor            1504, 764
+               delta            1454, 674
+
+   +86.0 ms  AFTER_SET_POSITION_ANCHORED
+               opacity          0
+               frame            1504,764 400×300
+
+   +86.0 ms  BATCH_STEP
+               instruction      Uncloak
+
+   +86.0 ms  UNCLOAK_4A
+               delay            0ms
+               detail           skipped
+
+   +86.3 ms  UNCLOAK_4B
+               want wake        true
+               clamped safe     false
+               is VTE           false
+
+   +86.3 ms  UNCLOAK_4C
+               positioned       400×300
+               actual           400×300
+               needs re-anchor  false
+
+   +90.9 ms  UNCLOAK
+               opacity          255
+               frame            1504,764 400×300
+
+   +90.9 ms  UNCLOAK_4D_REVEAL
+               requested        400×300
+               post-frame       1504,764 400×300
+               buffer rect      1504,764 400×300
+
+   +90.9 ms  ANCHOR_ARMED
+
+ ── WHAT TO LOOK FOR ──────────────────────────────────────────────
+  Watch         Did the window appear once in the bottom-right
+                corner with a small gap from screen edges, without
+                flickering or jumping?
+  Your verdict  ◐ Pending
+
+ ── SPEC ──────────────────────────────────────────────────────────
+  Action        spawn
+  --class       verify.placement.bottomright
+  --anchor      bottom-right
+  --size        400 300
+  --margin      16
+
+  Subject       fixture
+  --title       Verify-Placement-BottomRight
+  --app-id      verify.placement.bottomright
+  --expect      Should appear at bottom-right corner
+
+ ── OUTPUT ────────────────────────────────────────────────────────
+  stderr        [spawn-at] INFO: Window mapped at final
+                size (400x300) and positioned at (1504, 764).
+
+  window_id     870906106
+  x             1504
+  y             764
+  w             400
+  h             300
+  rel_x         1504
+  rel_y         724
+  area          workarea
+  source        claim

@@ -1075,17 +1075,19 @@ pub fn build_drawer_content(
     builder.push_blank();
 
     // Labelled Header: Title, ID, Mode, Description in that order
-    // Title
+    // Title is the most significant row: bold, brightest White, followed by exactly 1 blank row
+    let norm_title = normalise_dimensions(&test.title);
     builder.push_kv(
         "Title",
         vec![Span::styled(
-            test.title.clone(),
+            norm_title.clone(),
             Style::default()
-                .fg(Color::Rgb(200, 200, 200))
+                .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
         )],
-        &test.title,
+        &norm_title,
     );
+    builder.push_blank();
 
     // ID
     builder.push_kv(
@@ -1114,7 +1116,8 @@ pub fn build_drawer_content(
     );
 
     // Description
-    if test.description.trim().is_empty() {
+    let desc_norm = normalise_dimensions(test.description.trim());
+    if desc_norm.is_empty() {
         builder.push_kv(
             "Description",
             vec![Span::styled(
@@ -1128,7 +1131,7 @@ pub fn build_drawer_content(
     } else {
         builder.push_wrapped_kv(
             "Description",
-            test.description.trim(),
+            &desc_norm,
             Style::default().fg(Color::Rgb(200, 200, 200)),
         );
     }
@@ -1500,56 +1503,49 @@ pub fn build_drawer_content(
             .unwrap_or_else(|| "16".into());
 
         if let Some((ax, ay, aw, ah, _src)) = actual_geom {
-            // Aligned table
-            let tbl_hdr = format!(
-                "  {:<12} {:<15} {:<15} {}",
-                "Field", "Expected", "Actual", "Result"
-            );
+            // Table Header: Field, Expected, Actual, Result
+            let indent_str = " ".repeat(DRAWER_INDENT);
+            let f_hdr = format!("{:<width$}", "Field", width = DRAWER_LABEL_W);
+            let exp_hdr = format!("{:<16}", "Expected");
+            let act_hdr = format!("{:<16}", "Actual");
+            let res_hdr = format!("{:<8}", "Result");
+
+            let tbl_hdr = format!("{}{}{}{}{}", indent_str, f_hdr, exp_hdr, act_hdr, res_hdr);
             builder.push(
                 Line::from(vec![
-                    Span::raw("  "),
-                    Span::styled(
-                        format!("{:<12}", "Field"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", "Expected"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", "Actual"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(" Result", Style::default().fg(Color::DarkGray)),
+                    Span::raw(indent_str.clone()),
+                    Span::styled(f_hdr, Style::default().fg(Color::DarkGray)),
+                    Span::styled(exp_hdr, Style::default().fg(Color::DarkGray)),
+                    Span::styled(act_hdr, Style::default().fg(Color::DarkGray)),
+                    Span::styled(res_hdr, Style::default().fg(Color::DarkGray)),
                 ]),
                 tbl_hdr,
             );
 
             let exp_pos = format!("{}, {}", ax, ay);
             let act_pos = format!("{}, {}", ax, ay);
-            let pos_line = format!("  {:<12} {:<15} {:<15} ✔", "Position", exp_pos, act_pos);
+            let f_pos = format!("{:<width$}", "Position", width = DRAWER_LABEL_W);
+            let exp_pos_fmt = format!("{:<16}", exp_pos);
+            let act_pos_fmt = format!("{:<16}", act_pos);
+            let res_pos_str = "   ✔    ";
+            let pos_line = format!(
+                "{}{}{}{}{}",
+                indent_str, f_pos, exp_pos_fmt, act_pos_fmt, res_pos_str
+            );
             builder.push(
                 Line::from(vec![
-                    Span::raw("  "),
-                    Span::styled(
-                        format!("{:<12}", "Position"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", exp_pos),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", act_pos),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(" ", Style::default()),
+                    Span::raw(indent_str.clone()),
+                    Span::styled(f_pos, Style::default().fg(Color::DarkGray)),
+                    Span::styled(exp_pos_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
+                    Span::styled(act_pos_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
+                    Span::raw("   "),
                     Span::styled(
                         "✔",
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
                     ),
+                    Span::raw("    "),
                 ]),
                 pos_line,
             );
@@ -1559,32 +1555,34 @@ pub fn build_drawer_content(
             } else {
                 (format!("{}×{}", aw, ah), format!("{}×{}", aw, ah))
             };
-            let sz_line = format!("  {:<12} {:<15} {:<15} ✔", "Size", exp_sz, act_sz);
+            let f_sz = format!("{:<width$}", "Size", width = DRAWER_LABEL_W);
+            let exp_sz_fmt = format!("{:<16}", exp_sz);
+            let act_sz_fmt = format!("{:<16}", act_sz);
+            let res_sz_str = "   ✔    ";
+            let sz_line = format!(
+                "{}{}{}{}{}",
+                indent_str, f_sz, exp_sz_fmt, act_sz_fmt, res_sz_str
+            );
             builder.push(
                 Line::from(vec![
-                    Span::raw("  "),
-                    Span::styled(
-                        format!("{:<12}", "Size"),
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", exp_sz),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(
-                        format!(" {:<15}", act_sz),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(" ", Style::default()),
+                    Span::raw(indent_str.clone()),
+                    Span::styled(f_sz, Style::default().fg(Color::DarkGray)),
+                    Span::styled(exp_sz_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
+                    Span::styled(act_sz_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
+                    Span::raw("   "),
                     Span::styled(
                         "✔",
                         Style::default()
                             .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
                     ),
+                    Span::raw("    "),
                 ]),
                 sz_line,
             );
+
+            // After the table, 1 blank row
+            builder.push_blank();
 
             builder.push_kv(
                 "Anchor",
@@ -1736,14 +1734,31 @@ pub fn build_drawer_content(
                 "no trace captured",
             );
         } else {
-            let max_tag_len = trace_events
+            let max_a = trace_events
                 .iter()
-                .map(|e| e.tag.len())
+                .map(|e| format!("+{:.1} ms", e.dt_ms).width())
                 .max()
-                .unwrap_or(16)
-                .max(16);
+                .unwrap_or(9)
+                .max(9);
 
+            let col_b_x = DRAWER_INDENT + max_a + 2;
+            let detail_indent = col_b_x + 2;
+
+            let max_human_lbl_w = trace_events
+                .iter()
+                .flat_map(|e| e.details.iter())
+                .map(|(lbl, _)| lbl.width())
+                .max()
+                .unwrap_or(10)
+                .min(16);
+
+            let label_col_w = max_human_lbl_w + 2;
+            let detail_val_x = detail_indent + label_col_w;
+            let detail_content_w = builder
+                .inner_width
+                .saturating_sub(detail_val_x + DRAWER_RIGHT_PAD);
             let event_count = trace_events.len();
+
             for (ev_idx, ev) in trace_events.iter().enumerate() {
                 let dt_str = format!("+{:.1} ms", ev.dt_ms);
                 let is_bold = matches!(
@@ -1759,54 +1774,45 @@ pub fn build_drawer_content(
                     Style::default().fg(Color::Rgb(200, 200, 200))
                 };
 
-                let dt_pad = format!("{:>9}", dt_str);
-                let tag_pad = format!("{:<width$}", ev.tag, width = max_tag_len);
+                let dt_pad = format!("{:>width$}", dt_str, width = max_a);
+                let indent_str = " ".repeat(DRAWER_INDENT);
+                let plain = format!("{}{}  {}", indent_str, dt_pad, ev.tag);
+                let line = Line::from(vec![
+                    Span::raw(indent_str),
+                    Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
+                    Span::raw("  "),
+                    Span::styled(ev.tag.clone(), ev_style),
+                ]);
+                builder.push(line, plain);
 
-                if ev.details.len() == 1 && ev.details[0].0.is_empty() {
-                    let val = &ev.details[0].1;
-                    let plain = format!("  {}  {} {}", dt_pad, tag_pad, val);
-                    let line = Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
-                        Span::raw("  "),
-                        Span::styled(tag_pad, ev_style),
-                        Span::raw(" "),
-                        Span::styled(val.clone(), Style::default().fg(Color::Rgb(200, 200, 200))),
-                    ]);
-                    builder.push(line, plain);
-                } else if ev.details.is_empty() {
-                    let plain = format!("  {}  {}", dt_pad, tag_pad);
-                    let line = Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
-                        Span::raw("  "),
-                        Span::styled(tag_pad, ev_style),
-                    ]);
-                    builder.push(line, plain);
-                } else {
-                    let plain = format!("  {}  {}", dt_pad, tag_pad);
-                    let line = Line::from(vec![
-                        Span::raw("  "),
-                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
-                        Span::raw("  "),
-                        Span::styled(tag_pad, ev_style),
-                    ]);
-                    builder.push(line, plain);
-
-                    // Stacked details indented to EVENT column (13 spaces)
-                    let indent_13 = " ".repeat(13);
-                    for (lbl, val) in &ev.details {
-                        let lbl_fmt = format!("{:15}", lbl);
-                        let det_plain = format!("{}{}{}", indent_13, lbl_fmt, val);
-                        let det_line = Line::from(vec![
-                            Span::raw(indent_13.clone()),
-                            Span::styled(lbl_fmt, Style::default().fg(Color::DarkGray)),
-                            Span::styled(
-                                val.clone(),
-                                Style::default().fg(Color::Rgb(200, 200, 200)),
-                            ),
-                        ]);
-                        builder.push(det_line, det_plain);
+                let indent_detail_str = " ".repeat(detail_indent);
+                for (lbl, val) in &ev.details {
+                    let lbl_fmt = format!("{:<width$}", lbl, width = label_col_w);
+                    let val_lines = wrap_value_tokens(val, detail_content_w);
+                    for (line_idx, val_line) in val_lines.into_iter().enumerate() {
+                        if line_idx == 0 {
+                            let det_plain = format!("{}{}{}", indent_detail_str, lbl_fmt, val_line);
+                            let det_line = Line::from(vec![
+                                Span::raw(indent_detail_str.clone()),
+                                Span::styled(lbl_fmt.clone(), Style::default().fg(Color::DarkGray)),
+                                Span::styled(
+                                    val_line,
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ]);
+                            builder.push(det_line, det_plain);
+                        } else {
+                            let indent_cont = " ".repeat(detail_val_x);
+                            let det_plain = format!("{}{}", indent_cont, val_line);
+                            let det_line = Line::from(vec![
+                                Span::raw(indent_cont),
+                                Span::styled(
+                                    val_line,
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ]);
+                            builder.push(det_line, det_plain);
+                        }
                     }
                 }
 
@@ -2095,6 +2101,11 @@ pub fn build_drawer_content(
     (builder.lines, full_plain)
 }
 
+pub const DRAWER_INDENT: usize = 2;
+pub const DRAWER_LABEL_W: usize = 14;
+pub const DRAWER_VALUE_X: usize = DRAWER_INDENT + DRAWER_LABEL_W; // 16
+pub const DRAWER_RIGHT_PAD: usize = 2;
+
 pub struct DrawerBuilder {
     pub lines: Vec<Line<'static>>,
     pub plain: Vec<String>,
@@ -2107,14 +2118,18 @@ impl DrawerBuilder {
     pub fn new(width: usize) -> Self {
         let w = width.max(50);
         let inner_w = w.saturating_sub(2);
-        let val_w = inner_w.saturating_sub(16);
+        let content_w = inner_w.saturating_sub(DRAWER_VALUE_X + DRAWER_RIGHT_PAD);
         Self {
             lines: Vec::new(),
             plain: Vec::new(),
             width: w,
             inner_width: inner_w,
-            val_col_width: val_w,
+            val_col_width: content_w,
         }
+    }
+
+    pub fn content_width(&self) -> usize {
+        self.val_col_width
     }
 
     pub fn push(&mut self, line: Line<'static>, text: String) {
@@ -2128,51 +2143,67 @@ impl DrawerBuilder {
     }
 
     pub fn push_heading(&mut self, name: &str, extra: Option<&str>) {
-        let prefix = match extra {
-            Some(ex) => format!("{} ── {} ", name, ex),
-            None => format!("{} ", name),
+        let (prefix_spans, prefix_len, plain_prefix) = match extra {
+            Some(ex) => {
+                let p_plain = format!(" ── {} ── {} ", name, ex);
+                let p_len = p_plain.width();
+                let spans = vec![
+                    Span::raw(" "),
+                    Span::styled("── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        name.to_string(),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(" ── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        ex.to_string(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::raw(" "),
+                ];
+                (spans, p_len, p_plain)
+            }
+            None => {
+                let p_plain = format!(" ── {} ", name);
+                let p_len = p_plain.width();
+                let spans = vec![
+                    Span::raw(" "),
+                    Span::styled("── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        name.to_string(),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" "),
+                ];
+                (spans, p_len, p_plain)
+            }
         };
-        let p_w = prefix.width();
-        let rule_len = self.inner_width.saturating_sub(p_w);
+
+        let target_len = self.inner_width.saturating_sub(1);
+        let rule_len = target_len.saturating_sub(prefix_len);
         let rule = "─".repeat(rule_len);
-        let plain_line = format!("{}{}", prefix, rule);
+        let plain_line = format!("{}{}", plain_prefix, rule);
 
-        let styled_line = match extra {
-            Some(ex) => Line::from(vec![
-                Span::styled(
-                    name.to_string(),
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(" ── ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    ex.to_string(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                ),
-                Span::raw(" "),
-                Span::styled(rule, Style::default().fg(Color::DarkGray)),
-            ]),
-            None => Line::from(vec![
-                Span::styled(
-                    name.to_string(),
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" "),
-                Span::styled(rule, Style::default().fg(Color::DarkGray)),
-            ]),
-        };
-
-        self.push(styled_line, plain_line);
+        let mut all_spans = prefix_spans;
+        all_spans.push(Span::styled(rule, Style::default().fg(Color::DarkGray)));
+        self.push(Line::from(all_spans), plain_line);
     }
 
     pub fn push_kv(&mut self, label: &str, val_spans: Vec<Span<'static>>, val_plain: &str) {
-        let label_fmt = format!("{:14}", label);
-        let plain_line = format!("  {}{}", label_fmt, val_plain);
+        if val_plain.width() > self.val_col_width {
+            let style = val_spans.first().map(|s| s.style).unwrap_or_default();
+            self.push_wrapped_kv(label, val_plain, style);
+            return;
+        }
+        let indent_str = " ".repeat(DRAWER_INDENT);
+        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
+        let plain_line = format!("{}{}{}", indent_str, label_fmt, val_plain);
         let mut spans = vec![
-            Span::raw("  "),
+            Span::raw(indent_str),
             Span::styled(label_fmt, Style::default().fg(Color::DarkGray)),
         ];
         spans.extend(val_spans);
@@ -2180,25 +2211,205 @@ impl DrawerBuilder {
     }
 
     pub fn push_wrapped_kv(&mut self, label: &str, val_text: &str, val_style: Style) {
-        let label_fmt = format!("{:14}", label);
+        let indent_str = " ".repeat(DRAWER_INDENT);
+        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
         let lines = wrap_value_tokens(val_text, self.val_col_width);
         for (i, line) in lines.into_iter().enumerate() {
             if i == 0 {
-                let plain = format!("  {}{}", label_fmt, line);
+                let plain = format!("{}{}{}", indent_str, label_fmt, line);
                 let spans = vec![
-                    Span::raw("  "),
+                    Span::raw(indent_str.clone()),
                     Span::styled(label_fmt.clone(), Style::default().fg(Color::DarkGray)),
                     Span::styled(line, val_style),
                 ];
                 self.push(Line::from(spans), plain);
             } else {
-                let indent_16 = " ".repeat(16);
-                let plain = format!("{}{}", indent_16, line);
-                let spans = vec![Span::raw(indent_16), Span::styled(line, val_style)];
+                let indent_val = " ".repeat(DRAWER_VALUE_X);
+                let plain = format!("{}{}", indent_val, line);
+                let spans = vec![Span::raw(indent_val), Span::styled(line, val_style)];
                 self.push(Line::from(spans), plain);
             }
         }
     }
+}
+
+pub fn normalise_dimensions(s: &str) -> String {
+    let mut out = String::new();
+    let chars: Vec<char> = s.chars().collect();
+    let len = chars.len();
+    let mut i = 0;
+    while i < len {
+        if chars[i] == 'x' {
+            let prev_is_num =
+                i > 0 && (chars[i - 1].is_ascii_digit() || (i >= 4 && &s[i - 4..i] == "null"));
+            let next_is_num =
+                i + 1 < len && (chars[i + 1].is_ascii_digit() || s[i + 1..].starts_with("null"));
+            if prev_is_num && next_is_num {
+                out.push('×');
+                i += 1;
+                continue;
+            }
+        }
+        out.push(chars[i]);
+        i += 1;
+    }
+    out
+}
+
+fn split_identifier_to_words(s: &str) -> String {
+    let mut words = Vec::new();
+    let mut current_word = String::new();
+    for ch in s.chars() {
+        if ch == '_' || ch == '-' {
+            if !current_word.is_empty() {
+                words.push(current_word.to_lowercase());
+                current_word = String::new();
+            }
+        } else if ch.is_uppercase() {
+            if !current_word.is_empty() {
+                words.push(current_word.to_lowercase());
+                current_word = String::new();
+            }
+            current_word.push(ch);
+        } else {
+            current_word.push(ch);
+        }
+    }
+    if !current_word.is_empty() {
+        words.push(current_word.to_lowercase());
+    }
+    let res = words.join(" ");
+    if res.width() > 16 {
+        res.chars().take(16).collect()
+    } else {
+        res
+    }
+}
+
+pub fn humanise_key(key: &str) -> String {
+    match key {
+        "requestedSize" | "requested" => "requested".into(),
+        "clampedSafeSize" | "clamped" => "clamped safe".into(),
+        "reportedMinSize" | "reported" => "reported min".into(),
+        "preFrame" | "pre-frame" | "pre_frame" => "pre-frame".into(),
+        "postFrame" | "post-frame" | "post_frame" => "post-frame".into(),
+        "bufferRect" | "buffer" | "buffer_rect" => "buffer rect".into(),
+        "instructionsCount" | "instructions" => "instructions".into(),
+        "actorFound" => "actor found".into(),
+        "inst" | "instruction" => "instruction".into(),
+        "wantWake" => "want wake".into(),
+        "isVte" => "is VTE".into(),
+        "needsReanchor" => "needs re-anchor".into(),
+        "usingFrame" => "using frame".into(),
+        "eff" => "effective size".into(),
+        "finalFrame" | "final" => "final frame".into(),
+        "target" => "target".into(),
+        "safe" => "safe".into(),
+        "reason" => "reason".into(),
+        "actor" => "actor".into(),
+        "delta" => "delta".into(),
+        "opacity" => "opacity".into(),
+        "frame" => "frame".into(),
+        "bounds" => "bounds".into(),
+        "delay" => "delay".into(),
+        "positioned" => "positioned".into(),
+        "actual" => "actual".into(),
+        "visible" => "visible".into(),
+        "pos" => "pos".into(),
+        "size" => "size".into(),
+        "parent" => "parent".into(),
+        "windowId" => "window id".into(),
+        "source" => "source".into(),
+        "last" => "last".into(),
+        other => split_identifier_to_words(other),
+    }
+}
+
+pub fn clean_trace_val(val: &str) -> String {
+    let trimmed = val.trim().trim_matches('"');
+    let unwrapped = if trimmed.starts_with('(') && trimmed.ends_with(')') {
+        &trimmed[1..trimmed.len() - 1]
+    } else {
+        trimmed
+    };
+
+    let parts: Vec<&str> = unwrapped.split(',').collect();
+    let formatted = if parts.len() == 3 && parts[2].contains('x') {
+        format!(
+            "{},{} {}",
+            parts[0].trim(),
+            parts[1].trim(),
+            parts[2].trim()
+        )
+    } else if parts.len() == 4 && !parts[2].contains('x') && !parts[3].contains('x') {
+        format!(
+            "{},{} {}×{}",
+            parts[0].trim(),
+            parts[1].trim(),
+            parts[2].trim(),
+            parts[3].trim()
+        )
+    } else if parts.len() == 2 && !parts[0].contains('x') && !parts[1].contains('x') {
+        format!("{}, {}", parts[0].trim(), parts[1].trim())
+    } else {
+        unwrapped.to_string()
+    };
+
+    let with_mult = normalise_dimensions(&formatted);
+
+    if with_mult
+        .chars()
+        .all(|c| c.is_ascii_uppercase() || c == '_')
+        && with_mult.len() > 1
+    {
+        with_mult.replace('_', " ").to_lowercase()
+    } else {
+        with_mult
+    }
+}
+
+pub fn parse_key_value_pairs(text: &str) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    let mut s = text.trim();
+    while !s.is_empty() {
+        if let Some(eq_pos) = s.find('=') {
+            let key = s[..eq_pos].trim();
+            let (actual_key, prefix) = match key.rfind(char::is_whitespace) {
+                Some(w_pos) => (key[w_pos + 1..].trim(), key[..w_pos].trim()),
+                None => (key, ""),
+            };
+            if !prefix.is_empty() {
+                pairs.push((String::new(), prefix.to_string()));
+            }
+            let rest = s[eq_pos + 1..].trim_start();
+            let (val, next_s) = if rest.starts_with('"') {
+                if let Some(end_q) = rest[1..].find('"') {
+                    (&rest[1..1 + end_q], rest[1 + end_q + 1..].trim_start())
+                } else {
+                    (&rest[1..], "")
+                }
+            } else if rest.starts_with('(') {
+                if let Some(end_p) = rest.find(')') {
+                    (&rest[..=end_p], rest[end_p + 1..].trim_start())
+                } else {
+                    (rest, "")
+                }
+            } else {
+                match rest.find(char::is_whitespace) {
+                    Some(sp) => (&rest[..sp], rest[sp + 1..].trim_start()),
+                    None => (rest, ""),
+                }
+            };
+            pairs.push((actual_key.to_string(), val.to_string()));
+            s = next_s;
+        } else {
+            if !s.is_empty() {
+                pairs.push((String::new(), s.to_string()));
+            }
+            break;
+        }
+    }
+    pairs
 }
 
 fn tokenize_text(text: &str) -> Vec<String> {
@@ -2314,13 +2525,13 @@ pub fn wrap_value_tokens(text: &str, max_width: usize) -> Vec<String> {
     lines
 }
 
-struct ParsedTimelineEvent {
-    dt_ms: f64,
-    tag: String,
-    details: Vec<(String, String)>,
+pub struct ParsedTimelineEvent {
+    pub dt_ms: f64,
+    pub tag: String,
+    pub details: Vec<(String, String)>,
 }
 
-fn parse_compact_timeline(
+pub fn parse_compact_timeline(
     res_opt: Option<&TestResult>,
     _trace_report: Option<&crate::trace::TraceReport>,
 ) -> Vec<ParsedTimelineEvent> {
@@ -2373,28 +2584,24 @@ fn parse_compact_timeline(
                 let mut details = Vec::new();
                 match tag.as_str() {
                     "ARM_SPAWN" => {
-                        if let Some(t_pos) = remaining.find("target=") {
-                            let target = remaining[t_pos + 7..].trim().trim_matches('"');
-                            details.push(("target".into(), target.to_string()));
-                        } else if !remaining.is_empty() {
-                            details.push(("target".into(), remaining.clone()));
+                        let pairs = parse_key_value_pairs(&remaining);
+                        for (k, v) in pairs {
+                            let human_k = if k.is_empty() {
+                                "target".to_string()
+                            } else {
+                                humanise_key(&k)
+                            };
+                            details.push((human_k, clean_trace_val(&v)));
+                        }
+                        if details.is_empty() && !remaining.is_empty() {
+                            details.push(("target".into(), clean_trace_val(&remaining)));
                         }
                     }
                     "SET_SIZE_REQUEST" => {
-                        for token in remaining.split_whitespace() {
-                            if let Some(eq) = token.find('=') {
-                                let k = &token[..eq];
-                                let v = token[eq + 1..].replace('x', "×");
-                                let human_k = match k {
-                                    "requested" => "requested",
-                                    "clamped" => "clamped safe",
-                                    "reported" | "min" => "reported min",
-                                    "pre-frame" | "pre_frame" => "pre-frame",
-                                    "buffer" | "buffer_rect" => "buffer rect",
-                                    other => other,
-                                };
-                                details.push((human_k.into(), v));
-                            }
+                        let pairs = parse_key_value_pairs(&remaining);
+                        for (k, v) in pairs {
+                            let human_k = humanise_key(&k);
+                            details.push((human_k, clean_trace_val(&v)));
                         }
                         if details.is_empty() {
                             details.push(("requested".into(), "400×300".into()));
@@ -2402,25 +2609,41 @@ fn parse_compact_timeline(
                         }
                     }
                     "COMMIT_RESOLVED" => {
-                        let final_sz = remaining.replace('=', " ").replace('x', "×");
-                        if !final_sz.is_empty() {
-                            details.push(("final".into(), final_sz));
-                        } else {
-                            details.push(("status".into(), "at target".into()));
+                        let pairs = parse_key_value_pairs(&remaining);
+                        for (k, v) in pairs {
+                            let human_k = if k.is_empty() {
+                                "final frame".to_string()
+                            } else {
+                                humanise_key(&k)
+                            };
+                            details.push((human_k, clean_trace_val(&v)));
+                        }
+                        if details.is_empty() && !remaining.is_empty() {
+                            details.push(("final frame".into(), clean_trace_val(&remaining)));
                         }
                     }
-                    "CLOAK" => {
-                        for token in remaining.split_whitespace() {
-                            if let Some(eq) = token.find('=') {
-                                let k = &token[..eq];
-                                let v = token[eq + 1..].replace('x', "×");
-                                details.push((k.into(), v));
-                            }
-                        }
+                    "ANCHOR_ARMED" | "SNAPSHOT_DESTROYED" => {
+                        // Single row, no details
+                    }
+                    "ACTOR_MAP" => {
+                        // In compact view, actor mapped is captured by event name
                     }
                     _ => {
-                        if !remaining.is_empty() {
-                            details.push((String::new(), remaining));
+                        let pairs = parse_key_value_pairs(&remaining);
+                        for (k, v) in pairs {
+                            if k.is_empty() && v.is_empty() {
+                                continue;
+                            }
+                            let human_k = if k.is_empty() {
+                                if tag == "PRE_REVEAL_UNMINIMIZE" {
+                                    "action".to_string()
+                                } else {
+                                    "detail".to_string()
+                                }
+                            } else {
+                                humanise_key(&k)
+                            };
+                            details.push((human_k, clean_trace_val(&v)));
                         }
                     }
                 }
@@ -2540,8 +2763,9 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
         })
         .sum();
 
-    if single_row_len <= inner_width && inner_width > 80 {
-        let mut spans = Vec::new();
+    let single_row_with_pad = single_row_len + 1;
+    if single_row_with_pad <= inner_width && inner_width > 80 {
+        let mut spans = vec![Span::raw(" ")];
         for (i, (key, label)) in entries.iter().enumerate() {
             if i > 0 {
                 spans.push(Span::raw("   "));
