@@ -15,8 +15,11 @@
 //! distribute, and/or sell copies of the Font Software, subject to the Bitstream
 //! Vera Font License terms. See THIRD_PARTY_NOTICES.md for the full license text.
 
+/// Width of each glyph cell in the bitmap font in pixels.
 pub const FONT_WIDTH: usize = 10;
+/// Height of each glyph cell in the bitmap font in pixels.
 pub const FONT_HEIGHT: usize = 16;
+/// Raw 16-bit scanline data for ASCII characters 32 through 126.
 pub const FONT_DATA: [[u16; 16]; 95] = [
     [
         0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000, 0x000,

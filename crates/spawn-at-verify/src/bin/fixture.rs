@@ -6,19 +6,27 @@ mod fixture;
 use clap::{Parser, ValueEnum};
 use fixture::window::run_window;
 
+/// Window backend protocol selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Protocol {
+    /// Automatically detect based on WAYLAND_DISPLAY and DISPLAY environment variables.
     Auto,
+    /// Force Wayland protocol.
     Wayland,
+    /// Force X11 protocol.
     X11,
 }
 
+/// Window server-side decorations mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum DecorationMode {
+    /// Enable window decorations.
     On,
+    /// Disable window decorations for 1:1 frame-to-content placement parity.
     Off,
 }
 
+/// Command-line arguments for the verification fixture application.
 #[derive(Parser, Debug, Clone)]
 #[command(name = "fixture", about = "Window verification fixture application")]
 pub struct FixtureArgs {
@@ -75,6 +83,7 @@ pub struct FixtureArgs {
     pub expect: String,
 }
 
+/// Resolves the effective windowing protocol string based on requested mode and environment.
 pub fn resolve_backend(
     requested: Protocol,
     wayland_display: Option<&str>,
@@ -107,6 +116,7 @@ pub fn resolve_backend(
     }
 }
 
+/// Entry point for the verification fixture binary.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = FixtureArgs::parse();
 
@@ -130,6 +140,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 mod tests {
     use super::*;
 
+    /// Tests that auto protocol resolution prefers Wayland when WAYLAND_DISPLAY is available.
     #[test]
     fn test_resolve_backend_auto_prefers_wayland() {
         assert_eq!(
@@ -138,6 +149,7 @@ mod tests {
         );
     }
 
+    /// Tests that auto protocol resolution falls back to X11 when only DISPLAY is available.
     #[test]
     fn test_resolve_backend_auto_falls_back_to_x11() {
         assert_eq!(
@@ -146,11 +158,13 @@ mod tests {
         );
     }
 
+    /// Tests that auto protocol resolution fails with an error when neither display variable is set.
     #[test]
     fn test_resolve_backend_auto_fails_without_display() {
         assert!(resolve_backend(Protocol::Auto, None, None).is_err());
     }
 
+    /// Tests explicit Wayland protocol resolution requiring WAYLAND_DISPLAY.
     #[test]
     fn test_resolve_backend_explicit_wayland() {
         assert_eq!(
@@ -160,6 +174,7 @@ mod tests {
         assert!(resolve_backend(Protocol::Wayland, None, Some(":0")).is_err());
     }
 
+    /// Tests explicit X11 protocol resolution requiring DISPLAY.
     #[test]
     fn test_resolve_backend_explicit_x11() {
         assert_eq!(
@@ -169,6 +184,7 @@ mod tests {
         assert!(resolve_backend(Protocol::X11, Some("wayland-0"), None).is_err());
     }
 
+    /// Tests CLI argument parsing default values.
     #[test]
     fn test_cli_argument_parsing_defaults() {
         use clap::Parser;
@@ -188,6 +204,7 @@ mod tests {
         assert_eq!(args.expect, "");
     }
 
+    /// Tests CLI argument parsing with custom flags.
     #[test]
     fn test_cli_argument_parsing_custom_flags() {
         use clap::Parser;

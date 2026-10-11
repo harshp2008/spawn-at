@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// Creates the window, sets up event loops and signal handlers, and executes the fixture runtime.
 pub(crate) fn run_window(
     args: FixtureArgs,
     backend_str: &'static str,

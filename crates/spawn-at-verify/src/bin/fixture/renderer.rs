@@ -10,6 +10,7 @@ struct Surface<'a> {
 }
 
 impl<'a> Surface<'a> {
+    /// Renders a single character glyph into the software surface buffer.
     fn draw_char(&mut self, c: char, px: usize, py: usize, scale: usize, color: u32) {
         let ascii = c as u32;
         if !(32..=126).contains(&ascii) {
@@ -33,6 +34,7 @@ impl<'a> Surface<'a> {
         }
     }
 
+    /// Draws a line of text starting at the given coordinates using the bitmap font.
     fn draw_text_line(&mut self, text: &str, px: usize, py: usize, scale: usize, color: u32) {
         let char_w = font::FONT_WIDTH * scale + (scale / 2).max(1);
         for (i, c) in text.chars().enumerate() {
@@ -45,6 +47,7 @@ impl<'a> Surface<'a> {
     }
 }
 
+/// Paints the window frame with title, timing status, and test assertions.
 pub(crate) fn draw_frame(
     surface: &mut softbuffer::Surface<
         std::rc::Rc<winit::window::Window>,
