@@ -31,6 +31,8 @@ pub enum Commands {
     Report(ReportArgs),
     /// Interactive Terminal UI for test execution and human review
     Tui(TuiArgs),
+    /// Measure one case's cloak duration over N separate processes and N --repeat runs
+    Calibrate(CalibrateArgs),
     /// Internal helper for smoke-live.sh JSON evaluation and placement verification
     #[command(subcommand, hide = true)]
     SmokeEval(smoke_eval::SmokeEvalCommand),
@@ -165,6 +167,30 @@ pub struct CheckArgs {
 pub struct ReportArgs {
     /// Path to session report directory or report.json [default: latest in verify-results/]
     pub path: Option<PathBuf>,
+}
+
+/// Arguments for the `calibrate` subcommand.
+#[derive(Args, Debug)]
+pub struct CalibrateArgs {
+    /// Exact test id to measure (e.g. cloak/delayed-paint/delay-500)
+    #[arg(long)]
+    pub case: String,
+
+    /// Runs per mode (separate processes, then --repeat), capped at 100
+    #[arg(long, default_value = "10")]
+    pub runs: usize,
+
+    /// Path to spawn-at binary under test [default: target/debug/spawn-at]
+    #[arg(long)]
+    pub bin: Option<PathBuf>,
+
+    /// Path to verify test library directory [default: auto-detected verify/]
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
+
+    /// Allow measuring a dirty build
+    #[arg(long)]
+    pub allow_dirty: bool,
 }
 
 /// Arguments for the `tui` subcommand.

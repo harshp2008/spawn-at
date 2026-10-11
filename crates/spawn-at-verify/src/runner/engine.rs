@@ -44,7 +44,27 @@ impl TestRunner {
     }
 
     /// Runs all selected tests and returns the execution report.
+    ///
+    /// With `--repeat N` only the first run of each test is kept in the returned results;
+    /// use [`TestRunner::run_detailed`] to also get every individual run.
     pub fn run(&self) -> Result<(PreflightReport, EnvironmentInfo, Vec<TestResult>), String> {
+        self.run_detailed().map(|(p, e, r, _)| (p, e, r))
+    }
+
+    /// Like [`TestRunner::run`], but also returns, per selected test, the results of every
+    /// repetition in execution order (a single entry when `repeat` is 1).
+    #[allow(clippy::type_complexity)]
+    pub fn run_detailed(
+        &self,
+    ) -> Result<
+        (
+            PreflightReport,
+            EnvironmentInfo,
+            Vec<TestResult>,
+            Vec<Vec<TestResult>>,
+        ),
+        String,
+    > {
         let bin = &self.options.bin_path;
         if !bin.exists() {
             return Err(format!("Target binary '{}' not found", bin.display()));
@@ -75,10 +95,12 @@ impl TestRunner {
 
         let repeat_count = self.options.repeat.clamp(1, MAX_REPEAT_CAP);
         let mut results = Vec::new();
+        let mut all_runs: Vec<Vec<TestResult>> = Vec::new();
 
         for test in &tests_to_run {
             if repeat_count == 1 {
                 let res = self.execute_single_test(test, &preflight, &env_info, &mut tracker);
+                all_runs.push(vec![res.clone()]);
                 results.push(res);
             } else {
                 // Multi-run flakiness detection across N repetitions
@@ -93,6 +115,7 @@ impl TestRunner {
                     .windows(2)
                     .all(|w| w[0].final_status == w[1].final_status);
 
+                all_runs.push(run_results.clone());
                 let mut combined = run_results.into_iter().next().unwrap();
                 if !all_same {
                     combined.final_status = FinalStatus::Flaky;
@@ -108,6 +131,6 @@ impl TestRunner {
         // 5. Final cleanup of any lingering windows
         let _ = tracker.cleanup_test_windows(bin);
 
-        Ok((preflight, env_info, results))
+        Ok((preflight, env_info, results, all_runs))
     }
 }

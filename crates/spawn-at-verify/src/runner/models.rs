@@ -108,6 +108,14 @@ pub struct TestResult {
 }
 
 impl TestResult {
+    /// Cloak duration in milliseconds measured from this result's log slice, or `None` when
+    /// there is no slice or the slice holds no complete CLOAK..UNCLOAK pair.
+    pub fn cloak_duration_ms(&self) -> Option<f64> {
+        let slice = self.log_slice.as_ref()?;
+        crate::trace::TraceAnalyser::new()
+            .analyse(slice)
+            .cloak_duration_ms
+    }
     /// Returns the category of this test result based on its ID.
     pub fn category(&self) -> &str {
         if self.id.starts_with("preflight") || self.id.starts_with("basics") {

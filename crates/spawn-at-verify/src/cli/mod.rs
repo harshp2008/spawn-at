@@ -1,6 +1,7 @@
 //! CLI argument models and subcommand handlers.
 
 pub mod args;
+pub mod calibrate;
 pub mod check;
 pub mod list;
 pub mod report;
@@ -9,6 +10,7 @@ pub mod smoke_eval;
 pub mod tui;
 
 pub use args::*;
+pub use calibrate::*;
 pub use check::*;
 pub use list::*;
 pub use report::*;
@@ -24,6 +26,7 @@ pub fn handle_command(cmd: Commands) {
         Commands::List(args) => handle_list(args),
         Commands::Report(args) => handle_report(args),
         Commands::Tui(args) => handle_tui(args),
+        Commands::Calibrate(args) => handle_calibrate(args),
         Commands::SmokeEval(cmd) => smoke_eval::execute(cmd),
     }
 }
