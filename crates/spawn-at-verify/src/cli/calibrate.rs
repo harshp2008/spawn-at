@@ -19,6 +19,8 @@ struct Sample {
     cloak_ms: Option<f64>,
     /// Final status and message of the run, shown when no cloak duration was measured.
     status: String,
+    /// Scoped events as `TAG@+ms` relative to the first scoped event, for diagnosing outliers.
+    events: String,
 }
 
 /// Builds a [`Sample`] from a finished result.
@@ -40,6 +42,17 @@ fn sample_from(result: &TestResult, report: Option<PathBuf>) -> Sample {
         window_id: extract_claimed_window_id(&result.stdout, &result.stderr),
         slice_windows,
         cloak_ms: result.cloak_duration_ms(),
+        events: result
+            .trace_report()
+            .map(|r| {
+                let t0 = r.events.first().map(|e| e.elapsed_ms).unwrap_or(0.0);
+                r.events
+                    .iter()
+                    .map(|e| format!("{}@+{:.1}", e.tag, e.elapsed_ms - t0))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            })
+            .unwrap_or_default(),
         status: format!(
             "{:?}: {}",
             result.final_status,
@@ -75,6 +88,9 @@ fn print_samples(title: &str, samples: &[Sample]) {
         );
         if s.cloak_ms.is_none() {
             println!("          status: {}", s.status);
+        }
+        if s.cloak_ms.is_none_or(|c| c >= 50.0) {
+            println!("          scoped events: {}", s.events);
         }
     }
     let mut vals: Vec<f64> = samples.iter().filter_map(|s| s.cloak_ms).collect();
@@ -123,6 +139,7 @@ fn run_separate_process(args: &CalibrateArgs, bin: &Path, verify_dir: &Path) -> 
                 slice_windows: 0,
                 cloak_ms: None,
                 status: "could not launch run subprocess".into(),
+                events: String::new(),
             };
         }
     };
@@ -147,6 +164,7 @@ fn run_separate_process(args: &CalibrateArgs, bin: &Path, verify_dir: &Path) -> 
                 slice_windows: 0,
                 cloak_ms: None,
                 status: "no report.json found".into(),
+                events: String::new(),
             }
         }
     }
