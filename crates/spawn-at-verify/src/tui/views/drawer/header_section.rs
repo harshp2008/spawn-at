@@ -52,6 +52,9 @@ pub fn render_header_section(builder: &mut DrawerBuilder, test: &TestDefinition)
         &mode_val,
     );
 
+    // 1 blank row between Mode and Description
+    builder.push_blank();
+
     // Description
     let desc_norm = normalise_dimensions(test.description.trim());
     if desc_norm.is_empty() {

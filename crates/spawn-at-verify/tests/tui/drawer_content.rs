@@ -301,16 +301,16 @@ fn test_label_values_alignment_across_section() {
 }
 
 #[test]
-fn test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings() {
+fn test_render_drawer_at_60x30_80x30_140x30_no_clipped_headings() {
     for &w in &[60, 80, 140] {
         let mut app = create_test_app();
         app.fixture_exists = true;
         app.detail_drawer_open = true;
 
-        let backend = TestBackend::new(w, 28);
+        let backend = TestBackend::new(w, 30);
         let mut terminal = Terminal::new(backend).unwrap();
         terminal.draw(|f| draw_ui(f, &app)).unwrap();
-        let rendered = dump_buffer_to_string(&terminal, w, 28);
+        let rendered = dump_buffer_to_string(&terminal, w, 30);
 
         // Heading lines: RESULT, GEOMETRY, TIMELINE must appear without corruption
         assert!(
@@ -332,7 +332,7 @@ fn test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings() {
         } else {
             app.detail_scroll = 5;
             terminal.draw(|f| draw_ui(f, &app)).unwrap();
-            let scrolled_rendered = dump_buffer_to_string(&terminal, w, 28);
+            let scrolled_rendered = dump_buffer_to_string(&terminal, w, 30);
             assert!(
                 scrolled_rendered.contains("TIMELINE"),
                 "Heading TIMELINE must not be clipped at width {}",

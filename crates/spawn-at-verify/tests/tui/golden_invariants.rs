@@ -483,19 +483,20 @@ fn test_real_placement_drawer_grid_invariants() {
             "Description must follow Mode at width {}",
             w
         );
-        for l in plain
-            .lines()
-            .skip(mode_idx + 1)
-            .take(desc_idx - (mode_idx + 1))
-        {
-            assert!(
-                !l.is_empty(),
-                "No blank rows between Mode and Description at width {}",
-                w
-            );
-        }
-
-        // 8. Grid Invariant: no raw key=value, no raw camelCase, no unclosed parens
+        // Mode may wrap onto continuation rows at narrow widths, so anchor on the rows
+        // directly above Description: one blank row, preceded by non-blank Mode text.
+        let above_desc = plain.lines().nth(desc_idx - 1).unwrap();
+        let above_blank = plain.lines().nth(desc_idx - 2).unwrap();
+        assert!(
+            above_desc.is_empty(),
+            "Row directly above Description must be blank at width {}",
+            w
+        );
+        assert!(
+            !above_blank.is_empty(),
+            "Exactly one blank row between Mode and Description at width {}",
+            w
+        );
         for line in timeline_part.lines() {
             assert!(
                 !line.contains("requestedSize"),
