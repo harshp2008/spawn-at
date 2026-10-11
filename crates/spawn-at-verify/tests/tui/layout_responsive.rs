@@ -8,7 +8,6 @@ use spawn_at_verify::schema::TestKind;
 use spawn_at_verify::tui::views::draw_ui;
 use std::path::PathBuf;
 
-/// Tests headless rendering and presence of warning banner when fixture is absent.
 #[test]
 fn test_tui_headless_render_and_missing_fixture_banner() {
     let mut app = create_test_app();
@@ -37,7 +36,6 @@ fn test_tui_headless_render_and_missing_fixture_banner() {
     );
 }
 
-/// Tests rendering overflow indicators on compact 80x24 terminal grids.
 #[test]
 fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
     let mut app = create_test_app();
@@ -125,10 +123,8 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
     assert!(!bar_text.contains("Run"));
 }
 
-/// Renders full TUI snapshots across breakpoints to ensure responsive stability.
 #[test]
 fn test_render_snapshots() {
-    /// Dumps test buffer cells to a multi-line string.
     fn dump_buffer(terminal: &Terminal<TestBackend>, width: u16, height: u16) -> String {
         let buf = terminal.backend().buffer();
         let mut out = String::new();
@@ -226,7 +222,6 @@ fn test_render_snapshots() {
     assert!(fail_snapshot.contains("FAIL"));
 }
 
-/// Verifies passing test states do not introduce red-styled terminal cells.
 #[test]
 fn test_render_passing_case_contains_no_red_styled_cells() {
     let mut app = create_test_app();
@@ -305,7 +300,6 @@ fn test_render_passing_case_contains_no_red_styled_cells() {
     }
 }
 
-/// Tests responsive grid reflow across standard column widths and short heights.
 #[test]
 fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() {
     let resolutions = [(60, 20), (60, 28), (70, 28), (80, 28), (100, 28), (140, 28)];
@@ -381,7 +375,6 @@ fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() 
     );
 }
 
-/// Verifies terminal dimensions below minimum thresholds display a warning.
 #[test]
 fn test_render_terminal_below_minimum_size_shows_warning() {
     let mut app = create_test_app();
@@ -407,7 +400,6 @@ fn test_render_terminal_below_minimum_size_shows_warning() {
     );
 }
 
-/// Tests handling long test descriptions and waiting states at 60x20.
 #[test]
 fn test_render_60x20_long_description_and_waiting_drawer_flow() {
     let mut app = create_test_app();

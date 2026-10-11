@@ -150,7 +150,9 @@ pub const PROPOSED_CASES: &[ProposedCase] = &[
     },
 ];
 
-/// Verifies that every active test case definition assigns a valid category.
+/// Scans all active test definitions in `verify/` directory and validates their category against `VALID_CATEGORIES`.
+/// Asserts registry is non-empty and every discovered test belongs to a valid suite category.
+/// Fails if a new test case TOML introduces an unclassified or misspelled category folder.
 #[test]
 fn test_every_active_case_has_valid_category() {
     let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -182,7 +184,8 @@ fn test_every_active_case_has_valid_category() {
     }
 }
 
-/// Ensures that omitting category in TOML definitions produces deserialization error.
+/// Deserializes a TOML spec lacking the mandatory `category` field and asserts serde returns an error naming "category".
+/// Fails if `TestDefinition.category` is made optional or given a default value, allowing unclassified test files.
 #[test]
 fn test_missing_category_in_toml_is_deserialization_error() {
     let toml_missing_category = r#"
@@ -213,7 +216,8 @@ exit_code = 0
     );
 }
 
-/// Ensures that unrecognized category strings fail semantic validation.
+/// Parses a TOML spec with `category = "nonexistent-category-foo"` and asserts `is_valid_category` returns false.
+/// Fails if `VALID_CATEGORIES` validation allows arbitrary string values instead of known suite directories.
 #[test]
 fn test_unknown_category_is_validation_error() {
     let toml_invalid_cat = r#"
@@ -236,7 +240,9 @@ exit_code = 0
     assert!(!is_valid_category(&parsed.category));
 }
 
-/// Tests registry filtering queries by category identifier.
+/// Queries `verify/` registry filtered by categories `placement`, `basics`, and `animation-and-cloak`.
+/// Asserts each slice is non-empty and every returned test definition reports that category.
+/// Fails if category filtering returns wrong category matches or empty results for standard suites.
 #[test]
 fn test_category_filtering_in_registry() {
     let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))

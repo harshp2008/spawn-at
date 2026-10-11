@@ -4,6 +4,7 @@ use crate::runner::TestResult;
 use crate::tui::views::wrapping::normalise_dimensions;
 use unicode_width::UnicodeWidthStr;
 
+/// Splits snake_case, kebab-case, or camelCase identifier strings into space-separated lowercase words.
 fn split_identifier_to_words(s: &str) -> String {
     let mut words = Vec::new();
     let mut current_word = String::new();

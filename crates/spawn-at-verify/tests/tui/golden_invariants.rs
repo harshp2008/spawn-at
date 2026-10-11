@@ -6,7 +6,6 @@ use spawn_at_verify::runner::{FinalStatus, HumanVerdictKind};
 use spawn_at_verify::tui::app::ModalState;
 use spawn_at_verify::tui::views::draw_ui;
 
-/// Dumps current drawer rendering snapshots to scratch directory for analysis.
 #[test]
 fn test_dump_snapshots_to_scratch() {
     let resolutions = [(60, 28), (80, 28), (140, 28)];
@@ -135,7 +134,6 @@ fn test_dump_snapshots_to_scratch() {
     let _ = std::fs::write(scratch_path, out);
 }
 
-/// Compares rendered detail drawer output against golden snapshot files.
 #[test]
 fn test_real_placement_drawer_golden_files() {
     let (app, test) = create_app_with_real_fixture();
@@ -175,7 +173,6 @@ fn test_real_placement_drawer_golden_files() {
     }
 }
 
-/// Asserts structural alignment invariants across drawer text output.
 #[test]
 fn test_real_placement_drawer_grid_invariants() {
     let (app, test) = create_app_with_real_fixture();

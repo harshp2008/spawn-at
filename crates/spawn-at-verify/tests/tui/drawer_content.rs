@@ -6,7 +6,6 @@ use ratatui::{backend::TestBackend, style::Color, Terminal};
 use spawn_at_verify::runner::{AutoStatus, FinalStatus, HumanVerdict, HumanVerdictKind};
 use spawn_at_verify::tui::views::draw_ui;
 
-/// Tests layout ordering and failure banner styling inside the detail drawer.
 #[test]
 fn test_tui_detail_drawer_content_ordering_and_failure_box() {
     let mut app = create_test_app();
@@ -100,7 +99,6 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
     assert!(raw_plain.contains("visible flash"));
 }
 
-/// Tests section hierarchy and formatting integrity within the drawer view.
 #[test]
 fn test_drawer_sections_order_and_formatting() {
     let app = create_test_app();
@@ -149,7 +147,9 @@ fn test_drawer_sections_order_and_formatting() {
     );
 }
 
-/// Tests that captured window ID is not duplicated in compact drawer output.
+/// Injects unique window ID `9876543210` into stdout JSON and renders compact drawer at width 80.
+/// Asserts the window ID string appears exactly once in the rendered plain text output.
+/// Fails if the compact drawer duplicates window ID in both facts and raw stdout blocks.
 #[test]
 fn test_stdout_window_id_appears_exactly_once_in_compact_drawer() {
     let mut app = create_test_app();
@@ -188,7 +188,9 @@ fn test_stdout_window_id_appears_exactly_once_in_compact_drawer() {
     );
 }
 
-/// Tests timeline compaction omitting redundant prefixes and protocol noise.
+/// Renders compact drawer at width 80 with raw log lines containing `[spawn-at-time]` and `proto=wayland`.
+/// Asserts the rendered TIMELINE section contains neither substring, keeping output concise.
+/// Fails if log cleanup regexes fail to strip logger prefix tags or protocol metadata.
 #[test]
 fn test_compact_timeline_contains_neither_prefix_nor_proto() {
     let mut app = create_test_app();
@@ -242,7 +244,6 @@ fn test_compact_timeline_contains_neither_prefix_nor_proto() {
     );
 }
 
-/// Tests visual tabular alignment between keys and values in drawer sections.
 #[test]
 fn test_label_values_alignment_across_section() {
     let mut app = create_test_app();
@@ -299,7 +300,6 @@ fn test_label_values_alignment_across_section() {
     );
 }
 
-/// Tests responsive drawer rendering across terminal width breakpoints.
 #[test]
 fn test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings() {
     for &w in &[60, 80, 140] {
@@ -342,7 +342,6 @@ fn test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings() {
     }
 }
 
-/// Tests token wrapping and text reflow under varying drawer dimensions.
 #[test]
 fn test_multisize_drawer_rendering_and_token_wrapping() {
     let trace_log_12 = "\
@@ -438,7 +437,6 @@ fn test_multisize_drawer_rendering_and_token_wrapping() {
     }
 }
 
-/// Tests hard-break token wrapping behavior at narrow 50-column width.
 #[test]
 fn test_synthetic_token_hard_wrap_alignment_at_width_50() {
     let app = create_test_app();
@@ -461,7 +459,6 @@ fn test_synthetic_token_hard_wrap_alignment_at_width_50() {
     assert_ne!(c, ' ', "Continuation row must start content at column 16");
 }
 
-/// Tests that cloak duration warning renders in yellow without failing the test.
 #[test]
 fn test_506_9_ms_cloak_yellow_warning_does_not_fail_pass() {
     let mut app = create_test_app();
@@ -527,7 +524,6 @@ fn test_506_9_ms_cloak_yellow_warning_does_not_fail_pass() {
     );
 }
 
-/// Tests that failure reasons are rendered prominently in red styling.
 #[test]
 fn test_failing_case_renders_failure_row_with_real_reason_in_red() {
     let mut app = create_test_app();

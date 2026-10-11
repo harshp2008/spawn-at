@@ -6,7 +6,6 @@ use ratatui::{backend::TestBackend, Terminal};
 use spawn_at_verify::tui::app::ModalState;
 use spawn_at_verify::tui::views::draw_ui;
 
-/// Tests toggling drawer visibility and vertical scrolling controls.
 #[test]
 fn test_tui_detail_drawer_toggle_and_scrolling() {
     let mut app = create_test_app();
@@ -45,7 +44,6 @@ fn test_tui_detail_drawer_toggle_and_scrolling() {
     assert!(!app.detail_drawer_open);
 }
 
-/// Tests opening/closing the help modal and switching between tabs.
 #[test]
 fn test_help_modal_and_tab_panel_switching() {
     let mut app = create_test_app();
@@ -91,7 +89,6 @@ fn test_help_modal_and_tab_panel_switching() {
     assert_eq!(app.modal, ModalState::None);
 }
 
-/// Tests contextual footer action chips when the detail drawer is active.
 #[test]
 fn test_drawer_bar_chips_and_exclusion_of_main_keys() {
     let mut app = create_test_app();
@@ -142,7 +139,6 @@ fn test_drawer_bar_chips_and_exclusion_of_main_keys() {
     );
 }
 
-/// Tests exporting drawer content via file write ('w') and clipboard ('y').
 #[test]
 fn test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard() {
     let mut app = create_test_app();
@@ -203,7 +199,6 @@ fn test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard() {
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
-/// Tests navigation from drawer into help overlay and escape key return.
 #[test]
 fn test_question_mark_from_drawer_opens_help_and_esc_returns() {
     let mut app = create_test_app();
@@ -246,7 +241,6 @@ fn test_question_mark_from_drawer_opens_help_and_esc_returns() {
     assert!(!app.detail_drawer_open, "Second Esc must close drawer");
 }
 
-/// Tests formatting consistency avoiding bare uppercase shortcut labels.
 #[test]
 fn test_no_bare_uppercase_key_bindings_in_bars_or_help() {
     let mut app = create_test_app();
@@ -306,7 +300,6 @@ fn test_no_bare_uppercase_key_bindings_in_bars_or_help() {
     }
 }
 
-/// Tests dynamic footer chip collapse between 140 and 80 column widths.
 #[test]
 fn test_drawer_bar_chips_at_140_and_80() {
     use spawn_at_verify::tui::views::{render_key_grid, DRAWER_KEYS};
@@ -354,7 +347,6 @@ fn test_drawer_bar_chips_at_140_and_80() {
     assert!(row1.contains("[Esc]"));
 }
 
-/// Tests keyboard scrolling functionality while awaiting human verdict.
 #[test]
 fn test_drawer_scrolling_keys_in_waiting_state() {
     let mut app = create_test_app();
