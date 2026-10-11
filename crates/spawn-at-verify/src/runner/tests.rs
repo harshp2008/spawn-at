@@ -5,7 +5,8 @@ use super::models::{
     resolve_final_status, AutoStatus, FinalStatus, HumanVerdict, HumanVerdictKind, RunOptions,
 };
 use super::validation::{
-    build_action_command_args, check_pattern_match, extract_claimed_window_id,
+    build_action_command_args, check_pattern_match, extract_claimed_window_id, pass_assessment,
+    validate_geometry,
 };
 use crate::loader::TestRegistry;
 use crate::preflight::{PreflightReport, PreflightVerdict};
@@ -259,4 +260,157 @@ fn test_unchecked_auto_pass_resolves_to_pass_unchecked() {
         resolve_final_status(TestKind::Both, AutoStatus::AutoPassUnchecked, &human_pass);
     assert_eq!(f, FinalStatus::PassUnchecked);
     assert!(!disagree);
+}
+
+/// The `placement/bottom-right` spec (bottom-right, 400x300, margin 16, tolerance 1).
+fn bottom_right_spec() -> TestDefinition {
+    toml::from_str(
+        r#"
+id = "placement/bottom-right"
+category = "placement"
+title = "t"
+description = "d"
+kind = "auto"
+required = true
+tags = []
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+[action]
+command = "spawn"
+repeatable = false
+args = []
+[expect]
+exit_code = 0
+stderr_absent = []
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+"#,
+    )
+    .expect("spec parses")
+}
+
+/// Environment with the given independent and extension workareas.
+fn env_with(
+    independent: Option<crate::oracle::Rect>,
+    ext: Option<crate::oracle::Rect>,
+) -> EnvironmentInfo {
+    EnvironmentInfo {
+        session_type: "wayland".into(),
+        desktop: "gnome".into(),
+        gnome_version: Some(46),
+        monitors_count: 1,
+        primary_workarea: ext,
+        independent_workarea: independent,
+    }
+}
+
+/// Stdout of a window at 1504, 764, 400x300 (where bottom-right of 0,40 1920x1040 puts it).
+const AT_TARGET: &str = r#"{"window_id":7,"x":1504,"y":764,"w":400,"h":300}"#;
+/// Log line whose `APPLY_ANCHOR` records the extension's workarea bounds.
+const LOG_BOUNDS: &str = "APPLY_ANCHOR bounds=(0,40,1920x1040) final=(1504,764)";
+/// The workarea 0,40 1920x1040.
+fn wa() -> crate::oracle::Rect {
+    crate::oracle::Rect::new(0, 40, 1920, 1040)
+}
+
+/// Pass: an independent workarea agrees with the window; plain `AutoPass`, plain message, and
+/// the final status for an automatic test is `Pass`.
+#[test]
+fn test_assessment_pass_with_independent_workarea() {
+    let env = env_with(Some(wa()), Some(wa()));
+    let check = validate_geometry(&bottom_right_spec(), AT_TARGET, Some(LOG_BOUNDS), &env)
+        .unwrap()
+        .unwrap();
+    let (status, message) = pass_assessment(Some(&check));
+    assert_eq!(status, AutoStatus::AutoPass);
+    assert_eq!(message, "Assertions passed");
+    let (fin, _) = resolve_final_status(TestKind::Auto, status, &HumanVerdict::default());
+    assert_eq!(fin, FinalStatus::Pass);
+    // A test without a rectangle expectation is also a plain pass.
+    assert_eq!(
+        pass_assessment(None),
+        (AutoStatus::AutoPass, "Assertions passed".to_string())
+    );
+}
+
+/// PassUnchecked: a rectangle was observed but there is no workarea from any source; the status
+/// is `AutoPassUnchecked` (final `PassUnchecked`) and the message says geometry was not verified.
+#[test]
+fn test_assessment_pass_unchecked_without_any_workarea() {
+    let env = env_with(None, None);
+    let check = validate_geometry(&bottom_right_spec(), AT_TARGET, None, &env)
+        .unwrap()
+        .unwrap();
+    let (status, message) = pass_assessment(Some(&check));
+    assert_eq!(status, AutoStatus::AutoPassUnchecked);
+    assert!(message.contains("geometry was not verified"), "{}", message);
+    let (fin, _) = resolve_final_status(TestKind::Auto, status, &HumanVerdict::default());
+    assert_eq!(fin, FinalStatus::PassUnchecked);
+}
+
+/// Log-only workarea: still `AutoPass` (the window is judged against the log bounds) but the
+/// message notes the workarea came from the extension and was not independently probed.
+#[test]
+fn test_assessment_log_only_pass_carries_extension_note() {
+    let env = env_with(None, None);
+    let check = validate_geometry(&bottom_right_spec(), AT_TARGET, Some(LOG_BOUNDS), &env)
+        .unwrap()
+        .unwrap();
+    let (status, message) = pass_assessment(Some(&check));
+    assert_eq!(status, AutoStatus::AutoPass);
+    assert_eq!(
+        message,
+        "Assertions passed (workarea taken from the extension, not independently probed)"
+    );
+}
+
+/// An independent workarea that differs from the extension's adds a warning to the message and
+/// the pass is judged on the independent one.
+#[test]
+fn test_assessment_conflict_adds_warning() {
+    let env = env_with(Some(wa()), Some(crate::oracle::Rect::new(0, 0, 1920, 1000)));
+    let check = validate_geometry(&bottom_right_spec(), AT_TARGET, None, &env)
+        .unwrap()
+        .unwrap();
+    let (status, message) = pass_assessment(Some(&check));
+    assert_eq!(status, AutoStatus::AutoPass);
+    assert!(
+        message
+            .contains("warning: workarea differs: probe 0,40 1920×1040 vs extension 0,0 1920×1000"),
+        "{}",
+        message
+    );
+}
+
+/// Geometry fail: the window is 80 px too high for the independent workarea, so
+/// `validate_geometry` returns `Err` naming the deltas (the executor turns that into `AutoFail`,
+/// final `Fail`), even though the extension's own log bounds would have accepted it.
+#[test]
+fn test_geometry_fail_is_an_error_with_deltas() {
+    let env = env_with(Some(crate::oracle::Rect::new(0, 0, 1920, 1000)), None);
+    let err =
+        validate_geometry(&bottom_right_spec(), AT_TARGET, Some(LOG_BOUNDS), &env).unwrap_err();
+    assert!(
+        err.starts_with("Geometry mismatch (tolerance 1px)"),
+        "{}",
+        err
+    );
+    assert!(err.contains("dy=+80"), "{}", err);
+    let (fin, _) = resolve_final_status(
+        TestKind::Auto,
+        AutoStatus::AutoFail,
+        &HumanVerdict::default(),
+    );
+    assert_eq!(fin, FinalStatus::Fail);
 }

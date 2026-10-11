@@ -1,7 +1,8 @@
 //! Expectation verification, output matching, and action argument building.
 
+use super::models::AutoStatus;
 use crate::oracle::check::expected_rect;
-use crate::oracle::{check_geometry, Rect};
+use crate::oracle::{check_geometry, GeometryCheck, GeometryStatus, Rect};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
 use regex::Regex;
@@ -161,6 +162,34 @@ pub fn validate_geometry(
         }
         None => Ok(None),
     }
+}
+
+/// Automated status and result message for a test whose validation did not fail, given its
+/// geometry check (`None` when the test states no rectangle expectation).
+///
+/// - no check, or a measured pass on an independent workarea: `AutoPass`, "Assertions passed";
+/// - no workarea at all: `AutoPassUnchecked`, with the message saying geometry was not verified;
+/// - otherwise `AutoPass` with a note for each caveat: no rectangle in stdout, a probe/extension
+///   workarea conflict, or a workarea supplied by the extension itself.
+pub fn pass_assessment(check: Option<&GeometryCheck>) -> (AutoStatus, String) {
+    let mut message = String::from("Assertions passed");
+    let Some(c) = check else {
+        return (AutoStatus::AutoPass, message);
+    };
+    if c.status() == GeometryStatus::Unchecked {
+        message = "Assertions passed, but geometry was not verified: no workarea available from the window system or the extension".into();
+        return (AutoStatus::AutoPassUnchecked, message);
+    }
+    if c.status() == GeometryStatus::NotMeasured {
+        message.push_str(" (geometry not measured: no rectangle in stdout)");
+    }
+    if let Some(w) = c.warning() {
+        message.push_str(&format!(" (warning: {})", w));
+    }
+    if c.workarea_source.is_extension_derived() {
+        message.push_str(" (workarea taken from the extension, not independently probed)");
+    }
+    (AutoStatus::AutoPass, message)
 }
 
 /// Extracts claimed window ID from command output (e.g. from `spawn-at spawn --json` or SpawnClaimed signal).

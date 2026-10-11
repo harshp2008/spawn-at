@@ -3,9 +3,9 @@
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
-    build_action_command_args, extract_claimed_window_id, validate_expectations, validate_geometry,
+    build_action_command_args, extract_claimed_window_id, pass_assessment, validate_expectations,
+    validate_geometry,
 };
-use crate::oracle::check::GeometryStatus;
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
@@ -279,29 +279,13 @@ impl TestRunner {
         let validation = validate_expectations(test, exit_code, &stderr, env_info)
             .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
         // Geometry caveats worth recording next to a pass.
-        let mut pass_message = String::from("Assertions passed");
+        let mut pass_message = String::new();
         let auto_status = match validation {
-            Ok(check) => match check {
-                Some(c) if c.status() == GeometryStatus::Unchecked => {
-                    pass_message = "Assertions passed, but geometry was not verified: no workarea available from the window system or the extension".into();
-                    AutoStatus::AutoPassUnchecked
-                }
-                Some(c) => {
-                    if c.status() == GeometryStatus::NotMeasured {
-                        pass_message.push_str(" (geometry not measured: no rectangle in stdout)");
-                    }
-                    if let Some(w) = c.warning() {
-                        pass_message.push_str(&format!(" (warning: {})", w));
-                    }
-                    if c.workarea_source.is_extension_derived() {
-                        pass_message.push_str(
-                            " (workarea taken from the extension, not independently probed)",
-                        );
-                    }
-                    AutoStatus::AutoPass
-                }
-                None => AutoStatus::AutoPass,
-            },
+            Ok(check) => {
+                let (status, message) = pass_assessment(check.as_ref());
+                pass_message = message;
+                status
+            }
             Err(err) => {
                 let (final_status, disagreement) =
                     resolve_final_status(test.kind, AutoStatus::AutoFail, &HumanVerdict::default());
