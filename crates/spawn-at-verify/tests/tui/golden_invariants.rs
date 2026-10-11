@@ -213,7 +213,7 @@ fn test_real_placement_drawer_grid_invariants() {
         let inner_width = w.saturating_sub(2);
 
         // 1. Grid Invariant: Geometry table alignment
-        // Header Expected starts at x=VALUE_X; Expected values start at x=VALUE_X; Anchor/Margin/Tolerance start at x=VALUE_X
+        // Header Expected starts at x=VALUE_X; Expected values start at x=VALUE_X; Tolerance starts at x=VALUE_X
         // Actual starts at x=VALUE_X+col; Result starts at x=VALUE_X+2col; ✔ is centered under Result (offset 3)
         let mut geom_found = false;
         for line in plain.lines() {
@@ -298,10 +298,14 @@ fn test_real_placement_drawer_grid_invariants() {
                     w
                 );
             }
-            if line.starts_with("  Anchor")
-                || line.starts_with("  Margin")
-                || line.starts_with("  Tolerance")
-            {
+            // Anchor and margin live in SPEC (--anchor / --margin); only Tolerance is a GEOMETRY input
+            assert!(
+                !line.starts_with("  Anchor") && !line.starts_with("  Margin"),
+                "Anchor/Margin must not be repeated in GEOMETRY at width {}: {:?}",
+                w,
+                line
+            );
+            if line.starts_with("  Tolerance") {
                 assert_ne!(
                     line.chars().nth(vx).unwrap_or(' '),
                     ' ',
@@ -327,8 +331,8 @@ fn test_real_placement_drawer_grid_invariants() {
                 "  Cloak",
                 "  Budget",
                 "  Trace",
-                "  Anchor",
-                "  Margin",
+                "  --anchor",
+                "  --margin",
                 "  Tolerance",
                 "  Watch",
                 "  Your verdict",
@@ -357,10 +361,8 @@ fn test_real_placement_drawer_grid_invariants() {
 
         // 3. Grid Invariant: every timeline detail value across the whole trace starts at one single x; gap >= 2
         let timeline_idx = plain.find("── TIMELINE").expect("TIMELINE section exists");
-        let next_section_idx = plain
-            .find("── WHAT TO LOOK FOR")
-            .expect("WHAT TO LOOK FOR section exists");
-        let timeline_part = &plain[timeline_idx..next_section_idx];
+        // TIMELINE is the last section, so it runs to the end of the drawer text
+        let timeline_part = &plain[timeline_idx..];
 
         let mut timeline_val_x: Option<usize> = None;
         for line in timeline_part.lines() {

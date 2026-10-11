@@ -183,5 +183,4 @@ pub fn render_timeline_section(
             );
         }
     }
-    builder.push_blank();
 }

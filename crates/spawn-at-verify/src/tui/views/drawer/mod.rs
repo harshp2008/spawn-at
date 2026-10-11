@@ -9,7 +9,7 @@ pub mod timeline_section;
 
 pub use geometry_section::render_geometry_section;
 pub use header_section::render_header_section;
-pub use info_sections::render_info_sections;
+pub use info_sections::{render_look_for_section, render_output_section, render_spec_section};
 pub use result_section::render_result_section;
 pub use timeline_format::{parse_compact_timeline, ParsedTimelineEvent};
 pub use timeline_section::render_timeline_section;
@@ -36,12 +36,17 @@ fn render_sections(
     let res_opt = app.results.get(&test.id);
     render_header_section(builder, test);
     render_result_section(builder, test, res_opt);
+    render_look_for_section(builder, test, res_opt);
     render_geometry_section(builder, test, res_opt);
+    render_spec_section(builder, test);
+    render_output_section(builder, res_opt, compact);
+    // TIMELINE is the longest section and reference material, so it goes last.
     render_timeline_section(builder, test, res_opt, compact);
-    render_info_sections(builder, test, res_opt, compact);
 }
 
 /// Assembles all sections of the detail drawer using the shared builder grid.
+///
+/// Order: header, RESULT, WHAT TO LOOK FOR, GEOMETRY, SPEC, OUTPUT, TIMELINE.
 ///
 /// A probe pass at the minimum label width records the longest label any section
 /// pushes; the real pass then uses `clamp(longest + 2, 14, 24)` as the label

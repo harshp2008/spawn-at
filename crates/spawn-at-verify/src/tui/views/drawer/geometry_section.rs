@@ -1,5 +1,6 @@
 //! Drawer GEOMETRY section rendering (Expected vs Actual table).
 
+use super::info_sections::spec_flag_value;
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
 use crate::tui::views::builder::DrawerBuilder;
@@ -36,11 +37,15 @@ pub fn render_geometry_section(
 
     if let Some(rect) = &test.expect.rect {
         let tol_str = format!("±{} px", rect.tolerance_px);
-        let anchor_str = rect.anchor.clone().unwrap_or_else(|| "bottom-right".into());
-        let margin_str = rect
-            .margin
-            .map(|m| m.to_string())
-            .unwrap_or_else(|| "16".into());
+        // Anchor and margin appear in SPEC as `--anchor` / `--margin` when the action passes
+        // them; they are shown here only when SPEC does not already state the same value.
+        let anchor_row = merged_expectation(test, "--anchor", "Anchor", rect.anchor.clone());
+        let margin_row = merged_expectation(
+            test,
+            "--margin",
+            "Margin",
+            rect.margin.map(|m| m.to_string()),
+        );
 
         if let Some((ax, ay, aw, ah, _src)) = actual_geom {
             // Table Header: Field, Expected, Actual, Result
@@ -130,22 +135,8 @@ pub fn render_geometry_section(
             // After the table, 1 blank row
             builder.push_blank();
 
-            builder.push_kv(
-                "Anchor",
-                vec![Span::styled(
-                    anchor_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &anchor_str,
-            );
-            builder.push_kv(
-                "Margin",
-                vec![Span::styled(
-                    margin_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &margin_str,
-            );
+            push_expectation_row(builder, anchor_row.as_ref());
+            push_expectation_row(builder, margin_row.as_ref());
             builder.push_kv(
                 "Tolerance",
                 vec![Span::styled(
@@ -155,14 +146,7 @@ pub fn render_geometry_section(
                 &tol_str,
             );
         } else {
-            builder.push_kv(
-                "Anchor",
-                vec![Span::styled(
-                    anchor_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &anchor_str,
-            );
+            push_expectation_row(builder, anchor_row.as_ref());
             if let Some(sz) = &rect.size {
                 let sz_str = format!("{}×{}", sz[0], sz[1]);
                 builder.push_kv(
@@ -174,14 +158,7 @@ pub fn render_geometry_section(
                     &sz_str,
                 );
             }
-            builder.push_kv(
-                "Margin",
-                vec![Span::styled(
-                    margin_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &margin_str,
-            );
+            push_expectation_row(builder, margin_row.as_ref());
             builder.push_kv(
                 "Tolerance",
                 vec![Span::styled(
@@ -242,4 +219,37 @@ pub fn render_geometry_section(
         );
     }
     builder.push_blank();
+}
+
+/// Decides whether an expectation (anchor / margin) needs its own GEOMETRY row.
+///
+/// Returns `None` when the expectation is unset or SPEC already shows the same value for `flag`;
+/// `Some(label, value)` otherwise, with the label marked "Expected ..." when SPEC shows a
+/// different value for the same flag.
+fn merged_expectation(
+    test: &TestDefinition,
+    flag: &str,
+    label: &str,
+    expected: Option<String>,
+) -> Option<(String, String)> {
+    let expected = expected?;
+    match spec_flag_value(test, flag) {
+        Some(v) if v == expected => None,
+        Some(_) => Some((format!("Expected {}", label.to_lowercase()), expected)),
+        None => Some((label.to_string(), expected)),
+    }
+}
+
+/// Pushes a plain label/value expectation row if there is one.
+fn push_expectation_row(builder: &mut DrawerBuilder, row: Option<&(String, String)>) {
+    if let Some((label, value)) = row {
+        builder.push_kv(
+            label,
+            vec![Span::styled(
+                value.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            value,
+        );
+    }
 }

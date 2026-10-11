@@ -67,10 +67,10 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
         .map(|cell| cell.symbol())
         .collect();
 
-    // Verify detail drawer ordering: RESULT, GEOMETRY, TIMELINE visible on screen
+    // On screen (first rows of the drawer): RESULT and WHAT TO LOOK FOR; TIMELINE is last and
+    // is checked in the full content below.
     assert!(drawer_text.contains("RESULT"));
-    assert!(drawer_text.contains("GEOMETRY"));
-    assert!(drawer_text.contains("TIMELINE"));
+    assert!(drawer_text.contains("WHAT TO LOOK FOR"));
 
     // Verify detail drawer ordering across all sections in full drawer content
     let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 140, true);
@@ -86,11 +86,12 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
     let pos_what = plain.find("WHAT TO LOOK FOR").unwrap();
     let pos_spec = plain.find("SPEC").unwrap();
     let pos_out = plain.find("OUTPUT").unwrap();
-    assert!(pos_res < pos_geo);
-    assert!(pos_geo < pos_time);
-    assert!(pos_time < pos_what);
-    assert!(pos_what < pos_spec);
+    // Order: RESULT, WHAT TO LOOK FOR, GEOMETRY, SPEC, OUTPUT, TIMELINE
+    assert!(pos_res < pos_what);
+    assert!(pos_what < pos_geo);
+    assert!(pos_geo < pos_spec);
     assert!(pos_spec < pos_out);
+    assert!(pos_out < pos_time);
     assert!(!plain.contains("---"));
     assert!(!plain.contains("1. "));
     // In raw view, raw trace lines are included
@@ -106,7 +107,7 @@ fn test_drawer_sections_order_and_formatting() {
 
     let (_lines, plain) = spawn_at_verify::tui::views::build_drawer_content(&app, &test, 80, true);
 
-    // Sections must appear in exact order: RESULT, GEOMETRY, TIMELINE, WHAT TO LOOK FOR, SPEC, OUTPUT
+    // Sections must appear in exact order: RESULT, WHAT TO LOOK FOR, GEOMETRY, SPEC, OUTPUT, TIMELINE
     let pos_result = plain.find("RESULT").expect("RESULT section missing");
     let pos_geometry = plain.find("GEOMETRY").expect("GEOMETRY section missing");
     let pos_timeline = plain.find("TIMELINE").expect("TIMELINE section missing");
@@ -116,17 +117,20 @@ fn test_drawer_sections_order_and_formatting() {
     let pos_spec = plain.find("SPEC").expect("SPEC section missing");
     let pos_output = plain.find("OUTPUT").expect("OUTPUT section missing");
 
-    assert!(pos_result < pos_geometry, "RESULT must precede GEOMETRY");
     assert!(
-        pos_geometry < pos_timeline,
-        "GEOMETRY must precede TIMELINE"
+        pos_result < pos_what,
+        "RESULT must precede WHAT TO LOOK FOR"
     );
     assert!(
-        pos_timeline < pos_what,
-        "TIMELINE must precede WHAT TO LOOK FOR"
+        pos_what < pos_geometry,
+        "WHAT TO LOOK FOR must precede GEOMETRY"
     );
-    assert!(pos_what < pos_spec, "WHAT TO LOOK FOR must precede SPEC");
+    assert!(pos_geometry < pos_spec, "GEOMETRY must precede SPEC");
     assert!(pos_spec < pos_output, "SPEC must precede OUTPUT");
+    assert!(
+        pos_output < pos_timeline,
+        "OUTPUT must precede TIMELINE (last)"
+    );
 
     // No "---" and no numbering like "1. Name"
     assert!(
@@ -227,10 +231,8 @@ fn test_compact_timeline_contains_neither_prefix_nor_proto() {
 
     // Find the TIMELINE section portion of plain text
     let timeline_idx = plain.find("TIMELINE").expect("TIMELINE section exists");
-    let next_section_idx = plain
-        .find("WHAT TO LOOK FOR")
-        .expect("WHAT TO LOOK FOR section exists");
-    let timeline_section = &plain[timeline_idx..next_section_idx];
+    // TIMELINE is the last section, so it runs to the end of the drawer text
+    let timeline_section = &plain[timeline_idx..];
 
     assert!(
         !timeline_section.contains("[spawn-at-time]"),
@@ -302,41 +304,41 @@ fn test_label_values_alignment_across_section() {
 
 #[test]
 fn test_render_drawer_at_60x30_80x30_140x30_no_clipped_headings() {
-    for &w in &[60, 80, 140] {
+    for &w in &[60u16, 80, 140] {
         let mut app = create_test_app();
         app.fixture_exists = true;
         app.detail_drawer_open = true;
+        let test = app.selected_test().unwrap().clone();
+        let (_lines, plain) =
+            spawn_at_verify::tui::views::build_drawer_content(&app, &test, w as usize, true);
 
         let backend = TestBackend::new(w, 30);
         let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_ui(f, &app)).unwrap();
-        let rendered = dump_buffer_to_string(&terminal, w, 30);
 
-        // Heading lines: RESULT, GEOMETRY, TIMELINE must appear without corruption
-        assert!(
-            rendered.contains("RESULT"),
-            "Heading RESULT must not be clipped at width {}",
-            w
-        );
-        assert!(
-            rendered.contains("GEOMETRY"),
-            "Heading GEOMETRY must not be clipped at width {}",
-            w
-        );
-        if w > 80 {
-            assert!(
-                rendered.contains("TIMELINE"),
-                "Heading TIMELINE must not be clipped at width {}",
-                w
-            );
-        } else {
-            app.detail_scroll = 5;
+        // The drawer scrolls, so scroll each section heading to the top of the drawer and check
+        // it renders whole. TIMELINE is the last and longest section.
+        for heading in [
+            "RESULT",
+            "WHAT TO LOOK FOR",
+            "GEOMETRY",
+            "SPEC",
+            "OUTPUT",
+            "TIMELINE",
+        ] {
+            let line_idx = plain
+                .lines()
+                .position(|l| l.trim_start().starts_with(&format!("── {} ", heading)))
+                .unwrap_or_else(|| panic!("heading {} missing at width {}", heading, w));
+            app.detail_scroll = line_idx as u16;
             terminal.draw(|f| draw_ui(f, &app)).unwrap();
-            let scrolled_rendered = dump_buffer_to_string(&terminal, w, 30);
+            let rendered = dump_buffer_to_string(&terminal, w, 30);
             assert!(
-                scrolled_rendered.contains("TIMELINE"),
-                "Heading TIMELINE must not be clipped at width {}",
-                w
+                rendered.contains(&format!("── {} ", heading)),
+                "Heading {} must not be clipped at width {} (scrolled to line {}):\n{}",
+                heading,
+                w,
+                line_idx,
+                rendered
             );
         }
     }

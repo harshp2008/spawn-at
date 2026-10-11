@@ -1,4 +1,4 @@
-//! Drawer informational sections (WHAT TO LOOK FOR, SPEC, OUTPUT).
+//! Drawer informational sections: WHAT TO LOOK FOR, SPEC and OUTPUT (each a separate function so the drawer can order them).
 
 use crate::runner::{HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
@@ -29,12 +29,11 @@ fn format_args_spec(args: &[String]) -> Vec<(String, String)> {
     pairs
 }
 
-/// Renders the SUBJECT, ACTION, and EXPECTATIONS sections of the drawer.
-pub fn render_info_sections(
+/// Renders the WHAT TO LOOK FOR section: the watch prompt and the "Your verdict" row.
+pub fn render_look_for_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,
     res_opt: Option<&TestResult>,
-    compact: bool,
 ) {
     // 4. Section: WHAT TO LOOK FOR
     builder.push_heading("WHAT TO LOOK FOR", None);
@@ -61,7 +60,7 @@ pub fn render_info_sections(
         Some(HumanVerdictKind::Flaky) => ("! Flaky", Color::Magenta),
         _ => {
             if test.kind == TestKind::Auto {
-                ("auto test", Color::Rgb(200, 200, 200))
+                ("n/a (automatic)", Color::Rgb(200, 200, 200))
             } else {
                 ("◐ Pending", Color::Yellow)
             }
@@ -76,8 +75,10 @@ pub fn render_info_sections(
         v_label,
     );
     builder.push_blank();
+}
 
-    // 5. Section: SPEC
+/// Renders the SPEC section: the action command and subject app with their launch arguments.
+pub fn render_spec_section(builder: &mut DrawerBuilder, test: &TestDefinition) {
     builder.push_heading("SPEC", None);
     builder.push_kv(
         "Action",
@@ -122,8 +123,14 @@ pub fn render_info_sections(
         }
     }
     builder.push_blank();
+}
 
-    // 6. Section: OUTPUT
+/// Renders the OUTPUT section: first stderr line and the captured stdout fields.
+pub fn render_output_section(
+    builder: &mut DrawerBuilder,
+    res_opt: Option<&TestResult>,
+    compact: bool,
+) {
     builder.push_heading("OUTPUT", None);
     let stderr_val = if let Some(r) = res_opt {
         if !r.stderr.is_empty() {
@@ -267,4 +274,20 @@ pub fn render_info_sections(
             "not executed yet",
         );
     }
+    builder.push_blank();
+}
+
+/// Returns the value passed for `flag` (e.g. `--anchor`) in the action's or subject's launch
+/// arguments, if either passes it.
+pub(super) fn spec_flag_value(test: &TestDefinition, flag: &str) -> Option<String> {
+    let mut lists: Vec<&[String]> = vec![&test.action.args];
+    if let Some(sub) = &test.subject {
+        lists.push(&sub.args);
+    }
+    lists.into_iter().find_map(|args| {
+        format_args_spec(args)
+            .into_iter()
+            .find(|(k, _)| k == flag)
+            .map(|(_, v)| v)
+    })
 }

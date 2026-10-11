@@ -34,7 +34,7 @@ fn test_long_flag_label_widens_shared_value_column_for_every_section() {
             "  ID",
             "  Mode",
             "  Verdict",
-            "  Anchor",
+            "  Tolerance",
             "  Action",
         ] {
             assert_eq!(
