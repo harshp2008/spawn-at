@@ -125,6 +125,7 @@
   Watch         Did the window appear once in the bottom-right
                 corner with a small gap from screen edges, without
                 flickering or jumping?
+
   Your verdict  ◐ Pending
 
  ── SPEC ──────────────────────────────────────────────────────────

@@ -51,6 +51,9 @@ pub fn render_info_sections(
         Style::default().fg(Color::Rgb(200, 200, 200)),
     );
 
+    // 1 blank row between the Watch prose and the verdict row
+    builder.push_blank();
+
     let (v_label, v_col) = match res_opt.map(|r| r.human_verdict.verdict) {
         Some(HumanVerdictKind::Pass) => ("✔ Pass", Color::Green),
         Some(HumanVerdictKind::Fail) => ("✖ Fail", Color::Red),
