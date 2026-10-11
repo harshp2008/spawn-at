@@ -29,7 +29,14 @@ fn test_long_flag_label_widens_shared_value_column_for_every_section() {
 
     for &w in &[80usize, 140] {
         let (_lines, plain) = build_drawer_content(&app, &test, w, true);
-        for prefix in ["  Title", "  ID", "  Mode", "  Verdict", "  Anchor", "  Action"] {
+        for prefix in [
+            "  Title",
+            "  ID",
+            "  Mode",
+            "  Verdict",
+            "  Anchor",
+            "  Action",
+        ] {
             assert_eq!(
                 value_col(&plain, prefix),
                 20,
@@ -67,11 +74,17 @@ fn test_long_flag_label_widens_shared_value_column_for_every_section() {
 #[test]
 fn test_label_column_is_capped_at_24_and_long_labels_truncate() {
     let (app, mut test) = create_app_with_real_fixture();
-    test.action.args.push("--an-extremely-long-flag-name-here".to_string());
+    test.action
+        .args
+        .push("--an-extremely-long-flag-name-here".to_string());
     test.action.args.push("7".to_string());
 
     let (_lines, plain) = build_drawer_content(&app, &test, 100, true);
-    assert_eq!(value_col(&plain, "  Title"), 26, "value column capped at 2 + 24");
+    assert_eq!(
+        value_col(&plain, "  Title"),
+        26,
+        "value column capped at 2 + 24"
+    );
     let row = plain
         .lines()
         .find(|l| l.starts_with("  --an-extremely-long"))
@@ -79,7 +92,10 @@ fn test_label_column_is_capped_at_24_and_long_labels_truncate() {
     let chars: Vec<char> = row.chars().collect();
     let label: String = chars[2..24].iter().collect();
     let gap: String = chars[24..26].iter().collect();
-    assert_eq!(label, "--an-extremely-long-f…", "label truncated to 22 columns");
+    assert_eq!(
+        label, "--an-extremely-long-f…",
+        "label truncated to 22 columns"
+    );
     assert_eq!(gap, "  ", "two spaces separate label and value");
     assert!(row.ends_with('7'), "value kept: {:?}", row);
 }

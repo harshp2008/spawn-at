@@ -99,7 +99,12 @@ fn test_key_grid_states_one_row_compact_or_two_rows_equal_width_chips() {
             let lines = render_key_grid(entries, inner);
             let texts: Vec<String> = lines
                 .iter()
-                .map(|l| l.spans.iter().map(|s| s.content.as_ref()).collect::<String>())
+                .map(|l| {
+                    l.spans
+                        .iter()
+                        .map(|s| s.content.as_ref())
+                        .collect::<String>()
+                })
                 .collect();
             let joined = texts.join("\n");
             for (_, label) in entries {
@@ -121,7 +126,11 @@ fn test_key_grid_states_one_row_compact_or_two_rows_equal_width_chips() {
                     assert_eq!(texts[0], format!(" {}", expected), "State 1 at {}", inner);
                 }
                 2 => {
-                    let widest = entries.iter().map(|(k, _)| k.chars().count()).max().unwrap();
+                    let widest = entries
+                        .iter()
+                        .map(|(k, _)| k.chars().count())
+                        .max()
+                        .unwrap();
                     for t in &texts {
                         let chips: Vec<&str> = t
                             .split(['[', ']'])
