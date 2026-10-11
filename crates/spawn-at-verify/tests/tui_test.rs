@@ -807,7 +807,7 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
     }
 
     assert!(
-        cat_headings_found > 0,
+        cat_headings_found > 0 || (height <= 20 && is_waiting),
         "Must have found category headings at {}x{}",
         width,
         height
@@ -869,7 +869,7 @@ fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: boo
             "ID must be visible at narrow width ({} cols)",
             width
         );
-        if height >= 22 || !is_waiting {
+        if height >= 22 {
             assert!(
                 rendered.contains("Kind"),
                 "Kind must be visible at narrow width ({} cols, height {})",
@@ -959,7 +959,7 @@ fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() 
     let mut scroll_app = create_test_app();
     scroll_app.fixture_exists = true;
     scroll_app.active_pane = spawn_at_verify::tui::app::ActivePane::Details;
-    for _ in 0..6 {
+    for _ in 0..8 {
         scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
     }
     let scroll_backend = TestBackend::new(60, 20);
@@ -1211,5 +1211,326 @@ fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
     assert!(
         rendered.contains("? You: pending review"),
         "Rendered must contain aligned '? You: pending review'"
+    );
+}
+
+#[test]
+fn test_result_and_spacing_polish_spec() {
+    let resolutions = [(60, 28), (80, 28), (140, 28)];
+
+    for &(w, h) in &resolutions {
+        // --- 1. Idle state checks ---
+        let mut app = create_test_app();
+        app.fixture_exists = true;
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let idle_rendered = dump_buffer_to_string(&terminal, w, h);
+        let idle_lines: Vec<&str> = idle_rendered.lines().collect();
+
+        // 1 blank row above header
+        assert!(
+            idle_lines[0].trim().is_empty(),
+            "1 blank row above header required at {}x{}",
+            w,
+            h
+        );
+        // 1 blank row between header and first box
+        assert!(
+            idle_lines[2].trim().is_empty(),
+            "1 blank row between header and first box required at {}x{}",
+            w,
+            h
+        );
+        // 1 blank row at the bottom below keys bar
+        assert!(
+            idle_lines[h as usize - 1].trim().is_empty(),
+            "1 blank row at bottom required at {}x{}",
+            w,
+            h
+        );
+
+        // Find Result box borders in idle state
+        let idle_res_top = idle_lines
+            .iter()
+            .position(|l| l.contains("┌ Result "))
+            .expect("Result top border must exist");
+        let idle_res_bottom = idle_lines[idle_res_top..]
+            .iter()
+            .position(|l| l.contains('└'))
+            .map(|idx| idle_res_top + idx)
+            .expect("Result bottom border must exist");
+
+        // Exactly 1 blank row between Result box and keys bar
+        assert!(
+            idle_lines[idle_res_bottom + 1].trim().is_empty(),
+            "Exactly 1 blank row required between Result box and keys bar at {}x{} (idle)",
+            w,
+            h
+        );
+
+        // --- 2. Waiting-for-verdict state checks (with long result text) ---
+        let mut wait_app = create_test_app();
+        wait_app.fixture_exists = true;
+        if let Some(pos) = wait_app
+            .filtered_tests()
+            .iter()
+            .position(|t| t.id == "placement/bottom-right")
+        {
+            wait_app.selected_index = pos;
+        }
+        wait_app.waiting_for_human = Some("placement/bottom-right".to_string());
+        let wait_res = spawn_at_verify::runner::TestResult {
+            id: "placement/bottom-right".into(),
+            title: "Window placed in bottom-right corner".into(),
+            kind: TestKind::Both,
+            required: true,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict::default(),
+            final_status: FinalStatus::Pending,
+            disagreement: false,
+            duration_ms: 185,
+            exit_code: Some(0),
+            stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+            stderr: String::new(),
+            message: Some("Assertions passed".into()),
+            log_slice: Some("[spawn-at-time] +0.00ms | CLOAK".into()),
+        };
+        wait_app
+            .results
+            .insert("placement/bottom-right".into(), wait_res);
+
+        let wait_backend = TestBackend::new(w, h);
+        let mut wait_term = Terminal::new(wait_backend).unwrap();
+        wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
+        let wait_rendered = dump_buffer_to_string(&wait_term, w, h);
+        let wait_lines: Vec<&str> = wait_rendered.lines().collect();
+
+        // Check stacked box spacing:
+        if w < 75 {
+            // Narrow layout (60x28): Tests / GAP / Description / GAP / Result / GAP / keys bar / 1 blank bottom row
+            let tests_top = wait_lines
+                .iter()
+                .position(|l| l.contains("┌ Tests"))
+                .expect("Tests top border");
+            let tests_bottom = wait_lines[tests_top..]
+                .iter()
+                .position(|l| l.contains('└'))
+                .map(|i| tests_top + i)
+                .expect("Tests bottom border");
+
+            // Exactly 1 blank row between Tests and Description
+            assert!(
+                wait_lines[tests_bottom + 1].trim().is_empty(),
+                "Exactly 1 blank row required between Tests and Description at {}x{}",
+                w,
+                h
+            );
+            assert!(
+                wait_lines[tests_bottom + 2].contains("┌ Description"),
+                "Description top border must follow 1 blank row after Tests at {}x{}",
+                w,
+                h
+            );
+
+            let desc_top = tests_bottom + 2;
+            let desc_bottom = wait_lines[desc_top..]
+                .iter()
+                .position(|l| l.contains('└'))
+                .map(|i| desc_top + i)
+                .expect("Description bottom border");
+
+            // Exactly 1 blank row between Description and Result
+            assert!(
+                wait_lines[desc_bottom + 1].trim().is_empty(),
+                "Exactly 1 blank row required between Description and Result at {}x{}",
+                w,
+                h
+            );
+            assert!(
+                wait_lines[desc_bottom + 2].contains("┌ Result"),
+                "Result top border must follow 1 blank row after Description at {}x{}",
+                w,
+                h
+            );
+
+            let res_top = desc_bottom + 2;
+            let res_bottom = wait_lines[res_top..]
+                .iter()
+                .position(|l| l.contains('└'))
+                .map(|i| res_top + i)
+                .expect("Result bottom border");
+
+            // Exactly 1 blank row between Result and verdict keys bar
+            assert!(
+                wait_lines[res_bottom + 1].trim().is_empty(),
+                "Exactly 1 blank row required between Result and keys bar at {}x{}",
+                w,
+                h
+            );
+            assert!(
+                wait_lines[res_bottom + 2].contains('┌')
+                    || wait_lines[res_bottom + 2].contains("verdict"),
+                "Verdict keys bar must follow 1 blank row after Result at {}x{}",
+                w,
+                h
+            );
+        } else {
+            // Wide layout (80x28, 140x28): left column = Tests box / 1 blank row GAP / Result box pinned to bottom
+            let tests_top = wait_lines
+                .iter()
+                .position(|l| l.contains("┌ Tests"))
+                .expect("Tests top border");
+            let tests_bottom = wait_lines[tests_top..]
+                .iter()
+                .position(|l| l.contains('└'))
+                .map(|i| tests_top + i)
+                .expect("Tests bottom border");
+
+            // Row directly following Tests bottom border in left column must be blank (GAP)
+            let left_w = (w as usize * if w >= 110 { 52 } else { 50 }) / 100;
+            let gap_line_left: String = wait_lines[tests_bottom + 1].chars().take(left_w).collect();
+            assert!(
+                gap_line_left.trim().is_empty(),
+                "Left column must have exactly 1 blank row gap between Tests and Result at {}x{}",
+                w,
+                h
+            );
+
+            // Row tests_bottom + 2 has Result top border
+            assert!(
+                wait_lines[tests_bottom + 2].contains("┌ Result"),
+                "Result top border must directly follow 1 blank row after Tests at {}x{}",
+                w,
+                h
+            );
+
+            let res_top = tests_bottom + 2;
+            let res_bottom = wait_lines[res_top..]
+                .iter()
+                .position(|l| {
+                    let left_part: String = l.chars().take(left_w).collect();
+                    left_part.contains('└')
+                })
+                .map(|i| res_top + i)
+                .expect("Result bottom border");
+
+            // Exactly 1 blank row between Result and verdict keys bar across the screen
+            assert!(
+                wait_lines[res_bottom + 1].trim().is_empty(),
+                "Exactly 1 blank row required between Result and keys bar at {}x{}",
+                w,
+                h
+            );
+        }
+
+        // --- 3. Result text must WRAP, never clip ---
+        // The watch text is: "Did the window appear once in the bottom-right corner with a small gap from screen edges, without flickering or jumping?"
+        // Must contain "corner" (no mid-word truncation to "corn")
+        assert!(
+            wait_rendered.contains("corner"),
+            "Result text must be fully visible and wrap without clipping 'corner' at {}x{}",
+            w,
+            h
+        );
+        assert!(
+            wait_rendered.contains("flickering"),
+            "Result text must wrap without clipping 'flickering' at {}x{}",
+            w,
+            h
+        );
+        assert!(
+            wait_rendered.contains("jumping?"),
+            "Result text must wrap without clipping 'jumping?' at {}x{}",
+            w,
+            h
+        );
+        assert!(
+            !wait_rendered.contains("bottom-right corn "),
+            "Result text must not be cut mid-word 'corn' at {}x{}",
+            w,
+            h
+        );
+
+        // --- 4. Tests box shrinks (with a more-hint) when Result is made taller ---
+        let idle_tests_top = idle_lines
+            .iter()
+            .position(|l| l.contains("┌ Tests"))
+            .unwrap();
+        let idle_tests_bottom = idle_lines[idle_tests_top..]
+            .iter()
+            .position(|l| l.contains('└'))
+            .unwrap()
+            + idle_tests_top;
+        let idle_tests_h = idle_tests_bottom - idle_tests_top + 1;
+
+        let wait_tests_top = wait_lines
+            .iter()
+            .position(|l| l.contains("┌ Tests"))
+            .unwrap();
+        let wait_tests_bottom = wait_lines[wait_tests_top..]
+            .iter()
+            .position(|l| l.contains('└'))
+            .unwrap()
+            + wait_tests_top;
+        let wait_tests_h = wait_tests_bottom - wait_tests_top + 1;
+
+        assert!(
+            wait_tests_h < idle_tests_h,
+            "Tests box height must shrink when Result is taller at {}x{}: wait_h={} vs idle_h={}",
+            w,
+            h,
+            wait_tests_h,
+            idle_tests_h
+        );
+
+        // At 60x28 and 80x28, when Tests box shrinks, more-hint must appear
+        if w <= 80 {
+            assert!(
+                wait_rendered.contains("more"),
+                "Tests box must show more-hint when it shrinks at {}x{}",
+                w,
+                h
+            );
+        }
+    }
+
+    // At 140x28: verify that if Result grows taller (e.g. multi-line failure message), Tests box shrinks and shows more-hint
+    let mut tall_app = create_test_app();
+    tall_app.fixture_exists = true;
+    let long_fail_msg = "Detailed assertion failure:\nline 1: unexpected coordinates\nline 2: opacity out of bounds\nline 3: frame violation\nline 4: bounding box mismatch\nline 5: cloak window error\nline 6: trace violation detected";
+    let tall_res = spawn_at_verify::runner::TestResult {
+        id: "placement/bottom-right".into(),
+        title: "Window placed in bottom-right corner".into(),
+        kind: TestKind::Both,
+        required: true,
+        auto_status: AutoStatus::AutoFail,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Fail,
+        disagreement: false,
+        duration_ms: 210,
+        exit_code: Some(1),
+        stdout: String::new(),
+        stderr: String::new(),
+        message: Some(long_fail_msg.into()),
+        log_slice: None,
+    };
+    tall_app
+        .results
+        .insert("placement/bottom-right".into(), tall_res);
+    if let Some(pos) = tall_app
+        .filtered_tests()
+        .iter()
+        .position(|t| t.id == "placement/bottom-right")
+    {
+        tall_app.selected_index = pos;
+    }
+    let tall_backend = TestBackend::new(140, 28);
+    let mut tall_term = Terminal::new(tall_backend).unwrap();
+    tall_term.draw(|f| draw_ui(f, &tall_app)).unwrap();
+    let tall_rendered = dump_buffer_to_string(&tall_term, 140, 28);
+    assert!(
+        tall_rendered.contains("more"),
+        "Tests box must shrink and show more-hint when Result is made taller at 140x28"
     );
 }

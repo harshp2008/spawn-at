@@ -54,6 +54,7 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
             Constraint::Length(header_height), // Header
             Constraint::Length(1),             // 1 blank row between header and first box
             Constraint::Min(5),                // Body (boxes)
+            Constraint::Length(1),             // 1 blank row between Result box and keys bar
             Constraint::Length(footer_height), // Keys bar or verdict box
             Constraint::Length(1),             // 1 blank row at the BOTTOM below keys bar
         ])
@@ -61,7 +62,7 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
 
     draw_header(f, app, chunks[1]);
     draw_body(f, app, chunks[3]);
-    draw_footer(f, app, chunks[4]);
+    draw_footer(f, app, chunks[5]);
 
     if let ModalState::Help = &app.modal {
         draw_help_modal(f, app, area);
@@ -195,6 +196,128 @@ fn compute_list_items_count(app: &TuiApp) -> usize {
     count
 }
 
+pub fn count_wrapped_lines(text: &str, max_width: usize) -> usize {
+    if max_width == 0 {
+        return 1;
+    }
+    let mut total_lines = 0;
+    for raw_line in text.lines() {
+        let words: Vec<&str> = raw_line.split_whitespace().collect();
+        if words.is_empty() {
+            total_lines += 1;
+            continue;
+        }
+        let mut lines = 1;
+        let mut current_line_len = 0;
+        for word in words {
+            let w_len = word.chars().count();
+            if current_line_len == 0 {
+                current_line_len = w_len;
+            } else if current_line_len + 1 + w_len <= max_width {
+                current_line_len += 1 + w_len;
+            } else {
+                lines += 1;
+                current_line_len = w_len;
+            }
+            while current_line_len > max_width {
+                lines += 1;
+                current_line_len = current_line_len.saturating_sub(max_width);
+            }
+        }
+        total_lines += lines;
+    }
+    total_lines.max(1)
+}
+
+fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
+    let test_opt = app.selected_test();
+    let res_opt = test_opt.and_then(|t| app.results.get(&t.id));
+
+    if let (Some(test), Some(res)) = (test_opt, res_opt) {
+        if app.waiting_for_human.as_deref() == Some(&test.id) {
+            let what = test
+                .human
+                .as_ref()
+                .map(|h| h.watch.clone())
+                .unwrap_or_else(|| "Window placed accurately".to_string());
+            let plain = format!("? What to look for: {}", what);
+            let line = Line::from(vec![
+                Span::styled(
+                    "? What to look for: ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(what, Style::default().fg(Color::White)),
+            ]);
+            (plain, line, Color::Yellow)
+        } else if res.final_status == FinalStatus::Fail || res.auto_status == AutoStatus::AutoFail {
+            let reason = res
+                .message
+                .clone()
+                .unwrap_or_else(|| "Verification failed".to_string());
+            let plain = format!("✖ FAIL: {}", reason);
+            let line = Line::from(vec![
+                Span::styled(
+                    "✖ FAIL: ",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(reason, Style::default().fg(Color::LightRed)),
+            ]);
+            (plain, line, Color::Red)
+        } else if res.final_status == FinalStatus::Pass || res.auto_status == AutoStatus::AutoPass {
+            let msg = format!("Assertions passed ({} ms)", res.duration_ms);
+            let plain = format!("✔ PASS: {}", msg);
+            let line = Line::from(vec![
+                Span::styled(
+                    "✔ PASS: ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(msg, Style::default().fg(Color::White)),
+            ]);
+            (plain, line, Color::Green)
+        } else if res.auto_status == AutoStatus::Running {
+            let plain = "◐ Running: Executing assertions...".to_string();
+            let line = Line::from(vec![
+                Span::styled("◐ Running: ", Style::default().fg(Color::Cyan)),
+                Span::styled("Executing assertions...", Style::default().fg(Color::Cyan)),
+            ]);
+            (plain, line, Color::Cyan)
+        } else {
+            let plain = "● Not run yet. Press 'r' to execute or 'a' to run all.".to_string();
+            let line = Line::from(vec![
+                Span::styled("● Not run yet. ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    "Press 'r' to execute or 'a' to run all.",
+                    Style::default().fg(Color::DarkGray),
+                ),
+            ]);
+            (plain, line, Color::DarkGray)
+        }
+    } else {
+        let plain = "● Not run yet. Press 'r' to execute or 'a' to run all.".to_string();
+        let line = Line::from(vec![
+            Span::styled("● Not run yet. ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "Press 'r' to execute or 'a' to run all.",
+                Style::default().fg(Color::DarkGray),
+            ),
+        ]);
+        (plain, line, Color::DarkGray)
+    }
+}
+
+pub fn compute_result_box_height(app: &TuiApp, body_h: u16, box_w: u16) -> u16 {
+    let (plain, _, _) = get_result_content(app);
+    let inner_w = (box_w.saturating_sub(4) as usize).max(1);
+    let wrapped_rows = count_wrapped_lines(&plain, inner_w);
+    let needed_box_h = (wrapped_rows as u16).saturating_add(2);
+    let max_box_h = ((body_h as u32 * 40) / 100).max(3) as u16;
+    needed_box_h.clamp(3, max_box_h)
+}
+
 fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
     if app.detail_drawer_open {
         // Expanded full-screen detail drawer view
@@ -206,42 +329,35 @@ fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
 
     if area.width < 75 {
         // Narrow (<75 cols):
-        // Result is a boxed panel like in wide layout (3 rows).
-        // If height is too small, shrink details pane first, never drop Result or keys bar.
-        let result_h = 3;
-        let sep_h = if area.height >= 22 { 1 } else { 0 };
-        let avail_for_panes = area.height.saturating_sub(result_h + sep_h);
-        let max_list_h = (avail_for_panes * 50) / 100;
-        let list_h = needed_list_h
-            .min(max_list_h)
-            .max(3)
-            .min(avail_for_panes.saturating_sub(2));
+        // Stack: Tests (content height, capped) / GAP / Description (flexible) / GAP / Result (wrapped height)
+        let min_pane_h = 3;
+        let mut result_h = compute_result_box_height(app, area.height, area.width);
+        let max_result_h = area.height.saturating_sub(2 + min_pane_h + min_pane_h);
+        if max_result_h >= min_pane_h {
+            result_h = result_h.min(max_result_h).max(min_pane_h);
+        }
+        let avail_for_panes = area.height.saturating_sub(2 + result_h);
+        let max_list_h = avail_for_panes
+            .saturating_sub(min_pane_h)
+            .min((avail_for_panes * 50) / 100)
+            .max(min_pane_h);
+        let list_h = needed_list_h.min(max_list_h).max(min_pane_h);
         let details_h = avail_for_panes.saturating_sub(list_h);
-
-        let constraints = if sep_h > 0 {
-            vec![
-                Constraint::Length(list_h),
-                Constraint::Length(details_h),
-                Constraint::Length(1), // blank row before Result box
-                Constraint::Length(result_h),
-            ]
-        } else {
-            vec![
-                Constraint::Length(list_h),
-                Constraint::Length(details_h),
-                Constraint::Length(result_h),
-            ]
-        };
 
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints(constraints)
+            .constraints([
+                Constraint::Length(list_h),
+                Constraint::Length(1), // GAP between Tests and Description
+                Constraint::Length(details_h),
+                Constraint::Length(1), // GAP between Description and Result
+                Constraint::Length(result_h),
+            ])
             .split(area);
 
         draw_test_list(f, app, chunks[0]);
-        draw_details_pane(f, app, chunks[1], true);
-        let result_chunk = if sep_h > 0 { chunks[3] } else { chunks[2] };
-        draw_result_box(f, app, result_chunk);
+        draw_details_pane(f, app, chunks[2], true);
+        draw_result_box(f, app, chunks[4]);
     } else {
         // Wide/medium (>=75 cols): list on the left, overview on the right.
         let (left_pct, right_pct) = if area.width >= 110 {
@@ -257,24 +373,22 @@ fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
             ])
             .split(area);
 
-        // List box height = its content (plus padding), not the full screen height.
-        // Result box sits directly beneath it with one blank row between.
-        // Leftover vertical space stays empty at the bottom, or goes to the details pane, not into the list.
-        let max_list_h = area.height.saturating_sub(4);
-        let list_h = needed_list_h.min(max_list_h).max(5);
+        // Wide layout: left column = Tests box (takes all remaining height) and Result box pinned to the bottom of the column.
+        // When Result grows, the Tests box shrinks and its list scrolls with "▲/▼ n more" hints.
+        // No empty band between the list box and Result.
+        let result_h = compute_result_box_height(app, area.height, main_chunks[0].width);
+        let tests_h = area.height.saturating_sub(1 + result_h);
 
         let left_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(list_h),
-                Constraint::Length(1), // one blank row between
-                Constraint::Length(3), // Result box (3 rows)
-                Constraint::Min(0),    // leftover vertical space stays empty at the bottom
+                Constraint::Length(tests_h),
+                Constraint::Length(1), // 1 blank row GAP between Tests and Result
+                Constraint::Length(result_h), // Result box pinned to bottom
             ])
             .split(main_chunks[0]);
 
         draw_test_list(f, app, left_chunks[0]);
-        // left_chunks[1] is a clear blank line separating list and result
         draw_result_box(f, app, left_chunks[2]);
 
         // Right pane: overview / Description panel takes full height of the body
@@ -387,15 +501,14 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
     } else {
         Color::DarkGray
     };
-    let block = Block::default()
+    let mut block = Block::default()
         .borders(Borders::ALL)
-        .title(" Tests ")
         .border_style(Style::default().fg(border_color));
 
     let inner = block.inner(area);
-    f.render_widget(block, area);
 
     if inner.height == 0 || inner.width < 10 {
+        f.render_widget(block, area);
         return;
     }
 
@@ -556,6 +669,41 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
         items.push(ListItem::new(row_line));
     }
 
+    let total_items = items.len();
+    let inner_h = inner.height as usize;
+    let sel = selected_item_idx.unwrap_or(0);
+
+    let offset = if total_items > inner_h {
+        if sel >= inner_h {
+            sel + 1 - inner_h
+        } else {
+            0
+        }
+    } else {
+        0
+    };
+
+    let items_above = offset;
+    let items_below = total_items.saturating_sub(offset + inner_h);
+
+    let top_title = if items_above > 0 {
+        format!(" Tests  ▲ {} more ", items_above)
+    } else {
+        " Tests ".to_string()
+    };
+    block = block.title(top_title);
+    if items_below > 0 {
+        block = block.title_bottom(
+            Line::from(format!(" ▼ {} more ", items_below)).style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+    }
+
+    f.render_widget(block, area);
+
     let list_widget = List::new(items).highlight_style(
         Style::default()
             .bg(Color::DarkGray)
@@ -564,6 +712,7 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
 
     let mut state = ListState::default();
     state.select(selected_item_idx);
+    *state.offset_mut() = offset;
     f.render_stateful_widget(list_widget, inner, &mut state);
 }
 
@@ -594,33 +743,51 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
     if let Some(test) = test_opt {
         let res_opt = app.results.get(&test.id);
 
-        // First line inside: test title in accent color
-        lines.push(Line::styled(
-            &test.title,
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ));
+        if inner.height == 1 {
+            // Minimal height (1 line): show title and ID
+            lines.push(Line::from(vec![
+                Span::styled(
+                    &test.title,
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" · "),
+                Span::styled("ID ", Style::default().fg(Color::DarkGray)),
+                Span::styled(&test.id, Style::default().fg(Color::White)),
+            ]));
+        } else {
+            // First line inside: test title in accent color
+            lines.push(Line::styled(
+                &test.title,
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ));
 
-        // Blank line following test title
-        lines.push(Line::raw(""));
+            let kind_desc = match test.kind {
+                TestKind::Auto => "auto — verified by math & trace",
+                TestKind::Human => "you — visual review only",
+                TestKind::Both => "both — auto + visual review",
+            };
 
-        // ID line
-        lines.push(Line::from(vec![
-            Span::styled("ID    ", Style::default().fg(Color::DarkGray)),
-            Span::styled(&test.id, Style::default().fg(Color::White)),
-        ]));
+            // Blank line following test title
+            if inner.height >= 4 {
+                lines.push(Line::raw(""));
+            }
 
-        // Kind line
-        let kind_desc = match test.kind {
-            TestKind::Auto => "auto — verified by math & trace",
-            TestKind::Human => "you — visual review only",
-            TestKind::Both => "both — auto + visual review",
-        };
-        lines.push(Line::from(vec![
-            Span::styled("Kind  ", Style::default().fg(Color::DarkGray)),
-            Span::styled(kind_desc, Style::default().fg(Color::Gray)),
-        ]));
+            // ID line
+            lines.push(Line::from(vec![
+                Span::styled("ID    ", Style::default().fg(Color::DarkGray)),
+                Span::styled(&test.id, Style::default().fg(Color::White)),
+            ]));
+
+            // Kind line
+            lines.push(Line::from(vec![
+                Span::styled("Kind  ", Style::default().fg(Color::DarkGray)),
+                Span::styled(kind_desc, Style::default().fg(Color::Gray)),
+            ]));
+        }
 
         // Blank line before Description
         lines.push(Line::raw(""));
@@ -863,96 +1030,30 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
 }
 
 fn draw_result_box(f: &mut Frame, app: &TuiApp, area: Rect) {
-    let test_opt = app.selected_test();
-    let res_opt = test_opt.and_then(|t| app.results.get(&t.id));
+    let (plain, line, border_color) = get_result_content(app);
 
-    let (line, border_color) = if let (Some(test), Some(res)) = (test_opt, res_opt) {
-        if app.waiting_for_human.as_deref() == Some(&test.id) {
-            let what = test
-                .human
-                .as_ref()
-                .map(|h| h.watch.as_str())
-                .unwrap_or("Window placed accurately");
-            (
-                Line::from(vec![
-                    Span::styled(
-                        "? What to look for: ",
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(what, Style::default().fg(Color::White)),
-                ]),
-                Color::Yellow,
-            )
-        } else if res.final_status == FinalStatus::Fail || res.auto_status == AutoStatus::AutoFail {
-            let reason = res.message.as_deref().unwrap_or("Verification failed");
-            (
-                Line::from(vec![
-                    Span::styled(
-                        "✖ FAIL: ",
-                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(reason, Style::default().fg(Color::LightRed)),
-                ]),
-                Color::Red,
-            )
-        } else if res.final_status == FinalStatus::Pass || res.auto_status == AutoStatus::AutoPass {
-            (
-                Line::from(vec![
-                    Span::styled(
-                        "✔ PASS: ",
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        format!("Assertions passed ({} ms)", res.duration_ms),
-                        Style::default().fg(Color::White),
-                    ),
-                ]),
-                Color::Green,
-            )
-        } else if res.auto_status == AutoStatus::Running {
-            (
-                Line::from(vec![
-                    Span::styled("◐ Running: ", Style::default().fg(Color::Cyan)),
-                    Span::styled("Executing assertions...", Style::default().fg(Color::Cyan)),
-                ]),
-                Color::Cyan,
-            )
-        } else {
-            (
-                Line::from(vec![
-                    Span::styled("● Not run yet. ", Style::default().fg(Color::DarkGray)),
-                    Span::styled(
-                        "Press 'r' to execute or 'a' to run all.",
-                        Style::default().fg(Color::DarkGray),
-                    ),
-                ]),
-                Color::DarkGray,
-            )
-        }
-    } else {
-        (
-            Line::from(vec![
-                Span::styled("● Not run yet. ", Style::default().fg(Color::DarkGray)),
-                Span::styled(
-                    "Press 'r' to execute or 'a' to run all.",
-                    Style::default().fg(Color::DarkGray),
-                ),
-            ]),
-            Color::DarkGray,
-        )
-    };
+    let mut block = Block::default()
+        .borders(Borders::ALL)
+        .title(" Result ")
+        .border_style(Style::default().fg(border_color))
+        .padding(Padding::horizontal(1));
 
-    let p = Paragraph::new(line).block(
-        Block::default()
-            .borders(Borders::ALL)
-            .title(" Result ")
-            .border_style(Style::default().fg(border_color))
-            .padding(Padding::horizontal(1)),
-    );
+    let inner = block.inner(area);
+    let inner_w = inner.width as usize;
+    let wrapped_rows = count_wrapped_lines(&plain, inner_w.max(1));
+
+    if wrapped_rows > inner.height as usize {
+        block = block.title_bottom(
+            Line::from(" ▼ more ").style(
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+        );
+    }
+
+    let p = Paragraph::new(line).block(block).wrap(Wrap { trim: false });
+
     f.render_widget(p, area);
 }
 
