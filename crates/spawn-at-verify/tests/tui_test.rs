@@ -432,14 +432,10 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
 
     let buffer = terminal.backend().buffer().clone();
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
-    // In 80x24, right panel content overflows and MUST show the clipping hint (Item 14 & 16)
+    // In 80x24, right panel content overflows and MUST show the clipping hint
     assert!(
-        text.contains("more: press Enter or d"),
+        text.contains("▼ more"),
         "Buffer at 80x24 must show clipping hint when content overflows"
-    );
-    assert!(
-        text.contains("details") || text.contains("expand"),
-        "Buffer at 80x24 must show expand details action"
     );
 
     // Open detail drawer with Enter key
@@ -555,12 +551,13 @@ fn test_render_snapshots() {
     fail_term.draw(|f| draw_ui(f, &fail_app)).unwrap();
     let fail_snapshot = dump_buffer(&fail_term, width, height);
     assert!(idle_snapshot.contains("spawn-at verify"));
-    assert!(idle_snapshot.contains("r: Run · a: Run all"));
+    assert!(idle_snapshot.contains("r Run  a All"));
 
-    assert!(waiting_snapshot.contains("1 waiting for you"));
-    assert!(waiting_snapshot.contains("p: Pass · x: Fail"));
+    assert!(waiting_snapshot.contains("1 waiting"));
+    assert!(waiting_snapshot.contains("Your verdict:"));
+    assert!(waiting_snapshot.contains("p Pass"));
 
-    assert!(fail_snapshot.contains("✖ Auto: FAIL"));
+    assert!(fail_snapshot.contains("FAIL"));
 }
 
 #[test]
@@ -641,256 +638,333 @@ fn test_render_passing_case_contains_no_red_styled_cells() {
     }
 }
 
-#[test]
-fn test_render_columns_alignment_between_header_and_rows() {
-    let mut app = create_test_app();
-    app.fixture_exists = true;
-
-    let width = 140;
-    let height = 30;
-    let backend = TestBackend::new(width, height);
-    let mut terminal = Terminal::new(backend).unwrap();
-
-    terminal.draw(|f| draw_ui(f, &app)).unwrap();
-
+fn dump_buffer_to_string(terminal: &Terminal<TestBackend>, width: u16, height: u16) -> String {
     let buf = terminal.backend().buffer();
-
-    // Check actual grid cell x-coordinates for columns
-    let mut header_y = None;
-    let mut h_status_x = None;
-    let mut h_id_x = None;
-    let mut h_kind_x = None;
-    let mut h_title_x = None;
-
+    let mut out = String::new();
     for y in 0..height {
         let mut line = String::new();
         for x in 0..width {
             line.push_str(buf[(x, y)].symbol());
         }
-        if line.contains("Status") && line.contains("Test ID") {
-            header_y = Some(y);
-            // Search cell x
-            for x in 0..(width - 6) {
-                if (0..6usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Status"[i..i + 1]) {
-                    h_status_x = Some(x);
-                }
-                if (0..7usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Test ID"[i..i + 1]) {
-                    h_id_x = Some(x);
-                }
-                if (0..4usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Kind"[i..i + 1]) {
-                    h_kind_x = Some(x);
-                }
-                if (0..5usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Title"[i..i + 1]) {
-                    h_title_x = Some(x);
-                }
-            }
-            break;
-        }
+        out.push_str(&line);
+        out.push('\n');
     }
+    out
+}
 
-    assert!(header_y.is_some(), "Header row must be rendered");
-    let h_status = h_status_x.expect("Status must be present in header");
-    let h_id = h_id_x.expect("Test ID must be present in header");
-    let h_kind = h_kind_x.expect("Kind must be present in header");
-    let h_title = h_title_x.expect("Title must be present in header");
+fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: bool) {
+    let lines: Vec<&str> = rendered.lines().collect();
+    assert_eq!(
+        lines.len(),
+        height as usize,
+        "Rendered buffer line count must match height"
+    );
 
-    // Find data row for preflight/binary-head
-    let mut found_matching_row = false;
-    for y in (header_y.unwrap() + 1)..height {
-        let mut line = String::new();
-        for x in 0..width {
-            line.push_str(buf[(x, y)].symbol());
-        }
-        if line.contains("preflight/binary-head") {
-            let mut row_status_x = None;
-            let mut row_id_x = None;
-            let mut row_kind_x = None;
-            let mut row_title_x = None;
+    let status_symbols = ["●", "◐", "✔", "✖", "!", "?", "⊘"];
+    let mut test_rows_found = 0;
+    let mut cat_headings_found = 0;
+    let mut prev_row_was_blank = false;
 
-            for x in 0..(width - 20) {
-                if row_status_x.is_none() && buf[(x, y)].symbol() == "●" {
-                    row_status_x = Some(x);
-                }
-                if row_id_x.is_none()
-                    && (0..21usize).all(|i| {
-                        buf[(x + i as u16, y)].symbol() == &"preflight/binary-head"[i..i + 1]
-                    })
-                {
-                    row_id_x = Some(x);
-                }
-                if row_kind_x.is_none()
-                    && (0..4usize).all(|i| buf[(x + i as u16, y)].symbol() == &"auto"[i..i + 1])
-                {
-                    row_kind_x = Some(x);
-                }
-                if row_title_x.is_none()
-                    && (0..6usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Binary"[i..i + 1])
-                {
-                    row_title_x = Some(x);
+    for (y, line) in lines.iter().enumerate() {
+        assert!(
+            line.chars().count() <= width as usize,
+            "Line {} exceeds terminal width {}: {}",
+            y,
+            width,
+            line
+        );
+
+        if line.contains('│') {
+            // Check for category heading line
+            let is_cat_heading = (line.contains("PREFLIGHT")
+                || line.contains("PLACEMENT")
+                || line.contains("CLOAK & DELAYED PAINT")
+                || line.contains("TRANSFORMS")
+                || line.contains("FOCUS")
+                || line.contains("ROBUSTNESS"))
+                && (line.contains("/1")
+                    || line.contains("/4")
+                    || line.contains("/6")
+                    || line.contains("/10")
+                    || line.contains("hidden)"));
+
+            if is_cat_heading {
+                cat_headings_found += 1;
+                // Principle: NO triangle symbol in category heading
+                assert!(
+                    !line.contains('▶') && !line.contains('▼'),
+                    "Category heading row must have NO triangle symbol (line {}): {}",
+                    y,
+                    line
+                );
+                // Principle: Category headings are never truncated
+                assert!(
+                    !line.contains('…'),
+                    "Category headings must never be truncated: {}",
+                    line
+                );
+                // Principle: A blank row precedes each category heading (after the first)
+                if cat_headings_found > 1 {
+                    assert!(
+                        prev_row_was_blank,
+                        "A blank row must precede each category heading at line {}: current='{}'",
+                        y, line
+                    );
                 }
             }
 
-            assert_eq!(
-                row_status_x.unwrap(),
-                h_status,
-                "Status in data row must start at identical x position as Status in header"
-            );
-            assert_eq!(
-                row_id_x.unwrap(),
-                h_id,
-                "Test ID in data row must start at identical x position as Test ID in header"
-            );
-            assert_eq!(
-                row_kind_x.unwrap(),
-                h_kind,
-                "Kind in data row must start at identical x position as Kind in header"
-            );
-            assert_eq!(
-                row_title_x.unwrap(),
-                h_title,
-                "Title in data row must start at identical x position as Title in header"
-            );
-            found_matching_row = true;
-            break;
+            // Check if this row inside the list block is blank
+            let list_cell = line.split('│').nth(1).unwrap_or("");
+            prev_row_was_blank = list_cell.trim().is_empty();
+
+            // Check if this line contains a test row in the list block
+            let is_test_row = (list_cell.contains("auto")
+                || list_cell.contains("both")
+                || list_cell.contains("human"))
+                && (list_cell.contains("binary-head")
+                    || list_cell.contains("bottom-right")
+                    || list_cell.contains("delay-0")
+                    || list_cell.contains("delay-50")
+                    || list_cell.contains("delay-100"));
+
+            if is_test_row {
+                test_rows_found += 1;
+
+                // 1. Status symbol visible in every test row
+                let has_symbol = status_symbols.iter().any(|sym| list_cell.contains(sym));
+                assert!(
+                    has_symbol,
+                    "Status symbol must be visible in test row (line {}): '{}'",
+                    y, line
+                );
+
+                // 2. At least 2 spaces between name and kind in every row
+                let has_2_space_gap = list_cell.contains("  auto")
+                    || list_cell.contains("  both")
+                    || list_cell.contains("  human");
+                assert!(
+                    has_2_space_gap,
+                    "Row must have at least 2 spaces gap between name and kind: '{}'",
+                    line
+                );
+
+                // 3. No row text is clipped without "…"
+                if list_cell.contains("…") {
+                    assert!(
+                        list_cell.contains("… "),
+                        "Truncated text must end cleanly with … before kind gap: '{}'",
+                        line
+                    );
+                }
+            }
         }
     }
 
     assert!(
-        found_matching_row,
-        "Must find and verify at least one test data row"
+        cat_headings_found > 0,
+        "Must have found category headings at {}x{}",
+        width,
+        height
+    );
+    assert!(
+        test_rows_found > 0,
+        "Must have found test rows at {}x{}",
+        width,
+        height
+    );
+
+    // 4. Keys bar and verdict box are not clipped mid-word
+    if is_waiting {
+        assert!(
+            rendered.contains("Your verdict:"),
+            "Verdict box must be visible"
+        );
+        assert!(rendered.contains("Pass"), "Verdict box must contain 'Pass'");
+        assert!(rendered.contains("Fail"), "Verdict box must contain 'Fail'");
+        assert!(rendered.contains("Skip"), "Verdict box must contain 'Skip'");
+        assert!(
+            rendered.contains("Flaky"),
+            "Verdict box must contain 'Flaky'"
+        );
+        assert!(
+            rendered.contains("Re-run"),
+            "Verdict box must contain 'Re-run'"
+        );
+        assert!(
+            rendered.contains("Cancel"),
+            "Verdict box must contain 'Cancel'"
+        );
+        // Ensure no mid-word cuts
+        assert!(
+            !rendered.contains("Pas ") && !rendered.contains("Fai ") && !rendered.contains("Ski "),
+            "Verdict box must not be cut mid-word"
+        );
+        // And the question being asked ("What to look for") must be visible right above it
+        assert!(
+            rendered.contains("What to look for"),
+            "What to look for must be visible right above verdict box"
+        );
+    } else {
+        assert!(rendered.contains("Run"), "Keys bar must contain 'Run'");
+        assert!(rendered.contains("All"), "Keys bar must contain 'All'");
+        assert!(rendered.contains("Help"), "Keys bar must contain 'Help'");
+        assert!(rendered.contains("Quit"), "Keys bar must contain 'Quit'");
+        // Ensure no mid-word cuts
+        assert!(
+            !rendered.contains("Ru ") && !rendered.contains("Hel ") && !rendered.contains("Qui "),
+            "Keys bar must not be cut mid-word"
+        );
+    }
+
+    // 5. Description and "What to look for" are visible at narrow width (<75 cols)
+    if width < 75 {
+        assert!(
+            rendered.contains("ID"),
+            "ID must be visible at narrow width ({} cols)",
+            width
+        );
+        assert!(
+            rendered.contains("Kind"),
+            "Kind must be visible at narrow width ({} cols)",
+            width
+        );
+        // The description and "What to look for" are visible at narrow width (scrollable with a hint if long)
+        if is_waiting || height >= 24 {
+            assert!(
+                rendered.contains("What to look for"),
+                "What to look for must be visible at narrow width ({} cols, height {})",
+                width,
+                height
+            );
+        } else {
+            // When height is very small (e.g. 60x20) and description is long, shows "▼ more" hint
+            assert!(
+                rendered.contains("What to look for") || rendered.contains("▼ more"),
+                "Either 'What to look for' or scrollable clipping hint '▼ more' must be visible at {}x{}",
+                width,
+                height
+            );
+        }
+    }
+}
+
+#[test]
+fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() {
+    let resolutions = [(60, 20), (60, 28), (70, 28), (80, 28), (100, 28), (140, 28)];
+
+    for &(w, h) in &resolutions {
+        // 1. Idle state render
+        let mut app = create_test_app();
+        app.fixture_exists = true;
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let idle_rendered = dump_buffer_to_string(&terminal, w, h);
+
+        validate_render_spec(&idle_rendered, w, h, false);
+
+        // 2. Waiting-for-verdict state render
+        let mut wait_app = create_test_app();
+        wait_app.fixture_exists = true;
+        if let Some(pos) = wait_app
+            .filtered_tests()
+            .iter()
+            .position(|t| t.id == "placement/bottom-right")
+        {
+            wait_app.selected_index = pos;
+        }
+        wait_app.waiting_for_human = Some("placement/bottom-right".to_string());
+        wait_app.status_message =
+            Some("Waiting for your verdict on 'placement/bottom-right'".into());
+        let wait_res = spawn_at_verify::runner::TestResult {
+            id: "placement/bottom-right".into(),
+            title: "Window placed in bottom-right corner".into(),
+            kind: TestKind::Both,
+            required: true,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict::default(),
+            final_status: FinalStatus::Pending,
+            disagreement: false,
+            duration_ms: 185,
+            exit_code: Some(0),
+            stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+            stderr: String::new(),
+            message: Some("Assertions passed".into()),
+            log_slice: Some(
+                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
+            ),
+        };
+        wait_app
+            .results
+            .insert("placement/bottom-right".into(), wait_res);
+
+        let wait_backend = TestBackend::new(w, h);
+        let mut wait_term = Terminal::new(wait_backend).unwrap();
+        wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
+        let wait_rendered = dump_buffer_to_string(&wait_term, w, h);
+
+        validate_render_spec(&wait_rendered, w, h, true);
+    }
+
+    // Verify scrolling works at 60x20 narrow
+    let mut scroll_app = create_test_app();
+    scroll_app.fixture_exists = true;
+    scroll_app.active_pane = spawn_at_verify::tui::app::ActivePane::Details;
+    scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    scroll_app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    let scroll_backend = TestBackend::new(60, 20);
+    let mut scroll_term = Terminal::new(scroll_backend).unwrap();
+    scroll_term.draw(|f| draw_ui(f, &scroll_app)).unwrap();
+    let scroll_rendered = dump_buffer_to_string(&scroll_term, 60, 20);
+    assert!(
+        scroll_rendered.contains("What to look for"),
+        "Scrolling at 60x20 reveals What to look for"
     );
 }
 
 #[test]
-fn test_render_responsive_breakpoints_60_80_100_140() {
+fn test_help_modal_and_tab_panel_switching() {
     let mut app = create_test_app();
     app.fixture_exists = true;
 
-    fn get_text(app: &TuiApp, width: u16, height: u16) -> String {
-        let backend = TestBackend::new(width, height);
-        let mut terminal = Terminal::new(backend).unwrap();
-        terminal.draw(|f| draw_ui(f, app)).unwrap();
-        let buf = terminal.backend().buffer();
-        let mut out = String::new();
-        for y in 0..height {
-            for x in 0..width {
-                out.push_str(buf[(x, y)].symbol());
-            }
-            out.push('\n');
-        }
-        out
-    }
-
-    // 1. Wide breakpoint (140 cols >= 110):
-    // List | Overview side by side, all columns (Cursor, Status, full ID, Kind, Title)
-    let wide_text = get_text(&app, 140, 28);
-    assert!(
-        wide_text.contains("Test Suite"),
-        "Wide must render Test Suite"
-    );
-    assert!(
-        wide_text.contains("Test Overview"),
-        "Wide must render Test Overview side by side"
-    );
-    assert!(
-        wide_text.contains("Status"),
-        "Wide must render Status column"
-    );
-    assert!(
-        wide_text.contains("Test ID"),
-        "Wide must render full Test ID header"
-    );
-    assert!(wide_text.contains("Kind"), "Wide must render Kind column");
-    assert!(wide_text.contains("Title"), "Wide must render Title column");
-    assert!(
-        wide_text.contains("preflight/binary-head"),
-        "Wide must render full test ID"
+    // 1. Tab switches focus between List and Details
+    assert_eq!(app.active_pane, spawn_at_verify::tui::app::ActivePane::List);
+    app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    assert_eq!(
+        app.active_pane,
+        spawn_at_verify::tui::app::ActivePane::Details
     );
 
-    // 2. Medium breakpoint (100 cols in 75-109):
-    // Side by side; list shows Status + short name + Kind; drops Title column; category heading carries context
-    let med100_text = get_text(&app, 100, 28);
-    assert!(
-        med100_text.contains("Test Suite"),
-        "Medium 100 must render Test Suite"
-    );
-    assert!(
-        med100_text.contains("Test Overview"),
-        "Medium 100 must render Test Overview side by side"
-    );
-    assert!(
-        med100_text.contains("Status"),
-        "Medium 100 must render Status column"
-    );
-    assert!(
-        med100_text.contains("Name"),
-        "Medium 100 must render Name header"
-    );
-    assert!(
-        med100_text.contains("Kind"),
-        "Medium 100 must render Kind column"
-    );
-    assert!(
-        !med100_text
-            .lines()
-            .any(|l| l.contains("Status") && l.contains("Title")),
-        "Medium 100 must drop Title column from header"
-    );
-    assert!(
-        med100_text.contains("binary-head"),
-        "Medium 100 must show short name"
-    );
-    assert!(
-        med100_text.contains("Cloak & Delayed Paint"),
-        "Medium 100 category carries context"
-    );
+    // In Details focus, j/k scrolls details pane
+    assert_eq!(app.detail_scroll, 0);
+    app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 1);
+    app.handle_key(KeyEvent::new(KeyCode::Char('k'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 0);
 
-    // 3. Medium breakpoint (80 cols in 75-109):
-    let med80_text = get_text(&app, 80, 28);
-    assert!(
-        med80_text.contains("Test Suite"),
-        "Medium 80 must render Test Suite"
-    );
-    assert!(
-        med80_text.contains("Test Overview"),
-        "Medium 80 must render Test Overview side by side"
-    );
-    assert!(
-        med80_text.contains("Status"),
-        "Medium 80 must render Status column"
-    );
-    assert!(
-        med80_text.contains("Name"),
-        "Medium 80 must render Name header"
-    );
-    assert!(
-        med80_text.contains("Kind"),
-        "Medium 80 must render Kind column"
-    );
-    assert!(
-        med80_text.contains("binary-head"),
-        "Medium 80 must show short name"
-    );
+    // Tab back to List
+    app.handle_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE));
+    assert_eq!(app.active_pane, spawn_at_verify::tui::app::ActivePane::List);
 
-    // 4. Narrow breakpoint (60 cols < 75):
-    // Single pane; list full width; status NEVER dropped
-    let narrow_text = get_text(&app, 60, 28);
-    assert!(
-        narrow_text.contains("Test Suite"),
-        "Narrow must render Test Suite"
-    );
-    assert!(
-        !narrow_text.contains("Test Overview"),
-        "Narrow must NOT render side-by-side Test Overview"
-    );
-    assert!(
-        narrow_text.contains("Status"),
-        "Narrow must always show Status column"
-    );
-    assert!(
-        narrow_text.contains("● not run"),
-        "Narrow must show status indicators"
-    );
+    // 2. '?' opens help overlay modal
+    app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+    assert_eq!(app.modal, ModalState::Help);
+
+    let backend = TestBackend::new(80, 25);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let help_rendered = dump_buffer_to_string(&terminal, 80, 25);
+
+    assert!(help_rendered.contains("KEYS & COMMANDS"));
+    assert!(help_rendered.contains("STATUS SYMBOLS"));
+    assert!(help_rendered.contains("KINDS LEGEND"));
+    assert!(help_rendered.contains("auto:"));
+    assert!(help_rendered.contains("human:"));
+    assert!(help_rendered.contains("both:"));
+
+    // Esc closes help modal
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert_eq!(app.modal, ModalState::None);
 }
 
 #[test]
@@ -916,4 +990,70 @@ fn test_render_terminal_below_minimum_size_shows_warning() {
         text.contains("Terminal too small — need at least 60x15"),
         "Must display clear size warning below 60x15"
     );
+}
+
+#[test]
+fn test_dump_snapshots_to_scratch() {
+    let resolutions = [(60, 20), (60, 28), (70, 28), (80, 28), (100, 28), (140, 28)];
+
+    let mut out = String::new();
+
+    for &(w, h) in &resolutions {
+        // Idle
+        let mut app = create_test_app();
+        app.fixture_exists = true;
+        let backend = TestBackend::new(w, h);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, &app)).unwrap();
+        let idle_rendered = dump_buffer_to_string(&terminal, w, h);
+        out.push_str(&format!(
+            "=== SNAPSHOT {}x{} - IDLE ===\n{}\n\n",
+            w, h, idle_rendered
+        ));
+
+        // Waiting for verdict
+        let mut wait_app = create_test_app();
+        wait_app.fixture_exists = true;
+        if let Some(pos) = wait_app
+            .filtered_tests()
+            .iter()
+            .position(|t| t.id == "placement/bottom-right")
+        {
+            wait_app.selected_index = pos;
+        }
+        wait_app.waiting_for_human = Some("placement/bottom-right".to_string());
+        let wait_res = spawn_at_verify::runner::TestResult {
+            id: "placement/bottom-right".into(),
+            title: "Window placed in bottom-right corner".into(),
+            kind: TestKind::Both,
+            required: true,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict::default(),
+            final_status: FinalStatus::Pending,
+            disagreement: false,
+            duration_ms: 185,
+            exit_code: Some(0),
+            stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+            stderr: String::new(),
+            message: Some("Assertions passed".into()),
+            log_slice: Some(
+                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
+            ),
+        };
+        wait_app
+            .results
+            .insert("placement/bottom-right".into(), wait_res);
+
+        let wait_backend = TestBackend::new(w, h);
+        let mut wait_term = Terminal::new(wait_backend).unwrap();
+        wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
+        let wait_rendered = dump_buffer_to_string(&wait_term, w, h);
+        out.push_str(&format!(
+            "=== SNAPSHOT {}x{} - WAITING FOR VERDICT ===\n{}\n\n",
+            w, h, wait_rendered
+        ));
+    }
+
+    let scratch_path = "/home/harsh/.gemini/antigravity-ide/brain/c19dfab5-8922-4446-88cf-50dca990ff83/scratch/snapshots.txt";
+    let _ = std::fs::write(scratch_path, out);
 }

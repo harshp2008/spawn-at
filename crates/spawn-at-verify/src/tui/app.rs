@@ -41,9 +41,16 @@ impl FilterMode {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ActivePane {
+    List,
+    Details,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModalState {
     None,
+    Help,
     HumanVerdict { test_id: String },
 }
 
@@ -94,6 +101,7 @@ pub struct TuiApp {
     pub queue: VecDeque<String>,
     pub waiting_for_human: Option<String>,
     pub terminal_window_id: Option<u64>,
+    pub active_pane: ActivePane,
 }
 
 impl TuiApp {
@@ -156,6 +164,7 @@ impl TuiApp {
             queue: VecDeque::new(),
             waiting_for_human: None,
             terminal_window_id,
+            active_pane: ActivePane::List,
         })
     }
 
@@ -588,6 +597,21 @@ impl TuiApp {
 
         // 4. Modal interactions
         match &self.modal {
+            ModalState::Help => {
+                match key.code {
+                    KeyCode::Esc | KeyCode::Char('?') | KeyCode::Char('q') | KeyCode::Char('Q') => {
+                        self.close_modal();
+                    }
+                    KeyCode::Down | KeyCode::Char('j') => {
+                        self.detail_scroll = self.detail_scroll.saturating_add(1);
+                    }
+                    KeyCode::Up | KeyCode::Char('k') => {
+                        self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                    }
+                    _ => {}
+                }
+                return;
+            }
             ModalState::HumanVerdict { .. } => {
                 match key.code {
                     KeyCode::Char('p') | KeyCode::Char('P') => {
@@ -614,7 +638,10 @@ impl TuiApp {
 
         // 5. Normal view keybindings
         match key.code {
-            KeyCode::Char('q') => {
+            KeyCode::Char('?') => {
+                self.modal = ModalState::Help;
+            }
+            KeyCode::Char('q') | KeyCode::Char('Q') => {
                 self.close_test_windows();
                 self.should_quit = true;
             }
@@ -623,10 +650,18 @@ impl TuiApp {
                 self.detail_scroll = 0;
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                self.next();
+                if self.active_pane == ActivePane::Details {
+                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                } else {
+                    self.next();
+                }
             }
             KeyCode::Up | KeyCode::Char('k') => {
-                self.previous();
+                if self.active_pane == ActivePane::Details {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                } else {
+                    self.previous();
+                }
             }
             KeyCode::PageDown | KeyCode::Char(']') => {
                 self.detail_scroll = self.detail_scroll.saturating_add(6);
@@ -646,11 +681,11 @@ impl TuiApp {
             KeyCode::Char(' ') => {
                 self.toggle_collapse_selected_category();
             }
-            KeyCode::Tab => {
-                self.jump_next_category();
-            }
-            KeyCode::BackTab => {
-                self.jump_prev_category();
+            KeyCode::Tab | KeyCode::BackTab => {
+                self.active_pane = match self.active_pane {
+                    ActivePane::List => ActivePane::Details,
+                    ActivePane::Details => ActivePane::List,
+                };
             }
             KeyCode::Char('r') => {
                 self.run_selected();
