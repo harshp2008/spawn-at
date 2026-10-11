@@ -1,0 +1,136 @@
+//! Drawer content line assembly builder.
+
+use super::constants::{DRAWER_INDENT, DRAWER_LABEL_W, DRAWER_RIGHT_PAD, DRAWER_VALUE_X};
+use super::wrapping::wrap_value_tokens;
+use ratatui::{
+    style::{Color, Modifier, Style},
+    text::{Line, Span},
+};
+use unicode_width::UnicodeWidthStr;
+
+pub struct DrawerBuilder {
+    pub lines: Vec<Line<'static>>,
+    pub plain: Vec<String>,
+    pub width: usize,
+    pub inner_width: usize,
+    pub val_col_width: usize,
+}
+
+impl DrawerBuilder {
+    pub fn new(width: usize) -> Self {
+        let w = width.max(50);
+        let inner_w = w.saturating_sub(2);
+        let content_w = inner_w.saturating_sub(DRAWER_VALUE_X + DRAWER_RIGHT_PAD);
+        Self {
+            lines: Vec::new(),
+            plain: Vec::new(),
+            width: w,
+            inner_width: inner_w,
+            val_col_width: content_w,
+        }
+    }
+
+    pub fn content_width(&self) -> usize {
+        self.val_col_width
+    }
+
+    pub fn push(&mut self, line: Line<'static>, text: String) {
+        self.lines.push(line);
+        self.plain.push(text);
+    }
+
+    pub fn push_blank(&mut self) {
+        self.lines.push(Line::raw(""));
+        self.plain.push(String::new());
+    }
+
+    pub fn push_heading(&mut self, name: &str, extra: Option<&str>) {
+        let (prefix_spans, prefix_len, plain_prefix) = match extra {
+            Some(ex) => {
+                let p_plain = format!(" ── {} ── {} ", name, ex);
+                let p_len = p_plain.width();
+                let spans = vec![
+                    Span::raw(" "),
+                    Span::styled("── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        name.to_string(),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(" ── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        ex.to_string(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::raw(" "),
+                ];
+                (spans, p_len, p_plain)
+            }
+            None => {
+                let p_plain = format!(" ── {} ", name);
+                let p_len = p_plain.width();
+                let spans = vec![
+                    Span::raw(" "),
+                    Span::styled("── ", Style::default().fg(Color::DarkGray)),
+                    Span::styled(
+                        name.to_string(),
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::raw(" "),
+                ];
+                (spans, p_len, p_plain)
+            }
+        };
+
+        let target_len = self.inner_width.saturating_sub(1);
+        let rule_len = target_len.saturating_sub(prefix_len);
+        let rule = "─".repeat(rule_len);
+        let plain_line = format!("{}{}", plain_prefix, rule);
+
+        let mut all_spans = prefix_spans;
+        all_spans.push(Span::styled(rule, Style::default().fg(Color::DarkGray)));
+        self.push(Line::from(all_spans), plain_line);
+    }
+
+    pub fn push_kv(&mut self, label: &str, val_spans: Vec<Span<'static>>, val_plain: &str) {
+        if val_plain.width() > self.val_col_width {
+            let style = val_spans.first().map(|s| s.style).unwrap_or_default();
+            self.push_wrapped_kv(label, val_plain, style);
+            return;
+        }
+        let indent_str = " ".repeat(DRAWER_INDENT);
+        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
+        let plain_line = format!("{}{}{}", indent_str, label_fmt, val_plain);
+        let mut spans = vec![
+            Span::raw(indent_str),
+            Span::styled(label_fmt, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(val_spans);
+        self.push(Line::from(spans), plain_line);
+    }
+
+    pub fn push_wrapped_kv(&mut self, label: &str, val_text: &str, val_style: Style) {
+        let indent_str = " ".repeat(DRAWER_INDENT);
+        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
+        let lines = wrap_value_tokens(val_text, self.val_col_width);
+        for (i, line) in lines.into_iter().enumerate() {
+            if i == 0 {
+                let plain = format!("{}{}{}", indent_str, label_fmt, line);
+                let spans = vec![
+                    Span::raw(indent_str.clone()),
+                    Span::styled(label_fmt.clone(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(line, val_style),
+                ];
+                self.push(Line::from(spans), plain);
+            } else {
+                let indent_val = " ".repeat(DRAWER_VALUE_X);
+                let plain = format!("{}{}", indent_val, line);
+                let spans = vec![Span::raw(indent_val), Span::styled(line, val_style)];
+                self.push(Line::from(spans), plain);
+            }
+        }
+    }
+}
