@@ -2,6 +2,7 @@
 
 use super::args::RunArgs;
 use super::check::{resolve_bin_path, resolve_verify_dir};
+use super::run_summary::RunSummary;
 use crate::loader::{TestFilter, TestRegistry};
 use crate::report::{build_session_report, write_report_artifacts};
 use crate::runner::{FinalStatus, RunOptions, TestRunner};
@@ -79,25 +80,20 @@ pub fn handle_run(args: RunArgs) {
     let results_base = PathBuf::from("verify-results");
     let session_dir = write_report_artifacts(&results_base, &session_report).ok();
 
+    let summary = RunSummary::from_results(&results);
+
     if args.json {
         let out = serde_json::to_string_pretty(&session_report).unwrap();
         println!("{}", out);
     } else {
         println!("\n=== Verification Run Results ===");
-        let mut passed = 0;
-        let mut failed = 0;
-        let mut skipped = 0;
-        let mut blocked = 0;
-        let mut unchecked = 0;
 
         for r in &results {
             match r.final_status {
                 FinalStatus::Pass => {
-                    passed += 1;
                     println!("  ✓ PASS: {} ({}) [{}ms]", r.id, r.title, r.duration_ms);
                 }
                 FinalStatus::PassUnchecked => {
-                    unchecked += 1;
                     println!(
                         "  ◐ PASS (geometry unchecked): {} ({}) [{}ms]: {}",
                         r.id,
@@ -107,7 +103,6 @@ pub fn handle_run(args: RunArgs) {
                     );
                 }
                 FinalStatus::Fail => {
-                    failed += 1;
                     let msg = r.message.as_deref().unwrap_or("Failed");
                     println!(
                         "  ✗ FAIL: {} ({}) [{}ms]: {}",
@@ -115,22 +110,18 @@ pub fn handle_run(args: RunArgs) {
                     );
                 }
                 FinalStatus::Skipped => {
-                    skipped += 1;
                     let msg = r.message.as_deref().unwrap_or("Unmet requirement");
                     println!("  ⊘ SKIP: {} ({}): {}", r.id, r.title, msg);
                 }
                 FinalStatus::Blocked => {
-                    blocked += 1;
                     let msg = r.message.as_deref().unwrap_or("Blocked by preflight");
                     println!("  ⛔ BLOCKED: {} ({}): {}", r.id, r.title, msg);
                 }
                 FinalStatus::Error => {
-                    failed += 1;
                     let msg = r.message.as_deref().unwrap_or("Harness error");
                     println!("  💥 ERROR: {} ({}): {}", r.id, r.title, msg);
                 }
                 FinalStatus::Flaky => {
-                    failed += 1;
                     println!("  ⚠️ FLAKY: {} ({})", r.id, r.title);
                 }
                 FinalStatus::Pending => {
@@ -139,19 +130,8 @@ pub fn handle_run(args: RunArgs) {
             }
         }
 
-        println!(
-            "\nTotal: {}, Passed: {}, Failed: {}, Skipped: {}, Blocked: {}",
-            results.len(),
-            passed,
-            failed,
-            skipped,
-            blocked
-        );
-        if unchecked > 0 {
-            println!(
-                "Passed with geometry unchecked (not counted as Passed): {}",
-                unchecked
-            );
+        for line in summary.lines(results.len()) {
+            println!("{}", line);
         }
 
         if !session_report.qualification.skipped_required.is_empty() {
@@ -164,9 +144,11 @@ pub fn handle_run(args: RunArgs) {
         if let Some(dir) = session_dir {
             println!("\nSession artifacts written to: {}", dir.display());
         }
+    }
 
-        if failed > 0 || blocked > 0 {
-            exit(1);
-        }
+    // Same exit code in text and JSON mode (JSON mode used to always exit 0).
+    let code = summary.exit_code();
+    if code != 0 {
+        exit(code);
     }
 }

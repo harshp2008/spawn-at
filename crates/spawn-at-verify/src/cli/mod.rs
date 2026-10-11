@@ -7,6 +7,7 @@ pub mod list;
 pub mod render;
 pub mod report;
 pub mod run;
+pub mod run_summary;
 pub mod smoke_eval;
 pub mod tui;
 
@@ -17,6 +18,7 @@ pub use list::*;
 pub use render::*;
 pub use report::*;
 pub use run::*;
+pub use run_summary::{RunSummary, EXIT_FAILED, EXIT_UNCHECKED_REQUIRED};
 pub use smoke_eval::*;
 pub use tui::*;
 

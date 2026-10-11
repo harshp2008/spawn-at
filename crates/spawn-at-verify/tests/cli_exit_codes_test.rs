@@ -1,0 +1,32 @@
+//! The `run` exit codes are documented in `run --help` and match the summary policy.
+
+use spawn_at_verify::cli::{EXIT_FAILED, EXIT_UNCHECKED_REQUIRED};
+use std::process::Command;
+
+/// `run --help` (and `-h`) print the exit-code section, including the unchecked-required code.
+#[test]
+fn test_run_help_documents_exit_codes() {
+    for flag in ["--help", "-h"] {
+        let out = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+            .args(["run", flag])
+            .output()
+            .unwrap();
+        assert!(out.status.success());
+        let text = String::from_utf8_lossy(&out.stdout);
+        assert!(text.contains("Exit codes:"), "{}", text);
+        assert!(text.contains("  0  no test failed"), "{}", text);
+        assert!(text.contains("  1  at least one test failed"), "{}", text);
+        assert!(
+            text.contains("  2  nothing failed, but at least one REQUIRED test passed with its geometry unchecked"),
+            "{}",
+            text
+        );
+    }
+}
+
+/// The codes named in the help are the ones the code uses.
+#[test]
+fn test_exit_code_constants_match_help() {
+    assert_eq!(EXIT_FAILED, 1);
+    assert_eq!(EXIT_UNCHECKED_REQUIRED, 2);
+}

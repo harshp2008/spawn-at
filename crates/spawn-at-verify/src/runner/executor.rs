@@ -279,7 +279,7 @@ impl TestRunner {
         let validation = validate_expectations(test, exit_code, &stderr, env_info)
             .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
         // Geometry caveats worth recording next to a pass.
-        let mut pass_message = String::new();
+        let pass_message: String;
         let auto_status = match validation {
             Ok(check) => {
                 let (status, message) = pass_assessment(check.as_ref());

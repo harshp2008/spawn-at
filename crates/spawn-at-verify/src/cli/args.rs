@@ -62,6 +62,7 @@ impl From<KindArg> for TestKind {
 
 /// Arguments for the `run` subcommand.
 #[derive(Args, Debug)]
+#[command(after_help = super::run_summary::EXIT_CODE_HELP)]
 pub struct RunArgs {
     /// Path to spawn-at binary under test [default: target/debug/spawn-at]
     #[arg(long)]
