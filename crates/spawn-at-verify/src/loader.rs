@@ -64,6 +64,15 @@ impl TestRegistry {
                 ));
             }
 
+            if !crate::schema::is_valid_category(&parsed.category) {
+                return Err(format!(
+                    "Invalid category '{}' in {}. Valid categories are: {:?}",
+                    parsed.category,
+                    file_path.display(),
+                    crate::schema::VALID_CATEGORIES
+                ));
+            }
+
             // Expand matrix if present
             let expanded_tests = parsed.expand_matrix()?;
 
@@ -127,7 +136,14 @@ impl TestRegistry {
                 // 2. Category / path filter
                 if let Some(cat_path) = &filter.category_path {
                     let clean_cat = cat_path.trim_end_matches('/');
-                    if !test.id.starts_with(clean_cat) {
+                    let cat_matches = test.category() == clean_cat
+                        || (clean_cat == "preflight" && test.category() == "basics")
+                        || (clean_cat == "cloak" && test.category() == "animation-and-cloak")
+                        || (clean_cat == "transform" && test.category() == "transforms")
+                        || (clean_cat == "query" && test.category() == "queries")
+                        || (clean_cat == "resilience" && test.category() == "robustness")
+                        || test.id.starts_with(clean_cat);
+                    if !cat_matches {
                         return false;
                     }
                 }
@@ -377,6 +393,8 @@ mod tests {
         let dummy = vec![
             TestDefinition {
                 id: "placement/bottom-right".into(),
+                category: "placement".into(),
+                subcategory: None,
                 title: "Bottom Right".into(),
                 description: "".into(),
                 kind: TestKind::Both,
@@ -396,6 +414,8 @@ mod tests {
             },
             TestDefinition {
                 id: "preflight/binary-head".into(),
+                category: "basics".into(),
+                subcategory: None,
                 title: "Binary Head".into(),
                 description: "".into(),
                 kind: TestKind::Auto,
@@ -417,7 +437,7 @@ mod tests {
 
         let tree = format_test_tree(&dummy);
         assert!(tree.contains("placement/ (1 test)"));
-        assert!(tree.contains("preflight/ (1 test)"));
+        assert!(tree.contains("basics/ (1 test)"));
         assert!(tree.contains("Summary: 2 tests (1 auto, 0 human, 1 both, 2 required)"));
     }
 }

@@ -1,4 +1,6 @@
 id = "cloak/delayed-paint"
+category = "animation-and-cloak"
+subcategory = "delayed-paint"
 title = "App paints slowly ({delay} ms)"
 description = "Masks window cold-start while the app takes {delay} ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace."
 kind = "auto"

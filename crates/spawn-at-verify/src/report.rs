@@ -360,17 +360,39 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         md.push('\n');
     }
 
-    md.push_str("## 3. Detailed Test Results\n\n");
-    md.push_str("| ID | Kind | Req | Auto | Human | Final | Duration |\n");
-    md.push_str("| :--- | :--- | :---: | :---: | :---: | :---: | :---: |\n");
+    md.push_str("## 3. Detailed Test Results by Category\n\n");
 
+    let mut by_category: std::collections::BTreeMap<&str, Vec<&TestResult>> =
+        std::collections::BTreeMap::new();
     for r in &report.results {
-        let req_str = if r.required { "Yes" } else { "No" };
-        let human_str = format!("{:?}", r.human_verdict.verdict);
-        md.push_str(&format!(
-            "| `{}` | `{:?}` | {} | `{:?}` | `{}` | **`{:?}`** | {}ms |\n",
-            r.id, r.kind, req_str, r.auto_status, human_str, r.final_status, r.duration_ms
-        ));
+        by_category.entry(r.category()).or_default().push(r);
+    }
+
+    for (cat, tests) in by_category {
+        let cat_title = match cat {
+            "basics" => "Basics",
+            "placement" => "Placement",
+            "transforms" => "Transforms",
+            "focus" => "Focus",
+            "animation-and-cloak" => "Animation and Cloak",
+            "queries" => "Queries",
+            "robustness" => "Robustness",
+            "platform" => "Platform",
+            other => other,
+        };
+        md.push_str(&format!("### {}\n\n", cat_title));
+        md.push_str("| ID | Kind | Req | Auto | Human | Final | Duration |\n");
+        md.push_str("| :--- | :--- | :---: | :---: | :---: | :---: | :---: |\n");
+
+        for r in tests {
+            let req_str = if r.required { "Yes" } else { "No" };
+            let human_str = format!("{:?}", r.human_verdict.verdict);
+            md.push_str(&format!(
+                "| `{}` | `{:?}` | {} | `{:?}` | `{}` | **`{:?}`** | {}ms |\n",
+                r.id, r.kind, req_str, r.auto_status, human_str, r.final_status, r.duration_ms
+            ));
+        }
+        md.push('\n');
     }
 
     md

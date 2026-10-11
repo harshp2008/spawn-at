@@ -10,7 +10,7 @@ use crate::runner::{
 use crate::schema::{TestDefinition, TestKind};
 use crate::tracker::WindowTracker;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -47,22 +47,25 @@ pub enum ModalState {
     HumanVerdict { test_id: String },
 }
 
-pub fn category_rank(id: &str) -> usize {
-    if id.starts_with("preflight") {
+pub fn category_rank(cat_or_id: &str) -> usize {
+    if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
         0
-    } else if id.starts_with("placement") {
+    } else if cat_or_id.starts_with("placement") || cat_or_id == "placement" {
         1
-    } else if id.starts_with("cloak") {
+    } else if cat_or_id.starts_with("cloak") || cat_or_id == "animation-and-cloak" {
         2
-    } else if id.starts_with("transform") {
+    } else if cat_or_id.starts_with("transform") || cat_or_id == "transforms" {
         3
-    } else if id.starts_with("focus") {
+    } else if cat_or_id.starts_with("focus") {
         4
-    } else if id.starts_with("query") {
+    } else if cat_or_id.starts_with("query") || cat_or_id == "queries" {
         5
-    } else if id.starts_with("robust") || id.starts_with("resilience") {
+    } else if cat_or_id.starts_with("robust")
+        || cat_or_id.starts_with("resilience")
+        || cat_or_id == "robustness"
+    {
         6
-    } else if id.starts_with("platform") {
+    } else if cat_or_id.starts_with("platform") {
         7
     } else {
         8
@@ -73,6 +76,8 @@ pub struct TuiApp {
     pub registry: TestRegistry,
     pub selected_index: usize,
     pub filter_mode: FilterMode,
+    pub category_filter: Option<String>,
+    pub collapsed_categories: HashSet<String>,
     pub results: HashMap<String, TestResult>,
     pub modal: ModalState,
     pub fixture_exists: bool,
@@ -133,6 +138,8 @@ impl TuiApp {
             registry,
             selected_index: 0,
             filter_mode: FilterMode::All,
+            category_filter: None,
+            collapsed_categories: HashSet::new(),
             results: HashMap::new(),
             modal: ModalState::None,
             fixture_exists,
@@ -157,21 +164,140 @@ impl TuiApp {
             .registry
             .tests
             .iter()
-            .filter(|test| match self.filter_mode {
-                FilterMode::All => true,
-                FilterMode::HumanOnly => {
-                    test.kind == TestKind::Human || test.kind == TestKind::Both
+            .filter(|test| {
+                if let Some(cat) = &self.category_filter {
+                    if test.category() != cat && !test.id.starts_with(cat) {
+                        return false;
+                    }
                 }
-                FilterMode::AutoOnly => test.kind == TestKind::Auto,
-                FilterMode::FailedOnly => self
-                    .results
-                    .get(&test.id)
-                    .map(|r| r.final_status == FinalStatus::Fail)
-                    .unwrap_or(false),
+                match self.filter_mode {
+                    FilterMode::All => true,
+                    FilterMode::HumanOnly => {
+                        test.kind == TestKind::Human || test.kind == TestKind::Both
+                    }
+                    FilterMode::AutoOnly => test.kind == TestKind::Auto,
+                    FilterMode::FailedOnly => self
+                        .results
+                        .get(&test.id)
+                        .map(|r| r.final_status == FinalStatus::Fail)
+                        .unwrap_or(false),
+                }
             })
             .collect();
-        list.sort_by_key(|t| (category_rank(&t.id), &t.id));
+        list.sort_by_key(|t| (category_rank(t.category()), category_rank(&t.id), &t.id));
         list
+    }
+
+    pub fn jump_next_category(&mut self) {
+        let list = self.filtered_tests();
+        if list.is_empty() {
+            return;
+        }
+        let current_cat = list[self.selected_index.min(list.len() - 1)].category();
+        if let Some(next_pos) = list
+            .iter()
+            .enumerate()
+            .skip(self.selected_index + 1)
+            .find(|(_, t)| t.category() != current_cat)
+            .map(|(i, _)| i)
+        {
+            self.selected_index = next_pos;
+            self.detail_scroll = 0;
+        } else if let Some(first_pos) = list.iter().position(|t| t.category() != current_cat) {
+            self.selected_index = first_pos;
+            self.detail_scroll = 0;
+        }
+    }
+
+    pub fn jump_prev_category(&mut self) {
+        let list = self.filtered_tests();
+        if list.is_empty() {
+            return;
+        }
+        let current_cat = list[self.selected_index.min(list.len() - 1)].category();
+        let mut prev_cat = None;
+        for t in list[..self.selected_index].iter().rev() {
+            if t.category() != current_cat {
+                prev_cat = Some(t.category());
+                break;
+            }
+        }
+        if let Some(target_cat) = prev_cat {
+            if let Some(pos) = list.iter().position(|t| t.category() == target_cat) {
+                self.selected_index = pos;
+                self.detail_scroll = 0;
+            }
+        } else if let Some(last_cat) = list.last().map(|t| t.category()) {
+            if last_cat != current_cat {
+                if let Some(pos) = list.iter().position(|t| t.category() == last_cat) {
+                    self.selected_index = pos;
+                    self.detail_scroll = 0;
+                }
+            }
+        }
+    }
+
+    pub fn run_selected_category(&mut self) {
+        if let Some(test) = self.selected_test() {
+            let cat = test.category().to_string();
+            self.queue.clear();
+            let ids: Vec<String> = self
+                .filtered_tests()
+                .iter()
+                .filter(|t| t.category() == cat)
+                .map(|t| t.id.clone())
+                .collect();
+            let count = ids.len();
+            for id in ids {
+                self.queue.push_back(id);
+            }
+            self.status_message = Some(format!("Running {} tests in category '{}'...", count, cat));
+            self.process_queue_step();
+        }
+    }
+
+    pub fn toggle_collapse_selected_category(&mut self) {
+        if let Some(test) = self.selected_test() {
+            let cat = test.category().to_string();
+            if self.collapsed_categories.contains(&cat) {
+                self.collapsed_categories.remove(&cat);
+                self.status_message = Some(format!("Expanded category '{}'", cat));
+            } else {
+                self.collapsed_categories.insert(cat.clone());
+                self.status_message = Some(format!("Collapsed category '{}'", cat));
+            }
+        }
+    }
+
+    pub fn cycle_category_filter(&mut self) {
+        let mut cats: Vec<String> = self
+            .registry
+            .tests
+            .iter()
+            .map(|t| t.category().to_string())
+            .collect();
+        cats.sort();
+        cats.dedup();
+
+        self.category_filter = match &self.category_filter {
+            None => cats.first().cloned(),
+            Some(curr) => {
+                if let Some(pos) = cats.iter().position(|c| c == curr) {
+                    if pos + 1 < cats.len() {
+                        Some(cats[pos + 1].clone())
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            }
+        };
+        self.clamp_selection();
+        self.status_message = Some(match &self.category_filter {
+            Some(c) => format!("Filtered to category: {}", c),
+            None => "Category filter cleared (showing all)".into(),
+        });
     }
 
     pub fn selected_test(&self) -> Option<&TestDefinition> {
@@ -514,8 +640,23 @@ impl TuiApp {
             KeyCode::Char('f') => {
                 self.cycle_filter();
             }
+            KeyCode::Char('C') => {
+                self.cycle_category_filter();
+            }
+            KeyCode::Char(' ') => {
+                self.toggle_collapse_selected_category();
+            }
+            KeyCode::Tab => {
+                self.jump_next_category();
+            }
+            KeyCode::BackTab => {
+                self.jump_prev_category();
+            }
             KeyCode::Char('r') => {
                 self.run_selected();
+            }
+            KeyCode::Char('R') => {
+                self.run_selected_category();
             }
             KeyCode::Char('a') => {
                 self.run_all_filtered();

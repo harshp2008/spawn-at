@@ -1,4 +1,5 @@
 id = "placement/bottom-right"
+category = "placement"
 title = "Window placed in bottom-right corner"
 description = "Spawns a test window anchored to the bottom-right corner of the work area with a 16px boundary margin."
 kind = "both"

@@ -75,6 +75,31 @@ pub struct TestResult {
     pub log_slice: Option<String>,
 }
 
+impl TestResult {
+    /// Returns the category of this test result based on its ID.
+    pub fn category(&self) -> &str {
+        if self.id.starts_with("preflight") || self.id.starts_with("basics") {
+            "basics"
+        } else if self.id.starts_with("placement") {
+            "placement"
+        } else if self.id.starts_with("cloak") || self.id.starts_with("animation") {
+            "animation-and-cloak"
+        } else if self.id.starts_with("transform") {
+            "transforms"
+        } else if self.id.starts_with("focus") {
+            "focus"
+        } else if self.id.starts_with("query") {
+            "queries"
+        } else if self.id.starts_with("robust") || self.id.starts_with("resilience") {
+            "robustness"
+        } else if self.id.starts_with("platform") {
+            "platform"
+        } else {
+            self.id.split('/').next().unwrap_or("basics")
+        }
+    }
+}
+
 /// Resolves the final test status and checks for disagreement between automated and human verdicts.
 pub fn resolve_final_status(
     kind: TestKind,
@@ -856,6 +881,8 @@ mod tests {
 
         let test = TestDefinition {
             id: "test/missing-fixture".into(),
+            category: "basics".into(),
+            subcategory: None,
             title: "Missing Fixture Test".into(),
             description: "Verifies early failure on missing fixture".into(),
             kind: TestKind::Auto,
@@ -911,6 +938,8 @@ mod tests {
         // 1. Explicit class in action.args: preserved and not duplicated
         let test_explicit = TestDefinition {
             id: "test/explicit-class".into(),
+            category: "basics".into(),
+            subcategory: None,
             title: "Explicit Class Test".into(),
             description: "Tests explicit class passing".into(),
             kind: TestKind::Auto,
@@ -955,6 +984,8 @@ mod tests {
         // 2. Inferred class from --app-id in subject.args: forwarded as --class
         let test_inferred = TestDefinition {
             id: "test/inferred-class".into(),
+            category: "basics".into(),
+            subcategory: None,
             title: "Inferred Class Test".into(),
             description: "Tests inferred class forwarding".into(),
             kind: TestKind::Both,

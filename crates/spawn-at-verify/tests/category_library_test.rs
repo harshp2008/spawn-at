@@ -1,0 +1,309 @@
+//! Headless test verifying category schema, loader validation, and library coverage.
+
+use spawn_at_verify::loader::{TestFilter, TestRegistry};
+use spawn_at_verify::schema::{is_valid_category, TestDefinition, VALID_CATEGORIES};
+use std::collections::HashSet;
+use std::path::Path;
+
+/// Proposed test case in the Part 2 test library plan.
+pub struct ProposedCase {
+    pub category: &'static str,
+    pub id: &'static str,
+    pub title: &'static str,
+    pub command_or_flag: &'static str,
+}
+
+/// Canonical catalog of proposed test cases covering all categories and CLI commands.
+pub const PROPOSED_CASES: &[ProposedCase] = &[
+    // 1. Basics
+    ProposedCase {
+        category: "basics",
+        id: "basics/preflight-binary-head",
+        title: "Binary version matches repository HEAD",
+        command_or_flag: "preflight-binary-check",
+    },
+    ProposedCase {
+        category: "basics",
+        id: "basics/version-and-help",
+        title: "CLI help and version output",
+        command_or_flag: "--help, --version",
+    },
+    // 2. Placement
+    ProposedCase {
+        category: "placement",
+        id: "placement/bottom-right",
+        title: "Window placed in bottom-right corner",
+        command_or_flag: "spawn --anchor bottom-right --margin",
+    },
+    ProposedCase {
+        category: "placement",
+        id: "placement/area-screen-vs-workarea",
+        title: "Screen vs Workarea boundary",
+        command_or_flag: "spawn --area screen|workarea|unbounded",
+    },
+    ProposedCase {
+        category: "placement",
+        id: "placement/clamp-bounds",
+        title: "Boundary clamping constraints",
+        command_or_flag: "spawn --clamp",
+    },
+    // 3. Transforms
+    ProposedCase {
+        category: "transforms",
+        id: "transforms/reposition-by-id",
+        title: "Reposition existing window by numeric ID",
+        command_or_flag: "transform --id --pos",
+    },
+    ProposedCase {
+        category: "transforms",
+        id: "transforms/maximize-and-restore",
+        title: "Maximize and restore window geometry",
+        command_or_flag: "maximize, restore",
+    },
+    ProposedCase {
+        category: "transforms",
+        id: "transforms/minimize-and-focus",
+        title: "Minimize and unminimize via focus",
+        command_or_flag: "minimize, focus",
+    },
+    // 4. Focus
+    ProposedCase {
+        category: "focus",
+        id: "focus/activate-by-title",
+        title: "Activate window by title substring",
+        command_or_flag: "focus --title",
+    },
+    ProposedCase {
+        category: "focus",
+        id: "focus/defocus-active-window",
+        title: "Relinquish keyboard focus",
+        command_or_flag: "defocus",
+    },
+    ProposedCase {
+        category: "focus",
+        id: "focus/passive-spawn-no-focus",
+        title: "Spawn window without stealing focus",
+        command_or_flag: "spawn --no-focus",
+    },
+    // 5. Animation and cloak
+    ProposedCase {
+        category: "animation-and-cloak",
+        id: "cloak/delayed-paint",
+        title: "Mask cold-start window paint delay",
+        command_or_flag: "spawn (actor trace cloak validation)",
+    },
+    ProposedCase {
+        category: "animation-and-cloak",
+        id: "cloak/no-flicker-center",
+        title: "Zero off-target flicker when spawning centered",
+        command_or_flag: "spawn --anchor center (actor trace)",
+    },
+    // 6. Queries
+    ProposedCase {
+        category: "queries",
+        id: "queries/query-layout",
+        title: "Fetch monitor and workarea layout",
+        command_or_flag: "query layout --json",
+    },
+    ProposedCase {
+        category: "queries",
+        id: "queries/query-windows",
+        title: "List open windows with metadata",
+        command_or_flag: "query windows --json",
+    },
+    ProposedCase {
+        category: "queries",
+        id: "queries/query-pointer",
+        title: "Fetch pointer coordinates",
+        command_or_flag: "query pointer",
+    },
+    // 7. Robustness
+    ProposedCase {
+        category: "robustness",
+        id: "robustness/invalid-anchor-arg",
+        title: "Graceful error on invalid anchor argument",
+        command_or_flag: "spawn --anchor invalid",
+    },
+    ProposedCase {
+        category: "robustness",
+        id: "robustness/app-crash-early-exit",
+        title: "Target process crashes during cloak",
+        command_or_flag: "spawn (crashed fixture)",
+    },
+    ProposedCase {
+        category: "robustness",
+        id: "robustness/nonexistent-window-id",
+        title: "Transform nonexistent window ID returns clean error",
+        command_or_flag: "transform --id 999999999",
+    },
+    // 8. Platform
+    ProposedCase {
+        category: "platform",
+        id: "platform/x11-fallback",
+        title: "X11 session compatibility check",
+        command_or_flag: "session requires = ['x11']",
+    },
+    ProposedCase {
+        category: "platform",
+        id: "platform/multi-monitor-secondary",
+        title: "Target secondary monitor selector",
+        command_or_flag: "spawn --monitor 1",
+    },
+];
+
+#[test]
+fn test_every_active_case_has_valid_category() {
+    let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("verify");
+
+    if !verify_path.exists() {
+        return;
+    }
+
+    let registry = TestRegistry::load_from_dir(&verify_path).expect("failed to load verify dir");
+    assert!(
+        !registry.tests.is_empty(),
+        "test registry must not be empty"
+    );
+
+    for test in &registry.tests {
+        let cat = test.category();
+        assert!(
+            is_valid_category(cat),
+            "Test '{}' has invalid category '{}'. Valid categories are: {:?}",
+            test.id,
+            cat,
+            VALID_CATEGORIES
+        );
+    }
+}
+
+#[test]
+fn test_missing_category_in_toml_is_deserialization_error() {
+    let toml_missing_category = r#"
+id = "placement/test-no-category"
+title = "Missing category test"
+description = "Should fail deserialization"
+kind = "auto"
+required = true
+
+[action]
+command = "spawn"
+args = []
+
+[expect]
+exit_code = 0
+"#;
+
+    let res: Result<TestDefinition, _> = toml::from_str(toml_missing_category);
+    assert!(
+        res.is_err(),
+        "TOML missing 'category' must fail deserialization"
+    );
+    let err = res.unwrap_err().to_string();
+    assert!(
+        err.contains("category"),
+        "Error message should mention missing 'category': {}",
+        err
+    );
+}
+
+#[test]
+fn test_unknown_category_is_validation_error() {
+    let toml_invalid_cat = r#"
+id = "placement/test-invalid-cat"
+category = "nonexistent-category-foo"
+title = "Invalid category test"
+description = "Should fail validation"
+kind = "auto"
+required = true
+
+[action]
+command = "spawn"
+args = []
+
+[expect]
+exit_code = 0
+"#;
+
+    let parsed: TestDefinition = toml::from_str(toml_invalid_cat).expect("TOML parse succeeded");
+    assert!(!is_valid_category(&parsed.category));
+}
+
+#[test]
+fn test_every_category_has_at_least_one_case_in_proposed_library() {
+    let mut covered_categories = HashSet::new();
+    for case in PROPOSED_CASES {
+        assert!(
+            is_valid_category(case.category),
+            "Proposed case '{}' specifies unknown category '{}'",
+            case.id,
+            case.category
+        );
+        covered_categories.insert(case.category);
+    }
+
+    for &valid_cat in VALID_CATEGORIES {
+        assert!(
+            covered_categories.contains(valid_cat),
+            "Category '{}' does not have any proposed test case in library plan!",
+            valid_cat
+        );
+    }
+}
+
+#[test]
+fn test_category_filtering_in_registry() {
+    let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("verify");
+
+    if !verify_path.exists() {
+        return;
+    }
+
+    let registry = TestRegistry::load_from_dir(&verify_path).expect("failed to load registry");
+
+    // Filter by placement
+    let placement_tests = registry
+        .filter(&TestFilter {
+            category_path: Some("placement".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(!placement_tests.is_empty());
+    for t in placement_tests {
+        assert_eq!(t.category(), "placement");
+    }
+
+    // Filter by basics
+    let basics_tests = registry
+        .filter(&TestFilter {
+            category_path: Some("basics".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(!basics_tests.is_empty());
+    for t in basics_tests {
+        assert_eq!(t.category(), "basics");
+    }
+
+    // Filter by animation-and-cloak
+    let cloak_tests = registry
+        .filter(&TestFilter {
+            category_path: Some("animation-and-cloak".into()),
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(!cloak_tests.is_empty());
+    for t in cloak_tests {
+        assert_eq!(t.category(), "animation-and-cloak");
+    }
+}

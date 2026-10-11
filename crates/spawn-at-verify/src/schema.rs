@@ -139,6 +139,9 @@ pub struct TestRegression {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestDefinition {
     pub id: String,
+    pub category: String,
+    #[serde(default)]
+    pub subcategory: Option<String>,
     pub title: String,
     pub description: String,
     pub kind: TestKind,
@@ -196,9 +199,9 @@ impl TestDefinition {
         tags
     }
 
-    /// Derives the category from the test ID (e.g. "placement" from "placement/bottom-right").
+    /// Returns the required category of this test (e.g. "placement", "basics").
     pub fn category(&self) -> &str {
-        self.id.split('/').next().unwrap_or("")
+        &self.category
     }
 
     /// Expands matrix variations if a `[matrix]` table is present.
@@ -291,6 +294,21 @@ impl TestDefinition {
     }
 }
 
+pub const VALID_CATEGORIES: &[&str] = &[
+    "basics",
+    "placement",
+    "transforms",
+    "focus",
+    "animation-and-cloak",
+    "queries",
+    "robustness",
+    "platform",
+];
+
+pub fn is_valid_category(cat: &str) -> bool {
+    VALID_CATEGORIES.contains(&cat)
+}
+
 /// Suite definition deserialized from `verify/suites/*.toml`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SuiteDefinition {
@@ -315,7 +333,14 @@ impl SuiteDefinition {
         // 2. Category check: if categories specified, test's category must be in it
         if !self.categories.is_empty() {
             let test_cat = test.category();
-            if !self.categories.iter().any(|c| c == test_cat) {
+            if !self.categories.iter().any(|c| {
+                c == test_cat
+                    || (c == "preflight" && test_cat == "basics")
+                    || (c == "cloak" && test_cat == "animation-and-cloak")
+                    || (c == "transform" && test_cat == "transforms")
+                    || (c == "query" && test_cat == "queries")
+                    || (c == "resilience" && test_cat == "robustness")
+            }) {
                 return false;
             }
         }
@@ -348,6 +373,7 @@ mod tests {
     fn test_deserialize_placement_bottom_right() {
         let toml_str = r#"
 id = "placement/bottom-right"
+category = "placement"
 title = "Bottom-right anchor placement"
 description = "Spawns a window at the bottom-right corner."
 kind = "both"
@@ -412,6 +438,8 @@ watch = "Verify the window appears precisely in the bottom-right corner."
     fn test_derived_platform_tags() {
         let mut test = TestDefinition {
             id: "cloak/test".into(),
+            category: "animation-and-cloak".into(),
+            subcategory: None,
             title: "Test".into(),
             description: "Test".into(),
             kind: TestKind::Auto,
@@ -450,6 +478,7 @@ watch = "Verify the window appears precisely in the bottom-right corner."
     fn test_matrix_expansion() {
         let toml_str = r#"
 id = "cloak/delayed-paint"
+category = "animation-and-cloak"
 title = "Delayed paint matrix"
 description = "Tests window cold-start masking with delay {delay} ms"
 kind = "both"
@@ -498,6 +527,8 @@ args = ["--anchor", "center"]
 
         let test_pass = TestDefinition {
             id: "placement/bottom-right".into(),
+            category: "placement".into(),
+            subcategory: None,
             title: "".into(),
             description: "".into(),
             kind: TestKind::Auto,
@@ -518,6 +549,8 @@ args = ["--anchor", "center"]
 
         let test_slow = TestDefinition {
             id: "placement/slow-test".into(),
+            category: "placement".into(),
+            subcategory: None,
             title: "".into(),
             description: "".into(),
             kind: TestKind::Auto,
@@ -538,6 +571,8 @@ args = ["--anchor", "center"]
 
         let test_wrong_cat = TestDefinition {
             id: "cloak/test".into(),
+            category: "animation-and-cloak".into(),
+            subcategory: None,
             title: "".into(),
             description: "".into(),
             kind: TestKind::Auto,

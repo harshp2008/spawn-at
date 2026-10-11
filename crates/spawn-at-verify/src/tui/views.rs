@@ -210,22 +210,25 @@ fn draw_table_legend(f: &mut Frame, area: Rect) {
     f.render_widget(Paragraph::new(line), area);
 }
 
-pub fn get_test_category(id: &str) -> &'static str {
-    if id.starts_with("preflight") {
+pub fn get_test_category(cat_or_id: &str) -> &'static str {
+    if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
         "Preflight"
-    } else if id.starts_with("placement") {
+    } else if cat_or_id.starts_with("placement") || cat_or_id == "placement" {
         "Placement"
-    } else if id.starts_with("cloak") {
+    } else if cat_or_id.starts_with("cloak") || cat_or_id == "animation-and-cloak" {
         "Cloak & Delayed Paint"
-    } else if id.starts_with("transform") {
+    } else if cat_or_id.starts_with("transform") || cat_or_id == "transforms" {
         "Transforms"
-    } else if id.starts_with("focus") {
+    } else if cat_or_id.starts_with("focus") {
         "Focus"
-    } else if id.starts_with("query") {
+    } else if cat_or_id.starts_with("query") || cat_or_id == "queries" {
         "Queries"
-    } else if id.starts_with("robust") || id.starts_with("resilience") {
+    } else if cat_or_id.starts_with("robust")
+        || cat_or_id.starts_with("resilience")
+        || cat_or_id == "robustness"
+    {
         "Robustness"
-    } else if id.starts_with("platform") {
+    } else if cat_or_id.starts_with("platform") {
         "Platform"
     } else {
         "General"
@@ -327,9 +330,14 @@ impl ColumnLayout {
 }
 
 fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
+    let table_title = if let Some(cat) = &app.category_filter {
+        format!(" Test Suite [Category: {}] ", cat)
+    } else {
+        " Test Suite ".to_string()
+    };
     let block = Block::default()
         .borders(Borders::ALL)
-        .title(" Test Suite ")
+        .title(table_title)
         .padding(Padding::horizontal(1));
 
     let inner = block.inner(area);
@@ -393,16 +401,21 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
     let mut last_category: Option<&str> = None;
 
     for (test_idx, test) in filtered.iter().enumerate() {
-        let category = get_test_category(&test.id);
+        let category = get_test_category(test.category());
+        let cat_key = test.category();
+        let is_collapsed = app.collapsed_categories.contains(cat_key)
+            || app.collapsed_categories.contains(category);
+
+        let cat_tests: Vec<_> = filtered
+            .iter()
+            .filter(|t| get_test_category(t.category()) == category)
+            .collect();
+        let cat_total = cat_tests.len();
+
         if last_category != Some(category) {
             last_category = Some(category);
 
             // Compute category roll-up status
-            let cat_tests: Vec<_> = filtered
-                .iter()
-                .filter(|t| get_test_category(&t.id) == category)
-                .collect();
-            let cat_total = cat_tests.len();
             let cat_passes = cat_tests
                 .iter()
                 .filter(|t| {
@@ -442,7 +455,8 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
             };
 
             // Full-width category rule line spanning all columns (colspan per Item C.2)
-            let sep_prefix = format!("── {} ", category);
+            let icon = if is_collapsed { "▶ [+] " } else { "▼ " };
+            let sep_prefix = format!("── {}{} ", icon, category);
             let sep_suffix = format!("  {} ──", roll_up_str);
             let prefix_len = sep_prefix.chars().count();
             let suffix_len = sep_suffix.chars().count();
@@ -455,6 +469,31 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
                     .fg(Color::DarkGray)
                     .add_modifier(Modifier::BOLD),
             )])));
+        }
+
+        if is_collapsed {
+            let is_first_in_cat = filtered
+                .iter()
+                .take(test_idx)
+                .all(|t| get_test_category(t.category()) != category);
+            if is_first_in_cat {
+                if cat_tests.iter().any(|t| {
+                    filtered.iter().position(|ft| ft.id == t.id) == Some(app.selected_index)
+                }) {
+                    selected_item_idx = Some(items.len());
+                }
+                items.push(ListItem::new(Line::from(vec![
+                    Span::styled("  ", Style::default()),
+                    Span::styled(
+                        format!(
+                            "▶ [{}] collapsed ({} tests folded — press Space to expand)",
+                            category, cat_total
+                        ),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                ])));
+            }
+            continue;
         }
 
         if test_idx == app.selected_index {
@@ -1434,9 +1473,9 @@ fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
             .map(|t| t.kind == TestKind::Human || t.kind == TestKind::Both)
             .unwrap_or(false);
         if is_human {
-            "r: Run · a: Run all · Enter/d: Drawer · f: Filter · v: Verdict · q: Quit"
+            "r: Run · a: Run all · R: Run Cat · Tab: Next Cat · Space: Fold · Enter/d: Drawer · f: Filter · v: Verdict · q: Quit"
         } else {
-            "r: Run · a: Run all · Enter/d: Drawer · f: Filter · q: Quit"
+            "r: Run · a: Run all · R: Run Cat · Tab: Next Cat · Space: Fold · Enter/d: Drawer · f: Filter · q: Quit"
         }
     };
 
