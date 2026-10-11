@@ -73,10 +73,12 @@ fn two_cycle_slice(leftover_uncloak_ms: f64) -> String {
     l.join("\n")
 }
 
+/// Distinct window ids that appear in `events`.
 fn window_ids(events: &[spawn_at_verify::trace::TraceEvent]) -> BTreeSet<u64> {
     events.iter().filter_map(|e| e.window_id).collect()
 }
 
+/// Builds a passing automatic `TestResult` whose stdout is `stdout` and whose log slice is `slice`.
 fn result_with(stdout: &str, slice: String) -> TestResult {
     TestResult {
         id: "cloak/delayed-paint/delay-500".into(),

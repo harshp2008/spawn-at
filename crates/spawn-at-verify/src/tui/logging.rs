@@ -83,7 +83,9 @@ pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
 
 /// RAII Guard ensuring extension logging state is faithfully restored on drop or exit.
 pub struct ExtensionLoggingGuard {
+    /// Whether extension logging was already enabled when this tool started.
     pub initial_state: bool,
+    /// Whether `restore` has already run, so dropping the guard does not restore twice.
     pub restored: bool,
 }
 

@@ -134,6 +134,8 @@ impl TestResult {
     pub fn cloak_duration_ms(&self) -> Option<f64> {
         self.trace_report().and_then(|r| r.cloak_duration_ms)
     }
+
+    /// Returns the category of this test result based on its ID.
     pub fn category(&self) -> &str {
         if self.id.starts_with("preflight") || self.id.starts_with("basics") {
             "basics"

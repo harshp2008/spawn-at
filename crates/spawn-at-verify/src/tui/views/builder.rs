@@ -10,10 +10,15 @@ use unicode_width::UnicodeWidthStr;
 
 /// Shared assembly builder for consistent layout and alignment across drawer sections.
 pub struct DrawerBuilder {
+    /// Styled lines in display order.
     pub lines: Vec<Line<'static>>,
+    /// Unstyled text of each line in `lines`, used for copying, saving and tests.
     pub plain: Vec<String>,
+    /// Total drawer width in columns including borders (at least 50).
     pub width: usize,
+    /// Width inside the borders: `width - 2`.
     pub inner_width: usize,
+    /// Columns available to a value: `inner_width - value_x - DRAWER_RIGHT_PAD`.
     pub val_col_width: usize,
     /// Shared label column width used by every section (>= 14, <= 24).
     pub label_w: usize,

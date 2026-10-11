@@ -61,7 +61,10 @@ pub enum ModalState {
     /// Keyboard shortcut and usage help modal.
     Help,
     /// Human verdict entry dialog for the specified test case.
-    HumanVerdict { test_id: String },
+    HumanVerdict {
+        /// Id of the test the verdict is being entered for.
+        test_id: String,
+    },
 }
 
 /// Computes fixed ordering rank for category grouping.
@@ -95,31 +98,67 @@ pub type ClipboardHelper = std::sync::Arc<dyn Fn(&str) -> Result<(), String> + S
 
 /// Central state machine and event coordinator for the verification Terminal UI.
 pub struct TuiApp {
+    /// Test definitions loaded from the `verify/` directory.
     pub registry: TestRegistry,
+    /// Index of the highlighted test within [`TuiApp::filtered_tests`] (the filtered, sorted
+    /// list), not within the registry; clamped when the filter changes.
     pub selected_index: usize,
+    /// Which tests the list shows: all, human-reviewed, automatic, or failed.
     pub filter_mode: FilterMode,
+    /// Category the list is restricted to, or `None` to show every category; cycled by the
+    /// category key through the sorted category names and back to `None`.
     pub category_filter: Option<String>,
+    /// Categories folded shut in the tests list.
     pub collapsed_categories: HashSet<String>,
+    /// Latest result for each executed test, keyed by test id.
     pub results: HashMap<String, TestResult>,
+    /// Modal dialog drawn over the interface (help or human verdict entry), if any.
     pub modal: ModalState,
+    /// Whether the `fixture` helper binary exists next to `bin_path`; when false the header
+    /// shows a "FIXTURE MISSING" banner.
     pub fixture_exists: bool,
+    /// Expected location of the `fixture` binary (the `fixture` file in `bin_path`'s directory).
     pub fixture_path: PathBuf,
+    /// Path of the `spawn-at` binary under test.
     pub bin_path: PathBuf,
+    /// Options passed to the runner for each test executed from the TUI.
     pub options: RunOptions,
+    /// Preflight inspection of `bin_path` taken at startup (`None` if inspection failed);
+    /// reused for every test run.
     pub preflight: Option<PreflightReport>,
+    /// Session and monitor facts probed at startup; reused for every test run.
     pub env_info: Option<EnvironmentInfo>,
+    /// Records pre-existing windows and the windows spawned by tests, so test windows can be
+    /// attributed and closed without touching the user's own.
     pub tracker: WindowTracker,
+    /// One-line progress or filter message set by the run queue and filter keys. It is stored
+    /// but no view currently draws it.
     pub status_message: Option<String>,
+    /// Set by the quit keys; the event loop exits when it becomes true.
     pub should_quit: bool,
+    /// Rows the detail drawer is scrolled down; reset to 0 when the selection changes.
     pub detail_scroll: u16,
+    /// Whether the detail drawer overlay is open.
     pub detail_drawer_open: bool,
+    /// Ids of tests waiting to run, in execution order.
     pub queue: VecDeque<String>,
+    /// Id of a human-review test that has run and is waiting for a verdict; while set, the
+    /// queue does not advance.
     pub waiting_for_human: Option<String>,
+    /// Id of the window that was focused when the app started (the terminal), refocused after
+    /// test windows are closed; `None` if it could not be determined.
     pub terminal_window_id: Option<u64>,
+    /// Pane that receives scroll and navigation keys: the tests list or the details pane.
     pub active_pane: ActivePane,
+    /// Directory the drawer's save key writes `<id>.log.txt` files into.
     pub report_dir: PathBuf,
+    /// Message shown in the drawer title for 3 seconds after a copy or save, with the instant it
+    /// was set.
     pub drawer_status: Option<(String, std::time::Instant)>,
+    /// True when the drawer shows the raw trace lines instead of the compact timeline.
     pub drawer_raw_view: bool,
+    /// Replaces the system clipboard when set (tests inject a capturing closure); `None` uses
+    /// [`system_copy_to_clipboard`](super::clipboard::system_copy_to_clipboard).
     pub clipboard_fn: Option<ClipboardHelper>,
 }
 

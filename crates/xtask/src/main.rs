@@ -1,6 +1,9 @@
 //! xtask: Internal developer and CI tooling for spawn-at.
 //!
 //! Provides `check-comment-only` and `check-doc-coverage` without external dependencies.
+//! `check-doc-coverage` combines a text scan with the compiler's `missing_docs` lint.
+
+mod compiler_docs;
 
 use std::collections::BTreeMap;
 use std::env;
@@ -448,6 +451,26 @@ fn run_check_doc_coverage(target_dirs: &[String]) {
         if !misses.is_empty() {
             total_misses += misses.len();
             file_misses.insert(display_path, misses);
+        }
+    }
+
+    // 3. Merge the compiler's `missing_docs` findings, which cover items the text scan cannot
+    // see (struct fields, variant fields). Skipped when no target dir is in spawn-at-verify.
+    if target_dirs.iter().any(|d| d.contains("spawn-at-verify")) {
+        match compiler_docs::compiler_missing_docs(target_dirs) {
+            Ok(found) => {
+                for m in found {
+                    let entry = file_misses.entry(m.path).or_default();
+                    if !entry.iter().any(|(l, _)| *l == m.line) {
+                        entry.push((m.line, format!("compiler: {}", m.message)));
+                        total_misses += 1;
+                    }
+                }
+            }
+            Err(e) => {
+                eprintln!("{}", e);
+                exit(1);
+            }
         }
     }
 
