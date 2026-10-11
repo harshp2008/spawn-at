@@ -4,27 +4,41 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
 
+/// Maximum number of concurrent test windows tracked to prevent runaway leakage.
 pub const MAX_CONCURRENT_WINDOWS: usize = 20;
 
+/// Snapshot record of an open window queried from the compositor or X11 server.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WindowRecord {
+    /// Compositor or X11 window identifier.
     pub id: u64,
+    /// Process ID owning the window, if known.
     pub pid: Option<u64>,
+    /// Wayland application ID.
     pub app_id: Option<String>,
+    /// X11 WM_CLASS or window class name.
     pub class: Option<String>,
+    /// Window title text.
     pub title: Option<String>,
 }
 
+/// Tracks windows launched during verification runs to isolate test windows and clean up leaks.
 #[derive(Debug, Clone)]
 pub struct WindowTracker {
+    /// Set of pre-existing window IDs present prior to session start.
     pub known_preexisting: HashSet<u64>,
+    /// IDs of windows launched by and attributed to active test runs.
     pub tracked_test_windows: Vec<u64>,
 }
 
+/// Result of window attribution matching an action launch with candidate windows.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttributionOutcome {
+    /// Successfully attributed window ID registered for tracking.
     pub registered_id: Option<u64>,
+    /// All candidate window IDs observed after launch.
     pub candidate_ids: Vec<u64>,
+    /// Diagnostic error message if attribution failed or was ambiguous.
     pub error_message: Option<String>,
 }
 

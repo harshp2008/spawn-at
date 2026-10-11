@@ -3,6 +3,7 @@
 use super::state::{WindowRecord, WindowTracker, MAX_CONCURRENT_WINDOWS};
 use std::collections::HashSet;
 
+/// Tests that pre-existing windows present before test execution are never closed.
 #[test]
 fn test_tracker_never_closes_preexisting_windows() {
     let fake_preexisting = vec![101, 102, 103];
@@ -28,6 +29,7 @@ fn test_tracker_never_closes_preexisting_windows() {
     }
 }
 
+/// Tests that cleanup routine only targets explicitly registered test window IDs.
 #[test]
 fn test_runner_cleanup_only_ever_passes_registered_ids_to_close() {
     // Behavioral test: The runner cleanup path only ever passes registered IDs to close.
@@ -84,6 +86,7 @@ fn test_runner_cleanup_only_ever_passes_registered_ids_to_close() {
     assert!(!closed_ids.contains(&999));
 }
 
+/// Tests that unrelated external windows appearing during a test are ignored.
 #[test]
 fn test_tracker_ignores_external_window_appearing_mid_test() {
     // A window that appears mid-test from another source is never registered or closed.
@@ -148,6 +151,7 @@ fn test_tracker_ignores_external_window_appearing_mid_test() {
     assert!(!closed_ids.contains(&999));
 }
 
+/// Tests enforcement of the 20-window tracking cap limit.
 #[test]
 fn test_tracker_respects_20_window_cap() {
     let mut tracker = WindowTracker::new_with_preexisting(&[]);
@@ -163,6 +167,7 @@ fn test_tracker_respects_20_window_cap() {
     assert!(err.unwrap_err().contains("Concurrency cap reached"));
 }
 
+/// Tests that windows not launched by the test process are never closed.
 #[test]
 fn test_tracker_does_not_close_unlaunched_windows() {
     let fake_preexisting = vec![1, 2, 3];
@@ -224,6 +229,7 @@ fn test_tracker_does_not_close_unlaunched_windows() {
     assert!(!closed_ids.contains(&99));
 }
 
+/// Tests that windows of same class opened prior to action start remain untouched.
 #[test]
 fn test_window_of_same_class_opened_between_session_start_and_action_never_closed() {
     // Startup snapshot has window 10
@@ -293,6 +299,7 @@ fn test_window_of_same_class_opened_between_session_start_and_action_never_close
     assert!(!closed_ids.contains(&10));
 }
 
+/// Tests that ambiguous multiple candidate windows result in no closure to avoid killing wrong window.
 #[test]
 fn test_two_candidates_nothing_closed() {
     let startup_preexisting = vec![1];
@@ -351,6 +358,7 @@ fn test_two_candidates_nothing_closed() {
     assert!(closed_ids.is_empty());
 }
 
+/// Tests that zero candidate windows gracefully report no action.
 #[test]
 fn test_zero_candidates_nothing_closed() {
     let startup_preexisting = vec![1];
@@ -392,6 +400,7 @@ fn test_zero_candidates_nothing_closed() {
     assert!(closed_ids.is_empty());
 }
 
+/// Tests window attribution by matching process ID against launched fixture.
 #[test]
 fn test_fixture_attribution_by_pid() {
     let startup_preexisting = vec![10];
