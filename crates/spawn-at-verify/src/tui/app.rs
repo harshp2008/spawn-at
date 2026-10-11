@@ -79,6 +79,8 @@ pub fn category_rank(cat_or_id: &str) -> usize {
     }
 }
 
+pub type ClipboardHelper = std::sync::Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
+
 pub struct TuiApp {
     pub registry: TestRegistry,
     pub selected_index: usize,
@@ -102,6 +104,10 @@ pub struct TuiApp {
     pub waiting_for_human: Option<String>,
     pub terminal_window_id: Option<u64>,
     pub active_pane: ActivePane,
+    pub report_dir: PathBuf,
+    pub drawer_status: Option<(String, std::time::Instant)>,
+    pub drawer_raw_view: bool,
+    pub clipboard_fn: Option<ClipboardHelper>,
 }
 
 impl TuiApp {
@@ -165,6 +171,10 @@ impl TuiApp {
             waiting_for_human: None,
             terminal_window_id,
             active_pane: ActivePane::List,
+            report_dir: PathBuf::from("verify-results"),
+            drawer_status: None,
+            drawer_raw_view: false,
+            clipboard_fn: None,
         })
     }
 
@@ -513,89 +523,7 @@ impl TuiApp {
             return;
         }
 
-        // 2. Detail drawer mode keybindings (full scrollable view takes precedence for j/k scrolling)
-        if self.detail_drawer_open {
-            match key.code {
-                KeyCode::Char('q') => {
-                    self.close_test_windows();
-                    self.should_quit = true;
-                }
-                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
-                    self.detail_drawer_open = false;
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(1);
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
-                }
-                KeyCode::PageDown => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(8);
-                }
-                KeyCode::PageUp => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
-                }
-                KeyCode::Home => {
-                    self.detail_scroll = 0;
-                }
-                KeyCode::Char('p') | KeyCode::Char('P') if self.waiting_for_human.is_some() => {
-                    self.record_verdict(HumanVerdictKind::Pass);
-                }
-                KeyCode::Char('x') | KeyCode::Char('X') if self.waiting_for_human.is_some() => {
-                    self.record_verdict(HumanVerdictKind::Fail);
-                }
-                KeyCode::Char('s') | KeyCode::Char('S') if self.waiting_for_human.is_some() => {
-                    self.record_verdict(HumanVerdictKind::Skip);
-                }
-                KeyCode::Char('r') => {
-                    self.run_selected();
-                }
-                KeyCode::Char('v') => {
-                    self.open_verdict_modal();
-                }
-                _ => {}
-            }
-            return;
-        }
-
-        // 3. Waiting for human verdict (sequential run queue blocked on human review)
-        if self.waiting_for_human.is_some() {
-            match key.code {
-                KeyCode::Char('p') | KeyCode::Char('P') => {
-                    self.record_verdict(HumanVerdictKind::Pass);
-                }
-                KeyCode::Char('x') | KeyCode::Char('X') => {
-                    self.record_verdict(HumanVerdictKind::Fail);
-                }
-                KeyCode::Char('s') | KeyCode::Char('S') => {
-                    self.record_verdict(HumanVerdictKind::Skip);
-                }
-                KeyCode::Char('k') | KeyCode::Char('K') => {
-                    self.record_verdict(HumanVerdictKind::Flaky);
-                }
-                KeyCode::Char('r') | KeyCode::Char('R') => {
-                    if let Some(test_id) = self.waiting_for_human.clone() {
-                        if let Some(test) = self.registry.get_test(&test_id).cloned() {
-                            self.close_test_windows();
-                            self.execute_test(&test);
-                        }
-                    }
-                }
-                KeyCode::Char('q') | KeyCode::Char('Q') => {
-                    self.close_test_windows();
-                    self.should_quit = true;
-                }
-                KeyCode::Esc => {
-                    self.close_test_windows();
-                    self.waiting_for_human = None;
-                    self.status_message = Some("Visual review cancelled.".into());
-                }
-                _ => {}
-            }
-            return;
-        }
-
-        // 4. Modal interactions
+        // 2. Modal interactions
         match &self.modal {
             ModalState::Help => {
                 match key.code {
@@ -607,6 +535,18 @@ impl TuiApp {
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
                         self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                    }
+                    KeyCode::PageDown => {
+                        self.detail_scroll = self.detail_scroll.saturating_add(8);
+                    }
+                    KeyCode::PageUp => {
+                        self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                    }
+                    KeyCode::Home | KeyCode::Char('g') => {
+                        self.detail_scroll = 0;
+                    }
+                    KeyCode::Char('G') => {
+                        self.detail_scroll = u16::MAX;
                     }
                     _ => {}
                 }
@@ -634,6 +574,113 @@ impl TuiApp {
                 return;
             }
             ModalState::None => {}
+        }
+
+        // 3. Detail drawer mode keybindings (takes precedence while open)
+        if self.detail_drawer_open {
+            match key.code {
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
+                    self.detail_drawer_open = false;
+                }
+                KeyCode::Char('?') => {
+                    self.modal = ModalState::Help;
+                }
+                KeyCode::Char('y') => {
+                    self.copy_drawer_text();
+                }
+                KeyCode::Char('w') => {
+                    let _ = self.save_drawer_text();
+                }
+                KeyCode::Char('t') => {
+                    self.drawer_raw_view = !self.drawer_raw_view;
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    self.close_test_windows();
+                    self.should_quit = true;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                }
+                KeyCode::PageDown => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                }
+                KeyCode::PageUp => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                }
+                KeyCode::Home | KeyCode::Char('g') => {
+                    self.detail_scroll = 0;
+                }
+                KeyCode::Char('G') => {
+                    self.detail_scroll = u16::MAX;
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // 4. Waiting for human verdict (sequential run queue blocked on human review)
+        if self.waiting_for_human.is_some() {
+            match key.code {
+                KeyCode::Char('d') | KeyCode::Enter => {
+                    self.detail_drawer_open = true;
+                    self.detail_scroll = 0;
+                }
+                KeyCode::Char('?') => {
+                    self.modal = ModalState::Help;
+                }
+                KeyCode::Char('p') | KeyCode::Char('P') => {
+                    self.record_verdict(HumanVerdictKind::Pass);
+                }
+                KeyCode::Char('x') | KeyCode::Char('X') => {
+                    self.record_verdict(HumanVerdictKind::Fail);
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') => {
+                    self.record_verdict(HumanVerdictKind::Skip);
+                }
+                KeyCode::Char('k') | KeyCode::Char('K') => {
+                    self.record_verdict(HumanVerdictKind::Flaky);
+                }
+                KeyCode::Char('r') | KeyCode::Char('R') => {
+                    if let Some(test_id) = self.waiting_for_human.clone() {
+                        if let Some(test) = self.registry.get_test(&test_id).cloned() {
+                            self.close_test_windows();
+                            self.execute_test(&test);
+                        }
+                    }
+                }
+                KeyCode::Char('q') | KeyCode::Char('Q') => {
+                    self.close_test_windows();
+                    self.should_quit = true;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                }
+                KeyCode::Up => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                }
+                KeyCode::PageDown => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                }
+                KeyCode::PageUp => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                }
+                KeyCode::Home | KeyCode::Char('g') => {
+                    self.detail_scroll = 0;
+                }
+                KeyCode::Char('G') => {
+                    self.detail_scroll = u16::MAX;
+                }
+                KeyCode::Esc => {
+                    self.close_test_windows();
+                    self.waiting_for_human = None;
+                    self.status_message = Some("Visual review cancelled.".into());
+                }
+                _ => {}
+            }
+            return;
         }
 
         // 5. Normal view keybindings
@@ -669,14 +716,30 @@ impl TuiApp {
             KeyCode::PageUp | KeyCode::Char('[') => {
                 self.detail_scroll = self.detail_scroll.saturating_sub(6);
             }
-            KeyCode::Home => {
-                self.detail_scroll = 0;
+            KeyCode::Home | KeyCode::Char('g') => {
+                if self.active_pane == ActivePane::Details {
+                    self.detail_scroll = 0;
+                } else {
+                    self.selected_index = 0;
+                    self.detail_scroll = 0;
+                }
+            }
+            KeyCode::Char('G') => {
+                if self.active_pane == ActivePane::Details {
+                    self.detail_scroll = u16::MAX;
+                } else {
+                    let count = self.filtered_tests().len();
+                    if count > 0 {
+                        self.selected_index = count - 1;
+                        self.detail_scroll = 0;
+                    }
+                }
+            }
+            KeyCode::Char('f') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.cycle_category_filter();
             }
             KeyCode::Char('f') => {
                 self.cycle_filter();
-            }
-            KeyCode::Char('C') => {
-                self.cycle_category_filter();
             }
             KeyCode::Char(' ') => {
                 self.toggle_collapse_selected_category();
@@ -687,10 +750,13 @@ impl TuiApp {
                     ActivePane::Details => ActivePane::List,
                 };
             }
+            KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                self.run_selected_category();
+            }
             KeyCode::Char('r') => {
                 self.run_selected();
             }
-            KeyCode::Char('R') => {
+            KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
                 self.run_selected_category();
             }
             KeyCode::Char('a') => {
@@ -702,4 +768,159 @@ impl TuiApp {
             _ => {}
         }
     }
+
+    pub fn copy_drawer_text(&mut self) {
+        if let Some(test) = self.selected_test().cloned() {
+            let (_lines, plain) =
+                super::views::build_drawer_content(self, &test, 80, !self.drawer_raw_view);
+            let line_count = plain.lines().count();
+            let res = if let Some(cb) = &self.clipboard_fn {
+                cb(&plain)
+            } else {
+                system_copy_to_clipboard(&plain)
+            };
+            match res {
+                Ok(()) => {
+                    self.drawer_status = Some((
+                        format!("Copied {} lines", line_count),
+                        std::time::Instant::now(),
+                    ));
+                }
+                Err(e) => {
+                    self.drawer_status = Some((
+                        format!("Copy failed: {}; use w", e),
+                        std::time::Instant::now(),
+                    ));
+                }
+            }
+        }
+    }
+
+    pub fn save_drawer_text(&mut self) -> Result<PathBuf, String> {
+        if let Some(test) = self.selected_test().cloned() {
+            let (_lines, plain) =
+                super::views::build_drawer_content(self, &test, 80, !self.drawer_raw_view);
+            let safe_id = test.id.replace('/', "-");
+            let file_name = format!("{}.log.txt", safe_id);
+            let path = self.report_dir.join(file_name);
+            if let Some(parent) = path.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            std::fs::write(&path, &plain)
+                .map_err(|e| format!("Failed to write {}: {}", path.display(), e))?;
+            self.drawer_status = Some((path.display().to_string(), std::time::Instant::now()));
+            Ok(path)
+        } else {
+            Err("No test selected".into())
+        }
+    }
+
+    pub fn get_drawer_title(&self, _test_id: &str) -> String {
+        if let Some((msg, time)) = &self.drawer_status {
+            if time.elapsed().as_secs() < 3 {
+                return format!(" {} ", msg);
+            }
+        }
+        "Details".to_string()
+    }
+}
+
+pub fn system_copy_to_clipboard(text: &str) -> Result<(), String> {
+    // 1. Try wl-copy
+    if let Ok(mut child) = std::process::Command::new("wl-copy")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let _ = stdin.write_all(text.as_bytes());
+        }
+        if let Ok(status) = child.wait() {
+            if status.success() {
+                return Ok(());
+            }
+        }
+    }
+
+    // 2. Try xclip (-selection clipboard)
+    if let Ok(mut child) = std::process::Command::new("xclip")
+        .args(["-selection", "clipboard"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let _ = stdin.write_all(text.as_bytes());
+        }
+        if let Ok(status) = child.wait() {
+            if status.success() {
+                return Ok(());
+            }
+        }
+    }
+
+    // 3. Try xsel (--clipboard --input)
+    if let Ok(mut child) = std::process::Command::new("xsel")
+        .args(["--clipboard", "--input"])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+    {
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            let _ = stdin.write_all(text.as_bytes());
+        }
+        if let Ok(status) = child.wait() {
+            if status.success() {
+                return Ok(());
+            }
+        }
+    }
+
+    // 4. Try OSC 52
+    if copy_osc52(text).is_ok() {
+        return Ok(());
+    }
+
+    Err("no clipboard provider (wl-copy, xclip, xsel, OSC 52) succeeded".into())
+}
+
+fn copy_osc52(text: &str) -> Result<(), String> {
+    use std::io::Write;
+    let b64 = base64_encode(text.as_bytes());
+    let osc = format!("\x1b]52;c;{}\x07", b64);
+    let mut stdout = std::io::stdout();
+    stdout
+        .write_all(osc.as_bytes())
+        .map_err(|e| e.to_string())?;
+    stdout.flush().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn base64_encode(data: &[u8]) -> String {
+    const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
+    for chunk in data.chunks(3) {
+        let b0 = chunk[0];
+        let b1 = chunk.get(1).copied().unwrap_or(0);
+        let b2 = chunk.get(2).copied().unwrap_or(0);
+        out.push(CHARSET[(b0 >> 2) as usize] as char);
+        out.push(CHARSET[(((b0 & 3) << 4) | (b1 >> 4)) as usize] as char);
+        if chunk.len() > 1 {
+            out.push(CHARSET[(((b1 & 0x0f) << 2) | (b2 >> 6)) as usize] as char);
+        } else {
+            out.push('=');
+        }
+        if chunk.len() > 2 {
+            out.push(CHARSET[(b2 & 0x3f) as usize] as char);
+        } else {
+            out.push('=');
+        }
+    }
+    out
 }

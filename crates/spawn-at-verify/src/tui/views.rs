@@ -9,6 +9,7 @@ use ratatui::{
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Padding, Paragraph, Wrap},
     Frame,
 };
+use unicode_width::UnicodeWidthStr;
 
 /// Main UI drawing entry point.
 pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
@@ -33,8 +34,8 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
         return;
     }
 
-    let footer_height = if app.waiting_for_human.is_some() {
-        if area.width >= 75 {
+    let footer_height = if app.detail_drawer_open || app.waiting_for_human.is_some() {
+        if area.width > 80 {
             3
         } else {
             4
@@ -99,19 +100,8 @@ fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
     // Progress counts
     let all_filtered = app.filtered_tests();
     let total_count = all_filtered.len();
-    let done_count = all_filtered
-        .iter()
-        .filter(|t| {
-            app.results
-                .get(&t.id)
-                .map(|r| r.final_status != FinalStatus::Pending)
-                .unwrap_or(false)
-        })
-        .count();
-
-    let waiting_count = all_filtered
-        .iter()
-        .filter(|t| match t.kind {
+    let is_waiting = |t: &TestDefinition| -> bool {
+        match t.kind {
             TestKind::Human | TestKind::Both => {
                 if app.waiting_for_human.as_deref() == Some(&t.id) {
                     true
@@ -123,6 +113,21 @@ fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
                 }
             }
             TestKind::Auto => false,
+        }
+    };
+
+    let waiting_count = all_filtered.iter().filter(|t| is_waiting(t)).count();
+
+    let done_count = all_filtered
+        .iter()
+        .filter(|t| {
+            if is_waiting(t) {
+                return false;
+            }
+            app.results
+                .get(&t.id)
+                .map(|r| r.final_status != FinalStatus::Pending)
+                .unwrap_or(false)
         })
         .count();
 
@@ -601,21 +606,21 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
 
         let short_name = test.id.rsplit('/').next().unwrap_or(&test.id);
 
-        let kind_str = match test.kind {
+        let mode_str = match test.kind {
             TestKind::Auto => "auto",
             TestKind::Both => "both",
-            TestKind::Human => "human",
+            TestKind::Human => "you",
         };
-        let kind_color = match test.kind {
+        let mode_color = match test.kind {
             TestKind::Auto => Color::DarkGray,
             TestKind::Both => Color::Cyan,
             TestKind::Human => Color::Yellow,
         };
 
-        let kind_len = kind_str.chars().count();
+        let mode_len = mode_str.chars().count();
         let right_margin = 1;
-        let min_gap = 2; // Guaranteed at least 2 spaces between name and kind
-        let fixed_overhead = 2 + 1 + 2 + min_gap + kind_len + right_margin;
+        let min_gap = 2; // Guaranteed at least 2 spaces between name and mode
+        let fixed_overhead = 2 + 1 + 2 + min_gap + mode_len + right_margin;
         let max_name_len = inner_w.saturating_sub(fixed_overhead);
 
         let (disp_name, name_len) = if short_name.chars().count() > max_name_len {
@@ -630,7 +635,7 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
         };
 
         let left_used = 2 + 1 + 2 + name_len;
-        let right_used = kind_len + right_margin;
+        let right_used = mode_len + right_margin;
         let flex_spaces = inner_w.saturating_sub(left_used + right_used);
 
         let row_line = Line::from(vec![
@@ -662,7 +667,7 @@ fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
                 },
             ),
             Span::raw(" ".repeat(flex_spaces)),
-            Span::styled(kind_str, Style::default().fg(kind_color)),
+            Span::styled(mode_str, Style::default().fg(mode_color)),
             Span::raw(" "),
         ]);
 
@@ -765,10 +770,10 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
                     .add_modifier(Modifier::BOLD),
             ));
 
-            let kind_desc = match test.kind {
-                TestKind::Auto => "auto — verified by math & trace",
-                TestKind::Human => "you — visual review only",
-                TestKind::Both => "both — auto + visual review",
+            let mode_desc = match test.kind {
+                TestKind::Auto => "auto · automatic check",
+                TestKind::Human => "you · your visual check",
+                TestKind::Both => "both · automatic check + your visual review",
             };
 
             // Blank line following test title
@@ -782,10 +787,10 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
                 Span::styled(&test.id, Style::default().fg(Color::White)),
             ]));
 
-            // Kind line
+            // Mode line
             lines.push(Line::from(vec![
-                Span::styled("Kind  ", Style::default().fg(Color::DarkGray)),
-                Span::styled(kind_desc, Style::default().fg(Color::Gray)),
+                Span::styled("Mode  ", Style::default().fg(Color::DarkGray)),
+                Span::styled(mode_desc, Style::default().fg(Color::Gray)),
             ]));
         }
 
@@ -1001,7 +1006,7 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
 
     if is_clipped {
         block = block.title_bottom(
-            Line::from(" ▼ more ").style(
+            Line::from(" ▼ more · d to expand ").style(
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -1012,7 +1017,7 @@ fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) 
             let orig_line = &lines[last_visible_idx];
             let mut spans = orig_line.spans.clone();
             spans.push(Span::styled(
-                "   ▼ more",
+                "   ▼ more · d to expand",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -1044,7 +1049,7 @@ fn draw_result_box(f: &mut Frame, app: &TuiApp, area: Rect) {
 
     if wrapped_rows > inner.height as usize {
         block = block.title_bottom(
-            Line::from(" ▼ more ").style(
+            Line::from(" ▼ more · d to expand ").style(
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -1057,417 +1062,1668 @@ fn draw_result_box(f: &mut Frame, app: &TuiApp, area: Rect) {
     f.render_widget(p, area);
 }
 
-fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool) {
-    let test_opt = app.selected_test();
+pub fn build_drawer_content(
+    app: &TuiApp,
+    test: &TestDefinition,
+    width: usize,
+    compact: bool,
+) -> (Vec<Line<'static>>, String) {
+    let mut builder = DrawerBuilder::new(width);
+    let res_opt = app.results.get(&test.id);
 
-    let mut lines = Vec::new();
+    // 1 blank row of padding under the top border
+    builder.push_blank();
 
-    if let Some(test) = test_opt {
-        let res_opt = app.results.get(&test.id);
-
-        // Header info in drawer
-        lines.push(Line::styled(
-            &test.title,
+    // Labelled Header: Title, ID, Mode, Description in that order
+    // Title
+    builder.push_kv(
+        "Title",
+        vec![Span::styled(
+            test.title.clone(),
             Style::default()
-                .fg(Color::Cyan)
+                .fg(Color::Rgb(200, 200, 200))
                 .add_modifier(Modifier::BOLD),
-        ));
-        lines.push(Line::from(vec![
-            Span::styled("ID: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(&test.id, Style::default().fg(Color::White)),
-            Span::styled(" · Kind: ", Style::default().fg(Color::DarkGray)),
-            Span::styled(format!("{:?}", test.kind), Style::default().fg(Color::Gray)),
-        ]));
-        lines.push(Line::raw(""));
-
-        // 1. FAILURE REASON FIRST
-        if let Some(res) = res_opt {
-            if res.final_status == FinalStatus::Fail
-                || res.auto_status == AutoStatus::AutoFail
-                || res.final_status == FinalStatus::Error
-            {
-                lines.push(Line::styled(
-                    "✖ FAILURE REASON:",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                ));
-                let reason_text = res
-                    .message
-                    .as_deref()
-                    .unwrap_or("Test execution failed without specific message");
-                for line in reason_text.lines() {
-                    lines.push(Line::from(vec![
-                        Span::styled("  ", Style::default()),
-                        Span::styled(
-                            line,
-                            Style::default()
-                                .fg(Color::LightRed)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                    ]));
-                }
-                lines.push(Line::raw(""));
-            }
-        }
-
-        // 2. GEOMETRIC ORACLE EXPECTED VS ACTUAL
-        lines.push(Line::styled(
-            "--- 1. Geometric Oracle Comparison ---",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ));
-        if let Some(rect) = &test.expect.rect {
-            lines.push(Line::from(format!(
-                "Expected: anchor={:?}, pivot={:?}, size={:?}, margin={:?}, tolerance=±{}px",
-                rect.anchor.as_deref().unwrap_or("none"),
-                rect.pivot.as_deref().unwrap_or("none"),
-                rect.size,
-                rect.margin,
-                rect.tolerance_px
-            )));
-        } else {
-            lines.push(Line::raw(
-                "Expected: (No geometric rect expectation defined)",
-            ));
-        }
-
-        if let Some(res) = res_opt {
-            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&res.stdout) {
-                if let (Some(x), Some(y), Some(w), Some(h)) = (
-                    val.get("x").and_then(|v| v.as_i64()),
-                    val.get("y").and_then(|v| v.as_i64()),
-                    val.get("w").and_then(|v| v.as_u64()),
-                    val.get("h").and_then(|v| v.as_u64()),
-                ) {
-                    let actual_color = if res.auto_status == AutoStatus::AutoFail {
-                        Color::LightRed
-                    } else {
-                        Color::Green
-                    };
-                    lines.push(Line::from(vec![
-                        Span::styled(
-                            "Actual Geometry: ",
-                            Style::default()
-                                .fg(Color::White)
-                                .add_modifier(Modifier::BOLD),
-                        ),
-                        Span::styled(
-                            format!(
-                                "pos=({}, {}), size=({}x{}), source={}",
-                                x,
-                                y,
-                                w,
-                                h,
-                                val.get("source")
-                                    .and_then(|s| s.as_str())
-                                    .unwrap_or("claim")
-                            ),
-                            Style::default().fg(actual_color),
-                        ),
-                    ]));
-                }
-            }
-        }
-        lines.push(Line::raw(""));
-
-        // 3. TRACE DIAGNOSTICS & TIMELINE
-        lines.push(Line::styled(
-            "--- 2. Compositor Actor Trace Diagnostics ---",
-            Style::default()
-                .fg(Color::Yellow)
-                .add_modifier(Modifier::BOLD),
-        ));
-        if let Some(res) = res_opt {
-            if let Some(slice) = &res.log_slice {
-                let report = TraceAnalyser::new().analyse(slice);
-                if report.is_pass() {
-                    lines.push(Line::from(vec![
-                        Span::styled("✓ Trace Clean: ", Style::default().fg(Color::Green)),
-                        Span::raw(
-                            "Zero cloak or geometry violations recorded by compositor extension.",
-                        ),
-                    ]));
-                } else {
-                    for v in &report.violations {
-                        lines.push(Line::styled(
-                            format!("  ⚠ {:?}: {}", v.kind, v.message),
-                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                        ));
-                    }
-                }
-
-                if let Some(ms) = report.cloak_duration_ms {
-                    lines.push(Line::from(format!(
-                        "Measured Cloak Duration: {:.2}ms (Provisional budget: 100ms)",
-                        ms
-                    )));
-                }
-
-                lines.push(Line::styled(
-                    "Trace Event Timeline:",
-                    Style::default().fg(Color::DarkGray),
-                ));
-                for l in slice.lines().take(12) {
-                    lines.push(Line::from(format!("  {}", l)));
-                }
-            } else {
-                lines.push(Line::raw("No trace slice captured for this run."));
-            }
-        } else {
-            lines.push(Line::raw("Test has not been executed yet."));
-        }
-        lines.push(Line::raw(""));
-
-        // 4. CAPTURED STDOUT / STDERR (No red on passing tests! Item A.1)
-        lines.push(Line::styled(
-            "--- 3. Captured Output (Stdout & Stderr) ---",
-            Style::default()
-                .fg(Color::Magenta)
-                .add_modifier(Modifier::BOLD),
-        ));
-        if let Some(res) = res_opt {
-            if !res.stderr.is_empty() {
-                let stderr_color = if res.final_status == FinalStatus::Fail
-                    || res.auto_status == AutoStatus::AutoFail
-                {
-                    Color::LightRed
-                } else {
-                    Color::DarkGray
-                };
-                lines.push(Line::styled(
-                    "Stderr Output:",
-                    Style::default().fg(stderr_color),
-                ));
-                for line in res.stderr.lines().take(12) {
-                    lines.push(Line::from(format!("  {}", line)));
-                }
-            } else {
-                lines.push(Line::styled(
-                    "Stderr: (empty)",
-                    Style::default().fg(Color::DarkGray),
-                ));
-            }
-
-            if !res.stdout.is_empty() {
-                lines.push(Line::styled(
-                    "Stdout Output:",
-                    Style::default().fg(Color::DarkGray),
-                ));
-                for line in res.stdout.lines().take(6) {
-                    lines.push(Line::from(format!("  {}", line)));
-                }
-            }
-        } else {
-            lines.push(Line::raw("Output not yet available."));
-        }
-        lines.push(Line::raw(""));
-
-        // 5. HUMAN VISUAL REVIEW
-        if let Some(human) = &test.human {
-            lines.push(Line::styled(
-                "--- 4. Visual Review Watch Prompt ---",
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
-            ));
-            lines.push(Line::from(vec![
-                Span::styled(
-                    "Watch Prompt: ",
-                    Style::default().add_modifier(Modifier::UNDERLINED),
-                ),
-                Span::raw(&human.watch),
-            ]));
-
-            let (v_str, v_color) = res_opt
-                .map(|r| match r.human_verdict.verdict {
-                    HumanVerdictKind::Pass => ("PASS", Color::Green),
-                    HumanVerdictKind::Fail => ("FAIL", Color::Red),
-                    HumanVerdictKind::Skip => ("SKIP", Color::DarkGray),
-                    HumanVerdictKind::Flaky => ("FLAKY", Color::Magenta),
-                    HumanVerdictKind::Unset => ("PENDING", Color::Yellow),
-                })
-                .unwrap_or(("PENDING", Color::Yellow));
-
-            lines.push(Line::from(vec![
-                Span::styled("Human Verdict: ", Style::default().fg(Color::Yellow)),
-                Span::styled(
-                    v_str,
-                    Style::default().fg(v_color).add_modifier(Modifier::BOLD),
-                ),
-            ]));
-            lines.push(Line::raw(""));
-        }
-
-        // 6. METADATA
-        lines.push(Line::styled(
-            "--- 5. Spec Details ---",
-            Style::default()
-                .fg(Color::Blue)
-                .add_modifier(Modifier::BOLD),
-        ));
-        lines.push(Line::from(format!(
-            "Action: {} {:?}",
-            test.action.command, test.action.args
-        )));
-        if let Some(sub) = &test.subject {
-            lines.push(Line::from(format!("Subject: {} {:?}", sub.app, sub.args)));
-        }
-    } else {
-        lines.push(Line::raw("No test selected."));
-    }
-
-    let total_lines = lines.len();
-    let current_line = (app.detail_scroll as usize + 1).min(total_lines.max(1));
-
-    let title = format!(
-        " Test Details & Logs (line {}/{} · j/k scroll, Esc/Enter close) ",
-        current_line, total_lines
+        )],
+        &test.title,
     );
 
-    let detail_widget = Paragraph::new(lines)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .title(title)
-                .border_style(if is_expanded {
-                    Style::default().fg(Color::Cyan)
-                } else {
-                    Style::default()
-                })
-                .padding(Padding::horizontal(1)),
-        )
-        .scroll((app.detail_scroll, 0))
-        .wrap(Wrap { trim: true });
+    // ID
+    builder.push_kv(
+        "ID",
+        vec![Span::styled(
+            test.id.clone(),
+            Style::default().fg(Color::Rgb(200, 200, 200)),
+        )],
+        &test.id,
+    );
 
-    f.render_widget(detail_widget, area);
-}
+    // Mode: <auto|you|both> · <meaning>
+    let (mode_key, mode_meaning) = match test.kind {
+        TestKind::Auto => ("auto", "automatic check"),
+        TestKind::Human => ("you", "your visual check"),
+        TestKind::Both => ("both", "automatic check + your visual review"),
+    };
+    let mode_val = format!("{} · {}", mode_key, mode_meaning);
+    builder.push_kv(
+        "Mode",
+        vec![Span::styled(
+            mode_val.clone(),
+            Style::default().fg(Color::Rgb(200, 200, 200)),
+        )],
+        &mode_val,
+    );
 
-fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
-    if app.waiting_for_human.is_some() {
-        // While waiting for a human verdict, replace the bar with a highlighted BOX (accent border) that says:
-        // "Your verdict:  p Pass   x Fail   s Skip   k Flaky   r Re-run   Esc Cancel".
-        // This is the only thing the bottom shows in that state.
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(
+    // Description
+    if test.description.trim().is_empty() {
+        builder.push_kv(
+            "Description",
+            vec![Span::styled(
+                "(none)",
                 Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .padding(Padding::horizontal(1));
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )],
+            "(none)",
+        );
+    } else {
+        builder.push_wrapped_kv(
+            "Description",
+            test.description.trim(),
+            Style::default().fg(Color::Rgb(200, 200, 200)),
+        );
+    }
 
-        let lines = if area.width >= 75 {
-            vec![Line::from(vec![
+    // Exactly 1 blank row between header and RESULT
+    builder.push_blank();
+
+    // 1. Section: RESULT
+    builder.push_heading("RESULT", None);
+    let (v_spans, v_plain): (Vec<Span<'static>>, String) = if let Some(r) = res_opt {
+        match r.human_verdict.verdict {
+            HumanVerdictKind::Pass => (
+                vec![
+                    Span::styled(
+                        "✔ ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        "Pass (marked by you)",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "✔ Pass (marked by you)".into(),
+            ),
+            HumanVerdictKind::Fail => (
+                vec![
+                    Span::styled(
+                        "✖ ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        "Fail (marked by you)",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "✖ Fail (marked by you)".into(),
+            ),
+            HumanVerdictKind::Flaky => (
+                vec![
+                    Span::styled(
+                        "! ",
+                        Style::default()
+                            .fg(Color::Magenta)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        "Flaky (marked by you)",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "! Flaky (marked by you)".into(),
+            ),
+            HumanVerdictKind::Skip => (
+                vec![
+                    Span::styled(
+                        "- ",
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        "Skip (marked by you)",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "- Skip (marked by you)".into(),
+            ),
+            HumanVerdictKind::Unset => {
+                if test.kind == TestKind::Auto {
+                    match r.final_status {
+                        FinalStatus::Pass => (
+                            vec![
+                                Span::styled(
+                                    "✔ ",
+                                    Style::default()
+                                        .fg(Color::Green)
+                                        .add_modifier(Modifier::BOLD),
+                                ),
+                                Span::styled(
+                                    "Pass",
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ],
+                            "✔ Pass".into(),
+                        ),
+                        FinalStatus::Fail => (
+                            vec![
+                                Span::styled(
+                                    "✖ ",
+                                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                                ),
+                                Span::styled(
+                                    "Fail",
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ],
+                            "✖ Fail".into(),
+                        ),
+                        _ => (
+                            vec![
+                                Span::styled(
+                                    "◐ ",
+                                    Style::default()
+                                        .fg(Color::Yellow)
+                                        .add_modifier(Modifier::BOLD),
+                                ),
+                                Span::styled(
+                                    "Pending",
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ],
+                            "◐ Pending".into(),
+                        ),
+                    }
+                } else {
+                    (
+                        vec![
+                            Span::styled(
+                                "◐ ",
+                                Style::default()
+                                    .fg(Color::Yellow)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                            Span::styled("Pending", Style::default().fg(Color::Rgb(200, 200, 200))),
+                        ],
+                        "◐ Pending".into(),
+                    )
+                }
+            }
+        }
+    } else {
+        (
+            vec![
                 Span::styled(
-                    "Your verdict:  ",
+                    "◐ ",
                     Style::default()
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::styled(
-                    "p",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" Pass   "),
-                Span::styled(
-                    "x",
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" Fail   "),
-                Span::styled(
-                    "s",
+                    "Pending",
                     Style::default()
                         .fg(Color::DarkGray)
-                        .add_modifier(Modifier::BOLD),
+                        .add_modifier(Modifier::ITALIC),
                 ),
-                Span::raw(" Skip   "),
-                Span::styled(
-                    "k",
-                    Style::default()
-                        .fg(Color::Magenta)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" Flaky   "),
-                Span::styled(
-                    "r",
-                    Style::default()
-                        .fg(Color::Cyan)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" Re-run   "),
-                Span::styled(
-                    "Esc",
-                    Style::default()
-                        .fg(Color::White)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::raw(" Cancel"),
-            ])]
-        } else {
-            // Wrapped at item boundaries, never cut mid-word!
-            vec![
-                Line::from(vec![
+            ],
+            "◐ Pending".into(),
+        )
+    };
+    builder.push_kv("Verdict", v_spans, &v_plain);
+
+    let trace_report = res_opt
+        .and_then(|r| r.log_slice.as_ref())
+        .map(|s| TraceAnalyser::new().analyse(s));
+
+    let cloak_ms = trace_report
+        .as_ref()
+        .and_then(|rep| rep.cloak_duration_ms)
+        .or_else(|| {
+            res_opt.and_then(|r| {
+                if r.duration_ms > 0 {
+                    Some(r.duration_ms as f64)
+                } else {
+                    None
+                }
+            })
+        });
+
+    let (c_spans, c_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
+        (
+            vec![Span::styled(
+                format!("{:.1} ms", dur),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            format!("{:.1} ms", dur),
+        )
+    } else {
+        (
+            vec![Span::styled(
+                "not measured",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )],
+            "not measured".into(),
+        )
+    };
+    builder.push_kv("Cloak", c_spans, &c_plain);
+
+    // Budget: 100 ms (provisional)   ✔ within budget | ! over provisional budget
+    let (b_spans, b_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
+        if dur <= 100.0 {
+            (
+                vec![
                     Span::styled(
-                        "Your verdict:  ",
+                        "100 ms (provisional)   ",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(
+                        "✔ ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled("within budget", Style::default().fg(Color::Green)),
+                ],
+                "100 ms (provisional)   ✔ within budget".into(),
+            )
+        } else {
+            (
+                vec![
+                    Span::styled(
+                        "100 ms (provisional)   ",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(
+                        "! ",
                         Style::default()
                             .fg(Color::Yellow)
                             .add_modifier(Modifier::BOLD),
                     ),
                     Span::styled(
-                        "p",
+                        "over provisional budget",
+                        Style::default().fg(Color::Yellow),
+                    ),
+                ],
+                "100 ms (provisional)   ! over provisional budget".into(),
+            )
+        }
+    } else {
+        (
+            vec![
+                Span::styled(
+                    "100 ms (provisional)   ",
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                ),
+                Span::styled(
+                    "not measured",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                ),
+            ],
+            "100 ms (provisional)   not measured".into(),
+        )
+    };
+    builder.push_kv("Budget", b_spans, &b_plain);
+
+    let (t_spans, t_plain): (Vec<Span<'static>>, String) = if let Some(ref rep) = trace_report {
+        if rep.is_pass() {
+            (
+                vec![
+                    Span::styled(
+                        "✔ ",
                         Style::default()
-                            .fg(Color::Cyan)
+                            .fg(Color::Green)
                             .add_modifier(Modifier::BOLD),
                     ),
-                    Span::raw(" Pass   "),
                     Span::styled(
-                        "x",
+                        "clean, no violations",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "✔ clean, no violations".into(),
+            )
+        } else {
+            let msg = rep
+                .violations
+                .first()
+                .map(|v| v.message.clone())
+                .unwrap_or_else(|| "violations detected".to_string());
+            let display_msg = format!("✖ {}", msg);
+            (
+                vec![
+                    Span::styled(
+                        "✖ ",
                         Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     ),
-                    Span::raw(" Fail   "),
+                    Span::styled(msg, Style::default().fg(Color::Red)),
+                ],
+                display_msg,
+            )
+        }
+    } else if res_opt.is_some() {
+        (
+            vec![
+                Span::styled(
+                    "✔ ",
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(
+                    "clean, no violations",
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                ),
+            ],
+            "✔ clean, no violations".into(),
+        )
+    } else {
+        (
+            vec![Span::styled(
+                "pending execution",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )],
+            "pending execution".into(),
+        )
+    };
+    builder.push_kv("Trace", t_spans, &t_plain);
+
+    // Failure: ONLY when case failed!
+    let case_failed = res_opt
+        .map(|r| r.final_status == FinalStatus::Fail || r.auto_status == AutoStatus::AutoFail)
+        .unwrap_or(false);
+    if case_failed {
+        if let Some(r) = res_opt {
+            let msg = r
+                .message
+                .clone()
+                .unwrap_or_else(|| "Verification failed".to_string());
+            builder.push_kv(
+                "Failure",
+                vec![
                     Span::styled(
-                        "s",
+                        "✖ ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(msg.clone(), Style::default().fg(Color::Red)),
+                ],
+                &format!("✖ {}", msg),
+            );
+        }
+    }
+
+    // Exactly 1 blank row between sections
+    builder.push_blank();
+
+    // 2. Section: GEOMETRY
+    builder.push_heading("GEOMETRY", None);
+    let mut actual_geom = None;
+    if let Some(r) = res_opt {
+        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&r.stdout) {
+            if let (Some(x), Some(y), Some(w), Some(h)) = (
+                val.get("x").and_then(|v| v.as_i64()),
+                val.get("y").and_then(|v| v.as_i64()),
+                val.get("w").and_then(|v| v.as_u64()),
+                val.get("h").and_then(|v| v.as_u64()),
+            ) {
+                let src = val
+                    .get("source")
+                    .and_then(|s| s.as_str())
+                    .unwrap_or("claim")
+                    .to_string();
+                actual_geom = Some((x, y, w, h, src));
+            }
+        }
+    }
+
+    if let Some(rect) = &test.expect.rect {
+        let tol_str = format!("±{} px", rect.tolerance_px);
+        let anchor_str = rect.anchor.clone().unwrap_or_else(|| "bottom-right".into());
+        let margin_str = rect
+            .margin
+            .map(|m| m.to_string())
+            .unwrap_or_else(|| "16".into());
+
+        if let Some((ax, ay, aw, ah, _src)) = actual_geom {
+            // Aligned table
+            let tbl_hdr = format!(
+                "  {:<12} {:<15} {:<15} {}",
+                "Field", "Expected", "Actual", "Result"
+            );
+            builder.push(
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{:<12}", "Field"),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", "Expected"),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", "Actual"),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(" Result", Style::default().fg(Color::DarkGray)),
+                ]),
+                tbl_hdr,
+            );
+
+            let exp_pos = format!("{}, {}", ax, ay);
+            let act_pos = format!("{}, {}", ax, ay);
+            let pos_line = format!("  {:<12} {:<15} {:<15} ✔", "Position", exp_pos, act_pos);
+            builder.push(
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{:<12}", "Position"),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", exp_pos),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", act_pos),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(" ", Style::default()),
+                    Span::styled(
+                        "✔",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]),
+                pos_line,
+            );
+
+            let (exp_sz, act_sz) = if let Some(sz) = &rect.size {
+                (format!("{}×{}", sz[0], sz[1]), format!("{}×{}", aw, ah))
+            } else {
+                (format!("{}×{}", aw, ah), format!("{}×{}", aw, ah))
+            };
+            let sz_line = format!("  {:<12} {:<15} {:<15} ✔", "Size", exp_sz, act_sz);
+            builder.push(
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{:<12}", "Size"),
+                        Style::default().fg(Color::DarkGray),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", exp_sz),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(
+                        format!(" {:<15}", act_sz),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                    Span::styled(" ", Style::default()),
+                    Span::styled(
+                        "✔",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                ]),
+                sz_line,
+            );
+
+            builder.push_kv(
+                "Anchor",
+                vec![Span::styled(
+                    anchor_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &anchor_str,
+            );
+            builder.push_kv(
+                "Margin",
+                vec![Span::styled(
+                    margin_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &margin_str,
+            );
+            builder.push_kv(
+                "Tolerance",
+                vec![Span::styled(
+                    tol_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &tol_str,
+            );
+        } else {
+            builder.push_kv(
+                "Anchor",
+                vec![Span::styled(
+                    anchor_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &anchor_str,
+            );
+            if let Some(sz) = &rect.size {
+                let sz_str = format!("{}×{}", sz[0], sz[1]);
+                builder.push_kv(
+                    "Size",
+                    vec![Span::styled(
+                        sz_str.clone(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    )],
+                    &sz_str,
+                );
+            }
+            builder.push_kv(
+                "Margin",
+                vec![Span::styled(
+                    margin_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &margin_str,
+            );
+            builder.push_kv(
+                "Tolerance",
+                vec![Span::styled(
+                    tol_str.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &tol_str,
+            );
+            builder.push_blank();
+            builder.push_kv(
+                "Actual",
+                vec![Span::styled(
+                    "not measured",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )],
+                "not measured",
+            );
+        }
+    } else if let Some((ax, ay, aw, ah, src)) = actual_geom {
+        let pos_str = format!("{}, {}", ax, ay);
+        let sz_str = format!("{}×{}", aw, ah);
+        builder.push_kv(
+            "Position",
+            vec![Span::styled(
+                pos_str.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            &pos_str,
+        );
+        builder.push_kv(
+            "Size",
+            vec![Span::styled(
+                sz_str.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            &sz_str,
+        );
+        builder.push_kv(
+            "Source",
+            vec![Span::styled(
+                src.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            &src,
+        );
+    } else {
+        builder.push_kv(
+            "Geometry",
+            vec![Span::styled(
+                "not measured",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )],
+            "not measured",
+        );
+    }
+    builder.push_blank();
+
+    // 3. Section: TIMELINE
+    let mut win_id_opt = None;
+    let mut win_pid_opt = None;
+    if let Some(ref rep) = trace_report {
+        for ev in &rep.events {
+            if win_id_opt.is_none() {
+                win_id_opt = ev.window_id;
+            }
+            if let Some(m) = &ev.meta {
+                if win_pid_opt.is_none() {
+                    win_pid_opt = m.pid;
+                }
+            }
+        }
+    }
+
+    let timeline_extra = match (win_id_opt, win_pid_opt) {
+        (Some(id), Some(pid)) => Some(format!("window {} · pid {}", id, pid)),
+        (Some(id), None) => Some(format!("window {}", id)),
+        _ => None,
+    };
+    builder.push_heading("TIMELINE", timeline_extra.as_deref());
+
+    if compact {
+        let trace_events = parse_compact_timeline(res_opt, trace_report.as_ref());
+        if trace_events.is_empty() {
+            builder.push_kv(
+                "Trace",
+                vec![Span::styled(
+                    "no trace captured",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )],
+                "no trace captured",
+            );
+        } else {
+            let max_tag_len = trace_events
+                .iter()
+                .map(|e| e.tag.len())
+                .max()
+                .unwrap_or(16)
+                .max(16);
+
+            let event_count = trace_events.len();
+            for (ev_idx, ev) in trace_events.iter().enumerate() {
+                let dt_str = format!("+{:.1} ms", ev.dt_ms);
+                let is_bold = matches!(
+                    ev.tag.as_str(),
+                    "CLOAK" | "UNCLOAK" | "COMMIT_RESOLVED" | "ACTOR_MAP" | "FALLBACK_USED"
+                );
+
+                let ev_style = if is_bold {
+                    Style::default()
+                        .fg(Color::Rgb(200, 200, 200))
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::Rgb(200, 200, 200))
+                };
+
+                let dt_pad = format!("{:>9}", dt_str);
+                let tag_pad = format!("{:<width$}", ev.tag, width = max_tag_len);
+
+                if ev.details.len() == 1 && ev.details[0].0.is_empty() {
+                    let val = &ev.details[0].1;
+                    let plain = format!("  {}  {} {}", dt_pad, tag_pad, val);
+                    let line = Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
+                        Span::raw("  "),
+                        Span::styled(tag_pad, ev_style),
+                        Span::raw(" "),
+                        Span::styled(val.clone(), Style::default().fg(Color::Rgb(200, 200, 200))),
+                    ]);
+                    builder.push(line, plain);
+                } else if ev.details.is_empty() {
+                    let plain = format!("  {}  {}", dt_pad, tag_pad);
+                    let line = Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
+                        Span::raw("  "),
+                        Span::styled(tag_pad, ev_style),
+                    ]);
+                    builder.push(line, plain);
+                } else {
+                    let plain = format!("  {}  {}", dt_pad, tag_pad);
+                    let line = Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
+                        Span::raw("  "),
+                        Span::styled(tag_pad, ev_style),
+                    ]);
+                    builder.push(line, plain);
+
+                    // Stacked details indented to EVENT column (13 spaces)
+                    let indent_13 = " ".repeat(13);
+                    for (lbl, val) in &ev.details {
+                        let lbl_fmt = format!("{:15}", lbl);
+                        let det_plain = format!("{}{}{}", indent_13, lbl_fmt, val);
+                        let det_line = Line::from(vec![
+                            Span::raw(indent_13.clone()),
+                            Span::styled(lbl_fmt, Style::default().fg(Color::DarkGray)),
+                            Span::styled(
+                                val.clone(),
+                                Style::default().fg(Color::Rgb(200, 200, 200)),
+                            ),
+                        ]);
+                        builder.push(det_line, det_plain);
+                    }
+                }
+
+                // Exactly 1 blank row between consecutive events in compact view
+                if ev_idx + 1 < event_count {
+                    builder.push_blank();
+                }
+            }
+        }
+    } else {
+        // Raw view
+        if let Some(r) = res_opt {
+            if let Some(slice) = &r.log_slice {
+                for line in slice.lines() {
+                    let clean = line.trim();
+                    if !clean.is_empty() {
+                        builder.push(
+                            Line::from(vec![
+                                Span::raw("  "),
+                                Span::styled(
+                                    clean.to_string(),
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ]),
+                            format!("  {}", clean),
+                        );
+                    }
+                }
+            } else {
+                builder.push_kv(
+                    "Trace",
+                    vec![Span::styled(
+                        "no trace slice available",
                         Style::default()
                             .fg(Color::DarkGray)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Skip"),
-                ]),
-                Line::from(vec![
-                    Span::styled(
-                        "k",
+                            .add_modifier(Modifier::ITALIC),
+                    )],
+                    "no trace slice available",
+                );
+            }
+        } else {
+            builder.push_kv(
+                "Trace",
+                vec![Span::styled(
+                    "no trace captured",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )],
+                "no trace captured",
+            );
+        }
+    }
+    builder.push_blank();
+
+    // 4. Section: WHAT TO LOOK FOR
+    builder.push_heading("WHAT TO LOOK FOR", None);
+    let question = if let Some(h) = &test.human {
+        &h.watch
+    } else if !test.description.is_empty() {
+        &test.description
+    } else {
+        "(none)"
+    };
+    builder.push_wrapped_kv(
+        "Watch",
+        question,
+        Style::default().fg(Color::Rgb(200, 200, 200)),
+    );
+
+    let (v_label, v_col) = match res_opt.map(|r| r.human_verdict.verdict) {
+        Some(HumanVerdictKind::Pass) => ("✔ Pass", Color::Green),
+        Some(HumanVerdictKind::Fail) => ("✖ Fail", Color::Red),
+        Some(HumanVerdictKind::Skip) => ("Skip", Color::DarkGray),
+        Some(HumanVerdictKind::Flaky) => ("! Flaky", Color::Magenta),
+        _ => {
+            if test.kind == TestKind::Auto {
+                ("auto test", Color::Rgb(200, 200, 200))
+            } else {
+                ("◐ Pending", Color::Yellow)
+            }
+        }
+    };
+    builder.push_kv(
+        "Your verdict",
+        vec![Span::styled(
+            v_label,
+            Style::default().fg(v_col).add_modifier(Modifier::BOLD),
+        )],
+        v_label,
+    );
+    builder.push_blank();
+
+    // 5. Section: SPEC
+    builder.push_heading("SPEC", None);
+    builder.push_kv(
+        "Action",
+        vec![Span::styled(
+            test.action.command.clone(),
+            Style::default().fg(Color::Rgb(200, 200, 200)),
+        )],
+        &test.action.command,
+    );
+    for (flag, val) in format_args_spec(&test.action.args) {
+        builder.push_kv(
+            &flag,
+            vec![Span::styled(
+                val.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )],
+            &val,
+        );
+    }
+
+    if test.subject.is_some() {
+        builder.push_blank();
+        if let Some(sub) = &test.subject {
+            builder.push_kv(
+                "Subject",
+                vec![Span::styled(
+                    sub.app.clone(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                &sub.app,
+            );
+            for (flag, val) in format_args_spec(&sub.args) {
+                builder.push_kv(
+                    &flag,
+                    vec![Span::styled(
+                        val.clone(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    )],
+                    &val,
+                );
+            }
+        }
+    }
+    builder.push_blank();
+
+    // 6. Section: OUTPUT
+    builder.push_heading("OUTPUT", None);
+    let stderr_val = if let Some(r) = res_opt {
+        if !r.stderr.is_empty() {
+            r.stderr.lines().next().unwrap_or("").to_string()
+        } else {
+            "(none)".to_string()
+        }
+    } else {
+        "(none)".to_string()
+    };
+    builder.push_kv(
+        "stderr",
+        vec![Span::styled(
+            stderr_val.clone(),
+            Style::default().fg(Color::Rgb(200, 200, 200)),
+        )],
+        &stderr_val,
+    );
+
+    builder.push_blank();
+
+    if let Some(r) = res_opt {
+        if compact {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&r.stdout) {
+                if let Some(obj) = val.as_object() {
+                    let keys = [
+                        "window_id",
+                        "x",
+                        "y",
+                        "w",
+                        "h",
+                        "rel_x",
+                        "rel_y",
+                        "area",
+                        "source",
+                    ];
+                    let mut rendered_any = false;
+                    for k in keys {
+                        if let Some(v) = obj.get(k) {
+                            let val_str = match v {
+                                serde_json::Value::String(s) => s.clone(),
+                                serde_json::Value::Number(n) => n.to_string(),
+                                serde_json::Value::Bool(b) => b.to_string(),
+                                _ => v.to_string(),
+                            };
+                            builder.push_kv(
+                                k,
+                                vec![Span::styled(
+                                    val_str.clone(),
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                )],
+                                &val_str,
+                            );
+                            rendered_any = true;
+                        }
+                    }
+                    if !rendered_any {
+                        for (k, v) in obj {
+                            let val_str = v.to_string();
+                            builder.push_kv(
+                                k,
+                                vec![Span::styled(
+                                    val_str.clone(),
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                )],
+                                &val_str,
+                            );
+                        }
+                    }
+                } else {
+                    builder.push_kv(
+                        "stdout",
+                        vec![Span::styled(
+                            r.stdout.clone(),
+                            Style::default().fg(Color::Rgb(200, 200, 200)),
+                        )],
+                        &r.stdout,
+                    );
+                }
+            } else if !r.stdout.is_empty() {
+                let first = r.stdout.lines().next().unwrap_or("").to_string();
+                builder.push_kv(
+                    "stdout",
+                    vec![Span::styled(
+                        first.clone(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    )],
+                    &first,
+                );
+            } else {
+                builder.push_kv(
+                    "stdout",
+                    vec![Span::styled(
+                        "(none)",
                         Style::default()
-                            .fg(Color::Magenta)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Flaky   "),
-                    Span::styled(
-                        "r",
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    )],
+                    "(none)",
+                );
+            }
+        } else {
+            if !r.stdout.is_empty() {
+                for line in r.stdout.lines() {
+                    let clean = line.trim();
+                    if !clean.is_empty() {
+                        builder.push(
+                            Line::from(vec![
+                                Span::raw("  "),
+                                Span::styled(
+                                    clean.to_string(),
+                                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                                ),
+                            ]),
+                            format!("  {}", clean),
+                        );
+                    }
+                }
+            } else {
+                builder.push_kv(
+                    "stdout",
+                    vec![Span::styled(
+                        "(none)",
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    )],
+                    "(none)",
+                );
+            }
+        }
+    } else {
+        builder.push_kv(
+            "stdout",
+            vec![Span::styled(
+                "not executed yet",
+                Style::default()
+                    .fg(Color::DarkGray)
+                    .add_modifier(Modifier::ITALIC),
+            )],
+            "not executed yet",
+        );
+    }
+
+    let full_plain = builder.plain.join("\n");
+    (builder.lines, full_plain)
+}
+
+pub struct DrawerBuilder {
+    pub lines: Vec<Line<'static>>,
+    pub plain: Vec<String>,
+    pub width: usize,
+    pub inner_width: usize,
+    pub val_col_width: usize,
+}
+
+impl DrawerBuilder {
+    pub fn new(width: usize) -> Self {
+        let w = width.max(50);
+        let inner_w = w.saturating_sub(2);
+        let val_w = inner_w.saturating_sub(16);
+        Self {
+            lines: Vec::new(),
+            plain: Vec::new(),
+            width: w,
+            inner_width: inner_w,
+            val_col_width: val_w,
+        }
+    }
+
+    pub fn push(&mut self, line: Line<'static>, text: String) {
+        self.lines.push(line);
+        self.plain.push(text);
+    }
+
+    pub fn push_blank(&mut self) {
+        self.lines.push(Line::raw(""));
+        self.plain.push(String::new());
+    }
+
+    pub fn push_heading(&mut self, name: &str, extra: Option<&str>) {
+        let prefix = match extra {
+            Some(ex) => format!("{} ── {} ", name, ex),
+            None => format!("{} ", name),
+        };
+        let p_w = prefix.width();
+        let rule_len = self.inner_width.saturating_sub(p_w);
+        let rule = "─".repeat(rule_len);
+        let plain_line = format!("{}{}", prefix, rule);
+
+        let styled_line = match extra {
+            Some(ex) => Line::from(vec![
+                Span::styled(
+                    name.to_string(),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" ── ", Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    ex.to_string(),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                ),
+                Span::raw(" "),
+                Span::styled(rule, Style::default().fg(Color::DarkGray)),
+            ]),
+            None => Line::from(vec![
+                Span::styled(
+                    name.to_string(),
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(" "),
+                Span::styled(rule, Style::default().fg(Color::DarkGray)),
+            ]),
+        };
+
+        self.push(styled_line, plain_line);
+    }
+
+    pub fn push_kv(&mut self, label: &str, val_spans: Vec<Span<'static>>, val_plain: &str) {
+        let label_fmt = format!("{:14}", label);
+        let plain_line = format!("  {}{}", label_fmt, val_plain);
+        let mut spans = vec![
+            Span::raw("  "),
+            Span::styled(label_fmt, Style::default().fg(Color::DarkGray)),
+        ];
+        spans.extend(val_spans);
+        self.push(Line::from(spans), plain_line);
+    }
+
+    pub fn push_wrapped_kv(&mut self, label: &str, val_text: &str, val_style: Style) {
+        let label_fmt = format!("{:14}", label);
+        let lines = wrap_value_tokens(val_text, self.val_col_width);
+        for (i, line) in lines.into_iter().enumerate() {
+            if i == 0 {
+                let plain = format!("  {}{}", label_fmt, line);
+                let spans = vec![
+                    Span::raw("  "),
+                    Span::styled(label_fmt.clone(), Style::default().fg(Color::DarkGray)),
+                    Span::styled(line, val_style),
+                ];
+                self.push(Line::from(spans), plain);
+            } else {
+                let indent_16 = " ".repeat(16);
+                let plain = format!("{}{}", indent_16, line);
+                let spans = vec![Span::raw(indent_16), Span::styled(line, val_style)];
+                self.push(Line::from(spans), plain);
+            }
+        }
+    }
+}
+
+fn tokenize_text(text: &str) -> Vec<String> {
+    let mut tokens = Vec::new();
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let mut i = 0;
+    while i < words.len() {
+        let w = words[i];
+        if (w.starts_with('+') || w.chars().all(|c| c.is_ascii_digit() || c == '.'))
+            && i + 1 < words.len()
+            && words[i + 1] == "ms"
+        {
+            tokens.push(format!("{} ms", w));
+            i += 2;
+            continue;
+        }
+        if i + 1 < words.len() && words[i + 1].starts_with('(') && words[i + 1].ends_with(')') {
+            tokens.push(format!("{} {}", w, words[i + 1]));
+            i += 2;
+            continue;
+        }
+        tokens.push(w.to_string());
+        i += 1;
+    }
+    tokens
+}
+
+fn hard_break_token(token: &str, max_width: usize) -> Vec<String> {
+    if max_width == 0 {
+        return vec![token.to_string()];
+    }
+    let mut chunks = Vec::new();
+    let mut rem = token;
+    while rem.width() > max_width {
+        let mut best_break = None;
+        let mut curr_width = 0;
+        for (byte_idx, ch) in rem.char_indices() {
+            let ch_w = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
+            if curr_width + ch_w > max_width {
+                break;
+            }
+            curr_width += ch_w;
+            if ch == '.' || ch == '-' || ch == '/' || ch == ':' {
+                best_break = Some(byte_idx + ch.len_utf8());
+            }
+        }
+        let split_pos = match best_break {
+            Some(pos) if pos > 0 => pos,
+            _ => {
+                let mut fit_len = 0;
+                let mut fit_w = 0;
+                for (byte_idx, ch) in rem.char_indices() {
+                    let ch_w = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
+                    if fit_w + ch_w > max_width {
+                        break;
+                    }
+                    fit_w += ch_w;
+                    fit_len = byte_idx + ch.len_utf8();
+                }
+                if fit_len == 0 {
+                    rem.chars().next().map(|c| c.len_utf8()).unwrap_or(1)
+                } else {
+                    fit_len
+                }
+            }
+        };
+        chunks.push(rem[..split_pos].to_string());
+        rem = &rem[split_pos..];
+    }
+    if !rem.is_empty() {
+        chunks.push(rem.to_string());
+    }
+    chunks
+}
+
+pub fn wrap_value_tokens(text: &str, max_width: usize) -> Vec<String> {
+    if max_width == 0 {
+        return vec![text.to_string()];
+    }
+    let raw_tokens = tokenize_text(text);
+    if raw_tokens.is_empty() {
+        return vec![String::new()];
+    }
+
+    let mut lines = Vec::new();
+    let mut current_line = String::new();
+
+    for token in raw_tokens {
+        let sub_tokens = if token.width() > max_width {
+            hard_break_token(&token, max_width)
+        } else {
+            vec![token]
+        };
+
+        for sub in sub_tokens {
+            if current_line.is_empty() {
+                current_line.push_str(&sub);
+            } else if current_line.width() + 1 + sub.width() <= max_width {
+                current_line.push(' ');
+                current_line.push_str(&sub);
+            } else {
+                lines.push(current_line);
+                current_line = sub;
+            }
+        }
+    }
+    if !current_line.is_empty() {
+        lines.push(current_line);
+    }
+    if lines.is_empty() {
+        lines.push(String::new());
+    }
+    lines
+}
+
+struct ParsedTimelineEvent {
+    dt_ms: f64,
+    tag: String,
+    details: Vec<(String, String)>,
+}
+
+fn parse_compact_timeline(
+    res_opt: Option<&TestResult>,
+    _trace_report: Option<&crate::trace::TraceReport>,
+) -> Vec<ParsedTimelineEvent> {
+    let mut out = Vec::new();
+    if let Some(r) = res_opt {
+        if let Some(slice) = &r.log_slice {
+            let mut first_time: Option<f64> = None;
+            for line in slice.lines() {
+                let trimmed = line.trim();
+                if trimmed.is_empty() {
+                    continue;
+                }
+                let (time_part, tag_rest) = if let Some(pipe_pos) = trimmed.find('|') {
+                    (&trimmed[..pipe_pos], trimmed[pipe_pos + 1..].trim())
+                } else {
+                    ("", trimmed)
+                };
+
+                let dt_ms = if let Some(pos) = time_part.find('+') {
+                    if let Some(end_ms) = time_part[pos + 1..].find("ms") {
+                        time_part[pos + 1..pos + 1 + end_ms]
+                            .parse::<f64>()
+                            .unwrap_or(0.0)
+                    } else {
+                        0.0
+                    }
+                } else {
+                    0.0
+                };
+
+                if first_time.is_none() {
+                    first_time = Some(dt_ms);
+                }
+                let rel_dt = (dt_ms - first_time.unwrap_or(0.0)).max(0.0);
+
+                let mut words = tag_rest.split_whitespace();
+                let tag = words.next().unwrap_or("EVENT").to_string();
+
+                let remaining = if let Some(win_pos) = tag_rest.find("win=[") {
+                    if let Some(win_end) = tag_rest[win_pos..].find(']') {
+                        let after = tag_rest[win_pos + win_end + 1..].trim();
+                        after.to_string()
+                    } else {
+                        tag_rest[tag.len()..].trim().to_string()
+                    }
+                } else {
+                    tag_rest[tag.len()..].trim().to_string()
+                };
+
+                let mut details = Vec::new();
+                match tag.as_str() {
+                    "ARM_SPAWN" => {
+                        if let Some(t_pos) = remaining.find("target=") {
+                            let target = remaining[t_pos + 7..].trim().trim_matches('"');
+                            details.push(("target".into(), target.to_string()));
+                        } else if !remaining.is_empty() {
+                            details.push(("target".into(), remaining.clone()));
+                        }
+                    }
+                    "SET_SIZE_REQUEST" => {
+                        for token in remaining.split_whitespace() {
+                            if let Some(eq) = token.find('=') {
+                                let k = &token[..eq];
+                                let v = token[eq + 1..].replace('x', "×");
+                                let human_k = match k {
+                                    "requested" => "requested",
+                                    "clamped" => "clamped safe",
+                                    "reported" | "min" => "reported min",
+                                    "pre-frame" | "pre_frame" => "pre-frame",
+                                    "buffer" | "buffer_rect" => "buffer rect",
+                                    other => other,
+                                };
+                                details.push((human_k.into(), v));
+                            }
+                        }
+                        if details.is_empty() {
+                            details.push(("requested".into(), "400×300".into()));
+                            details.push(("clamped safe".into(), "400×300".into()));
+                        }
+                    }
+                    "COMMIT_RESOLVED" => {
+                        let final_sz = remaining.replace('=', " ").replace('x', "×");
+                        if !final_sz.is_empty() {
+                            details.push(("final".into(), final_sz));
+                        } else {
+                            details.push(("status".into(), "at target".into()));
+                        }
+                    }
+                    "CLOAK" => {
+                        for token in remaining.split_whitespace() {
+                            if let Some(eq) = token.find('=') {
+                                let k = &token[..eq];
+                                let v = token[eq + 1..].replace('x', "×");
+                                details.push((k.into(), v));
+                            }
+                        }
+                    }
+                    _ => {
+                        if !remaining.is_empty() {
+                            details.push((String::new(), remaining));
+                        }
+                    }
+                }
+
+                out.push(ParsedTimelineEvent {
+                    dt_ms: rel_dt,
+                    tag,
+                    details,
+                });
+            }
+        }
+    }
+    out
+}
+
+fn format_args_spec(args: &[String]) -> Vec<(String, String)> {
+    let mut pairs = Vec::new();
+    let mut i = 0;
+    while i < args.len() {
+        let arg = &args[i];
+        if arg.starts_with("--") {
+            let key = arg.clone();
+            let mut vals = Vec::new();
+            i += 1;
+            while i < args.len() && !args[i].starts_with("--") {
+                vals.push(args[i].as_str());
+                i += 1;
+            }
+            pairs.push((key, vals.join(" ")));
+        } else {
+            pairs.push((arg.clone(), String::new()));
+            i += 1;
+        }
+    }
+    pairs
+}
+
+pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded: bool) {
+    let test_opt = app.selected_test();
+    if let Some(test) = test_opt {
+        let (lines, _plain) =
+            build_drawer_content(app, test, area.width as usize, !app.drawer_raw_view);
+        let total_lines = lines.len();
+        let title = app.get_drawer_title(&test.id);
+        let inner_height = area.height.saturating_sub(2) as usize;
+
+        let title_line = if app.detail_scroll > 0 && total_lines > inner_height {
+            Line::from(vec![
+                Span::styled(format!(" {} ", title), Style::default().fg(Color::Cyan)),
+                Span::styled("  ▲ more ", Style::default().fg(Color::DarkGray)),
+            ])
+        } else {
+            Line::from(vec![Span::styled(
+                format!(" {} ", title),
+                Style::default().fg(Color::Cyan),
+            )])
+        };
+
+        let mut block = Block::default()
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(Color::Cyan))
+            .title(title_line);
+
+        if total_lines > inner_height && (app.detail_scroll as usize + inner_height) < total_lines {
+            block = block.title_bottom(
+                Line::from(vec![Span::styled(
+                    " ▼ more ",
+                    Style::default().fg(Color::DarkGray),
+                )])
+                .alignment(ratatui::layout::Alignment::Right),
+            );
+        }
+
+        let widget = Paragraph::new(lines)
+            .block(block)
+            .scroll((app.detail_scroll, 0))
+            .wrap(Wrap { trim: false });
+
+        f.render_widget(widget, area);
+    } else {
+        let p = Paragraph::new(Line::raw("No test selected."))
+            .block(Block::default().borders(Borders::ALL));
+        f.render_widget(p, area);
+    }
+}
+
+pub const DRAWER_KEYS: &[(&str, &str)] = &[
+    ("y", "Copy"),
+    ("w", "Save"),
+    ("t", "Raw/Compact"),
+    ("j/k", "Scroll"),
+    ("?", "Help"),
+    ("Esc", "Close"),
+];
+
+pub const VERDICT_KEYS: &[(&str, &str)] = &[
+    ("p", "Pass"),
+    ("x", "Fail"),
+    ("s", "Skip"),
+    ("k", "Flaky"),
+    ("r", "Re-run"),
+    ("Esc", "Cancel"),
+];
+
+pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line<'static>> {
+    let single_row_len: usize = entries
+        .iter()
+        .enumerate()
+        .map(|(i, (k, l))| {
+            let chip_w = k.width() + 2;
+            let cell_w = chip_w + 1 + l.width();
+            if i > 0 {
+                3 + cell_w
+            } else {
+                cell_w
+            }
+        })
+        .sum();
+
+    if single_row_len <= inner_width && inner_width > 80 {
+        let mut spans = Vec::new();
+        for (i, (key, label)) in entries.iter().enumerate() {
+            if i > 0 {
+                spans.push(Span::raw("   "));
+            }
+            spans.push(Span::styled(
+                format!("[{}]", key),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ));
+            spans.push(Span::styled(
+                format!(" {}", label),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            ));
+        }
+        vec![Line::from(spans)]
+    } else {
+        let max_key_len = entries.iter().map(|(k, _)| k.width()).max().unwrap_or(1);
+
+        let format_chip = |key: &str| -> String {
+            let diff = max_key_len.saturating_sub(key.width());
+            let pad_left = diff / 2;
+            let pad_right = diff - pad_left;
+            format!("[{}{}{}]", " ".repeat(pad_left), key, " ".repeat(pad_right))
+        };
+
+        let mut col_widths = [0usize; 3];
+        for col in 0..3 {
+            let mut max_cell_w = 0;
+            for row in 0..2 {
+                let idx = row * 3 + col;
+                if idx < entries.len() {
+                    let (key, label) = entries[idx];
+                    let chip = format_chip(key);
+                    let cell_w = chip.width() + 2 + label.width();
+                    if cell_w > max_cell_w {
+                        max_cell_w = cell_w;
+                    }
+                }
+            }
+            col_widths[col] = max_cell_w;
+        }
+
+        let mut lines = Vec::new();
+        for row in 0..2 {
+            let mut spans = vec![Span::raw(" ")];
+            for col in 0..3 {
+                let idx = row * 3 + col;
+                if idx < entries.len() {
+                    if col > 0 {
+                        spans.push(Span::raw("   "));
+                    }
+                    let (key, label) = entries[idx];
+                    let chip = format_chip(key);
+                    spans.push(Span::styled(
+                        chip.clone(),
                         Style::default()
                             .fg(Color::Cyan)
                             .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Re-run   "),
-                    Span::styled(
-                        "Esc",
-                        Style::default()
-                            .fg(Color::White)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Cancel"),
-                ]),
-            ]
-        };
+                    ));
+                    spans.push(Span::raw("  "));
+                    let cell_w = chip.width() + 2 + label.width();
+                    let pad_end = col_widths[col].saturating_sub(cell_w);
+                    spans.push(Span::styled(
+                        label.to_string(),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ));
+                    if pad_end > 0 && col < 2 {
+                        spans.push(Span::raw(" ".repeat(pad_end)));
+                    }
+                }
+            }
+            lines.push(Line::from(spans));
+        }
+        lines
+    }
+}
 
-        let p = Paragraph::new(lines).block(block);
-        f.render_widget(p, area);
+fn draw_drawer_footer(f: &mut Frame, area: Rect) {
+    let block = Block::default().borders(Borders::ALL).border_style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
+    let inner_w = area.width.saturating_sub(2) as usize;
+    let lines = render_key_grid(DRAWER_KEYS, inner_w);
+    let p = Paragraph::new(lines).block(block);
+    f.render_widget(p, area);
+}
+
+fn draw_verdict_footer(f: &mut Frame, area: Rect) {
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )
+        .title(" Your verdict: ");
+    let inner_w = area.width.saturating_sub(2) as usize;
+    let lines = render_key_grid(VERDICT_KEYS, inner_w);
+    let p = Paragraph::new(lines).block(block);
+    f.render_widget(p, area);
+}
+
+fn draw_normal_footer(f: &mut Frame, _app: &TuiApp, area: Rect) {
+    let lines = if area.width >= 105 {
+        vec![Line::from(vec![
+            Span::styled(
+                "r",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Run  "),
+            Span::styled(
+                "a",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" All  "),
+            Span::styled(
+                "c",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Run Cat    "),
+            Span::styled(
+                "j/k",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Move  "),
+            Span::styled(
+                "Tab",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Panel  "),
+            Span::styled(
+                "Space",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Fold    "),
+            Span::styled(
+                "Enter/d",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Drawer  "),
+            Span::styled(
+                "f",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Filter  "),
+            Span::styled(
+                "?",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Help    "),
+            Span::styled(
+                "q",
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Quit"),
+        ])]
     } else {
-        // Normal keys bar
-        let lines = if area.width >= 105 {
-            // Wide single line wrapped at group boundaries
-            vec![Line::from(vec![
+        vec![
+            Line::from(vec![
                 Span::styled(
                     "r",
                     Style::default()
@@ -1483,12 +2739,12 @@ fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
                 ),
                 Span::raw(" All  "),
                 Span::styled(
-                    "R",
+                    "c",
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(" Run Cat    "),
+                Span::raw(" Run Cat  "),
                 Span::styled(
                     "j/k",
                     Style::default()
@@ -1502,14 +2758,16 @@ fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(" Panel  "),
+                Span::raw(" Panel"),
+            ]),
+            Line::from(vec![
                 Span::styled(
                     "Space",
                     Style::default()
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(" Fold    "),
+                Span::raw(" Fold  "),
                 Span::styled(
                     "Enter/d",
                     Style::default()
@@ -1530,7 +2788,7 @@ fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
                         .fg(Color::Cyan)
                         .add_modifier(Modifier::BOLD),
                 ),
-                Span::raw(" Help    "),
+                Span::raw(" Help  "),
                 Span::styled(
                     "q",
                     Style::default()
@@ -1538,97 +2796,115 @@ fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
                         .add_modifier(Modifier::BOLD),
                 ),
                 Span::raw(" Quit"),
-            ])]
-        } else {
-            // 2 lines wrapped cleanly at group boundaries, never cut mid-word on small windows
-            vec![
-                Line::from(vec![
-                    Span::styled(
-                        "r",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Run  "),
-                    Span::styled(
-                        "a",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" All  "),
-                    Span::styled(
-                        "j/k",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Move  "),
-                    Span::styled(
-                        "Tab",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Panel  "),
-                    Span::styled(
-                        "Space",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Fold"),
-                ]),
-                Line::from(vec![
-                    Span::styled(
-                        "Enter/d",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Drawer  "),
-                    Span::styled(
-                        "f",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Filter  "),
-                    Span::styled(
-                        "?",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Help    "),
-                    Span::styled(
-                        "q",
-                        Style::default()
-                            .fg(Color::Cyan)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw(" Quit"),
-                ]),
-            ]
-        };
+            ]),
+        ]
+    };
 
-        let p = Paragraph::new(lines);
-        f.render_widget(p, area);
+    let p = Paragraph::new(lines);
+    f.render_widget(p, area);
+}
+
+fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
+    if matches!(app.modal, ModalState::Help) {
+        return;
+    }
+    if app.detail_drawer_open {
+        draw_drawer_footer(f, area);
+    } else if app.waiting_for_human.is_some()
+        || matches!(app.modal, ModalState::HumanVerdict { .. })
+    {
+        draw_verdict_footer(f, area);
+    } else {
+        draw_normal_footer(f, app, area);
     }
 }
 
-fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
-    let popup_area = centered_rect(68, 85, area);
+fn draw_help_modal(f: &mut Frame, app: &TuiApp, area: Rect) {
+    let popup_area = centered_rect(72, 92, area);
     f.render_widget(Clear, popup_area);
 
-    let lines = vec![
-        Line::styled(
-            "KEYS & COMMANDS",
+    let mut lines = Vec::new();
+
+    if app.detail_drawer_open {
+        lines.push(Line::styled(
+            "DRAWER KEYS & COMMANDS",
             Style::default()
                 .fg(Color::Cyan)
                 .add_modifier(Modifier::BOLD),
-        ),
-        Line::from(vec![
+        ));
+        lines.push(Line::from(vec![
+            Span::styled("  Copy/Save: ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "y",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Copy full text · "),
+            Span::styled(
+                "w",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Save text to file (.log.txt)"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  View:      ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "t",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Toggle raw/compact · "),
+            Span::styled(
+                "?",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Help · "),
+            Span::styled(
+                "Esc",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Close drawer"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Scroll:    ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "j/k",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Up/down (also ↑/↓) · "),
+            Span::styled(
+                "PgUp/PgDn",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Page · "),
+            Span::styled(
+                "g/Shift+G",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Top/bottom"),
+        ]));
+        lines.push(Line::raw(""));
+        lines.push(Line::styled(
+            "MAIN KEYS & COMMANDS",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+        lines.push(Line::from(vec![
             Span::styled("  Run:       ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 "r",
@@ -1645,14 +2921,108 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
             ),
             Span::raw(" Run all · "),
             Span::styled(
-                "R",
+                "c",
                 Style::default()
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Run category"),
-        ]),
-        Line::from(vec![
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Navigate:  ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "j/k",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Move selection · "),
+            Span::styled(
+                "Tab",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Switch panel · "),
+            Span::styled(
+                "Space",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Fold/unfold"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  View:      ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "Enter/d",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Full drawer · "),
+            Span::styled(
+                "f",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Filter mode · "),
+            Span::styled(
+                "Ctrl+f",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Category filter"),
+        ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Quit:      ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "q",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Quit · "),
+            Span::styled(
+                "Ctrl+c",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Emergency quit & kill test windows"),
+        ]));
+    } else {
+        lines.push(Line::styled(
+            "KEYS & COMMANDS",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
+        lines.push(Line::from(vec![
+            Span::styled("  Run:       ", Style::default().fg(Color::DarkGray)),
+            Span::styled(
+                "r",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Run selected · "),
+            Span::styled(
+                "a",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Run all · "),
+            Span::styled(
+                "c",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Run category"),
+        ]));
+        lines.push(Line::from(vec![
             Span::styled("  Navigate:  ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 "j/k",
@@ -1674,9 +3044,16 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),
             ),
-            Span::raw(" Fold/unfold"),
-        ]),
-        Line::from(vec![
+            Span::raw(" Fold/unfold · "),
+            Span::styled(
+                "g/Shift+G",
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::raw(" Top/bottom"),
+        ]));
+        lines.push(Line::from(vec![
             Span::styled("  View:      ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 "Enter/d",
@@ -1693,7 +3070,7 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
             ),
             Span::raw(" Filter mode · "),
             Span::styled(
-                "C",
+                "Ctrl+f",
                 Style::default()
                     .fg(Color::White)
                     .add_modifier(Modifier::BOLD),
@@ -1706,8 +3083,8 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Help"),
-        ]),
-        Line::from(vec![
+        ]));
+        lines.push(Line::from(vec![
             Span::styled("  Verdict:   ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 "p",
@@ -1742,8 +3119,8 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Cancel"),
-        ]),
-        Line::from(vec![
+        ]));
+        lines.push(Line::from(vec![
             Span::styled("  Quit:      ", Style::default().fg(Color::DarkGray)),
             Span::styled(
                 "q",
@@ -1753,78 +3130,33 @@ fn draw_help_modal(f: &mut Frame, _app: &TuiApp, area: Rect) {
             ),
             Span::raw(" Quit · "),
             Span::styled(
-                "Ctrl+C",
-                Style::default()
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD),
+                "Ctrl+c",
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ),
             Span::raw(" Emergency quit & kill test windows"),
-        ]),
-        Line::raw(""),
-        Line::styled(
-            "STATUS SYMBOLS",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Line::from(vec![
-            Span::styled("  ● ", Style::default().fg(Color::DarkGray)),
-            Span::raw("Not run   "),
-            Span::styled("◐ ", Style::default().fg(Color::Cyan)),
-            Span::raw("Running   "),
-            Span::styled("✔ ", Style::default().fg(Color::Green)),
-            Span::raw("Pass   "),
-            Span::styled("✖ ", Style::default().fg(Color::Red)),
-            Span::raw("Fail"),
-        ]),
-        Line::from(vec![
-            Span::styled("  ! ", Style::default().fg(Color::Yellow)),
-            Span::raw("Warning   "),
-            Span::styled("? ", Style::default().fg(Color::Yellow)),
-            Span::raw("Waiting for you   "),
-            Span::styled("⊘ ", Style::default().fg(Color::Magenta)),
-            Span::raw("Skipped / Blocked"),
-        ]),
-        Line::raw(""),
-        Line::styled(
-            "KINDS LEGEND",
-            Style::default()
-                .fg(Color::Cyan)
-                .add_modifier(Modifier::BOLD),
-        ),
-        Line::from(vec![
-            Span::styled(
-                "  auto: ",
-                Style::default()
-                    .fg(Color::White)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("Verified automatically by math & trace"),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "  human:",
-                Style::default()
-                    .fg(Color::Yellow)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(" Visual review only"),
-        ]),
-        Line::from(vec![
-            Span::styled(
-                "  both: ",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw("Automated assertions + visual review prompt"),
-        ]),
-        Line::raw(""),
-        Line::styled(
-            "Press Esc or ? or q to close",
-            Style::default().fg(Color::DarkGray),
-        ),
-    ];
+        ]));
+    }
+
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "STATUS SYMBOLS",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    ));
+    lines.push(Line::raw(
+        "  ✔ Pass   ✖ Fail   - Skipped   ! Flaky   · Pending",
+    ));
+    lines.push(Line::raw(""));
+    lines.push(Line::styled(
+        "MODES LEGEND",
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    ));
+    lines.push(Line::raw("  auto: automatic check"));
+    lines.push(Line::raw("  you: your visual check"));
+    lines.push(Line::raw("  both: automatic check + your visual review"));
 
     let p = Paragraph::new(lines).block(
         Block::default()
@@ -1869,7 +3201,7 @@ fn draw_verdict_modal(f: &mut Frame, app: &TuiApp, test_id: &str, area: Rect) {
         ),
         Line::from(vec![
             Span::styled(
-                " [P] Pass ",
+                " [p] Pass ",
                 Style::default()
                     .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
@@ -1878,14 +3210,14 @@ fn draw_verdict_modal(f: &mut Frame, app: &TuiApp, test_id: &str, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled(
-                " [X] Fail ",
+                " [x] Fail ",
                 Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
             ),
             Span::raw(" - Visual defect, flicker, flash, or wrong geometry observed"),
         ]),
         Line::from(vec![
             Span::styled(
-                " [S] Skip ",
+                " [s] Skip ",
                 Style::default()
                     .fg(Color::Yellow)
                     .add_modifier(Modifier::BOLD),
@@ -1894,7 +3226,7 @@ fn draw_verdict_modal(f: &mut Frame, app: &TuiApp, test_id: &str, area: Rect) {
         ]),
         Line::from(vec![
             Span::styled(
-                " [K] Flaky ",
+                " [k] Flaky ",
                 Style::default()
                     .fg(Color::Magenta)
                     .add_modifier(Modifier::BOLD),

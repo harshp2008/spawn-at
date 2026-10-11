@@ -18,11 +18,12 @@ softbuffer = { version = "0.4", optional = true }
 signal-hook = { version = "0.3", optional = true }
 ratatui = { version = "0.29", default-features = false, features = ["crossterm"], optional = true }
 crossterm = { version = "0.28", optional = true }
+unicode-width = { version = "0.2", optional = true }
 
 [features]
 default = []
 fixture = ["dep:winit", "dep:softbuffer", "dep:signal-hook"]
-tui = ["dep:ratatui", "dep:crossterm", "dep:signal-hook"]
+tui = ["dep:ratatui", "dep:crossterm", "dep:signal-hook", "dep:unicode-width"]
 
 [[bin]]
 name = "spawn-at-verify"
