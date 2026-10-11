@@ -33,6 +33,8 @@ pub enum Commands {
     Tui(TuiArgs),
     /// Measure one case's cloak duration over N separate processes and N --repeat runs
     Calibrate(CalibrateArgs),
+    /// Print the TUI detail drawer for a recorded real case (headless)
+    Render(RenderArgs),
     /// Internal helper for smoke-live.sh JSON evaluation and placement verification
     #[command(subcommand, hide = true)]
     SmokeEval(smoke_eval::SmokeEvalCommand),
@@ -167,6 +169,34 @@ pub struct CheckArgs {
 pub struct ReportArgs {
     /// Path to session report directory or report.json [default: latest in verify-results/]
     pub path: Option<PathBuf>,
+}
+
+/// Arguments for the `render` subcommand.
+#[derive(Args, Debug)]
+pub struct RenderArgs {
+    /// Recorded case to render: an exact test id or a suffix that is unique (e.g. delay-500)
+    #[arg(long)]
+    pub case: Option<String>,
+
+    /// List the recorded cases that can be rendered and exit
+    #[arg(long)]
+    pub list: bool,
+
+    /// Terminal width in columns (minimum 60)
+    #[arg(long, default_value = "80")]
+    pub width: u16,
+
+    /// Terminal height in rows (minimum 15)
+    #[arg(long, default_value = "60")]
+    pub height: u16,
+
+    /// Drawer scroll offset in rows
+    #[arg(long, default_value = "0")]
+    pub scroll: u16,
+
+    /// Path to verify test library directory [default: auto-detected verify/]
+    #[arg(long)]
+    pub dir: Option<PathBuf>,
 }
 
 /// Arguments for the `calibrate` subcommand.

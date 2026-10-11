@@ -4,6 +4,7 @@ pub mod args;
 pub mod calibrate;
 pub mod check;
 pub mod list;
+pub mod render;
 pub mod report;
 pub mod run;
 pub mod smoke_eval;
@@ -13,6 +14,7 @@ pub use args::*;
 pub use calibrate::*;
 pub use check::*;
 pub use list::*;
+pub use render::*;
 pub use report::*;
 pub use run::*;
 pub use smoke_eval::*;
@@ -27,6 +29,7 @@ pub fn handle_command(cmd: Commands) {
         Commands::Report(args) => handle_report(args),
         Commands::Tui(args) => handle_tui(args),
         Commands::Calibrate(args) => handle_calibrate(args),
+        Commands::Render(args) => handle_render(args),
         Commands::SmokeEval(cmd) => smoke_eval::execute(cmd),
     }
 }

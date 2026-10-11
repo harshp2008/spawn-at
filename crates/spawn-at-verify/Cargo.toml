@@ -52,6 +52,11 @@ name = "tui_test"
 path = "tests/tui_test.rs"
 required-features = ["tui"]
 
+[[test]]
+name = "render_test"
+path = "tests/render_test.rs"
+required-features = ["tui"]
+
 
 [dev-dependencies]
 spawn-at-core = { path = "../spawn-at-core" }
