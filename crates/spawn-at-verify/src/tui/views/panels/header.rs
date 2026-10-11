@@ -11,6 +11,7 @@ use ratatui::{
     Frame,
 };
 
+/// Renders the top title banner, environment chips, and missing fixture warning.
 pub fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
     let mut lines = Vec::new();
 

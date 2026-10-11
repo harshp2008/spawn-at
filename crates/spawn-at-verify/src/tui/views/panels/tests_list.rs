@@ -12,6 +12,7 @@ use ratatui::{
     Frame,
 };
 
+/// Computes total visible row count in the test category tree factoring folded groups.
 pub fn compute_list_items_count(app: &TuiApp) -> usize {
     let filtered = app.filtered_tests();
     let mut count = 0;
@@ -37,6 +38,7 @@ pub fn compute_list_items_count(app: &TuiApp) -> usize {
     count
 }
 
+/// Renders the categorized test list navigation panel with status indicators and folding.
 pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
     let is_focused = app.active_pane == ActivePane::List;
     let border_color = if is_focused {

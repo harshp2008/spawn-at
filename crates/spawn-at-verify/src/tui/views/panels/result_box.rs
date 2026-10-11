@@ -11,6 +11,7 @@ use ratatui::{
     Frame,
 };
 
+/// Extracts formatted status lines, timings, and diagnostic details for the result box.
 pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
     let test_opt = app.selected_test();
     let res_opt = test_opt.and_then(|t| app.results.get(&t.id));
@@ -91,6 +92,7 @@ pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
     }
 }
 
+/// Calculates dynamic height allocation for the bottom result box.
 pub fn compute_result_box_height(app: &TuiApp, body_h: u16, box_w: u16) -> u16 {
     let (plain, _, _) = get_result_content(app);
     let inner_w = (box_w.saturating_sub(4) as usize).max(1);
@@ -100,6 +102,7 @@ pub fn compute_result_box_height(app: &TuiApp, body_h: u16, box_w: u16) -> u16 {
     needed_box_h.clamp(3, max_box_h)
 }
 
+/// Renders the bottom result box panel displaying outcome status and messages.
 pub fn draw_result_box(f: &mut Frame, app: &TuiApp, area: Rect) {
     let (plain, line, border_color) = get_result_content(app);
 

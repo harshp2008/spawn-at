@@ -12,6 +12,7 @@ use ratatui::{
     Frame,
 };
 
+/// Computes number of lines required to display wrapped description text within available width.
 pub fn count_wrapped_lines(text: &str, max_width: usize) -> usize {
     if max_width == 0 {
         return 1;
@@ -45,6 +46,7 @@ pub fn count_wrapped_lines(text: &str, max_width: usize) -> usize {
     total_lines.max(1)
 }
 
+/// Renders the test description and details pane in the middle of the screen.
 pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bool) {
     let test_opt = app.selected_test();
     let is_focused = app.active_pane == ActivePane::Details;
