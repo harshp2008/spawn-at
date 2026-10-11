@@ -14,6 +14,7 @@ use crate::schema::{TestDefinition, TestKind};
 use crate::tracker::WindowTracker;
 use std::path::PathBuf;
 
+/// Tests extraction of window ID from JSON output and fallback heuristic.
 #[test]
 fn test_extract_claimed_window_id_from_json_and_fallback() {
     // 1. JSON with window_id (success/fallback)
@@ -34,6 +35,7 @@ fn test_extract_claimed_window_id_from_json_and_fallback() {
     assert_eq!(extract_claimed_window_id("", text_fallback), Some(99999));
 }
 
+/// Tests pattern matching against literal strings and regex expressions.
 #[test]
 fn test_pattern_match_literal_and_regex() {
     let text = "[spawn-at] ERROR: Failed to claim window 101";
@@ -47,6 +49,7 @@ fn test_pattern_match_literal_and_regex() {
     assert!(!check_pattern_match("re:Failed to claim.*999", text).unwrap());
 }
 
+/// Tests final status resolution rules combining automated results and human verdicts.
 #[test]
 fn test_results_model_resolution_rules() {
     // Auto test: AutoPass -> Pass
@@ -82,6 +85,7 @@ fn test_results_model_resolution_rules() {
     assert!(dis);
 }
 
+/// Tests clear diagnostic reporting when fixture binary cannot be found.
 #[test]
 fn test_missing_fixture_binary_fails_with_clear_error_message() {
     let runner = TestRunner::new(
@@ -147,6 +151,7 @@ fn test_missing_fixture_binary_fails_with_clear_error_message() {
     assert!(msg.contains("cargo build -p spawn-at-verify --bin fixture --features fixture"));
 }
 
+/// Tests command-line argument construction for fixture execution.
 #[test]
 fn test_build_action_command_args_fixture_and_class() {
     let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");

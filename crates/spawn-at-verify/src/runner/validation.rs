@@ -6,6 +6,7 @@ use crate::schema::{ExpectRect, TestDefinition, TestKind};
 use regex::Regex;
 use std::path::Path;
 
+/// Assembles command-line arguments for executing a test action or spawning a fixture.
 pub fn build_action_command_args(test: &TestDefinition, fixture_bin: &Path) -> Vec<String> {
     let mut args = Vec::new();
     args.push(test.action.command.clone());
@@ -122,6 +123,7 @@ pub fn check_pattern_match(pattern: &str, text: &str) -> Result<bool, String> {
     }
 }
 
+/// Verifies that expected placement rectangle conforms to oracle calculations within tolerance.
 fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), String> {
     let size = match &expect_rect.size {
         Some(s) if s.len() >= 2 => (s[0], s[1]),

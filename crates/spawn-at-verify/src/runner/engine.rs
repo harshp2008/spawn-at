@@ -18,13 +18,18 @@ use std::path::Path;
 use std::process::Command;
 use std::time::{Instant, SystemTime};
 
+/// Orchestrates test suite execution, preflight checks, and window lifecycle attribution.
 pub struct TestRunner {
+    /// Registry containing all loaded verification test specifications.
     pub registry: TestRegistry,
+    /// Execution options configuring repetitions, timeouts, and filters.
     pub options: RunOptions,
+    /// Provider source for capturing system and compositor journal logs.
     pub log_source: Box<dyn LogSource>,
 }
 
 impl TestRunner {
+    /// Constructs a new `TestRunner` with the given test registry and execution options.
     pub fn new(registry: TestRegistry, options: RunOptions) -> Self {
         let is_gnome = std::env::var("XDG_CURRENT_DESKTOP")
             .map(|d| d.to_lowercase().contains("gnome"))
@@ -43,6 +48,7 @@ impl TestRunner {
         }
     }
 
+    /// Attaches an explicit log source provider to the test runner.
     pub fn with_log_source(mut self, log_source: Box<dyn LogSource>) -> Self {
         self.log_source = log_source;
         self
@@ -116,6 +122,7 @@ impl TestRunner {
         Ok((preflight, env_info, results))
     }
 
+    /// Executes an individual verification test case, managing timeouts, logs, and attribution.
     pub fn execute_single_test(
         &self,
         test: &TestDefinition,
