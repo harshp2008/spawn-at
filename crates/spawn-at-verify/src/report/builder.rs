@@ -92,6 +92,8 @@ pub fn build_session_report(
             desktop: env_info.desktop.clone(),
             gnome_version: env_info.gnome_version,
             monitors_count: env_info.monitors_count,
+            primary_workarea: env_info.primary_workarea,
+            independent_workarea: env_info.independent_workarea,
             binary_path: bin_path.display().to_string(),
             binary_commit: preflight.detected_commit.clone(),
             is_dirty_build: preflight.is_dirty_build,

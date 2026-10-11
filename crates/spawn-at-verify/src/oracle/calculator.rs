@@ -1,7 +1,7 @@
 //! Mathematical placement calculations, anchor formulas, and pivot offsets.
 
 /// 2D rectangle representing window coordinates and dimensions in oracle calculations.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Rect {
     /// Horizontal coordinate (left edge)
     pub x: i32,

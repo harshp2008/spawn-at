@@ -5,59 +5,92 @@
 
 use super::app::TuiApp;
 use super::views::{build_drawer_content, draw_ui};
-use crate::report::SessionReport;
+use crate::probe::EnvironmentInfo;
+use crate::report::{EnvironmentFingerprint, SessionReport};
 use crate::runner::{RunOptions, TestResult};
 use ratatui::{backend::TestBackend, Terminal};
 use std::path::{Path, PathBuf};
 use unicode_width::UnicodeWidthStr;
 
-/// Recorded session reports embedded at compile time: (file name, JSON text).
-const FIXTURES: &[(&str, &str)] = &[
+/// Recorded session reports embedded at compile time: (file name, JSON text, label).
+///
+/// The label distinguishes several recordings of the same test: a recording with a label is
+/// named `<id>@<label>`, one without is named by its test id alone.
+const FIXTURES: &[(&str, &str, Option<&str>)] = &[
     (
         "real_placement_run.json",
         include_str!("../../tests/fixtures/real_placement_run.json"),
+        None,
     ),
     (
         "real_delay500_run.json",
         include_str!("../../tests/fixtures/real_delay500_run.json"),
+        None,
     ),
 ];
 
 /// One recorded real case that can be rendered.
 pub struct RecordedCase {
+    /// Name used with `--case`: the test id, or `<id>@<label>` for a labelled recording.
+    pub name: String,
     /// Test id, e.g. `cloak/delayed-paint/delay-500`.
     pub id: String,
     /// Fixture file the recording came from.
     pub fixture: &'static str,
     /// The recorded result (stdout, log slice, statuses) exactly as saved.
     pub result: TestResult,
+    /// The environment fingerprint recorded with it, including the workarea measurements for
+    /// recordings made after they were added.
+    pub environment: EnvironmentFingerprint,
+}
+
+impl RecordedCase {
+    /// The environment as the run saw it, rebuilt from the recording: nothing is probed live, so
+    /// a recording without workarea measurements stays without them and its geometry is judged
+    /// (and marked) accordingly.
+    pub fn environment_info(&self) -> EnvironmentInfo {
+        EnvironmentInfo {
+            session_type: self.environment.session_type.clone(),
+            desktop: self.environment.desktop.clone(),
+            gnome_version: self.environment.gnome_version,
+            monitors_count: self.environment.monitors_count,
+            primary_workarea: self.environment.primary_workarea,
+            independent_workarea: self.environment.independent_workarea,
+        }
+    }
 }
 
 /// Returns every recorded case in fixture order.
 pub fn recorded_cases() -> Vec<RecordedCase> {
     let mut cases = Vec::new();
-    for (name, text) in FIXTURES {
+    for (file, text, label) in FIXTURES {
         let report: SessionReport = serde_json::from_str(text)
-            .unwrap_or_else(|e| panic!("embedded fixture {} is invalid: {}", name, e));
+            .unwrap_or_else(|e| panic!("embedded fixture {} is invalid: {}", file, e));
         for result in report.results {
+            let name = match label {
+                Some(l) => format!("{}@{}", result.id, l),
+                None => result.id.clone(),
+            };
             cases.push(RecordedCase {
+                name,
                 id: result.id.clone(),
-                fixture: name,
+                fixture: file,
                 result,
+                environment: report.environment.clone(),
             });
         }
     }
     cases
 }
 
-/// Finds a case by exact test id, or by a suffix that identifies exactly one case
-/// (e.g. `delay-500`).
+/// Finds a case by exact name, or by a suffix of its name that identifies exactly one case
+/// (e.g. `delay-500` or `delay-500@probed`).
 pub fn find_case(name: &str) -> Result<RecordedCase, String> {
     let mut matches: Vec<RecordedCase> = recorded_cases()
         .into_iter()
-        .filter(|c| c.id == name || c.id.ends_with(&format!("/{}", name)))
+        .filter(|c| c.name == name || c.name.ends_with(&format!("/{}", name)))
         .collect();
-    if let Some(i) = matches.iter().position(|c| c.id == name) {
+    if let Some(i) = matches.iter().position(|c| c.name == name) {
         return Ok(matches.swap_remove(i));
     }
     match matches.len() {
@@ -67,7 +100,7 @@ pub fn find_case(name: &str) -> Result<RecordedCase, String> {
             name,
             recorded_cases()
                 .iter()
-                .map(|c| c.id.as_str())
+                .map(|c| c.name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ")
         )),
@@ -103,6 +136,8 @@ pub fn render_case(
     app.fixture_exists = true;
     app.detail_drawer_open = true;
     app.detail_scroll = scroll;
+    // Judge with the environment the run recorded, never a live probe of this machine.
+    app.env_info = Some(case.environment_info());
     app.results.insert(case.id.clone(), case.result.clone());
     let test = app
         .selected_test()

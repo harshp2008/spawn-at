@@ -143,6 +143,7 @@ fn test_wrapped_values_continue_at_shared_value_column_and_fit_width() {
 fn real_delay500_drawer(width: usize) -> String {
     let case = spawn_at_verify::tui::render::find_case("delay-500").unwrap();
     let mut app = super::create_test_app();
+    app.env_info = Some(case.environment_info());
     app.results.insert(case.id.clone(), case.result.clone());
     let test = app
         .registry

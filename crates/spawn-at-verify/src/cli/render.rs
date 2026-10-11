@@ -12,7 +12,7 @@ pub fn handle_render(args: RenderArgs) {
 
         if args.list {
             for c in recorded_cases() {
-                println!("{}    (from tests/fixtures/{})", c.id, c.fixture);
+                println!("{}    (from tests/fixtures/{})", c.name, c.fixture);
             }
             return;
         }

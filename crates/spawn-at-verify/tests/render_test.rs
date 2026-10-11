@@ -183,3 +183,45 @@ fn test_delay500_timeline_rows_are_one_window_only() {
         );
     }
 }
+
+/// Recordings made before the workarea fields existed still load: the fields are simply absent,
+/// serialize back out only when present, and the case renders with the extension-derived marker.
+#[test]
+fn test_old_recording_without_workarea_fields_loads_and_is_marked_extension_derived() {
+    let old = find_case("placement/bottom-right").unwrap();
+    assert_eq!(old.environment.primary_workarea, None);
+    assert_eq!(old.environment.independent_workarea, None);
+    let json = serde_json::to_string(&old.environment).unwrap();
+    assert!(
+        !json.contains("workarea"),
+        "absent fields are not written: {}",
+        json
+    );
+    let text = render_case(&verify_dir(), &old, 100, 100, 0).unwrap();
+    assert!(
+        text.contains("workarea from the extension, not independently probed"),
+        "{}",
+        text
+    );
+}
+
+/// A report environment without the fields deserializes; with them it round-trips.
+#[test]
+fn test_environment_fingerprint_workarea_fields_are_optional_and_round_trip() {
+    use spawn_at_verify::oracle::Rect;
+    use spawn_at_verify::report::EnvironmentFingerprint;
+    let bare = r#"{"hostname":"h","session_type":"wayland","desktop":"gnome","gnome_version":46,
+        "monitors_count":1,"binary_path":"b","binary_commit":null,"is_dirty_build":false,
+        "generated_at":1}"#;
+    let e: EnvironmentFingerprint = serde_json::from_str(bare).unwrap();
+    assert_eq!((e.primary_workarea, e.independent_workarea), (None, None));
+    let mut e2 = e.clone();
+    e2.independent_workarea = Some(Rect::new(0, 40, 1920, 1040));
+    let back: EnvironmentFingerprint =
+        serde_json::from_str(&serde_json::to_string(&e2).unwrap()).unwrap();
+    assert_eq!(
+        back.independent_workarea,
+        Some(Rect::new(0, 40, 1920, 1040))
+    );
+    assert_eq!(back.primary_workarea, None);
+}

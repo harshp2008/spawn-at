@@ -1,5 +1,6 @@
 //! Session report and qualification summary data structures.
 
+use crate::oracle::Rect;
 use crate::runner::TestResult;
 use serde::{Deserialize, Serialize};
 
@@ -16,6 +17,14 @@ pub struct EnvironmentFingerprint {
     pub gnome_version: Option<u32>,
     /// Number of connected displays.
     pub monitors_count: usize,
+    /// Primary workarea from `<bin> query layout` (on GNOME, the extension under test). Absent in
+    /// recordings made before this field existed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub primary_workarea: Option<Rect>,
+    /// Primary workarea read from the window system (mutter's `_NET_WORKAREA`), independent of
+    /// the extension. Absent in older recordings and when it could not be read.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub independent_workarea: Option<Rect>,
     /// Absolute path to the verified spawn-at binary.
     pub binary_path: String,
     /// Git commit recorded in the binary build metadata.
