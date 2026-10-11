@@ -151,31 +151,31 @@ This document proposes a comprehensive codebase reorganization for the `spawn-at
 | `crates/spawn-at-core/src/driver.rs` | 135 | Declarative scheduling types and driver traits | `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` | Clean |
 | `crates/spawn-at-core/src/geometry.rs` | 1680 | Pure coordinate maths, anchors, pivots, bounds clamping, workarea insets, diagnostics, and 1,200 lines of tests | `Anchor`, `Pivot`, `Area`, `Rect`, `PlacementParams`, `GeometryDiagnostic`, `apply_anchor`, `apply_pivot`, `clamp_to_bounds`, `compute_screen_anchor`, `resolve_workarea`, `calculate_rect_from_placement`, `check_geometry_diagnostics`, `tests` | **OVER 400**<br>*(Multi-concern)* |
 | `crates/spawn-at-core/tests/golden_placement.rs` | 292 | Oracle integration tests against shared JSON placement vectors | `test_core_reads_shared_golden_placement_vectors`, `test_core_odd_and_even_sizes_exhaustive` | Clean |
-| **`crates/spawn-at-verify/`** | | | | |
-| `crates/spawn-at-verify/src/lib.rs` | 18 | Verify library crate module declarations | `loader`, `log_source`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, `tui` | Clean |
-| `crates/spawn-at-verify/src/main.rs` | 541 | CLI entry point for verify subcommands (`run`, `list`, `check`, `report`, `tui`) | `Cli`, `Commands`, `RunArgs`, `ListArgs`, `CheckArgs`, `ReportArgs`, `main`, `format_test_tree` | **OVER 400**<br>*(CLI + Format)* |
-| `crates/spawn-at-verify/src/bin/fixture.rs` | 609 | Standalone GUI test fixture window application (`winit` + `softbuffer`) | `main`, `run_app`, `WindowContext`, `Args`, `draw_frame` | **OVER 400** |
-| `crates/spawn-at-verify/src/bin/font/mod.rs` | 401 | Embedded bitmap font character definitions for fixture text rendering | `draw_char`, `draw_str`, `FONT_DATA` | **OVER 400** |
-| `crates/spawn-at-verify/src/loader.rs` | 443 | Test discovery, directory walking, TOML loading, and glob matching | `TestRegistry`, `TestFilter`, `matches_glob`, `load_tests_from_dir`, `load_suites` | **OVER 400** |
-| `crates/spawn-at-verify/src/log_source.rs` | 149 | Compositor log extraction from `journalctl` and session log files | `LogSource`, `read_journal_since`, `read_session_log` | Clean |
-| `crates/spawn-at-verify/src/oracle.rs` | 805 | Mathematical placement oracle and golden vector cross-validation | `OracleRect`, `PlacementOracle`, `calculate_oracle_rect`, `tests` | **OVER 400**<br>*(Math + Tests)* |
-| `crates/spawn-at-verify/src/preflight.rs` | 211 | Host environment and build sanity preflight checks | `PreflightVerdict`, `PreflightReport`, `inspect_binary`, `parse_binary_version`, `evaluate_preflight_verdict` | Clean |
-| `crates/spawn-at-verify/src/probe.rs` | 253 | Host compositor, Wayland/X11 session, and monitor layout probing | `EnvironmentInfo`, `probe`, `check_requirements`, `probe_gnome_shell_version`, `probe_layout` | Clean |
-| `crates/spawn-at-verify/src/process.rs` | 161 | Child process execution with non-blocking I/O and timeouts | `ProcessOutput`, `set_nonblocking`, `drain_nonblocking`, `execute_with_timeout` | Clean |
-| `crates/spawn-at-verify/src/report.rs` | 545 | Session report aggregation, JSON serialization, and Markdown report rendering | `EnvironmentFingerprint`, `RequiredSkippedItem`, `QualificationReport`, `SessionReport`, `build_session_report`, `render_markdown_report`, `format_sortable_timestamp` | **OVER 400** |
-| `crates/spawn-at-verify/src/runner.rs` | 1022 | Test execution engine, log capture, multi-run repeat flakiness detection, window tracking cleanup | `MAX_REPEAT_CAP`, `AutoStatus`, `HumanVerdictKind`, `HumanVerdict`, `FinalStatus`, `TestResult`, `TestRunner`, `RunOptions`, `execute_single_test`, `tests` | **OVER 400**<br>*(Engine + Models + Tests)* |
-| `crates/spawn-at-verify/src/schema.rs` | 598 | Declarative TOML schema definitions for verify specifications | `TestDefinition`, `TestKind`, `TestRequires`, `TestSubject`, `TestExpect`, `ActionSpec`, `ExpectRect`, `HumanReviewSpec`, `expand_matrix` | **OVER 400** |
-| `crates/spawn-at-verify/src/trace.rs` | 602 | Trace analyzer, event lifecycle state machine, and timing budget checks | `TraceAnalyser`, `TraceReport`, `PlacementLifecycle`, `TraceEvent`, `ViolationKind`, `TraceViolation`, `parse_trace_events` | **OVER 400** |
-| `crates/spawn-at-verify/src/tracker.rs` | 742 | Window tracker preventing window leaks across test sessions | `MAX_CONCURRENT_WINDOWS`, `WindowRecord`, `WindowTracker`, `AttributionOutcome`, `cleanup_test_windows` | **OVER 400** |
-| `crates/spawn-at-verify/src/tui/mod.rs` | 161 | TUI entry point, event loop lifecycle, terminal raw mode management | `TuiArgs`, `run_tui`, `unified_teardown`, `find_verify_dir` | Clean |
-| `crates/spawn-at-verify/src/tui/app.rs` | 926 | TUI interactive state model, key event handling, execution queue, clipboard I/O | `FilterMode`, `ActivePane`, `ModalState`, `TuiApp`, `handle_key`, `process_queue_step`, `record_verdict`, `system_copy_to_clipboard`, `copy_drawer_text`, `save_drawer_text` | **OVER 400**<br>*(State + Input + Queue + Clipboard)* |
-| `crates/spawn-at-verify/src/tui/logging.rs` | 150 | Extension debug logging toggle RAII guard for TUI sessions | `ExtensionLoggingGuard`, `detect_current_logging_state`, `set_extension_logging` | Clean |
-| `crates/spawn-at-verify/src/tui/views.rs` | 3495 | Entire TUI view layer: main screen, panels, drawer builder, geometry table, timeline, token wrapping, key bars, help modals | `draw_ui`, `draw_header`, `draw_body`, `draw_test_list`, `draw_details_pane`, `draw_result_box`, `draw_detail_drawer`, `draw_footer`, `draw_help_modal`, `build_drawer_content`, `DrawerBuilder`, `wrap_value_tokens`, `parse_compact_timeline`, `render_key_grid` | **OVER 400**<br>*(HUGE: 3.5k lines spanning 10+ concerns)* |
-| `crates/spawn-at-verify/tests/category_library_test.rs` | 286 | Registry category validation integration tests | `test_every_active_case_has_valid_category`, `test_missing_category_in_toml_is_deserialization_error`, `test_unknown_category_is_validation_error`, `test_category_filtering_in_registry` | Clean |
+| **`crates/spawn-at-verify/`** *(post-Stage 1 / Stage 1b state, commit `e963f52`; modules split into directories show total lines)* | | | | |
+| `crates/spawn-at-verify/src/lib.rs` | 20 | Verify library crate module declarations | `cli`, `loader`, `log_source`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, `tui` | Clean |
+| `crates/spawn-at-verify/src/main.rs` | 10 | Thin binary entry point calling `cli` | `main` | Clean |
+| `crates/spawn-at-verify/src/cli/` | 857 | CLI argument models and handlers for `run`, `list`, `check`, `report`, `tui`, plus smoke-live JSON evaluation helpers | `args.rs`, `run.rs`, `list.rs`, `check.rs`, `report.rs`, `tui.rs`, `smoke_eval.rs`, `mod.rs` | Clean *(split from `main.rs`)* |
+| `crates/spawn-at-verify/src/bin/fixture.rs` | 255 | Standalone GUI test fixture entry point (`winit` + `softbuffer`) | `main` | Clean |
+| `crates/spawn-at-verify/src/bin/fixture/` | 795 | Fixture window, renderer, and bitmap font data | `window.rs`, `renderer.rs`, `font.rs` (404), `mod.rs` | `font.rs` **OVER 400** *(justified data table)* |
+| `crates/spawn-at-verify/src/loader/` | 477 | Test registry discovery and loading, filter criteria, hierarchical test tree formatting | `registry.rs`, `filter.rs`, `tree.rs`, `tests.rs`, `mod.rs` | Clean *(split from `loader.rs`)* |
+| `crates/spawn-at-verify/src/log_source.rs` | 162 | Compositor log extraction from `journalctl` and session log files | `LogSource`, `read_journal_since`, `read_session_log` | Clean |
+| `crates/spawn-at-verify/src/oracle/` | 239 + 619 tests | Mathematical placement oracle; tests are hand-computed goldens and shared vector cross-validation | `calculator.rs`, `tests/golden.rs` (516), `tests/vectors.rs`, `mod.rs` | Clean *(split from `oracle.rs`)* |
+| `crates/spawn-at-verify/src/preflight.rs` | 228 | Host environment and build sanity preflight checks | `PreflightVerdict`, `PreflightReport`, `inspect_binary`, `parse_binary_version`, `evaluate_preflight_verdict` | Clean |
+| `crates/spawn-at-verify/src/probe.rs` | 264 | Host compositor, Wayland/X11 session, and monitor layout probing | `EnvironmentInfo`, `probe`, `check_requirements`, `probe_gnome_shell_version`, `probe_layout` | Clean |
+| `crates/spawn-at-verify/src/process.rs` | 166 | Child process execution with non-blocking I/O and timeouts | `ProcessOutput`, `set_nonblocking`, `drain_nonblocking`, `execute_with_timeout` | Clean |
+| `crates/spawn-at-verify/src/report/` | 603 | Session report models, builder, Markdown rendering, redaction | `models.rs`, `builder.rs`, `markdown.rs`, `redaction.rs`, `tests.rs`, `mod.rs` | Clean *(split from `report.rs`)* |
+| `crates/spawn-at-verify/src/runner/` | 1138 | Test execution engine, executor, result models, expectation validation, repeat flakiness detection | `engine.rs`, `executor.rs` (361), `models.rs`, `validation.rs`, `tests.rs`, `mod.rs` | Clean *(split from `runner.rs`)* |
+| `crates/spawn-at-verify/src/schema/` | 680 | Declarative TOML schema definitions for verify specifications | `types.rs`, `matrix.rs`, `suite.rs`, `tests.rs`, `mod.rs` | Clean *(split from `schema.rs`)* |
+| `crates/spawn-at-verify/src/trace/` | 671 | Trace parsing, lifecycle analysis, and timing budget checks | `models.rs`, `parser.rs`, `analyser.rs`, `report.rs`, `mod.rs` | Clean *(split from `trace.rs`)* |
+| `crates/spawn-at-verify/src/tracker/` | 769 | Window tracker preventing window leaks across test sessions | `state.rs` (300), `tests.rs` (458), `mod.rs` | Clean *(split from `tracker.rs`)* |
+| `crates/spawn-at-verify/src/tui/` (`mod.rs`, `logging.rs`) | 315 | TUI entry point, event loop lifecycle, extension debug logging guard | `mod.rs` (163), `logging.rs` (152) | Clean |
+| `crates/spawn-at-verify/src/tui/app/` | 1001 | TUI state model, key input, execution queue, clipboard I/O | `state.rs`, `input.rs`, `queue.rs`, `clipboard.rs`, `mod.rs` | Clean *(split from `tui/app.rs`)* |
+| `crates/spawn-at-verify/src/tui/views/` | 3809 | TUI view layer: root router, constants, theme, wrapping, builder, footer, panels, drawer, modals | `mod.rs`, `constants.rs`, `theme.rs`, `wrapping.rs`, `builder.rs`, `footer.rs`, `panels/` (883), `drawer/` (1527), `modals/` (485) | Clean *(split from `tui/views.rs`)* |
+| `crates/spawn-at-verify/tests/category_library_test.rs` | 296 | Registry category validation integration tests | `test_every_active_case_has_valid_category`, `test_missing_category_in_toml_is_deserialization_error`, `test_unknown_category_is_validation_error`, `test_category_filtering_in_registry` | Clean |
 | `crates/spawn-at-verify/tests/fixture_test.rs` | 254 | Standalone GUI fixture integration tests | `test_fixture_binary_help`, `test_fixture_rejects_invalid_args`, `test_fixture_clean_exit_timeout`, `test_fixture_signal_termination` | Clean |
-| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | 577 | Mathematical cross-validation between Oracle and Core geometry | `test_oracle_vs_core_cross_check_matrix`, `test_oracle_vs_core_directional_margins_cross_check`, `test_oracle_vs_core_cursor_anchor_cross_check` | **OVER 400** |
-| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | 527 | Invariant verification tests for trace analyzer scenarios | `test_scenario_visible_passes`, `test_scenario_covered_passes`, `test_scenario_minimized_passes_and_checks_pre_reveal_unminimize`, `test_violation_off_target_visibility` | **OVER 400** |
-| `crates/spawn-at-verify/tests/tui_test.rs` | 2970 | Monolithic 38-test integration suite covering full TUI, drawer, golden files, and grid invariants | `test_tui_app_initialization`, `test_tui_navigation_and_keybindings`, `test_real_placement_drawer_golden_files`, `test_real_placement_drawer_grid_invariants`, `test_dump_snapshots_to_scratch`, *(38 total tests)* | **OVER 400**<br>*(Monolithic test crate)* |
+| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | 577 | Mathematical cross-validation between Oracle and Core geometry | `test_oracle_vs_core_cross_check_matrix`, `test_oracle_vs_core_directional_margins_cross_check`, `test_oracle_vs_core_cursor_anchor_cross_check` | Clean (under 600 test cap) |
+| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | 535 | Invariant verification tests for trace analyzer scenarios | `test_scenario_visible_passes`, `test_scenario_covered_passes`, `test_scenario_minimized_passes_and_checks_pre_reveal_unminimize`, `test_violation_off_target_visibility` | Under 600 test cap |
+| `crates/spawn-at-verify/tests/tui_test.rs` + `tests/tui/` | 3046 | 38-test TUI integration suite; `tui_test.rs` (4 lines) wires `tests/tui/` (7 files, 3042 lines, largest `golden_invariants.rs` 571) | `app_flow`, `layout_responsive`, `polish`, `drawer_content`, `drawer_keys_clipboard`, `golden_invariants`, `mod` | Under 600 test cap *(split from `tui_test.rs`)* |
 | **`src/` (Main `spawn-at` CLI)** | | | | |
 | `src/main.rs` | 318 | Main CLI routing, double-dash handling, subcommands dispatch | `Cli`, `main` | Clean |
 | `src/config.rs` | 279 | Configuration file load/save and autostart setup | `Config`, `UpdateConfig`, `config_path`, `load`, `save` | Clean |
@@ -294,86 +294,126 @@ Any refactoring must rigorously account for the following hard-coded paths and c
 
 ### 3.2. Target Layout: `crates/spawn-at-verify`
 
-Split the massive ~3,500-line `tui/views.rs`, the ~3,000-line `tests/tui_test.rs`, and oversized modules (`runner.rs`, `oracle.rs`, `tracker.rs`, `app.rs`):
+Layout of `crates/spawn-at-verify` after Stage 1 and Stage 1b (line counts are current as of commit `e963f52`; the original plan split `tui/views.rs`, `tests/tui_test.rs`, `runner.rs`, `oracle.rs`, `tracker.rs` and `app.rs`, and Stage 1b split the rest):
 
 ```text
 crates/spawn-at-verify/
 ├── Cargo.toml
 ├── THIRD_PARTY_NOTICES.md
 ├── src/
-│   ├── lib.rs                               # Module declarations and feature gates (< 30 lines)
-│   ├── main.rs                              # CLI argument parsing and dispatch (< 250 lines)
+│   ├── lib.rs                               # Module declarations and feature gates (20 lines)
+│   ├── main.rs                              # Thin entry point calling cli (10 lines)
+│   ├── log_source.rs                        # Journal and session log reader (162 lines)
+│   ├── preflight.rs                         # Host preflight checks (228 lines)
+│   ├── probe.rs                             # Compositor and monitor probe (264 lines)
+│   ├── process.rs                           # Subprocess execution and timeout (166 lines)
 │   ├── bin/
-│   │   ├── fixture.rs                       # Entry point for GUI test fixture (< 150 lines)
-│   │   └── fixture/                         # [NEW] Fixture implementation modules
-│   │       ├── mod.rs                       # Fixture wiring
-│   │       ├── window.rs                    # Window creation and event loop (winit) (~250 lines)
-│   │       ├── renderer.rs                  # Softbuffer frame drawing (~220 lines)
-│   │       └── font.rs                      # Bitmap font rendering (moved from font/mod.rs) (~380 lines)
-│   ├── loader.rs                            # Test discovery and TOML parsing (~350 lines)
-│   ├── log_source.rs                        # Journal and session log reader (~150 lines)
-│   ├── preflight.rs                         # Host preflight checks (~210 lines)
-│   ├── probe.rs                             # Compositor and monitor probe (~250 lines)
-│   ├── process.rs                           # Subprocess execution and timeout (~160 lines)
-│   ├── report.rs                            # Session report models and JSON/MD export (~380 lines)
-│   ├── schema.rs                            # Declarative TOML test definition schemas (~350 lines)
-│   ├── trace.rs                             # Trace event parser and lifecycle checker (~390 lines)
-│   ├── runner/                              # [SPLIT from runner.rs (1,022 lines)]
-│   │   ├── mod.rs                           # Runner exports and wiring (< 40 lines)
-│   │   ├── models.rs                        # TestResult, FinalStatus, AutoStatus models (~180 lines)
-│   │   ├── engine.rs                        # TestRunner, repeat loops, single test execution (~360 lines)
-│   │   └── tests.rs                         # Runner unit tests (~350 lines)
-│   ├── oracle/                              # [SPLIT from oracle.rs (805 lines)]
-│   │   ├── mod.rs                           # Oracle exports (< 30 lines)
-│   │   ├── calculator.rs                    # Mathematical placement calculations (~380 lines)
-│   │   └── tests.rs                         # Oracle unit tests and golden comparisons (~390 lines)
-│   ├── tracker/                             # [SPLIT from tracker.rs (742 lines)]
-│   │   ├── mod.rs                           # Tracker exports (< 30 lines)
-│   │   ├── state.rs                         # WindowTracker state, attribution, cap rules (~340 lines)
-│   │   └── tests.rs                         # Window tracker unit tests (~350 lines)
+│   │   ├── fixture.rs                       # Entry point for GUI test fixture (255 lines)
+│   │   └── fixture/                         # Fixture implementation modules
+│   │       ├── mod.rs                       # Fixture wiring (5 lines)
+│   │       ├── window.rs                    # Window creation and event loop (winit) (252 lines)
+│   │       ├── renderer.rs                  # Softbuffer frame drawing (134 lines)
+│   │       └── font.rs                      # Bitmap font data table (404 lines) [Justified: data table]
+│   ├── cli/                                 # [SPLIT from main.rs, e963f52]
+│   │   ├── mod.rs                           # CLI argument models and subcommand handlers (29 lines)
+│   │   ├── args.rs                          # CLI argument parser schemas and subcommand definitions (192 lines)
+│   │   ├── run.rs                           # Handler for the `run` subcommand (155 lines)
+│   │   ├── list.rs                          # Handler for the `list` subcommand (49 lines)
+│   │   ├── check.rs                         # Handler for the `check` subcommand (97 lines)
+│   │   ├── report.rs                        # Handler for the `report` subcommand (91 lines)
+│   │   ├── tui.rs                           # Handler for the `tui` subcommand (30 lines)
+│   │   └── smoke_eval.rs                    # smoke-live.sh JSON evaluation helpers (moved unchanged) (214 lines)
+│   ├── loader/                              # [SPLIT from loader.rs, e963f52]
+│   │   ├── mod.rs                           # Loader exports (12 lines)
+│   │   ├── registry.rs                      # Test registry discovery, loading, and collection management (232 lines)
+│   │   ├── filter.rs                        # Test filter criteria and pattern matching (42 lines)
+│   │   ├── tree.rs                          # Hierarchical formatting and summaries of test definitions (76 lines)
+│   │   └── tests.rs                         # Loader unit tests (115 lines)
+│   ├── report/                              # [SPLIT from report.rs, e963f52]
+│   │   ├── mod.rs                           # Report exports (14 lines)
+│   │   ├── models.rs                        # Session report and qualification summary data structures (64 lines)
+│   │   ├── builder.rs                       # Session report builder, qualification evaluator, artifact writer (153 lines)
+│   │   ├── markdown.rs                      # Markdown session report rendering (103 lines)
+│   │   ├── redaction.rs                     # Title redaction, privacy filtering, timestamp formatting (117 lines)
+│   │   └── tests.rs                         # Report unit tests (152 lines)
+│   ├── schema/                              # [SPLIT from schema.rs, e963f52]
+│   │   ├── mod.rs                           # Schema exports (12 lines)
+│   │   ├── types.rs                         # Core declarative TOML schema data models (219 lines)
+│   │   ├── matrix.rs                        # Matrix expansion and categorization helpers (150 lines)
+│   │   ├── suite.rs                         # Test suite definition schema models (65 lines)
+│   │   └── tests.rs                         # Schema unit tests (234 lines)
+│   ├── trace/                               # [SPLIT from trace.rs, e963f52]
+│   │   ├── mod.rs                           # Trace exports (10 lines)
+│   │   ├── models.rs                        # Trace data models, events, and violation structures (112 lines)
+│   │   ├── parser.rs                        # Trace log parsing and event extraction (231 lines)
+│   │   ├── analyser.rs                      # Trace invariant analysis, lifecycle verification, timing budget checks (246 lines)
+│   │   └── report.rs                        # Trace analysis summary and outcome models (72 lines)
+│   ├── runner/                              # [SPLIT from runner.rs]
+│   │   ├── mod.rs                           # Runner exports and wiring (19 lines)
+│   │   ├── models.rs                        # TestResult, FinalStatus, AutoStatus models (228 lines)
+│   │   ├── engine.rs                        # Test runner engine, repeat loops, process orchestration (113 lines)
+│   │   ├── executor.rs                      # Single-test execution, process invocation, log capture, attribution (361 lines)
+│   │   ├── validation.rs                    # Expectation verification, output matching, action argument building (175 lines)
+│   │   └── tests.rs                         # Runner unit tests (242 lines)
+│   ├── oracle/                              # [SPLIT from oracle.rs]
+│   │   ├── mod.rs                           # Oracle exports (8 lines)
+│   │   ├── calculator.rs                    # Mathematical placement calculations (231 lines)
+│   │   └── tests/                           # [SPLIT from tests.rs, e963f52]
+│   │       ├── mod.rs                       # Test wiring (4 lines)
+│   │       ├── golden.rs                    # Hand-computed golden placement calculations and tolerance checks (516 lines)
+│   │       └── vectors.rs                   # Shared golden placement vector file cross-validation (99 lines)
+│   ├── tracker/                             # [SPLIT from tracker.rs]
+│   │   ├── mod.rs                           # Tracker exports (11 lines)
+│   │   ├── state.rs                         # WindowTracker state, attribution, cap rules (300 lines)
+│   │   └── tests.rs                         # Window tracker unit tests (458 lines)
 │   └── tui/
-│       ├── mod.rs                           # TUI runner and terminal setup (< 120 lines)
-│       ├── logging.rs                       # Extension logging RAII guard (< 150 lines)
-│       ├── app/                             # [SPLIT from tui/app.rs (926 lines)]
-│       │   ├── mod.rs                       # App module wiring (< 30 lines)
-│       │   ├── state.rs                     # TuiApp struct, navigation, selection clamping (~280 lines)
-│       │   ├── input.rs                     # Key event dispatcher and mode switches (~260 lines)
-│       │   ├── queue.rs                     # Execution queue runner, human verdict state (~220 lines)
-│       │   └── clipboard.rs                 # Clipboard provider integration (wl-copy/xclip/OSC 52) (~180 lines)
-│       └── views/                           # [SPLIT from tui/views.rs (3,495 lines)]
-│           ├── mod.rs                       # Top-level draw_ui router (< 80 lines)
-│           ├── constants.rs                 # DRAWER_INDENT, VALUE_X, RIGHT_PAD, breakpoints (< 100 lines)
-│           ├── theme.rs                     # Colors, styles, bullets, status symbols (< 160 lines)
-│           ├── wrapping.rs                  # Text tokenizer, token hard-break, word-wrapping (~280 lines)
-│           ├── builder.rs                   # DrawerBuilder struct and push helpers (~220 lines)
+│       ├── mod.rs                           # TUI runner and terminal setup (163 lines)
+│       ├── logging.rs                       # Extension logging RAII guard (152 lines)
+│       ├── app/                             # [SPLIT from tui/app.rs]
+│       │   ├── mod.rs                       # App module wiring (9 lines)
+│       │   ├── state.rs                     # TuiApp struct, navigation, selection clamping (393 lines)
+│       │   ├── input.rs                     # Key event dispatcher and mode switches (262 lines)
+│       │   ├── queue.rs                     # Execution queue runner, human verdict state (180 lines)
+│       │   └── clipboard.rs                 # Clipboard provider integration (157 lines)
+│       └── views/                           # [SPLIT from tui/views.rs]
+│           ├── mod.rs                       # Top-level draw_ui router (171 lines)
+│           ├── constants.rs                 # Layout constants and breakpoints (18 lines)
+│           ├── theme.rs                     # Colors, styles, bullets, status symbols (107 lines)
+│           ├── wrapping.rs                  # Text tokenizer, word-wrapping (143 lines)
+│           ├── builder.rs                   # DrawerBuilder struct and push helpers (144 lines)
 │           ├── panels/                      # Main screen panels
-│           │   ├── mod.rs                   # Panel wiring
-│           │   ├── header.rs                # Banner and fixture warning widget (~150 lines)
-│           │   ├── tests_list.rs            # Tests category list widget (~260 lines)
-│           │   ├── description.rs           # Test description panel widget (~180 lines)
-│           │   └── result_box.rs            # Result box and status widget (~220 lines)
+│           │   ├── mod.rs                   # Panel wiring (11 lines)
+│           │   ├── header.rs                # Banner and fixture warning widget (117 lines)
+│           │   ├── tests_list.rs            # Tests category list widget (262 lines)
+│           │   ├── description.rs           # Test description panel widget (361 lines)
+│           │   └── result_box.rs            # Result box and status widget (132 lines)
 │           ├── drawer/                      # Detail drawer sections
-│           │   ├── mod.rs                   # Drawer assembly (build_drawer_content) (< 120 lines)
-│           │   ├── header_section.rs        # Title, ID, Mode, Description section (~160 lines)
-│           │   ├── result_section.rs        # Verdict, Cloak duration, provisional budget (~180 lines)
-│           │   ├── geometry_section.rs      # Aligned geometry table and inputs (~240 lines)
-│           │   ├── timeline_section.rs      # Compact timeline parser, tags, stacked rows (~360 lines)
-│           │   └── info_sections.rs         # Watch, Spec, and Output sections (~250 lines)
-│           ├── footer.rs                    # Keys bar, responsive key grids, chips (~260 lines)
-│           └── modals.rs                    # Help overlay and verdict modal (~320 lines)
+│           │   ├── mod.rs                   # Drawer assembly (96 lines)
+│           │   ├── header_section.rs        # Title, ID, Mode, Description section (78 lines)
+│           │   ├── result_section.rs        # Verdict, Cloak duration, provisional budget (349 lines)
+│           │   ├── geometry_section.rs      # Aligned geometry table and inputs (239 lines)
+│           │   ├── timeline_section.rs      # Drawer TIMELINE section rendering (194 lines)
+│           │   ├── timeline_format.rs       # Formatting, parsing, and key humanisation of timeline events (304 lines)
+│           │   └── info_sections.rs         # Watch, Spec, and Output sections (267 lines)
+│           ├── footer.rs                    # Keys bar, responsive key grids, chips (331 lines)
+│           └── modals/                      # [SPLIT from modals.rs, e963f52]
+│               ├── mod.rs                   # Modal wiring (30 lines)
+│               ├── help.rs                  # Keyboard shortcuts and navigation help overlay (361 lines)
+│               └── verdict.rs               # Human review verdict input dialog (94 lines)
 └── tests/
-    ├── category_library_test.rs             # Category validation tests (286 lines)
+    ├── category_library_test.rs             # Category validation tests (296 lines)
     ├── fixture_test.rs                      # Fixture binary tests (254 lines)
     ├── oracle_cross_check.rs                # Oracle cross checks (577 lines) [Justified: matrix assertions]
-    ├── trace_analyser_test.rs               # Trace analyzer tests (527 lines) [Justified: scenario data]
-    ├── tui_test.rs                          # Root test crate wiring submodules (< 40 lines)
+    ├── trace_analyser_test.rs               # Trace analyzer tests (535 lines) [Justified: scenario data]
+    ├── tui_test.rs                          # Root test crate wiring submodules (4 lines)
     └── tui/                                 # [SPLIT from tests/tui_test.rs (2,970 lines)]
-        ├── mod.rs                           # Submodule definitions and common helpers (~220 lines)
-        ├── app_flow.rs                      # Initialization, navigation, filter, verdict tests (~380 lines)
-        ├── layout_responsive.rs             # Breakpoints, terminal resizing, polish tests (~400 lines)
-        ├── drawer_content.rs                # Drawer sections, budget warning, failure box (~420 lines)
-        ├── drawer_keys_clipboard.rs         # Keys chips, clipboard copy/save, help overlay (~360 lines)
-        └── golden_invariants.rs             # Responsive golden comparisons & grid invariants (~450 lines)
+        ├── mod.rs                           # Submodule definitions and common helpers (312 lines)
+        ├── app_flow.rs                      # Initialization, navigation, filter, verdict tests (304 lines)
+        ├── layout_responsive.rs             # Breakpoints and terminal resizing tests (456 lines)
+        ├── polish.rs                        # Polish tests (444 lines)
+        ├── drawer_content.rs                # Drawer sections, budget warning, failure box (566 lines)
+        ├── drawer_keys_clipboard.rs         # Keys chips, clipboard copy/save, help overlay (389 lines)
+        └── golden_invariants.rs             # Responsive golden comparisons & grid invariants (571 lines)
 ```
 
 ---
@@ -576,75 +616,115 @@ graph TD
 6. Enabled `#![warn(missing_docs)]` on library crate and applied dense comments to `src/` and light comments to `tests/`. Verified by `scripts/check-comment-only.sh` and `scripts/check-doc-coverage.sh` (ZERO misses).
 7. **Gate Check:** `cargo test -p spawn-at-verify --features tui` (All 124 tests pass: 59 lib + 0 main + 4 cat + 5 oracle + 18 trace + 38 tui; SHA256 of goldens and fixtures identical; clippy clean; fmt clean). [VERIFIED]
 
+##### Stage 1b: Split of Remaining Over-Cap Files [DONE, commit `e963f52`]
+Commit `e963f52` ("complete modularization of all files exceeding line cap") modularized every remaining `spawn-at-verify` file over the cap that Stage 1 had left whole:
+1. `main.rs` (550 lines) became a 10-line entry point plus `src/cli/` (`args.rs`, `check.rs`, `list.rs`, `report.rs`, `run.rs`, `tui.rs`, `mod.rs`); `smoke_eval.rs` moved into `src/cli/` unchanged.
+2. `loader.rs` became `src/loader/` (`registry.rs`, `filter.rs`, `tree.rs`, `tests.rs`, `mod.rs`).
+3. `report.rs` (575 lines) became `src/report/` (`models.rs`, `builder.rs`, `markdown.rs`, `redaction.rs`, `tests.rs`, `mod.rs`).
+4. `schema.rs` (663 lines) became `src/schema/` (`mod.rs`, `types.rs`, `matrix.rs`, `suite.rs`, `tests.rs`).
+5. `trace.rs` (654 lines) became `src/trace/` (`models.rs`, `parser.rs`, `analyser.rs`, `report.rs`, `mod.rs`).
+6. `runner/engine.rs` was split into `engine.rs` and `executor.rs`; `tui/views/drawer/timeline_section.rs` into `timeline_section.rs` and `timeline_format.rs`; `tui/views/modals.rs` into `tui/views/modals/` (`help.rs`, `verdict.rs`, `mod.rs`); `oracle/tests.rs` into `oracle/tests/` (`golden.rs`, `vectors.rs`, `mod.rs`).
+
 ##### Stage 1 Actual File List & Architecture Map
-- `src/lib.rs` (19 lines, `#![warn(missing_docs)]`)
-- `src/main.rs` (542 lines)
-- `src/loader.rs` (444 lines)
-- `src/log_source.rs` (150 lines)
-- `src/preflight.rs` (212 lines)
-- `src/probe.rs` (254 lines)
-- `src/process.rs` (162 lines)
-- `src/report.rs` (546 lines)
-- `src/schema.rs` (599 lines)
-- `src/trace.rs` (603 lines) [Justified exception: pre-existing baseline size 602 lines]
-- `src/bin/fixture.rs` (239 lines)
-- `src/bin/fixture/mod.rs` (6 lines)
-- `src/bin/fixture/font.rs` (402 lines) [Justified exception: 10x16 bitmap font data table]
-- `src/bin/fixture/renderer.rs` (132 lines)
+- `src/bin/fixture/font.rs` (404 lines) [Justified exception: bitmap font data table, 4 lines over the 400 cap]
+- `src/bin/fixture/mod.rs` (5 lines)
+- `src/bin/fixture/renderer.rs` (134 lines)
+- `src/bin/fixture.rs` (255 lines)
 - `src/bin/fixture/window.rs` (252 lines)
-- `src/oracle/mod.rs` (18 lines)
-- `src/oracle/calculator.rs` (211 lines)
-- `src/oracle/tests.rs` (589 lines)
-- `src/runner/mod.rs` (20 lines)
-- `src/runner/models.rs` (178 lines)
-- `src/runner/engine.rs` (463 lines)
-- `src/runner/validation.rs` (174 lines)
-- `src/runner/tests.rs` (223 lines)
-- `src/tracker/mod.rs` (18 lines)
-- `src/tracker/state.rs` (287 lines)
-- `src/tracker/tests.rs` (449 lines)
-- `src/tui/mod.rs` (162 lines)
-- `src/tui/logging.rs` (151 lines)
-- `src/tui/app/mod.rs` (10 lines)
-- `src/tui/app/state.rs` (363 lines)
+- `src/cli/args.rs` (192 lines)
+- `src/cli/check.rs` (97 lines)
+- `src/cli/list.rs` (49 lines)
+- `src/cli/mod.rs` (29 lines)
+- `src/cli/report.rs` (91 lines)
+- `src/cli/run.rs` (155 lines)
+- `src/cli/smoke_eval.rs` (214 lines)
+- `src/cli/tui.rs` (30 lines)
+- `src/lib.rs` (20 lines)
+- `src/loader/filter.rs` (42 lines)
+- `src/loader/mod.rs` (12 lines)
+- `src/loader/registry.rs` (232 lines)
+- `src/loader/tests.rs` (115 lines)
+- `src/loader/tree.rs` (76 lines)
+- `src/log_source.rs` (162 lines)
+- `src/main.rs` (10 lines)
+- `src/oracle/calculator.rs` (231 lines)
+- `src/oracle/mod.rs` (8 lines)
+- `src/oracle/tests/golden.rs` (516 lines)
+- `src/oracle/tests/mod.rs` (4 lines)
+- `src/oracle/tests/vectors.rs` (99 lines)
+- `src/preflight.rs` (228 lines)
+- `src/probe.rs` (264 lines)
+- `src/process.rs` (166 lines)
+- `src/report/builder.rs` (153 lines)
+- `src/report/markdown.rs` (103 lines)
+- `src/report/models.rs` (64 lines)
+- `src/report/mod.rs` (14 lines)
+- `src/report/redaction.rs` (117 lines)
+- `src/report/tests.rs` (152 lines)
+- `src/runner/engine.rs` (113 lines)
+- `src/runner/executor.rs` (361 lines)
+- `src/runner/models.rs` (228 lines)
+- `src/runner/mod.rs` (19 lines)
+- `src/runner/tests.rs` (242 lines)
+- `src/runner/validation.rs` (175 lines)
+- `src/schema/matrix.rs` (150 lines)
+- `src/schema/mod.rs` (12 lines)
+- `src/schema/suite.rs` (65 lines)
+- `src/schema/tests.rs` (234 lines)
+- `src/schema/types.rs` (219 lines)
+- `src/trace/analyser.rs` (246 lines)
+- `src/trace/models.rs` (112 lines)
+- `src/trace/mod.rs` (10 lines)
+- `src/trace/parser.rs` (231 lines)
+- `src/trace/report.rs` (72 lines)
+- `src/tracker/mod.rs` (11 lines)
+- `src/tracker/state.rs` (300 lines)
+- `src/tracker/tests.rs` (458 lines)
+- `src/tui/app/clipboard.rs` (157 lines)
 - `src/tui/app/input.rs` (262 lines)
-- `src/tui/app/queue.rs` (174 lines)
-- `src/tui/app/clipboard.rs` (158 lines)
+- `src/tui/app/mod.rs` (9 lines)
+- `src/tui/app/queue.rs` (180 lines)
+- `src/tui/app/state.rs` (393 lines)
+- `src/tui/logging.rs` (152 lines)
+- `src/tui/mod.rs` (163 lines)
+- `src/tui/views/builder.rs` (144 lines)
+- `src/tui/views/constants.rs` (18 lines)
+- `src/tui/views/drawer/geometry_section.rs` (239 lines)
+- `src/tui/views/drawer/header_section.rs` (78 lines)
+- `src/tui/views/drawer/info_sections.rs` (267 lines)
+- `src/tui/views/drawer/mod.rs` (96 lines)
+- `src/tui/views/drawer/result_section.rs` (349 lines)
+- `src/tui/views/drawer/timeline_format.rs` (304 lines)
+- `src/tui/views/drawer/timeline_section.rs` (194 lines)
+- `src/tui/views/footer.rs` (331 lines)
+- `src/tui/views/modals/help.rs` (361 lines)
+- `src/tui/views/modals/mod.rs` (30 lines)
+- `src/tui/views/modals/verdict.rs` (94 lines)
 - `src/tui/views/mod.rs` (171 lines)
-- `src/tui/views/builder.rs` (137 lines)
-- `src/tui/views/constants.rs` (7 lines)
-- `src/tui/views/theme.rs` (189 lines)
-- `src/tui/views/wrapping.rs` (142 lines)
-- `src/tui/views/footer.rs` (329 lines)
-- `src/tui/views/modals.rs` (461 lines)
-- `src/tui/views/panels/mod.rs` (10 lines)
-- `src/tui/views/panels/header.rs` (152 lines)
-- `src/tui/views/panels/tests_list.rs` (260 lines)
-- `src/tui/views/panels/description.rs` (359 lines)
-- `src/tui/views/panels/result_box.rs` (220 lines)
-- `src/tui/views/drawer/mod.rs` (60 lines)
-- `src/tui/views/drawer/geometry_section.rs` (245 lines)
-- `src/tui/views/drawer/header_section.rs` (162 lines)
-- `src/tui/views/drawer/info_sections.rs` (265 lines)
-- `src/tui/views/drawer/result_section.rs` (348 lines)
-- `src/tui/views/drawer/timeline_section.rs` (490 lines)
-- `tests/tui_test.rs` (5 lines)
-- `tests/tui/mod.rs` (308 lines)
-- `tests/tui/app_flow.rs` (305 lines)
-- `tests/tui/drawer_content.rs` (560 lines)
+- `src/tui/views/panels/description.rs` (361 lines)
+- `src/tui/views/panels/header.rs` (117 lines)
+- `src/tui/views/panels/mod.rs` (11 lines)
+- `src/tui/views/panels/result_box.rs` (132 lines)
+- `src/tui/views/panels/tests_list.rs` (262 lines)
+- `src/tui/views/theme.rs` (107 lines)
+- `src/tui/views/wrapping.rs` (143 lines)
+- `tests/category_library_test.rs` (296 lines)
+- `tests/fixture_test.rs` (254 lines)
+- `tests/oracle_cross_check.rs` (577 lines)
+- `tests/trace_analyser_test.rs` (535 lines)
+- `tests/tui/app_flow.rs` (304 lines)
+- `tests/tui/drawer_content.rs` (566 lines)
 - `tests/tui/drawer_keys_clipboard.rs` (389 lines)
 - `tests/tui/golden_invariants.rs` (571 lines)
-- `tests/tui/layout_responsive.rs` (457 lines)
-- `tests/tui/polish.rs` (434 lines)
-- `tests/category_library_test.rs` (286 lines)
-- `tests/fixture_test.rs` (188 lines)
-- `tests/oracle_cross_check.rs` (577 lines)
-- `tests/trace_analyser_test.rs` (527 lines)
+- `tests/tui/layout_responsive.rs` (456 lines)
+- `tests/tui/mod.rs` (312 lines)
+- `tests/tui/polish.rs` (444 lines)
+- `tests/tui_test.rs` (4 lines)
 
 ##### Stage 1 Deviations & Exceptions
-1. **`tests/tui/polish.rs` Split:** The initial proposal suggested putting responsive and polish tests into `layout_responsive.rs`. Combining them would have produced an ~890-line test file exceeding the 600-line hard cap. `tests/tui/polish.rs` was split out into its own submodule, keeping both files comfortably under the 600-line limit (457 and 434 lines respectively).
-2. **`src/trace.rs` Line Count Exception:** `src/trace.rs` is 603 lines (baseline: 602 lines). In the original CODE_LAYOUT.md target tree it was planned to remain a single file `src/trace.rs`. It exceeds the 600-line hard cap by 3 lines due to comprehensive module-level doc comments and is retained as a justified exception.
-3. **Production Files Between 400 and 600 Lines:** In accordance with the Stage 1 plan, existing monolithic modules were modularized (`views.rs` from 3,495 to max 490, `app.rs` from 926 to max 363, `runner.rs` from 1,022 to max 463, `tracker.rs` from 742 to max 287). Unsplit existing baseline files (`schema.rs` 599, `report.rs` 546, `main.rs` 542, `loader.rs` 444) and isolated feature modules (`timeline_section.rs` 490, `engine.rs` 463, `modals.rs` 461, `font.rs` 402) remain between 400 and 600 lines, well within the 600-line hard cap.
+1. **`tests/tui/polish.rs` Split:** The initial proposal suggested putting responsive and polish tests into `layout_responsive.rs`. Combining them would have produced an ~890-line test file exceeding the 600-line hard cap. `tests/tui/polish.rs` was split out into its own submodule, keeping both files comfortably under the 600-line limit (456 and 444 lines respectively).
+2. **`src/trace.rs` Split (Stage 1b):** `src/trace.rs` (654 lines at split time) was originally planned to remain a single file as a justified exception. Commit `e963f52` split it into `src/trace/` (`mod.rs`, `models.rs`, `parser.rs`, `analyser.rs`, `report.rs`; largest file 246 lines), so the exception no longer applies.
+3. **Remaining Files Over 400 Lines (production):** After Stage 1b, the only production file in `spawn-at-verify` over the 400-line source cap is `src/bin/fixture/font.rs` (404 lines, a bitmap font data table). Outside the crate, `crates/xtask/src/main.rs` is 475 lines and also exceeds the cap; it was added in commit `0124060` and has not been split. No test file exceeds the 600-line test cap (largest: `tests/oracle_cross_check.rs`, 577 lines).
 
 ##### Stage 1 Observations (Bugs Spotted but NOT Fixed)
 1. **Footer Responsive Chips Incomplete Between 100-104 Columns:** In `crates/spawn-at-verify/src/tui/views/footer.rs`, `draw_normal_footer` tests `area.width >= 105` for the wide chips layout and falls back to narrower representations, but at terminal widths between 100 and 104 columns some shortcut actions are not rendered. (Observed during split; behavior preserved without alteration).
