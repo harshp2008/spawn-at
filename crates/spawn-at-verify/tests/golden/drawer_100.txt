@@ -1,26 +1,26 @@
 
-  Title         Window placed in bottom-right corner
+  Title            Window placed in bottom-right corner
 
-  ID            placement/bottom-right
-  Mode          both · automatic check + your visual review
+  ID               placement/bottom-right
+  Mode             both · automatic check + your visual review
 
-  Description   Spawns a test window anchored to the bottom-right corner of the work area with a
-                16px boundary margin.
+  Description      Spawns a test window anchored to the bottom-right corner of the work area
+                   with a 16px boundary margin.
 
  ── RESULT ──────────────────────────────────────────────────────────────────────────────────────
-  Verdict       ◐ Pending
-  Cloak         34.2 ms
-  Budget        100 ms (provisional)   ✔ within budget
-  Trace         ✔ clean, no violations
+  Verdict          ◐ Pending
+  Cloak            34.2 ms
+  Budget           100 ms (provisional)   ✔ within budget
+  Trace            ✔ clean, no violations
 
  ── GEOMETRY ────────────────────────────────────────────────────────────────────────────────────
-  Field         Expected        Actual          Result  
-  Position      1504, 764       1504, 764          ✔    
-  Size          400×300         400×300            ✔    
+  Field            Expected        Actual          Result  
+  Position         1504, 764       1504, 764          ✔    
+  Size             400×300         400×300            ✔    
 
-  Anchor        bottom-right
-  Margin        16
-  Tolerance     ±1 px
+  Anchor           bottom-right
+  Margin           16
+  Tolerance        ±1 px
 
  ── TIMELINE ── window 870906106 · pid 1188809 ──────────────────────────────────────────────────
     +0.0 ms  ARM_SPAWN
@@ -121,33 +121,33 @@
    +90.9 ms  ANCHOR_ARMED
 
  ── WHAT TO LOOK FOR ────────────────────────────────────────────────────────────────────────────
-  Watch         Did the window appear once in the bottom-right corner with a small gap from
-                screen edges, without flickering or jumping?
+  Watch            Did the window appear once in the bottom-right corner with a small gap from
+                   screen edges, without flickering or jumping?
 
-  Your verdict  ◐ Pending
+  Your verdict     ◐ Pending
 
  ── SPEC ────────────────────────────────────────────────────────────────────────────────────────
-  Action        spawn
-  --class       verify.placement.bottomright
-  --anchor      bottom-right
-  --size        400 300
-  --margin      16
+  Action           spawn
+  --class          verify.placement.bottomright
+  --anchor         bottom-right
+  --size           400 300
+  --margin         16
 
-  Subject       fixture
-  --title       Verify-Placement-BottomRight
-  --app-id      verify.placement.bottomright
-  --expect      Should appear at bottom-right corner
+  Subject          fixture
+  --title          Verify-Placement-BottomRight
+  --app-id         verify.placement.bottomright
+  --expect         Should appear at bottom-right corner
 
  ── OUTPUT ──────────────────────────────────────────────────────────────────────────────────────
-  stderr        [spawn-at] INFO: Window mapped at final size (400x300) and positioned at (1504,
-                764).
+  stderr           [spawn-at] INFO: Window mapped at final size (400x300) and positioned at
+                   (1504, 764).
 
-  window_id     870906106
-  x             1504
-  y             764
-  w             400
-  h             300
-  rel_x         1504
-  rel_y         724
-  area          workarea
-  source        claim
+  window_id        870906106
+  x                1504
+  y                764
+  w                400
+  h                300
+  rel_x            1504
+  rel_y            724
+  area             workarea
+  source           claim

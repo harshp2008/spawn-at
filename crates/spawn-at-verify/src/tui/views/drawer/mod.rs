@@ -15,6 +15,7 @@ pub use timeline_format::{parse_compact_timeline, ParsedTimelineEvent};
 pub use timeline_section::render_timeline_section;
 
 use super::builder::DrawerBuilder;
+use super::constants::{DRAWER_LABEL_W, DRAWER_LABEL_W_MAX};
 use crate::schema::TestDefinition;
 use crate::tui::app::TuiApp;
 use ratatui::{
@@ -25,21 +26,38 @@ use ratatui::{
     Frame,
 };
 
+/// Renders every drawer section into `builder` in display order.
+fn render_sections(
+    builder: &mut DrawerBuilder,
+    app: &TuiApp,
+    test: &TestDefinition,
+    compact: bool,
+) {
+    let res_opt = app.results.get(&test.id);
+    render_header_section(builder, test);
+    render_result_section(builder, test, res_opt);
+    render_geometry_section(builder, test, res_opt);
+    render_timeline_section(builder, test, res_opt, compact);
+    render_info_sections(builder, test, res_opt, compact);
+}
+
 /// Assembles all sections of the detail drawer using the shared builder grid.
+///
+/// A probe pass at the minimum label width records the longest label any section
+/// pushes; the real pass then uses `clamp(longest + 2, 14, 24)` as the label
+/// column for every section so all values start at the same column.
 pub fn build_drawer_content(
     app: &TuiApp,
     test: &TestDefinition,
     width: usize,
     compact: bool,
 ) -> (Vec<Line<'static>>, String) {
-    let mut builder = DrawerBuilder::new(width);
-    let res_opt = app.results.get(&test.id);
+    let mut probe = DrawerBuilder::new(width);
+    render_sections(&mut probe, app, test, compact);
+    let label_w = (probe.max_label_seen + 2).clamp(DRAWER_LABEL_W, DRAWER_LABEL_W_MAX);
 
-    render_header_section(&mut builder, test);
-    render_result_section(&mut builder, test, res_opt);
-    render_geometry_section(&mut builder, test, res_opt);
-    render_timeline_section(&mut builder, test, res_opt, compact);
-    render_info_sections(&mut builder, test, res_opt, compact);
+    let mut builder = DrawerBuilder::with_label_w(width, label_w);
+    render_sections(&mut builder, app, test, compact);
 
     let full_plain = builder.plain.join("\n");
     (builder.lines, full_plain)

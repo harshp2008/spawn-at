@@ -68,15 +68,11 @@ pub fn render_timeline_section(
             let col_b_x = DRAWER_INDENT + max_a + 2;
             let detail_indent = col_b_x + 2;
 
-            let max_human_lbl_w = trace_events
-                .iter()
-                .flat_map(|e| e.details.iter())
-                .map(|(lbl, _)| lbl.width())
-                .max()
-                .unwrap_or(10)
-                .min(16);
-
-            let label_col_w = max_human_lbl_w + 2;
+            // Detail labels share the drawer-wide label column width.
+            for (lbl, _) in trace_events.iter().flat_map(|e| e.details.iter()) {
+                builder.note_label(lbl);
+            }
+            let label_col_w = builder.label_w;
             let detail_val_x = detail_indent + label_col_w;
             let detail_content_w = builder
                 .inner_width
@@ -111,7 +107,7 @@ pub fn render_timeline_section(
 
                 let indent_detail_str = " ".repeat(detail_indent);
                 for (lbl, val) in &ev.details {
-                    let lbl_fmt = format!("{:<width$}", lbl, width = label_col_w);
+                    let lbl_fmt = builder.format_label(lbl);
                     let val_lines = wrap_value_tokens(val, detail_content_w);
                     for (line_idx, val_line) in val_lines.into_iter().enumerate() {
                         if line_idx == 0 {

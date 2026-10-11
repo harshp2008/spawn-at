@@ -181,11 +181,40 @@ fn test_real_placement_drawer_grid_invariants() {
     for &w in &widths {
         let (_lines, plain) =
             spawn_at_verify::tui::views::build_drawer_content(&app, &test, w, true);
+
+        // Shared value column: the real fixture's longest label is the 15-char timeline
+        // detail "needs re-anchor", so the label column is 15 + 2 = 17 wide and every
+        // section's values start at INDENT (2) + 17 = 19.
+        let title_row = plain
+            .lines()
+            .find(|l| l.starts_with("  Title"))
+            .expect("Title row exists");
+        let vx = title_row[7..]
+            .find(|c| c != ' ')
+            .map(|i| i + 7)
+            .expect("Title has a value");
+        assert_eq!(vx, 19, "Shared VALUE_X must be 19 at width {}", w);
+        // Expected/Actual column width: 16, shrinking to >= 12 only when the table would
+        // overflow the drawer (width 60 with a 17-wide label column gives 14).
+        let hdr_row = plain
+            .lines()
+            .find(|l| l.contains("Field") && l.contains("Expected") && l.contains("Actual"))
+            .expect("Geometry header exists");
+        let col = hdr_row.find("Actual").unwrap() - hdr_row.find("Expected").unwrap();
+        assert!(
+            (12..=16).contains(&col),
+            "Geometry column width {} out of range at width {}",
+            col,
+            w
+        );
+        if w >= 70 {
+            assert_eq!(col, 16, "Geometry columns must be 16 wide at width {}", w);
+        }
         let inner_width = w.saturating_sub(2);
 
         // 1. Grid Invariant: Geometry table alignment
-        // Header Expected starts at x=16; Expected values start at x=16; Anchor/Margin/Tolerance start at x=16
-        // Actual starts at x=32; Result starts at x=48; ✔ is centered under Result (offset 3)
+        // Header Expected starts at x=VALUE_X; Expected values start at x=VALUE_X; Anchor/Margin/Tolerance start at x=VALUE_X
+        // Actual starts at x=VALUE_X+col; Result starts at x=VALUE_X+2col; ✔ is centered under Result (offset 3)
         let mut geom_found = false;
         for line in plain.lines() {
             if line.contains("Field")
@@ -201,20 +230,20 @@ fn test_real_placement_drawer_grid_invariants() {
                 );
                 assert_eq!(
                     line.find("Expected"),
-                    Some(16),
-                    "Geometry header 'Expected' must start at x=16 at width {}",
+                    Some(vx),
+                    "Geometry header 'Expected' must start at x=VALUE_X at width {}",
                     w
                 );
                 assert_eq!(
                     line.find("Actual"),
-                    Some(32),
-                    "Geometry header 'Actual' must start at x=32 at width {}",
+                    Some(vx + col),
+                    "Geometry header 'Actual' must start at x=VALUE_X+col at width {}",
                     w
                 );
                 assert_eq!(
                     line.find("Result"),
-                    Some(48),
-                    "Geometry header 'Result' must start at x=48 at width {}",
+                    Some(vx + 2 * col),
+                    "Geometry header 'Result' must start at x=VALUE_X+2col at width {}",
                     w
                 );
             }
@@ -225,22 +254,22 @@ fn test_real_placement_drawer_grid_invariants() {
                     "Position row must start with INDENT (2 spaces)"
                 );
                 assert_ne!(
-                    line.chars().nth(16).unwrap_or(' '),
+                    line.chars().nth(vx).unwrap_or(' '),
                     ' ',
-                    "Position Expected value must start at x=16 at width {}",
+                    "Position Expected value must start at x=VALUE_X at width {}",
                     w
                 );
                 assert_ne!(
-                    line.chars().nth(32).unwrap_or(' '),
+                    line.chars().nth(vx + col).unwrap_or(' '),
                     ' ',
-                    "Position Actual value must start at x=32 at width {}",
+                    "Position Actual value must start at x=VALUE_X+col at width {}",
                     w
                 );
                 // Centered under Result: 48 + 3 = 51
                 assert_eq!(
                     line.chars().position(|c| c == '✔'),
-                    Some(51),
-                    "Position ✔ must be centered at x=51 under Result at width {}",
+                    Some(vx + 2 * col + 3),
+                    "Position ✔ must be centered at x=VALUE_X+2col+3 under Result at width {}",
                     w
                 );
             }
@@ -251,21 +280,21 @@ fn test_real_placement_drawer_grid_invariants() {
                     "Size row must start with INDENT (2 spaces)"
                 );
                 assert_ne!(
-                    line.chars().nth(16).unwrap_or(' '),
+                    line.chars().nth(vx).unwrap_or(' '),
                     ' ',
-                    "Size Expected value must start at x=16 at width {}",
+                    "Size Expected value must start at x=VALUE_X at width {}",
                     w
                 );
                 assert_ne!(
-                    line.chars().nth(32).unwrap_or(' '),
+                    line.chars().nth(vx + col).unwrap_or(' '),
                     ' ',
-                    "Size Actual value must start at x=32 at width {}",
+                    "Size Actual value must start at x=VALUE_X+col at width {}",
                     w
                 );
                 assert_eq!(
                     line.chars().position(|c| c == '✔'),
-                    Some(51),
-                    "Size ✔ must be centered at x=51 under Result at width {}",
+                    Some(vx + 2 * col + 3),
+                    "Size ✔ must be centered at x=VALUE_X+2col+3 under Result at width {}",
                     w
                 );
             }
@@ -274,9 +303,9 @@ fn test_real_placement_drawer_grid_invariants() {
                 || line.starts_with("  Tolerance")
             {
                 assert_ne!(
-                    line.chars().nth(16).unwrap_or(' '),
+                    line.chars().nth(vx).unwrap_or(' '),
                     ' ',
-                    "Geometry input value must start at x=16 at width {}: '{}'",
+                    "Geometry input value must start at x=VALUE_X at width {}: '{}'",
                     w,
                     line
                 );
@@ -288,7 +317,7 @@ fn test_real_placement_drawer_grid_invariants() {
             w
         );
 
-        // 2. Grid Invariant: every key/value row in RESULT, GEOMETRY inputs, header, WHAT TO LOOK FOR, SPEC and OUTPUT has value at x == 16
+        // 2. Grid Invariant: every key/value row in RESULT, GEOMETRY inputs, header, WHAT TO LOOK FOR, SPEC and OUTPUT has value at x == VALUE_X
         for line in plain.lines() {
             let prefixes = [
                 "  Title",
@@ -316,10 +345,10 @@ fn test_real_placement_drawer_grid_invariants() {
             ];
             for p in &prefixes {
                 if line.starts_with(p) && !line.contains("Expected") {
-                    let ch = line.chars().nth(16).unwrap_or(' ');
+                    let ch = line.chars().nth(vx).unwrap_or(' ');
                     assert_ne!(
                         ch, ' ',
-                        "Row '{}' value must start at column 16 at width {}",
+                        "Row '{}' value must start at VALUE_X column at width {}",
                         line, w
                     );
                 }

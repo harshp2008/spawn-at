@@ -3,7 +3,7 @@
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
 use crate::tui::views::builder::DrawerBuilder;
-use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_LABEL_W};
+use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_RIGHT_PAD};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
@@ -44,10 +44,16 @@ pub fn render_geometry_section(
 
         if let Some((ax, ay, aw, ah, _src)) = actual_geom {
             // Table Header: Field, Expected, Actual, Result
+            // Expected/Actual columns shrink (12..=16) when a wide shared label column leaves less room
+            let col_w = (builder
+                .inner_width
+                .saturating_sub(DRAWER_INDENT + builder.label_w + 8 + DRAWER_RIGHT_PAD)
+                / 2)
+            .clamp(12, 16);
             let indent_str = " ".repeat(DRAWER_INDENT);
-            let f_hdr = format!("{:<width$}", "Field", width = DRAWER_LABEL_W);
-            let exp_hdr = format!("{:<16}", "Expected");
-            let act_hdr = format!("{:<16}", "Actual");
+            let f_hdr = builder.format_label("Field");
+            let exp_hdr = format!("{:<w$}", "Expected", w = col_w);
+            let act_hdr = format!("{:<w$}", "Actual", w = col_w);
             let res_hdr = format!("{:<8}", "Result");
 
             let tbl_hdr = format!("{}{}{}{}{}", indent_str, f_hdr, exp_hdr, act_hdr, res_hdr);
@@ -64,9 +70,9 @@ pub fn render_geometry_section(
 
             let exp_pos = format!("{}, {}", ax, ay);
             let act_pos = format!("{}, {}", ax, ay);
-            let f_pos = format!("{:<width$}", "Position", width = DRAWER_LABEL_W);
-            let exp_pos_fmt = format!("{:<16}", exp_pos);
-            let act_pos_fmt = format!("{:<16}", act_pos);
+            let f_pos = builder.format_label("Position");
+            let exp_pos_fmt = format!("{:<w$}", exp_pos, w = col_w);
+            let act_pos_fmt = format!("{:<w$}", act_pos, w = col_w);
             let res_pos_str = "   ✔    ";
             let pos_line = format!(
                 "{}{}{}{}{}",
@@ -95,9 +101,9 @@ pub fn render_geometry_section(
             } else {
                 (format!("{}×{}", aw, ah), format!("{}×{}", aw, ah))
             };
-            let f_sz = format!("{:<width$}", "Size", width = DRAWER_LABEL_W);
-            let exp_sz_fmt = format!("{:<16}", exp_sz);
-            let act_sz_fmt = format!("{:<16}", act_sz);
+            let f_sz = builder.format_label("Size");
+            let exp_sz_fmt = format!("{:<w$}", exp_sz, w = col_w);
+            let act_sz_fmt = format!("{:<w$}", act_sz, w = col_w);
             let res_sz_str = "   ✔    ";
             let sz_line = format!(
                 "{}{}{}{}{}",

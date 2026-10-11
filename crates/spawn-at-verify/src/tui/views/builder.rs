@@ -1,6 +1,6 @@
 //! Drawer content line assembly builder.
 
-use super::constants::{DRAWER_INDENT, DRAWER_LABEL_W, DRAWER_RIGHT_PAD, DRAWER_VALUE_X};
+use super::constants::{DRAWER_INDENT, DRAWER_LABEL_W, DRAWER_LABEL_W_MAX, DRAWER_RIGHT_PAD};
 use super::wrapping::wrap_value_tokens;
 use ratatui::{
     style::{Color, Modifier, Style},
@@ -15,21 +15,68 @@ pub struct DrawerBuilder {
     pub width: usize,
     pub inner_width: usize,
     pub val_col_width: usize,
+    /// Shared label column width used by every section (>= 14, <= 24).
+    pub label_w: usize,
+    /// Absolute column where values begin: `DRAWER_INDENT + label_w`.
+    pub value_x: usize,
+    /// Display width of the longest label pushed so far (used by the sizing probe pass).
+    pub max_label_seen: usize,
 }
 
 impl DrawerBuilder {
-    /// Constructs a new DrawerBuilder configured for the given drawer pixel width.
+    /// Constructs a DrawerBuilder for the given width using the minimum label column.
     pub fn new(width: usize) -> Self {
+        Self::with_label_w(width, DRAWER_LABEL_W)
+    }
+
+    /// Constructs a DrawerBuilder whose label column is `label_w` columns wide
+    /// (clamped to 14..=24), so every section shares the same value column.
+    pub fn with_label_w(width: usize, label_w: usize) -> Self {
         let w = width.max(50);
         let inner_w = w.saturating_sub(2);
-        let content_w = inner_w.saturating_sub(DRAWER_VALUE_X + DRAWER_RIGHT_PAD);
+        let label_w = label_w.clamp(DRAWER_LABEL_W, DRAWER_LABEL_W_MAX);
+        let value_x = DRAWER_INDENT + label_w;
+        let content_w = inner_w.saturating_sub(value_x + DRAWER_RIGHT_PAD);
         Self {
             lines: Vec::new(),
             plain: Vec::new(),
             width: w,
             inner_width: inner_w,
             val_col_width: content_w,
+            label_w,
+            value_x,
+            max_label_seen: 0,
         }
+    }
+
+    /// Records a label's display width so the sizing pass can find the longest label.
+    pub fn note_label(&mut self, label: &str) {
+        self.max_label_seen = self.max_label_seen.max(label.width());
+    }
+
+    /// Pads `label` to the shared label column, truncating with `…` so that at
+    /// least two spaces always separate it from the value column.
+    pub fn format_label(&self, label: &str) -> String {
+        let max = self.label_w.saturating_sub(2);
+        let mut text = String::new();
+        let mut w = 0;
+        if label.width() <= max {
+            text.push_str(label);
+            w = label.width();
+        } else {
+            for ch in label.chars() {
+                let cw = unicode_width::UnicodeWidthChar::width(ch).unwrap_or(1);
+                if w + cw > max.saturating_sub(1) {
+                    break;
+                }
+                text.push(ch);
+                w += cw;
+            }
+            text.push('…');
+            w += 1;
+        }
+        text.push_str(&" ".repeat(self.label_w.saturating_sub(w)));
+        text
     }
 
     /// Computes the usable content width inside the drawer excluding borders.
@@ -108,8 +155,9 @@ impl DrawerBuilder {
             self.push_wrapped_kv(label, val_plain, style);
             return;
         }
+        self.note_label(label);
         let indent_str = " ".repeat(DRAWER_INDENT);
-        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
+        let label_fmt = self.format_label(label);
         let plain_line = format!("{}{}{}", indent_str, label_fmt, val_plain);
         let mut spans = vec![
             Span::raw(indent_str),
@@ -121,8 +169,9 @@ impl DrawerBuilder {
 
     /// Appends a multi-line wrapped key-value pair with hanging indent alignment.
     pub fn push_wrapped_kv(&mut self, label: &str, val_text: &str, val_style: Style) {
+        self.note_label(label);
         let indent_str = " ".repeat(DRAWER_INDENT);
-        let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);
+        let label_fmt = self.format_label(label);
         let lines = wrap_value_tokens(val_text, self.val_col_width);
         for (i, line) in lines.into_iter().enumerate() {
             if i == 0 {
@@ -134,7 +183,7 @@ impl DrawerBuilder {
                 ];
                 self.push(Line::from(spans), plain);
             } else {
-                let indent_val = " ".repeat(DRAWER_VALUE_X);
+                let indent_val = " ".repeat(self.value_x);
                 let plain = format!("{}{}", indent_val, line);
                 let spans = vec![Span::raw(indent_val), Span::styled(line, val_style)];
                 self.push(Line::from(spans), plain);
