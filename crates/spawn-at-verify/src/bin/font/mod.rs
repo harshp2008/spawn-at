@@ -1,4 +1,20 @@
-// Generated from DejaVuSansMono-Bold 10x16 bitmap font
+//! Bitmap font table (10x16) generated from DejaVu Sans Mono Bold.
+//!
+//! # License Attribution
+//!
+//! Fonts are (c) Bitstream. DejaVu changes are in public domain.
+//! Glyphs imported from Arev Fonts are (c) Tavmjong Bah. All rights reserved.
+//!
+//! Bitstream Vera Fonts Copyright (c) 2003 by Bitstream, Inc. All Rights Reserved.
+//! Bitstream Vera is a trademark of Bitstream, Inc.
+//!
+//! Permission is hereby granted, free of charge, to any person obtaining a copy
+//! of the fonts accompanying this license ("Fonts") and associated documentation
+//! files (the "Font Software"), to reproduce and distribute the Font Software,
+//! including without limitation the rights to use, copy, modify, merge, publish,
+//! distribute, and/or sell copies of the Font Software, subject to the Bitstream
+//! Vera Font License terms. See THIRD_PARTY_NOTICES.md for the full license text.
+
 pub const FONT_WIDTH: usize = 10;
 pub const FONT_HEIGHT: usize = 16;
 pub const FONT_DATA: [[u16; 16]; 95] = [

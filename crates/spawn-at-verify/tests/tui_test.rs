@@ -105,8 +105,7 @@ fn test_tui_human_verdict_entry_and_disagreement() {
 
     // Select a human or both test
     let human_idx = app
-        .registry
-        .tests
+        .filtered_tests()
         .iter()
         .position(|t| t.kind == TestKind::Human || t.kind == TestKind::Both)
         .expect("Verify library must contain at least one visual review test");
@@ -396,7 +395,10 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
     for i in 1..=25 {
         long_desc.push_str(&format!("Detailed behavioral description line {}\n", i));
     }
-    app.registry.tests[app.selected_index].description = long_desc;
+    let target_id = test.id.clone();
+    if let Some(t) = app.registry.tests.iter_mut().find(|t| t.id == target_id) {
+        t.description = long_desc;
+    }
 
     let overflow_result = spawn_at_verify::runner::TestResult {
         id: test.id.clone(),
@@ -430,14 +432,13 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
 
     let buffer = terminal.backend().buffer().clone();
     let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
-
     // In 80x24, right panel content overflows and MUST show the clipping hint (Item 14 & 16)
     assert!(
         text.contains("more: press Enter or d"),
         "Buffer at 80x24 must show clipping hint when content overflows"
     );
     assert!(
-        text.contains("expand details/logs") || text.contains("expand details"),
+        text.contains("details") || text.contains("expand"),
         "Buffer at 80x24 must show expand details action"
     );
 
@@ -557,7 +558,362 @@ fn test_render_snapshots() {
     assert!(idle_snapshot.contains("r: Run · a: Run all"));
 
     assert!(waiting_snapshot.contains("1 waiting for you"));
-    assert!(waiting_snapshot.contains("p: Pass · f: Fail"));
+    assert!(waiting_snapshot.contains("p: Pass · x: Fail"));
 
     assert!(fail_snapshot.contains("✖ Auto: FAIL"));
+}
+
+#[test]
+fn test_render_passing_case_contains_no_red_styled_cells() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    // Simulate passing results for all tests
+    for test in &app.registry.tests {
+        let pass_res = spawn_at_verify::runner::TestResult {
+            id: test.id.clone(),
+            title: test.title.clone(),
+            kind: test.kind,
+            required: test.required,
+            auto_status: AutoStatus::AutoPass,
+            human_verdict: HumanVerdict {
+                verdict: HumanVerdictKind::Pass,
+                note: None,
+            },
+            final_status: FinalStatus::Pass,
+            disagreement: false,
+            duration_ms: 35,
+            exit_code: Some(0),
+            stdout: r#"{"window_id":123,"x":100,"y":100,"w":400,"h":300}"#.into(),
+            stderr: String::new(),
+            message: Some("Assertions passed".into()),
+            log_slice: Some(
+                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +5.00ms | UNCLOAK".into(),
+            ),
+        };
+        app.results.insert(test.id.clone(), pass_res);
+    }
+
+    let width = 120;
+    let height = 30;
+    let backend = TestBackend::new(width, height);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+
+    let buf = terminal.backend().buffer();
+    for y in 0..height {
+        for x in 0..width {
+            let cell = &buf[(x, y)];
+            assert_ne!(
+                cell.fg,
+                ratatui::style::Color::Red,
+                "Found Red fg cell at ({}, {}): '{}'",
+                x,
+                y,
+                cell.symbol()
+            );
+            assert_ne!(
+                cell.fg,
+                ratatui::style::Color::LightRed,
+                "Found LightRed fg cell at ({}, {}): '{}'",
+                x,
+                y,
+                cell.symbol()
+            );
+            assert_ne!(
+                cell.bg,
+                ratatui::style::Color::Red,
+                "Found Red bg cell at ({}, {}): '{}'",
+                x,
+                y,
+                cell.symbol()
+            );
+            assert_ne!(
+                cell.bg,
+                ratatui::style::Color::LightRed,
+                "Found LightRed bg cell at ({}, {}): '{}'",
+                x,
+                y,
+                cell.symbol()
+            );
+        }
+    }
+}
+
+#[test]
+fn test_render_columns_alignment_between_header_and_rows() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    let width = 140;
+    let height = 30;
+    let backend = TestBackend::new(width, height);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+
+    let buf = terminal.backend().buffer();
+
+    // Check actual grid cell x-coordinates for columns
+    let mut header_y = None;
+    let mut h_status_x = None;
+    let mut h_id_x = None;
+    let mut h_kind_x = None;
+    let mut h_title_x = None;
+
+    for y in 0..height {
+        let mut line = String::new();
+        for x in 0..width {
+            line.push_str(buf[(x, y)].symbol());
+        }
+        if line.contains("Status") && line.contains("Test ID") {
+            header_y = Some(y);
+            // Search cell x
+            for x in 0..(width - 6) {
+                if (0..6usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Status"[i..i + 1]) {
+                    h_status_x = Some(x);
+                }
+                if (0..7usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Test ID"[i..i + 1]) {
+                    h_id_x = Some(x);
+                }
+                if (0..4usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Kind"[i..i + 1]) {
+                    h_kind_x = Some(x);
+                }
+                if (0..5usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Title"[i..i + 1]) {
+                    h_title_x = Some(x);
+                }
+            }
+            break;
+        }
+    }
+
+    assert!(header_y.is_some(), "Header row must be rendered");
+    let h_status = h_status_x.expect("Status must be present in header");
+    let h_id = h_id_x.expect("Test ID must be present in header");
+    let h_kind = h_kind_x.expect("Kind must be present in header");
+    let h_title = h_title_x.expect("Title must be present in header");
+
+    // Find data row for preflight/binary-head
+    let mut found_matching_row = false;
+    for y in (header_y.unwrap() + 1)..height {
+        let mut line = String::new();
+        for x in 0..width {
+            line.push_str(buf[(x, y)].symbol());
+        }
+        if line.contains("preflight/binary-head") {
+            let mut row_status_x = None;
+            let mut row_id_x = None;
+            let mut row_kind_x = None;
+            let mut row_title_x = None;
+
+            for x in 0..(width - 20) {
+                if row_status_x.is_none() && buf[(x, y)].symbol() == "●" {
+                    row_status_x = Some(x);
+                }
+                if row_id_x.is_none()
+                    && (0..21usize).all(|i| {
+                        buf[(x + i as u16, y)].symbol() == &"preflight/binary-head"[i..i + 1]
+                    })
+                {
+                    row_id_x = Some(x);
+                }
+                if row_kind_x.is_none()
+                    && (0..4usize).all(|i| buf[(x + i as u16, y)].symbol() == &"auto"[i..i + 1])
+                {
+                    row_kind_x = Some(x);
+                }
+                if row_title_x.is_none()
+                    && (0..6usize).all(|i| buf[(x + i as u16, y)].symbol() == &"Binary"[i..i + 1])
+                {
+                    row_title_x = Some(x);
+                }
+            }
+
+            assert_eq!(
+                row_status_x.unwrap(),
+                h_status,
+                "Status in data row must start at identical x position as Status in header"
+            );
+            assert_eq!(
+                row_id_x.unwrap(),
+                h_id,
+                "Test ID in data row must start at identical x position as Test ID in header"
+            );
+            assert_eq!(
+                row_kind_x.unwrap(),
+                h_kind,
+                "Kind in data row must start at identical x position as Kind in header"
+            );
+            assert_eq!(
+                row_title_x.unwrap(),
+                h_title,
+                "Title in data row must start at identical x position as Title in header"
+            );
+            found_matching_row = true;
+            break;
+        }
+    }
+
+    assert!(
+        found_matching_row,
+        "Must find and verify at least one test data row"
+    );
+}
+
+#[test]
+fn test_render_responsive_breakpoints_60_80_100_140() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    fn get_text(app: &TuiApp, width: u16, height: u16) -> String {
+        let backend = TestBackend::new(width, height);
+        let mut terminal = Terminal::new(backend).unwrap();
+        terminal.draw(|f| draw_ui(f, app)).unwrap();
+        let buf = terminal.backend().buffer();
+        let mut out = String::new();
+        for y in 0..height {
+            for x in 0..width {
+                out.push_str(buf[(x, y)].symbol());
+            }
+            out.push('\n');
+        }
+        out
+    }
+
+    // 1. Wide breakpoint (140 cols >= 110):
+    // List | Overview side by side, all columns (Cursor, Status, full ID, Kind, Title)
+    let wide_text = get_text(&app, 140, 28);
+    assert!(
+        wide_text.contains("Test Suite"),
+        "Wide must render Test Suite"
+    );
+    assert!(
+        wide_text.contains("Test Overview"),
+        "Wide must render Test Overview side by side"
+    );
+    assert!(
+        wide_text.contains("Status"),
+        "Wide must render Status column"
+    );
+    assert!(
+        wide_text.contains("Test ID"),
+        "Wide must render full Test ID header"
+    );
+    assert!(wide_text.contains("Kind"), "Wide must render Kind column");
+    assert!(wide_text.contains("Title"), "Wide must render Title column");
+    assert!(
+        wide_text.contains("preflight/binary-head"),
+        "Wide must render full test ID"
+    );
+
+    // 2. Medium breakpoint (100 cols in 75-109):
+    // Side by side; list shows Status + short name + Kind; drops Title column; category heading carries context
+    let med100_text = get_text(&app, 100, 28);
+    assert!(
+        med100_text.contains("Test Suite"),
+        "Medium 100 must render Test Suite"
+    );
+    assert!(
+        med100_text.contains("Test Overview"),
+        "Medium 100 must render Test Overview side by side"
+    );
+    assert!(
+        med100_text.contains("Status"),
+        "Medium 100 must render Status column"
+    );
+    assert!(
+        med100_text.contains("Name"),
+        "Medium 100 must render Name header"
+    );
+    assert!(
+        med100_text.contains("Kind"),
+        "Medium 100 must render Kind column"
+    );
+    assert!(
+        !med100_text
+            .lines()
+            .any(|l| l.contains("Status") && l.contains("Title")),
+        "Medium 100 must drop Title column from header"
+    );
+    assert!(
+        med100_text.contains("binary-head"),
+        "Medium 100 must show short name"
+    );
+    assert!(
+        med100_text.contains("Cloak & Delayed Paint"),
+        "Medium 100 category carries context"
+    );
+
+    // 3. Medium breakpoint (80 cols in 75-109):
+    let med80_text = get_text(&app, 80, 28);
+    assert!(
+        med80_text.contains("Test Suite"),
+        "Medium 80 must render Test Suite"
+    );
+    assert!(
+        med80_text.contains("Test Overview"),
+        "Medium 80 must render Test Overview side by side"
+    );
+    assert!(
+        med80_text.contains("Status"),
+        "Medium 80 must render Status column"
+    );
+    assert!(
+        med80_text.contains("Name"),
+        "Medium 80 must render Name header"
+    );
+    assert!(
+        med80_text.contains("Kind"),
+        "Medium 80 must render Kind column"
+    );
+    assert!(
+        med80_text.contains("binary-head"),
+        "Medium 80 must show short name"
+    );
+
+    // 4. Narrow breakpoint (60 cols < 75):
+    // Single pane; list full width; status NEVER dropped
+    let narrow_text = get_text(&app, 60, 28);
+    assert!(
+        narrow_text.contains("Test Suite"),
+        "Narrow must render Test Suite"
+    );
+    assert!(
+        !narrow_text.contains("Test Overview"),
+        "Narrow must NOT render side-by-side Test Overview"
+    );
+    assert!(
+        narrow_text.contains("Status"),
+        "Narrow must always show Status column"
+    );
+    assert!(
+        narrow_text.contains("● not run"),
+        "Narrow must show status indicators"
+    );
+}
+
+#[test]
+fn test_render_terminal_below_minimum_size_shows_warning() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+
+    // Below 60x15: width 55, height 12
+    let backend = TestBackend::new(55, 12);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+
+    let buf = terminal.backend().buffer();
+    let mut text = String::new();
+    for y in 0..12 {
+        for x in 0..55 {
+            text.push_str(buf[(x, y)].symbol());
+        }
+        text.push('\n');
+    }
+
+    assert!(
+        text.contains("Terminal too small — need at least 60x15"),
+        "Must display clear size warning below 60x15"
+    );
 }

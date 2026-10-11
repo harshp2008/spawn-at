@@ -47,6 +47,28 @@ pub enum ModalState {
     HumanVerdict { test_id: String },
 }
 
+pub fn category_rank(id: &str) -> usize {
+    if id.starts_with("preflight") {
+        0
+    } else if id.starts_with("placement") {
+        1
+    } else if id.starts_with("cloak") {
+        2
+    } else if id.starts_with("transform") {
+        3
+    } else if id.starts_with("focus") {
+        4
+    } else if id.starts_with("query") {
+        5
+    } else if id.starts_with("robust") || id.starts_with("resilience") {
+        6
+    } else if id.starts_with("platform") {
+        7
+    } else {
+        8
+    }
+}
+
 pub struct TuiApp {
     pub registry: TestRegistry,
     pub selected_index: usize,
@@ -131,7 +153,8 @@ impl TuiApp {
     }
 
     pub fn filtered_tests(&self) -> Vec<&TestDefinition> {
-        self.registry
+        let mut list: Vec<&TestDefinition> = self
+            .registry
             .tests
             .iter()
             .filter(|test| match self.filter_mode {
@@ -146,7 +169,9 @@ impl TuiApp {
                     .map(|r| r.final_status == FinalStatus::Fail)
                     .unwrap_or(false),
             })
-            .collect()
+            .collect();
+        list.sort_by_key(|t| (category_rank(&t.id), &t.id));
+        list
     }
 
     pub fn selected_test(&self) -> Option<&TestDefinition> {
@@ -236,7 +261,7 @@ impl TuiApp {
                     TestKind::Human | TestKind::Both => {
                         self.waiting_for_human = Some(test.id.clone());
                         self.status_message = Some(format!(
-                            "Waiting for your verdict on '{}': press 'p' (Pass), 'f' (Fail), 's' (Skip)",
+                            "Waiting for your verdict on '{}': press 'p' (Pass), 'x' (Fail), 's' (Skip), 'k' (Flaky)",
                             test.id
                         ));
                         return; // Sequential queue blocks on human cases!
@@ -353,13 +378,58 @@ impl TuiApp {
             return;
         }
 
-        // 2. Waiting for human verdict (sequential run queue blocked on human review)
+        // 2. Detail drawer mode keybindings (full scrollable view takes precedence for j/k scrolling)
+        if self.detail_drawer_open {
+            match key.code {
+                KeyCode::Char('q') => {
+                    self.close_test_windows();
+                    self.should_quit = true;
+                }
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
+                    self.detail_drawer_open = false;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                }
+                KeyCode::PageDown => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                }
+                KeyCode::PageUp => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                }
+                KeyCode::Home => {
+                    self.detail_scroll = 0;
+                }
+                KeyCode::Char('p') | KeyCode::Char('P') if self.waiting_for_human.is_some() => {
+                    self.record_verdict(HumanVerdictKind::Pass);
+                }
+                KeyCode::Char('x') | KeyCode::Char('X') if self.waiting_for_human.is_some() => {
+                    self.record_verdict(HumanVerdictKind::Fail);
+                }
+                KeyCode::Char('s') | KeyCode::Char('S') if self.waiting_for_human.is_some() => {
+                    self.record_verdict(HumanVerdictKind::Skip);
+                }
+                KeyCode::Char('r') => {
+                    self.run_selected();
+                }
+                KeyCode::Char('v') => {
+                    self.open_verdict_modal();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // 3. Waiting for human verdict (sequential run queue blocked on human review)
         if self.waiting_for_human.is_some() {
             match key.code {
                 KeyCode::Char('p') | KeyCode::Char('P') => {
                     self.record_verdict(HumanVerdictKind::Pass);
                 }
-                KeyCode::Char('f') | KeyCode::Char('F') => {
+                KeyCode::Char('x') | KeyCode::Char('X') => {
                     self.record_verdict(HumanVerdictKind::Fail);
                 }
                 KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -390,14 +460,14 @@ impl TuiApp {
             return;
         }
 
-        // 3. Modal interactions
+        // 4. Modal interactions
         match &self.modal {
             ModalState::HumanVerdict { .. } => {
                 match key.code {
                     KeyCode::Char('p') | KeyCode::Char('P') => {
                         self.record_verdict(HumanVerdictKind::Pass);
                     }
-                    KeyCode::Char('f') | KeyCode::Char('F') => {
+                    KeyCode::Char('x') | KeyCode::Char('X') => {
                         self.record_verdict(HumanVerdictKind::Fail);
                     }
                     KeyCode::Char('s') | KeyCode::Char('S') => {
@@ -414,42 +484,6 @@ impl TuiApp {
                 return;
             }
             ModalState::None => {}
-        }
-
-        // 4. Detail drawer mode keybindings (full scrollable view)
-        if self.detail_drawer_open {
-            match key.code {
-                KeyCode::Char('q') => {
-                    self.close_test_windows();
-                    self.should_quit = true;
-                }
-                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
-                    self.detail_drawer_open = false;
-                }
-                KeyCode::Down | KeyCode::Char('j') => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(1);
-                }
-                KeyCode::Up | KeyCode::Char('k') => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
-                }
-                KeyCode::PageDown => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(8);
-                }
-                KeyCode::PageUp => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
-                }
-                KeyCode::Home => {
-                    self.detail_scroll = 0;
-                }
-                KeyCode::Char('r') => {
-                    self.run_selected();
-                }
-                KeyCode::Char('v') => {
-                    self.open_verdict_modal();
-                }
-                _ => {}
-            }
-            return;
         }
 
         // 5. Normal view keybindings

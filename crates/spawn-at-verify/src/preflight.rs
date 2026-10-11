@@ -122,7 +122,7 @@ pub fn evaluate_preflight_verdict(
 
     if is_dirty_build {
         return PreflightVerdict::Warn(
-            "Binary built with uncommitted changes (dirty build)".into(),
+            "Binary built with uncommitted changes (dirty build). Hint: run `cargo build -p spawn-at` first, then run without --allow-dirty.".into(),
         );
     }
 
@@ -136,12 +136,12 @@ pub fn evaluate_preflight_verdict(
             PreflightVerdict::Pass
         } else if matches_head && repo_dirty {
             PreflightVerdict::Fail(
-                "Stale binary: repo working tree has uncommitted changes since binary was built"
+                "Stale binary: repo working tree has uncommitted changes since binary was built. Hint: run `cargo build -p spawn-at` first, then run without --allow-dirty."
                     .into(),
             )
         } else {
             PreflightVerdict::Fail(format!(
-                "Stale binary: binary commit '{}' does not match repository HEAD '{}'",
+                "Stale binary: binary commit '{}' does not match repository HEAD '{}'. Hint: run `cargo build -p spawn-at` first, then run without --allow-dirty.",
                 clean_bin_c,
                 &head[..head.len().min(7)]
             ))
