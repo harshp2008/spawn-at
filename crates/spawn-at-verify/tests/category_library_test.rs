@@ -150,6 +150,7 @@ pub const PROPOSED_CASES: &[ProposedCase] = &[
     },
 ];
 
+/// Verifies that every active test case definition assigns a valid category.
 #[test]
 fn test_every_active_case_has_valid_category() {
     let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -181,6 +182,7 @@ fn test_every_active_case_has_valid_category() {
     }
 }
 
+/// Ensures that omitting category in TOML definitions produces deserialization error.
 #[test]
 fn test_missing_category_in_toml_is_deserialization_error() {
     let toml_missing_category = r#"
@@ -211,6 +213,7 @@ exit_code = 0
     );
 }
 
+/// Ensures that unrecognized category strings fail semantic validation.
 #[test]
 fn test_unknown_category_is_validation_error() {
     let toml_invalid_cat = r#"
@@ -233,6 +236,7 @@ exit_code = 0
     assert!(!is_valid_category(&parsed.category));
 }
 
+/// Tests registry filtering queries by category identifier.
 #[test]
 fn test_category_filtering_in_registry() {
     let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -6,6 +6,7 @@ use spawn_at_verify::runner::{AutoStatus, FinalStatus, HumanVerdict};
 use spawn_at_verify::schema::TestKind;
 use spawn_at_verify::tui::views::draw_ui;
 
+/// Tests visual polish, spacing, padding, and outcome status symbols.
 #[test]
 fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
     let mut app = create_test_app();
@@ -112,6 +113,7 @@ fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
     );
 }
 
+/// Validates spacing and result presentation polish specifications.
 #[test]
 fn test_result_and_spacing_polish_spec() {
     let resolutions = [(60, 28), (80, 28), (140, 28)];

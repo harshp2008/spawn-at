@@ -13,6 +13,7 @@ use spawn_at_verify::tui::app::TuiApp;
 use spawn_at_verify::tui::find_verify_dir;
 use std::path::PathBuf;
 
+/// Creates a mock test application harness initialized with registry specs.
 pub(crate) fn create_test_app() -> TuiApp {
     let verify_dir = find_verify_dir().expect("Failed to locate verify/ directory");
     let options = RunOptions {
@@ -22,6 +23,7 @@ pub(crate) fn create_test_app() -> TuiApp {
     TuiApp::new(&verify_dir, options).expect("Failed to initialize TuiApp against verify/")
 }
 
+/// Converts a terminal backend buffer into a plain text representation.
 pub(crate) fn dump_buffer_to_string(
     terminal: &Terminal<TestBackend>,
     width: u16,
@@ -40,6 +42,7 @@ pub(crate) fn dump_buffer_to_string(
     out
 }
 
+/// Validates that a rendered terminal buffer satisfies layout constraints.
 pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_waiting: bool) {
     let lines: Vec<&str> = rendered.lines().collect();
     assert_eq!(
@@ -285,6 +288,7 @@ pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_w
     }
 }
 
+/// Constructs a test application pre-populated with real fixture execution data.
 pub(crate) fn create_app_with_real_fixture() -> (TuiApp, spawn_at_verify::schema::TestDefinition) {
     let mut app = create_test_app();
     let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

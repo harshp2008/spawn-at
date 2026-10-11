@@ -1,3 +1,5 @@
+//! Comprehensive test suite for the trace event parser and lifecycle verification engine.
+
 use spawn_at_verify::trace::{TraceAnalyser, TraceRect, ViolationKind, SCOPE_LIMITATION_NOTICE};
 use std::path::Path;
 
@@ -5,6 +7,7 @@ use std::path::Path;
 // 1. Passing Scenario Traces (Requirement 5)
 // =======================================================================
 
+/// Verifies visible window placement lifecycle without cloaking passes validation.
 #[test]
 fn test_scenario_visible_passes() {
     let raw = r#"
@@ -35,6 +38,7 @@ fn test_scenario_visible_passes() {
     assert_eq!(report.cloak_duration_ms, Some(40.0));
 }
 
+/// Verifies covered window placement scenario satisfies lifecycle constraints.
 #[test]
 fn test_scenario_covered_passes() {
     let raw = r#"
@@ -54,6 +58,7 @@ fn test_scenario_covered_passes() {
     );
 }
 
+/// Verifies minimized window unminimization occurs prior to reveal event.
 #[test]
 fn test_scenario_minimized_passes_and_checks_pre_reveal_unminimize() {
     let raw = r#"
@@ -77,6 +82,7 @@ fn test_scenario_minimized_passes_and_checks_pre_reveal_unminimize() {
     );
 }
 
+/// Verifies deferred focus events do not trigger erroneous lifecycle violations.
 #[test]
 fn test_scenario_covered_with_deferred_focus_tolerates_extra_events() {
     let raw = r#"
@@ -101,6 +107,7 @@ fn test_scenario_covered_with_deferred_focus_tolerates_extra_events() {
     );
 }
 
+/// Verifies delayed paint sequences with repeated commit samples pass validation.
 #[test]
 fn test_scenario_delayed_paint_passes_with_multiple_commit_samples() {
     let raw = r#"
@@ -124,6 +131,7 @@ fn test_scenario_delayed_paint_passes_with_multiple_commit_samples() {
     assert_eq!(report.cloak_duration_ms, Some(115.0));
 }
 
+/// Verifies remaximized window placement transitions satisfy lifecycle state machine.
 #[test]
 fn test_scenario_remaximize_passes() {
     let raw = r#"
@@ -148,6 +156,7 @@ fn test_scenario_remaximize_passes() {
 // 2. Adversarial & Invariant Violation Traces
 // =======================================================================
 
+/// Asserts off-target visibility leak triggers an immediate lifecycle violation.
 #[test]
 fn test_violation_off_target_visibility() {
     let raw = r#"
@@ -167,6 +176,7 @@ fn test_violation_off_target_visibility() {
         .any(|v| v.kind == ViolationKind::OffTargetVisibility));
 }
 
+/// Asserts uncloaking prior to buffer commit triggers order violation.
 #[test]
 fn test_violation_order_uncloak_before_commit() {
     let raw = r#"
@@ -185,6 +195,7 @@ fn test_violation_order_uncloak_before_commit() {
         .any(|v| v.kind == ViolationKind::OrderConstraintViolation));
 }
 
+/// Asserts reveal before unminimizing generates ordering violation.
 #[test]
 fn test_violation_order_uncloak_before_pre_reveal_unminimize() {
     let raw = r#"
@@ -204,6 +215,7 @@ fn test_violation_order_uncloak_before_pre_reveal_unminimize() {
         .any(|v| v.kind == ViolationKind::OrderConstraintViolation));
 }
 
+/// Asserts multiple uncloak/reveal events trigger illegal lifecycle transition.
 #[test]
 fn test_violation_multiple_reveal() {
     let raw = r#"
@@ -223,6 +235,7 @@ fn test_violation_multiple_reveal() {
         .any(|v| v.kind == ViolationKind::MultipleReveal));
 }
 
+/// Asserts failure to uncloak within timeout budget triggers lingering cloak violation.
 #[test]
 fn test_violation_lingering_cloak() {
     let raw = r#"
@@ -240,6 +253,7 @@ fn test_violation_lingering_cloak() {
         .any(|v| v.kind == ViolationKind::LingeringCloak));
 }
 
+/// Verifies anchor release event disarms lingering cloak violation timer.
 #[test]
 fn test_lingering_cloak_disarmed_by_anchor_released_is_not_violation() {
     let raw = r#"
@@ -256,6 +270,7 @@ fn test_lingering_cloak_disarmed_by_anchor_released_is_not_violation() {
 // 3. Timing Budgets (Requirement 4)
 // =======================================================================
 
+/// Verifies cloak duration exceeding threshold emits warning rather than failure.
 #[test]
 fn test_timing_over_budget_generates_warning_not_failure() {
     let raw = r#"
@@ -282,6 +297,7 @@ fn test_timing_over_budget_generates_warning_not_failure() {
     assert_eq!(report.cloak_duration_ms, Some(290.0));
 }
 
+/// Asserts watchdog deadline expiration generates hard verification failure.
 #[test]
 fn test_watchdog_deadline_reached_is_hard_failure() {
     let raw = r#"
@@ -306,6 +322,7 @@ fn test_watchdog_deadline_reached_is_hard_failure() {
 // 4. Window ID Filtering & Deduplication (Requirement 6)
 // =======================================================================
 
+/// Verifies event filtering isolates target window and ignores unrelated windows.
 #[test]
 fn test_filter_by_window_id_ignores_other_windows() {
     let raw = r#"
@@ -332,6 +349,7 @@ fn test_filter_by_window_id_ignores_other_windows() {
         .all(|e| e.window_id == Some(4001) || e.window_id.is_none()));
 }
 
+/// Verifies deduplication logic across system journal and session log streams.
 #[test]
 fn test_deduplication_between_journal_and_session_log() {
     let raw = r#"
@@ -362,6 +380,7 @@ gnome-shell[1234]: [spawn-at-time] +50.00ms | UNCLOAK win=[id=5001] opacity=255 
 // 5. Scope Documentation & Limitation Notice (Requirement 1)
 // =======================================================================
 
+/// Ensures required verification scope limitation notice appears in report.
 #[test]
 fn test_scope_notice_in_report_summary() {
     let raw = r#"
@@ -385,6 +404,7 @@ fn test_scope_notice_in_report_summary() {
 // 6. Real Trace Golden Fixture Test (Requirement 2 & 7)
 // =======================================================================
 
+/// Validates trace analyzer output on recorded real-world placement trace.
 #[test]
 fn test_real_trace_golden_assertions() {
     let manifest_dir = env!("CARGO_MANIFEST_DIR");

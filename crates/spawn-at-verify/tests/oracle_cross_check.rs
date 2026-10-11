@@ -8,10 +8,12 @@ use spawn_at_core::geometry::{
 };
 use spawn_at_verify::oracle::{calculate_expected_rect, OracleParams, Rect as OracleRect};
 
+/// Converts a core layout rectangle into an oracle test rectangle.
 fn core_to_oracle_rect(r: CoreRect) -> OracleRect {
     OracleRect::new(r.x, r.y, r.width, r.height)
 }
 
+/// Maps core window anchor options to oracle anchor equivalents.
 fn map_anchor(a_str: &str) -> Anchor {
     match a_str {
         "center" => Anchor::Center,
@@ -28,6 +30,7 @@ fn map_anchor(a_str: &str) -> Anchor {
     }
 }
 
+/// Maps core pivot options to oracle pivot equivalents.
 fn map_pivot(p_str: &str) -> Pivot {
     match p_str {
         "top-left" => Pivot::TopLeft,
@@ -64,6 +67,7 @@ const PIVOTS: [&str; 5] = [
     "center",
 ];
 
+/// Exhaustively cross-checks oracle calculations against core layout engine.
 #[test]
 fn test_oracle_vs_core_cross_check_matrix() {
     let margins = [0, 16, 24];
@@ -205,6 +209,7 @@ fn test_oracle_vs_core_cross_check_matrix() {
     );
 }
 
+/// Cross-checks placement calculations under directional margins.
 #[test]
 fn test_oracle_vs_core_directional_margins_cross_check() {
     let oracle_wa = OracleRect::new(0, 40, 1920, 1040);
@@ -285,6 +290,7 @@ fn test_oracle_vs_core_directional_margins_cross_check() {
     );
 }
 
+/// Cross-checks cursor-anchored placements across core and oracle models.
 #[test]
 fn test_oracle_vs_core_cursor_anchor_cross_check() {
     // Cross-check for the 10th anchor: Anchor::Cursor
@@ -349,6 +355,7 @@ fn test_oracle_vs_core_cursor_anchor_cross_check() {
     }
 }
 
+/// Cross-checks default pivot placement behaviors between engines.
 #[test]
 fn test_oracle_vs_core_default_pivot_cross_check() {
     // Cross-check for default pivot (no --pivot specified, params.pivot = None)
@@ -466,6 +473,7 @@ fn test_oracle_vs_core_default_pivot_cross_check() {
     );
 }
 
+/// Cross-checks explicit coordinates across workarea, monitor, and screen areas.
 #[test]
 fn test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check() {
     let positions = [(0, 0), (700, 300), (-100, -50), (200, 150), (3000, 2000)];

@@ -9,6 +9,7 @@ use spawn_at_verify::tui::app::{FilterMode, ModalState};
 use spawn_at_verify::tui::logging::parse_logging_state_from_content;
 use spawn_at_verify::tui::views::draw_ui;
 
+/// Tests baseline TUI application state initialization and default settings.
 #[test]
 fn test_tui_app_initialization() {
     let app = create_test_app();
@@ -22,6 +23,7 @@ fn test_tui_app_initialization() {
     assert!(!app.should_quit);
 }
 
+/// Tests list selection navigation, wrapping, and basic keybinding actions.
 #[test]
 fn test_tui_navigation_and_keybindings() {
     let mut app = create_test_app();
@@ -50,6 +52,7 @@ fn test_tui_navigation_and_keybindings() {
     assert_eq!(app.selected_index, 0);
 }
 
+/// Tests cycling across test filter modes (All, Passed, Failed, Waiting, Skipped).
 #[test]
 fn test_tui_filter_cycling() {
     let mut app = create_test_app();
@@ -87,6 +90,7 @@ fn test_tui_filter_cycling() {
     assert_eq!(app.filtered_tests().len(), all_count);
 }
 
+/// Tests entering human review verdicts and tracking disagreement flags.
 #[test]
 fn test_tui_human_verdict_entry_and_disagreement() {
     let mut app = create_test_app();
@@ -141,6 +145,7 @@ fn test_tui_human_verdict_entry_and_disagreement() {
     }
 }
 
+/// Tests Ctrl-C exit handling in raw terminal mode.
 #[test]
 fn test_tui_raw_mode_ctrl_c_backstop() {
     let mut app = create_test_app();
@@ -154,6 +159,7 @@ fn test_tui_raw_mode_ctrl_c_backstop() {
     );
 }
 
+/// Tests parsing execution status from stdout/stderr logging streams.
 #[test]
 fn test_logging_state_parser() {
     let sample = r#"
@@ -172,6 +178,7 @@ fn test_logging_state_parser() {
     assert_eq!(parse_logging_state_from_content("no logging line"), None);
 }
 
+/// Tests queue pause semantics upon encountering cases requiring human review.
 #[test]
 fn test_queue_pauses_on_human_case_and_resumes_only_after_verdict() {
     let mut app = create_test_app();
@@ -238,6 +245,7 @@ fn test_queue_pauses_on_human_case_and_resumes_only_after_verdict() {
     assert_eq!(br_res.human_verdict.verdict, HumanVerdictKind::Pass);
 }
 
+/// Tests that completion counters exclude pending human verification cases.
 #[test]
 fn test_done_count_excludes_waiting_human_case() {
     let mut app = create_test_app();

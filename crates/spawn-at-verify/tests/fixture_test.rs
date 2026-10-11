@@ -1,7 +1,10 @@
+//! Integration tests verifying `spawn-at-fixture` process lifecycle and protocol behaviors.
+
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, Instant};
 
+/// Resolves absolute filesystem path to the compiled fixture binary.
 fn fixture_binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.pop(); // crates/
@@ -18,6 +21,7 @@ fn fixture_binary_path() -> PathBuf {
     path
 }
 
+/// Verifies that fixture binary responds cleanly to `--help` flag.
 #[test]
 fn test_fixture_binary_help() {
     let bin = fixture_binary_path();
@@ -39,6 +43,7 @@ fn test_fixture_binary_help() {
     assert!(stdout.contains("--print-ready"));
 }
 
+/// Asserts that invalid CLI flags are rejected with non-zero exit code.
 #[test]
 fn test_fixture_rejects_invalid_args() {
     let bin = fixture_binary_path();
@@ -51,6 +56,7 @@ fn test_fixture_rejects_invalid_args() {
     assert!(!output.status.success());
 }
 
+/// Ensures Wayland mode without WAYLAND_DISPLAY environment variable exits non-zero.
 #[test]
 fn test_fixture_protocol_wayland_without_wayland_display_exits_nonzero() {
     let bin = fixture_binary_path();
@@ -70,6 +76,7 @@ fn test_fixture_protocol_wayland_without_wayland_display_exits_nonzero() {
     );
 }
 
+/// Ensures X11 mode without DISPLAY environment variable exits non-zero.
 #[test]
 fn test_fixture_protocol_x11_without_display_exits_nonzero() {
     let bin = fixture_binary_path();
@@ -89,6 +96,7 @@ fn test_fixture_protocol_x11_without_display_exits_nonzero() {
     );
 }
 
+/// Verifies that fixture process terminates cleanly after specified timeout.
 #[test]
 #[ignore = "requires live display session (opens test window)"]
 fn test_fixture_clean_exit_timeout() {
@@ -108,6 +116,7 @@ fn test_fixture_clean_exit_timeout() {
     );
 }
 
+/// Tests emission of READY synchronization token on standard output.
 #[test]
 #[ignore = "requires live display session (opens test window)"]
 fn test_fixture_print_ready_output() {
@@ -126,6 +135,7 @@ fn test_fixture_print_ready_output() {
     );
 }
 
+/// Verifies clean process termination upon receiving SIGTERM or SIGINT.
 #[test]
 #[ignore = "requires live display session (opens test window)"]
 fn test_fixture_signal_termination() {
@@ -150,6 +160,7 @@ fn test_fixture_signal_termination() {
     );
 }
 
+/// Resolves absolute filesystem path to the main spawn-at binary.
 fn spawn_at_binary_path() -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     path.pop(); // crates/
@@ -160,6 +171,7 @@ fn spawn_at_binary_path() -> PathBuf {
     path
 }
 
+/// Asserts geometry reported by query-windows matches requested fixture dimensions.
 #[test]
 #[ignore = "requires live display session with spawn-at query windows (opens test windows)"]
 fn test_fixture_size_matches_query_windows_on_all_protocols() {
