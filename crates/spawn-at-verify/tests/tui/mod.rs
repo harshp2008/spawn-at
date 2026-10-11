@@ -304,6 +304,7 @@ pub(crate) fn create_app_with_real_fixture() -> (TuiApp, spawn_at_verify::schema
         gnome_version: Some(46),
         monitors_count: 1,
         primary_workarea: Some(spawn_at_verify::oracle::Rect::new(0, 40, 1920, 1040)),
+        independent_workarea: Some(spawn_at_verify::oracle::Rect::new(0, 40, 1920, 1040)),
     });
     let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/real_placement_run.json");

@@ -34,7 +34,11 @@ fn render_sections(
     compact: bool,
 ) {
     let res_opt = app.results.get(&test.id);
-    let env_workarea = app.env_info.as_ref().and_then(|e| e.primary_workarea);
+    let env_workarea = app
+        .env_info
+        .as_ref()
+        .map(|e| e.workarea_probe())
+        .unwrap_or_default();
     render_header_section(builder, test);
     render_result_section(builder, test, res_opt, env_workarea);
     render_look_for_section(builder, test, res_opt);

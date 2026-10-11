@@ -5,7 +5,7 @@ use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
     build_action_command_args, extract_claimed_window_id, validate_expectations, validate_geometry,
 };
-use crate::oracle::check::{GeometryStatus, WorkareaSource};
+use crate::oracle::check::GeometryStatus;
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
@@ -283,7 +283,7 @@ impl TestRunner {
         let auto_status = match validation {
             Ok(check) => match check {
                 Some(c) if c.status() == GeometryStatus::Unchecked => {
-                    pass_message = "Assertions passed, but geometry was not verified: no workarea from the probe or the extension log".into();
+                    pass_message = "Assertions passed, but geometry was not verified: no workarea available from the window system or the extension".into();
                     AutoStatus::AutoPassUnchecked
                 }
                 Some(c) => {
@@ -293,8 +293,10 @@ impl TestRunner {
                     if let Some(w) = c.warning() {
                         pass_message.push_str(&format!(" (warning: {})", w));
                     }
-                    if c.workarea_source == WorkareaSource::ExtensionLog {
-                        pass_message.push_str(" (workarea taken from the extension's own log, not independently probed)");
+                    if c.workarea_source.is_extension_derived() {
+                        pass_message.push_str(
+                            " (workarea taken from the extension, not independently probed)",
+                        );
                     }
                     AutoStatus::AutoPass
                 }

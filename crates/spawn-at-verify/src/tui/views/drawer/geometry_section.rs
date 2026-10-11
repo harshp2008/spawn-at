@@ -1,7 +1,7 @@
 //! Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict.
 
 use super::info_sections::spec_flag_value;
-use crate::oracle::{check_geometry, GeometryCheck, Rect};
+use crate::oracle::{check_geometry, GeometryCheck, Rect, WorkareaProbe};
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
 use crate::tui::views::builder::DrawerBuilder;
@@ -22,7 +22,7 @@ pub fn render_geometry_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,
     res_opt: Option<&TestResult>,
-    env_workarea: Option<Rect>,
+    env_workarea: WorkareaProbe,
 ) {
     builder.push_heading("GEOMETRY", None);
 

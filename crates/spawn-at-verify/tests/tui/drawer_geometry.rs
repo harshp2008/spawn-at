@@ -60,6 +60,7 @@ fn runner_verdict(
         gnome_version: None,
         monitors_count: 1,
         primary_workarea: Some(Rect::new(0, 40, 1920, 1040)),
+        independent_workarea: Some(Rect::new(0, 40, 1920, 1040)),
     };
     validate_geometry(&test, &res.stdout, res.log_slice.as_deref(), &env)
 }

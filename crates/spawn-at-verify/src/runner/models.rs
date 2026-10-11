@@ -118,18 +118,18 @@ impl TestResult {
     /// `None` when the test states none. The same comparison decides the runner's verdict
     /// ([`crate::runner::validate_geometry`]).
     ///
-    /// `fallback_workarea` is used when the run's log slice records no workarea.
+    /// `probe` supplies the independent and extension workarea measurements.
     pub fn geometry_check(
         &self,
         test: &crate::schema::TestDefinition,
-        fallback_workarea: Option<crate::oracle::Rect>,
+        probe: crate::oracle::WorkareaProbe,
     ) -> Option<crate::oracle::GeometryCheck> {
         let expect = test.expect.rect.as_ref()?;
         Some(crate::oracle::check_geometry(
             expect,
             &self.stdout,
             self.log_slice.as_deref(),
-            fallback_workarea,
+            probe,
         ))
     }
     /// Window id the spawned fixture reported in its own output (`window_id` in the JSON on

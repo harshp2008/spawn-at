@@ -1,6 +1,5 @@
 //! Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget).
 
-use crate::oracle::check::WorkareaSource;
 use crate::oracle::GeometryStatus;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
@@ -13,7 +12,7 @@ pub fn render_result_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,
     res_opt: Option<&TestResult>,
-    env_workarea: Option<crate::oracle::Rect>,
+    env_workarea: crate::oracle::WorkareaProbe,
 ) {
     // One geometry comparison for the whole section (Verdict, Geometry row).
     let geometry_check = test.expect.rect.as_ref().map(|rect| {
@@ -341,10 +340,10 @@ pub fn render_result_section(
             .fg(Color::Yellow)
             .add_modifier(Modifier::BOLD);
         let (g_spans, g_plain): (Vec<Span<'static>>, String) = match check.status() {
-            GeometryStatus::Pass if check.workarea_source == WorkareaSource::ExtensionLog => {
+            GeometryStatus::Pass if check.workarea_source.is_extension_derived() => {
                 // The extension supplied its own workarea: judged, but not independent evidence.
                 let msg = format!(
-                    "within ±{} px (workarea from extension log, not independently probed)",
+                    "within ±{} px (workarea from the extension, not independently probed)",
                     tol
                 );
                 (
@@ -388,7 +387,8 @@ pub fn render_result_section(
                 )
             }
             GeometryStatus::Unchecked => {
-                let msg = "unchecked: no workarea from the probe or the extension log";
+                let msg =
+                    "unchecked: no workarea available from the window system or the extension";
                 (
                     vec![
                         Span::styled("⚠ ", warn),

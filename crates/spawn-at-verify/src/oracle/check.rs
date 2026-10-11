@@ -26,15 +26,35 @@ pub enum GeometryStatus {
 /// Where the workarea used to compute the expected rectangle came from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WorkareaSource {
-    /// Probed from the monitor layout, independent of the extension under test. If the run's
-    /// log also recorded bounds they either agree (this variant) or conflict (see
-    /// [`GeometryCheck::conflict`]); judging is always on the probe.
-    Probe,
-    /// Only the extension's own log bounds were available. The extension under test supplied the
-    /// workarea, so a pass is not independent evidence.
+    /// Read from the window system (mutter's `_NET_WORKAREA`), independent of the extension under
+    /// test. Extension-derived values only cross-check it: they either agree or produce a
+    /// conflict (see [`GeometryCheck::conflict`]); judging is always on this value.
+    Independent,
+    /// `<bin> query layout`, which on GNOME is the extension under test, so a pass is not
+    /// independent evidence.
+    ExtensionLayout,
+    /// Only the bounds the extension logged were available; also extension-derived.
     ExtensionLog,
-    /// Neither was available.
+    /// No workarea was available.
     None,
+}
+
+impl WorkareaSource {
+    /// True when the extension under test supplied the workarea, so the result is not
+    /// independent evidence.
+    pub fn is_extension_derived(self) -> bool {
+        matches!(self, Self::ExtensionLayout | Self::ExtensionLog)
+    }
+}
+
+/// Workarea measurements available when a result is judged.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct WorkareaProbe {
+    /// Read from the window system, independent of the extension. Primary when present.
+    pub independent: Option<Rect>,
+    /// From `query layout` (the extension on GNOME). A cross-check, or the fallback when there
+    /// is no independent value.
+    pub extension: Option<Rect>,
 }
 
 /// Expected vs actual placement for one result, with per-row verdicts.
@@ -55,7 +75,8 @@ pub struct GeometryCheck {
     pub workarea: Option<Rect>,
     /// Where `workarea` came from.
     pub workarea_source: WorkareaSource,
-    /// `(probe, extension log)` when both exist and differ. Judging still uses the probe.
+    /// `(independent, extension-derived)` when an independent workarea exists and an
+    /// extension-derived one (layout or log) differs. Judging still uses the independent one.
     pub conflict: Option<(Rect, Rect)>,
 }
 
@@ -181,16 +202,18 @@ pub fn expected_rect(
 
 /// Builds the shared geometry comparison for one result.
 ///
-/// The workarea is `probed_workarea` (probed from the monitor layout, independent of the
-/// extension under test) whenever it exists. The bounds the extension logged are only a
-/// cross-check: if they differ from the probe the check records a conflict and still judges on
-/// the probe. Only when there is no probe are the log bounds used, and then the check is marked
-/// [`WorkareaSource::ExtensionLog`] because the extension supplied its own reference.
+/// The workarea is `probe.independent` (read from the window system, independent of the
+/// extension under test) whenever it exists. The extension-derived values (`probe.extension`
+/// from `query layout`, and the bounds the extension logged) are only cross-checks: if one
+/// differs from the independent value the check records a conflict and still judges on the
+/// independent one. Without an independent value the extension's layout, then its log bounds,
+/// are used and the check is marked extension-derived because the extension supplied its own
+/// reference.
 pub fn check_geometry(
     expect: &ExpectRect,
     stdout: &str,
     log_slice: Option<&str>,
-    probed_workarea: Option<Rect>,
+    probe: WorkareaProbe,
 ) -> GeometryCheck {
     let actual = actual_rect_from_stdout(stdout);
     let spec_size = match &expect.size {
@@ -198,12 +221,20 @@ pub fn check_geometry(
         _ => None,
     };
     let log_workarea = log_slice.and_then(workarea_from_log);
-    let (workarea, workarea_source, conflict) = match (probed_workarea, log_workarea) {
-        (Some(p), Some(l)) if p != l => (Some(p), WorkareaSource::Probe, Some((p, l))),
-        (Some(p), _) => (Some(p), WorkareaSource::Probe, None),
-        (None, Some(l)) => (Some(l), WorkareaSource::ExtensionLog, None),
-        (None, None) => (None, WorkareaSource::None, None),
-    };
+    let (workarea, workarea_source, conflict) =
+        match (probe.independent, probe.extension, log_workarea) {
+            (Some(p), ext, log) => {
+                let differing = [ext, log].into_iter().flatten().find(|e| *e != p);
+                (
+                    Some(p),
+                    WorkareaSource::Independent,
+                    differing.map(|e| (p, e)),
+                )
+            }
+            (None, Some(e), _) => (Some(e), WorkareaSource::ExtensionLayout, None),
+            (None, None, Some(l)) => (Some(l), WorkareaSource::ExtensionLog, None),
+            (None, None, None) => (None, WorkareaSource::None, None),
+        };
 
     let (expected, expected_error) = match (workarea, spec_size.or(actual.map(|a| (a.w, a.h)))) {
         (Some(wa), Some(size)) => match expected_rect(expect, wa, size) {
@@ -251,6 +282,47 @@ mod tests {
         Rect::new(0, 40, 1920, 1040)
     }
 
+    /// A probe with only an independent (window-system) workarea.
+    fn indep(r: Rect) -> WorkareaProbe {
+        WorkareaProbe {
+            independent: Some(r),
+            extension: None,
+        }
+    }
+
+    /// Independent workarea wins over both extension-derived values; a differing `query layout`
+    /// value (here 0,0 1920x1000) warns even when the log agrees with the independent one.
+    #[test]
+    fn test_independent_beats_extension_layout_and_layout_conflict_warns() {
+        let probe = WorkareaProbe {
+            independent: Some(wa()),
+            extension: Some(Rect::new(0, 0, 1920, 1000)),
+        };
+        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), Some(LOG_AGREES), probe);
+        assert_eq!(c.workarea_source, WorkareaSource::Independent);
+        assert_eq!(c.status(), GeometryStatus::Pass);
+        assert_eq!(
+            c.warning().as_deref(),
+            Some("workarea differs: probe 0,40 1920×1040 vs extension 0,0 1920×1000")
+        );
+    }
+
+    /// No independent value: the extension's `query layout` is used (and marked extension-derived)
+    /// ahead of the log; a layout/log difference is not a conflict because both are the extension.
+    #[test]
+    fn test_extension_layout_is_the_fallback_and_marked_extension_derived() {
+        let probe = WorkareaProbe {
+            independent: None,
+            extension: Some(wa()),
+        };
+        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), Some(LOG_DIFFERS), probe);
+        assert_eq!(c.workarea_source, WorkareaSource::ExtensionLayout);
+        assert!(c.workarea_source.is_extension_derived());
+        assert_eq!(c.conflict, None);
+        assert_eq!(c.status(), GeometryStatus::Pass);
+        assert!(!WorkareaSource::Independent.is_extension_derived());
+    }
+
     /// Stdout JSON for a window at `x, y` with size `w`x`h`.
     fn out(x: i32, y: i32, w: u32, h: u32) -> String {
         format!(
@@ -262,14 +334,14 @@ mod tests {
     /// Bottom-right of a 1920x1040 workarea at (0,40): x = 1920-400-16, y = 40+1040-300-16.
     #[test]
     fn test_expected_comes_from_oracle_not_from_actual() {
-        let c = check_geometry(&spec(), &out(0, 0, 1, 1), None, Some(wa()));
+        let c = check_geometry(&spec(), &out(0, 0, 1, 1), None, indep(wa()));
         assert_eq!(c.expected, Some(Rect::new(1504, 764, 400, 300)));
     }
 
     /// A window exactly at the expected rectangle passes.
     #[test]
     fn test_match_passes() {
-        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), None, Some(wa()));
+        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), None, indep(wa()));
         assert_eq!(c.status(), GeometryStatus::Pass);
         assert_eq!(c.position_ok(), Some(true));
         assert_eq!(c.size_ok(), Some(true));
@@ -279,14 +351,14 @@ mod tests {
     /// Off by exactly the tolerance (1 px) in x and y is still a pass.
     #[test]
     fn test_exactly_tolerance_passes() {
-        let c = check_geometry(&spec(), &out(1505, 763, 401, 299), None, Some(wa()));
+        let c = check_geometry(&spec(), &out(1505, 763, 401, 299), None, indep(wa()));
         assert_eq!(c.status(), GeometryStatus::Pass);
     }
 
     /// One pixel more than the tolerance fails, and the message names the deltas.
     #[test]
     fn test_beyond_tolerance_fails() {
-        let c = check_geometry(&spec(), &out(1506, 764, 400, 300), None, Some(wa()));
+        let c = check_geometry(&spec(), &out(1506, 764, 400, 300), None, indep(wa()));
         assert_eq!(c.status(), GeometryStatus::Fail);
         assert_eq!(c.position_ok(), Some(false));
         assert_eq!(c.size_ok(), Some(true));
@@ -297,7 +369,7 @@ mod tests {
     /// A wrong size fails even when the position is right.
     #[test]
     fn test_wrong_size_fails() {
-        let c = check_geometry(&spec(), &out(1504, 764, 420, 300), None, Some(wa()));
+        let c = check_geometry(&spec(), &out(1504, 764, 420, 300), None, indep(wa()));
         assert_eq!(c.position_ok(), Some(true));
         assert_eq!(c.size_ok(), Some(false));
         assert_eq!(c.status(), GeometryStatus::Fail);
@@ -306,7 +378,7 @@ mod tests {
     /// No stdout rectangle (test not run) is "not measured", never a pass.
     #[test]
     fn test_no_actual_is_not_measured() {
-        let c = check_geometry(&spec(), "", None, Some(wa()));
+        let c = check_geometry(&spec(), "", None, indep(wa()));
         assert_eq!(c.status(), GeometryStatus::NotMeasured);
         assert!(c.expected.is_some());
         assert!(c.verdict().is_ok());
@@ -326,9 +398,9 @@ mod tests {
             &spec(),
             &out(1504, 764, 400, 300),
             Some(LOG_AGREES),
-            Some(wa()),
+            indep(wa()),
         );
-        assert_eq!(c.workarea_source, WorkareaSource::Probe);
+        assert_eq!(c.workarea_source, WorkareaSource::Independent);
         assert_eq!(c.conflict, None);
         assert_eq!(c.warning(), None);
         assert_eq!(c.status(), GeometryStatus::Pass);
@@ -342,7 +414,7 @@ mod tests {
             &spec(),
             &out(1504, 764, 400, 300),
             Some(LOG_DIFFERS),
-            Some(wa()),
+            indep(wa()),
         );
         assert_eq!(c.workarea, Some(wa()));
         assert_eq!(c.expected, Some(Rect::new(1504, 764, 400, 300)));
@@ -362,7 +434,7 @@ mod tests {
             &spec(),
             &out(1504, 684, 400, 300),
             Some(LOG_DIFFERS),
-            Some(wa()),
+            indep(wa()),
         );
         assert_eq!(c.status(), GeometryStatus::Fail);
         assert!(c.warning().is_some());
@@ -373,11 +445,21 @@ mod tests {
     /// extension-derived and the pass is not independent evidence.
     #[test]
     fn test_only_log_is_used_and_marked_extension_derived() {
-        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), Some(LOG_AGREES), None);
+        let c = check_geometry(
+            &spec(),
+            &out(1504, 764, 400, 300),
+            Some(LOG_AGREES),
+            WorkareaProbe::default(),
+        );
         assert_eq!(c.workarea_source, WorkareaSource::ExtensionLog);
         assert_eq!(c.status(), GeometryStatus::Pass);
         assert_eq!(c.warning(), None);
-        let c = check_geometry(&spec(), &out(1500, 764, 400, 300), Some(LOG_AGREES), None);
+        let c = check_geometry(
+            &spec(),
+            &out(1500, 764, 400, 300),
+            Some(LOG_AGREES),
+            WorkareaProbe::default(),
+        );
         assert_eq!(c.status(), GeometryStatus::Fail);
     }
 
@@ -385,7 +467,12 @@ mod tests {
     /// `Unchecked`, never `Pass`, and the runner's verdict does not fail.
     #[test]
     fn test_no_workarea_is_unchecked_not_pass() {
-        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), None, None);
+        let c = check_geometry(
+            &spec(),
+            &out(1504, 764, 400, 300),
+            None,
+            WorkareaProbe::default(),
+        );
         assert_eq!(c.expected, None);
         assert_eq!(c.workarea_source, WorkareaSource::None);
         assert!(c.expected_error.is_some());
@@ -399,7 +486,7 @@ mod tests {
     fn test_spec_without_size_judges_position_only() {
         let mut s = spec();
         s.size = None;
-        let c = check_geometry(&s, &out(1504, 764, 123, 77), None, Some(wa()));
+        let c = check_geometry(&s, &out(1504, 764, 123, 77), None, indep(wa()));
         assert_eq!(c.size_ok(), None);
         assert_eq!(
             c.position_ok(),
@@ -410,7 +497,7 @@ mod tests {
             &s,
             &out(1920 - 123 - 16, 40 + 1040 - 77 - 16, 123, 77),
             None,
-            Some(wa()),
+            indep(wa()),
         );
         assert_eq!(c.status(), GeometryStatus::Pass);
     }

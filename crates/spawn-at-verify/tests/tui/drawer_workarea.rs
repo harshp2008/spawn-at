@@ -37,8 +37,17 @@ fn row<'a>(rows: &'a [(String, Vec<Color>)], prefix: &str) -> &'a (String, Vec<C
         .unwrap_or_else(|| panic!("no row {:?} in {:#?}", prefix, rows))
 }
 
-/// Replaces the pinned probe workarea (`None` simulates a machine that could not probe one).
+/// Replaces the pinned INDEPENDENT workarea (`None` simulates a machine where the window-system
+/// hint could not be read).
 fn set_probe(app: &mut TuiApp, wa: Option<Rect>) {
+    let mut env = app.env_info.clone().unwrap();
+    env.independent_workarea = wa;
+    app.env_info = Some(env);
+}
+
+/// Replaces the pinned extension workarea, i.e. what `query layout` returned (`None` simulates a
+/// failed query).
+fn set_extension(app: &mut TuiApp, wa: Option<Rect>) {
     let mut env = app.env_info.clone().unwrap();
     env.primary_workarea = wa;
     app.env_info = Some(env);
@@ -102,10 +111,11 @@ fn test_disagreement_passes_when_window_matches_probe_workarea_but_warns() {
 fn test_log_only_is_judged_but_marked_extension_derived() {
     let (mut app, test) = create_app_with_real_fixture();
     set_probe(&mut app, None);
+    set_extension(&mut app, None);
     let rows = drawer(&app, &test);
     let g = row(&rows, "  Geometry");
     assert!(
-        g.0.contains("✔ within ±1 px (workarea from extension log, not independently probed)"),
+        g.0.contains("✔ within ±1 px (workarea from the extension, not independently probed)"),
         "{}",
         g.0
     );
@@ -127,6 +137,7 @@ fn test_log_only_is_judged_but_marked_extension_derived() {
 fn test_no_workarea_shows_unchecked_marker_not_a_plain_pass() {
     let (mut app, mut test) = create_app_with_real_fixture();
     set_probe(&mut app, None);
+    set_extension(&mut app, None);
     test.kind = TestKind::Auto;
     let r = app.results.get_mut(&test.id).unwrap();
     r.log_slice = None;
@@ -135,7 +146,7 @@ fn test_no_workarea_shows_unchecked_marker_not_a_plain_pass() {
     let rows = drawer(&app, &test);
     let g = row(&rows, "  Geometry");
     assert!(
-        g.0.contains("⚠ unchecked: no workarea from the probe or the extension log"),
+        g.0.contains("⚠ unchecked: no workarea available from the window system or the extension"),
         "{}",
         g.0
     );
@@ -151,4 +162,21 @@ fn test_no_workarea_shows_unchecked_marker_not_a_plain_pass() {
     set_probe(&mut app, Some(Rect::new(0, 40, 1920, 1040)));
     let rows = drawer(&app, &test);
     assert!(row(&rows, "  Verdict").0.contains("✔ Pass"));
+}
+
+/// No independent value, but `query layout` answered: it is used, and the row says the workarea
+/// comes from the extension (yellow), exactly like the log-only case.
+#[test]
+fn test_extension_layout_only_is_marked_extension_derived() {
+    let (mut app, test) = create_app_with_real_fixture();
+    set_probe(&mut app, None);
+    app.results.get_mut(&test.id).unwrap().log_slice = None;
+    let rows = drawer(&app, &test);
+    let g = row(&rows, "  Geometry");
+    assert!(
+        g.0.contains("✔ within ±1 px (workarea from the extension, not independently probed)"),
+        "{}",
+        g.0
+    );
+    assert!(g.1.contains(&Color::Yellow) && !g.1.contains(&Color::Green));
 }

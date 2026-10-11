@@ -99,6 +99,7 @@ impl TuiApp {
             gnome_version: None,
             monitors_count: 1,
             primary_workarea: None,
+            independent_workarea: None,
         });
 
         let result = runner.execute_single_test(test, &preflight, &env_info, &mut self.tracker);

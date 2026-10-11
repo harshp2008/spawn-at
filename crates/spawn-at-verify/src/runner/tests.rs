@@ -141,6 +141,7 @@ fn test_missing_fixture_binary_fails_with_clear_error_message() {
         gnome_version: Some(46),
         monitors_count: 1,
         primary_workarea: None,
+        independent_workarea: None,
     };
 
     let result = runner.execute_single_test(&test, &preflight, &env_info, &mut tracker);

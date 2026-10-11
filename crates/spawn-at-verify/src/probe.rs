@@ -17,8 +17,12 @@ pub struct EnvironmentInfo {
     pub gnome_version: Option<u32>,
     /// Number of detected connected monitors.
     pub monitors_count: usize,
-    /// Primary monitor workarea rectangle bounds.
+    /// Primary monitor workarea as reported by `<bin> query layout`. On GNOME that is the
+    /// extension under test (`workspace.get_work_area_for_monitor`), so it is NOT independent.
     pub primary_workarea: Option<Rect>,
+    /// Primary workarea read from mutter's `_NET_WORKAREA` hint, independent of the extension;
+    /// `None` when it cannot be read (see [`probe_independent_workarea`]).
+    pub independent_workarea: Option<Rect>,
 }
 
 impl EnvironmentInfo {
@@ -48,6 +52,16 @@ impl EnvironmentInfo {
             gnome_version,
             monitors_count,
             primary_workarea,
+            independent_workarea: probe_independent_workarea(),
+        }
+    }
+
+    /// The workarea measurements to judge geometry with: the independent value (primary) and the
+    /// extension's `query layout` value (cross-check / fallback).
+    pub fn workarea_probe(&self) -> crate::oracle::WorkareaProbe {
+        crate::oracle::WorkareaProbe {
+            independent: self.independent_workarea,
+            extension: self.primary_workarea,
         }
     }
 
@@ -151,6 +165,64 @@ fn probe_gnome_shell_version() -> Option<u32> {
     None
 }
 
+/// Parses `xrandr --listactivemonitors` output and returns the active monitor count from its
+/// `Monitors: N` header line.
+pub fn parse_xrandr_active_monitors(text: &str) -> Option<usize> {
+    text.lines()
+        .find_map(|l| l.trim().strip_prefix("Monitors:"))
+        .and_then(|n| n.trim().parse().ok())
+}
+
+/// Parses `xprop -root _NET_WORKAREA _NET_CURRENT_DESKTOP` output and returns the work area of
+/// the current desktop (desktop 0 when the current desktop is not reported).
+///
+/// `_NET_WORKAREA` is a list of `x, y, w, h` quadruples, one per desktop.
+pub fn parse_net_workarea(text: &str) -> Option<Rect> {
+    let numbers_after_eq = |prefix: &str| -> Option<Vec<i64>> {
+        let line = text.lines().find(|l| l.starts_with(prefix))?;
+        let (_, rhs) = line.split_once('=')?;
+        rhs.split(',').map(|n| n.trim().parse().ok()).collect()
+    };
+    let area = numbers_after_eq("_NET_WORKAREA")?;
+    let desktop = numbers_after_eq("_NET_CURRENT_DESKTOP")
+        .and_then(|d| d.first().copied())
+        .unwrap_or(0)
+        .max(0) as usize;
+    let q = area.get(desktop * 4..desktop * 4 + 4)?;
+    let (w, h) = (u32::try_from(q[2]).ok()?, u32::try_from(q[3]).ok()?);
+    Some(Rect::new(
+        i32::try_from(q[0]).ok()?,
+        i32::try_from(q[1]).ok()?,
+        w,
+        h,
+    ))
+}
+
+/// Reads the primary workarea from the window system itself, without asking spawn-at or its
+/// GNOME extension: mutter publishes `_NET_WORKAREA` on the XWayland (or X11) root window, read
+/// here with `xprop`. It is a single rectangle for the whole desktop, so it is only used when
+/// `xrandr` reports exactly one active monitor; otherwise (or when either tool or `DISPLAY` is
+/// missing) there is no independent value.
+///
+/// Limitation: under fractional scaling the hint may not be in the logical pixels spawn-at uses;
+/// such a mismatch surfaces as a "workarea differs" warning against the extension's value.
+fn probe_independent_workarea() -> Option<Rect> {
+    let xrandr = Command::new("xrandr")
+        .arg("--listactivemonitors")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())?;
+    if parse_xrandr_active_monitors(&String::from_utf8_lossy(&xrandr.stdout))? != 1 {
+        return None;
+    }
+    let xprop = Command::new("xprop")
+        .args(["-root", "_NET_WORKAREA", "_NET_CURRENT_DESKTOP"])
+        .output()
+        .ok()
+        .filter(|o| o.status.success())?;
+    parse_net_workarea(&String::from_utf8_lossy(&xprop.stdout))
+}
+
 /// Invokes CLI layout query to determine monitor counts and primary workarea geometry.
 fn probe_layout(bin_path: &Path) -> Result<(usize, Option<Rect>), String> {
     let output = Command::new(bin_path)
@@ -214,6 +286,48 @@ fn command_exists(cmd: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Real `xprop -root _NET_WORKAREA _NET_CURRENT_DESKTOP` output (two workspaces, current 0).
+    const XPROP_REAL: &str = "_NET_WORKAREA(CARDINAL) = 0, 40, 1920, 1040, 0, 40, 1920, 1040\n_NET_CURRENT_DESKTOP(CARDINAL) = 0\n";
+
+    /// The current desktop's quadruple is returned, not just the first one.
+    #[test]
+    fn test_parse_net_workarea_real_output_and_current_desktop() {
+        assert_eq!(
+            parse_net_workarea(XPROP_REAL),
+            Some(Rect::new(0, 40, 1920, 1040))
+        );
+        let two = "_NET_WORKAREA(CARDINAL) = 0, 40, 1920, 1040, 5, 6, 700, 800\n_NET_CURRENT_DESKTOP(CARDINAL) = 1\n";
+        assert_eq!(parse_net_workarea(two), Some(Rect::new(5, 6, 700, 800)));
+    }
+
+    /// Missing current-desktop line means desktop 0; a missing, short or non-numeric property
+    /// yields `None`, never a guessed rectangle.
+    #[test]
+    fn test_parse_net_workarea_rejects_bad_input() {
+        let no_desktop = "_NET_WORKAREA(CARDINAL) = 1, 2, 3, 4\n";
+        assert_eq!(parse_net_workarea(no_desktop), Some(Rect::new(1, 2, 3, 4)));
+        assert_eq!(parse_net_workarea("_NET_WORKAREA:  not found.\n"), None);
+        assert_eq!(
+            parse_net_workarea("_NET_WORKAREA(CARDINAL) = 1, 2, 3\n"),
+            None
+        );
+        assert_eq!(
+            parse_net_workarea("_NET_WORKAREA(CARDINAL) = 0, 0, -5, 10\n"),
+            None
+        );
+        assert_eq!(parse_net_workarea(""), None);
+    }
+
+    /// Real `xrandr --listactivemonitors` output counts one monitor; two monitors count two.
+    #[test]
+    fn test_parse_xrandr_active_monitors() {
+        let one = "Monitors: 1\n 0: +*eDP-1 1920/340x1080/190+0+0  eDP-1\n";
+        assert_eq!(parse_xrandr_active_monitors(one), Some(1));
+        let two = "Monitors: 2\n 0: +*DP-1 1920/1x1080/1+0+0 DP-1\n 1: +HDMI-1 1920/1x1080/1+1920+0 HDMI-1\n";
+        assert_eq!(parse_xrandr_active_monitors(two), Some(2));
+        assert_eq!(parse_xrandr_active_monitors("can't open display"), None);
+    }
+
     /// Tests requirement validation when session matches requested environment.
     #[test]
     fn test_check_requirements_session_match() {
@@ -223,6 +337,7 @@ mod tests {
             gnome_version: Some(46),
             monitors_count: 1,
             primary_workarea: None,
+            independent_workarea: None,
         };
 
         let req = TestRequires {
@@ -246,6 +361,7 @@ mod tests {
             gnome_version: Some(46),
             monitors_count: 1,
             primary_workarea: None,
+            independent_workarea: None,
         };
 
         let req = TestRequires {
