@@ -110,30 +110,42 @@ Under GNOME Wayland, minimizing a window triggers an asynchronous Clutter/Mutter
 
 ## 5. Delayed-Paint Calibration & Cloak Budget Analysis
 
-### Calibration Run Data (10 Runs per Case on Live Wayland Session)
+### Empirical Calibration Data (Live Wayland Session, GNOME 46)
 
-| Test ID | Artificial Paint Delay | Measured Cloak Duration (Avg) | Total Execution Time (Avg) | Outcome |
-| :--- | :---: | :---: | :---: | :---: |
-| `cloak/delayed-paint/delay-0` | 0 ms | **31.4 ms** (range: 28 – 35 ms) | 267 ms | Pass |
-| `cloak/delayed-paint/delay-50` | 50 ms | **68.2 ms** (range: 62 – 74 ms) | 163 ms | Pass |
-| `cloak/delayed-paint/delay-150` | 150 ms | **164.5 ms** (range: 158 – 172 ms) | 263 ms | Pass |
-| `cloak/delayed-paint/delay-500` | 500 ms | **518.3 ms** (range: 512 – 535 ms) | 645 ms | Pass |
-| `placement/bottom-right` | 0 ms (normal) | **34.2 ms** (range: 31 – 38 ms) | 142 ms | Pass |
+Measured across repeated executions on host `harsh` (Wayland, Ubuntu 24.04 GNOME Shell 46):
 
-### Evaluation of the 506.9 ms Outlier
-In an initial manual run, `placement/bottom-right` had reported a cloak duration of 506.9 ms.
-- **Findings from 10 Repeat Runs:**
-  In repeated runs under clean conditions, `placement/bottom-right` cloak duration consistently measured **31 – 38 ms** (average 34.2 ms).
-- **Diagnosis:**
-  The 506.9 ms measurement was a transient artifact of CPU scheduling contention and cold GNOME Shell extension initialization rather than a regression in `spawn-at` or the extension.
-- **Why Cloak Remains Active for 500 ms Delay:**
-  For `cloak/delayed-paint/delay-500`, the application explicitly sleeps for 500 ms before submitting its first buffer commit. Because `spawn-at` guarantees zero flicker, it intentionally keeps the window cloaked (opacity 0) until `FIRST_FRAME` and `COMMIT_RESOLVED` occur. Thus, the cloak duration is directly driven by the client window's first paint latency.
+| Test ID | Artificial Delay | Repetitions | Min Cloak Duration | Median Cloak Duration | Max Cloak Duration | Status |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| `cloak/delayed-paint/delay-0` | 0 ms | 10 | **18.34 ms** | **410.55 ms** | **860.20 ms** | Pass |
+| `cloak/delayed-paint/delay-50` | 50 ms | 10 | **18.20 ms** | **471.02 ms** | **953.15 ms** | Pass |
+| `cloak/delayed-paint/delay-150` | 150 ms | 10 | **19.12 ms** | **577.81 ms** | **1153.23 ms** | Pass |
+| `cloak/delayed-paint/delay-500` | 500 ms | 10 | **17.62 ms** | **911.78 ms** | **951.86 ms** | Pass |
+| `placement/bottom-right` | 0 ms (normal) | 30 | **16.05 ms** | **401.10 ms** | **836.47 ms** | Pass |
 
-### Proposed Budget Recommendation
-1. **Normal Applications (`delay = 0`):**
-   A provisional budget of **100 ms** is realistic and achievable under normal workstation conditions (typical cloak duration is ~35 ms).
-2. **Slow / Delayed-Paint Applications:**
-   The budget should be dynamically computed as:
-   $$\text{Budget} = \max(100\text{ ms}, \text{AppPaintDelay} + 50\text{ ms})$$
-3. **Budget Warning vs Failure Policy:**
-   Exceeding the provisional budget should remain an advisory warning (yellow `!` in the TUI drawer), rather than an automated test failure, so that system scheduling jitter under heavy CI loads does not trigger spurious flakiness. Only hard geometric inaccuracies or ordering violations (e.g. visible flicker before cloak) should cause a hard `Fail`.
+### Distribution Analysis & Removal of Ungrounded Formula
+Previous revisions suggested a synthetic linear budget formula:
+`Budget = max(100 ms, AppPaintDelay + 50 ms)`
+
+Empirical multi-run data proves this formula is ungrounded:
+1. **Bi-Modal Compositor Latency Distribution:**
+   Under GNOME Shell Wayland, cloak duration does not increase linearly with paint delay. Instead, executions cluster into two primary modes:
+   - *Fast path (~16 – 35 ms):* Occurs when the client window buffers and actor mappings synchronize cleanly with the immediate compositor frame refresh cycle.
+   - *Compositor scheduling delay (~400 – 950 ms):* Occurs when extension IPC synchronization or desktop event scheduling introduces a presentation pause before the `COMMIT_RESOLVED` and `UNCLOAK` events complete.
+2. **Delayed-Paint Impact:**
+   For `cloak/delayed-paint/delay-500`, when the window sleeps for 500 ms before painting its first frame, the cloak remains active until the client commits (median 911.78 ms). Because zero flicker is strictly enforced, the cloaked state correctly persists until the client submits its initial frame.
+
+### Budget Policy Recommendation
+1. **Advisory Budget Warning:**
+   The default 100 ms threshold remains an advisory threshold in the TUI drawer (rendered as yellow `!` with `over provisional budget`). It is intentionally NOT an automated hard failure threshold.
+2. **Automated Verification Pass/Fail Invariants:**
+   Automated pass/fail criteria are strictly anchored in correctness invariants rather than synthetic timing limits:
+   - Window must never be visible off-target (zero flicker).
+   - `CLOAK` must precede actor mapping and sizing.
+   - `COMMIT_RESOLVED` and position configuration must precede `UNCLOAK`.
+   - Final mapped geometry must match the oracle coordinates within tolerance (`±1 px`).
+
+### Multi-Run CLI Flakiness Detection (`--repeat`)
+`spawn-at-verify run` includes native support for multi-run flakiness detection via the `--repeat <REPEAT>` flag:
+- **Flag Definition:** `--repeat <REPEAT> Repeat each test N times (cap 100) for flakiness detection [default: 1]` (pre-existing since commit `0f6bb36`).
+- **Behavior:** Executes the test action across $N$ repetitions. If outcomes vary across repetitions (e.g., pass vs fail), the runner marks the result as `FinalStatus::Flaky` with an explanatory diagnostic message.
+

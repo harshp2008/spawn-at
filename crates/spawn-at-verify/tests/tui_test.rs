@@ -1078,14 +1078,14 @@ fn test_render_terminal_below_minimum_size_shows_warning() {
 }
 
 #[test]
-#[ignore]
 fn test_dump_snapshots_to_scratch() {
     let resolutions = [(60, 28), (80, 28), (140, 28)];
     let mut out = String::new();
 
     for &(w, h) in &resolutions {
         // 1. Idle
-        let mut app = create_test_app();
+        let (mut app, _) = create_app_with_real_fixture();
+        app.results.clear(); // no results yet
         app.fixture_exists = true;
         let mut term = Terminal::new(TestBackend::new(w, h)).unwrap();
         term.draw(|f| draw_ui(f, &app)).unwrap();
@@ -1097,37 +1097,11 @@ fn test_dump_snapshots_to_scratch() {
         ));
 
         // 2. Waiting for verdict
-        let mut wait_app = create_test_app();
+        let (mut wait_app, _) = create_app_with_real_fixture();
         wait_app.fixture_exists = true;
-        if let Some(pos) = wait_app
-            .filtered_tests()
-            .iter()
-            .position(|t| t.id == "placement/bottom-right")
-        {
-            wait_app.selected_index = pos;
-        }
         wait_app.waiting_for_human = Some("placement/bottom-right".to_string());
-        let wait_res = spawn_at_verify::runner::TestResult {
-            id: "placement/bottom-right".into(),
-            title: "Window placed in bottom-right corner".into(),
-            kind: TestKind::Both,
-            required: true,
-            auto_status: AutoStatus::AutoPass,
-            human_verdict: HumanVerdict::default(),
-            final_status: FinalStatus::Pending,
-            disagreement: false,
-            duration_ms: 35,
-            exit_code: Some(0),
-            stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}"#.into(),
-            stderr: String::new(),
-            message: Some("Assertions passed".into()),
-            log_slice: Some(
-                "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +34.20ms | UNCLOAK".into(),
-            ),
-        };
-        wait_app
-            .results
-            .insert("placement/bottom-right".into(), wait_res);
+        wait_app.status_message =
+            Some("Waiting for your verdict on 'placement/bottom-right'".into());
         let mut wait_term = Terminal::new(TestBackend::new(w, h)).unwrap();
         wait_term.draw(|f| draw_ui(f, &wait_app)).unwrap();
         out.push_str(&format!(
@@ -1138,31 +1112,11 @@ fn test_dump_snapshots_to_scratch() {
         ));
 
         // 3. Passed
-        let mut pass_app = create_test_app();
+        let (mut pass_app, _) = create_app_with_real_fixture();
         pass_app.fixture_exists = true;
-        for t in &pass_app.registry.tests {
-            let res = spawn_at_verify::runner::TestResult {
-                id: t.id.clone(),
-                title: t.title.clone(),
-                kind: t.kind,
-                required: t.required,
-                auto_status: AutoStatus::AutoPass,
-                human_verdict: HumanVerdict {
-                    verdict: HumanVerdictKind::Pass,
-                    note: None,
-                },
-                final_status: FinalStatus::Pass,
-                disagreement: false,
-                duration_ms: 42,
-                exit_code: Some(0),
-                stdout:
-                    r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"source":"claim"}"#
-                        .into(),
-                stderr: String::new(),
-                message: Some("Assertions passed".into()),
-                log_slice: None,
-            };
-            pass_app.results.insert(t.id.clone(), res);
+        if let Some(r) = pass_app.results.get_mut("placement/bottom-right") {
+            r.final_status = FinalStatus::Pass;
+            r.human_verdict.verdict = HumanVerdictKind::Pass;
         }
         let mut pass_term = Terminal::new(TestBackend::new(w, h)).unwrap();
         pass_term.draw(|f| draw_ui(f, &pass_app)).unwrap();
@@ -1174,26 +1128,13 @@ fn test_dump_snapshots_to_scratch() {
         ));
 
         // 4. Failed
-        let mut fail_app = create_test_app();
+        let (mut fail_app, _) = create_app_with_real_fixture();
         fail_app.fixture_exists = true;
-        let fail_test = fail_app.selected_test().unwrap().clone();
-        let fail_res = spawn_at_verify::runner::TestResult {
-            id: fail_test.id.clone(),
-            title: fail_test.title.clone(),
-            kind: fail_test.kind,
-            required: fail_test.required,
-            auto_status: AutoStatus::AutoFail,
-            human_verdict: HumanVerdict::default(),
-            final_status: FinalStatus::Fail,
-            disagreement: false,
-            duration_ms: 94,
-            exit_code: Some(1),
-            stdout: r#"{"window_id":870905,"x":1200,"y":600,"w":400,"h":300}"#.into(),
-            stderr: "[spawn-at] ERROR: Geometric target mismatch".into(),
-            message: Some("Window mapped at (1200, 600) but expected (1504, 764)".into()),
-            log_slice: Some("[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.20ms | VIOLATION: visible flicker\n[spawn-at-time] +9.50ms | UNCLOAK".into()),
-        };
-        fail_app.results.insert(fail_test.id.clone(), fail_res);
+        if let Some(r) = fail_app.results.get_mut("placement/bottom-right") {
+            r.final_status = FinalStatus::Fail;
+            r.human_verdict.verdict = HumanVerdictKind::Fail;
+            r.message = Some("Window mapped at (1200, 600) but expected (1504, 764)".into());
+        }
         let mut fail_term = Terminal::new(TestBackend::new(w, h)).unwrap();
         fail_term.draw(|f| draw_ui(f, &fail_app)).unwrap();
         out.push_str(&format!(
@@ -1204,7 +1145,7 @@ fn test_dump_snapshots_to_scratch() {
         ));
 
         // 5. Help modal
-        let mut help_app = create_test_app();
+        let (mut help_app, _) = create_app_with_real_fixture();
         help_app.fixture_exists = true;
         help_app.modal = ModalState::Help;
         let mut help_term = Terminal::new(TestBackend::new(w, h)).unwrap();
@@ -1216,47 +1157,51 @@ fn test_dump_snapshots_to_scratch() {
             dump_buffer_to_string(&help_term, w, h)
         ));
 
-        // 6. Detail drawer (compact view, scrolled to show at least RESULT, GEOMETRY, TIMELINE)
-        let mut drawer_app = create_test_app();
-        drawer_app.fixture_exists = true;
-        drawer_app.detail_drawer_open = true;
-        let d_test = drawer_app.selected_test().unwrap().clone();
-        let d_res = spawn_at_verify::runner::TestResult {
-            id: d_test.id.clone(),
-            title: d_test.title.clone(),
-            kind: d_test.kind,
-            required: d_test.required,
-            auto_status: AutoStatus::AutoPass,
-            human_verdict: HumanVerdict { verdict: HumanVerdictKind::Pass, note: None },
-            final_status: FinalStatus::Pass,
-            disagreement: false,
-            duration_ms: 36,
-            exit_code: Some(0),
-            stdout: r#"{"window_id":870906018,"x":1504,"y":764,"w":400,"h":300,"rel_x":1504,"rel_y":724,"area":"workarea","source":"claim"}"#.into(),
-            stderr: "[spawn-at] INFO: Window mapped at final size (400x300)\n".into(),
-            message: None,
-            log_slice: Some("\
-[spawn-at-time] +0.0ms | ARM_SPAWN win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] target=verify.placement.bottomright
-[spawn-at-time] +10.0ms | WINDOW_CREATED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] actor found
-[spawn-at-time] +56.1ms | ACTOR_MAP win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland]
-[spawn-at-time] +56.2ms | CLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=0 frame=(50,90,400x300)
-[spawn-at-time] +56.3ms | SET_SIZE_REQUEST win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] requested=400x300 clamped=400x300
-[spawn-at-time] +56.4ms | COMMIT_RESOLVED win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] 400x300
-[spawn-at-time] +70.0ms | UNCLOAK win=[id=870906018 pid=1083136 class=\"verify.placement.bottomright\" app=\"verify.placement.bottomright\" type=normal proto=wayland] opacity=255".into()),
-        };
-        drawer_app.results.insert(d_test.id.clone(), d_res);
-        drawer_app.detail_scroll = if w == 60 { 5 } else { 0 };
-        let mut drawer_term = Terminal::new(TestBackend::new(w, h)).unwrap();
-        drawer_term.draw(|f| draw_ui(f, &drawer_app)).unwrap();
+        // 6. Detail drawer: Top
+        let (mut d_top_app, _) = create_app_with_real_fixture();
+        d_top_app.fixture_exists = true;
+        d_top_app.detail_drawer_open = true;
+        d_top_app.detail_scroll = 0;
+        let mut d_top_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        d_top_term.draw(|f| draw_ui(f, &d_top_app)).unwrap();
         out.push_str(&format!(
-            "### SNAPSHOT {}x{} - DETAIL DRAWER\n```\n{}\n```\n\n",
+            "### SNAPSHOT {}x{} - DETAIL DRAWER (TOP, SCROLL 0)\n```\n{}\n```\n\n",
             w,
             h,
-            dump_buffer_to_string(&drawer_term, w, h)
+            dump_buffer_to_string(&d_top_term, w, h)
+        ));
+
+        // 7. Detail drawer: Middle (Timeline)
+        let (mut d_mid_app, _) = create_app_with_real_fixture();
+        d_mid_app.fixture_exists = true;
+        d_mid_app.detail_drawer_open = true;
+        d_mid_app.detail_scroll = 16;
+        let mut d_mid_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        d_mid_term.draw(|f| draw_ui(f, &d_mid_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - DETAIL DRAWER (TIMELINE, SCROLL 16)\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&d_mid_term, w, h)
+        ));
+
+        // 8. Detail drawer: Bottom
+        let (mut d_bot_app, _) = create_app_with_real_fixture();
+        d_bot_app.fixture_exists = true;
+        d_bot_app.detail_drawer_open = true;
+        d_bot_app.detail_scroll = 40;
+        let mut d_bot_term = Terminal::new(TestBackend::new(w, h)).unwrap();
+        d_bot_term.draw(|f| draw_ui(f, &d_bot_app)).unwrap();
+        out.push_str(&format!(
+            "### SNAPSHOT {}x{} - DETAIL DRAWER (BOTTOM, SCROLL 40)\n```\n{}\n```\n\n",
+            w,
+            h,
+            dump_buffer_to_string(&d_bot_term, w, h)
         ));
     }
 
-    let scratch_path = "/home/harsh/.gemini/antigravity-ide/brain/c19dfab5-8922-4446-88cf-50dca990ff83/scratch/snapshots.txt";
+    let scratch_path =
+        "/home/harsh/.gemini/antigravity-ide/brain/c19dfab5-8922-4446-88cf-50dca990ff83/scratch/snapshots.txt";
     let _ = std::fs::write(scratch_path, out);
 }
 
