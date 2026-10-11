@@ -6,6 +6,7 @@ use super::calculator::{calculate_expected_rect, verify_rect_tolerance, OraclePa
 // Work area: 1920x1040 at (0, 40)
 // README default margin: 16 (confirmed from README CLI reference: "-m, --margin <PX> Margin on all sides (default 16)")
 
+/// Tests golden placement coordinates for bottom-right anchor with 338x93 window.
 #[test]
 fn test_golden_bottom_right_338x93() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 338x93.
@@ -30,6 +31,7 @@ fn test_golden_bottom_right_338x93() {
     assert_eq!(rect, Rect::new(1566, 971, 338, 93));
 }
 
+/// Tests golden placement coordinates for bottom-right anchor with 30x20 window.
 #[test]
 fn test_golden_bottom_right_30x20() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 30x20.
@@ -51,6 +53,7 @@ fn test_golden_bottom_right_30x20() {
     assert_eq!(rect, Rect::new(1874, 1044, 30, 20));
 }
 
+/// Tests golden placement coordinates for bottom-right anchor with 391x368 window.
 #[test]
 fn test_golden_bottom_right_391x368() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 391x368.
@@ -71,6 +74,7 @@ fn test_golden_bottom_right_391x368() {
     assert_eq!(rect, Rect::new(1513, 696, 391, 368));
 }
 
+/// Tests golden placement coordinates for bottom-left anchor with 338x93 window.
 #[test]
 fn test_golden_bottom_left_338x93() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 338x93.
@@ -92,6 +96,7 @@ fn test_golden_bottom_left_338x93() {
     assert_eq!(rect, Rect::new(16, 971, 338, 93));
 }
 
+/// Tests golden placement coordinates for top-left anchor.
 #[test]
 fn test_golden_top_left() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 16. Window: 400x300.
@@ -113,6 +118,7 @@ fn test_golden_top_left() {
     assert_eq!(rect, Rect::new(16, 56, 400, 300));
 }
 
+/// Tests golden placement coordinates for center anchor with odd window dimensions.
 #[test]
 fn test_golden_center_with_odd_sizes() {
     // Work area: x=0, y=40, w=1920, h=1040. Margin: 0. Window: 401x301 (odd sizes).
@@ -133,6 +139,7 @@ fn test_golden_center_with_odd_sizes() {
     assert_eq!(rect, Rect::new(759, 409, 401, 301));
 }
 
+/// Tests golden placement calculations under asymmetric per-side margins.
 #[test]
 fn test_golden_per_side_margins() {
     // Work area: x=0, y=40, w=1920, h=1040. Window: 100x100.
@@ -161,6 +168,7 @@ fn test_golden_per_side_margins() {
     assert_eq!(rect, Rect::new(1780, 50, 100, 100));
 }
 
+/// Tests golden placement coordinates on monitor with negative origin coordinates.
 #[test]
 fn test_golden_negative_origin_monitor() {
     // Monitor placed to the left of primary monitor:
@@ -186,6 +194,7 @@ fn test_golden_negative_origin_monitor() {
     assert_eq!(rect, Rect::new(-416, 764, 400, 300));
 }
 
+/// Tests golden placement coordinates on workarea with non-zero origin offsets.
 #[test]
 fn test_golden_offset_origin_workarea() {
     // Work area with non-zero offset: x=200, y=100, w=1600, h=900. Window: 300x200. Margin: 16.
@@ -207,6 +216,7 @@ fn test_golden_offset_origin_workarea() {
     assert_eq!(rect, Rect::new(216, 784, 300, 200));
 }
 
+/// Tests golden placement for window larger than workarea when clamping is disabled.
 #[test]
 fn test_golden_window_larger_than_workarea_clamp_false() {
     // Window 2000x1200 on 1920x1040 at (0, 40) with clamp=false. Margin: 16.
@@ -230,6 +240,7 @@ fn test_golden_window_larger_than_workarea_clamp_false() {
     assert_eq!(rect, Rect::new(-40, -40, 2000, 1200));
 }
 
+/// Tests golden placement for window larger than workarea when clamping is enabled.
 #[test]
 fn test_golden_window_larger_than_workarea_clamp_true() {
     // Window 2000x1200 on 1920x1040 at (0, 40) with clamp=true. Margin: 16.
@@ -257,6 +268,7 @@ fn test_golden_window_larger_than_workarea_clamp_true() {
     assert_eq!(rect, Rect::new(16, 56, 2000, 1200));
 }
 
+/// Tests clamping behavior when explicit coordinates are set to (0, 0).
 #[test]
 fn test_golden_clamp_explicit_pos_0_0() {
     // Live-confirmed case on host machine:
@@ -290,6 +302,7 @@ fn test_golden_clamp_explicit_pos_0_0() {
     assert_eq!(rect, Rect::new(16, 56, 367, 514));
 }
 
+/// Tests clamping behavior when explicit coordinates exceed display bounds.
 #[test]
 fn test_golden_clamp_explicit_pos_5000_5000() {
     // Live-confirmed case on host machine:
@@ -322,6 +335,7 @@ fn test_golden_clamp_explicit_pos_5000_5000() {
     assert_eq!(rect, Rect::new(1537, 550, 367, 514));
 }
 
+/// Tests default pivot derivation when anchored to top edge.
 #[test]
 fn test_golden_default_pivot_top() {
     // Anchor: "top" with no explicit pivot (pivot = None)
@@ -351,6 +365,7 @@ fn test_golden_default_pivot_top() {
     assert_eq!(rect, Rect::new(760, 56, 400, 300));
 }
 
+/// Tests default pivot derivation when anchored to bottom edge.
 #[test]
 fn test_golden_default_pivot_bottom() {
     // Anchor: "bottom" with no explicit pivot (pivot = None)
@@ -380,6 +395,7 @@ fn test_golden_default_pivot_bottom() {
     assert_eq!(rect, Rect::new(760, 764, 400, 300));
 }
 
+/// Tests default pivot derivation when anchored to left edge.
 #[test]
 fn test_golden_default_pivot_left() {
     // Anchor: "left" with no explicit pivot (pivot = None)
@@ -409,6 +425,7 @@ fn test_golden_default_pivot_left() {
     assert_eq!(rect, Rect::new(16, 410, 400, 300));
 }
 
+/// Tests default pivot derivation when anchored to right edge.
 #[test]
 fn test_golden_default_pivot_right() {
     // Anchor: "right" with no explicit pivot (pivot = None)
@@ -438,6 +455,7 @@ fn test_golden_default_pivot_right() {
     assert_eq!(rect, Rect::new(1504, 410, 400, 300));
 }
 
+/// Tests default pivot derivation across all nine standard anchor positions.
 #[test]
 fn test_golden_default_pivot_all_nine_anchors() {
     // Complete golden check for all 9 anchors with no explicit pivot (pivot = None).
@@ -483,6 +501,7 @@ fn test_golden_default_pivot_all_nine_anchors() {
     }
 }
 
+/// Verifies tolerance comparison logic for exact match and delta threshold.
 #[test]
 fn test_verify_tolerance_exact_and_within_delta() {
     let expected = Rect::new(500, 400, 300, 200);
@@ -495,6 +514,7 @@ fn test_verify_tolerance_exact_and_within_delta() {
     assert!(verify_rect_tolerance(actual_far, expected, 1).is_err());
 }
 
+/// Asserts that oracle placement matches shared golden test vectors.
 #[test]
 fn test_oracle_reads_shared_golden_placement_vectors() {
     use std::fs;

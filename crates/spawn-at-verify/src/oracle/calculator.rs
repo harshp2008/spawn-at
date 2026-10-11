@@ -1,37 +1,58 @@
 //! Mathematical placement calculations, anchor formulas, and pivot offsets.
 
+/// 2D rectangle representing window coordinates and dimensions in oracle calculations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Rect {
+    /// Horizontal coordinate (left edge)
     pub x: i32,
+    /// Vertical coordinate (top edge)
     pub y: i32,
+    /// Width in pixels
     pub w: u32,
+    /// Height in pixels
     pub h: u32,
 }
 
 impl Rect {
+    /// Constructs a new `Rect` with the specified coordinates and dimensions.
     pub fn new(x: i32, y: i32, w: u32, h: u32) -> Self {
         Self { x, y, w, h }
     }
 }
 
+/// Configuration parameters provided to the oracle placement calculator.
 #[derive(Debug, Clone)]
 pub struct OracleParams {
+    /// Target anchor position on screen/monitor/workarea.
     pub anchor: Option<String>,
+    /// Window pivot alignment point.
     pub pivot: Option<String>,
+    /// Explicit target (x, y) coordinates.
     pub explicit_pos: Option<(i32, i32)>,
+    /// Placement offset vector (dx, dy).
     pub offset: Option<(i32, i32)>,
+    /// Reference bounding area ("workarea", "monitor", "screen").
     pub area: Option<String>,
+    /// Current cursor coordinate (x, y).
     pub cursor_pos: Option<(i32, i32)>,
+    /// Window client size (width, height).
     pub size: (u32, u32),
+    /// Uniform boundary margin in pixels.
     pub margin: i32,
+    /// Top margin override.
     pub margin_top: Option<i32>,
+    /// Bottom margin override.
     pub margin_bottom: Option<i32>,
+    /// Left margin override.
     pub margin_left: Option<i32>,
+    /// Right margin override.
     pub margin_right: Option<i32>,
+    /// Whether to clamp window geometry within reference area bounds.
     pub clamp: bool,
 }
 
 impl Default for OracleParams {
+    /// Constructs default oracle parameters with standard (400, 300) window dimensions.
     fn default() -> Self {
         Self {
             anchor: None,
@@ -166,6 +187,7 @@ pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<
     Ok(Rect::new(x, y, w, h))
 }
 
+/// Computes top-left origin coordinates given reference point, window dimensions, and pivot alignment.
 fn apply_pivot_offset(px: i32, py: i32, w: u32, h: u32, pivot: &str) -> Result<(i32, i32), String> {
     let w_i32 = w as i32;
     let h_i32 = h as i32;
