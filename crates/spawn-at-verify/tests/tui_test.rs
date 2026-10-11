@@ -196,6 +196,96 @@ fn test_tui_headless_render_and_missing_fixture_banner() {
 }
 
 #[test]
+fn test_tui_detail_drawer_toggle_and_scrolling() {
+    let mut app = create_test_app();
+    assert!(!app.detail_drawer_open);
+    assert_eq!(app.detail_scroll, 0);
+
+    // Press Enter to open detail drawer full view
+    app.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+    assert!(app.detail_drawer_open);
+
+    // Scroll down in drawer
+    app.handle_key(KeyEvent::new(KeyCode::Char('j'), KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 1);
+
+    app.handle_key(KeyEvent::new(KeyCode::PageDown, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 9);
+
+    // Scroll up in drawer
+    app.handle_key(KeyEvent::new(KeyCode::PageUp, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 1);
+
+    // Home resets scroll
+    app.handle_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+    assert_eq!(app.detail_scroll, 0);
+
+    // Press Esc to exit detail drawer
+    app.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    assert!(!app.detail_drawer_open);
+
+    // Press 'd' to toggle open
+    app.handle_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
+    assert!(app.detail_drawer_open);
+
+    // Press 'd' to toggle close
+    app.handle_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
+    assert!(!app.detail_drawer_open);
+}
+
+#[test]
+fn test_tui_detail_drawer_content_ordering_and_failure_box() {
+    let mut app = create_test_app();
+    let test = app.selected_test().unwrap().clone();
+
+    // Insert a failed result with diagnostic message
+    let failed_result = spawn_at_verify::runner::TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoFail,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Fail,
+        disagreement: false,
+        duration_ms: 42,
+        exit_code: Some(1),
+        stdout: r#"{"window_id":123,"x":100,"y":200,"w":400,"h":300,"source":"claim"}"#.into(),
+        stderr: "[spawn-at] ERROR: Failed window alignment\n".into(),
+        message: Some("Window mapped at (100, 200) but expected (500, 500)".into()),
+        log_slice: Some(
+            "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +5.00ms | VIOLATION: visible flash"
+                .into(),
+        ),
+    };
+    app.results.insert(test.id.clone(), failed_result);
+
+    let backend = TestBackend::new(140, 35);
+    let mut terminal = Terminal::new(backend).unwrap();
+
+    terminal
+        .draw(|f| {
+            draw_ui(f, &app);
+        })
+        .unwrap();
+
+    let buffer = terminal.backend().buffer().clone();
+    let text: String = buffer.content().iter().map(|cell| cell.symbol()).collect();
+
+    // Verify failure summary box appears on main pane
+    assert!(text.contains("Failure Summary"));
+    assert!(text.contains("✖ Reason:"));
+    assert!(text.contains("Window mapped at (100, 200)"));
+
+    // Verify detail drawer ordering: failure reason first
+    assert!(text.contains("✖ FAILURE REASON:"));
+    assert!(text.contains("Geometric Oracle Comparison"));
+    assert!(text.contains("Actual Geometry: pos=(100, 200)"));
+    assert!(text.contains("Compositor Actor Trace Diagnostics"));
+    assert!(text.contains("VIOLATION: visible flash"));
+}
+
+#[test]
 fn test_logging_state_parser() {
     let sample = r#"
 [2026-10-10T20:39:42.259Z] +0.00ms | SET_LOGGING enabled=true

@@ -1,7 +1,7 @@
 //! Ratatui Views and UI Widgets for spawn-at-verify TUI.
 
 use super::app::{FilterMode, ModalState, TuiApp};
-use crate::runner::{FinalStatus, HumanVerdictKind};
+use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind};
 use crate::schema::TestKind;
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
@@ -116,13 +116,80 @@ fn draw_header(f: &mut Frame, app: &TuiApp, area: Rect) {
 }
 
 fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
-    let main_chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
-        .split(area);
+    if app.detail_drawer_open {
+        // Expanded full-screen detail drawer view
+        draw_detail_drawer(f, app, area, true);
+    } else {
+        // Standard split view: left test suite + right detail drawer
+        let main_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(55), Constraint::Percentage(45)])
+            .split(area);
 
-    draw_test_table(f, app, main_chunks[0]);
-    draw_detail_drawer(f, app, main_chunks[1]);
+        draw_test_table_pane(f, app, main_chunks[0]);
+        draw_detail_drawer(f, app, main_chunks[1], false);
+    }
+}
+
+fn draw_test_table_pane(f: &mut Frame, app: &TuiApp, area: Rect) {
+    let selected_test = app.selected_test();
+    let selected_result = selected_test.and_then(|t| app.results.get(&t.id));
+    let has_failure_reason = selected_result
+        .map(|r| {
+            r.final_status == FinalStatus::Fail
+                || r.auto_status == AutoStatus::AutoFail
+                || r.message.is_some()
+        })
+        .unwrap_or(false);
+
+    if has_failure_reason {
+        let left_chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Min(8), Constraint::Length(4)])
+            .split(area);
+
+        draw_test_table(f, app, left_chunks[0]);
+        draw_failure_summary_box(f, app, selected_result.unwrap(), left_chunks[1]);
+    } else {
+        draw_test_table(f, app, area);
+    }
+}
+
+fn draw_failure_summary_box(
+    f: &mut Frame,
+    _app: &TuiApp,
+    res: &crate::runner::TestResult,
+    area: Rect,
+) {
+    let reason_line = if let Some(msg) = &res.message {
+        msg.lines().next().unwrap_or(msg)
+    } else if !res.stderr.is_empty() {
+        res.stderr.lines().next().unwrap_or(&res.stderr)
+    } else {
+        "Test failed"
+    };
+
+    let p = Paragraph::new(Line::from(vec![
+        Span::styled(
+            "✖ Reason: ",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled(
+            reason_line,
+            Style::default()
+                .fg(Color::LightRed)
+                .add_modifier(Modifier::BOLD),
+        ),
+    ]))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Failure Summary ")
+            .border_style(Style::default().fg(Color::Red)),
+    )
+    .wrap(Wrap { trim: true });
+
+    f.render_widget(p, area);
 }
 
 fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
@@ -210,7 +277,11 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
 
     let table = Table::new(rows, widths)
         .header(header_row)
-        .block(Block::default().borders(Borders::ALL).title(" Test Suite "))
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Test Suite ([Enter/d] Details) "),
+        )
         .row_highlight_style(
             Style::default()
                 .bg(Color::DarkGray)
@@ -225,68 +296,191 @@ fn draw_test_table(f: &mut Frame, app: &TuiApp, area: Rect) {
     f.render_stateful_widget(table, area, &mut state);
 }
 
-fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect) {
+fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, is_expanded: bool) {
     let test_opt = app.selected_test();
 
     let mut lines = Vec::new();
 
     if let Some(test) = test_opt {
-        lines.push(Line::from(vec![
-            Span::styled(
-                "ID: ",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(&test.id),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled(
-                "Title: ",
-                Style::default()
-                    .fg(Color::Cyan)
-                    .add_modifier(Modifier::BOLD),
-            ),
-            Span::raw(&test.title),
-        ]));
-        lines.push(Line::from(vec![
-            Span::styled("Description: ", Style::default().fg(Color::Cyan)),
-            Span::raw(&test.description),
-        ]));
-        lines.push(Line::raw(""));
+        let res_opt = app.results.get(&test.id);
 
-        // Preconditions & Subject
-        if let Some(sub) = &test.subject {
-            lines.push(Line::from(vec![
-                Span::styled("Subject App: ", Style::default().fg(Color::Yellow)),
-                Span::raw(&sub.app),
-            ]));
+        // 1. FAILURE REASON FIRST
+        if let Some(res) = res_opt {
+            if res.final_status == FinalStatus::Fail
+                || res.auto_status == AutoStatus::AutoFail
+                || res.final_status == FinalStatus::Error
+            {
+                lines.push(Line::styled(
+                    "✖ FAILURE REASON:",
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                ));
+                let reason_text = res
+                    .message
+                    .as_deref()
+                    .unwrap_or("Test execution failed without specific message");
+                for line in reason_text.lines() {
+                    lines.push(Line::from(vec![
+                        Span::styled("  ", Style::default()),
+                        Span::styled(
+                            line,
+                            Style::default()
+                                .fg(Color::LightRed)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                    ]));
+                }
+                lines.push(Line::raw(""));
+            }
         }
 
-        // Geometric Bounds Oracle
+        // 2. ORACLE EXPECTED VS ACTUAL GEOMETRY
+        lines.push(Line::styled(
+            "--- 1. Geometric Oracle Comparison ---",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        ));
         if let Some(rect) = &test.expect.rect {
-            lines.push(Line::raw(""));
-            lines.push(Line::styled(
-                "--- Oracle Arithmetic Expectation ---",
-                Style::default()
-                    .fg(Color::Magenta)
-                    .add_modifier(Modifier::BOLD),
-            ));
             lines.push(Line::from(format!(
-                "Anchor: {:?} | Pivot: {:?} | Tolerance: ±{}px",
+                "Expected: anchor={:?}, pivot={:?}, size={:?}, margin={:?}, tolerance=±{}px",
                 rect.anchor.as_deref().unwrap_or("none"),
                 rect.pivot.as_deref().unwrap_or("none"),
+                rect.size,
+                rect.margin,
                 rect.tolerance_px
             )));
+        } else {
+            lines.push(Line::raw(
+                "Expected: (No geometric rect expectation defined)",
+            ));
         }
 
-        // Human Review Section
+        if let Some(res) = res_opt {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&res.stdout) {
+                if let (Some(x), Some(y), Some(w), Some(h)) = (
+                    val.get("x").and_then(|v| v.as_i64()),
+                    val.get("y").and_then(|v| v.as_i64()),
+                    val.get("w").and_then(|v| v.as_u64()),
+                    val.get("h").and_then(|v| v.as_u64()),
+                ) {
+                    lines.push(Line::from(vec![
+                        Span::styled(
+                            "Actual Geometry: ",
+                            Style::default()
+                                .fg(Color::White)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            format!(
+                                "pos=({}, {}), size=({}x{}), source={}",
+                                x,
+                                y,
+                                w,
+                                h,
+                                val.get("source")
+                                    .and_then(|s| s.as_str())
+                                    .unwrap_or("claim")
+                            ),
+                            Style::default().fg(Color::Green),
+                        ),
+                    ]));
+                }
+            }
+        }
+        lines.push(Line::raw(""));
+
+        // 3. TRACE VIOLATIONS / WARNINGS
+        lines.push(Line::styled(
+            "--- 2. Compositor Actor Trace Diagnostics ---",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        ));
+        if let Some(res) = res_opt {
+            if let Some(slice) = &res.log_slice {
+                let violations: Vec<&str> = slice
+                    .lines()
+                    .filter(|l| {
+                        l.contains("VIOLATION")
+                            || l.contains("WARNING")
+                            || l.contains("REJECT")
+                            || l.contains("WATCHDOG")
+                    })
+                    .collect();
+
+                if violations.is_empty() {
+                    lines.push(Line::from(vec![
+                        Span::styled("✓ Trace Clean: ", Style::default().fg(Color::Green)),
+                        Span::raw(
+                            "Zero cloak or geometry violations recorded by compositor extension.",
+                        ),
+                    ]));
+                } else {
+                    for v in violations {
+                        lines.push(Line::styled(
+                            format!("  ⚠ {}", v),
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        ));
+                    }
+                }
+                lines.push(Line::styled(
+                    "Trace Timeline (Recent Events):",
+                    Style::default().fg(Color::DarkGray),
+                ));
+                for l in slice.lines().take(6) {
+                    lines.push(Line::from(format!("  {}", l)));
+                }
+            } else {
+                lines.push(Line::raw("No trace slice captured for this run."));
+            }
+        } else {
+            lines.push(Line::raw("Test has not been executed yet."));
+        }
+        lines.push(Line::raw(""));
+
+        // 4. CAPTURED STDOUT / STDERR
+        lines.push(Line::styled(
+            "--- 3. Captured Output (Stdout & Stderr) ---",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        ));
+        if let Some(res) = res_opt {
+            if !res.stderr.is_empty() {
+                lines.push(Line::styled(
+                    "Stderr Output:",
+                    Style::default().fg(Color::LightRed),
+                ));
+                for line in res.stderr.lines().take(10) {
+                    lines.push(Line::from(format!("  {}", line)));
+                }
+            } else {
+                lines.push(Line::styled(
+                    "Stderr: (empty)",
+                    Style::default().fg(Color::DarkGray),
+                ));
+            }
+
+            if !res.stdout.is_empty() {
+                lines.push(Line::styled(
+                    "Stdout Output:",
+                    Style::default().fg(Color::DarkGray),
+                ));
+                for line in res.stdout.lines().take(5) {
+                    lines.push(Line::from(format!("  {}", line)));
+                }
+            }
+        } else {
+            lines.push(Line::raw("Output not yet available."));
+        }
+        lines.push(Line::raw(""));
+
+        // 5. HUMAN VISUAL REVIEW WATCH & VERDICT
         if let Some(human) = &test.human {
-            lines.push(Line::raw(""));
             lines.push(Line::styled(
-                "--- 👁 Human Visual Review Watch ---",
+                "--- 4. 👁 Human Visual Review Watch ---",
                 Style::default()
-                    .fg(Color::Yellow)
+                    .fg(Color::Green)
                     .add_modifier(Modifier::BOLD),
             ));
             lines.push(Line::from(vec![
@@ -297,9 +491,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect) {
                 Span::raw(&human.watch),
             ]));
 
-            let v_str = app
-                .results
-                .get(&test.id)
+            let v_str = res_opt
                 .map(|r| match r.human_verdict.verdict {
                     HumanVerdictKind::Pass => "PASS",
                     HumanVerdictKind::Fail => "FAIL",
@@ -313,57 +505,74 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect) {
                 Span::styled("Human Verdict: ", Style::default().fg(Color::Yellow)),
                 Span::styled(v_str, Style::default().add_modifier(Modifier::BOLD)),
             ]));
+            lines.push(Line::raw(""));
         }
 
-        // Test Execution Result
-        if let Some(res) = app.results.get(&test.id) {
-            lines.push(Line::raw(""));
-            lines.push(Line::styled(
-                "--- Execution Outcome ---",
-                Style::default()
-                    .fg(Color::Green)
-                    .add_modifier(Modifier::BOLD),
-            ));
+        // 6. TEST METADATA & ACTIONS
+        lines.push(Line::styled(
+            "--- 5. Test Metadata & Action ---",
+            Style::default()
+                .fg(Color::Blue)
+                .add_modifier(Modifier::BOLD),
+        ));
+        lines.push(Line::from(format!(
+            "ID: {} | Kind: {:?} | Required: {}",
+            test.id, test.kind, test.required
+        )));
+        lines.push(Line::from(format!("Title: {}", test.title)));
+        lines.push(Line::from(format!("Description: {}", test.description)));
+        if let Some(sub) = &test.subject {
             lines.push(Line::from(format!(
-                "Final: {:?} | Auto: {:?} | Human: {:?} | Duration: {}ms",
-                res.final_status, res.auto_status, res.human_verdict.verdict, res.duration_ms
+                "Subject App: {} | Args: {:?}",
+                sub.app, sub.args
             )));
-
+        }
+        lines.push(Line::from(format!(
+            "Action: {} {:?}",
+            test.action.command, test.action.args
+        )));
+        if let Some(res) = res_opt {
+            lines.push(Line::from(format!(
+                "Outcome: Final={:?}, Auto={:?}, Duration={}ms, ExitCode={:?}",
+                res.final_status, res.auto_status, res.duration_ms, res.exit_code
+            )));
             if res.disagreement {
                 lines.push(Line::styled(
                     "⚠ DISAGREEMENT: Automated outcome and Human visual judgment contradict!",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                 ));
             }
-
-            if let Some(msg) = &res.message {
-                lines.push(Line::from(vec![
-                    Span::styled("Message: ", Style::default().fg(Color::Red)),
-                    Span::raw(msg),
-                ]));
-            }
-
-            if !res.stderr.is_empty() {
-                lines.push(Line::raw(""));
-                lines.push(Line::styled(
-                    "Stderr Output:",
-                    Style::default().fg(Color::DarkGray),
-                ));
-                for line in res.stderr.lines().take(5) {
-                    lines.push(Line::from(format!("  {}", line)));
-                }
-            }
         }
     } else {
         lines.push(Line::raw("No test selected."));
     }
 
+    let title_suffix = if is_expanded {
+        format!(
+            " [FULL VIEW - Line: {} | Enter/d/Esc: return, j/k: scroll] ",
+            app.detail_scroll
+        )
+    } else {
+        format!(
+            " [Line: {} | Enter/d: expand, [/]: scroll] ",
+            app.detail_scroll
+        )
+    };
+
+    let title = format!(" Test Details & Diagnostics{} ", title_suffix);
+
     let detail_widget = Paragraph::new(lines)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(" Test Details & Verification "),
+                .title(title)
+                .border_style(if is_expanded {
+                    Style::default().fg(Color::Cyan)
+                } else {
+                    Style::default()
+                }),
         )
+        .scroll((app.detail_scroll, 0))
         .wrap(Wrap { trim: true });
 
     f.render_widget(detail_widget, area);
@@ -371,7 +580,7 @@ fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect) {
 
 fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
     let msg = app.status_message.as_deref().unwrap_or(
-        "[j/k] Navigate | [r] Run Selected | [a] Run All | [v] Set Verdict | [f] Filter | [q/Ctrl+C] Quit",
+        "[j/k] Navigate | [r] Run | [a] Run All | [v] Visual Verdict | [d/Enter] Details | [f] Filter | [q] Quit",
     );
 
     let footer_widget = Paragraph::new(Line::from(vec![

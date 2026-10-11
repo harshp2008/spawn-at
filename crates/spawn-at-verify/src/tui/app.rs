@@ -62,6 +62,8 @@ pub struct TuiApp {
     pub tracker: WindowTracker,
     pub status_message: Option<String>,
     pub should_quit: bool,
+    pub detail_scroll: u16,
+    pub detail_drawer_open: bool,
 }
 
 impl TuiApp {
@@ -96,6 +98,8 @@ impl TuiApp {
             tracker,
             status_message: None,
             should_quit: false,
+            detail_scroll: 0,
+            detail_drawer_open: false,
         })
     }
 
@@ -132,12 +136,14 @@ impl TuiApp {
         let count = self.filtered_tests().len();
         if count > 0 && self.selected_index + 1 < count {
             self.selected_index += 1;
+            self.detail_scroll = 0;
         }
     }
 
     pub fn previous(&mut self) {
         if self.selected_index > 0 {
             self.selected_index -= 1;
+            self.detail_scroll = 0;
         }
     }
 
@@ -288,16 +294,64 @@ impl TuiApp {
             ModalState::None => {}
         }
 
-        // 3. Normal view keybindings
+        // 3. Detail drawer mode keybindings (full scrollable view)
+        if self.detail_drawer_open {
+            match key.code {
+                KeyCode::Char('q') => {
+                    self.should_quit = true;
+                }
+                KeyCode::Esc | KeyCode::Enter | KeyCode::Char('d') => {
+                    self.detail_drawer_open = false;
+                }
+                KeyCode::Down | KeyCode::Char('j') => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                }
+                KeyCode::Up | KeyCode::Char('k') => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                }
+                KeyCode::PageDown => {
+                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                }
+                KeyCode::PageUp => {
+                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                }
+                KeyCode::Home => {
+                    self.detail_scroll = 0;
+                }
+                KeyCode::Char('r') => {
+                    self.run_selected();
+                }
+                KeyCode::Char('v') => {
+                    self.open_verdict_modal();
+                }
+                _ => {}
+            }
+            return;
+        }
+
+        // 4. Normal view keybindings
         match key.code {
             KeyCode::Char('q') => {
                 self.should_quit = true;
+            }
+            KeyCode::Enter | KeyCode::Char('d') => {
+                self.detail_drawer_open = true;
+                self.detail_scroll = 0;
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 self.next();
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 self.previous();
+            }
+            KeyCode::PageDown | KeyCode::Char(']') => {
+                self.detail_scroll = self.detail_scroll.saturating_add(6);
+            }
+            KeyCode::PageUp | KeyCode::Char('[') => {
+                self.detail_scroll = self.detail_scroll.saturating_sub(6);
+            }
+            KeyCode::Home => {
+                self.detail_scroll = 0;
             }
             KeyCode::Char('f') => {
                 self.cycle_filter();

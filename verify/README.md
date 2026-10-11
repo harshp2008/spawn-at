@@ -225,17 +225,24 @@ The GNOME Shell extension emits structured JSON events when logging is enabled v
 ### Terminal User Interface (TUI)
 Run with real fixture cases:
 ```bash
+cargo run -p spawn-at-verify --bin spawn-at-verify --features tui,fixture -- tui
+# or equivalently (supported via default-run in Cargo.toml):
 cargo run -p spawn-at-verify --features tui,fixture -- tui
 ```
 
 - **Missing Fixture Warning Banner**: If the fixture binary is missing, the TUI displays a prominent warning banner at the top instructing how to build it (`cargo build -p spawn-at-verify --bin fixture --features fixture`).
 - **Keybindings**:
-  - `j` / `Down`, `k` / `Up`: Navigate test cases
+  - `Enter` / `d`: Toggle Detail Drawer (expands to full scrollable view)
+  - `j` / `Down`, `k` / `Up`: Navigate test cases in table, or scroll detail drawer line-by-line
+  - `PageDown` / `PageUp`: Scroll detail drawer by page
+  - `[` / `]`: Scroll detail drawer while remaining in table view
+  - `Home`: Reset scroll to top of detail drawer
   - `r`: Execute currently selected test
   - `a`: Execute all tests matching current filter
   - `v`: Open human visual review verdict modal (`[P]` Pass, `[F]` Fail, `[S]` Skip, `[K]` Flaky, `[Esc]` Cancel)
   - `f`: Cycle filter modes (`All` -> `Human Only` -> `Auto Only` -> `Failed Only`)
   - `q` / `Ctrl+C`: Graceful teardown
+- **Detail Drawer Structure**: Orders content with failure reason first at the top, followed by geometric oracle expected vs actual geometry comparison, compositor actor trace violations/warnings, captured stdout/stderr, human review watch instructions, and test metadata.
 - **Raw Mode Ctrl+C & Signal Safety**: In terminal raw mode, `Ctrl+C` arrives as a crossterm key event. Both `Ctrl+C` and external `SIGTERM`/`SIGHUP` signals execute the exact same unified teardown:
   1. Restores terminal raw mode, leaves alternate screen, and restores cursor visibility.
   2. Safely cleans up test-spawned windows via `spawn-at close --id <ID>`.

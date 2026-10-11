@@ -56,7 +56,7 @@ pub fn detect_current_logging_state() -> bool {
 
 /// Invokes `SetLogging` on the GNOME Shell extension via session D-Bus.
 pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
-    let status = Command::new("gdbus")
+    let output = Command::new("gdbus")
         .args([
             "call",
             "--session",
@@ -68,11 +68,15 @@ pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
             "org.gnome.Shell.Extensions.SpawnAt.SetLogging",
             if enabled { "true" } else { "false" },
         ])
-        .status();
+        .output();
 
-    match status {
-        Ok(s) if s.success() => Ok(()),
-        Ok(s) => Err(format!("gdbus returned non-zero exit code: {:?}", s.code())),
+    match output {
+        Ok(out) if out.status.success() => Ok(()),
+        Ok(out) => Err(format!(
+            "gdbus returned non-zero exit code: {:?}, stderr: {}",
+            out.status.code(),
+            String::from_utf8_lossy(&out.stderr)
+        )),
         Err(e) => Err(format!("Failed to execute gdbus: {}", e)),
     }
 }

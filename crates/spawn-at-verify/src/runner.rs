@@ -420,7 +420,21 @@ impl TestRunner {
                     if !test.action.args.contains(&"--json".to_string()) {
                         cmd.arg("--json");
                     }
+                    // If subject specifies a custom --app-id, pass it as --class to spawn-at
+                    // so the compositor extension arms for the fixture's exact WM_CLASS.
+                    if !test.action.args.contains(&"--class".to_string())
+                        && !test.action.args.contains(&"-c".to_string())
+                    {
+                        for pair in sub.args.windows(2) {
+                            if pair[0] == "--app-id" {
+                                cmd.arg("--class");
+                                cmd.arg(&pair[1]);
+                                break;
+                            }
+                        }
+                    }
                     cmd.arg("--");
+                    cmd.arg(&fixture_bin);
                     let mut has_exit_after = false;
                     for sarg in &sub.args {
                         if sarg == "--exit-after-ms" {
@@ -429,11 +443,16 @@ impl TestRunner {
                         cmd.arg(sarg);
                     }
                     // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
-                    // if test harness crashes or receives SIGKILL mid-execution. 10,000ms comfortably
-                    // outlasts the default 5s test step timeout while bounding fixture lifetime.
+                    // if test harness crashes or receives SIGKILL mid-execution.
+                    // For human visual review (Human/Both), allow 5 minutes (300,000ms) for observation;
+                    // for automated runs, 10,000ms comfortably outlasts the 5s test step timeout.
                     if !has_exit_after {
                         cmd.arg("--exit-after-ms");
-                        cmd.arg("10000");
+                        let timeout = match test.kind {
+                            TestKind::Human | TestKind::Both => "300000",
+                            TestKind::Auto => "10000",
+                        };
+                        cmd.arg(timeout);
                     }
                 } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
                     if !test.action.args.contains(&"--json".to_string()) {

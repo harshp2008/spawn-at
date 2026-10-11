@@ -22,7 +22,9 @@ profile = "delayed-paint"
 args = [
     "--title", "Verify-Cloak-DelayedPaint",
     "--app-id", "verify.cloak.delayedpaint",
-    "--paint-delay-ms", "{delay}"
+    "--paint-delay-ms", "{delay}",
+    "--width", "500",
+    "--height", "350"
 ]
 
 [action]
@@ -30,7 +32,8 @@ command = "spawn"
 repeatable = false
 args = [
     "--anchor", "center",
-    "--size", "500", "350"
+    "--size", "500", "350",
+    "--margin", "16"
 ]
 
 [expect]
