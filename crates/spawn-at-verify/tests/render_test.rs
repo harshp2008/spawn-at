@@ -14,10 +14,14 @@ fn verify_dir() -> PathBuf {
 /// Every embedded recording is listed, and each id is one of the two real recordings.
 #[test]
 fn test_recorded_cases_list_the_real_recordings() {
-    let ids: Vec<String> = recorded_cases().into_iter().map(|c| c.id).collect();
+    let names: Vec<String> = recorded_cases().into_iter().map(|c| c.name).collect();
     assert_eq!(
-        ids,
-        vec!["placement/bottom-right", "cloak/delayed-paint/delay-500"]
+        names,
+        vec![
+            "placement/bottom-right",
+            "cloak/delayed-paint/delay-500",
+            "cloak/delayed-paint/delay-500@probed"
+        ]
     );
 }
 
@@ -224,4 +228,66 @@ fn test_environment_fingerprint_workarea_fields_are_optional_and_round_trip() {
         Some(Rect::new(0, 40, 1920, 1040))
     );
     assert_eq!(back.primary_workarea, None);
+}
+
+/// `delay-500` still means the older recording; the labelled one is addressed explicitly.
+#[test]
+fn test_labelled_recording_is_addressed_by_its_own_name() {
+    assert_eq!(
+        find_case("delay-500").unwrap().fixture,
+        "real_delay500_run.json"
+    );
+    for name in ["delay-500@probed", "cloak/delayed-paint/delay-500@probed"] {
+        let c = find_case(name).unwrap();
+        assert_eq!(c.fixture, "real_delay500_probed_run.json");
+        assert_eq!(c.id, "cloak/delayed-paint/delay-500");
+    }
+}
+
+/// The fresh recording carries both workarea measurements, and `render` shows the independent
+/// result: a plain green-style pass with no extension-derived marker and no warning, taken from
+/// what the run recorded (never from a live probe of this machine).
+#[test]
+fn test_probed_recording_renders_the_independent_result() {
+    use spawn_at_verify::oracle::Rect;
+    let case = find_case("delay-500@probed").unwrap();
+    assert_eq!(
+        case.environment.independent_workarea,
+        Some(Rect::new(0, 40, 1920, 1040))
+    );
+    assert_eq!(
+        case.environment.primary_workarea,
+        Some(Rect::new(0, 40, 1920, 1040))
+    );
+    assert_eq!(case.environment.hostname, "redacted");
+
+    let text = render_case(&verify_dir(), &case, 100, 100, 0).unwrap();
+    let geometry = text
+        .lines()
+        .find(|l| l.contains("  Geometry"))
+        .expect("Geometry row");
+    assert!(
+        geometry.contains("✔ within ±1 px of expected"),
+        "{}",
+        geometry
+    );
+    assert!(!text.contains("not independently probed"), "{}", text);
+    assert!(!text.contains("workarea differs"), "{}", text);
+}
+
+/// The two recordings of the same test differ exactly in the independent evidence: the old one is
+/// marked extension-derived, the new one is not.
+#[test]
+fn test_old_and_probed_recordings_differ_in_independence_marker() {
+    let old = render_case(&verify_dir(), &find_case("delay-500").unwrap(), 100, 100, 0).unwrap();
+    let new = render_case(
+        &verify_dir(),
+        &find_case("delay-500@probed").unwrap(),
+        100,
+        100,
+        0,
+    )
+    .unwrap();
+    assert!(old.contains("workarea from the extension, not independently probed"));
+    assert!(!new.contains("workarea from the extension, not independently probed"));
 }
