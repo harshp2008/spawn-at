@@ -1,5 +1,6 @@
 //! Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget).
 
+use crate::oracle::GeometryStatus;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
 use crate::tui::views::builder::DrawerBuilder;
@@ -11,6 +12,7 @@ pub fn render_result_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,
     res_opt: Option<&TestResult>,
+    env_workarea: Option<crate::oracle::Rect>,
 ) {
     // 1. Section: RESULT
     builder.push_heading("RESULT", None);
@@ -316,6 +318,60 @@ pub fn render_result_section(
         )
     };
     builder.push_kv("Trace", t_spans, &t_plain);
+
+    // Geometry: the same comparison as the GEOMETRY table and the runner's verdict.
+    if let Some(rect) = &test.expect.rect {
+        let check = match res_opt {
+            Some(r) => r.geometry_check(test, env_workarea),
+            None => None,
+        }
+        .unwrap_or_else(|| crate::oracle::check_geometry(rect, "", None, env_workarea));
+        let tol = check.tolerance_px;
+        let (g_spans, g_plain): (Vec<Span<'static>>, String) = match check.status() {
+            GeometryStatus::Pass => (
+                vec![
+                    Span::styled(
+                        "✔ ",
+                        Style::default()
+                            .fg(Color::Green)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        format!("within ±{} px of expected", tol),
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                format!("✔ within ±{} px of expected", tol),
+            ),
+            GeometryStatus::Fail => {
+                let (dx, dy, dw, dh) = check.deltas().unwrap_or((0, 0, 0, 0));
+                let msg = format!(
+                    "off expected by dx={:+} dy={:+} dw={:+} dh={:+} (tolerance ±{} px)",
+                    dx, dy, dw, dh, tol
+                );
+                (
+                    vec![
+                        Span::styled(
+                            "✘ ",
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(msg.clone(), Style::default().fg(Color::Red)),
+                    ],
+                    format!("✘ {}", msg),
+                )
+            }
+            GeometryStatus::NotMeasured => (
+                vec![Span::styled(
+                    "not measured",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )],
+                "not measured".into(),
+            ),
+        };
+        builder.push_kv("Geometry", g_spans, &g_plain);
+    }
 
     // Failure: ONLY when case failed!
     let case_failed = res_opt

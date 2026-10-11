@@ -12,6 +12,7 @@
   Cloak            34.2 ms
   Budget           100 ms (provisional)   ✔ within budget
   Trace            ✔ clean, no violations
+  Geometry         ✔ within ±1 px of expected
 
  ── WHAT TO LOOK FOR ────────────────────────────────────────────────────────────────────────────
   Watch            Did the window appear once in the bottom-right corner with a small gap from

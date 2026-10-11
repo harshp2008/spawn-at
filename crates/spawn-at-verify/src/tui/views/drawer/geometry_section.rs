@@ -1,6 +1,7 @@
-//! Drawer GEOMETRY section rendering (Expected vs Actual table).
+//! Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict.
 
 use super::info_sections::spec_flag_value;
+use crate::oracle::{check_geometry, GeometryCheck, Rect};
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
 use crate::tui::views::builder::DrawerBuilder;
@@ -8,35 +9,33 @@ use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_RIGHT_PAD};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
-/// Renders the GEOMETRY section comparing expected, actual, and result placement rectangles.
+/// Foreground used for ordinary values.
+const VALUE: Color = Color::Rgb(200, 200, 200);
+
+/// Renders the GEOMETRY section.
+///
+/// With a rectangle expectation the table shows Expected (from the oracle and the spec, never
+/// from the observed result), Actual (from stdout, or "not measured") and a Result mark that
+/// comes from [`GeometryCheck`], the same comparison the runner's verdict uses.
+/// `env_workarea` is the probed workarea, used only when the run's own log records none.
 pub fn render_geometry_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,
     res_opt: Option<&TestResult>,
+    env_workarea: Option<Rect>,
 ) {
-    // 2. Section: GEOMETRY
     builder.push_heading("GEOMETRY", None);
-    let mut actual_geom = None;
-    if let Some(r) = res_opt {
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(&r.stdout) {
-            if let (Some(x), Some(y), Some(w), Some(h)) = (
-                val.get("x").and_then(|v| v.as_i64()),
-                val.get("y").and_then(|v| v.as_i64()),
-                val.get("w").and_then(|v| v.as_u64()),
-                val.get("h").and_then(|v| v.as_u64()),
-            ) {
-                let src = val
-                    .get("source")
-                    .and_then(|s| s.as_str())
-                    .unwrap_or("claim")
-                    .to_string();
-                actual_geom = Some((x, y, w, h, src));
-            }
-        }
-    }
 
     if let Some(rect) = &test.expect.rect {
-        let tol_str = format!("±{} px", rect.tolerance_px);
+        let check = match res_opt {
+            Some(r) => r.geometry_check(test, env_workarea),
+            None => None,
+        }
+        .unwrap_or_else(|| check_geometry(rect, "", None, env_workarea));
+
+        render_table(builder, &check);
+        builder.push_blank();
+
         // Anchor and margin appear in SPEC as `--anchor` / `--margin` when the action passes
         // them; they are shown here only when SPEC does not already state the same value.
         let anchor_row = merged_expectation(test, "--anchor", "Anchor", rect.anchor.clone());
@@ -46,166 +45,49 @@ pub fn render_geometry_section(
             "Margin",
             rect.margin.map(|m| m.to_string()),
         );
+        push_expectation_row(builder, anchor_row.as_ref());
+        push_expectation_row(builder, margin_row.as_ref());
+        push_plain_row(builder, "Tolerance", &format!("±{} px", check.tolerance_px));
 
-        if let Some((ax, ay, aw, ah, _src)) = actual_geom {
-            // Table Header: Field, Expected, Actual, Result
-            // Expected/Actual columns shrink (12..=16) when a wide shared label column leaves less room
-            let col_w = (builder
-                .inner_width
-                .saturating_sub(DRAWER_INDENT + builder.label_w + 8 + DRAWER_RIGHT_PAD)
-                / 2)
-            .clamp(12, 16);
-            let indent_str = " ".repeat(DRAWER_INDENT);
-            let f_hdr = builder.format_label("Field");
-            let exp_hdr = format!("{:<w$}", "Expected", w = col_w);
-            let act_hdr = format!("{:<w$}", "Actual", w = col_w);
-            let res_hdr = format!("{:<8}", "Result");
-
-            let tbl_hdr = format!("{}{}{}{}{}", indent_str, f_hdr, exp_hdr, act_hdr, res_hdr);
-            builder.push(
-                Line::from(vec![
-                    Span::raw(indent_str.clone()),
-                    Span::styled(f_hdr, Style::default().fg(Color::DarkGray)),
-                    Span::styled(exp_hdr, Style::default().fg(Color::DarkGray)),
-                    Span::styled(act_hdr, Style::default().fg(Color::DarkGray)),
-                    Span::styled(res_hdr, Style::default().fg(Color::DarkGray)),
-                ]),
-                tbl_hdr,
-            );
-
-            let exp_pos = format!("{}, {}", ax, ay);
-            let act_pos = format!("{}, {}", ax, ay);
-            let f_pos = builder.format_label("Position");
-            let exp_pos_fmt = format!("{:<w$}", exp_pos, w = col_w);
-            let act_pos_fmt = format!("{:<w$}", act_pos, w = col_w);
-            let res_pos_str = "   ✔    ";
-            let pos_line = format!(
-                "{}{}{}{}{}",
-                indent_str, f_pos, exp_pos_fmt, act_pos_fmt, res_pos_str
-            );
-            builder.push(
-                Line::from(vec![
-                    Span::raw(indent_str.clone()),
-                    Span::styled(f_pos, Style::default().fg(Color::DarkGray)),
-                    Span::styled(exp_pos_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
-                    Span::styled(act_pos_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
-                    Span::raw("   "),
-                    Span::styled(
-                        "✔",
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw("    "),
-                ]),
-                pos_line,
-            );
-
-            let (exp_sz, act_sz) = if let Some(sz) = &rect.size {
-                (format!("{}×{}", sz[0], sz[1]), format!("{}×{}", aw, ah))
-            } else {
-                (format!("{}×{}", aw, ah), format!("{}×{}", aw, ah))
-            };
-            let f_sz = builder.format_label("Size");
-            let exp_sz_fmt = format!("{:<w$}", exp_sz, w = col_w);
-            let act_sz_fmt = format!("{:<w$}", act_sz, w = col_w);
-            let res_sz_str = "   ✔    ";
-            let sz_line = format!(
-                "{}{}{}{}{}",
-                indent_str, f_sz, exp_sz_fmt, act_sz_fmt, res_sz_str
-            );
-            builder.push(
-                Line::from(vec![
-                    Span::raw(indent_str.clone()),
-                    Span::styled(f_sz, Style::default().fg(Color::DarkGray)),
-                    Span::styled(exp_sz_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
-                    Span::styled(act_sz_fmt, Style::default().fg(Color::Rgb(200, 200, 200))),
-                    Span::raw("   "),
-                    Span::styled(
-                        "✔",
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::raw("    "),
-                ]),
-                sz_line,
-            );
-
-            // After the table, 1 blank row
-            builder.push_blank();
-
-            push_expectation_row(builder, anchor_row.as_ref());
-            push_expectation_row(builder, margin_row.as_ref());
-            builder.push_kv(
-                "Tolerance",
-                vec![Span::styled(
-                    tol_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &tol_str,
-            );
-        } else {
-            push_expectation_row(builder, anchor_row.as_ref());
-            if let Some(sz) = &rect.size {
-                let sz_str = format!("{}×{}", sz[0], sz[1]);
+        if let Some((dx, dy, dw, dh)) = check.deltas() {
+            if check.status() == crate::oracle::GeometryStatus::Fail {
+                let off = match check.spec_size {
+                    Some(_) => format!("dx={:+} dy={:+} dw={:+} dh={:+}", dx, dy, dw, dh),
+                    None => format!("dx={:+} dy={:+}", dx, dy),
+                };
                 builder.push_kv(
-                    "Size",
+                    "Off by",
                     vec![Span::styled(
-                        sz_str.clone(),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                        off.clone(),
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
                     )],
-                    &sz_str,
+                    &off,
                 );
             }
-            push_expectation_row(builder, margin_row.as_ref());
+        }
+        if let Some(why) = &check.expected_error {
+            let note = format!("expected rectangle unavailable: {}", why);
             builder.push_kv(
-                "Tolerance",
+                "Note",
                 vec![Span::styled(
-                    tol_str.clone(),
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                )],
-                &tol_str,
-            );
-            builder.push_blank();
-            builder.push_kv(
-                "Actual",
-                vec![Span::styled(
-                    "not measured",
+                    note.clone(),
                     Style::default()
                         .fg(Color::DarkGray)
                         .add_modifier(Modifier::ITALIC),
                 )],
-                "not measured",
+                &note,
             );
         }
-    } else if let Some((ax, ay, aw, ah, src)) = actual_geom {
-        let pos_str = format!("{}, {}", ax, ay);
-        let sz_str = format!("{}×{}", aw, ah);
-        builder.push_kv(
-            "Position",
-            vec![Span::styled(
-                pos_str.clone(),
-                Style::default().fg(Color::Rgb(200, 200, 200)),
-            )],
-            &pos_str,
-        );
-        builder.push_kv(
-            "Size",
-            vec![Span::styled(
-                sz_str.clone(),
-                Style::default().fg(Color::Rgb(200, 200, 200)),
-            )],
-            &sz_str,
-        );
-        builder.push_kv(
-            "Source",
-            vec![Span::styled(
-                src.clone(),
-                Style::default().fg(Color::Rgb(200, 200, 200)),
-            )],
-            &src,
-        );
+    } else if let Some(actual) =
+        res_opt.and_then(|r| crate::oracle::check::actual_rect_from_stdout(&r.stdout))
+    {
+        let src = res_opt
+            .and_then(|r| serde_json::from_str::<serde_json::Value>(&r.stdout).ok())
+            .and_then(|v| v.get("source").and_then(|s| s.as_str()).map(String::from))
+            .unwrap_or_else(|| "claim".to_string());
+        push_plain_row(builder, "Position", &format!("{}, {}", actual.x, actual.y));
+        push_plain_row(builder, "Size", &format!("{}×{}", actual.w, actual.h));
+        push_plain_row(builder, "Source", &src);
     } else {
         builder.push_kv(
             "Geometry",
@@ -219,6 +101,131 @@ pub fn render_geometry_section(
         );
     }
     builder.push_blank();
+}
+
+/// Draws the Field / Expected / Actual / Result table for `check`.
+fn render_table(builder: &mut DrawerBuilder, check: &GeometryCheck) {
+    // Expected/Actual columns shrink (12..=16) when a wide shared label column leaves less room.
+    let col_w = (builder
+        .inner_width
+        .saturating_sub(DRAWER_INDENT + builder.label_w + 8 + DRAWER_RIGHT_PAD)
+        / 2)
+    .clamp(12, 16);
+    let grey = Style::default().fg(Color::DarkGray);
+
+    let indent_str = " ".repeat(DRAWER_INDENT);
+    let hdr = |s: &str, w: usize| format!("{:<w$}", s, w = w);
+    let (f, e, a, r) = (
+        builder.format_label("Field"),
+        hdr("Expected", col_w),
+        hdr("Actual", col_w),
+        hdr("Result", 8),
+    );
+    let plain = format!("{}{}{}{}{}", indent_str, f, e, a, r);
+    builder.push(
+        Line::from(vec![
+            Span::raw(indent_str.clone()),
+            Span::styled(f, grey),
+            Span::styled(e, grey),
+            Span::styled(a, grey),
+            Span::styled(r, grey),
+        ]),
+        plain,
+    );
+
+    let fmt_rect_pos = |r: Rect| format!("{}, {}", r.x, r.y);
+    let fmt_rect_size = |w: u32, h: u32| format!("{}×{}", w, h);
+
+    table_row(
+        builder,
+        col_w,
+        "Position",
+        check
+            .expected
+            .map(fmt_rect_pos)
+            .unwrap_or_else(|| "unknown".into()),
+        check
+            .actual
+            .map(fmt_rect_pos)
+            .unwrap_or_else(|| "not measured".into()),
+        check.position_ok(),
+    );
+    table_row(
+        builder,
+        col_w,
+        "Size",
+        check
+            .spec_size
+            .map(|(w, h)| fmt_rect_size(w, h))
+            .unwrap_or_else(|| "—".into()),
+        check
+            .actual
+            .map(|a| fmt_rect_size(a.w, a.h))
+            .unwrap_or_else(|| "not measured".into()),
+        check.size_ok(),
+    );
+}
+
+/// Pushes one table row. `mark` is `Some(true)` for ✔, `Some(false)` for ✘ (the Actual cell
+/// also turns red) and `None` for no mark.
+fn table_row(
+    builder: &mut DrawerBuilder,
+    col_w: usize,
+    label: &str,
+    expected: String,
+    actual: String,
+    mark: Option<bool>,
+) {
+    let indent_str = " ".repeat(DRAWER_INDENT);
+    let label_fmt = builder.format_label(label);
+    let exp_fmt = format!("{:<w$}", expected, w = col_w);
+    let act_fmt = format!("{:<w$}", actual, w = col_w);
+    let act_style = match mark {
+        Some(false) => Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        _ if actual == "not measured" => Style::default()
+            .fg(Color::DarkGray)
+            .add_modifier(Modifier::ITALIC),
+        _ => Style::default().fg(VALUE),
+    };
+    let (mark_ch, mark_style) = match mark {
+        Some(true) => (
+            "✔",
+            Style::default()
+                .fg(Color::Green)
+                .add_modifier(Modifier::BOLD),
+        ),
+        Some(false) => (
+            "✘",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        ),
+        None => (" ", Style::default()),
+    };
+    // Result cell is 8 wide with the mark centred under the "Result" header.
+    let plain = format!(
+        "{}{}{}{}   {}    ",
+        indent_str, label_fmt, exp_fmt, act_fmt, mark_ch
+    );
+    builder.push(
+        Line::from(vec![
+            Span::raw(indent_str),
+            Span::styled(label_fmt, Style::default().fg(Color::DarkGray)),
+            Span::styled(exp_fmt, Style::default().fg(VALUE)),
+            Span::styled(act_fmt, act_style),
+            Span::raw("   "),
+            Span::styled(mark_ch, mark_style),
+            Span::raw("    "),
+        ]),
+        plain,
+    );
+}
+
+/// Pushes a label/value row in the ordinary value colour.
+fn push_plain_row(builder: &mut DrawerBuilder, label: &str, value: &str) {
+    builder.push_kv(
+        label,
+        vec![Span::styled(value.to_string(), Style::default().fg(VALUE))],
+        value,
+    );
 }
 
 /// Decides whether an expectation (anchor / margin) needs its own GEOMETRY row.
