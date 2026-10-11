@@ -167,10 +167,29 @@ fn test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard() {
         saved_content, expected_plain,
         "Saved file content must equal full drawer text"
     );
+    // One filename format: the test id with '/' replaced by '-', plus ".log.txt", directly
+    // under report_dir. (Written out literally here so a change to the format fails this test.)
+    let expected_name = format!("{}.log.txt", test.id.replace('/', "-"));
+    assert_eq!(
+        path.file_name().unwrap().to_string_lossy(),
+        expected_name,
+        "Saved file must be named <id with / -> ->.log.txt"
+    );
+    assert_eq!(
+        path.parent().unwrap(),
+        temp_dir,
+        "Saved file must live directly under report_dir"
+    );
     let title = app.get_drawer_title(&test.id);
     assert!(
         title.contains(&path.display().to_string()),
-        "Drawer title must show path, got: {}",
+        "Drawer title must show the saved path, got: {}",
+        title
+    );
+    assert!(
+        title.contains(&expected_name),
+        "Drawer title must show the filename {}, got: {}",
+        expected_name,
         title
     );
 
@@ -386,4 +405,23 @@ fn test_drawer_scrolling_keys_in_waiting_state() {
     // g scrolls to top (0)
     app.handle_key(KeyEvent::new(KeyCode::Char('g'), KeyModifiers::NONE));
     assert_eq!(app.detail_scroll, 0);
+}
+
+/// The help overlay must advertise the same `.log.txt` extension that `w` actually writes.
+#[test]
+fn test_help_overlay_names_the_save_file_extension() {
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+    app.detail_drawer_open = true;
+    app.handle_key(KeyEvent::new(KeyCode::Char('?'), KeyModifiers::NONE));
+
+    let backend = TestBackend::new(100, 50);
+    let mut terminal = Terminal::new(backend).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let rendered = dump_buffer_to_string(&terminal, 100, 50);
+    assert!(
+        rendered.contains("Save text to file (.log.txt)"),
+        "Help overlay must name the .log.txt save format:\n{}",
+        rendered
+    );
 }
