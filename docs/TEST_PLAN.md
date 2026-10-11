@@ -130,37 +130,55 @@ Under GNOME Wayland, minimizing a window triggers an asynchronous Clutter/Mutter
 
 ## 5. Delayed-Paint Calibration & Cloak Budget Analysis
 
-### Empirical Calibration Data (Live Wayland Session, GNOME 46)
+### Status: mostly not measured
 
-Measured across repeated executions on host `harsh` (Wayland, Ubuntu 24.04 GNOME Shell 46):
+An earlier revision of this section published min/median/max cloak durations and a two-mode
+("fast path" / "compositor scheduling delay") explanation. Those numbers were produced while the
+trace analyser could measure a leftover window from the previous run instead of the window named
+in the fixture's stdout (fixed in commit `7ffa99c`: the log slice has whole-second bounds, so it can
+contain the previous run's window, and `cloak_duration_ms` was the maximum over every lifecycle in
+the slice). They, and the explanations built on them, are withdrawn. No budget formula is
+supported by any measurement.
 
-| Test ID | Artificial Delay | Repetitions | Min Cloak Duration | Median Cloak Duration | Max Cloak Duration | Status |
-| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| `cloak/delayed-paint/delay-0` | 0 ms | 10 | **18.34 ms** | **410.55 ms** | **860.20 ms** | Pass |
-| `cloak/delayed-paint/delay-50` | 50 ms | 10 | **18.20 ms** | **471.02 ms** | **953.15 ms** | Pass |
-| `cloak/delayed-paint/delay-150` | 150 ms | 10 | **19.12 ms** | **577.81 ms** | **1153.23 ms** | Pass |
-| `cloak/delayed-paint/delay-500` | 500 ms | 10 | **17.62 ms** | **911.78 ms** | **951.86 ms** | Pass |
-| `placement/bottom-right` | 0 ms (normal) | 30 | **16.05 ms** | **401.10 ms** | **836.47 ms** | Pass |
+### Measured data (`spawn-at-verify calibrate`, GNOME 46 Wayland, one machine)
 
-### Distribution Analysis & Removal of Ungrounded Formula
-Previous revisions suggested a synthetic linear budget formula:
-`Budget = max(100 ms, AppPaintDelay + 50 ms)`
+`cloak_duration_ms` is UNCLOAK minus CLOAK for the window named in the fixture's stdout. Each row
+is one invocation of
+`spawn-at-verify calibrate --case cloak/delayed-paint/delay-500 --runs 10` after the fix. "Repeat"
+means `run --repeat 10` in one process; "separate" means 10 separate `run` processes.
 
-Empirical multi-run data proves this formula is ungrounded:
-1. **Bi-Modal Compositor Latency Distribution:**
-   Under GNOME Shell Wayland, cloak duration does not increase linearly with paint delay. Instead, executions cluster into two primary modes:
-   - *Fast path (~16 – 35 ms):* Occurs when the client window buffers and actor mappings synchronize cleanly with the immediate compositor frame refresh cycle.
-   - *Compositor scheduling delay (~400 – 950 ms):* Occurs when extension IPC synchronization or desktop event scheduling introduces a presentation pause before the `COMMIT_RESOLVED` and `UNCLOAK` events complete.
-2. **Delayed-Paint Impact:**
-   For `cloak/delayed-paint/delay-500`, when the window sleeps for 500 ms before painting its first frame, the cloak remains active until the client commits (median 911.78 ms). Because zero flicker is strictly enforced, the cloaked state correctly persists until the client submits its initial frame.
+| Batch | Mode | Runs measured | Min | Median | Max |
+| :--- | :--- | :---: | :---: | :---: | :---: |
+| 1 | separate | 10 | 7.29 ms | 8.60 ms | 18.88 ms |
+| 1 | repeat | 9 of 10 (1 run had no measurement; cause not investigated) | 6.85 ms | 9.63 ms | 140.18 ms |
+| 2 | separate | 10 | 32.91 ms | 43.03 ms | 58.99 ms |
+| 2 | repeat | 10 | 6.97 ms | 13.64 ms | 57.24 ms |
 
-### Budget Policy Recommendation
-1. **Advisory Budget Warning:**
-   The default 100 ms threshold remains an advisory threshold in the TUI drawer (rendered as yellow `!` with `over provisional budget`). It is intentionally NOT an automated hard failure threshold.
+What these data do and do not show:
+- Before the fix, neighbouring runs repeatedly reported identical values (for example 57.64 ms
+  twice, 8.20 ms three times), the signature of one leftover window being measured for several
+  runs. After the fix no two runs report the same value.
+- The spread is wide and differs between batches run minutes apart (about 7 - 19 ms in batch 1
+  separate, about 33 - 59 ms in batch 2 separate). Only one machine and four batches of 10 were
+  measured, so no distribution, mode structure or cause is claimed.
+- In the three runs of batch 2 whose cloak was at least 50 ms (separate runs 9 and 10, repeat run 1), the printed event lists show
+  `ACTOR_MAP` about 540 - 566 ms after `WINDOW_CREATED`, `CLOAK` immediately after `ACTOR_MAP`,
+  then a gap of about 49 - 55 ms between `COMMIT_RESOLVED` and the next `BATCH_STEP` before
+  `UNCLOAK`. The gap accounts for the length of those cloaks; why it varies was not investigated.
+- In batch 1 repeat, the 140.18 ms and 115.71 ms runs and the unmeasured run were seen once and were not
+  reproduced in later batches. Their event lists were not captured, so they are unexplained.
+- `cloak/delayed-paint/delay-0`, `delay-50`, `delay-150` and `placement/bottom-right`: **not
+  measured** after the fix.
+
+### Budget Policy
+1. **Advisory budget warning:**
+   The 100 ms warning threshold is **provisional**: it is a guess, not derived from the data above,
+   and no measurement supports a budget that depends on the paint delay. It is shown in the TUI
+   drawer as `over provisional budget` and is not an automated pass/fail threshold.
 2. **Automated Verification Pass/Fail Invariants:**
    Automated pass/fail criteria are strictly anchored in correctness invariants rather than synthetic timing limits:
    - Window must never be visible off-target (zero flicker).
-   - `CLOAK` must precede actor mapping and sizing.
+   - `CLOAK` must precede `AFTER_SET_SIZE`, `COMMIT_RESOLVED`, `AFTER_SET_POSITION_ANCHORED` and `UNCLOAK` (partial order checked by the trace analyser).
    - `COMMIT_RESOLVED` and position configuration must precede `UNCLOAK`.
    - Final mapped geometry must match the oracle coordinates within tolerance (`±1 px`).
 
@@ -169,3 +187,7 @@ Empirical multi-run data proves this formula is ungrounded:
 - **Flag Definition:** `--repeat <REPEAT> Repeat each test N times (cap 100) for flakiness detection [default: 1]` (pre-existing since commit `0f6bb36`).
 - **Behavior:** Executes the test action across $N$ repetitions. If outcomes vary across repetitions (e.g., pass vs fail), the runner marks the result as `FinalStatus::Flaky` with an explanatory diagnostic message.
 
+- **Only the first run is reported:** with `--repeat N`, `report.json` and the printed summary contain the first repetition's result only (marked `Flaky` if any repetition's outcome differed); repetitions 2..N are not kept. To see every repetition's cloak duration use `spawn-at-verify calibrate --case <id> --runs N`, which prints each run and min/median/max plus the `report.json` paths.
+
+### `spawn-at-verify calibrate`
+`spawn-at-verify calibrate --case <id> [--runs N]` (N defaults to 10, capped at 100) measures one case's `cloak_duration_ms` twice: with N separate `run` processes and with `run --repeat N` in one process. It prints, per run, the cloak duration, the window id named in the fixture's stdout, the number of distinct windows present in the log slice, and the report path, then min/median/max. For runs with no measurement or a cloak of at least 50 ms it also prints the scoped event list. Separate runs that start within the same second share a report directory name (second-granularity timestamps) and the output says so.
