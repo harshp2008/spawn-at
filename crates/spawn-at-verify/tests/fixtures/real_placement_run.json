@@ -1,6 +1,6 @@
 {
   "environment": {
-    "hostname": "harsh",
+    "hostname": "redacted",
     "session_type": "wayland",
     "desktop": "ubuntu:gnome",
     "gnome_version": 46,
