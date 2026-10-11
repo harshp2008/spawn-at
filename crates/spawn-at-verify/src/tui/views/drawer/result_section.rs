@@ -1,5 +1,6 @@
 //! Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget).
 
+use crate::oracle::check::WorkareaSource;
 use crate::oracle::GeometryStatus;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
@@ -14,6 +15,17 @@ pub fn render_result_section(
     res_opt: Option<&TestResult>,
     env_workarea: Option<crate::oracle::Rect>,
 ) {
+    // One geometry comparison for the whole section (Verdict, Geometry row).
+    let geometry_check = test.expect.rect.as_ref().map(|rect| {
+        res_opt
+            .and_then(|r| r.geometry_check(test, env_workarea))
+            .unwrap_or_else(|| crate::oracle::check_geometry(rect, "", None, env_workarea))
+    });
+    // A passed run whose geometry could not be verified is not shown as a plain Pass.
+    let geometry_unchecked = res_opt.is_some()
+        && geometry_check
+            .as_ref()
+            .is_some_and(|c| c.status() == GeometryStatus::Unchecked);
     // 1. Section: RESULT
     builder.push_heading("RESULT", None);
     let (v_spans, v_plain): (Vec<Span<'static>>, String) = if let Some(r) = res_opt {
@@ -79,6 +91,8 @@ pub fn render_result_section(
             HumanVerdictKind::Unset => {
                 if test.kind == TestKind::Auto {
                     match r.final_status {
+                        FinalStatus::PassUnchecked => unchecked_verdict(),
+                        FinalStatus::Pass if geometry_unchecked => unchecked_verdict(),
                         FinalStatus::Pass => (
                             vec![
                                 Span::styled(
@@ -320,14 +334,27 @@ pub fn render_result_section(
     builder.push_kv("Trace", t_spans, &t_plain);
 
     // Geometry: the same comparison as the GEOMETRY table and the runner's verdict.
-    if let Some(rect) = &test.expect.rect {
-        let check = match res_opt {
-            Some(r) => r.geometry_check(test, env_workarea),
-            None => None,
-        }
-        .unwrap_or_else(|| crate::oracle::check_geometry(rect, "", None, env_workarea));
+    if let Some(check) = &geometry_check {
         let tol = check.tolerance_px;
+        let grey = Color::Rgb(200, 200, 200);
+        let warn = Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD);
         let (g_spans, g_plain): (Vec<Span<'static>>, String) = match check.status() {
+            GeometryStatus::Pass if check.workarea_source == WorkareaSource::ExtensionLog => {
+                // The extension supplied its own workarea: judged, but not independent evidence.
+                let msg = format!(
+                    "within ±{} px (workarea from extension log, not independently probed)",
+                    tol
+                );
+                (
+                    vec![
+                        Span::styled("✔ ", warn),
+                        Span::styled(msg.clone(), Style::default().fg(Color::Yellow)),
+                    ],
+                    format!("✔ {}", msg),
+                )
+            }
             GeometryStatus::Pass => (
                 vec![
                     Span::styled(
@@ -338,7 +365,7 @@ pub fn render_result_section(
                     ),
                     Span::styled(
                         format!("within ±{} px of expected", tol),
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                        Style::default().fg(grey),
                     ),
                 ],
                 format!("✔ within ±{} px of expected", tol),
@@ -360,6 +387,16 @@ pub fn render_result_section(
                     format!("✘ {}", msg),
                 )
             }
+            GeometryStatus::Unchecked => {
+                let msg = "unchecked: no workarea from the probe or the extension log";
+                (
+                    vec![
+                        Span::styled("⚠ ", warn),
+                        Span::styled(msg, Style::default().fg(Color::Yellow)),
+                    ],
+                    format!("⚠ {}", msg),
+                )
+            }
             GeometryStatus::NotMeasured => (
                 vec![Span::styled(
                     "not measured",
@@ -371,6 +408,16 @@ pub fn render_result_section(
             ),
         };
         builder.push_kv("Geometry", g_spans, &g_plain);
+        if let Some(w) = check.warning() {
+            builder.push_kv(
+                "Warning",
+                vec![
+                    Span::styled("⚠ ", warn),
+                    Span::styled(w.clone(), Style::default().fg(Color::Yellow)),
+                ],
+                &format!("⚠ {}", w),
+            );
+        }
     }
 
     // Failure: ONLY when case failed!
@@ -399,4 +446,24 @@ pub fn render_result_section(
 
     // Exactly 1 blank row between sections
     builder.push_blank();
+}
+
+/// Verdict cell for an automatic test that passed without its geometry being verified: a yellow
+/// warning marker and "Pass (geometry unchecked)", distinct from the green "✔ Pass".
+fn unchecked_verdict() -> (Vec<Span<'static>>, String) {
+    (
+        vec![
+            Span::styled(
+                "⚠ ",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Pass (geometry unchecked)",
+                Style::default().fg(Color::Yellow),
+            ),
+        ],
+        "⚠ Pass (geometry unchecked)".into(),
+    )
 }

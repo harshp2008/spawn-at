@@ -11,12 +11,30 @@ use regex::Regex;
 /// Outcome of comparing the observed rectangle with the expected one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GeometryStatus {
-    /// Expected or actual rectangle is unavailable, so nothing was compared.
+    /// There is no observed rectangle (the test did not run or printed none), so nothing was
+    /// compared.
     NotMeasured,
+    /// A rectangle was observed but no workarea is available from the probe or the log, so the
+    /// oracle cannot say where it should be. The geometry is NOT verified.
+    Unchecked,
     /// Every component is within the tolerance.
     Pass,
     /// At least one component differs by more than the tolerance.
     Fail,
+}
+
+/// Where the workarea used to compute the expected rectangle came from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WorkareaSource {
+    /// Probed from the monitor layout, independent of the extension under test. If the run's
+    /// log also recorded bounds they either agree (this variant) or conflict (see
+    /// [`GeometryCheck::conflict`]); judging is always on the probe.
+    Probe,
+    /// Only the extension's own log bounds were available. The extension under test supplied the
+    /// workarea, so a pass is not independent evidence.
+    ExtensionLog,
+    /// Neither was available.
+    None,
 }
 
 /// Expected vs actual placement for one result, with per-row verdicts.
@@ -33,9 +51,31 @@ pub struct GeometryCheck {
     pub tolerance_px: i32,
     /// Why Expected is unavailable, when it is.
     pub expected_error: Option<String>,
+    /// Workarea the expected rectangle was computed in.
+    pub workarea: Option<Rect>,
+    /// Where `workarea` came from.
+    pub workarea_source: WorkareaSource,
+    /// `(probe, extension log)` when both exist and differ. Judging still uses the probe.
+    pub conflict: Option<(Rect, Rect)>,
+}
+
+/// Formats a rectangle as `x,y WxH` for messages.
+fn fmt_rect(r: Rect) -> String {
+    format!("{},{} {}×{}", r.x, r.y, r.w, r.h)
 }
 
 impl GeometryCheck {
+    /// Warning to show next to the verdict, if any: a probe/extension workarea disagreement.
+    pub fn warning(&self) -> Option<String> {
+        self.conflict.map(|(probe, ext)| {
+            format!(
+                "workarea differs: probe {} vs extension {}",
+                fmt_rect(probe),
+                fmt_rect(ext)
+            )
+        })
+    }
+
     /// Signed differences `actual - expected` as `(dx, dy, dw, dh)`, when both rectangles exist.
     pub fn deltas(&self) -> Option<(i32, i32, i32, i32)> {
         let (e, a) = (self.expected?, self.actual?);
@@ -61,11 +101,14 @@ impl GeometryCheck {
         Some(dw.abs() <= self.tolerance_px && dh.abs() <= self.tolerance_px)
     }
 
-    /// Overall verdict: fails if any compared row fails, passes if at least one row was compared
-    /// and none failed.
+    /// Overall verdict: `NotMeasured` without an observed rectangle, `Unchecked` with one but no
+    /// expected rectangle, otherwise `Fail` if any compared row fails and `Pass` if not.
     pub fn status(&self) -> GeometryStatus {
+        if self.actual.is_none() {
+            return GeometryStatus::NotMeasured;
+        }
         match (self.position_ok(), self.size_ok()) {
-            (None, _) => GeometryStatus::NotMeasured,
+            (None, _) => GeometryStatus::Unchecked,
             (Some(false), _) | (_, Some(false)) => GeometryStatus::Fail,
             _ => GeometryStatus::Pass,
         }
@@ -138,20 +181,29 @@ pub fn expected_rect(
 
 /// Builds the shared geometry comparison for one result.
 ///
-/// The workarea is the one recorded in the run's own log slice when present, otherwise
-/// `fallback_workarea` (the probed monitor workarea).
+/// The workarea is `probed_workarea` (probed from the monitor layout, independent of the
+/// extension under test) whenever it exists. The bounds the extension logged are only a
+/// cross-check: if they differ from the probe the check records a conflict and still judges on
+/// the probe. Only when there is no probe are the log bounds used, and then the check is marked
+/// [`WorkareaSource::ExtensionLog`] because the extension supplied its own reference.
 pub fn check_geometry(
     expect: &ExpectRect,
     stdout: &str,
     log_slice: Option<&str>,
-    fallback_workarea: Option<Rect>,
+    probed_workarea: Option<Rect>,
 ) -> GeometryCheck {
     let actual = actual_rect_from_stdout(stdout);
     let spec_size = match &expect.size {
         Some(s) if s.len() >= 2 => Some((s[0], s[1])),
         _ => None,
     };
-    let workarea = log_slice.and_then(workarea_from_log).or(fallback_workarea);
+    let log_workarea = log_slice.and_then(workarea_from_log);
+    let (workarea, workarea_source, conflict) = match (probed_workarea, log_workarea) {
+        (Some(p), Some(l)) if p != l => (Some(p), WorkareaSource::Probe, Some((p, l))),
+        (Some(p), _) => (Some(p), WorkareaSource::Probe, None),
+        (None, Some(l)) => (Some(l), WorkareaSource::ExtensionLog, None),
+        (None, None) => (None, WorkareaSource::None, None),
+    };
 
     let (expected, expected_error) = match (workarea, spec_size.or(actual.map(|a| (a.w, a.h)))) {
         (Some(wa), Some(size)) => match expected_rect(expect, wa, size) {
@@ -169,6 +221,9 @@ pub fn check_geometry(
         actual,
         tolerance_px: expect.tolerance_px,
         expected_error,
+        workarea,
+        workarea_source,
+        conflict,
     }
 }
 
@@ -257,22 +312,85 @@ mod tests {
         assert!(c.verdict().is_ok());
     }
 
-    /// Without any workarea the expected rectangle is unavailable and nothing is judged.
+    /// Log line recording the extension's workarea bounds `0,40 1920x1040`.
+    const LOG_AGREES: &str =
+        "x APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)";
+    /// Log line recording different bounds, `0,0 1920x1000` (a shorter workarea: bottom-right is 1504, 684).
+    const LOG_DIFFERS: &str =
+        "x APPLY_ANCHOR eff=(400x300) bounds=(0,0,1920x1000) final=(1504,684)";
+
+    /// Probe and log agree: judged on the probe, no conflict, no warning.
     #[test]
-    fn test_no_workarea_is_not_measured() {
-        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), None, None);
-        assert_eq!(c.expected, None);
-        assert!(c.expected_error.is_some());
-        assert_eq!(c.status(), GeometryStatus::NotMeasured);
+    fn test_probe_and_log_agree() {
+        let c = check_geometry(
+            &spec(),
+            &out(1504, 764, 400, 300),
+            Some(LOG_AGREES),
+            Some(wa()),
+        );
+        assert_eq!(c.workarea_source, WorkareaSource::Probe);
+        assert_eq!(c.conflict, None);
+        assert_eq!(c.warning(), None);
+        assert_eq!(c.status(), GeometryStatus::Pass);
     }
 
-    /// The workarea recorded in the run's own trace (APPLY_ANCHOR bounds) wins over the fallback.
+    /// Probe and log disagree and the window matches the oracle under the PROBE workarea:
+    /// still a pass (judged on the probe) but with the warning naming both rectangles.
     #[test]
-    fn test_workarea_from_log_beats_fallback() {
-        let log = "x APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)";
-        let other = Rect::new(0, 0, 800, 600);
-        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), Some(log), Some(other));
+    fn test_probe_and_log_disagree_judged_on_probe_with_warning() {
+        let c = check_geometry(
+            &spec(),
+            &out(1504, 764, 400, 300),
+            Some(LOG_DIFFERS),
+            Some(wa()),
+        );
+        assert_eq!(c.workarea, Some(wa()));
+        assert_eq!(c.expected, Some(Rect::new(1504, 764, 400, 300)));
+        assert_eq!(
+            c.warning().as_deref(),
+            Some("workarea differs: probe 0,40 1920×1040 vs extension 0,0 1920×1000")
+        );
         assert_eq!(c.status(), GeometryStatus::Pass);
+    }
+
+    /// Probe and log disagree and the window sits where the EXTENSION'S workarea says (bottom-right
+    /// of 0,0 1920x1000 is 1504, 684) but not where the probe says: the check fails, so a wrong
+    /// extension cannot agree with itself.
+    #[test]
+    fn test_probe_and_log_disagree_window_at_extension_position_fails() {
+        let c = check_geometry(
+            &spec(),
+            &out(1504, 684, 400, 300),
+            Some(LOG_DIFFERS),
+            Some(wa()),
+        );
+        assert_eq!(c.status(), GeometryStatus::Fail);
+        assert!(c.warning().is_some());
+        assert!(c.verdict().is_err());
+    }
+
+    /// Only the extension's log bounds exist: they are used, but the check is marked as
+    /// extension-derived and the pass is not independent evidence.
+    #[test]
+    fn test_only_log_is_used_and_marked_extension_derived() {
+        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), Some(LOG_AGREES), None);
+        assert_eq!(c.workarea_source, WorkareaSource::ExtensionLog);
+        assert_eq!(c.status(), GeometryStatus::Pass);
+        assert_eq!(c.warning(), None);
+        let c = check_geometry(&spec(), &out(1500, 764, 400, 300), Some(LOG_AGREES), None);
+        assert_eq!(c.status(), GeometryStatus::Fail);
+    }
+
+    /// No workarea from either source: a rectangle was observed but cannot be verified, which is
+    /// `Unchecked`, never `Pass`, and the runner's verdict does not fail.
+    #[test]
+    fn test_no_workarea_is_unchecked_not_pass() {
+        let c = check_geometry(&spec(), &out(1504, 764, 400, 300), None, None);
+        assert_eq!(c.expected, None);
+        assert_eq!(c.workarea_source, WorkareaSource::None);
+        assert!(c.expected_error.is_some());
+        assert_eq!(c.status(), GeometryStatus::Unchecked);
+        assert!(c.verdict().is_ok());
     }
 
     /// A spec without a size compares the position (using the observed size as oracle input)

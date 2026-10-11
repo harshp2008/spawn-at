@@ -97,6 +97,11 @@ pub fn status_symbol_and_color(
                 .unwrap_or(false)
             {
                 ("!", Color::Yellow)
+            } else if r.final_status == FinalStatus::PassUnchecked
+                || r.auto_status == AutoStatus::AutoPassUnchecked
+            {
+                // Passed, but the geometry was not verified: not the plain green check.
+                ("!", Color::Yellow)
             } else if r.final_status == FinalStatus::Pass || r.auto_status == AutoStatus::AutoPass {
                 ("✔", Color::Green)
             } else {

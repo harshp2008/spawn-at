@@ -183,6 +183,12 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                         .fg(Color::Green)
                         .add_modifier(Modifier::BOLD),
                 ),
+                AutoStatus::AutoPassUnchecked => Span::styled(
+                    "PASS (geometry unchecked)",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 AutoStatus::AutoFail => Span::styled(
                     "FAIL",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
@@ -202,6 +208,9 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                 AutoStatus::AutoPass => Span::styled("✔ ", Style::default().fg(Color::Green)),
                 AutoStatus::AutoFail | AutoStatus::Error => {
                     Span::styled("✖ ", Style::default().fg(Color::Red))
+                }
+                AutoStatus::AutoPassUnchecked => {
+                    Span::styled("⚠ ", Style::default().fg(Color::Yellow))
                 }
                 AutoStatus::Running => Span::styled("◐ ", Style::default().fg(Color::Cyan)),
                 AutoStatus::Skipped | AutoStatus::Blocked => {
@@ -230,7 +239,8 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                 if !is_redundant_pass {
                     let is_warn = msg.contains("warning")
                         || msg.contains("Warn")
-                        || msg.contains("dirty build");
+                        || msg.contains("dirty build")
+                        || msg.contains("not verified");
                     let detail_style = if is_warn {
                         Style::default().fg(Color::Yellow)
                     } else if res.auto_status == AutoStatus::AutoFail

@@ -295,6 +295,15 @@ pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_w
 /// Constructs a test application pre-populated with real fixture execution data.
 pub(crate) fn create_app_with_real_fixture() -> (TuiApp, spawn_at_verify::schema::TestDefinition) {
     let mut app = create_test_app();
+    // Pin the probe to the workarea the recording itself logged (0,40 1920x1040) instead of
+    // asking the live desktop, so these tests give the same result on every machine.
+    app.env_info = Some(spawn_at_verify::probe::EnvironmentInfo {
+        session_type: "wayland".into(),
+        desktop: "ubuntu:gnome".into(),
+        gnome_version: Some(46),
+        monitors_count: 1,
+        primary_workarea: Some(spawn_at_verify::oracle::Rect::new(0, 40, 1920, 1040)),
+    });
     let fixture_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests/fixtures/real_placement_run.json");
     let content = std::fs::read_to_string(&fixture_path)

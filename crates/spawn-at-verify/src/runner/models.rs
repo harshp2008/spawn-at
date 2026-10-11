@@ -18,6 +18,9 @@ pub enum AutoStatus {
     Running,
     /// Automated checks and assertions passed completely.
     AutoPass,
+    /// Automated checks passed, but a geometry expectation could not be verified because no
+    /// workarea was available from the probe or the log. Not a plain pass.
+    AutoPassUnchecked,
     /// Automated checks or trace lifecycle assertions failed.
     AutoFail,
     /// Internal execution error or unexpected exception occurred.
@@ -60,6 +63,9 @@ pub struct HumanVerdict {
 pub enum FinalStatus {
     /// Case satisfies all automated and required human criteria.
     Pass,
+    /// Passed, but geometry was not verified (no workarea available); not a plain pass and not
+    /// counted as a passed required test.
+    PassUnchecked,
     /// Case failed automated verification or human review.
     Fail,
     /// Case was skipped and not executed.
@@ -188,6 +194,7 @@ pub fn resolve_final_status(
     let final_status = match kind {
         TestKind::Auto => match auto_status {
             AutoStatus::AutoPass => FinalStatus::Pass,
+            AutoStatus::AutoPassUnchecked => FinalStatus::PassUnchecked,
             AutoStatus::AutoFail => FinalStatus::Fail,
             AutoStatus::Skipped => FinalStatus::Skipped,
             AutoStatus::Blocked => FinalStatus::Blocked,
@@ -204,7 +211,10 @@ pub fn resolve_final_status(
         },
         TestKind::Both => {
             // Rule: Passes ONLY if BOTH auto-pass and human pass are achieved.
-            let auto_passed = auto_status == AutoStatus::AutoPass;
+            let auto_passed = matches!(
+                auto_status,
+                AutoStatus::AutoPass | AutoStatus::AutoPassUnchecked
+            );
             let human_passed = human.verdict == HumanVerdictKind::Pass;
 
             if (auto_passed && human.verdict == HumanVerdictKind::Fail)
@@ -222,7 +232,11 @@ pub fn resolve_final_status(
             } else if human.verdict == HumanVerdictKind::Flaky {
                 FinalStatus::Flaky
             } else if auto_passed && human_passed {
-                FinalStatus::Pass
+                if auto_status == AutoStatus::AutoPassUnchecked {
+                    FinalStatus::PassUnchecked
+                } else {
+                    FinalStatus::Pass
+                }
             } else if auto_status == AutoStatus::AutoFail || human.verdict == HumanVerdictKind::Fail
             {
                 FinalStatus::Fail

@@ -88,12 +88,23 @@ pub fn handle_run(args: RunArgs) {
         let mut failed = 0;
         let mut skipped = 0;
         let mut blocked = 0;
+        let mut unchecked = 0;
 
         for r in &results {
             match r.final_status {
                 FinalStatus::Pass => {
                     passed += 1;
                     println!("  ✓ PASS: {} ({}) [{}ms]", r.id, r.title, r.duration_ms);
+                }
+                FinalStatus::PassUnchecked => {
+                    unchecked += 1;
+                    println!(
+                        "  ◐ PASS (geometry unchecked): {} ({}) [{}ms]: {}",
+                        r.id,
+                        r.title,
+                        r.duration_ms,
+                        r.message.as_deref().unwrap_or("")
+                    );
                 }
                 FinalStatus::Fail => {
                     failed += 1;
@@ -136,6 +147,12 @@ pub fn handle_run(args: RunArgs) {
             skipped,
             blocked
         );
+        if unchecked > 0 {
+            println!(
+                "Passed with geometry unchecked (not counted as Passed): {}",
+                unchecked
+            );
+        }
 
         if !session_report.qualification.skipped_required.is_empty() {
             println!("\n⚠️ Required-But-Skipped Tests (Platform Not Qualified):");

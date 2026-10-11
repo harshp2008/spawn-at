@@ -139,19 +139,26 @@ fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), St
 /// spec's tolerance. This is the same comparison the drawer shows
 /// ([`crate::oracle::GeometryCheck`]), so the verdict and the table cannot disagree.
 ///
-/// Returns `Ok` when the test has no rectangle expectation, when the comparison passes, or when
-/// it could not be made (no observed rectangle or no workarea); only a measured mismatch fails.
+/// The workarea is the probed one (`env_info.primary_workarea`, independent of the extension);
+/// the extension's own logged bounds are only a cross-check and a fallback when nothing was
+/// probed.
+///
+/// Returns `Ok(None)` when the test has no rectangle expectation, `Ok(Some(check))` otherwise,
+/// and `Err` only for a measured mismatch. The caller must look at
+/// [`GeometryCheck::status`](crate::oracle::GeometryCheck::status): `Unchecked` (no workarea)
+/// and `NotMeasured` (no observed rectangle) are not passes.
 pub fn validate_geometry(
     test: &TestDefinition,
     stdout: &str,
     log_slice: Option<&str>,
     env_info: &EnvironmentInfo,
-) -> Result<(), String> {
+) -> Result<Option<crate::oracle::GeometryCheck>, String> {
     match &test.expect.rect {
         Some(expect) => {
-            check_geometry(expect, stdout, log_slice, env_info.primary_workarea).verdict()
+            let check = check_geometry(expect, stdout, log_slice, env_info.primary_workarea);
+            check.verdict().map(|()| Some(check))
         }
-        None => Ok(()),
+        None => Ok(None),
     }
 }
 

@@ -48,6 +48,24 @@ pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
                 Span::styled(reason, Style::default().fg(Color::LightRed)),
             ]);
             (plain, line, Color::Red)
+        } else if res.final_status == FinalStatus::PassUnchecked
+            || res.auto_status == AutoStatus::AutoPassUnchecked
+        {
+            let msg = format!(
+                "geometry was not verified: no workarea ({} ms)",
+                res.duration_ms
+            );
+            let plain = format!("⚠ PASS (geometry unchecked): {}", msg);
+            let line = Line::from(vec![
+                Span::styled(
+                    "⚠ PASS (geometry unchecked): ",
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(msg, Style::default().fg(Color::White)),
+            ]);
+            (plain, line, Color::Yellow)
         } else if res.final_status == FinalStatus::Pass || res.auto_status == AutoStatus::AutoPass {
             let msg = format!("Assertions passed ({} ms)", res.duration_ms);
             let plain = format!("✔ PASS: {}", msg);

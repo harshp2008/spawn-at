@@ -46,9 +46,12 @@ fn rows(app: &TuiApp, id: &str) -> (String, String, String, String) {
     )
 }
 
-/// Runner verdict for the same recorded data, using a dummy environment (the log records the
+/// Runner verdict for the same recorded data, with the probe pinned to the recording's workarea (the log records the
 /// workarea, so the fallback is not consulted).
-fn runner_verdict(app: &TuiApp, id: &str) -> Result<(), String> {
+fn runner_verdict(
+    app: &TuiApp,
+    id: &str,
+) -> Result<Option<spawn_at_verify::oracle::GeometryCheck>, String> {
     let test = app.registry.get_test(id).unwrap().clone();
     let res = &app.results[id];
     let env = EnvironmentInfo {
@@ -56,7 +59,7 @@ fn runner_verdict(app: &TuiApp, id: &str) -> Result<(), String> {
         desktop: "unknown".into(),
         gnome_version: None,
         monitors_count: 1,
-        primary_workarea: None,
+        primary_workarea: Some(Rect::new(0, 40, 1920, 1040)),
     };
     validate_geometry(&test, &res.stdout, res.log_slice.as_deref(), &env)
 }

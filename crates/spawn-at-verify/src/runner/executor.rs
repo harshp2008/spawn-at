@@ -5,6 +5,7 @@ use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
     build_action_command_args, extract_claimed_window_id, validate_expectations, validate_geometry,
 };
+use crate::oracle::check::{GeometryStatus, WorkareaSource};
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
@@ -277,8 +278,28 @@ impl TestRunner {
         // Validate expectations
         let validation = validate_expectations(test, exit_code, &stderr, env_info)
             .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
+        // Geometry caveats worth recording next to a pass.
+        let mut pass_message = String::from("Assertions passed");
         let auto_status = match validation {
-            Ok(()) => AutoStatus::AutoPass,
+            Ok(check) => match check {
+                Some(c) if c.status() == GeometryStatus::Unchecked => {
+                    pass_message = "Assertions passed, but geometry was not verified: no workarea from the probe or the extension log".into();
+                    AutoStatus::AutoPassUnchecked
+                }
+                Some(c) => {
+                    if c.status() == GeometryStatus::NotMeasured {
+                        pass_message.push_str(" (geometry not measured: no rectangle in stdout)");
+                    }
+                    if let Some(w) = c.warning() {
+                        pass_message.push_str(&format!(" (warning: {})", w));
+                    }
+                    if c.workarea_source == WorkareaSource::ExtensionLog {
+                        pass_message.push_str(" (workarea taken from the extension's own log, not independently probed)");
+                    }
+                    AutoStatus::AutoPass
+                }
+                None => AutoStatus::AutoPass,
+            },
             Err(err) => {
                 let (final_status, disagreement) =
                     resolve_final_status(test.kind, AutoStatus::AutoFail, &HumanVerdict::default());
@@ -302,43 +323,46 @@ impl TestRunner {
         };
 
         // Validate trace invariants if never_visible_off_target expectation is set and logs were captured
-        let auto_status =
-            if auto_status == AutoStatus::AutoPass && test.expect.never_visible_off_target {
-                if let Some(ref slice) = log_slice {
-                    let mut analyser = crate::trace::TraceAnalyser::new();
-                    if let Some(tid) = target_id {
-                        analyser = analyser.with_target_window_id(tid);
-                    }
-                    let report = analyser.analyse(slice);
-                    if !report.is_pass() {
-                        let err_msg = format!("Trace verification failed: {:?}", report.violations);
-                        let (final_status, disagreement) = resolve_final_status(
-                            test.kind,
-                            AutoStatus::AutoFail,
-                            &HumanVerdict::default(),
-                        );
-                        return TestResult {
-                            id: test.id.clone(),
-                            title: test.title.clone(),
-                            kind: test.kind,
-                            required: test.required,
-                            auto_status: AutoStatus::AutoFail,
-                            human_verdict: HumanVerdict::default(),
-                            final_status,
-                            disagreement,
-                            duration_ms,
-                            exit_code: Some(exit_code),
-                            stdout,
-                            stderr,
-                            message: Some(err_msg),
-                            log_slice,
-                        };
-                    }
+        let auto_status = if matches!(
+            auto_status,
+            AutoStatus::AutoPass | AutoStatus::AutoPassUnchecked
+        ) && test.expect.never_visible_off_target
+        {
+            if let Some(ref slice) = log_slice {
+                let mut analyser = crate::trace::TraceAnalyser::new();
+                if let Some(tid) = target_id {
+                    analyser = analyser.with_target_window_id(tid);
                 }
-                auto_status
-            } else {
-                auto_status
-            };
+                let report = analyser.analyse(slice);
+                if !report.is_pass() {
+                    let err_msg = format!("Trace verification failed: {:?}", report.violations);
+                    let (final_status, disagreement) = resolve_final_status(
+                        test.kind,
+                        AutoStatus::AutoFail,
+                        &HumanVerdict::default(),
+                    );
+                    return TestResult {
+                        id: test.id.clone(),
+                        title: test.title.clone(),
+                        kind: test.kind,
+                        required: test.required,
+                        auto_status: AutoStatus::AutoFail,
+                        human_verdict: HumanVerdict::default(),
+                        final_status,
+                        disagreement,
+                        duration_ms,
+                        exit_code: Some(exit_code),
+                        stdout,
+                        stderr,
+                        message: Some(err_msg),
+                        log_slice,
+                    };
+                }
+            }
+            auto_status
+        } else {
+            auto_status
+        };
 
         let (final_status, disagreement) =
             resolve_final_status(test.kind, auto_status, &HumanVerdict::default());
@@ -356,7 +380,7 @@ impl TestRunner {
             exit_code: Some(exit_code),
             stdout,
             stderr,
-            message: Some("Assertions passed".into()),
+            message: Some(pass_message),
             log_slice,
         }
     }
