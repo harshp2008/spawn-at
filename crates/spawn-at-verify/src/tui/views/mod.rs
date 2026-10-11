@@ -12,7 +12,7 @@ pub mod wrapping;
 pub use builder::DrawerBuilder;
 pub use constants::*;
 pub use drawer::{build_drawer_content, draw_detail_drawer};
-pub use footer::{draw_footer, render_key_grid, DRAWER_KEYS, VERDICT_KEYS};
+pub use footer::{draw_footer, footer_height, render_key_grid, DRAWER_KEYS, VERDICT_KEYS};
 pub use modals::{draw_help_modal, draw_verdict_modal};
 pub use panels::{
     compute_list_items_count, compute_result_box_height, count_wrapped_lines, draw_details_pane,
@@ -53,17 +53,7 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
         return;
     }
 
-    let footer_height = if app.detail_drawer_open || app.waiting_for_human.is_some() {
-        if area.width > 80 {
-            3
-        } else {
-            4
-        }
-    } else if area.width >= 105 {
-        1
-    } else {
-        2
-    };
+    let footer_height = footer::footer_height(app, area.width);
 
     let header_height = if !app.fixture_exists { 2 } else { 1 };
 

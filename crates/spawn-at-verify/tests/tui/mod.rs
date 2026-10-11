@@ -3,6 +3,7 @@
 pub mod app_flow;
 pub mod drawer_content;
 pub mod drawer_labels;
+pub mod footer_widths;
 pub mod drawer_keys_clipboard;
 pub mod golden_invariants;
 pub mod layout_responsive;

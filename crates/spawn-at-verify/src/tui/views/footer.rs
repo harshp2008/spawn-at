@@ -127,6 +127,27 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
     }
 }
 
+/// Width at which the normal-mode keys bar fits on one row.
+const NORMAL_ONE_ROW_MIN_WIDTH: u16 = 105;
+
+/// Rows the keys bar needs at `width`, mirroring the state `draw_footer` will draw:
+/// bordered key grids (drawer / verdict) need their grid rows plus 2 border rows, and the
+/// normal bar needs 1 row when it fits on one line and 2 otherwise.
+pub fn footer_height(app: &TuiApp, width: u16) -> u16 {
+    let inner_w = width.saturating_sub(2) as usize;
+    if app.detail_drawer_open {
+        render_key_grid(DRAWER_KEYS, inner_w).len() as u16 + 2
+    } else if app.waiting_for_human.is_some()
+        || matches!(app.modal, ModalState::HumanVerdict { .. })
+    {
+        render_key_grid(VERDICT_KEYS, inner_w).len() as u16 + 2
+    } else if width >= NORMAL_ONE_ROW_MIN_WIDTH {
+        1
+    } else {
+        2
+    }
+}
+
 /// Renders contextual footer shortcut bar for drawer mode.
 fn draw_drawer_footer(f: &mut Frame, area: Rect) {
     let block = Block::default().borders(Borders::ALL).border_style(
@@ -158,7 +179,7 @@ fn draw_verdict_footer(f: &mut Frame, area: Rect) {
 
 /// Renders standard footer shortcut bar for list navigation mode.
 fn draw_normal_footer(f: &mut Frame, _app: &TuiApp, area: Rect) {
-    let lines = if area.width >= 105 {
+    let lines = if area.width >= NORMAL_ONE_ROW_MIN_WIDTH {
         vec![Line::from(vec![
             Span::styled(
                 "r",
