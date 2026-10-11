@@ -144,3 +144,42 @@ fn test_render_subcommand_binary_lists_and_renders() {
         .unwrap();
     assert!(!bad.status.success(), "unknown case must fail");
 }
+
+/// The compact TIMELINE rows themselves (not just the header id and the cloak value) must come
+/// from the stdout window only. The leftover window ...468 contributes its own ACTOR_MAP, CLOAK
+/// and UNCLOAK to the raw slice; the drawer must show each of those exactly once, starting with
+/// the target's own ARM_SPAWN.
+#[test]
+fn test_delay500_timeline_rows_are_one_window_only() {
+    let case = find_case("delay-500").unwrap();
+    let text = render_case(&verify_dir(), &case, 140, 200, 0).unwrap();
+    let timeline: Vec<&str> = text
+        .lines()
+        .skip_while(|l| !l.contains("── TIMELINE"))
+        .skip(1)
+        .collect();
+    let tags: Vec<&str> = timeline
+        .iter()
+        .filter_map(|l| {
+            let t = l.trim_matches(['│', ' ']);
+            t.strip_prefix('+')
+                .and_then(|r| r.split_once(" ms"))
+                .map(|(_, tag)| tag.trim())
+        })
+        .collect();
+    assert_eq!(
+        tags.first(),
+        Some(&"ARM_SPAWN"),
+        "timeline must start at the target's own ARM_SPAWN: {:?}",
+        tags
+    );
+    for once in ["ACTOR_MAP", "CLOAK", "UNCLOAK"] {
+        assert_eq!(
+            tags.iter().filter(|t| **t == once).count(),
+            1,
+            "{} must appear exactly once in {:?}",
+            once,
+            tags
+        );
+    }
+}

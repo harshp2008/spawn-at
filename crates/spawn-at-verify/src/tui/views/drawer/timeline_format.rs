@@ -174,16 +174,25 @@ pub struct ParsedTimelineEvent {
     pub details: Vec<(String, String)>,
 }
 
-/// Parses raw trace log content into structured timeline events with relative timestamp offsets.
+/// Parses trace log lines into structured timeline events with relative timestamp offsets.
+///
+/// When a `trace_report` is given, only its events are used, so a report scoped to one window
+/// (see [`TestResult::trace_report`]) yields a timeline of that window only. Without a report
+/// every line of the result's raw log slice is used.
 pub fn parse_compact_timeline(
     res_opt: Option<&TestResult>,
-    _trace_report: Option<&crate::trace::TraceReport>,
+    trace_report: Option<&crate::trace::TraceReport>,
 ) -> Vec<ParsedTimelineEvent> {
     let mut out = Vec::new();
     if let Some(r) = res_opt {
-        if let Some(slice) = &r.log_slice {
+        let lines: Vec<&str> = match (trace_report, &r.log_slice) {
+            (Some(rep), _) => rep.events.iter().map(|e| e.raw.as_str()).collect(),
+            (None, Some(slice)) => slice.lines().collect(),
+            (None, None) => Vec::new(),
+        };
+        {
             let mut first_time: Option<f64> = None;
-            for line in slice.lines() {
+            for line in lines {
                 let trimmed = line.trim();
                 if trimmed.is_empty() {
                     continue;

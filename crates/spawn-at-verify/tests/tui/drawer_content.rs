@@ -484,7 +484,7 @@ fn test_506_9_ms_cloak_yellow_warning_does_not_fail_pass() {
         stderr: String::new(),
         message: Some("Assertions passed".into()),
         log_slice: Some(
-            "[spawn-at-time] +0.0ms | CLOAK\n[spawn-at-time] +506.9ms | UNCLOAK".into(),
+            "[spawn-at-time] +0.0ms | CLOAK win=[id=870906018]\n[spawn-at-time] +506.9ms | UNCLOAK win=[id=870906018]".into(),
         ),
     };
     app.results.insert(test.id.clone(), res);
