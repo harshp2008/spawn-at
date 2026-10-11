@@ -137,3 +137,121 @@ fn test_wrapped_values_continue_at_shared_value_column_and_fit_width() {
         }
     }
 }
+
+/// Builds the plain drawer text for the real delay-500 recording, whose spec passes the 16-column
+/// flag `--paint-delay-ms`, at `width`.
+fn real_delay500_drawer(width: usize) -> String {
+    let case = spawn_at_verify::tui::render::find_case("delay-500").unwrap();
+    let mut app = super::create_test_app();
+    app.results.insert(case.id.clone(), case.result.clone());
+    let test = app
+        .registry
+        .tests
+        .iter()
+        .find(|t| t.id == case.id)
+        .expect("delay-500 test is in the registry")
+        .clone();
+    build_drawer_content(&app, &test, width, true).1
+}
+
+/// Column where the first value starts on a key/value row: the first non-space character after
+/// the label and the run of two or more spaces that follows it. `start` is the label's column.
+fn row_value_col(line: &str, start: usize) -> Option<usize> {
+    let rest = &line[start..];
+    let gap = rest.find("  ")?;
+    let after = &rest[gap..];
+    let skip = after.find(|c| c != ' ')?;
+    Some(start + gap + skip)
+}
+
+/// With the real 16-column flag `--paint-delay-ms` in SPEC, the label is shown whole (followed
+/// by two spaces), and every section - header, RESULT, WHAT TO LOOK FOR, GEOMETRY, SPEC, OUTPUT -
+/// starts its labels at column 2 and its values at column 20 (2 + (16 + 2)). Timeline detail rows
+/// are nested 15 columns but use the same 18-column label width.
+#[test]
+fn test_real_paint_delay_flag_label_and_value_columns_match_across_all_sections() {
+    const LABEL_COL: usize = 2;
+    const VALUE_COL: usize = 20;
+    const LABEL_W: usize = VALUE_COL - LABEL_COL;
+    const TIMELINE_DETAIL_INDENT: usize = 15;
+
+    for &w in &[60usize, 80, 140] {
+        let plain = real_delay500_drawer(w);
+        assert!(
+            plain.lines().any(|l| l == "  --paint-delay-ms  500"),
+            "label must not be truncated and must be followed by 2 spaces at width {}:\n{}",
+            w,
+            plain
+        );
+
+        let mut section = "header".to_string();
+        let mut seen_sections = Vec::new();
+        let mut flat_rows = 0;
+        let mut detail_rows = 0;
+        for line in plain.lines() {
+            if let Some(rest) = line.trim_start().strip_prefix("── ") {
+                section = rest.split(" ──").next().unwrap().trim_end().to_string();
+                seen_sections.push(section.clone());
+                continue;
+            }
+            if line.trim().is_empty() {
+                continue;
+            }
+            let indent = line.len() - line.trim_start().len();
+            if section == "TIMELINE" {
+                if indent == TIMELINE_DETAIL_INDENT {
+                    let vc = row_value_col(line, indent)
+                        .unwrap_or_else(|| panic!("detail row without value: {:?}", line));
+                    assert_eq!(
+                        vc - indent,
+                        LABEL_W,
+                        "timeline detail label width must be {} at width {}: {:?}",
+                        LABEL_W,
+                        w,
+                        line
+                    );
+                    detail_rows += 1;
+                }
+                continue;
+            }
+            // Wrapped continuation rows start exactly at the value column.
+            if indent == VALUE_COL {
+                continue;
+            }
+            assert_eq!(
+                indent, LABEL_COL,
+                "label must start at column {} in {} at width {}: {:?}",
+                LABEL_COL, section, w, line
+            );
+            let vc = row_value_col(line, indent)
+                .unwrap_or_else(|| panic!("row without value in {}: {:?}", section, line));
+            assert_eq!(
+                vc, VALUE_COL,
+                "value must start at column {} in {} at width {}: {:?}",
+                VALUE_COL, section, w, line
+            );
+            flat_rows += 1;
+        }
+        assert_eq!(
+            seen_sections,
+            vec![
+                "RESULT",
+                "WHAT TO LOOK FOR",
+                "GEOMETRY",
+                "SPEC",
+                "OUTPUT",
+                "TIMELINE"
+            ]
+        );
+        assert!(
+            flat_rows >= 25,
+            "expected many key/value rows, saw {}",
+            flat_rows
+        );
+        assert!(
+            detail_rows >= 10,
+            "expected timeline detail rows, saw {}",
+            detail_rows
+        );
+    }
+}
