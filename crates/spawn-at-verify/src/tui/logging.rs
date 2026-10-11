@@ -114,6 +114,7 @@ impl ExtensionLoggingGuard {
 }
 
 impl Drop for ExtensionLoggingGuard {
+    /// Restores extension logging state to its pre-session value upon drop.
     fn drop(&mut self) {
         self.restore();
     }
@@ -123,6 +124,7 @@ impl Drop for ExtensionLoggingGuard {
 mod tests {
     use super::*;
 
+    /// Tests parsing state transition events from extension logging streams.
     #[test]
     fn test_parse_logging_state_transitions() {
         let log_empty = "";

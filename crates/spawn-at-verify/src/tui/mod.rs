@@ -22,6 +22,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
+/// Command-line arguments for the interactive Terminal UI subcommand.
 #[derive(Args, Debug, Clone)]
 pub struct TuiArgs {
     /// Path to spawn-at binary under test [default: target/debug/spawn-at]
@@ -146,6 +147,7 @@ fn unified_teardown(app: &mut TuiApp, logging_guard: &mut ExtensionLoggingGuard)
     logging_guard.restore();
 }
 
+/// Discovers the root directory containing test definition files across candidate paths.
 pub fn find_verify_dir() -> Option<PathBuf> {
     let candidates = [
         PathBuf::from("verify"),
