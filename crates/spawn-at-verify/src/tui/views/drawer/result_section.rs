@@ -7,6 +7,7 @@ use crate::tui::views::builder::DrawerBuilder;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
+/// Renders the RESULT section with verdict banners, timings, and failure breakdowns.
 pub fn render_result_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,

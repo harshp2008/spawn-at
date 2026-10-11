@@ -6,6 +6,7 @@ use crate::tui::views::wrapping::normalise_dimensions;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
+/// Renders the drawer top header section with test ID, title, mode, and description.
 pub fn render_header_section(builder: &mut DrawerBuilder, test: &TestDefinition) {
     // 1 blank row of padding under the top border
     builder.push_blank();

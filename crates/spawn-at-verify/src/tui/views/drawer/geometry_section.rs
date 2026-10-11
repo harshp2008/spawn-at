@@ -7,6 +7,7 @@ use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_LABEL_W};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+/// Renders the GEOMETRY section comparing expected, actual, and result placement rectangles.
 pub fn render_geometry_section(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,

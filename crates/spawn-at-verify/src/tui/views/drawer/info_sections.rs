@@ -6,6 +6,7 @@ use crate::tui::views::builder::DrawerBuilder;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 
+/// Formats launch arguments specification into a compact string.
 fn format_args_spec(args: &[String]) -> Vec<(String, String)> {
     let mut pairs = Vec::new();
     let mut i = 0;
@@ -28,6 +29,7 @@ fn format_args_spec(args: &[String]) -> Vec<(String, String)> {
     pairs
 }
 
+/// Renders the SUBJECT, ACTION, and EXPECTATIONS sections of the drawer.
 pub fn render_info_sections(
     builder: &mut DrawerBuilder,
     test: &TestDefinition,

@@ -10,6 +10,7 @@ use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use unicode_width::UnicodeWidthStr;
 
+/// Renders the TIMELINE section showing lifecycle events and timing deltas.
 pub fn render_timeline_section(
     builder: &mut DrawerBuilder,
     _test: &TestDefinition,
@@ -191,6 +192,7 @@ pub fn render_timeline_section(
     builder.push_blank();
 }
 
+/// Splits camelCase or snake_case identifiers into human-readable words.
 fn split_identifier_to_words(s: &str) -> String {
     let mut words = Vec::new();
     let mut current_word = String::new();
@@ -221,6 +223,7 @@ fn split_identifier_to_words(s: &str) -> String {
     }
 }
 
+/// Converts internal trace event property keys into clean label strings.
 pub fn humanise_key(key: &str) -> String {
     match key {
         "requestedSize" | "requested" => "requested".into(),
@@ -260,6 +263,7 @@ pub fn humanise_key(key: &str) -> String {
     }
 }
 
+/// Normalizes trace event attribute values for compact display.
 pub fn clean_trace_val(val: &str) -> String {
     let trimmed = val.trim().trim_matches('"');
     let unwrapped = if trimmed.starts_with('(') && trimmed.ends_with(')') {
@@ -303,6 +307,7 @@ pub fn clean_trace_val(val: &str) -> String {
     }
 }
 
+/// Parses key-value pairs from comma-separated trace event attribute strings.
 pub fn parse_key_value_pairs(text: &str) -> Vec<(String, String)> {
     let mut pairs = Vec::new();
     let mut s = text.trim();
@@ -347,12 +352,14 @@ pub fn parse_key_value_pairs(text: &str) -> Vec<(String, String)> {
     pairs
 }
 
+/// Representation of a parsed lifecycle trace event for timeline visualization.
 pub struct ParsedTimelineEvent {
     pub dt_ms: f64,
     pub tag: String,
     pub details: Vec<(String, String)>,
 }
 
+/// Parses raw trace log content into structured timeline events with relative timestamp offsets.
 pub fn parse_compact_timeline(
     res_opt: Option<&TestResult>,
     _trace_report: Option<&crate::trace::TraceReport>,

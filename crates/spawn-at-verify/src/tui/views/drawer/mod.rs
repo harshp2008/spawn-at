@@ -23,6 +23,7 @@ use ratatui::{
     Frame,
 };
 
+/// Assembles all sections of the detail drawer using the shared builder grid.
 pub fn build_drawer_content(
     app: &TuiApp,
     test: &TestDefinition,
@@ -42,6 +43,7 @@ pub fn build_drawer_content(
     (builder.lines, full_plain)
 }
 
+/// Renders the detail drawer popup overlay and scroll indicators.
 pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded: bool) {
     let test_opt = app.selected_test();
     if let Some(test) = test_opt {
