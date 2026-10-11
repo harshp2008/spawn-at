@@ -1,0 +1,82 @@
+# spawn-at-verify
+
+Verification engine, automated test harness, and interactive qualification TUI for `spawn-at`.
+
+## Module Map
+
+- `src/lib.rs`: Library crate root, feature gates, and module declarations (`#![warn(missing_docs)]`).
+- `src/main.rs`: CLI binary entry point (`run`, `list`, `check`, `report`, `tui`).
+- `src/config.rs`: Runtime CLI flags, options, and subcommand argument definitions.
+- `src/env.rs`: Test environment detection, sandboxing, and execution isolation.
+- `src/loader.rs`: TOML test specification discovery, parsing, and filtering engine.
+- `src/log_source.rs`: Platform-agnostic log slicing trait and system journal implementations.
+- `src/preflight.rs`: Preflight build freshness verification and git status inspection.
+- `src/probe.rs`: Desktop compositor probe, monitor topology, and display layout detection.
+- `src/process.rs`: Timeout-bounded child process execution and non-blocking pipe draining.
+- `src/report.rs`: Verification session report models, redaction, and JSON/Markdown export.
+- `src/schema.rs`: TOML test definition schemas, matrix expansion, and validation rules.
+- `src/trace.rs`: Trace log event parser, lifecycle state machine, and budget checks.
+- `src/bin/fixture.rs`: Standalone GUI test fixture window binary entry point.
+- `src/bin/fixture/`: Modular GUI test fixture implementation submodules.
+  - `src/bin/fixture/mod.rs`: Module wiring and sub-export declarations.
+  - `src/bin/fixture/font.rs`: Embedded 10x16 bitmap font data table (DejaVu Sans Mono Bold).
+  - `src/bin/fixture/renderer.rs`: Softbuffer software frame drawing and bitmap text rendering.
+  - `src/bin/fixture/window.rs`: Winit window creation, event loop, and signal handling.
+- `src/oracle/`: Mathematical placement oracle and characterization tests.
+  - `src/oracle/mod.rs`: Oracle exports and verification helpers.
+  - `src/oracle/calculator.rs`: Deterministic geometry calculations, anchors, and pivots.
+  - `src/oracle/tests.rs`: Oracle unit tests and golden placement vector comparisons.
+- `src/runner/`: Test execution engine and lifecycle models.
+  - `src/runner/mod.rs`: Runner exports and public API wiring.
+  - `src/runner/engine.rs`: TestRunner orchestrator and individual test case execution.
+  - `src/runner/models.rs`: Execution status models, human verdicts, and options.
+  - `src/runner/validation.rs`: Expectation validation, output matching, and argument building.
+  - `src/runner/tests.rs`: Runner unit tests and model resolution checks.
+- `src/tracker/`: Window tracking and attribution state machine.
+  - `src/tracker/mod.rs`: Tracker exports and query helpers.
+  - `src/tracker/state.rs`: WindowTracker state, PID/class attribution, and leak cleanup.
+  - `src/tracker/tests.rs`: Window tracker unit tests and isolation invariants.
+- `src/tui/`: Interactive Terminal UI for test execution and human review.
+  - `src/tui/mod.rs`: TUI runner entry point, arguments, and terminal lifecycle guard.
+  - `src/tui/logging.rs`: GNOME Shell extension debug logging control and terminal restoration.
+  - `src/tui/app/`: Application state management and event processing.
+    - `src/tui/app/mod.rs`: App module re-exports.
+    - `src/tui/app/clipboard.rs`: Drawer content export (wl-copy, xclip, OSC 52, file save).
+    - `src/tui/app/input.rs`: Keyboard event routing and navigation dispatch.
+    - `src/tui/app/queue.rs`: Test queue execution, human verdict modals, and pause semantics.
+    - `src/tui/app/state.rs`: TuiApp state machine, filters, categories, and selection.
+  - `src/tui/views/`: Ratatui view rendering components.
+    - `src/tui/views/mod.rs`: Main frame layout, header, body, footer, and modal routing.
+    - `src/tui/views/builder.rs`: Aligned line assembly builder for detail drawer.
+    - `src/tui/views/constants.rs`: Single shared drawer grid constants and column offsets.
+    - `src/tui/views/footer.rs`: Contextual footer shortcut bars and responsive key grids.
+    - `src/tui/views/modals.rs`: Help overlay and human review verdict dialogs.
+    - `src/tui/views/theme.rs`: Color styling, status symbols, and formatting utilities.
+    - `src/tui/views/wrapping.rs`: Tokenized string wrapping and responsive dimension folding.
+    - `src/tui/views/panels/`: Main screen dashboard panels.
+      - `src/tui/views/panels/mod.rs`: Panels module exports.
+      - `src/tui/views/panels/description.rs`: Middle description and requirements pane.
+      - `src/tui/views/panels/header.rs`: Top title banner, environment tags, and fixture warning.
+      - `src/tui/views/panels/result_box.rs`: Bottom outcome status box and diagnostics.
+      - `src/tui/views/panels/tests_list.rs`: Categorized test tree with status indicators and folding.
+    - `src/tui/views/drawer/`: Detail inspection drawer sections.
+      - `src/tui/views/drawer/mod.rs`: Drawer assembly and scroll container.
+      - `src/tui/views/drawer/geometry_section.rs`: GEOMETRY table comparing expected and actual bounds.
+      - `src/tui/views/drawer/header_section.rs`: Drawer title, ID, mode, and scenario description.
+      - `src/tui/views/drawer/info_sections.rs`: SUBJECT, ACTION, and EXPECTATIONS sections.
+      - `src/tui/views/drawer/result_section.rs`: RESULT verdict, timings, and failure breakdowns.
+      - `src/tui/views/drawer/timeline_section.rs`: TIMELINE events, parsed attributes, and intervals.
+- `tests/`: Integration test suites.
+  - `tests/category_library_test.rs`: Test suite integrity, category validation, and filtering.
+  - `tests/fixture_test.rs`: Fixture binary process lifecycle and protocol behaviors.
+  - `tests/oracle_cross_check.rs`: Cross-check matrix between math oracle and CLI core placement.
+  - `tests/trace_analyser_test.rs`: Comprehensive trace event lifecycle characterization suite.
+  - `tests/tui_test.rs`: Root TUI integration test binary target (`mod tui;`).
+  - `tests/tui/`: TUI scenario integration suites.
+    - `tests/tui/mod.rs`: Harness setup, headless buffer rendering, and spec validators.
+    - `tests/tui/app_flow.rs`: Navigation, filtering, and execution queue workflows.
+    - `tests/tui/drawer_content.rs`: Drawer content ordering, geometry table, and token wrapping.
+    - `tests/tui/drawer_keys_clipboard.rs`: Keyboard controls, clipboard export, and modal switching.
+    - `tests/tui/golden_invariants.rs`: Golden file comparisons and text grid invariants.
+    - `tests/tui/layout_responsive.rs`: Responsive width breakpoints and small height layouts.
+    - `tests/tui/polish.rs`: UI spacing, padding, and outcome symbols polish specifications.

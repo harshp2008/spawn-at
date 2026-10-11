@@ -567,12 +567,92 @@ graph TD
     Stage4 --> Stage5["Stage 5: Repo Root & Documentation"]
 ```
 
-#### Stage 1: `spawn-at-verify` Modularization (Smallest Blast Radius)
-1. Split `tui/views.rs` into `tui/views/` modules (constants, theme, wrapping, builder, panels, drawer sections, footer, modals).
-2. Split `tui/app.rs` into `tui/app/` modules (state, input, queue, clipboard).
-3. Split `runner.rs`, `oracle.rs`, and `tracker.rs` into sub-modules with tests separated.
-4. Split `tests/tui_test.rs` into `tests/tui/*.rs` submodules.
-5. **Gate Check:** `cargo test -p spawn-at-verify --features tui` (All 59+4+5+18+38 tests pass; golden files match byte-for-byte). Commit stage 1.
+#### Stage 1: `spawn-at-verify` Modularization [DONE]
+1. Split `tui/views.rs` into `tui/views/` modules (17 files: `constants.rs`, `theme.rs`, `wrapping.rs`, `builder.rs`, `panels/`, `drawer/`, `footer.rs`, `modals.rs`, `mod.rs`). [COMPLETED in commit `444a2c1`]
+2. Split `tui/app.rs` into `tui/app/` modules (`state.rs`, `input.rs`, `queue.rs`, `clipboard.rs`, `mod.rs`). [COMPLETED in commit `bf40dc9`]
+3. Split `runner.rs` (`models.rs`, `engine.rs`, `validation.rs`, `tests.rs`, `mod.rs`), `oracle.rs` (`calculator.rs`, `tests.rs`, `mod.rs`), and `tracker.rs` (`state.rs`, `tests.rs`, `mod.rs`). [COMPLETED in commits `2f18905`, `f25a05e`, `f88744b`]
+4. Split `src/bin/fixture.rs` & `font/mod.rs` into `src/bin/fixture/` (`renderer.rs`, `window.rs`, `font.rs`, `mod.rs`) + thin `src/bin/fixture.rs`. [COMPLETED in commit `b945322`]
+5. Split `tests/tui_test.rs` into `tests/tui/` submodules (`app_flow.rs`, `layout_responsive.rs`, `polish.rs`, `drawer_content.rs`, `drawer_keys_clipboard.rs`, `golden_invariants.rs`, `mod.rs`). [COMPLETED in commit `7dd2066`]
+6. Enabled `#![warn(missing_docs)]` on library crate and applied dense comments to `src/` and light comments to `tests/`. Verified by `scripts/check-comment-only.sh` and `scripts/check-doc-coverage.sh` (ZERO misses).
+7. **Gate Check:** `cargo test -p spawn-at-verify --features tui` (All 124 tests pass: 59 lib + 0 main + 4 cat + 5 oracle + 18 trace + 38 tui; SHA256 of goldens and fixtures identical; clippy clean; fmt clean). [VERIFIED]
+
+##### Stage 1 Actual File List & Architecture Map
+- `src/lib.rs` (19 lines, `#![warn(missing_docs)]`)
+- `src/main.rs` (542 lines)
+- `src/config.rs` (172 lines)
+- `src/env.rs` (160 lines)
+- `src/loader.rs` (444 lines)
+- `src/log_source.rs` (150 lines)
+- `src/preflight.rs` (212 lines)
+- `src/probe.rs` (254 lines)
+- `src/process.rs` (162 lines)
+- `src/report.rs` (546 lines)
+- `src/schema.rs` (599 lines)
+- `src/trace.rs` (603 lines) [Justified exception: pre-existing baseline size 602 lines]
+- `src/bin/fixture.rs` (239 lines)
+- `src/bin/fixture/mod.rs` (6 lines)
+- `src/bin/fixture/font.rs` (402 lines) [Justified exception: 10x16 bitmap font data table]
+- `src/bin/fixture/renderer.rs` (132 lines)
+- `src/bin/fixture/window.rs` (252 lines)
+- `src/oracle/mod.rs` (18 lines)
+- `src/oracle/calculator.rs` (211 lines)
+- `src/oracle/tests.rs` (589 lines)
+- `src/runner/mod.rs` (20 lines)
+- `src/runner/models.rs` (178 lines)
+- `src/runner/engine.rs` (463 lines)
+- `src/runner/validation.rs` (174 lines)
+- `src/runner/tests.rs` (223 lines)
+- `src/tracker/mod.rs` (18 lines)
+- `src/tracker/state.rs` (287 lines)
+- `src/tracker/tests.rs` (449 lines)
+- `src/tui/mod.rs` (162 lines)
+- `src/tui/logging.rs` (151 lines)
+- `src/tui/app/mod.rs` (10 lines)
+- `src/tui/app/state.rs` (363 lines)
+- `src/tui/app/input.rs` (262 lines)
+- `src/tui/app/queue.rs` (174 lines)
+- `src/tui/app/clipboard.rs` (158 lines)
+- `src/tui/views/mod.rs` (171 lines)
+- `src/tui/views/builder.rs` (137 lines)
+- `src/tui/views/constants.rs` (7 lines)
+- `src/tui/views/theme.rs` (189 lines)
+- `src/tui/views/wrapping.rs` (142 lines)
+- `src/tui/views/footer.rs` (329 lines)
+- `src/tui/views/modals.rs` (461 lines)
+- `src/tui/views/panels/mod.rs` (10 lines)
+- `src/tui/views/panels/header.rs` (152 lines)
+- `src/tui/views/panels/tests_list.rs` (260 lines)
+- `src/tui/views/panels/description.rs` (359 lines)
+- `src/tui/views/panels/result_box.rs` (220 lines)
+- `src/tui/views/drawer/mod.rs` (60 lines)
+- `src/tui/views/drawer/geometry_section.rs` (245 lines)
+- `src/tui/views/drawer/header_section.rs` (162 lines)
+- `src/tui/views/drawer/info_sections.rs` (265 lines)
+- `src/tui/views/drawer/result_section.rs` (348 lines)
+- `src/tui/views/drawer/timeline_section.rs` (490 lines)
+- `tests/tui_test.rs` (5 lines)
+- `tests/tui/mod.rs` (308 lines)
+- `tests/tui/app_flow.rs` (305 lines)
+- `tests/tui/drawer_content.rs` (560 lines)
+- `tests/tui/drawer_keys_clipboard.rs` (389 lines)
+- `tests/tui/golden_invariants.rs` (571 lines)
+- `tests/tui/layout_responsive.rs` (457 lines)
+- `tests/tui/polish.rs` (434 lines)
+- `tests/category_library_test.rs` (286 lines)
+- `tests/fixture_test.rs` (188 lines)
+- `tests/oracle_cross_check.rs` (577 lines)
+- `tests/trace_analyser_test.rs` (527 lines)
+
+##### Stage 1 Deviations & Exceptions
+1. **`tests/tui/polish.rs` Split:** The initial proposal suggested putting responsive and polish tests into `layout_responsive.rs`. Combining them would have produced an ~890-line test file exceeding the 600-line hard cap. `tests/tui/polish.rs` was split out into its own submodule, keeping both files comfortably under the 600-line limit (457 and 434 lines respectively).
+2. **`src/trace.rs` Line Count Exception:** `src/trace.rs` is 603 lines (baseline: 602 lines). In the original CODE_LAYOUT.md target tree it was planned to remain a single file `src/trace.rs`. It exceeds the 600-line hard cap by 3 lines due to comprehensive module-level doc comments and is retained as a justified exception.
+3. **Production Files Between 400 and 600 Lines:** In accordance with the Stage 1 plan, existing monolithic modules were modularized (`views.rs` from 3,495 to max 490, `app.rs` from 926 to max 363, `runner.rs` from 1,022 to max 463, `tracker.rs` from 742 to max 287). Unsplit existing baseline files (`schema.rs` 599, `report.rs` 546, `main.rs` 542, `loader.rs` 444) and isolated feature modules (`timeline_section.rs` 490, `engine.rs` 463, `modals.rs` 461, `font.rs` 402) remain between 400 and 600 lines, well within the 600-line hard cap.
+
+##### Stage 1 Observations (Bugs Spotted but NOT Fixed)
+1. **Footer Responsive Chips Incomplete Between 100-104 Columns:** In `crates/spawn-at-verify/src/tui/views/footer.rs`, `draw_normal_footer` tests `area.width >= 105` for the wide chips layout and falls back to narrower representations, but at terminal widths between 100 and 104 columns some shortcut actions are not rendered. (Observed during split; behavior preserved without alteration).
+2. **`wl-copy` Subprocess Non-Blocking Pipe Handling in Clipboard Helper:** In `crates/spawn-at-verify/src/tui/app/clipboard.rs`, `system_copy_to_clipboard` spawns `wl-copy` with piped stdin and writes immediately without awaiting process exit status. If `wl-copy` exits prematurely or is missing, errors are silently ignored before fallback to OSC 52. (Observed during split; behavior preserved without alteration).
+3. **Default Desktop Probe Assumption in Single Test Execution:** In `crates/spawn-at-verify/src/runner/engine.rs`, `TestRunner::new` checks `XDG_CURRENT_DESKTOP` for "gnome" to attach `GnomeJournalSource`, but during ad-hoc single test runs in headless or containerized environments where the variable is unset, it defaults to `NoOpLogSource` rather than detecting running systemd services. (Observed during split; behavior preserved without alteration).
+
 
 #### Stage 2: `spawn-at-core` Modularization
 1. Split `src/geometry.rs` into `src/geometry/` sub-modules (types, placement, clamp, workarea, diagnostics, tests).

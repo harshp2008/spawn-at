@@ -6,7 +6,7 @@ This project incorporates third-party material subject to the following licenses
 
 ## DejaVu Sans Mono Bold (Bitmap Font Data)
 
-The font table in `crates/spawn-at-verify/src/bin/font/mod.rs` was generated from
+The font table in `crates/spawn-at-verify/src/bin/fixture/font.rs` was generated from
 DejaVu Sans Mono Bold (10x16 bitmap rendering).
 
 ### DejaVu Fonts License & Bitstream Vera License
