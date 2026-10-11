@@ -11,6 +11,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::exit;
 
+mod smoke_eval;
+
 #[derive(Parser, Debug)]
 #[command(
     name = "spawn-at-verify",
@@ -34,6 +36,9 @@ enum Commands {
     Report(ReportArgs),
     /// Interactive Terminal UI for test execution and human review
     Tui(TuiArgs),
+    /// Internal helper for smoke-live.sh JSON evaluation and placement verification
+    #[command(subcommand, hide = true)]
+    SmokeEval(smoke_eval::SmokeEvalCommand),
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -540,6 +545,9 @@ fn main() {
                 );
                 exit(1);
             }
+        }
+        Commands::SmokeEval(cmd) => {
+            smoke_eval::execute(cmd);
         }
     }
 }

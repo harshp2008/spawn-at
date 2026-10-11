@@ -1,0 +1,398 @@
+   Compiling spawn-at-verify v0.1.0 (/home/harsh/Documents/GITHUB PROJECTS/spawn-at/crates/spawn-at-verify)
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/app/state.rs:64:20
+   |
+64 |     HumanVerdict { test_id: String },
+   |                    ^^^^^^^^^^^^^^^
+   |
+note: the lint level is defined here
+  --> crates/spawn-at-verify/src/lib.rs:4:9
+   |
+ 4 | #![warn(missing_docs)]
+   |         ^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/app/state.rs:98:5
+   |
+98 |     pub registry: TestRegistry,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/app/state.rs:99:5
+   |
+99 |     pub selected_index: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:100:5
+    |
+100 |     pub filter_mode: FilterMode,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:101:5
+    |
+101 |     pub category_filter: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:102:5
+    |
+102 |     pub collapsed_categories: HashSet<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:103:5
+    |
+103 |     pub results: HashMap<String, TestResult>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:104:5
+    |
+104 |     pub modal: ModalState,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:105:5
+    |
+105 |     pub fixture_exists: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:106:5
+    |
+106 |     pub fixture_path: PathBuf,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:107:5
+    |
+107 |     pub bin_path: PathBuf,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:108:5
+    |
+108 |     pub options: RunOptions,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:109:5
+    |
+109 |     pub preflight: Option<PreflightReport>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:110:5
+    |
+110 |     pub env_info: Option<EnvironmentInfo>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:111:5
+    |
+111 |     pub tracker: WindowTracker,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:112:5
+    |
+112 |     pub status_message: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:113:5
+    |
+113 |     pub should_quit: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:114:5
+    |
+114 |     pub detail_scroll: u16,
+    |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:115:5
+    |
+115 |     pub detail_drawer_open: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:116:5
+    |
+116 |     pub queue: VecDeque<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:117:5
+    |
+117 |     pub waiting_for_human: Option<String>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:118:5
+    |
+118 |     pub terminal_window_id: Option<u64>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:119:5
+    |
+119 |     pub active_pane: ActivePane,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:120:5
+    |
+120 |     pub report_dir: PathBuf,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:121:5
+    |
+121 |     pub drawer_status: Option<(String, std::time::Instant)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:122:5
+    |
+122 |     pub drawer_raw_view: bool,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/app/state.rs:123:5
+    |
+123 |     pub clipboard_fn: Option<ClipboardHelper>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/logging.rs:86:5
+   |
+86 |     pub initial_state: bool,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/logging.rs:87:5
+   |
+87 |     pub restored: bool,
+   |     ^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/views/builder.rs:13:5
+   |
+13 |     pub lines: Vec<Line<'static>>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/views/builder.rs:14:5
+   |
+14 |     pub plain: Vec<String>,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/views/builder.rs:15:5
+   |
+15 |     pub width: usize,
+   |     ^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/views/builder.rs:16:5
+   |
+16 |     pub inner_width: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+  --> crates/spawn-at-verify/src/tui/views/builder.rs:17:5
+   |
+17 |     pub val_col_width: usize,
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs:357:5
+    |
+357 |     pub dt_ms: f64,
+    |     ^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs:358:5
+    |
+358 |     pub tag: String,
+    |     ^^^^^^^^^^^^^^^
+
+warning: missing documentation for a struct field
+   --> crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs:359:5
+    |
+359 |     pub details: Vec<(String, String)>,
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `spawn-at-verify` (lib) generated 37 warnings
+warning: `spawn-at-verify` (lib test) generated 37 warnings (37 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.51s
+     Running unittests src/lib.rs (target/debug/deps/spawn_at_verify-b1a7b53587529fd0)
+
+running 59 tests
+test log_source::tests::test_noop_log_source_returns_empty ... ok
+test log_source::tests::test_fake_log_source_captures_time_window_slice ... ok
+test oracle::tests::test_golden_bottom_right_30x20 ... ok
+test oracle::tests::test_golden_bottom_left_338x93 ... ok
+test oracle::tests::test_golden_bottom_right_338x93 ... ok
+test loader::tests::test_format_test_tree ... ok
+test oracle::tests::test_golden_bottom_right_391x368 ... ok
+test oracle::tests::test_golden_clamp_explicit_pos_0_0 ... ok
+test oracle::tests::test_golden_clamp_explicit_pos_5000_5000 ... ok
+test oracle::tests::test_golden_default_pivot_all_nine_anchors ... ok
+test oracle::tests::test_golden_default_pivot_bottom ... ok
+test oracle::tests::test_golden_default_pivot_left ... ok
+test oracle::tests::test_golden_center_with_odd_sizes ... ok
+test oracle::tests::test_golden_default_pivot_right ... ok
+test oracle::tests::test_golden_default_pivot_top ... ok
+test oracle::tests::test_golden_negative_origin_monitor ... ok
+test oracle::tests::test_golden_offset_origin_workarea ... ok
+test oracle::tests::test_golden_per_side_margins ... ok
+test oracle::tests::test_golden_top_left ... ok
+test oracle::tests::test_golden_window_larger_than_workarea_clamp_false ... ok
+test oracle::tests::test_golden_window_larger_than_workarea_clamp_true ... ok
+test oracle::tests::test_verify_tolerance_exact_and_within_delta ... ok
+test preflight::tests::test_evaluate_preflight_verdict_clean_pass ... ok
+test preflight::tests::test_evaluate_preflight_verdict_dirty_warn ... ok
+test preflight::tests::test_evaluate_preflight_verdict_stale_fail ... ok
+test preflight::tests::test_parse_dirty_dev_build_version ... ok
+test preflight::tests::test_parse_dev_build_version ... ok
+test probe::tests::test_check_requirements_session_match ... ok
+test probe::tests::test_check_requirements_session_mismatch ... ok
+test report::tests::test_format_epoch_secs_sortable_test_vectors ... ok
+test report::tests::test_get_real_hostname_returns_valid_name ... ok
+test report::tests::test_skipped_is_never_a_pass ... ok
+test runner::tests::test_build_action_command_args_fixture_and_class ... ok
+test loader::tests::test_combinable_filter ... ok
+test runner::tests::test_results_model_resolution_rules ... ok
+test runner::tests::test_missing_fixture_binary_fails_with_clear_error_message ... ok
+test schema::tests::test_derived_platform_tags ... ok
+test schema::tests::test_suite_filtering ... ok
+test oracle::tests::test_oracle_reads_shared_golden_placement_vectors ... ok
+test tracker::tests::test_fixture_attribution_by_pid ... ok
+test tracker::tests::test_runner_cleanup_only_ever_passes_registered_ids_to_close ... ok
+test tracker::tests::test_tracker_does_not_close_unlaunched_windows ... ok
+test tracker::tests::test_tracker_respects_20_window_cap ... ok
+test schema::tests::test_deserialize_placement_bottom_right ... ok
+test tracker::tests::test_two_candidates_nothing_closed ... ok
+test tracker::tests::test_tracker_never_closes_preexisting_windows ... ok
+test tracker::tests::test_tracker_ignores_external_window_appearing_mid_test ... ok
+test tui::logging::tests::test_parse_logging_state_transitions ... ok
+test schema::tests::test_matrix_expansion ... ok
+test tracker::tests::test_zero_candidates_nothing_closed ... ok
+test tracker::tests::test_window_of_same_class_opened_between_session_start_and_action_never_closed ... ok
+test runner::tests::test_pattern_match_literal_and_regex ... ok
+test loader::tests::test_matches_glob ... ok
+test report::tests::test_format_sortable_timestamp ... ok
+test report::tests::test_title_redaction ... ok
+test runner::tests::test_extract_claimed_window_id_from_json_and_fallback ... ok
+test process::tests::test_fake_spawn_at_leaving_background_process_does_not_hang ... ok
+test report::tests::test_title_redaction_does_not_alter_other_command_arguments ... ok
+test process::tests::test_hung_process_exceeds_timeout_and_is_killed ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests src/main.rs (target/debug/deps/spawn_at_verify-ae328ab5117be9ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/category_library_test.rs (target/debug/deps/category_library_test-9c5efefe99f94a20)
+
+running 4 tests
+test test_unknown_category_is_validation_error ... ok
+test test_missing_category_in_toml_is_deserialization_error ... ok
+test test_category_filtering_in_registry ... ok
+test test_every_active_case_has_valid_category ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oracle_cross_check.rs (target/debug/deps/oracle_cross_check-035c46b7e55c121c)
+
+running 5 tests
+test test_oracle_vs_core_cursor_anchor_cross_check ... ok
+test test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check ... ok
+test test_oracle_vs_core_directional_margins_cross_check ... ok
+test test_oracle_vs_core_default_pivot_cross_check ... ok
+test test_oracle_vs_core_cross_check_matrix ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/trace_analyser_test.rs (target/debug/deps/trace_analyser_test-aa26a981c2d4bd43)
+
+running 18 tests
+test test_deduplication_between_journal_and_session_log ... ok
+test test_filter_by_window_id_ignores_other_windows ... ok
+test test_scenario_delayed_paint_passes_with_multiple_commit_samples ... ok
+test test_violation_order_uncloak_before_pre_reveal_unminimize ... ok
+test test_timing_over_budget_generates_warning_not_failure ... ok
+test test_scenario_minimized_passes_and_checks_pre_reveal_unminimize ... ok
+test test_violation_lingering_cloak ... ok
+test test_watchdog_deadline_reached_is_hard_failure ... ok
+test test_violation_off_target_visibility ... ok
+test test_violation_order_uncloak_before_commit ... ok
+test test_lingering_cloak_disarmed_by_anchor_released_is_not_violation ... ok
+test test_scenario_visible_passes ... ok
+test test_real_trace_golden_assertions ... ok
+test test_scope_notice_in_report_summary ... ok
+test test_violation_multiple_reveal ... ok
+test test_scenario_remaximize_passes ... ok
+test test_scenario_covered_with_deferred_focus_tolerates_extra_events ... ok
+test test_scenario_covered_passes ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/tui_test.rs (target/debug/deps/tui_test-f42fa3870b14bba4)
+
+running 38 tests
+test tui::app_flow::test_logging_state_parser ... ok
+test tui::drawer_keys_clipboard::test_drawer_bar_chips_at_140_and_80 ... ok
+test tui::app_flow::test_tui_raw_mode_ctrl_c_backstop ... ok
+test tui::app_flow::test_tui_app_initialization ... ok
+test tui::app_flow::test_tui_filter_cycling ... ok
+test tui::drawer_content::test_stdout_window_id_appears_exactly_once_in_compact_drawer ... ok
+test tui::app_flow::test_queue_pauses_on_human_case_and_resumes_only_after_verdict ... ok
+test tui::drawer_content::test_failing_case_renders_failure_row_with_real_reason_in_red ... ok
+test tui::app_flow::test_tui_navigation_and_keybindings ... ok
+test tui::app_flow::test_tui_human_verdict_entry_and_disagreement ... ok
+test tui::drawer_keys_clipboard::test_drawer_scrolling_keys_in_waiting_state ... ok
+test tui::drawer_content::test_label_values_alignment_across_section ... ok
+test tui::drawer_content::test_synthetic_token_hard_wrap_alignment_at_width_50 ... ok
+test tui::drawer_keys_clipboard::test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard ... ok
+test tui::drawer_content::test_drawer_sections_order_and_formatting ... ok
+test tui::drawer_keys_clipboard::test_drawer_bar_chips_and_exclusion_of_main_keys ... ok
+test tui::drawer_content::test_506_9_ms_cloak_yellow_warning_does_not_fail_pass ... ok
+test tui::drawer_keys_clipboard::test_tui_detail_drawer_toggle_and_scrolling ... ok
+test tui::layout_responsive::test_render_terminal_below_minimum_size_shows_warning ... ok
+test tui::drawer_content::test_compact_timeline_contains_neither_prefix_nor_proto ... ok
+test tui::app_flow::test_done_count_excludes_waiting_human_case ... ok
+test tui::drawer_keys_clipboard::test_question_mark_from_drawer_opens_help_and_esc_returns ... ok
+test tui::drawer_keys_clipboard::test_help_modal_and_tab_panel_switching ... ok
+test tui::layout_responsive::test_tui_headless_render_and_missing_fixture_banner ... ok
+test tui::drawer_keys_clipboard::test_no_bare_uppercase_key_bindings_in_bars_or_help ... ok
+test tui::layout_responsive::test_render_60x20_long_description_and_waiting_drawer_flow ... ok
+test tui::layout_responsive::test_render_passing_case_contains_no_red_styled_cells ... ok
+test tui::drawer_content::test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings ... ok
+test tui::layout_responsive::test_headless_render_80x24_shows_clipping_hint_when_overflowed ... ok
+test tui::polish::test_ui_polish_spacing_padding_outcome_symbols_and_result_box ... ok
+test tui::drawer_content::test_tui_detail_drawer_content_ordering_and_failure_box ... ok
+test tui::layout_responsive::test_render_snapshots ... ok
+test tui::golden_invariants::test_real_placement_drawer_golden_files ... ok
+test tui::polish::test_result_and_spacing_polish_spec ... ok
+test tui::golden_invariants::test_real_placement_drawer_grid_invariants ... ok
+test tui::layout_responsive::test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20 ... ok
+test tui::drawer_content::test_multisize_drawer_rendering_and_token_wrapping ... ok
+test tui::golden_invariants::test_dump_snapshots_to_scratch ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.78s
+
+   Doc-tests spawn_at_verify
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

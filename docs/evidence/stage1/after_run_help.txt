@@ -1,0 +1,22 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running `target/debug/spawn-at-verify run --help`
+Execute automated verification tests
+
+Usage: spawn-at-verify run [OPTIONS]
+
+Options:
+      --bin <BIN>            Path to spawn-at binary under test [default: target/debug/spawn-at]
+      --dir <DIR>            Path to verify test library directory [default: auto-detected verify/]
+      --suite <SUITE>        Run a predefined test suite (e.g. quick, release-gate, visual)
+      --category <CATEGORY>  Select by category path prefix (e.g. placement/, cloak/no-flash)
+      --tag <TAGS>           Select by tag (can be specified multiple times)
+      --kind <KIND>          Select by test kind (auto, human, both) [possible values: auto, human, both]
+      --required             Select required tests only
+      --glob <GLOB>          Filter tests by ID glob pattern (e.g. *bottom*, placement/*)
+      --filter <FILTER>      Legacy filter argument (alias for glob)
+      --repeat <REPEAT>      Repeat each test N times (cap 100) for flakiness detection [default: 1]
+      --allow-dirty          Allow verification against a dirty build
+      --dry-run              Dry run: list planned tests without executing actions
+      --include-titles       Include real window titles in reports (opt out of default redaction)
+      --json                 Output results in JSON format
+  -h, --help                 Print help

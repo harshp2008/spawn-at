@@ -1,0 +1,167 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+     Running unittests src/lib.rs (target/debug/deps/spawn_at_verify-b1a7b53587529fd0)
+
+running 59 tests
+test log_source::tests::test_noop_log_source_returns_empty ... ok
+test oracle::tests::test_golden_bottom_right_30x20 ... ok
+test oracle::tests::test_golden_bottom_left_338x93 ... ok
+test oracle::tests::test_golden_bottom_right_338x93 ... ok
+test oracle::tests::test_golden_bottom_right_391x368 ... ok
+test oracle::tests::test_golden_center_with_odd_sizes ... ok
+test oracle::tests::test_golden_clamp_explicit_pos_0_0 ... ok
+test oracle::tests::test_golden_clamp_explicit_pos_5000_5000 ... ok
+test oracle::tests::test_golden_default_pivot_all_nine_anchors ... ok
+test log_source::tests::test_fake_log_source_captures_time_window_slice ... ok
+test oracle::tests::test_golden_default_pivot_bottom ... ok
+test oracle::tests::test_golden_default_pivot_left ... ok
+test oracle::tests::test_golden_default_pivot_right ... ok
+test oracle::tests::test_golden_default_pivot_top ... ok
+test loader::tests::test_format_test_tree ... ok
+test oracle::tests::test_golden_negative_origin_monitor ... ok
+test oracle::tests::test_golden_offset_origin_workarea ... ok
+test oracle::tests::test_golden_per_side_margins ... ok
+test loader::tests::test_combinable_filter ... ok
+test oracle::tests::test_golden_top_left ... ok
+test oracle::tests::test_golden_window_larger_than_workarea_clamp_false ... ok
+test preflight::tests::test_evaluate_preflight_verdict_dirty_warn ... ok
+test preflight::tests::test_evaluate_preflight_verdict_stale_fail ... ok
+test preflight::tests::test_parse_dirty_dev_build_version ... ok
+test probe::tests::test_check_requirements_session_match ... ok
+test oracle::tests::test_verify_tolerance_exact_and_within_delta ... ok
+test probe::tests::test_check_requirements_session_mismatch ... ok
+test report::tests::test_format_epoch_secs_sortable_test_vectors ... ok
+test report::tests::test_skipped_is_never_a_pass ... ok
+test oracle::tests::test_oracle_reads_shared_golden_placement_vectors ... ok
+test runner::tests::test_results_model_resolution_rules ... ok
+test schema::tests::test_derived_platform_tags ... ok
+test schema::tests::test_suite_filtering ... ok
+test runner::tests::test_build_action_command_args_fixture_and_class ... ok
+test loader::tests::test_matches_glob ... ok
+test schema::tests::test_deserialize_placement_bottom_right ... ok
+test schema::tests::test_matrix_expansion ... ok
+test oracle::tests::test_golden_window_larger_than_workarea_clamp_true ... ok
+test tracker::tests::test_tracker_respects_20_window_cap ... ok
+test runner::tests::test_missing_fixture_binary_fails_with_clear_error_message ... ok
+test tracker::tests::test_fixture_attribution_by_pid ... ok
+test tracker::tests::test_runner_cleanup_only_ever_passes_registered_ids_to_close ... ok
+test runner::tests::test_pattern_match_literal_and_regex ... ok
+test tracker::tests::test_two_candidates_nothing_closed ... ok
+test tracker::tests::test_tracker_does_not_close_unlaunched_windows ... ok
+test tracker::tests::test_window_of_same_class_opened_between_session_start_and_action_never_closed ... ok
+test tracker::tests::test_tracker_ignores_external_window_appearing_mid_test ... ok
+test tracker::tests::test_tracker_never_closes_preexisting_windows ... ok
+test tracker::tests::test_zero_candidates_nothing_closed ... ok
+test preflight::tests::test_parse_dev_build_version ... ok
+test tui::logging::tests::test_parse_logging_state_transitions ... ok
+test preflight::tests::test_evaluate_preflight_verdict_clean_pass ... ok
+test report::tests::test_get_real_hostname_returns_valid_name ... ok
+test report::tests::test_format_sortable_timestamp ... ok
+test runner::tests::test_extract_claimed_window_id_from_json_and_fallback ... ok
+test report::tests::test_title_redaction ... ok
+test report::tests::test_title_redaction_does_not_alter_other_command_arguments ... ok
+test process::tests::test_fake_spawn_at_leaving_background_process_does_not_hang ... ok
+test process::tests::test_hung_process_exceeds_timeout_and_is_killed ... ok
+
+test result: ok. 59 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+
+     Running unittests src/main.rs (target/debug/deps/spawn_at_verify-ae328ab5117be9ae)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/category_library_test.rs (target/debug/deps/category_library_test-9c5efefe99f94a20)
+
+running 4 tests
+test test_unknown_category_is_validation_error ... ok
+test test_missing_category_in_toml_is_deserialization_error ... ok
+test test_category_filtering_in_registry ... ok
+test test_every_active_case_has_valid_category ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/oracle_cross_check.rs (target/debug/deps/oracle_cross_check-035c46b7e55c121c)
+
+running 5 tests
+test test_oracle_vs_core_directional_margins_cross_check ... ok
+test test_oracle_vs_core_cursor_anchor_cross_check ... ok
+test test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check ... ok
+test test_oracle_vs_core_default_pivot_cross_check ... ok
+test test_oracle_vs_core_cross_check_matrix ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/trace_analyser_test.rs (target/debug/deps/trace_analyser_test-aa26a981c2d4bd43)
+
+running 18 tests
+test test_violation_order_uncloak_before_commit ... ok
+test test_violation_off_target_visibility ... ok
+test test_filter_by_window_id_ignores_other_windows ... ok
+test test_deduplication_between_journal_and_session_log ... ok
+test test_scenario_remaximize_passes ... ok
+test test_scenario_visible_passes ... ok
+test test_watchdog_deadline_reached_is_hard_failure ... ok
+test test_violation_order_uncloak_before_pre_reveal_unminimize ... ok
+test test_timing_over_budget_generates_warning_not_failure ... ok
+test test_violation_lingering_cloak ... ok
+test test_lingering_cloak_disarmed_by_anchor_released_is_not_violation ... ok
+test test_scenario_minimized_passes_and_checks_pre_reveal_unminimize ... ok
+test test_scenario_delayed_paint_passes_with_multiple_commit_samples ... ok
+test test_scope_notice_in_report_summary ... ok
+test test_scenario_covered_with_deferred_focus_tolerates_extra_events ... ok
+test test_violation_multiple_reveal ... ok
+test test_scenario_covered_passes ... ok
+test test_real_trace_golden_assertions ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/tui_test.rs (target/debug/deps/tui_test-f42fa3870b14bba4)
+
+running 38 tests
+test test_drawer_bar_chips_at_140_and_80 ... ok
+test test_logging_state_parser ... ok
+test test_queue_pauses_on_human_case_and_resumes_only_after_verdict ... ok
+test test_drawer_sections_order_and_formatting ... ok
+test test_label_values_alignment_across_section ... ok
+test test_drawer_scrolling_keys_in_waiting_state ... ok
+test test_failing_case_renders_failure_row_with_real_reason_in_red ... ok
+test test_drawer_w_writes_full_drawer_and_y_copies_to_clipboard ... ok
+test test_question_mark_from_drawer_opens_help_and_esc_returns ... ok
+test test_render_passing_case_contains_no_red_styled_cells ... ok
+test test_506_9_ms_cloak_yellow_warning_does_not_fail_pass ... ok
+test test_help_modal_and_tab_panel_switching ... ok
+test test_render_terminal_below_minimum_size_shows_warning ... ok
+test test_render_60x20_long_description_and_waiting_drawer_flow ... ok
+test test_done_count_excludes_waiting_human_case ... ok
+test test_drawer_bar_chips_and_exclusion_of_main_keys ... ok
+test test_compact_timeline_contains_neither_prefix_nor_proto ... ok
+test test_tui_app_initialization ... ok
+test test_tui_detail_drawer_toggle_and_scrolling ... ok
+test test_synthetic_token_hard_wrap_alignment_at_width_50 ... ok
+test test_tui_filter_cycling ... ok
+test test_stdout_window_id_appears_exactly_once_in_compact_drawer ... ok
+test test_tui_navigation_and_keybindings ... ok
+test test_no_bare_uppercase_key_bindings_in_bars_or_help ... ok
+test test_tui_human_verdict_entry_and_disagreement ... ok
+test test_tui_raw_mode_ctrl_c_backstop ... ok
+test test_tui_headless_render_and_missing_fixture_banner ... ok
+test test_headless_render_80x24_shows_clipping_hint_when_overflowed ... ok
+test test_render_drawer_at_60x28_80x28_140x28_no_clipped_headings ... ok
+test test_real_placement_drawer_golden_files ... ok
+test test_tui_detail_drawer_content_ordering_and_failure_box ... ok
+test test_render_snapshots ... ok
+test test_ui_polish_spacing_padding_outcome_symbols_and_result_box ... ok
+test test_real_placement_drawer_grid_invariants ... ok
+test test_result_and_spacing_polish_spec ... ok
+test test_multisize_drawer_rendering_and_token_wrapping ... ok
+test test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20 ... ok
+test test_dump_snapshots_to_scratch ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+
+   Doc-tests spawn_at_verify
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

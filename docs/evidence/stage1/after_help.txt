@@ -1,0 +1,17 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running `target/debug/spawn-at-verify --help`
+Verification Engine & Test Harness for spawn-at
+
+Usage: spawn-at-verify <COMMAND>
+
+Commands:
+  run     Execute automated verification tests
+  list    List available tests and suites formatted as a tree with counts
+  check   Validate test definitions and suite schemas
+  report  Re-render or inspect past verification reports
+  tui     Interactive Terminal UI for test execution and human review
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help     Print help
+  -V, --version  Print version
