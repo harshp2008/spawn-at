@@ -53,70 +53,70 @@ impl TuiApp {
     }
 }
 
-/// Invokes system clipboard tools (wl-copy, xclip, xsel) or falls back to OSC 52.
+/// External clipboard providers tried in order: program and the arguments that make it read
+/// the clipboard text from stdin.
+const CLIPBOARD_PROVIDERS: &[(&str, &[&str])] = &[
+    ("wl-copy", &[]),
+    ("xclip", &["-selection", "clipboard"]),
+    ("xsel", &["--clipboard", "--input"]),
+];
+
+/// Pipes `text` into `program` and succeeds only if the process exits with status 0.
+///
+/// A missing binary, a failed stdin write, a non-zero exit, or death by signal all return
+/// `Err` naming `program`, so the caller can fall through to the next provider.
+fn run_provider(program: &str, args: &[&str], text: &str) -> Result<(), String> {
+    use std::io::Write;
+    let mut child = std::process::Command::new(program)
+        .args(args)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .map_err(|e| format!("{}: {}", program, e))?;
+    let write_res = match child.stdin.take() {
+        Some(mut stdin) => stdin.write_all(text.as_bytes()),
+        None => Ok(()),
+    };
+    // Always reap the child, even when the write failed (e.g. EPIPE from an early exit).
+    let status = child.wait().map_err(|e| format!("{}: {}", program, e))?;
+    if !status.success() {
+        return Err(format!("{} exited with {}", program, status));
+    }
+    write_res.map_err(|e| format!("{}: writing stdin failed: {}", program, e))
+}
+
+/// Tries each provider in order, then `osc52`; the first success wins.
+///
+/// The final error lists why every provider failed.
+fn copy_via(
+    providers: &[(&str, &[&str])],
+    text: &str,
+    osc52: impl FnOnce(&str) -> Result<(), String>,
+) -> Result<(), String> {
+    let mut failures = Vec::new();
+    for (program, args) in providers {
+        match run_provider(program, args, text) {
+            Ok(()) => return Ok(()),
+            Err(e) => failures.push(e),
+        }
+    }
+    match osc52(text) {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            failures.push(format!("OSC 52: {}", e));
+            Err(format!(
+                "no clipboard provider succeeded ({})",
+                failures.join("; ")
+            ))
+        }
+    }
+}
+
+/// Invokes system clipboard tools (wl-copy, xclip, xsel) in turn, checking each exit status,
+/// and falls back to OSC 52 when all of them fail.
 pub fn system_copy_to_clipboard(text: &str) -> Result<(), String> {
-    // 1. Try wl-copy
-    if let Ok(mut child) = std::process::Command::new("wl-copy")
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            let _ = stdin.write_all(text.as_bytes());
-        }
-        if let Ok(status) = child.wait() {
-            if status.success() {
-                return Ok(());
-            }
-        }
-    }
-
-    // 2. Try xclip (-selection clipboard)
-    if let Ok(mut child) = std::process::Command::new("xclip")
-        .args(["-selection", "clipboard"])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            let _ = stdin.write_all(text.as_bytes());
-        }
-        if let Ok(status) = child.wait() {
-            if status.success() {
-                return Ok(());
-            }
-        }
-    }
-
-    // 3. Try xsel (--clipboard --input)
-    if let Ok(mut child) = std::process::Command::new("xsel")
-        .args(["--clipboard", "--input"])
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn()
-    {
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            let _ = stdin.write_all(text.as_bytes());
-        }
-        if let Ok(status) = child.wait() {
-            if status.success() {
-                return Ok(());
-            }
-        }
-    }
-
-    // 4. Try OSC 52
-    if copy_osc52(text).is_ok() {
-        return Ok(());
-    }
-
-    Err("no clipboard provider (wl-copy, xclip, xsel, OSC 52) succeeded".into())
+    copy_via(CLIPBOARD_PROVIDERS, text, copy_osc52)
 }
 
 /// Emits an OSC 52 terminal escape sequence to populate the terminal clipboard.
@@ -154,4 +154,97 @@ fn base64_encode(data: &[u8]) -> String {
         }
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    /// Unique scratch path under the OS temp dir for one test.
+    fn temp_path(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!(
+            "spawn-at-verify-clip-{}-{}",
+            std::process::id(),
+            name
+        ))
+    }
+
+    /// First provider is a fake that exits 3, second is a fake that stores stdin in a file:
+    /// the failure must fall through to the second, and OSC 52 must never run.
+    #[test]
+    fn test_failing_provider_falls_through_to_next_provider() {
+        let out = temp_path("next");
+        let _ = std::fs::remove_file(&out);
+        let script = format!("cat > {}", out.display());
+        let providers: &[(&str, &[&str])] =
+            &[("sh", &["-c", "exit 3"]), ("sh", &["-c", script.as_str()])];
+        let osc_calls = Cell::new(0);
+        let res = copy_via(providers, "hello clip", |_| {
+            osc_calls.set(osc_calls.get() + 1);
+            Ok(())
+        });
+        assert_eq!(res, Ok(()));
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), "hello clip");
+        assert_eq!(osc_calls.get(), 0, "OSC 52 must not run after a success");
+        let _ = std::fs::remove_file(&out);
+    }
+
+    /// Every provider fails (exit 1, and a binary that does not exist, like xsel here):
+    /// OSC 52 must run exactly once with the original text and its result is returned.
+    #[test]
+    fn test_all_providers_failing_falls_back_to_osc52() {
+        let providers: &[(&str, &[&str])] = &[
+            ("sh", &["-c", "exit 1"]),
+            ("spawn-at-verify-no-such-clipboard-tool", &[]),
+        ];
+        let seen = std::cell::RefCell::new(Vec::new());
+        let res = copy_via(providers, "fallback text", |t| {
+            seen.borrow_mut().push(t.to_string());
+            Ok(())
+        });
+        assert_eq!(res, Ok(()));
+        assert_eq!(*seen.borrow(), vec!["fallback text".to_string()]);
+    }
+
+    /// A provider that succeeds first short-circuits: a later provider that would write a
+    /// marker file never runs.
+    #[test]
+    fn test_successful_provider_short_circuits_remaining_providers() {
+        let marker = temp_path("marker");
+        let _ = std::fs::remove_file(&marker);
+        let script = format!("touch {}", marker.display());
+        let providers: &[(&str, &[&str])] = &[
+            ("sh", &["-c", "cat >/dev/null"]),
+            ("sh", &["-c", script.as_str()]),
+        ];
+        let res = copy_via(providers, "x", |_| Err("osc must not run".into()));
+        assert_eq!(res, Ok(()));
+        assert!(!marker.exists(), "second provider must not run");
+    }
+
+    /// When providers and OSC 52 all fail, the error names each provider's failure reason.
+    #[test]
+    fn test_total_failure_reports_every_reason() {
+        let providers: &[(&str, &[&str])] = &[
+            ("sh", &["-c", "exit 7"]),
+            ("spawn-at-verify-no-such-clipboard-tool", &[]),
+        ];
+        let err = copy_via(providers, "x", |_| Err("stdout closed".into())).unwrap_err();
+        assert!(err.contains("sh exited with"), "{}", err);
+        assert!(err.contains("exit status: 7"), "{}", err);
+        assert!(
+            err.contains("spawn-at-verify-no-such-clipboard-tool"),
+            "{}",
+            err
+        );
+        assert!(err.contains("OSC 52: stdout closed"), "{}", err);
+    }
+
+    /// The real provider table lists wl-copy, xclip, xsel in that order.
+    #[test]
+    fn test_provider_order_is_wl_copy_xclip_xsel() {
+        let names: Vec<&str> = CLIPBOARD_PROVIDERS.iter().map(|(n, _)| *n).collect();
+        assert_eq!(names, vec!["wl-copy", "xclip", "xsel"]);
+    }
 }
