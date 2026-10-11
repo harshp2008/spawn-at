@@ -2,6 +2,7 @@
 
 use unicode_width::UnicodeWidthStr;
 
+/// Normalizes dimension strings by replacing 'x' with '×' multiplication signs.
 pub fn normalise_dimensions(s: &str) -> String {
     let mut out = String::new();
     let chars: Vec<char> = s.chars().collect();
@@ -25,6 +26,7 @@ pub fn normalise_dimensions(s: &str) -> String {
     out
 }
 
+/// Splits input text into whitespace-delimited word tokens.
 fn tokenize_text(text: &str) -> Vec<String> {
     let mut tokens = Vec::new();
     let words: Vec<&str> = text.split_whitespace().collect();
@@ -50,6 +52,7 @@ fn tokenize_text(text: &str) -> Vec<String> {
     tokens
 }
 
+/// Hard-breaks an oversized token to fit within maximum allowed line width.
 fn hard_break_token(token: &str, max_width: usize) -> Vec<String> {
     if max_width == 0 {
         return vec![token.to_string()];
@@ -98,6 +101,7 @@ fn hard_break_token(token: &str, max_width: usize) -> Vec<String> {
     chunks
 }
 
+/// Wraps tokens into multiple lines respecting left column alignment.
 pub fn wrap_value_tokens(text: &str, max_width: usize) -> Vec<String> {
     if max_width == 0 {
         return vec![text.to_string()];

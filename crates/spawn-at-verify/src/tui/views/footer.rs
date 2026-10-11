@@ -10,6 +10,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+/// Keybinding definitions displayed when the detail drawer is open.
 pub const DRAWER_KEYS: &[(&str, &str)] = &[
     ("y", "Copy"),
     ("w", "Save"),
@@ -19,6 +20,7 @@ pub const DRAWER_KEYS: &[(&str, &str)] = &[
     ("Esc", "Close"),
 ];
 
+/// Keybinding definitions displayed when human review verdict modal is active.
 pub const VERDICT_KEYS: &[(&str, &str)] = &[
     ("p", "Pass"),
     ("x", "Fail"),
@@ -28,6 +30,7 @@ pub const VERDICT_KEYS: &[(&str, &str)] = &[
     ("Esc", "Cancel"),
 ];
 
+/// Renders a horizontal grid of shortcut chips in the footer area.
 pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line<'static>> {
     let single_row_len: usize = entries
         .iter()
@@ -124,6 +127,7 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
     }
 }
 
+/// Renders contextual footer shortcut bar for drawer mode.
 fn draw_drawer_footer(f: &mut Frame, area: Rect) {
     let block = Block::default().borders(Borders::ALL).border_style(
         Style::default()
@@ -136,6 +140,7 @@ fn draw_drawer_footer(f: &mut Frame, area: Rect) {
     f.render_widget(p, area);
 }
 
+/// Renders contextual footer shortcut bar for human verdict entry.
 fn draw_verdict_footer(f: &mut Frame, area: Rect) {
     let block = Block::default()
         .borders(Borders::ALL)
@@ -151,6 +156,7 @@ fn draw_verdict_footer(f: &mut Frame, area: Rect) {
     f.render_widget(p, area);
 }
 
+/// Renders standard footer shortcut bar for list navigation mode.
 fn draw_normal_footer(f: &mut Frame, _app: &TuiApp, area: Rect) {
     let lines = if area.width >= 105 {
         vec![Line::from(vec![
@@ -308,6 +314,7 @@ fn draw_normal_footer(f: &mut Frame, _app: &TuiApp, area: Rect) {
     f.render_widget(p, area);
 }
 
+/// Selects and draws the appropriate footer bar based on current application state.
 pub fn draw_footer(f: &mut Frame, app: &TuiApp, area: Rect) {
     if matches!(app.modal, ModalState::Help) {
         return;

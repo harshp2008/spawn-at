@@ -9,6 +9,7 @@ use ratatui::{
     Frame,
 };
 
+/// Renders the keyboard shortcut and navigation help overlay modal.
 pub fn draw_help_modal(f: &mut Frame, app: &TuiApp, area: Rect) {
     let popup_area = centered_rect(72, 92, area);
     f.render_widget(Clear, popup_area);
@@ -358,6 +359,7 @@ pub fn draw_help_modal(f: &mut Frame, app: &TuiApp, area: Rect) {
     f.render_widget(p, popup_area);
 }
 
+/// Renders the human review verdict input dialog modal.
 pub fn draw_verdict_modal(f: &mut Frame, app: &TuiApp, test_id: &str, area: Rect) {
     let popup_area = centered_rect(60, 40, area);
     f.render_widget(Clear, popup_area);
@@ -440,6 +442,7 @@ pub fn draw_verdict_modal(f: &mut Frame, app: &TuiApp, test_id: &str, area: Rect
     f.render_widget(paragraph, popup_area);
 }
 
+/// Calculates a centered rectangle inside a parent area by percentage size.
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)

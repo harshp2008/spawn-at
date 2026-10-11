@@ -8,6 +8,7 @@ use ratatui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+/// Shared assembly builder for consistent layout and alignment across drawer sections.
 pub struct DrawerBuilder {
     pub lines: Vec<Line<'static>>,
     pub plain: Vec<String>,
@@ -17,6 +18,7 @@ pub struct DrawerBuilder {
 }
 
 impl DrawerBuilder {
+    /// Constructs a new DrawerBuilder configured for the given drawer pixel width.
     pub fn new(width: usize) -> Self {
         let w = width.max(50);
         let inner_w = w.saturating_sub(2);
@@ -30,20 +32,24 @@ impl DrawerBuilder {
         }
     }
 
+    /// Computes the usable content width inside the drawer excluding borders.
     pub fn content_width(&self) -> usize {
         self.val_col_width
     }
 
+    /// Appends a raw Line and plain text to the drawer buffer.
     pub fn push(&mut self, line: Line<'static>, text: String) {
         self.lines.push(line);
         self.plain.push(text);
     }
 
+    /// Appends an empty blank separator line to the drawer buffer.
     pub fn push_blank(&mut self) {
         self.lines.push(Line::raw(""));
         self.plain.push(String::new());
     }
 
+    /// Appends a section heading banner line to the drawer buffer.
     pub fn push_heading(&mut self, name: &str, extra: Option<&str>) {
         let (prefix_spans, prefix_len, plain_prefix) = match extra {
             Some(ex) => {
@@ -95,6 +101,7 @@ impl DrawerBuilder {
         self.push(Line::from(all_spans), plain_line);
     }
 
+    /// Appends an aligned single-line key-value pair to the drawer buffer.
     pub fn push_kv(&mut self, label: &str, val_spans: Vec<Span<'static>>, val_plain: &str) {
         if val_plain.width() > self.val_col_width {
             let style = val_spans.first().map(|s| s.style).unwrap_or_default();
@@ -112,6 +119,7 @@ impl DrawerBuilder {
         self.push(Line::from(spans), plain_line);
     }
 
+    /// Appends a multi-line wrapped key-value pair with hanging indent alignment.
     pub fn push_wrapped_kv(&mut self, label: &str, val_text: &str, val_style: Style) {
         let indent_str = " ".repeat(DRAWER_INDENT);
         let label_fmt = format!("{:<width$}", label, width = DRAWER_LABEL_W);

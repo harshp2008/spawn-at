@@ -4,6 +4,7 @@ use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
 use ratatui::style::Color;
 
+/// Maps test identifier to its primary category designation.
 pub fn get_test_category(cat_or_id: &str) -> &'static str {
     if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
         "Preflight"
@@ -29,6 +30,7 @@ pub fn get_test_category(cat_or_id: &str) -> &'static str {
     }
 }
 
+/// Pads string with trailing spaces to match requested width.
 pub fn pad_str(s: &str, width: usize) -> String {
     let count = s.chars().count();
     if count >= width {
@@ -38,6 +40,7 @@ pub fn pad_str(s: &str, width: usize) -> String {
     }
 }
 
+/// Truncates test ID to fit within maximum available column width.
 pub fn truncate_id_suffix(id: &str, max_len: usize) -> String {
     let count = id.chars().count();
     if count <= max_len {
@@ -52,6 +55,7 @@ pub fn truncate_id_suffix(id: &str, max_len: usize) -> String {
     }
 }
 
+/// Maps test status to corresponding display symbol and color styling.
 pub fn status_symbol_and_color(
     test: &TestDefinition,
     res: Option<&TestResult>,

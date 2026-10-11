@@ -30,6 +30,7 @@ use ratatui::{
     Frame,
 };
 
+/// Top-level TUI render function painting header, body, footer, drawer, and modals.
 pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
     let area = f.area();
 
@@ -90,6 +91,7 @@ pub fn draw_ui(f: &mut Frame, app: &TuiApp) {
     }
 }
 
+/// Renders the main split layout with test list on left and details pane on right.
 fn draw_body(f: &mut Frame, app: &TuiApp, area: Rect) {
     if app.detail_drawer_open {
         // Expanded full-screen detail drawer view
