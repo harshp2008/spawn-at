@@ -579,8 +579,6 @@ graph TD
 ##### Stage 1 Actual File List & Architecture Map
 - `src/lib.rs` (19 lines, `#![warn(missing_docs)]`)
 - `src/main.rs` (542 lines)
-- `src/config.rs` (172 lines)
-- `src/env.rs` (160 lines)
 - `src/loader.rs` (444 lines)
 - `src/log_source.rs` (150 lines)
 - `src/preflight.rs` (212 lines)

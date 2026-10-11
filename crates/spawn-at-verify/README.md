@@ -6,8 +6,6 @@ Verification engine, automated test harness, and interactive qualification TUI f
 
 - `src/lib.rs`: Library crate root, feature gates, and module declarations (`#![warn(missing_docs)]`).
 - `src/main.rs`: CLI binary entry point (`run`, `list`, `check`, `report`, `tui`).
-- `src/config.rs`: Runtime CLI flags, options, and subcommand argument definitions.
-- `src/env.rs`: Test environment detection, sandboxing, and execution isolation.
 - `src/loader.rs`: TOML test specification discovery, parsing, and filtering engine.
 - `src/log_source.rs`: Platform-agnostic log slicing trait and system journal implementations.
 - `src/preflight.rs`: Preflight build freshness verification and git status inspection.
