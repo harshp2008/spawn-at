@@ -2,7 +2,6 @@
 
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
-use crate::trace::TraceAnalyser;
 use crate::tui::views::builder::DrawerBuilder;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
@@ -159,9 +158,7 @@ pub fn render_result_section(
     };
     builder.push_kv("Verdict", v_spans, &v_plain);
 
-    let trace_report = res_opt
-        .and_then(|r| r.log_slice.as_ref())
-        .map(|s| TraceAnalyser::new().analyse(s));
+    let trace_report = res_opt.and_then(|r| r.trace_report());
 
     let cloak_ms = trace_report
         .as_ref()

@@ -86,7 +86,7 @@ fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
         disagreement: false,
         duration_ms: 121,
         exit_code: Some(0),
-        stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+        stdout: r#"{"window_id":1002,"x":1504,"y":764,"w":400,"h":300}"#.into(),
         stderr: String::new(),
         message: Some("Assertions passed".into()),
         log_slice: Some(
@@ -199,7 +199,7 @@ fn test_result_and_spacing_polish_spec() {
             disagreement: false,
             duration_ms: 185,
             exit_code: Some(0),
-            stdout: r#"{"window_id":870905,"x":1504,"y":764,"w":400,"h":300}"#.into(),
+            stdout: r#"{"window_id":1002,"x":1504,"y":764,"w":400,"h":300}"#.into(),
             stderr: String::new(),
             message: Some("Assertions passed".into()),
             log_slice: Some("[spawn-at-time] +0.00ms | CLOAK".into()),

@@ -108,15 +108,32 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    /// Cloak duration in milliseconds measured from this result's log slice, or `None` when
-    /// there is no slice or the slice holds no complete CLOAK..UNCLOAK pair.
-    pub fn cloak_duration_ms(&self) -> Option<f64> {
-        let slice = self.log_slice.as_ref()?;
-        crate::trace::TraceAnalyser::new()
-            .analyse(slice)
-            .cloak_duration_ms
+    /// Window id the spawned fixture reported in its own output (`window_id` in the JSON on
+    /// stdout, or the textual claim), if any.
+    pub fn claimed_window_id(&self) -> Option<u64> {
+        super::validation::extract_claimed_window_id(&self.stdout, &self.stderr)
     }
-    /// Returns the category of this test result based on its ID.
+
+    /// Analyses this result's log slice for the window named in stdout, never for "whichever
+    /// window of the class appears first".
+    ///
+    /// The slice is captured with whole-second bounds, so it can contain a previous run's
+    /// window; scoping to [`TestResult::claimed_window_id`] drops those events. When stdout
+    /// names no window (e.g. `window_id: null`), the whole slice is analysed unscoped.
+    pub fn trace_report(&self) -> Option<crate::trace::TraceReport> {
+        let slice = self.log_slice.as_ref()?;
+        let mut analyser = crate::trace::TraceAnalyser::new();
+        if let Some(id) = self.claimed_window_id() {
+            analyser = analyser.with_target_window_id(id);
+        }
+        Some(analyser.analyse(slice))
+    }
+
+    /// Cloak duration in milliseconds of the claimed window, or `None` when there is no slice
+    /// or it holds no complete CLOAK..UNCLOAK pair for that window.
+    pub fn cloak_duration_ms(&self) -> Option<f64> {
+        self.trace_report().and_then(|r| r.cloak_duration_ms)
+    }
     pub fn category(&self) -> &str {
         if self.id.starts_with("preflight") || self.id.starts_with("basics") {
             "basics"

@@ -3,7 +3,6 @@
 use super::timeline_format::parse_compact_timeline;
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
-use crate::trace::TraceAnalyser;
 use crate::tui::views::builder::DrawerBuilder;
 use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_RIGHT_PAD};
 use crate::tui::views::wrapping::wrap_value_tokens;
@@ -18,9 +17,7 @@ pub fn render_timeline_section(
     res_opt: Option<&TestResult>,
     compact: bool,
 ) {
-    let trace_report = res_opt
-        .and_then(|r| r.log_slice.as_ref())
-        .map(|s| TraceAnalyser::new().analyse(s));
+    let trace_report = res_opt.and_then(|r| r.trace_report());
     // 3. Section: TIMELINE
     let mut win_id_opt = None;
     let mut win_pid_opt = None;

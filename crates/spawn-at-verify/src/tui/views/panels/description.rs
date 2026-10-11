@@ -2,7 +2,6 @@
 
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind};
 use crate::schema::TestKind;
-use crate::trace::TraceAnalyser;
 use crate::tui::app::{ActivePane, TuiApp};
 use ratatui::{
     layout::Rect,
@@ -252,8 +251,7 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
             }
 
             // Cloak & Trace with fixed 2-char symbol slot
-            if let Some(slice) = &res.log_slice {
-                let report = TraceAnalyser::new().analyse(slice);
+            if let Some(report) = res.trace_report() {
                 let trace_part = if report.is_pass() {
                     Span::styled("Trace: 0 violations", Style::default().fg(Color::Green))
                 } else {

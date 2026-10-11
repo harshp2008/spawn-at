@@ -226,6 +226,38 @@ impl TraceAnalyser {
             }
         }
 
+        match self.target_window_id {
+            Some(target) => Self::trim_unattributed_around_target(events, target),
+            None => events,
+        }
+    }
+
+    /// Drops id-less events that cannot belong to the target window's spawn cycle.
+    ///
+    /// Events such as `ARM_SPAWN` carry only a class, never `win=[id=..]`, so the per-id filter
+    /// cannot attribute them. The target's own `ARM_SPAWN` is the last one logged before the
+    /// target's first event; id-less events before it belong to an earlier window's cycle, and
+    /// id-less events after the target's last event belong to a later one. When the target never
+    /// appears in the log, every id-less event is dropped.
+    fn trim_unattributed_around_target(events: Vec<TraceEvent>, target: u64) -> Vec<TraceEvent> {
+        let is_target = |e: &TraceEvent| e.window_id == Some(target) && e.tag != "WATCHDOG_EXPIRED";
+        let Some(first) = events.iter().position(is_target) else {
+            // The target never appears, so no id-less event can be attributed to it.
+            return events
+                .into_iter()
+                .filter(|e| e.window_id.is_some())
+                .collect();
+        };
+        let last = events.iter().rposition(is_target).unwrap_or(first);
+        let start = events[..first]
+            .iter()
+            .rposition(|e| e.window_id.is_none() && e.tag == "ARM_SPAWN")
+            .unwrap_or(first);
         events
+            .into_iter()
+            .enumerate()
+            .filter(|(i, e)| e.window_id.is_some() || (*i >= start && *i <= last))
+            .map(|(_, e)| e)
+            .collect()
     }
 }
