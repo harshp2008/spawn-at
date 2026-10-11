@@ -5,6 +5,7 @@ use crate::runner::HumanVerdictKind;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 impl TuiApp {
+    /// Handles keyboard events, dispatching to raw shortcuts, modals, drawer scrolling, or list navigation.
     pub fn handle_key(&mut self, key: KeyEvent) {
         // 1. Raw mode Ctrl+C backstop: closes test windows and terminates immediately
         if key.code == KeyCode::Char('c') && key.modifiers.contains(KeyModifiers::CONTROL) {

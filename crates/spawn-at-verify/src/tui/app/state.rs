@@ -9,15 +9,21 @@ use crate::tracker::WindowTracker;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::{Path, PathBuf};
 
+/// Test filter modes cycling across review kinds and result statuses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FilterMode {
+    /// Show all loaded test definitions.
     All,
+    /// Filter to tests requiring human visual review.
     HumanOnly,
+    /// Filter to automated tests only.
     AutoOnly,
+    /// Filter to tests that failed verification.
     FailedOnly,
 }
 
 impl FilterMode {
+    /// Advances to the next filter mode in cyclical sequence.
     pub fn next(self) -> Self {
         match self {
             Self::All => Self::HumanOnly,
@@ -27,6 +33,7 @@ impl FilterMode {
         }
     }
 
+    /// Human-readable label describing the active filter mode.
     pub fn label(self) -> &'static str {
         match self {
             Self::All => "All",
@@ -37,19 +44,27 @@ impl FilterMode {
     }
 }
 
+/// Identifies the active interactive pane in the TUI window.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ActivePane {
+    /// Tests list navigation pane.
     List,
+    /// Detailed description and result drawer pane.
     Details,
 }
 
+/// Modal dialog overlay states displayed above the main interface.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ModalState {
+    /// No modal dialog active.
     None,
+    /// Keyboard shortcut and usage help modal.
     Help,
+    /// Human verdict entry dialog for the specified test case.
     HumanVerdict { test_id: String },
 }
 
+/// Computes fixed ordering rank for category grouping.
 pub fn category_rank(cat_or_id: &str) -> usize {
     if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
         0
@@ -75,8 +90,10 @@ pub fn category_rank(cat_or_id: &str) -> usize {
     }
 }
 
+/// Function type alias for test clipboard injection and system copy.
 pub type ClipboardHelper = std::sync::Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
 
+/// Central state machine and event coordinator for the verification Terminal UI.
 pub struct TuiApp {
     pub registry: TestRegistry,
     pub selected_index: usize,
@@ -107,6 +124,7 @@ pub struct TuiApp {
 }
 
 impl TuiApp {
+    /// Initializes a new TuiApp instance, discovering binaries and loading test specifications.
     pub fn new<P: AsRef<Path>>(verify_dir: P, options: RunOptions) -> Result<Self, String> {
         let registry = TestRegistry::load_from_dir(verify_dir)?;
         let bin_path = options.bin_path.clone();
@@ -174,6 +192,7 @@ impl TuiApp {
         })
     }
 
+    /// Returns a sorted slice of test definitions matching active filters and category selections.
     pub fn filtered_tests(&self) -> Vec<&TestDefinition> {
         let mut list: Vec<&TestDefinition> = self
             .registry
@@ -203,6 +222,7 @@ impl TuiApp {
         list
     }
 
+    /// Advances list selection to the first test in the succeeding category.
     pub fn jump_next_category(&mut self) {
         let list = self.filtered_tests();
         if list.is_empty() {
@@ -224,6 +244,7 @@ impl TuiApp {
         }
     }
 
+    /// Jumps list selection to the first test in the preceding category.
     pub fn jump_prev_category(&mut self) {
         let list = self.filtered_tests();
         if list.is_empty() {
@@ -253,6 +274,7 @@ impl TuiApp {
     }
 
     // Navigation and state methods
+    /// Toggles folding expansion/collapse for the currently selected test category.
     pub fn toggle_collapse_selected_category(&mut self) {
         if let Some(test) = self.selected_test() {
             let cat = test.category().to_string();
@@ -266,6 +288,7 @@ impl TuiApp {
         }
     }
 
+    /// Cycles category isolation filter across available categories or clears filter.
     pub fn cycle_category_filter(&mut self) {
         let mut cats: Vec<String> = self
             .registry
@@ -297,6 +320,7 @@ impl TuiApp {
         });
     }
 
+    /// Returns the test definition currently highlighted by list selection.
     pub fn selected_test(&self) -> Option<&TestDefinition> {
         let list = self.filtered_tests();
         if list.is_empty() {
@@ -307,6 +331,7 @@ impl TuiApp {
         }
     }
 
+    /// Moves selection down to the next test item.
     pub fn next(&mut self) {
         let count = self.filtered_tests().len();
         if count > 0 && self.selected_index + 1 < count {
@@ -315,6 +340,7 @@ impl TuiApp {
         }
     }
 
+    /// Moves selection up to the previous test item.
     pub fn previous(&mut self) {
         if self.selected_index > 0 {
             self.selected_index -= 1;
@@ -322,12 +348,14 @@ impl TuiApp {
         }
     }
 
+    /// Cycles across global filter modes and clamps selection indices.
     pub fn cycle_filter(&mut self) {
         self.filter_mode = self.filter_mode.next();
         self.clamp_selection();
         self.status_message = Some(format!("Filter switched to: {}", self.filter_mode.label()));
     }
 
+    /// Clamps selected index within current filtered test list bounds.
     pub fn clamp_selection(&mut self) {
         let count = self.filtered_tests().len();
         if count == 0 {
@@ -337,6 +365,7 @@ impl TuiApp {
         }
     }
 
+    /// Closes any tracked test windows and refocuses the original terminal window.
     pub fn close_test_windows(&mut self) {
         let _ = self.tracker.cleanup_test_windows(&self.bin_path);
         if let Some(term_id) = self.terminal_window_id {
@@ -347,10 +376,12 @@ impl TuiApp {
         }
     }
 
+    /// Dismisses any currently open modal dialog overlay.
     pub fn close_modal(&mut self) {
         self.modal = ModalState::None;
     }
 
+    /// Computes title header text for the detail drawer, reflecting copy status if recent.
     pub fn get_drawer_title(&self, _test_id: &str) -> String {
         if let Some((msg, time)) = &self.drawer_status {
             if time.elapsed().as_secs() < 3 {

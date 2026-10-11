@@ -10,6 +10,7 @@ use crate::runner::{
 use crate::schema::{TestDefinition, TestKind};
 
 impl TuiApp {
+    /// Queues all tests in the currently selected category for execution.
     pub fn run_selected_category(&mut self) {
         if let Some(test) = self.selected_test() {
             let cat = test.category().to_string();
@@ -29,6 +30,7 @@ impl TuiApp {
         }
     }
 
+    /// Queues the currently selected individual test for execution.
     pub fn run_selected(&mut self) {
         if let Some(test) = self.selected_test().cloned() {
             self.queue.clear();
@@ -37,6 +39,7 @@ impl TuiApp {
         }
     }
 
+    /// Queues all tests matching current category and mode filters for execution.
     pub fn run_all_filtered(&mut self) {
         self.queue.clear();
         let ids: Vec<String> = self.filtered_tests().iter().map(|t| t.id.clone()).collect();
@@ -46,6 +49,7 @@ impl TuiApp {
         self.process_queue_step();
     }
 
+    /// Processes a single step in the execution queue, pausing on human review cases.
     pub fn process_queue_step(&mut self) {
         if self.waiting_for_human.is_some() {
             return;
@@ -78,6 +82,7 @@ impl TuiApp {
         self.status_message = Some("All tests finished.".into());
     }
 
+    /// Executes a single test case through the runner and records its result.
     pub(crate) fn execute_test(&mut self, test: &TestDefinition) {
         let runner = TestRunner::new(self.registry.clone(), self.options.clone());
         let preflight = self.preflight.clone().unwrap_or_else(|| PreflightReport {
@@ -104,6 +109,7 @@ impl TuiApp {
         self.results.insert(test.id.clone(), result);
     }
 
+    /// Displays the human review modal overlay for recording verdicts.
     pub fn open_verdict_modal(&mut self) {
         if let Some(test) = self.selected_test() {
             if test.kind == TestKind::Auto {
@@ -117,6 +123,7 @@ impl TuiApp {
         }
     }
 
+    /// Records human verdict for a test and resumes the execution queue.
     pub fn record_verdict(&mut self, verdict: HumanVerdictKind) {
         let target_test_id = self.waiting_for_human.clone().or_else(|| {
             if let ModalState::HumanVerdict { test_id } = &self.modal {

@@ -4,6 +4,7 @@ use super::state::TuiApp;
 use std::path::PathBuf;
 
 impl TuiApp {
+    /// Copies formatted drawer content to the system clipboard or OSC 52 sequence.
     pub fn copy_drawer_text(&mut self) {
         if let Some(test) = self.selected_test().cloned() {
             let (_lines, plain) =
@@ -31,6 +32,7 @@ impl TuiApp {
         }
     }
 
+    /// Writes formatted drawer content to a debug dump file on disk.
     pub fn save_drawer_text(&mut self) -> Result<PathBuf, String> {
         if let Some(test) = self.selected_test().cloned() {
             let (_lines, plain) =
@@ -51,6 +53,7 @@ impl TuiApp {
     }
 }
 
+/// Invokes system clipboard tools (wl-copy, xclip, xsel) or falls back to OSC 52.
 pub fn system_copy_to_clipboard(text: &str) -> Result<(), String> {
     // 1. Try wl-copy
     if let Ok(mut child) = std::process::Command::new("wl-copy")
@@ -116,6 +119,7 @@ pub fn system_copy_to_clipboard(text: &str) -> Result<(), String> {
     Err("no clipboard provider (wl-copy, xclip, xsel, OSC 52) succeeded".into())
 }
 
+/// Emits an OSC 52 terminal escape sequence to populate the terminal clipboard.
 fn copy_osc52(text: &str) -> Result<(), String> {
     use std::io::Write;
     let b64 = base64_encode(text.as_bytes());
@@ -128,6 +132,7 @@ fn copy_osc52(text: &str) -> Result<(), String> {
     Ok(())
 }
 
+/// Encodes arbitrary byte slices into standard Base64 representation.
 fn base64_encode(data: &[u8]) -> String {
     const CHARSET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut out = String::with_capacity(data.len().div_ceil(3) * 4);
