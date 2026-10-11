@@ -108,6 +108,24 @@ pub struct TestResult {
 }
 
 impl TestResult {
+    /// Expected vs actual placement for this result under `test`'s rectangle expectation, or
+    /// `None` when the test states none. The same comparison decides the runner's verdict
+    /// ([`crate::runner::validate_geometry`]).
+    ///
+    /// `fallback_workarea` is used when the run's log slice records no workarea.
+    pub fn geometry_check(
+        &self,
+        test: &crate::schema::TestDefinition,
+        fallback_workarea: Option<crate::oracle::Rect>,
+    ) -> Option<crate::oracle::GeometryCheck> {
+        let expect = test.expect.rect.as_ref()?;
+        Some(crate::oracle::check_geometry(
+            expect,
+            &self.stdout,
+            self.log_slice.as_deref(),
+            fallback_workarea,
+        ))
+    }
     /// Window id the spawned fixture reported in its own output (`window_id` in the JSON on
     /// stdout, or the textual claim), if any.
     pub fn claimed_window_id(&self) -> Option<u64> {

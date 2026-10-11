@@ -3,7 +3,7 @@
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
-    build_action_command_args, extract_claimed_window_id, validate_expectations,
+    build_action_command_args, extract_claimed_window_id, validate_expectations, validate_geometry,
 };
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
@@ -275,7 +275,9 @@ impl TestRunner {
         let target_id = attributed_id.or(transform_target_id);
 
         // Validate expectations
-        let auto_status = match validate_expectations(test, exit_code, &stderr, env_info) {
+        let validation = validate_expectations(test, exit_code, &stderr, env_info)
+            .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
+        let auto_status = match validation {
             Ok(()) => AutoStatus::AutoPass,
             Err(err) => {
                 let (final_status, disagreement) =

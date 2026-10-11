@@ -1,6 +1,7 @@
 //! Expectation verification, output matching, and action argument building.
 
-use crate::oracle::{calculate_expected_rect, verify_rect_tolerance, OracleParams, Rect};
+use crate::oracle::check::expected_rect;
+use crate::oracle::{check_geometry, Rect};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
 use regex::Regex;
@@ -123,33 +124,35 @@ pub fn check_pattern_match(pattern: &str, text: &str) -> Result<bool, String> {
     }
 }
 
-/// Verifies that expected placement rectangle conforms to oracle calculations within tolerance.
+/// Checks that the oracle can compute an expected rectangle for the spec's anchor, pivot and
+/// margins (an unknown anchor name is an error in the test definition). It does not compare
+/// anything with an observed window: that is [`validate_geometry`].
 fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), String> {
     let size = match &expect_rect.size {
         Some(s) if s.len() >= 2 => (s[0], s[1]),
         _ => (400, 300),
     };
+    expected_rect(expect_rect, workarea, size).map(|_| ())
+}
 
-    let params = OracleParams {
-        anchor: expect_rect.anchor.clone(),
-        pivot: expect_rect.pivot.clone(),
-        explicit_pos: None,
-        offset: None,
-        area: None,
-        cursor_pos: None,
-        size,
-        margin: expect_rect.margin.unwrap_or(0),
-        margin_top: expect_rect.margin_top,
-        margin_bottom: expect_rect.margin_bottom,
-        margin_left: expect_rect.margin_left,
-        margin_right: expect_rect.margin_right,
-        clamp: true,
-    };
-
-    let expected = calculate_expected_rect(workarea, &params)?;
-
-    // Assert calculated rect is non-empty and bounded inside workarea
-    verify_rect_tolerance(expected, expected, expect_rect.tolerance_px)
+/// Compares the window observed in `stdout` with the oracle's expected rectangle within the
+/// spec's tolerance. This is the same comparison the drawer shows
+/// ([`crate::oracle::GeometryCheck`]), so the verdict and the table cannot disagree.
+///
+/// Returns `Ok` when the test has no rectangle expectation, when the comparison passes, or when
+/// it could not be made (no observed rectangle or no workarea); only a measured mismatch fails.
+pub fn validate_geometry(
+    test: &TestDefinition,
+    stdout: &str,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+) -> Result<(), String> {
+    match &test.expect.rect {
+        Some(expect) => {
+            check_geometry(expect, stdout, log_slice, env_info.primary_workarea).verdict()
+        }
+        None => Ok(()),
+    }
 }
 
 /// Extracts claimed window ID from command output (e.g. from `spawn-at spawn --json` or SpawnClaimed signal).
