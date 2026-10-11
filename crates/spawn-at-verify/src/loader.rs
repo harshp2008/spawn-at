@@ -8,18 +8,26 @@ use std::path::{Path, PathBuf};
 /// Combinable filter criteria for test selection.
 #[derive(Debug, Clone, Default)]
 pub struct TestFilter {
+    /// Target suite identifier name.
     pub suite: Option<String>,
+    /// Category directory path prefix.
     pub category_path: Option<String>,
+    /// Associated tag labels required on matches.
     pub tags: Vec<String>,
+    /// Test kind classification filter.
     pub kind: Option<TestKind>,
+    /// Whether test is mandatory.
     pub required: Option<bool>,
+    /// Identifier glob pattern match.
     pub id_glob: Option<String>,
 }
 
 /// In-memory catalog of all discovered tests and suites.
 #[derive(Debug, Clone, Default)]
 pub struct TestRegistry {
+    /// All loaded individual test specifications.
     pub tests: Vec<TestDefinition>,
+    /// Predefined test suite collections mapped by name.
     pub suites: HashMap<String, SuiteDefinition>,
 }
 
@@ -104,10 +112,12 @@ impl TestRegistry {
         Ok(Self { tests, suites })
     }
 
+    /// Retrieves a test specification by its unique identifier.
     pub fn get_test(&self, id: &str) -> Option<&TestDefinition> {
         self.tests.iter().find(|t| t.id == id)
     }
 
+    /// Retrieves a predefined test suite definition by its name.
     pub fn get_suite(&self, name: &str) -> Option<&SuiteDefinition> {
         self.suites.get(name)
     }
@@ -308,6 +318,7 @@ fn find_test_files(dir: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(files)
 }
 
+/// Recursively scans directory for TOML test definitions.
 fn find_test_files_recursive(
     root: &Path,
     current: &Path,
@@ -334,6 +345,7 @@ fn find_test_files_recursive(
 mod tests {
     use super::*;
 
+    /// Tests glob pattern matching against test identifiers.
     #[test]
     fn test_matches_glob() {
         assert!(matches_glob("placement/*", "placement/bottom-right"));
@@ -341,6 +353,7 @@ mod tests {
         assert!(!matches_glob("cloak/*", "placement/bottom-right"));
     }
 
+    /// Tests multi-criteria filtering across suites, kinds, and tags.
     #[test]
     fn test_combinable_filter() {
         let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -388,6 +401,7 @@ mod tests {
         assert!(filtered_auto.len() >= 4); // delayed-paint matrix (delay-0, 50, 150, 300)
     }
 
+    /// Tests hierarchical tree formatting of categorized test listings.
     #[test]
     fn test_format_test_tree() {
         let dummy = vec![

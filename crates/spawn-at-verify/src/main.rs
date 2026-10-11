@@ -44,6 +44,7 @@ enum KindArg {
 }
 
 impl From<KindArg> for TestKind {
+    /// Converts CLI test kind parameter into schema TestKind model.
     fn from(k: KindArg) -> Self {
         match k {
             KindArg::Auto => TestKind::Auto,
@@ -183,6 +184,7 @@ struct TuiArgs {
     tags: Vec<String>,
 }
 
+/// Resolves the filesystem path to the verify test definitions directory.
 fn resolve_verify_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     if let Some(p) = explicit {
         if p.is_dir() {
@@ -209,6 +211,7 @@ fn resolve_verify_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     Err("Could not find 'verify/' test directory. Use --dir <PATH>.".into())
 }
 
+/// Resolves the filesystem path to the target spawn-at CLI binary.
 fn resolve_bin_path(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     if let Some(p) = explicit {
         if p.exists() {
@@ -236,6 +239,7 @@ fn resolve_bin_path(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
     )
 }
 
+/// Entry point for the spawn-at-verify CLI application.
 fn main() {
     let cli = Cli::parse();
 

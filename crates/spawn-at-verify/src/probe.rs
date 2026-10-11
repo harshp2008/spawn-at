@@ -6,12 +6,18 @@ use std::env;
 use std::path::Path;
 use std::process::Command;
 
+/// Host environment metadata probed from desktop session and display server.
 #[derive(Debug, Clone)]
 pub struct EnvironmentInfo {
+    /// Display session type ("wayland", "x11", or "unknown").
     pub session_type: String,
+    /// Active desktop environment ("gnome", etc.).
     pub desktop: String,
+    /// Detected GNOME Shell major version number, if running GNOME.
     pub gnome_version: Option<u32>,
+    /// Number of detected connected monitors.
     pub monitors_count: usize,
+    /// Primary monitor workarea rectangle bounds.
     pub primary_workarea: Option<Rect>,
 }
 
@@ -125,6 +131,7 @@ impl EnvironmentInfo {
     }
 }
 
+/// Probes the installed and running GNOME Shell major version.
 fn probe_gnome_shell_version() -> Option<u32> {
     let output = Command::new("gnome-shell").arg("--version").output().ok()?;
 
@@ -144,6 +151,7 @@ fn probe_gnome_shell_version() -> Option<u32> {
     None
 }
 
+/// Invokes CLI layout query to determine monitor counts and primary workarea geometry.
 fn probe_layout(bin_path: &Path) -> Result<(usize, Option<Rect>), String> {
     let output = Command::new(bin_path)
         .args(["query", "layout", "--json"])
@@ -189,6 +197,7 @@ fn probe_layout(bin_path: &Path) -> Result<(usize, Option<Rect>), String> {
     Ok((monitors_count, primary_workarea))
 }
 
+/// Checks whether an executable command binary exists on the system PATH.
 fn command_exists(cmd: &str) -> bool {
     if let Ok(path_var) = env::var("PATH") {
         for dir in env::split_paths(&path_var) {
@@ -205,6 +214,7 @@ fn command_exists(cmd: &str) -> bool {
 mod tests {
     use super::*;
 
+    /// Tests requirement validation when session matches requested environment.
     #[test]
     fn test_check_requirements_session_match() {
         let env = EnvironmentInfo {
@@ -227,6 +237,7 @@ mod tests {
         assert!(env.check_requirements(&req).is_ok());
     }
 
+    /// Tests requirement validation rejection when session differs from specification.
     #[test]
     fn test_check_requirements_session_mismatch() {
         let env = EnvironmentInfo {

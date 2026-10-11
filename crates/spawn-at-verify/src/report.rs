@@ -8,39 +8,63 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
+/// System environment and binary fingerprint recorded during test execution.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvironmentFingerprint {
+    /// Hostname of the system where tests were executed.
     pub hostname: String,
+    /// Desktop session type ("wayland", "x11", or "unknown").
     pub session_type: String,
+    /// Active desktop environment ("gnome", etc.).
     pub desktop: String,
+    /// Major version of GNOME Shell if detected.
     pub gnome_version: Option<u32>,
+    /// Number of connected displays.
     pub monitors_count: usize,
+    /// Absolute path to the verified spawn-at binary.
     pub binary_path: String,
+    /// Git commit recorded in the binary build metadata.
     pub binary_commit: Option<String>,
+    /// Whether the binary was built from a dirty working tree.
     pub is_dirty_build: bool,
+    /// Unix timestamp in seconds when report was generated.
     pub generated_at: u64,
 }
 
+/// Diagnostic record for a required test that was skipped during qualification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RequiredSkippedItem {
+    /// Identifier of the skipped test.
     pub id: String,
+    /// Human-readable title of the test specification.
     pub title: String,
+    /// Reason explaining why the test was skipped.
     pub reason: String,
 }
 
+/// Overall platform qualification verdict summarizing required test outcomes.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct QualificationReport {
+    /// True if all mandatory tests passed and platform is fully qualified.
     pub supported: bool,
+    /// Total count of required test cases in the test suite.
     pub total_required: usize,
+    /// Number of required test cases that passed.
     pub passed_required: usize,
+    /// Number of required test cases that failed.
     pub failed_required: usize,
+    /// Required tests that were skipped due to environment filters.
     pub skipped_required: Vec<RequiredSkippedItem>,
 }
 
+/// Complete root verification session report persisted to .
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionReport {
+    /// Host environment and binary build fingerprint.
     pub environment: EnvironmentFingerprint,
+    /// Overall platform qualification evaluation.
     pub qualification: QualificationReport,
+    /// Detailed individual test execution results.
     pub results: Vec<TestResult>,
 }
 
@@ -404,6 +428,7 @@ mod tests {
     use crate::runner::{AutoStatus, HumanVerdict};
     use crate::schema::TestKind;
 
+    /// Tests qualification rule that skipped required tests prevent platform certification.
     #[test]
     fn test_skipped_is_never_a_pass() {
         let results = vec![
@@ -449,6 +474,7 @@ mod tests {
         assert!(!qual.supported);
     }
 
+    /// Tests command argument title redaction when include_titles is false.
     #[test]
     fn test_title_redaction() {
         let unredacted = "args: --title MyPrivateDocumentWindow --app-id org.test";
@@ -460,6 +486,7 @@ mod tests {
         assert!(preserved.contains("MyPrivateDocumentWindow"));
     }
 
+    /// Tests title redaction isolates only the title argument without altering other flags.
     #[test]
     fn test_title_redaction_does_not_alter_other_command_arguments() {
         let cmd = "spawn-at spawn --title \"Sensitive Document Title\" --anchor top-right --size 800 600 -m 20 --class org.gnome.Terminal --clamp true";
@@ -499,6 +526,7 @@ mod tests {
         assert!(json_redacted.contains(r#""w": 300"#));
     }
 
+    /// Tests that real system hostname is queried successfully.
     #[test]
     fn test_get_real_hostname_returns_valid_name() {
         let host = get_real_hostname();
@@ -507,6 +535,7 @@ mod tests {
         assert!(!host.contains(' '));
     }
 
+    /// Tests format and lexicographical sorting order of sortable timestamps.
     #[test]
     fn test_format_sortable_timestamp() {
         let t1 = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1700000000);
@@ -529,6 +558,7 @@ mod tests {
         );
     }
 
+    /// Tests sortable timestamp format across specific historical and leap-year test vectors.
     #[test]
     fn test_format_epoch_secs_sortable_test_vectors() {
         // Test vectors for sortable UTC timestamp format YYYYMMDD-HHMMSS:

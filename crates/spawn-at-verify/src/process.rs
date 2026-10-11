@@ -11,8 +11,11 @@ use std::time::{Duration, Instant};
 /// Structured output from executing a process with a timeout.
 #[derive(Debug, Clone)]
 pub struct ProcessOutput {
+    /// Process exit code, or None if terminated by signal.
     pub exit_code: Option<i32>,
+    /// Captured standard output byte stream.
     pub stdout: Vec<u8>,
+    /// Captured standard error byte stream.
     pub stderr: Vec<u8>,
 }
 
@@ -121,6 +124,7 @@ pub fn execute_with_timeout(mut cmd: Command, timeout: Duration) -> Result<Proce
 mod tests {
     use super::*;
 
+    /// Tests that background processes inheriting stdout do not cause execution to hang.
     #[test]
     fn test_fake_spawn_at_leaving_background_process_does_not_hang() {
         // Creates a fake script that outputs valid JSON and leaves a background sleep 999 holding stdout
@@ -146,6 +150,7 @@ mod tests {
         assert!(stdout_str.contains("1234"));
     }
 
+    /// Tests that processes exceeding specified timeout budget are forcibly killed.
     #[test]
     fn test_hung_process_exceeds_timeout_and_is_killed() {
         let mut cmd = Command::new("sh");

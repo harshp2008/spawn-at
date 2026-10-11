@@ -51,6 +51,9 @@ def strip_comments_and_fmt(text):
                 continue
         if line.startswith('//'):
             continue
+        # Also treat explicitly requested doc coverage lint attribute as doc metadata
+        if line == '#![warn(missing_docs)]':
+            continue
         # Strip trailing // comments if not inside strings
         if '//' in line:
             # Simple check: find first // not in quotes

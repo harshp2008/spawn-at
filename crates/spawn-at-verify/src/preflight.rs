@@ -3,21 +3,33 @@
 use std::path::Path;
 use std::process::Command;
 
+/// Verdict outcome produced by preflight build inspection.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PreflightVerdict {
+    /// Binary matches current repository commit cleanly.
     Pass,
+    /// Binary contains uncommitted modifications or warning conditions.
     Warn(String),
+    /// Binary is stale or compiled from a differing commit.
     Fail(String),
+    /// Preflight check could not be completed (e.g. outside git repo).
     Skip(String),
 }
 
+/// Comprehensive preflight gate report evaluating binary freshness against git tree.
 #[derive(Debug, Clone)]
 pub struct PreflightReport {
+    /// Effective preflight validation verdict.
     pub verdict: PreflightVerdict,
+    /// Raw output captured from running .
     pub binary_version_output: String,
+    /// Git commit hash extracted from binary version string.
     pub detected_commit: Option<String>,
+    /// Current git HEAD commit hash of the working repository.
     pub repo_head: Option<String>,
+    /// Whether the git repository working tree contains uncommitted changes.
     pub repo_dirty: bool,
+    /// Whether the binary was built from a dirty working tree.
     pub is_dirty_build: bool,
 }
 
@@ -155,6 +167,7 @@ pub fn evaluate_preflight_verdict(
 mod tests {
     use super::*;
 
+    /// Tests parsing clean development build version output string.
     #[test]
     fn test_parse_dev_build_version() {
         let text = "DEV BUILD\nlast release was pre-cleanup-beta\n-----------------------------------------------------------------\nPrevious Commit ID: 00d0da4";
@@ -164,6 +177,7 @@ mod tests {
         assert!(!is_rel);
     }
 
+    /// Tests parsing dirty development build version output string.
     #[test]
     fn test_parse_dirty_dev_build_version() {
         let text = "DEV BUILD\n-----------------------------------------------------------------\nPrevious Commit ID: 00d0da4-dirty";
@@ -173,6 +187,7 @@ mod tests {
         assert!(!is_rel);
     }
 
+    /// Tests that matching clean commit hashes produce a Pass verdict.
     #[test]
     fn test_evaluate_preflight_verdict_clean_pass() {
         let verdict = evaluate_preflight_verdict(
@@ -185,6 +200,7 @@ mod tests {
         assert_eq!(verdict, PreflightVerdict::Pass);
     }
 
+    /// Tests that mismatched commit hashes produce a Fail verdict.
     #[test]
     fn test_evaluate_preflight_verdict_stale_fail() {
         let verdict = evaluate_preflight_verdict(
@@ -197,6 +213,7 @@ mod tests {
         assert!(matches!(verdict, PreflightVerdict::Fail(_)));
     }
 
+    /// Tests that dirty build version outputs produce a Warn verdict.
     #[test]
     fn test_evaluate_preflight_verdict_dirty_warn() {
         let verdict = evaluate_preflight_verdict(

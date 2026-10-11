@@ -1,6 +1,8 @@
 //! # spawn-at-verify
 //! Verification Engine & Test Harness for `spawn-at`.
 
+#![warn(missing_docs)]
+
 pub mod loader;
 pub mod log_source;
 pub mod oracle;

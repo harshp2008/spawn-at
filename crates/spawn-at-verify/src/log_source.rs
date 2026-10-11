@@ -12,6 +12,7 @@ pub trait LogSource: Send + Sync {
     fn name(&self) -> &'static str;
 
     /// Captures the log slice between the start and end unix epoch timestamps (in seconds).
+    /// Captures journalctl entries within the specified timeframe.
     fn capture_slice(&self, since_secs: u64, until_secs: u64) -> Result<String, String>;
 }
 
@@ -19,10 +20,12 @@ pub trait LogSource: Send + Sync {
 pub struct GnomeJournalSource;
 
 impl LogSource for GnomeJournalSource {
+    /// Returns the provider name "journalctl".
     fn name(&self) -> &'static str {
         "journalctl"
     }
 
+    /// Captures journalctl entries within the specified timeframe.
     fn capture_slice(&self, since_secs: u64, until_secs: u64) -> Result<String, String> {
         let since_arg = format!("@{}", since_secs);
         let until_arg = format!("@{}", until_secs + 1); // small boundary buffer
@@ -65,10 +68,12 @@ impl LogSource for GnomeJournalSource {
 pub struct NoOpLogSource;
 
 impl LogSource for NoOpLogSource {
+    /// Returns the provider name "noop".
     fn name(&self) -> &'static str {
         "noop"
     }
 
+    /// Always returns an empty string without querying system logs.
     fn capture_slice(&self, _since_secs: u64, _until_secs: u64) -> Result<String, String> {
         Ok(String::new())
     }
@@ -80,12 +85,14 @@ pub struct FakeLogSource {
 }
 
 impl FakeLogSource {
+    /// Constructs an empty  instance.
     pub fn new() -> Self {
         Self {
             entries: Mutex::new(BTreeMap::new()),
         }
     }
 
+    /// Records a log message at the given unix timestamp.
     pub fn record(&self, timestamp_secs: u64, line: &str) {
         let mut map = self.entries.lock().unwrap();
         map.entry(timestamp_secs)
@@ -95,16 +102,20 @@ impl FakeLogSource {
 }
 
 impl Default for FakeLogSource {
+    /// Constructs standard default instance.
     fn default() -> Self {
         Self::new()
     }
 }
 
 impl LogSource for FakeLogSource {
+    /// Returns the provider name "fake".
     fn name(&self) -> &'static str {
         "fake"
     }
 
+    /// Captures journalctl entries within the specified timeframe.
+    /// Retrieves all recorded entries falling within the requested timeframe.
     fn capture_slice(&self, since_secs: u64, until_secs: u64) -> Result<String, String> {
         let map = self.entries.lock().unwrap();
         let mut lines = Vec::new();
@@ -123,6 +134,7 @@ impl LogSource for FakeLogSource {
 mod tests {
     use super::*;
 
+    /// Tests in-memory log slicing filtering by timestamp range.
     #[test]
     fn test_fake_log_source_captures_time_window_slice() {
         let source = FakeLogSource::new();
@@ -139,6 +151,7 @@ mod tests {
         assert!(!slice.contains("Later unrelated event"));
     }
 
+    /// Tests that no-op log source returns an empty string.
     #[test]
     fn test_noop_log_source_returns_empty() {
         let source = NoOpLogSource;
