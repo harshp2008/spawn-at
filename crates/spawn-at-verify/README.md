@@ -116,3 +116,25 @@ Verification engine, automated test harness, and interactive qualification TUI f
     - `tests/tui/golden_invariants.rs`: Golden file comparisons and text grid invariants.
     - `tests/tui/layout_responsive.rs`: Responsive width breakpoints and small height layouts.
     - `tests/tui/polish.rs`: UI spacing, padding, and outcome symbols polish specifications.
+
+## Optional tools
+
+`spawn-at-verify` works without these, but they make the geometry check independent of the GNOME
+extension under test:
+
+| Tool | Debian/Ubuntu package | Used for |
+| :--- | :--- | :--- |
+| `xrandr` | `x11-xserver-utils` | counts active monitors (the independent probe is only trusted with exactly one) |
+| `xprop` | `x11-utils` | reads mutter's `_NET_WORKAREA` hint from the XWayland/X11 root window |
+
+```
+sudo apt install x11-xserver-utils x11-utils
+```
+
+If either is missing, `spawn-at-verify run` prints a note on stderr naming the missing tool(s) and
+the install command. Geometry checks then fall back to the workarea reported by `spawn-at query
+layout` (and, failing that, the bounds the extension logged). Both are extension-derived: the
+result still shows the comparison, but the drawer marks it "workarea from the extension, not
+independently probed" and the run message says so. With no workarea at all the placement is not
+verified and the test passes as "geometry unchecked" (exit code 2 for a required test; see
+`run --help`). The `spawn-at` installer is not involved.

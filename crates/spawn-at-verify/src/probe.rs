@@ -270,7 +270,7 @@ fn probe_layout(bin_path: &Path) -> Result<(usize, Option<Rect>), String> {
 }
 
 /// Checks whether an executable command binary exists on the system PATH.
-fn command_exists(cmd: &str) -> bool {
+pub(crate) fn command_exists(cmd: &str) -> bool {
     if let Ok(path_var) = env::var("PATH") {
         for dir in env::split_paths(&path_var) {
             let full = dir.join(cmd);

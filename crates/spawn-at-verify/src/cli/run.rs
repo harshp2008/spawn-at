@@ -4,6 +4,7 @@ use super::args::RunArgs;
 use super::check::{resolve_bin_path, resolve_verify_dir};
 use super::run_summary::RunSummary;
 use crate::loader::{TestFilter, TestRegistry};
+use crate::preflight::{missing_optional_tools, optional_tools_hint};
 use crate::report::{build_session_report_with_runs, write_report_artifacts};
 use crate::runner::{FinalStatus, RunOptions, TestRunner};
 use std::path::PathBuf;
@@ -11,6 +12,11 @@ use std::process::exit;
 
 /// Executes automated verification test suites.
 pub fn handle_run(args: RunArgs) {
+    // Printed to stderr so --json output on stdout stays clean.
+    if let Some(hint) = optional_tools_hint(&missing_optional_tools()) {
+        eprintln!("Note: {}", hint);
+    }
+
     let verify_dir = match resolve_verify_dir(args.dir) {
         Ok(d) => d,
         Err(e) => {

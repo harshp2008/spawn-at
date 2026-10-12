@@ -226,3 +226,93 @@ mod tests {
         assert!(matches!(verdict, PreflightVerdict::Warn(_)));
     }
 }
+
+/// Optional host tools and the Debian/Ubuntu package that provides each. Both are needed for the
+/// independent workarea probe (`xrandr` counts monitors, `xprop` reads mutter's `_NET_WORKAREA`).
+pub const OPTIONAL_TOOLS: &[(&str, &str)] =
+    &[("xrandr", "x11-xserver-utils"), ("xprop", "x11-utils")];
+
+/// Optional tools for which `exists` returns false, as `(tool, package)` pairs.
+pub fn missing_optional_tools_with(
+    exists: &dyn Fn(&str) -> bool,
+) -> Vec<(&'static str, &'static str)> {
+    OPTIONAL_TOOLS
+        .iter()
+        .copied()
+        .filter(|(tool, _)| !exists(tool))
+        .collect()
+}
+
+/// Optional tools missing from this machine's PATH.
+pub fn missing_optional_tools() -> Vec<(&'static str, &'static str)> {
+    missing_optional_tools_with(&crate::probe::command_exists)
+}
+
+/// Install hint for the missing optional tools, or `None` when nothing is missing.
+///
+/// Says plainly that geometry checks then fall back to the extension's own workarea values, which
+/// are marked as extension-derived and are not independent evidence.
+pub fn optional_tools_hint(missing: &[(&str, &str)]) -> Option<String> {
+    if missing.is_empty() {
+        return None;
+    }
+    let tools: Vec<String> = missing
+        .iter()
+        .map(|(t, p)| format!("{} (package {})", t, p))
+        .collect();
+    let packages: Vec<&str> = missing.iter().map(|(_, p)| *p).collect();
+    Some(format!(
+        "optional tool(s) missing: {}. On Ubuntu/Debian: sudo apt install {}. Without them the \
+         independent workarea probe is unavailable, so geometry checks fall back to \
+         extension-derived values (reported as \"workarea from the extension, not independently \
+         probed\").",
+        tools.join(", "),
+        packages.join(" ")
+    ))
+}
+
+#[cfg(test)]
+mod optional_tool_tests {
+    use super::*;
+
+    /// With both tools absent both are reported, the hint names each package and the apt
+    /// command, and says geometry checks fall back to extension-derived values.
+    #[test]
+    fn test_hint_when_xrandr_and_xprop_are_absent() {
+        let missing = missing_optional_tools_with(&|_| false);
+        assert_eq!(
+            missing,
+            vec![("xrandr", "x11-xserver-utils"), ("xprop", "x11-utils")]
+        );
+        let hint = optional_tools_hint(&missing).unwrap();
+        assert!(
+            hint.contains("xrandr (package x11-xserver-utils)"),
+            "{}",
+            hint
+        );
+        assert!(hint.contains("xprop (package x11-utils)"), "{}", hint);
+        assert!(
+            hint.contains("sudo apt install x11-xserver-utils x11-utils"),
+            "{}",
+            hint
+        );
+        assert!(hint.contains("extension-derived"), "{}", hint);
+    }
+
+    /// Only the missing tool is named; with nothing missing there is no hint.
+    #[test]
+    fn test_hint_names_only_missing_tools_and_is_silent_when_present() {
+        let missing = missing_optional_tools_with(&|t| t == "xrandr");
+        assert_eq!(missing, vec![("xprop", "x11-utils")]);
+        let hint = optional_tools_hint(&missing).unwrap();
+        assert!(
+            hint.contains("sudo apt install x11-utils") && !hint.contains("xrandr"),
+            "{}",
+            hint
+        );
+        assert_eq!(
+            optional_tools_hint(&missing_optional_tools_with(&|_| true)),
+            None
+        );
+    }
+}
