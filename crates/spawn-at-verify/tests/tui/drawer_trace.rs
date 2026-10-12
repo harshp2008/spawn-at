@@ -205,3 +205,26 @@ fn test_drawer_echo_timeout_note_shown_for_every_affected_result() {
         assert!(flat.contains(&note), "{}", plain);
     }
 }
+
+/// A `both` test whose automatic check failed and which the human marked Pass has final status
+/// Fail, so the Verdict row must say Fail (and that the human disagreed), never `✔ Pass`.
+#[test]
+fn test_drawer_auto_fail_with_human_pass_shows_fail() {
+    let mut app = create_test_app();
+    let (test, mut res) = passed_result(&app, None, None);
+    res.kind = spawn_at_verify::schema::TestKind::Both;
+    res.auto_status = AutoStatus::AutoFail;
+    res.final_status = FinalStatus::Fail;
+    res.disagreement = true;
+    res.human_verdict = HumanVerdict {
+        verdict: spawn_at_verify::runner::HumanVerdictKind::Pass,
+        note: None,
+    };
+    let mut test = test;
+    test.kind = spawn_at_verify::schema::TestKind::Both;
+    let plain = drawer(&mut app, &test, res);
+    let verdict = row(&plain, "Verdict");
+    assert!(verdict.contains("✖ Fail"), "{}", plain);
+    assert!(!verdict.contains("✔ Pass"), "{}", plain);
+    assert!(verdict.contains("marked Pass"), "{}", plain);
+}

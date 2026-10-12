@@ -30,6 +30,20 @@ pub fn render_result_section(
     builder.push_heading("RESULT", None);
     let (v_spans, v_plain): (Vec<Span<'static>>, String) = if let Some(r) = res_opt {
         match r.human_verdict.verdict {
+            // The human said Pass but the automatic check failed: the final status is Fail.
+            HumanVerdictKind::Pass if r.final_status == FinalStatus::Fail => (
+                vec![
+                    Span::styled(
+                        "✖ ",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(
+                        "Fail (automatic check failed; you marked Pass)",
+                        Style::default().fg(Color::Rgb(200, 200, 200)),
+                    ),
+                ],
+                "✖ Fail (automatic check failed; you marked Pass)".into(),
+            ),
             HumanVerdictKind::Pass => (
                 vec![
                     Span::styled(
