@@ -154,6 +154,7 @@ impl GdbusLogging {
 }
 
 impl Default for GdbusLogging {
+    /// Same as [`GdbusLogging::new`].
     fn default() -> Self {
         Self::new()
     }
