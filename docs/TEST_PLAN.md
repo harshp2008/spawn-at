@@ -17,7 +17,7 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: Node.js (Extension)** | 65 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers (`node --test tests/*.js`) |
 | **`spawn-at-verify` (bare default)** | 58 | 0 | 58 lib tests. Note: 1 test (`tui::logging::tests::test_parse_logging_state_transitions`) is gated behind `feature = "tui"`. |
 | **`spawn-at-verify --features tui`** | 124 | 0 | 59 lib + 0 main + 4 `category_library_test` + 5 `oracle_cross_check` + 18 `trace_analyser_test` + 38 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 259 | 4 | 124 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 12 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 70 `tui_test` (re-measured after the placement batch and the echo-timeout changes were added; the other rows in this table were not re-measured) |
+| **`spawn-at-verify --features tui,fixture`** | 278 | 4 | 138 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 74 `tui_test` (re-measured after the 17 placement resize specs, the oracle fixture-minimum rule and the margin check were added; the other rows in this table were not re-measured) |
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
@@ -28,9 +28,9 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ---
 
-## 2. 41-Case Test Catalog across 8 Categories
+## 2. 58-Case Test Catalog across 8 Categories
 
-The 41 rows are the planned catalogue: 18 are **Covered** (a spec file exists and `spawn-at-verify list` shows it, 18 tests) and 23 are **Planned** (no spec yet).
+The 58 rows are the planned catalogue: 35 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 35 tests) and 23 are **Planned** (no spec yet). The last 17 Covered rows are the placement resize specs of section 6.10.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -53,6 +53,23 @@ The 41 rows are the planned catalogue: 18 are **Covered** (a spec file exists an
 | `placement/margin-64` | Bottom-right anchor with 64 px margin | Auto | **Covered** | `verify/placement/margin-64.toml` |
 | `placement/center-200x150` | 200x150 window centered (**flaky live**: fails in about 2 of 5 runs, see 2.1) | Both | **Covered** | `verify/placement/center-200x150.toml` |
 | `placement/center-1200x800` | 1200x800 window centered (**flaky live**: fails in about 1 of 6 runs, see 2.1) | Auto | **Covered** | `verify/placement/center-1200x800.toml` |
+| `placement/bottom-right-smaller` | 200x150 at bottom-right, fixture minimum 100x100 (real shrink) | Both | **Covered** | `verify/placement/bottom-right-smaller.toml` |
+| `placement/bottom-right-larger` | 800x600 at bottom-right, fixture minimum 100x100 (real grow) | Auto | **Covered** | `verify/placement/bottom-right-larger.toml` |
+| `placement/bottom-right-minsize-at-min` | exactly the fixture minimum 300x200, bottom-right | Auto | **Covered** | `verify/placement/bottom-right-minsize-at-min.toml` |
+| `placement/bottom-right-below-min-width` | 200x300 vs minimum 300x200 -> final 300x300, bottom-right | Auto | **Covered** | `verify/placement/bottom-right-below-min-width.toml` |
+| `placement/bottom-right-below-min-height` | 400x150 vs minimum 300x200 -> final 400x200, bottom-right | Auto | **Covered** | `verify/placement/bottom-right-below-min-height.toml` |
+| `placement/bottom-right-below-min-both` | 200x150 vs minimum 300x200 -> final 300x200, bottom-right | Both | **Covered** | `verify/placement/bottom-right-below-min-both.toml` |
+| `placement/bottom-right-far-below-min` | 50x50 vs minimum 300x200 -> final 300x200, bottom-right | Auto | **Covered** | `verify/placement/bottom-right-far-below-min.toml` |
+| `placement/bottom-left-smaller` | 200x150 at bottom-left | Auto | **Covered** | `verify/placement/bottom-left-smaller.toml` |
+| `placement/bottom-left-below-min-both` | 200x150 vs minimum 300x200 at bottom-left | Auto | **Covered** | `verify/placement/bottom-left-below-min-both.toml` |
+| `placement/top-right-smaller` | 200x150 at top-right | Auto | **Covered** | `verify/placement/top-right-smaller.toml` |
+| `placement/top-right-below-min-both` | 200x150 vs minimum 300x200 at top-right | Auto | **Covered** | `verify/placement/top-right-below-min-both.toml` |
+| `placement/bottom-smaller` | 200x150 at the bottom edge | Auto | **Covered** | `verify/placement/bottom-smaller.toml` |
+| `placement/bottom-below-min-both` | 200x150 vs minimum 300x200 at the bottom edge | Auto | **Covered** | `verify/placement/bottom-below-min-both.toml` |
+| `placement/right-smaller` | 200x150 at the right edge | Auto | **Covered** | `verify/placement/right-smaller.toml` |
+| `placement/right-below-min-both` | 200x150 vs minimum 300x200 at the right edge | Auto | **Covered** | `verify/placement/right-below-min-both.toml` |
+| `placement/top-left-below-min-both` | control: 200x150 vs minimum 300x200 at top-left (position independent of size) | Auto | **Covered** | `verify/placement/top-left-below-min-both.toml` |
+| `placement/invalid-size-zero` | expected failure: `--size 0 150` is rejected by the CLI (exit 2, "Invalid size") | Auto | **Covered** | `verify/placement/invalid-size-zero.toml` |
 | `placement/area-screen-vs-workarea` | Boundary bounds: screen vs workarea vs unbounded | Auto | **Planned** | `verify/placement/area-screen-vs-workarea.toml` |
 | `placement/clamp-bounds` | Clamping window when position exceeds area | Auto | **Planned** | `verify/placement/clamp-bounds.toml` |
 | `placement/explicit-pos` | Explicit coordinates `--pos X Y` with custom pivot | Auto | **Planned** | `verify/placement/explicit-pos.toml` |
@@ -513,3 +530,72 @@ Rows 4b, 5, 7, 8 and 10 of 6.4 (the static "below toolkit minimums" threshold, e
 ### 6.9 Not done
 
 The Shell-stall probe of section 5 was not repeated, so the link between the stall and the failures is a HYPOTHESIS. No test was run with a real non-zero minimum reported by the Shell (none exists on GNOME 46). Only zenity (GTK4) and the winit fixture were probed; GTK3, Qt and Electron apps were not. 6.5 and 6.6 were measured with the fixture started through `spawn-at` rather than through `spawn-at-verify run`.
+
+### 6.10 Placement resize specs: set, loader rule and live results (2026-10-12)
+
+**Specs (17, category placement).** Every spec states `margin = 16` and its fixture minimum (`min_width` / `min_height` under `[subject]`, passed to the fixture as `--min-width` / `--min-height`); expectations come from the oracle (`max(requested, minimum)` per axis, anchor for that final size, far-edge containment), never from pixel values in the spec. The `[matrix]` mechanism was **not usable**: it substitutes only strings (`schema/matrix.rs:115-143`, not `expect.rect.size` or the minimum fields) and builds a cartesian product, so paired sizes such as 200x150 / 800x600 cannot be expressed. One file per case instead.
+
+| Anchor | Cases (requested vs fixture minimum) | Mode |
+| :--- | :--- | :--- |
+| bottom-right | smaller 200x150 (min 100x100), larger 800x600 (min 100x100), minsize-at-min 300x200 (min 300x200), below-min-width 200x300, below-min-height 400x150, below-min-both 200x150, far-below-min 50x50 (all min 300x200) | `both` for smaller and below-min-both, `auto` for the rest |
+| bottom-left, top-right, bottom, right | smaller 200x150 (min 100x100); below-min-both 200x150 (min 300x200) | `auto` |
+| top-left | below-min-both (control: its position does not depend on size) | `auto` |
+| (none) | `invalid-size-zero`: expected failure, see below | `auto` |
+
+**Loader rule.** A spec whose `[expect.rect]` states neither `margin` nor all four per-side margins is a load error naming the spec id and file (`loader/registry.rs`; test `test_spec_without_explicit_margin_is_an_error`). The oracle assumes margin 0, spawn-at defaults to 16 (`src/cli/args.rs:134`). **Existing specs affected: none** (every spec with an `[expect.rect]` already stated its margin; checked with `grep` over `verify/`).
+
+**Expected failure.** The spec format can express it (`exit_code = 2`, `stderr_present = ["[spawn-at] ERROR: Invalid size: ..."]`, no `[expect.rect]`). The runner could not run it: a `spawn` with a fixture subject always went through window attribution, which failed with "could not attribute; windows left open: []" (0 of 20 passed). Fixed in the harness (`runner/validation.rs` `expects_no_window`, used by `runner/executor.rs`): attribution is skipped when a non-zero exit code was expected and returned. After the fix: 20 of 20 in regime (a) and 20 of 20 in regime (b).
+
+**Isolation check (regime a).** `spawn-at-verify run` ends with `tracker.cleanup_test_windows` (`runner/engine.rs:170-171`), which closes the windows it tracked. Verified, not assumed: before each of the 820 isolated invocations (340 + 60 + 60 + 340 + 20) the driver counted windows whose class starts with `verify.` (`spawn-at query windows --json`) and running `fixture` processes (`ps -eo comm=`): **0 windows and 0 processes before 819 of them**. The one exception is run 1 of the second `center-200x150` batch, which started right after a direct fixture drive whose last window (800 ms lifetime) was still closing; that run passed (8.5 ms) and is kept. 0 and 0 again after the last batch. Between runs the driver waited 1.5 s.
+
+**Regimes.** (a) ISOLATED: 20 separate `spawn-at-verify run --glob placement/<id>` invocations per spec, 1.5 s apart, nothing else alive. (b) `--repeat 20`: earlier windows stay alive until the end (`engine.rs:140-170`), the fast regime of section 5. `size`, `position` and `raised` below are the rectangle and flags spawn-at printed when it exited (the harness never re-reads the window, so a window that resizes afterwards is shown at its old size); `raised` is recorded only, never asserted. No run had a trace note and no run overflowed the workarea.
+
+| Batch | What | Auto check passes (16 resize specs x 20) | Runs with no `size-changed` before the 30 ms `SIZE_SETTLED` |
+| :--- | :--- | :---: | :---: |
+| (a1) isolated, first batch | started minutes after `cargo build`, 11 min long | **95 / 320 (29.7%)** | 249 |
+| (a2) isolated, clean rerun | nothing else running, same specs | **318 / 320 (99.4%)** | 2 |
+| (b) `--repeat 20` | earlier windows alive | 315 / 320 (98.4%) | 6 |
+
+(a1) and (a2) are the same 16 specs on the same binaries. Three of the specs re-run alone right after (a1) passed 60 of 60 (bottom-right-smaller 20, bottom-right-larger 20, top-left-below-min-both 20), as did `center-200x150` (20+20) and `center-1200x800` (20) via `run`, and 60 direct fixture drives (20 each without minimum flags, with `--min-width 100 --min-height 100`, and bottom-right with the flags). **Why (a1) was slow is not shown. HYPOTHESIS:** the Shell or machine was busy after the builds that preceded it; no load was recorded. Because of it there is no single "isolated" rate: 29.7% and 99.4% were both measured, on different minutes. Failures are reported as they came; no expectation was changed.
+
+**Per spec, regime (a2) / (b)** (a1 passes in brackets; size and position are the values at exit):
+
+| id | (a2) | (b) | (a1) | final size | final position |
+| :--- | :---: | :---: | :---: | :--- | :--- |
+| bottom-right-smaller | 19/20 | 19/20 | [7] | 200x150 (1 run 400x300) | 1704,914 (1 run 1504,764) |
+| bottom-right-larger | 20/20 | 20/20 | [14] | 800x600 | 1104,464 |
+| bottom-right-minsize-at-min | 20/20 | 19/20 | [7] | 300x200 | 1604,864 |
+| bottom-right-below-min-width | 20/20 | 19/20 | [7] | 300x300 | 1604,764 |
+| bottom-right-below-min-height | 20/20 | 19/20 | [7] | 400x200 | 1504,864 |
+| bottom-right-below-min-both | 20/20 | 20/20 | [4] | 300x200 | 1604,864 |
+| bottom-right-far-below-min | 20/20 | 19/20 | [3] | 300x200 | 1604,864 |
+| bottom-left-smaller | 20/20 | 20/20 | [6] | 200x150 | 16,914 |
+| bottom-left-below-min-both | 20/20 | 20/20 | [7] | 300x200 | 16,864 |
+| top-right-smaller | 20/20 | 20/20 | [4] | 200x150 | 1704,56 |
+| top-right-below-min-both | 20/20 | 20/20 | [4] | 300x200 | 1604,56 |
+| bottom-smaller | 20/20 | 20/20 | [4] | 200x150 | 860,914 |
+| bottom-below-min-both | 19/20 | 20/20 | [3] | 300x200 (1 run 400x300) | 810,864 (1 run 760,764) |
+| right-smaller | 20/20 | 20/20 | [4] | 200x150 | 1704,485 |
+| right-below-min-both | 20/20 | 20/20 | [2] | 300x200 | 1604,460 |
+| top-left-below-min-both | 20/20 | 20/20 | [12] | 300x200 | 16,56 |
+| invalid-size-zero | 20/20 | 20/20 | n/a | no window (exit 2) | n/a |
+
+- Raised flags (`size_raised/raised_w/raised_h`), recorded only: `true/true/true` for the below-min-both and far-below cases, `true/true/false` for below-min-width, `true/false/true` for below-min-height, `false/false/false` for at-min, smaller and larger. In the failing runs of "smaller" they read `true/true/true` because the rectangle was still 400x300 when spawn-at exited: another instance of "the flags describe the rectangle at exit" (section 6.7 item 6).
+- Failure signature, all regimes: the printed rectangle is the fixture's default 400x300 at the position for 400x300 (for example bottom-right 1504,764), `COMMIT_RESOLVED SIZE_SETTLED`, no `size-changed` sample inside the 30 ms window. This is the late-resize bug (6.4 rows 3 and 3b); the oracle judges it against the final size, so these runs fail on both position and size.
+
+**Harness against direct drive, `placement/center-200x150`, regime (a), allocation -> `size-changed`:**
+
+| Source | Runs | Mean | No sample in 30 ms |
+| :--- | :---: | :---: | :---: |
+| `spawn-at-verify run`, isolated (batch 1) | 20 | 10.3 ms | 0 |
+| `spawn-at-verify run`, isolated (batch 2, after the direct drives) | 20 | 9.7 ms | 0 |
+| fixture driven through `spawn-at`, isolated (section 6.6, earlier) | 18 | 8.6 ms | 2 |
+| same, today, no minimum flags | 20 | 8.3 ms | 0 |
+| same, today, `--min-width 100 --min-height 100` | 20 | 9.5 ms | 0 |
+| same, today, bottom-right + `--min-width 100 --min-height 100` | 20 | 9.5 ms | 0 |
+
+`run` is 1.4 to 2.0 ms slower on average than the direct drive of the same minute (10.3 and 9.7 against 8.3 ms). That the harness itself adds this (it passes `--json`, and probes and snapshots windows around the action) is a **HYPOTHESIS**; the difference is small against the 30 ms window and was not shown to matter. The fixture minimum flags did not change the timing by more than 1.2 ms (8.3 against 9.5 ms). `center-1200x800` via `run`, isolated: 20 of 20, mean 28.1 ms (the closest approach to the 30 ms limit of any measured group).
+
+**Skipped as UNDEFINED (no spec asserts them):** exit code when the window ends mis-positioned (6.4 row 5); size of an oversized request, and where a centre-anchored oversized window goes (rows 7, 8; no overflow case spec was written, although the oracle table-tests it); the INFO "below toolkit minimums" threshold `w < 100 || h < 80` (`geometry.rs:744-745`), which differs from the extension's 100x60 floor (`extension.js:33-34`) (row 4b); the default margin 16 as a documented behaviour (row 10); which size the anchor uses while the app has not answered (6.1 row 13). **Not asserted by design:** `size_raised`, `raised_w`, `raised_h`.
+
+**Not done.** Why (a1) was slow. Whether the harness adds 1 to 2 ms. A recorded real failing run of one of these specs for `render` (the fixtures list in `crates/spawn-at-verify/tests/fixtures/README.md` is unchanged; the existing `real_placement_center_200x150_fail_run.json` is the late-resize recording). GTK3, Qt and Electron apps. The fixture minimum is enforced by mutter through the client's size hints; whether other toolkits behave the same was not tested.
