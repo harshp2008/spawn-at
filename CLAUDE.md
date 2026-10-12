@@ -10,6 +10,7 @@
 - Paste raw command output. Never condense it by hand. Never use `|| true` to hide failures.
 - Never claim something is verified unless you ran it. Say what you could not run.
 - One commit per step, conventional commit messages.
+- Never use perl/sed -i for multi-line edits; use the Edit tool.
 
 ## Refactors
 - Pure-move refactors need proof before commit: sorted test names per binary, sha256 of goldens/fixtures/specs, `--help` / `run --help` / `list` diffs, `git diff -M --stat`. All diffs must be empty.
