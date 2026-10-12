@@ -21,7 +21,9 @@ fn test_recorded_cases_list_the_real_recordings() {
             "placement/bottom-right",
             "cloak/delayed-paint/delay-500",
             "cloak/delayed-paint/delay-500@probed",
-            "cloak/delayed-paint/delay-0@no-trace"
+            "cloak/delayed-paint/delay-0@no-trace",
+            "placement/top-left",
+            "placement/center-200x150"
         ]
     );
 }
