@@ -14,10 +14,14 @@ Automated test execution across the workspace is partitioned by crate and featur
 | :--- | :---: | :---: | :--- |
 | **Workspace: `spawn-at` CLI** | 158 | 0 | CLI flag parsing, IPC client, fallback, and reposition tests |
 | **Workspace: `spawn-at-core`** | 23 | 0 | 21 unit tests (`lib.rs`) + 2 golden placement integration tests (`tests/golden_placement.rs`) |
-| **Workspace: Node.js (Extension)** | 65 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers (`node --test tests/*.js`) |
-| **`spawn-at-verify` (bare default)** | 58 | 0 | 58 lib tests. Note: 1 test (`tui::logging::tests::test_parse_logging_state_transitions`) is gated behind `feature = "tui"`. |
-| **`spawn-at-verify --features tui`** | 124 | 0 | 59 lib + 0 main + 4 `category_library_test` + 5 `oracle_cross_check` + 18 `trace_analyser_test` + 38 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 278 | 4 | 138 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 74 `tui_test` (re-measured after the 17 placement resize specs, the oracle fixture-minimum rule and the margin check were added; the other rows in this table were not re-measured) |
+| **Workspace: `xtask`** | 10 | 0 | 8 unit tests (`src/main.rs`: 6 `burn_cpu`, 2 `compiler_docs`) + 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary) |
+| **Workspace: Node.js (Extension)** | 70 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`) (`node --test tests/*.js`) |
+| **`spawn-at-verify` (bare default)** | 184 | 0 | 141 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
+| **`spawn-at-verify --features tui`** | 278 | 0 | 147 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 75 `tui_test` |
+| **`spawn-at-verify --features tui,fixture`** | 289 | 4 | 147 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 75 `tui_test` |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 480 | 4 | 158 + 23 + 10 + 289; with the 70 Node tests: 550 passed |
+
+All rows re-measured on 2026-10-12 at commit `c7c4084` (`cargo test -p <crate>` per crate, `cargo test -p spawn-at-verify` bare, `--features tui` and `--features tui,fixture`, `node --test tests/*.js`); every run had 0 failures. The totals were summed with `awk` over the saved `test result:` lines, not by hand. A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 184 row, not 289; do not quote it for the verify crate.
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
@@ -104,6 +108,8 @@ The 58 rows are the planned catalogue: 35 are **Covered** (a spec file exists an
 ---
 
 ### 2.1 Known flaky: placement size variants (investigated 2026-10-12)
+
+**Status after the late-resize fix (commit `9e6b65d`, live-measured later the same day): see 6.11.** Idle: 0 failures in 640 runs of the 16 resize specs. Under all-CPU load: still failing (212 of 320 passed), by a different mechanism than the one described below (the resize arrives after the reveal, not between `UNCLOAK_4C` and `ANCHOR_ARMED`). The text below is the pre-fix investigation and is left as written.
 
 `placement/center-200x150` and `placement/center-1200x800` are the first specs that force a real resize: the fixture opens at its default 400x300 (`--width`/`--height` default to 400/300, `crates/spawn-at-verify/src/bin/fixture.rs:46-51`, used for the initial size at `bin/fixture/window.rs:48,61`) and neither spec passes `--width`/`--height` (`verify/placement/center-200x150.toml`, `center-1200x800.toml`). Nothing was changed to investigate: no product code, spec, fixture or budget. The specs stay failing when they fail. Each claim is labelled **CONFIRMED** (shown by a log, a count or a line of code) or **HYPOTHESIS**.
 
@@ -601,3 +607,120 @@ Regime (b), recounted from the 16 stored `report.json` files (`repeat_runs`): **
 **Skipped as UNDEFINED (no spec asserts them):** exit code when the window ends mis-positioned (6.4 row 5); size of an oversized request, and where a centre-anchored oversized window goes (rows 7, 8; no overflow case spec was written, although the oracle table-tests it); the INFO "below toolkit minimums" threshold `w < 100 || h < 80` (`geometry.rs:744-745`), which differs from the extension's 100x60 floor (`extension.js:33-34`) (row 4b); the default margin 16 as a documented behaviour (row 10); which size the anchor uses while the app has not answered (6.1 row 13). **Not asserted by design:** `size_raised`, `raised_w`, `raised_h`.
 
 **Not done.** Why (a1) was slow. Whether the harness adds 1 to 2 ms. A recorded real failing run of one of these specs for `render` (the fixtures list in `crates/spawn-at-verify/tests/fixtures/README.md` is unchanged; the existing `real_placement_center_200x150_fail_run.json` is the late-resize recording). GTK3, Qt and Electron apps. The fixture minimum is enforced by mutter through the client's size hints; whether other toolkits behave the same was not tested.
+
+### 6.11 Live results after the late-resize fix (2026-10-12)
+
+Fix under test: `9e6b65d` (modern tree only), a second size check in the reveal's own tick that logs `LATE_RESIZE_CORRECTED` and re-anchors. Binary under test `c7c4084` (HEAD; `is_dirty_build: false` in every report). No product code, spec, oracle, tolerance or fixture was changed for these measurements; the only new code is `cargo xtask burn-cpu` (`crates/xtask/src/burn_cpu.rs`). All tables: GNOME 46 Wayland, one machine (22 CPUs, `--virtual-monitor 1920x1080`, workarea `0,40 1920x1040`), other desktop windows open (4) and ordinary desktop load. Raw output is kept locally in the gitignored `verify-results/gate-20261012/`; the throwaway drivers were in the gitignored `scratch/`. Each statement is labelled **CONFIRMED** (shown by a log, a count or a line of code) or **HYPOTHESIS**.
+
+**Step 0: the running shell has the fix. CONFIRMED.** (1) The installed `extension.js` has the same sha256 as `assets/gnome/modern/extension.js` (`be88c6c6...8d8a`); it was written at 13:41:27 and `gnome-shell` (pid 2464446) started at 13:41:43, after the log-out and log-in. That alone is circumstantial (**HYPOTHESIS**, not tested here: the Shell caches imported modules, which is why a log-out and log-in, not `gnome-extensions disable/enable`, was used). (2) Direct: the string `LATE_RESIZE_CORRECTED` exists only in the fix (`git log -S` finds `9e6b65d` alone; absent from the legacy tree), and the journal, written by `gnome-shell[2464446]`, holds `+403921.11ms | LATE_RESIZE_CORRECTED win=[id=604717961 ... class="verify.placement.bottomrightsmaller"] positioned=(400x300) actual=(200x150)` (13:53:19, attempt 5 of `bottom-right-smaller` under `burn-cpu`; that run passed). An idle spawn with a 120 ms fixture paint delay did not trigger it (`ACTOR_MAP` came 160 ms after `WINDOW_CREATED` and the resize was answered within 10 ms of the size request, so nothing landed between `UNCLOAK_4C` and the reveal), so load was the trigger.
+
+**`burn-cpu`.** `cargo xtask burn-cpu --threads N --seconds S` spins N threads inside one process (no child processes), N in 1..=1024, 0 < S <= 86400. Checked: 22 threads for 4 s gave 23 threads and 2140% CPU in `ps`, exit 0, and no `xtask` process afterwards (`pgrep -x xtask`); `--threads 0` exits 1 with the usage text. The load phase started it with 22 threads and a 90 s warm-up, so the 1-minute load average had risen (21 to 29, limit for "busy" is 11) before the first measured run.
+
+**Load average (the new `report.json` fields).** The busy rule is `max(load_avg_start.one, load_avg_end.one) > cpu_count / 2 = 11`. `run` and `report.md` print no warning; the warning is produced only by the TUI drawer (`tui/views/drawer/mod.rs:47`), which was **not** opened here, so the "busy" column below is computed from the stored fields with the same rule.
+
+| Gate | 1-min load at run start / end (range over the stored runs) | Runs over the busy limit |
+| :--- | :--- | :---: |
+| (a) isolated, idle | 0.80 - 2.67 at start and 0.80 - 2.67 at end (start and end differ within a report in 20 of 320) | 0 of 320 |
+| (a) `--repeat 20`, idle | 1.39 - 1.83 / 1.36 - 1.81 | 0 of 320 |
+| (b) isolated, `burn-cpu` | 21.13 - 28.83 at start and 21.13 - 28.83 at end (differ within a report in 94 of 320) | 320 of 320 |
+| (b) `--repeat 20`, `burn-cpu` | 27.01 - 29.67 / 27.19 - 29.72 | 320 of 320 |
+| (c) zenity, `burn-cpu` | 29.23 at start, 26.50 at end (`/proc/loadavg` read by the driver; no report) | busy |
+| (d) calibrate delay-0 / 50 / 500 | 1.42 / 1.55 / 1.52 at start; 1.74 after the last | 0 |
+| (d) full library `run` | 1.47 / 1.62 | 0 |
+| (e) text editor x 20 | 1.48 / 1.05 | 0 |
+
+The idle baseline here is about 1 to 2, not 0.7 to 0.9 as in section 5, because the desktop session itself (this assistant's client, an IDE) was running; the user did not touch the machine during the measurements.
+
+**Before and after.** "Before" is section 6.10 (pre-fix). Auto check = `auto_status` of the stored result (the rectangle `spawn-at` printed against the oracle), unchanged.
+
+| Gate | Before (pre-fix) | After |
+| :--- | :---: | :---: |
+| (a) 16 specs x 20, isolated, idle | 95 / 320 (29.7%) and 318 / 320 (99.4%) (two batches, 6.10) | **320 / 320 (100%)** |
+| (a) 16 specs x 20, `--repeat 20`, idle | 315 / 320 (98.4%) | **320 / 320 (100%)** |
+| (b) 16 specs x 20, isolated, 22-thread `burn-cpu` | not measured; nearest: `center-200x150` 8 / 20 passed with 22 busy shell loops (2.1) | **212 / 320 (66.3%)**, 108 failures |
+| (b) same, `--repeat 20` | not measured | **213 / 320 (66.6%)**, 107 failures |
+| (c) zenity 500x450, centre, 20 runs, `burn-cpu` | 16 / 20 and 19 / 20 centred in two batches (2.1; load not recorded) | **17 / 20** centred; 3 failures (not a late resize, see below) |
+
+Target "0 failures in (a) and (b)": **met for (a), NOT met for (b).** Nothing was relaxed to make a gate pass.
+
+`LATE_RESIZE_CORRECTED` counts (window-scoped, from each result's trace; the journal total since the shell started, 152, equals the sum of these plus the one step 0 event):
+
+| Gate | Runs with the event | Of those, passing | Failing runs with the event |
+| :--- | :---: | :---: | :---: |
+| (a) isolated | 0 | 0 | 0 of 0 failing |
+| (a) `--repeat 20` | 1 (`bottom-right-larger`) | 1 | 0 of 0 failing |
+| (b) isolated | 60 | 60 | **0 of 108** |
+| (b) `--repeat 20` | 85 | 85 | **0 of 107** |
+| (c) zenity | 5 | 5 | **0 of 3** |
+| (d) calibrate, full library, (e) | 0 | n/a | n/a |
+
+By code reading each event is a window the old code would have left anchored for its old size (the resize landed after `UNCLOAK_4C` and before the reveal; nothing can land between the new check and `ANCHOR_ARMED`). That the old code would have failed those 145 fixture runs (60 + 85) and the 5 zenity runs was not tested (the old code was not re-run): **HYPOTHESIS** as a count, **CONFIRMED** as a mechanism.
+
+**What the 215 failing fixture runs under load have in common. CONFIRMED (every trace; `verify-results/gate-20261012/b_load.fail_traces.txt`, `b_rep.fail_traces.txt`).** All 215 resolve `COMMIT_RESOLVED reason=SIZE_SETTLED finalFrame=(400x300)`, have no `size-changed` sample before it, show `UNCLOAK_4C positioned=(400x300) actual=(400x300)`, reveal at the size the anchor was computed for (215 of 215), and log `ANCHOR_ARMED`. The app's resize therefore arrived **after** the reveal, which is the reactive anchor's job, not the new check's. `spawn-at` had by then printed the old rectangle (for example `x=760,y=764,w=400,h=300`) and exited, and the harness judges that printed rectangle. In 195 of the 215 the full journal holds an `ANCHOR_CORRECTION` for the window to exactly the position and size the spec expects (97 + 98; for example `size=(300x200) from=(760,764) to=(810,864)`, 43.8 ms after `ANCHOR_ARMED`); the other 20 (11 + 9) are `top-left-below-min-both`, whose position does not depend on the size, so only the printed size was stale (`16,56 400x300`, expected `300x200`). Across all 277 windows that got an `ANCHOR_CORRECTION` in the load phase the first one came 2.0 to 134.4 ms after `ANCHOR_ARMED` (median 26.5, 90th percentile 58.7). So the log says the extension ended every one of the 215 windows where the oracle expects it, but the window was revealed at the old size and position first. That the move is visible on screen was not looked at (**HYPOTHESIS**); the final window geometry was not re-read for the fixture runs (the harness closes the windows), so "ended correct" rests on the logged correction (**CONFIRMED** as a log, **HYPOTHESIS** as pixels).
+
+A failing trace, `bottom-below-min-both` under load (window-scoped, from `COMMIT_RESOLVED` to the end of the run; no `LATE_RESIZE_CORRECTED`):
+
+```
+COMMIT_RESOLVED reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)
+APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(760,764)
+UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false
+UNCLOAK opacity=255 frame=(760,764,400x300)
+UNCLOAK_4D_REVEAL requestedSize=(200x150) postFrame=(760,764,400x300)
+ANCHOR_ARMED
+ANCHOR_CORRECTION size=(300x200) from=(760,764) to=(810,864)      (+43.77 ms after ANCHOR_ARMED)
+printed by spawn-at: x=760 y=764 w=400 h=300  ->  auto-fail: expected [810, 864, 300x200]
+```
+
+**Per spec, auto check passes (a) isolated / (a) `--repeat` / (b) isolated / (b) `--repeat`; events in (b) / (b) `--repeat`.** Marked **known flaky under CPU load**: every spec but `bottom-right-larger`. At idle none failed in 640 runs.
+
+| id | (a) | (a) rep | (b) | (b) rep | events (b) / rep | known flaky under load |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| bottom-right-smaller | 20 | 20 | 15 | 11 | 2 / 4 | yes |
+| bottom-right-larger | 20 | 20 | 20 | 20 | 0 / 0 | no (40 of 40 under load; why is not explained) |
+| bottom-right-minsize-at-min | 20 | 20 | 9 | 11 | 2 / 4 | yes |
+| bottom-right-below-min-width | 20 | 20 | 15 | 11 | 8 / 5 | yes |
+| bottom-right-below-min-height | 20 | 20 | 10 | 14 | 4 / 10 | yes |
+| bottom-right-below-min-both | 20 | 20 | 14 | 13 | 4 / 6 | yes |
+| bottom-right-far-below-min | 20 | 20 | 12 | 15 | 3 / 6 | yes |
+| bottom-left-smaller | 20 | 20 | 10 | 14 | 2 / 5 | yes |
+| bottom-left-below-min-both | 20 | 20 | 14 | 12 | 5 / 5 | yes |
+| top-right-smaller | 20 | 20 | 13 | 16 | 6 / 6 | yes |
+| top-right-below-min-both | 20 | 20 | 16 | 12 | 6 / 5 | yes |
+| bottom-smaller | 20 | 20 | 16 | 16 | 3 / 9 | yes |
+| bottom-below-min-both | 20 | 20 | 11 | 11 | 3 / 5 | yes |
+| right-smaller | 20 | 20 | 17 | 16 | 5 / 5 | yes |
+| right-below-min-both | 20 | 20 | 11 | 10 | 4 / 7 | yes |
+| top-left-below-min-both | 20 | 20 | 9 | 11 | 3 / 3 | yes (control; only the printed size is stale) |
+| **total** | **320** | **320** | **212** | **213** | **60 / 85** | |
+
+Two failing runs from the step 0 loop (attempts 1 and 2, `bottom-right-smaller`, load 19 - 20, before the gates) have the same trace: `ANCHOR_ARMED` at `+389516.69`, `ANCHOR_CORRECTION size=(200x150) from=(1504,764) to=(1704,914)` at `+389572.24`; they are not counted in the tables.
+
+**(c) zenity, 20 runs under load, `spawn-at spawn --class '*' --size 500 450 --anchor center --json -- env GDK_BACKEND=wayland zenity --text-info`, window re-read with `spawn-at query windows` 1.3 s after exit.** 17 of 20 ended at `710,335 500x450` (the centre); 12 of those had an `ANCHOR_CORRECTION`, 5 a `LATE_RESIZE_CORRECTED`. The 3 failures (runs 1, 3, 5) ended at `810,360 300x400` and printed `Requested size (500x450), final size is 300x400; placed at (810, 360) [300x400].` There is **no `SIZE_SETTLED` to `ANCHOR_ARMED` trace for them because the extension never dispatched**: the journal for each has only `ARM_SPAWN`, `WINDOW_CREATED` and `ACTOR_MAP` (`class="zenity"`), no `DISPATCH`, `CLOAK` or `SET_SIZE_REQUEST`. `LATE_RESIZE_CORRECTED` did not fire (0 of 3). Time from `ARM_SPAWN` to `WINDOW_CREATED`: **1338, 1242 and 1356 ms in the 3 failures, 469 to 1083 ms in all 17 dispatched runs** (a clean split, CONFIRMED). A wildcard target (`--class '*'`) expires after `WILDCARD_EXPIRY_MS = 1200` (`extension.js:32`, `:1394-1397`; `README.md:104`), which fits: the window appeared after the registration had expired. That this is the cause is a **HYPOTHESIS** (the code that consumes `_wildcardTarget` was not traced); that a named `--class` target (15 s expiry) would be unaffected was not run. This is a startup-latency problem of the app under load, not a resize race, and it exists independently of the fix.
+
+**(d) Cloak duration, `spawn-at-verify calibrate --runs 20` (20 separate processes, then 20 runs of `--repeat` in one process; all 40 runs measured for each delay; no run lacked a measurement).** `cloak_duration_ms` = `UNCLOAK` minus `CLOAK`, ms.
+
+| Case | Mode | After: min | median | max | Before (section 5, delay-500 only) |
+| :--- | :--- | :---: | :---: | :---: | :--- |
+| delay-0 | separate | 17.67 | 18.92 | 34.28 | not measured with `calibrate` |
+| delay-0 | repeat | 17.43 | 18.85 | 20.31 | not measured |
+| delay-50 | separate | 16.73 | 18.59 | 19.32 | not measured |
+| delay-50 | repeat | 18.31 | 19.30 | **55.95** | not measured |
+| delay-500 | separate | 15.55 | 17.67 | 18.82 | 26.6 - 41.7 isolated (medians 30.9 - 32.4); 7.29 / 8.60 / 18.88 and 32.91 / 43.03 / 58.99 in the two batches |
+| delay-500 | repeat | 9.80 | 17.62 | 19.85 | 7.6 - 17.5 fast regime (medians 8.7, 9.2); 6.85 / 9.63 / 140.18 and 6.97 / 13.64 / 57.24 in the two batches |
+
+The 100 ms budget did not regress: the largest of 120 measured runs is 55.95 ms, below both 100 ms and the 61.9 ms largest seen in section 5 after its fix. **No claim of "no change beyond noise" is made.** There is no "before" for delay-0 and delay-50, and the delay-500 "before" batches differ from each other by more than the difference to today (isolated medians 31 - 43 ms before, 17.7 ms now; fast-regime medians 8.7 - 13.6 ms before, 17.6 ms now). Two things are known: (1) **CONFIRMED by code (`extension.js:863-880`)**: when no late resize is found the new loop does one synchronous size comparison and awaits nothing, so in a run without a `LATE_RESIZE_CORRECTED` the fix adds no wait; the 120 measured cloak runs had none. (2) The median `UNCLOAK_4C` to `UNCLOAK` gap is today 10.5 - 13.2 ms in the six batches where section 5 recorded 1.1 - 4.8 ms, and the median `COMMIT_RESOLVED` to position gap is 5.3 - 6.6 ms, the range of section 5's fast regime (5.3 - 10.1 ms), where its isolated regime had 23 - 38 ms; the machine state (windows open, uptime of the Shell) differs. Whether the old extension would give today's numbers cannot be shown without reloading the old code (a log-out) and was not done: **HYPOTHESIS** that the change is the machine's state, not the code. The 55.95 ms run (delay-50, `--repeat`, run 15) has `4c->uncloak=47.9 ms`, the existing one-frame wait (`FRAME_WAIT_CEILING_MS = 50`) running to near its ceiling, no `LATE_RESIZE_CORRECTED`, `COMMIT_RESOLVED reason=AT_TARGET` (raw slice in `verify-results/calibrate-slices/1791794390-repeat-run15.log`); why the frame took 48 ms is not known.
+
+**Full library `spawn-at-verify run` (no filter).** `Total: 35, Passed: 27, Failed: 0, Skipped: 0, Blocked: 0`; the 8 non-passed entries are `kind = both` specs awaiting a human verdict (`PENDING`): all 8 have `auto_status: auto-pass`, as do all 35 results. Exit code 0. Session `verify-results/20261012-084106-harsh`.
+
+**(e) Real app: `spawn-at spawn --size W H --anchor bottom-right --json gnome-text-editor`, 10 runs per size, window re-read 1.5 s after exit, editor killed between runs.** Workarea `0,40 1920x1040` (right edge 1920, bottom edge 1080).
+
+| Request | Runs | Printed at exit | Final (re-read) | Edges (right / bottom) | Overflow | Events |
+| :--- | :---: | :--- | :--- | :---: | :---: | :---: |
+| 30x20 | 10 / 10 identical | `1513,964 391x100` | `1513,964 391x100` | 1904 / 1064 | **no** (16 px inside both edges) | 0 |
+| 3000x2000 | 10 / 10 identical | `16,56 3000x2000` | `16,56 1920x1040` | 1936 / 1096 | **yes, 16 px past the right and the bottom edge** | 0 |
+
+30x20: the editor's own minimum is 391x100 and the anchor is correct for it (CLI: `window minimum is 391x100, placed at (1513, 964)`). 3000x2000: the CLI prints `WARNING: Window is oversized (3000x2000); bottom and right margins ignored.`, the app is limited to 1920x1040, and the position is the top-left plus margin, so the window overflows by the margin. This is 6.4 rows 6 (INTENDED) and 7 (size not reduced to the workarea: UNDEFINED); it is reported, not changed. The printed 3000x2000 is the rectangle at exit; the re-read 1.5 s later is 1920x1040.
+
+**Effect on section 6.4.** Rows 2, 3 and 3b (final position correct for the final size; late resize) are fixed for a resize that lands before the reveal (idle: 0 of 640 failed; 150 windows under load, 145 fixture and 5 zenity, were re-anchored by the new check). They are **not** fixed for a resize that lands after the reveal under heavy load: the reactive anchor moves the window afterwards (log), but `spawn-at` prints the old rectangle and the window is shown first at the old size. Row 4 (the "window minimum is WxH" text taken while the window is still resizing) has the same cause and is unchanged.
+
+**Not done.** Whether the 215 + 3 failures are visible on screen. The TUI drawer's busy warning. A "before" for the cloak numbers of delay-0 and delay-50, and for the 16 specs under load (the old extension is not loadable without a log-out). A fixture-side re-read of the final geometry after a failing run. A named `--class` (instead of `'*'`) zenity run under load. Why `bottom-right-larger` never failed under load. GTK3, Qt and Electron apps.
