@@ -78,6 +78,13 @@ pub struct TestSubject {
     /// Additional arguments passed to the subject binary.
     #[serde(default)]
     pub args: Vec<String>,
+    /// Minimum window width the fixture enforces (`--min-width`). Declaring it tells the oracle
+    /// that the final width is `max(requested, min_width)`. Only meaningful for `app = "fixture"`.
+    #[serde(default)]
+    pub min_width: Option<u32>,
+    /// Minimum window height the fixture enforces (`--min-height`); same meaning as `min_width`.
+    #[serde(default)]
+    pub min_height: Option<u32>,
 }
 
 /// Default value helper providing `"plain"` profile string.

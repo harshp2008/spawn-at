@@ -114,6 +114,8 @@ fn test_missing_fixture_binary_fails_with_clear_error_message() {
             app: "fixture".into(),
             profile: "plain".into(),
             args: vec![],
+            min_width: None,
+            min_height: None,
         }),
         action: crate::schema::TestAction {
             command: "spawn".into(),
@@ -173,6 +175,8 @@ fn test_build_action_command_args_fixture_and_class() {
             app: "fixture".into(),
             profile: "plain".into(),
             args: vec!["--title".into(), "CustomTitle".into()],
+            min_width: None,
+            min_height: None,
         }),
         action: crate::schema::TestAction {
             command: "spawn".into(),
@@ -219,6 +223,8 @@ fn test_build_action_command_args_fixture_and_class() {
             app: "fixture".into(),
             profile: "plain".into(),
             args: vec!["--app-id".into(), "verify.inferred.id".into()],
+            min_width: None,
+            min_height: None,
         }),
         action: crate::schema::TestAction {
             command: "spawn".into(),
@@ -473,4 +479,65 @@ fn test_both_final_status_table() {
             h
         );
     }
+}
+
+/// A spec with `min_width = 300` and `min_height = 200` under `[subject]` parses, and the runner
+/// adds `--min-width 300 --min-height 200` to the fixture command, before `--exit-after-ms`. A
+/// minimum already spelled out in `subject.args` is not added a second time, and a spec without
+/// the fields adds neither flag. Fails if the fields are dropped on parse or duplicated on assembly.
+#[test]
+fn test_subject_min_size_fields_parse_and_reach_the_fixture_command() {
+    let spec = |extra_subject: &str, subject_args: &str| -> TestDefinition {
+        toml::from_str(&format!(
+            r#"
+id = "placement/x"
+category = "placement"
+title = "t"
+description = "d"
+kind = "auto"
+required = true
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [{subject_args}]
+{extra_subject}
+
+[action]
+command = "spawn"
+args = ["--anchor", "center", "--size", "200", "150"]
+
+[expect]
+exit_code = 0
+"#
+        ))
+        .unwrap()
+    };
+    let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+    let value_after = |args: &[String], flag: &str| -> Option<String> {
+        args.iter()
+            .position(|a| a == flag)
+            .map(|i| args[i + 1].clone())
+    };
+
+    let with_min = spec("min_width = 300\nmin_height = 200", r#""--title", "T""#);
+    assert_eq!(with_min.subject.as_ref().unwrap().min_width, Some(300));
+    assert_eq!(with_min.subject.as_ref().unwrap().min_height, Some(200));
+    let args = build_action_command_args(&with_min, &fixture_bin);
+    assert_eq!(value_after(&args, "--min-width").as_deref(), Some("300"));
+    assert_eq!(value_after(&args, "--min-height").as_deref(), Some("200"));
+    let min_idx = args.iter().position(|a| a == "--min-width").unwrap();
+    let exit_idx = args.iter().position(|a| a == "--exit-after-ms").unwrap();
+    assert!(min_idx < exit_idx, "{:?}", args);
+
+    let spelled = spec("min_width = 300", r#""--min-width", "250", "--title", "T""#);
+    let args = build_action_command_args(&spelled, &fixture_bin);
+    assert_eq!(args.iter().filter(|a| *a == "--min-width").count(), 1);
+    assert_eq!(value_after(&args, "--min-width").as_deref(), Some("250"));
+
+    let none = spec("", r#""--title", "T""#);
+    let args = build_action_command_args(&none, &fixture_bin);
+    assert!(!args
+        .iter()
+        .any(|a| a == "--min-width" || a == "--min-height"));
 }

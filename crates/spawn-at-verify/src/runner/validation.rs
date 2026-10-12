@@ -41,6 +41,20 @@ pub fn build_action_command_args(test: &TestDefinition, fixture_bin: &Path) -> V
                     }
                     args.push(sarg.clone());
                 }
+                // The declared fixture minimums become `--min-width` / `--min-height` unless the
+                // spec already spells the flag out in `subject.args`.
+                if let Some(mw) = sub.min_width {
+                    if !sub.args.iter().any(|a| a == "--min-width") {
+                        args.push("--min-width".to_string());
+                        args.push(mw.to_string());
+                    }
+                }
+                if let Some(mh) = sub.min_height {
+                    if !sub.args.iter().any(|a| a == "--min-height") {
+                        args.push("--min-height".to_string());
+                        args.push(mh.to_string());
+                    }
+                }
                 // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
                 // if test harness crashes or receives SIGKILL mid-execution.
                 // For human visual review (Human/Both), allow 5 minutes (300,000ms) for observation;
