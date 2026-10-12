@@ -94,6 +94,7 @@ pub fn handle_run(args: RunArgs) {
         println!("{}", out);
     } else {
         println!("\n=== Verification Run Results ===");
+        println!("Timing log source: {}", runner.log_source.name());
 
         for r in &results {
             match r.final_status {
@@ -134,6 +135,9 @@ pub fn handle_run(args: RunArgs) {
                 FinalStatus::Pending => {
                     println!("  ● PENDING: {} ({})", r.id, r.title);
                 }
+            }
+            if let Some(note) = &r.trace_note {
+                println!("      trace: {}", note);
             }
         }
 

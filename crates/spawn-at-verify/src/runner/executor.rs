@@ -3,8 +3,8 @@
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
-    build_action_command_args, extract_claimed_window_id, pass_assessment, validate_expectations,
-    validate_geometry,
+    build_action_command_args, extract_claimed_window_id, needs_trace, pass_assessment,
+    validate_expectations, validate_geometry,
 };
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
@@ -24,7 +24,7 @@ impl TestRunner {
         env_info: &EnvironmentInfo,
         tracker: &mut WindowTracker,
     ) -> TestResult {
-        let start = Instant::now();
+        let mut start = Instant::now();
         let start_secs = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|d| d.as_secs())
@@ -176,6 +176,19 @@ impl TestRunner {
             }
         }
 
+        // Runs that depend on a trace need the extension's timing log on. It has no state getter and
+        // starts off again after a reload, so it is enabled before every such run. Time spent doing
+        // so is not part of the run's duration. A log that is not known to be on is recorded
+        // next to the result as the reason for a missing trace.
+        let trace_note = if needs_trace(test) {
+            let began = Instant::now();
+            let outcome = self.logging.ensure_enabled(&*self.log_source);
+            start += began.elapsed();
+            outcome.note()
+        } else {
+            None
+        };
+
         let cmd_args = build_action_command_args(test, &fixture_bin);
         let mut cmd = Command::new(&self.options.bin_path);
         cmd.args(cmd_args);
@@ -216,7 +229,7 @@ impl TestRunner {
                     stderr: String::new(),
                     message: Some(format!("Harness error executing command: {}", e)),
                     log_slice,
-                    trace_note: None,
+                    trace_note: trace_note.clone(),
                 };
             }
         };
@@ -262,7 +275,7 @@ impl TestRunner {
                             stderr,
                             message: Some(err_msg),
                             log_slice,
-                            trace_note: None,
+                            trace_note: trace_note.clone(),
                         };
                     }
                 }
@@ -311,7 +324,7 @@ impl TestRunner {
                     stderr,
                     message: Some(err),
                     log_slice,
-                    trace_note: None,
+                    trace_note: trace_note.clone(),
                 };
             }
         };
@@ -350,7 +363,7 @@ impl TestRunner {
                         stderr,
                         message: Some(err_msg),
                         log_slice,
-                        trace_note: None,
+                        trace_note: trace_note.clone(),
                     };
                 }
             }
@@ -377,7 +390,7 @@ impl TestRunner {
             stderr,
             message: Some(pass_message),
             log_slice,
-            trace_note: None,
+            trace_note,
         }
     }
 }

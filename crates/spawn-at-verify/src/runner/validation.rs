@@ -192,6 +192,12 @@ pub fn pass_assessment(check: Option<&GeometryCheck>) -> (AutoStatus, String) {
     (AutoStatus::AutoPass, message)
 }
 
+/// Whether a passing result for `test` depends on the extension's trace: it asserts that the
+/// window is never visible off target, or it is a cloak test (id under `cloak/`).
+pub fn needs_trace(test: &TestDefinition) -> bool {
+    test.expect.never_visible_off_target || test.id.starts_with("cloak/")
+}
+
 /// Extracts claimed window ID from command output (e.g. from `spawn-at spawn --json` or SpawnClaimed signal).
 pub fn extract_claimed_window_id(stdout: &str, stderr: &str) -> Option<u64> {
     // 1. Try parsing structured JSON output from `spawn-at spawn --json`

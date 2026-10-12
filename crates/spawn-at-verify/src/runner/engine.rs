@@ -1,6 +1,7 @@
 //! Test runner execution engine, repeat loops, and process orchestration.
 
 use super::models::{FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
+use crate::ext_logging::{GdbusLogging, LoggingControl, NoLogging};
 use crate::loader::TestRegistry;
 use crate::log_source::{GnomeJournalSource, LogSource, NoOpLogSource};
 use crate::preflight::{inspect_binary, PreflightReport};
@@ -15,6 +16,31 @@ pub struct TestRunner {
     pub options: RunOptions,
     /// Provider source for capturing system and compositor journal logs.
     pub log_source: Box<dyn LogSource>,
+    /// Switch that turns the extension's timing log on before each run that needs a trace.
+    pub logging: Box<dyn LoggingControl>,
+}
+
+/// Why the no-op log source is in use: names `XDG_CURRENT_DESKTOP` and what it holds.
+fn no_log_source_reason() -> String {
+    match std::env::var("XDG_CURRENT_DESKTOP") {
+        Ok(d) => format!(
+            "no log source: XDG_CURRENT_DESKTOP is '{}', which does not contain 'gnome'",
+            d
+        ),
+        Err(_) => "no log source: XDG_CURRENT_DESKTOP is unset".to_string(),
+    }
+}
+
+/// The logging control that goes with `source`: D-Bus for the extension's journal, otherwise
+/// none. A no-op source carries `noop_reason` so the lack of a trace is explained.
+fn logging_for(source: &dyn LogSource, noop_reason: Option<String>) -> Box<dyn LoggingControl> {
+    match source.name() {
+        "journalctl" => Box::new(GdbusLogging),
+        "noop" => Box::new(NoLogging {
+            reason: noop_reason,
+        }),
+        _ => Box::new(NoLogging { reason: None }),
+    }
 }
 
 impl TestRunner {
@@ -29,17 +55,30 @@ impl TestRunner {
         } else {
             Box::new(NoOpLogSource)
         };
+        let logging = logging_for(&*log_source, Some(no_log_source_reason()));
 
         Self {
             registry,
             options,
             log_source,
+            logging,
         }
     }
 
-    /// Attaches an explicit log source provider to the test runner.
+    /// Attaches an explicit log source provider to the test runner, with the logging control
+    /// that goes with it (none for a source that is not the extension's journal).
     pub fn with_log_source(mut self, log_source: Box<dyn LogSource>) -> Self {
+        self.logging = logging_for(
+            &*log_source,
+            Some("no log source: a no-op log source was attached".to_string()),
+        );
         self.log_source = log_source;
+        self
+    }
+
+    /// Attaches an explicit logging control (for example a fake extension in tests).
+    pub fn with_logging_control(mut self, logging: Box<dyn LoggingControl>) -> Self {
+        self.logging = logging;
         self
     }
 
