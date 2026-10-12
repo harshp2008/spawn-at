@@ -317,7 +317,12 @@ pub fn render_result_section(
         )
     };
     builder.push_kv("Trace", t_spans, &t_plain);
-    if let Some(why) = trace_state.as_ref().and_then(|s| s.reason()) {
+    // Why there is no trace, or (with a trace) the run-time note, e.g. logging could not be enabled.
+    let reason = trace_state
+        .as_ref()
+        .and_then(|s| s.reason())
+        .or_else(|| res_opt.and_then(|r| r.trace_note.as_deref()));
+    if let Some(why) = reason {
         builder.push_kv(
             "Reason",
             vec![Span::styled(

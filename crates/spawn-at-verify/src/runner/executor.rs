@@ -177,18 +177,14 @@ impl TestRunner {
             }
         }
 
-        // Runs that depend on a trace need the extension's timing log on. It has no state getter and
-        // starts off again after a reload, so it is enabled before every such run. Time spent doing
-        // so is not part of the run's duration. A log that is not known to be on is recorded
-        // next to the result as the reason for a missing trace.
-        let trace_note = if needs_trace(test) {
-            let began = Instant::now();
-            let outcome = self.logging.ensure_enabled(&*self.log_source);
-            start += began.elapsed();
-            outcome.note()
-        } else {
-            None
-        };
+        // The extension's timing log has no state getter and starts off again after a reload, so
+        // it is enabled (idempotent) before every executed test, not only the ones that need a
+        // trace. Time spent doing so is not part of the run's duration. A log that is not known
+        // to be on is recorded next to the result; only tests that need a trace (`needs_trace`)
+        // lose their plain pass over it, the others keep their verdict.
+        let began = Instant::now();
+        let trace_note = self.logging.ensure_enabled(&*self.log_source).note();
+        start += began.elapsed();
 
         let cmd_args = build_action_command_args(test, &fixture_bin);
         let mut cmd = Command::new(&self.options.bin_path);

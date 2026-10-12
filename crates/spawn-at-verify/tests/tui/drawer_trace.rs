@@ -165,3 +165,23 @@ fn test_trace_unchecked_symbol_and_colour_are_distinct() {
     assert_ne!(colour, geometry_colour);
     assert_ne!(colour, full_colour);
 }
+
+/// A test that does not need a trace, with logging that could not be enabled: the verdict stays
+/// a plain Pass and the Reason row shows why there is no trace.
+#[test]
+fn test_drawer_non_trace_test_keeps_pass_and_shows_reason() {
+    let mut app = create_test_app();
+    let note = "extension timing log could not be enabled: gdbus: no such object";
+    let (test, res) = passed_result(&app, Some(""), Some(note));
+    let plain = drawer(&mut app, &test, res);
+    assert!(row(&plain, "Verdict").contains("✔ Pass"), "{}", plain);
+    assert!(!plain.contains("trace unchecked"), "{}", plain);
+    // The reason wraps over several rows; compare it with the whitespace collapsed.
+    let flat = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(
+        row(&plain, "Reason").contains("log slice is empty"),
+        "{}",
+        plain
+    );
+    assert!(flat.contains(note), "{}", plain);
+}

@@ -243,3 +243,37 @@ fn test_empty_slice_with_logging_on_is_trace_unchecked() {
     assert_eq!(res.trace_note, None);
     assert_trace_unchecked(&res, "log slice is empty");
 }
+
+/// A placement test: no trace dependency (`never_visible_off_target` false, id outside `cloak/`).
+fn placement_spec() -> TestDefinition {
+    let mut spec = spec_claiming(&claim_real());
+    spec.id = "placement/capture-test".into();
+    spec.expect.never_visible_off_target = false;
+    spec
+}
+
+/// Logging is enabled before every executed test, not only trace-dependent ones: a placement
+/// test that starts with logging off gets it switched on and passes plainly.
+#[test]
+fn test_placement_test_with_logging_off_is_re_enabled() {
+    let ext = FakeExtension::new(false, &real_trace_lines());
+    let res = run_once(&runner_with(&ext), &placement_spec());
+    assert_eq!(ext.enable_calls(), 1);
+    assert!(ext.is_enabled());
+    assert_eq!(res.trace_note, None);
+    assert_full_pass(&res);
+}
+
+/// A placement test whose logging cannot be enabled keeps its normal verdict (it does not need
+/// a trace) and carries the reason in `trace_note`.
+#[test]
+fn test_placement_test_with_enable_failure_keeps_its_verdict_and_shows_reason() {
+    let ext = FakeExtension::new(false, &real_trace_lines());
+    ext.set_enable_error(Some("gdbus: no such object"));
+    let res = run_once(&runner_with(&ext), &placement_spec());
+    assert_eq!(ext.enable_calls(), 1);
+    assert_full_pass(&res);
+    let note = res.trace_note.as_deref().expect("a note");
+    assert!(note.contains("gdbus: no such object"), "note was {}", note);
+    assert_eq!(res.message.as_deref(), Some("Assertions passed"));
+}
