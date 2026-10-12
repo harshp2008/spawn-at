@@ -347,3 +347,146 @@ fn test_captured_trace_notifies_logging_control_and_empty_slice_does_not() {
     run_once(&runner, &placement_spec());
     assert_eq!(hits2.load(Ordering::SeqCst), 0);
 }
+
+/// A scratch directory holding a fake `spawn-at` (a shell script) and a dummy `fixture` file next
+/// to it, removed on drop. The script answers `query ...` with `[]` (no windows) and `spawn ...`
+/// with `stderr_text` on stderr and exit code `exit_code`.
+struct FakeBin {
+    dir: PathBuf,
+}
+
+impl FakeBin {
+    /// Creates the directory and the script for one test (`name` keeps parallel tests apart).
+    fn new(name: &str, exit_code: i32, stderr_text: &str) -> Self {
+        use std::os::unix::fs::PermissionsExt;
+        let dir = std::env::temp_dir().join(format!(
+            "spawn-at-verify-fakebin-{}-{}",
+            std::process::id(),
+            name
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let script = format!(
+            "#!/bin/sh\ncase \"$1\" in\n  query) echo '[]'; exit 0;;\n  spawn) echo '{}' >&2; exit {};;\nesac\nexit 0\n",
+            stderr_text, exit_code
+        );
+        let bin = dir.join("spawn-at");
+        std::fs::write(&bin, script).unwrap();
+        std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::write(dir.join("fixture"), "").unwrap();
+        Self { dir }
+    }
+
+    /// Path of the fake `spawn-at`.
+    fn bin(&self) -> PathBuf {
+        self.dir.join("spawn-at")
+    }
+}
+
+impl Drop for FakeBin {
+    /// Removes the scratch directory.
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.dir);
+    }
+}
+
+/// A `spawn` spec with the fixture subject that expects `exit_code` and (when not empty) the
+/// stderr text `present`.
+fn spec_expecting(exit_code: i32, present: &str) -> TestDefinition {
+    toml::from_str(&format!(
+        r#"
+id = "placement/expected-failure"
+category = "placement"
+title = "t"
+description = "d"
+kind = "auto"
+required = true
+[subject]
+app = "fixture"
+profile = "plain"
+args = ["--title", "T"]
+[action]
+command = "spawn"
+repeatable = false
+args = ["--anchor", "center", "--size", "0", "150"]
+[expect]
+exit_code = {}
+stderr_absent = []
+stderr_present = [{}]
+diagnostics = []
+never_visible_off_target = false
+"#,
+        exit_code,
+        if present.is_empty() {
+            String::new()
+        } else {
+            format!("'{}'", present)
+        }
+    ))
+    .unwrap()
+}
+
+/// Runs `spec` against the fake binary and returns the result.
+fn run_fake(fake: &FakeBin, spec: &TestDefinition) -> TestResult {
+    let ext = FakeExtension::new(false, &[]);
+    let mut runner = runner_with(&ext);
+    runner.options.bin_path = fake.bin();
+    run_once(&runner, spec)
+}
+
+/// (c) The expected non-zero exit with the expected stderr passes, without attributing a window.
+#[test]
+fn test_expected_failure_with_expected_exit_and_stderr_passes() {
+    let fake = FakeBin::new("c", 2, "[spawn-at] ERROR: Invalid size");
+    let res = run_fake(&fake, &spec_expecting(2, "ERROR: Invalid size"));
+    assert_eq!(res.auto_status, AutoStatus::AutoPass, "{:?}", res.message);
+}
+
+/// (a) A spec expecting exit 2 but getting exit 0 (the CLI accepted the size) FAILS with an exit
+/// code mismatch.
+#[test]
+fn test_expected_nonzero_exit_but_got_zero_fails() {
+    let fake = FakeBin::new("a", 0, "");
+    let res = run_fake(&fake, &spec_expecting(2, ""));
+    assert_eq!(res.auto_status, AutoStatus::AutoFail);
+    let msg = res.message.unwrap_or_default();
+    assert!(
+        msg.contains("Exit code mismatch: expected 2, got 0"),
+        "{}",
+        msg
+    );
+}
+
+/// (b) An unexpected non-zero exit FAILS: expected 0 got 3, and expected 2 got 1.
+#[test]
+fn test_unexpected_nonzero_exit_fails() {
+    let fake = FakeBin::new("b1", 3, "boom");
+    let res = run_fake(&fake, &spec_expecting(0, ""));
+    assert_eq!(res.auto_status, AutoStatus::AutoFail);
+    let msg = res.message.unwrap_or_default();
+    assert!(
+        msg.contains("Exit code mismatch: expected 0, got 3"),
+        "{}",
+        msg
+    );
+
+    let fake = FakeBin::new("b2", 1, "boom");
+    let res = run_fake(&fake, &spec_expecting(2, ""));
+    assert_eq!(res.auto_status, AutoStatus::AutoFail);
+    let msg = res.message.unwrap_or_default();
+    assert!(
+        msg.contains("Exit code mismatch: expected 2, got 1"),
+        "{}",
+        msg
+    );
+}
+
+/// The expected exit with the WRONG stderr FAILS on the missing text, not on attribution.
+#[test]
+fn test_expected_exit_with_missing_stderr_fails() {
+    let fake = FakeBin::new("c2", 2, "something else");
+    let res = run_fake(&fake, &spec_expecting(2, "ERROR: Invalid size"));
+    assert_eq!(res.auto_status, AutoStatus::AutoFail);
+    let msg = res.message.unwrap_or_default();
+    assert!(msg.contains("Required token or pattern"), "{}", msg);
+}

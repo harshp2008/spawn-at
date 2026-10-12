@@ -252,6 +252,16 @@ impl TestRunner {
                 ) {
                     attributed_id = outcome.registered_id;
                     if let Some(err_msg) = outcome.error_message {
+                        // A wrong exit code is the first thing to report: with it the missing
+                        // window is a consequence, not the cause.
+                        let err_msg = if exit_code != test.expect.exit_code {
+                            format!(
+                                "Exit code mismatch: expected {}, got {} ({})",
+                                test.expect.exit_code, exit_code, err_msg
+                            )
+                        } else {
+                            err_msg
+                        };
                         let (final_status, disagreement) = resolve_final_status(
                             test.kind,
                             AutoStatus::AutoFail,
