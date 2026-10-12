@@ -96,6 +96,17 @@ pub fn category_rank(cat_or_id: &str) -> usize {
 /// Function type alias for test clipboard injection and system copy.
 pub type ClipboardHelper = std::sync::Arc<dyn Fn(&str) -> Result<(), String> + Send + Sync>;
 
+/// Load averages around one run and the CPU count they are judged against.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct RunLoad {
+    /// Load when the run started.
+    pub start: Option<crate::loadavg::LoadAvg>,
+    /// Load when the run ended.
+    pub end: Option<crate::loadavg::LoadAvg>,
+    /// CPUs available.
+    pub cpus: usize,
+}
+
 /// Central state machine and event coordinator for the verification Terminal UI.
 pub struct TuiApp {
     /// Test definitions loaded from the `verify/` directory.
@@ -152,6 +163,9 @@ pub struct TuiApp {
     pub active_pane: ActivePane,
     /// Directory the drawer's save key writes `<id>.log.txt` files into.
     pub report_dir: PathBuf,
+    /// Load averages at the start and end of the last executed test (or of a recorded run) and
+    /// the CPU count; the drawer warns when the 1-minute load was above half the CPUs.
+    pub run_load: Option<RunLoad>,
     /// Message shown in the drawer title for 3 seconds after a copy or save, with the instant it
     /// was set.
     pub drawer_status: Option<(String, std::time::Instant)>,
@@ -225,6 +239,7 @@ impl TuiApp {
             terminal_window_id,
             active_pane: ActivePane::List,
             report_dir: PathBuf::from("verify-results"),
+            run_load: None,
             drawer_status: None,
             drawer_raw_view: false,
             clipboard_fn: None,

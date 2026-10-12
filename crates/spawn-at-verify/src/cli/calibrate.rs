@@ -365,11 +365,14 @@ pub fn handle_calibrate(args: CalibrateArgs) {
         );
         // One machine-state snapshot for the whole in-process batch.
         let system = system_state(&bin);
+        let load_start = crate::loadavg::read_loadavg();
         match runner.run_detailed() {
             Ok((preflight, env_info, results, all_runs)) => {
-                let report = build_session_report_with_runs(
+                let load_end = crate::loadavg::read_loadavg();
+                let mut report = build_session_report_with_runs(
                     &bin, &preflight, &env_info, &results, &all_runs, false,
                 );
+                report.environment.set_load(load_start, load_end);
                 let path = write_report_artifacts(Path::new("verify-results"), &report)
                     .ok()
                     .map(|d| d.join("report.json"));

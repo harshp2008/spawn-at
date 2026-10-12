@@ -228,3 +228,48 @@ fn test_drawer_auto_fail_with_human_pass_shows_fail() {
     assert!(!verdict.contains("✔ Pass"), "{}", plain);
     assert!(verdict.contains("marked Pass"), "{}", plain);
 }
+
+/// The drawer shows a `Load` row with the busy-machine warning only when the 1-minute load at the
+/// start or end of the run is above half the CPUs (11.0 on 22): 14.00 at the end warns, 11.00 and
+/// 0.50 do not, and no recorded load shows no row.
+#[test]
+fn test_drawer_warns_only_when_the_machine_was_busy() {
+    use spawn_at_verify::loadavg::LoadAvg;
+    use spawn_at_verify::tui::app::RunLoad;
+    let load = |one: f64| LoadAvg {
+        one,
+        five: one,
+        fifteen: one,
+    };
+    let render = |run_load: Option<RunLoad>| -> String {
+        let mut app = create_test_app();
+        app.run_load = run_load;
+        let (test, res) = passed_result(&app, None, None);
+        drawer(&mut app, &test, res)
+    };
+
+    let busy = render(Some(RunLoad {
+        start: Some(load(0.5)),
+        end: Some(load(14.0)),
+        cpus: 22,
+    }));
+    let row = row(&busy, "Load");
+    assert!(row.contains("machine busy"), "{}", busy);
+    assert!(row.contains("14.00 at end"), "{}", busy);
+
+    for quiet in [
+        Some(RunLoad {
+            start: Some(load(0.5)),
+            end: Some(load(11.0)),
+            cpus: 22,
+        }),
+        None,
+    ] {
+        let text = render(quiet);
+        assert!(
+            !text.lines().any(|l| l.trim_start().starts_with("Load")),
+            "unexpected Load row:\n{}",
+            text
+        );
+    }
+}

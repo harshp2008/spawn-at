@@ -158,6 +158,15 @@ pub fn render_case(
     app.detail_scroll = scroll;
     // Judge with the environment the run recorded, never a live probe of this machine.
     app.env_info = Some(case.environment_info());
+    // The load the run recorded (absent in older recordings), never this machine's load now.
+    app.run_load = case
+        .environment
+        .cpu_count
+        .map(|cpus| crate::tui::app::RunLoad {
+            start: case.environment.load_avg_start,
+            end: case.environment.load_avg_end,
+            cpus,
+        });
     app.results.insert(case.id.clone(), case.result.clone());
     let test = app
         .selected_test()

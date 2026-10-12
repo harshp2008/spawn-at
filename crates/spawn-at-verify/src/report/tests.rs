@@ -361,3 +361,36 @@ fn test_hundred_same_second_runs_is_an_explicit_error() {
     );
     std::fs::remove_dir_all(&base).unwrap();
 }
+
+/// `set_load` puts both load averages and the CPU count into the serialized environment, and a
+/// report without them (an older recording) still loads with all three absent.
+#[test]
+fn test_report_records_load_average_and_old_reports_still_load() {
+    use crate::loadavg::LoadAvg;
+    let start = LoadAvg {
+        one: 0.52,
+        five: 0.58,
+        fifteen: 0.59,
+    };
+    let end = LoadAvg {
+        one: 12.5,
+        five: 3.0,
+        fifteen: 1.0,
+    };
+    let mut report = report_with_runs(&[run_result("a/one", "", 1)], &[]);
+    assert_eq!(report.environment.load_avg_start, None);
+    report.environment.set_load(Some(start), Some(end));
+    let value = serde_json::to_value(&report).unwrap();
+    let env = &value["environment"];
+    assert_eq!(env["load_avg_start"]["one"], 0.52);
+    assert_eq!(env["load_avg_end"]["one"], 12.5);
+    assert!(env["cpu_count"].as_u64().unwrap() >= 1);
+
+    let mut old = value.clone();
+    for key in ["load_avg_start", "load_avg_end", "cpu_count"] {
+        old["environment"].as_object_mut().unwrap().remove(key);
+    }
+    let back: SessionReport = serde_json::from_value(old).unwrap();
+    assert_eq!(back.environment.load_avg_start, None);
+    assert_eq!(back.environment.cpu_count, None);
+}

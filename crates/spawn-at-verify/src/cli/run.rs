@@ -93,6 +93,7 @@ pub fn handle_run(args: RunArgs) {
         },
     );
 
+    let load_start = crate::loadavg::read_loadavg();
     let (preflight, env_info, results, all_runs) = match runner.run_detailed() {
         Ok(res) => res,
         Err(e) => {
@@ -100,9 +101,10 @@ pub fn handle_run(args: RunArgs) {
             exit(1);
         }
     };
+    let load_end = crate::loadavg::read_loadavg();
 
     // Build full session report
-    let session_report = build_session_report_with_runs(
+    let mut session_report = build_session_report_with_runs(
         &bin_path,
         &preflight,
         &env_info,
@@ -110,6 +112,7 @@ pub fn handle_run(args: RunArgs) {
         &all_runs,
         args.include_titles,
     );
+    session_report.environment.set_load(load_start, load_end);
 
     // Write report artifacts
     let results_base = PathBuf::from("verify-results");

@@ -33,6 +33,28 @@ pub struct EnvironmentFingerprint {
     pub is_dirty_build: bool,
     /// Unix timestamp in seconds when report was generated.
     pub generated_at: u64,
+    /// `/proc/loadavg` when the run started. Absent in older recordings and where unreadable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_avg_start: Option<crate::loadavg::LoadAvg>,
+    /// `/proc/loadavg` when the run ended.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub load_avg_end: Option<crate::loadavg::LoadAvg>,
+    /// CPUs available to the run, the basis of the busy-machine warning.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_count: Option<usize>,
+}
+
+impl EnvironmentFingerprint {
+    /// Records the load averages at the start and end of the run and the CPU count.
+    pub fn set_load(
+        &mut self,
+        start: Option<crate::loadavg::LoadAvg>,
+        end: Option<crate::loadavg::LoadAvg>,
+    ) {
+        self.load_avg_start = start;
+        self.load_avg_end = end;
+        self.cpu_count = Some(crate::loadavg::cpu_count());
+    }
 }
 
 /// Diagnostic record for a required test that was skipped during qualification.

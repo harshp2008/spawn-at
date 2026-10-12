@@ -41,6 +41,20 @@ fn render_sections(
         .unwrap_or_default();
     render_header_section(builder, test);
     render_result_section(builder, test, res_opt, env_workarea);
+    // A busy machine inflates timings; say so in the RESULT section (the last row of it).
+    if let Some(warning) = app
+        .run_load
+        .and_then(|l| crate::loadavg::busy_warning(l.start, l.end, l.cpus))
+    {
+        builder.push_kv(
+            "Load",
+            vec![ratatui::text::Span::styled(
+                format!("⚠ {}", warning),
+                ratatui::style::Style::default().fg(ratatui::style::Color::Yellow),
+            )],
+            &format!("⚠ {}", warning),
+        );
+    }
     render_look_for_section(builder, test, res_opt);
     render_geometry_section(builder, test, res_opt, env_workarea);
     render_spec_section(builder, test);

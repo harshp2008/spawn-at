@@ -102,7 +102,13 @@ impl TuiApp {
             independent_workarea: None,
         });
 
+        let load_start = crate::loadavg::read_loadavg();
         let result = runner.execute_single_test(test, &preflight, &env_info, &mut self.tracker);
+        self.run_load = Some(super::state::RunLoad {
+            start: load_start,
+            end: crate::loadavg::read_loadavg(),
+            cpus: crate::loadavg::cpu_count(),
+        });
         self.status_message = Some(format!(
             "Ran {}: {:?} ({}ms)",
             test.id, result.final_status, result.duration_ms
