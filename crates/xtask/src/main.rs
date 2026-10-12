@@ -1,10 +1,11 @@
 //! xtask: Internal developer and CI tooling for spawn-at.
 //!
-//! Provides `check-comment-only` and `check-doc-coverage` without external dependencies.
+//! Provides `check-comment-only`, `check-doc-coverage` and `burn-cpu` without external dependencies.
 //! `check-doc-coverage` with no paths gates `crates/spawn-at-verify/src` and only reports a count
 //! for `tests/`.
 //! `check-doc-coverage` combines a text scan with the compiler's `missing_docs` lint.
 
+mod burn_cpu;
 mod comment_only;
 mod compiler_docs;
 mod doc_coverage;
@@ -21,6 +22,7 @@ fn main() {
             eprintln!("Subcommands:");
             eprintln!("  check-comment-only <git-rev> [path]");
             eprintln!("  check-doc-coverage [path...]");
+            eprintln!("  burn-cpu --threads N --seconds S");
             exit(1);
         }
     };
@@ -52,9 +54,13 @@ fn main() {
             };
             doc_coverage::run_check_doc_coverage(&target_paths, &informational);
         }
+        "burn-cpu" => {
+            let rest: Vec<String> = args.collect();
+            burn_cpu::run_burn_cpu(&rest);
+        }
         other => {
             eprintln!("Unknown subcommand: {}", other);
-            eprintln!("Available subcommands: check-comment-only, check-doc-coverage");
+            eprintln!("Available subcommands: check-comment-only, check-doc-coverage, burn-cpu");
             exit(1);
         }
     }
