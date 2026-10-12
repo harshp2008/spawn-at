@@ -3,7 +3,6 @@
 use super::*;
 use std::time::SystemTime;
 
-use super::*;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdict, TestResult};
 use crate::schema::TestKind;
 
