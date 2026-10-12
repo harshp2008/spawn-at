@@ -813,3 +813,86 @@ Result: **the gap is larger today by about 7.7 ms (delay-0 median 5.44 to 13.15)
 - (b) `verify-results/gate-20261012/load_phase_journal.txt` cannot answer this: it holds only `ANCHOR_ARMED` (657), `ANCHOR_CORRECTION` (277), `ANCHOR_RELEASED` (660) and `LATE_RESIZE_CORRECTED` (150) lines, no `ARM_SPAWN`. The same time range (`+1696451.16 ms` to `+3350877.85 ms` on the shell's clock) was read from the journal instead (`g3/arm_release_journal.txt`, `journalctl --user -b _COMM=gnome-shell`). 697 `ARM_SPAWN` lines fall in it; a spawn counts when at least one earlier window was `ANCHOR_ARMED` and not yet `ANCHOR_RELEASED`. **Isolated runs (6.11 gate (b): 320 placement spawns, plus 37 `verify.cloak.delayedpaint` spawns whose origin was not traced): 0 of 357. `--repeat 20` runs: 304 of 319** (by design the previous repeat's window is retired only on the next arm, and `ANCHOR_RELEASED reason=RETIRED` follows the next `ARM_SPAWN`). **zenity (wildcard `*`): 0 of 20.** The classification of a spawn as isolated / repeat / zenity is by the first overlap and by `target="zenity"`/`"*"`; it is not an independent label. **CONFIRMED** for the counts. So in the isolated regime no run's `ARM_SPAWN` came before the previous run's `ANCHOR_RELEASED`; in `--repeat` it almost always does, which is the regime's definition.
 
 **Not done.** Whether a stale-print jump is visible on screen. The TUI drawer's busy warning (the load flag was computed from `report.json`). The cloak gap with the old extension (needs a log-out). A named `--class` zenity run under load. The 37 `verify.cloak.delayedpaint` spawns inside the load-phase journal range were not traced to a run.
+
+### 6.12 Why the window is revealed at its pre-resize size: investigation (2026-10-12, read-only, nothing implemented)
+
+No product code changed. Labels: CONFIRMED = read from stored or live data in this section; HYPOTHESIS = not tested.
+
+**Mechanism (CONFIRMED from `assets/gnome/modern/commit.js` and 640 stored g3 runs).**
+
+- `CommitLatch.waitForCommit` starts its 30 ms quiet timer at `commit.js:92-95` on any `allocation` sample when the idle timer is still pending, even if the frame size did not change.
+- In all 640 stored g3 runs (320 idle, 320 loaded) the first non-initial sample is an `allocation` at the initial 400x300. None was a `size-changed`.
+- `SIZE_SETTLED` on a frame other than the final one occurred in 205/320 loaded runs and 3/320 idle runs. Of the 205: 134 were corrected after the reveal, 62 were caught by `LATE_RESIZE_CORRECTED` before it, 9 were not observed in the slice (8 of them top-left anchored, so no position change to log).
+- Every post-reveal correction run (134 loaded, 3 idle) has `SIZE_SETTLED` with settled frame != requested size. No run whose latch ended `AT_TARGET` (43 loaded, 139 idle) was corrected.
+- That the first allocation is the app's own initial buffer is a HYPOTHESIS: at idle it arrives 1.2 ms (median) after the request, which looks like the compositor reacting to our own `move_resize_frame`. The live sampling below did not settle it.
+
+**Correction to the premise "bottom-right-larger never flashes" (CONFIRMED).** In the stored loaded runs bottom-right-larger is the worst class: 20/20 settled early, 18 post-reveal corrections, 1 pre-reveal correction. It has zero stale-print warnings only because spawn-at printed the rectangle after the grow had landed.
+
+**Per request class, stored loaded runs (n = 20 / 100 / 20 / 180).**
+
+| class | settled on a stale frame | post-reveal corrected | median request->first sample | median settled->real resize (corrected runs) |
+| :--- | ---: | ---: | ---: | ---: |
+| grow | 20 | 18 | 10.1 ms | 74.5 ms |
+| legal shrink | 65 | 39 | 14.9 ms | 47.7 ms |
+| exactly at min | 12 | 9 | 14.0 ms | 46.4 ms |
+| below min | 108 | 68 | 14.7 ms | 44.3 ms |
+
+At idle the app answers in a median of 9.3 ms (legal shrink), 10.1 ms (at min), 10.5 ms (below min), 17.3 ms (grow) after the request.
+
+- H1 (quiet clock starts at the first sample, not at an answer): supported as the mechanism.
+- H2 (below-min is slower than legal): not supported. The classes have the same idle response time and the same flash rate (38% vs 39% loaded).
+- H3 (shrink vs grow is the discriminator): not supported as stated. Grow flashes most, because the app needs longer to answer (17 ms vs about 10 ms at idle) and the 30 ms window is about 29 ms after the first sample.
+- Every corrected run had the anchor computed for 400x300 (the default), never the final size.
+
+**Delay from SIZE_SETTLED to the app's real resize**, runs that were corrected after the reveal:
+
+| level | n | median | p90 | p95 | p99 | max |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| stored g3 loaded (22 threads) | 134 | 50.6 | 168.7 | 235.2 | 307.6 | 350.0 |
+| live idle, sampler harness | 28 | 9.8 | 20.1 | 21.1 | 25.0 | 25.0 |
+| live 1 thread | 18 | 8.7 | 16.7 | 30.0 | 30.0 | 30.0 |
+| live 11 threads | 105 | 19.9 | 37.4 | 91.2 | 150.8 | 251.4 |
+| live 22 threads | 91 | 39.0 | 84.3 | 109.4 | 369.1 | 369.1 |
+
+The loaded tail is long (p99 above 300 ms), so a bounded grace would leave a residual; see the decision below.
+
+**Screencast run, 17:16:12 IST (window 604720095), from the journal.** CLOAK to UNCLOAK is 605.6 ms, matching the drawer. Times in ms from SET_SIZE_REQUEST: first allocation sample +354.9 (frame still 400x300), SIZE_SETTLED +540.1, UNCLOAK +605.1, ANCHOR_CORRECTION +685.2. The cloak ended through the quiet timer (`SIZE_SETTLED`); no cap or timeout fired. The shell main loop was stalled twice: 355 ms before the first sample and 185 ms for a 30 ms timer. The 120 ms idle timer did not fire first because the sample callback removed it (HYPOTHESIS about dispatch order). The screencast session left no session directory in `verify-results/`.
+
+**Signals available on GNOME 46 (typelib `Meta-14`, mutter 46.2, CONFIRMED by gjs introspection and `Meta-14.gir`).**
+
+- `Meta.Window`: signals `size-changed`, `position-changed`, `shown`, `unmanaged`; methods `get_buffer_rect`, `get_frame_rect`, `get_pid`, `get_client_type` (`WAYLAND=0`, `X11=1`), `get_sandboxed_app_id`, `get_stable_sequence`. `get_pid` is documented as spoofable by the client; `get_sandboxed_app_id` covers flatpak and snap and may be null.
+- `Meta.WindowActor`: signals `damaged`, `first-frame`, `thawed`; method `has_damage`; property `allocation`. `Meta.ShapedTexture` has a `size-changed` signal.
+- `Meta.SurfaceActor` is not in the typelib. `get_pid`, `get_client_type` and `get_sandboxed_app_id` are already called by `logger.js` and `extension.js` inside the shell.
+- Not tested live: that `damaged` or `ShapedTexture::size-changed` fires on a client commit after our request.
+
+**Live /proc sampling (item 6).** A throwaway Rust sampler in `scratch/` (not committed) read `/proc/<pid>/stat` and `schedstat` about every 1 ms, with the clock tied to the journal by 16 `SetLogging` echoes per run (round trip 0.3 ms idle, offset spread 0.3 ms). One sample costs 1.2-1.6 µs idle (median).
+
+| level | runs | settled on a stale frame | corrected after reveal | mean 1-min load |
+| :--- | ---: | ---: | ---: | ---: |
+| idle (3 phases) | 84 | 64 | 28 | 1.2-1.4 |
+| 1 thread | 32 | 27 | 18 | 2.3 |
+| 11 threads | 120 | 114 | 105 | 12.5 |
+| 22 threads | 120 | 96 | 91 | 25.0 |
+
+- The idle stale rate here (65-84%) is far above the 1% of the stored g3 idle runs and 0-1 of 8 in two of my control batches. The cause is not established. Killing the previous fixture with SIGTERM made the next spawn slow in one control (7/8), but the later phases without the kill were also slow. HYPOTHESIS: cold CPU frequency state (intel_pstate, powersave, idle cores at 400 MHz). The load comparison above is therefore not a clean one.
+- "App has run since the request and is asleep at SIZE_SETTLED" does not separate the groups. CPU advanced since the request in 100% of stale and non-stale runs. At 11 threads 112/114 stale runs were asleep (non-stale: 5/6); at 22 threads 62/96 stale vs 6/24 non-stale were asleep, and run-queue wait of at least 1 ms was in 93/96 stale vs 24/24 non-stale. The state at settle is the same as at a correct settle, so a scheduler-aware settle (option E) would not tell them apart. CONFIRMED on this data.
+- Real apps (3 runs each, idle and 11 threads): gnome-text-editor 30x20, nautilus and gnome-terminal (1 and 3 windows) settled by `SIZE_SETTLED` and none flashed; firefox (snap) flashed 6/6 (corrected 135-312 ms after the request). The window pid matched the sampled process in every run. Chrome was never claimed (`REJECT_UNMATCHED`, class `google-chrome` without `--class`), so there is no Chrome timing.
+- Facts per app: all report `proto=Wayland`. Terminal windows share one `gnome-terminal-server` pid (3 and up to 7 windows per pid). Nautilus shares the already running service pid. Firefox runs from `/snap/firefox/...`; its `app` field shows `firefox_firefox`. The `app=` field in the log merges the GTK application id and the sandboxed id, so the sandbox id alone was not observed. Reading `/proc/<pid>/maps`: about 0.2 ms for GTK apps (110-130 KB), 0.8-1.0 ms for firefox (240-270 KB), up to 2 ms at 11 threads. Toolkit libraries seen: libgtk-3 (terminal, firefox), libgtk-4 + libadwaita (editor, nautilus, chrome).
+
+**Decision (rule: short tail -> B + C, long tail -> E if validated, else accept).** The loaded p99 of settled -> real resize is 150-370 ms, so the tail is long. E is not validated, so no scheduler-based settle is recommended. Cost from the stored loaded runs, simulated per option (estimates, not implemented):
+
+| option | flash fixed (of 134) | extra cloak median / p95 |
+| :--- | ---: | ---: |
+| A: quiet clock from a size-change, 120 ms idle timeout | 83 | 25.9 / 77.8 ms |
+| B, G = 100 ms | 109 | 35.1 / 100 ms |
+| B, G = 200 ms | 124 | 35.1 / 200 ms |
+| B, G = 300 ms | 130 | 35.1 / 230 ms |
+| D: accept | 0 | 0 |
+
+A and B cost up to G on an app that never answers (a min-bound app already at its minimum, such as gnome-text-editor at 30x20, which today settles in about 32-40 ms), which breaks the 100 ms provisional cloak budget on every first spawn; C (learned minimum per app id, in memory) would remove that cost for later spawns. The pragmatic recommendation is D now, with the residual of this change being the corrected-after-reveal warning already shown by the verify tool: expect a post-reveal correction in roughly 40% of runs under a 22-thread load. Idle stays low (about 1%) in the verify harness. A grace needs the idle-rate discrepancy above resolved first.
+
+**Nested shell (item 5, report only).** `gnome-shell --headless --wayland --no-x11 --wayland-display=NAME --virtual-monitor 1920x1080` starts on GNOME 46 inside `dbus-run-session` in about 1 s and gets its own D-Bus. The spawn-at extension was not shown to load there. The verify tool reads the user journal (`journalctl --user`), so it would need a file log source or the shell started as a transient user unit, and `WAYLAND_DISPLAY` and `DBUS_SESSION_BUS_ADDRESS` set for it. Isolation of settings must be set up before `dbus-run-session` starts (see the incident below); the safe route is `GSETTINGS_BACKEND=keyfile` plus `XDG_CONFIG_HOME` exported before it. If a nested shell is not workable, a developer switch (a variant name read per spawn from a file in `$XDG_RUNTIME_DIR`, never committed) would let one log-out test several variants.
+
+**Incident during this investigation (CONFIRMED).** A nested-shell experiment wrote `org.gnome.shell enabled-extensions` into the real dconf database: the D-Bus-activated dconf service in the private session did not inherit my `XDG_CONFIG_HOME`. The value was `['spawn-at@harsh.local']` for a while and is back to the original 25-entry list (compared by eye against the value captured at the start). I did not manage to restore it myself; how it came back is not established.
+
+**Not done / partial.** The user stopped the run at about 19:3x; the 22-thread v2 phase had completed by then. No phase was rerun. Real apps were not run at 22 threads, Chrome was not claimed, and `term1` at 11 threads has one run with no events. No fix was implemented.
