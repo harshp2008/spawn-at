@@ -292,6 +292,19 @@ impl TestRunner {
         };
         let target_id = attributed_id.or(transform_target_id);
 
+        // A trace for the run's window proves the timing log is on, so a remembered echo timeout
+        // no longer applies.
+        if assess_trace(
+            log_slice.as_deref(),
+            extract_claimed_window_id(&stdout, &stderr).or(target_id),
+            None,
+        )
+        .report()
+        .is_some()
+        {
+            self.logging.trace_captured();
+        }
+
         // Validate expectations
         let validation = validate_expectations(test, exit_code, &stderr, env_info)
             .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));

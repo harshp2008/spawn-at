@@ -40,6 +40,8 @@ const ENABLE_ECHO: &str = "SET_LOGGING enabled=true";
 const ECHO_TIMEOUT: Duration = Duration::from_millis(1000);
 /// Pause between polls for the echo (the first poll is immediate).
 const ECHO_POLL_INTERVAL: Duration = Duration::from_millis(20);
+/// Longest echo wait once an earlier wait has timed out; stops at the first match.
+const REMEMBERED_ECHO_TIMEOUT: Duration = Duration::from_millis(150);
 
 /// Polls `log` for [`ENABLE_ECHO`] in the slice starting at `since`, immediately and then every
 /// `interval`, and stops at the first match. No poll starts once `timeout` has elapsed, so the
@@ -98,6 +100,10 @@ pub trait LoggingControl: Send + Sync {
     /// Enables the timing log and reports whether it is known to be on. `log` is the source the
     /// run's slice will be read from; it is where the enable echo is looked for.
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome;
+
+    /// Called when a run's slice held a trace for its window, which proves the timing log is on.
+    /// The default does nothing.
+    fn trace_captured(&self) {}
 }
 
 /// Whether the last echo wait of this session timed out. It lives for the whole process, so
@@ -119,9 +125,10 @@ impl EchoMemory {
 /// single check made after an earlier timeout, so every affected result carries the same text.
 pub fn echo_timeout_note() -> String {
     format!(
-        "SetLogging(true) succeeded but no '{}' line reached the journal (the first wait lasts {} ms; once one times out, later tests are checked once), so the timing log may be off",
+        "SetLogging(true) succeeded but no '{}' line reached the journal (the first wait lasts {} ms; once one times out, later tests wait only {} ms), so the timing log may be off",
         ENABLE_ECHO,
-        ECHO_TIMEOUT.as_millis()
+        ECHO_TIMEOUT.as_millis(),
+        REMEMBERED_ECHO_TIMEOUT.as_millis()
     )
 }
 
@@ -155,7 +162,7 @@ impl Default for GdbusLogging {
 impl LoggingControl for GdbusLogging {
     /// Calls `SetLogging(true)`. With the "noop" log source it stops there, because nothing can
     /// echo into it. Otherwise it waits up to the timeout for [`ENABLE_ECHO`] (see
-    /// [`wait_for_echo`]), or makes a single check once an earlier wait has timed out.
+    /// [`wait_for_echo`]), or waits only [`REMEMBERED_ECHO_TIMEOUT`] once an earlier wait has timed out.
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome {
         let since = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -173,10 +180,10 @@ impl LoggingControl for GdbusLogging {
                     .to_string(),
             );
         }
-        // After a timeout the wait shrinks to one immediate check; seeing the echo again clears it.
+        // After a timeout the wait shrinks to a short poll; seeing the echo again clears it.
         let remembered = self.memory.timed_out.load(Ordering::SeqCst);
         let timeout = if remembered {
-            Duration::ZERO
+            REMEMBERED_ECHO_TIMEOUT
         } else {
             self.timeout
         };
@@ -186,6 +193,11 @@ impl LoggingControl for GdbusLogging {
         }
         self.memory.timed_out.store(true, Ordering::SeqCst);
         LoggingOutcome::Failed(echo_timeout_note())
+    }
+
+    /// Clears the remembered echo timeout: a captured trace shows the log works.
+    fn trace_captured(&self) {
+        self.memory.timed_out.store(false, Ordering::SeqCst);
     }
 }
 
@@ -463,10 +475,9 @@ mod tests {
             ctl.ensure_enabled(&journal),
             LoggingOutcome::Failed(_)
         ));
-        assert_eq!(
-            journal.calls(),
-            reads_after_first + 1,
-            "second check polled"
+        assert!(
+            journal.calls() > reads_after_first + 1,
+            "short poll polled repeatedly"
         );
         let total = began.elapsed();
         assert!(
@@ -475,7 +486,7 @@ mod tests {
             first
         );
         assert!(
-            total < Duration::from_millis(1400),
+            total < Duration::from_millis(1500),
             "total took {:?}",
             total
         );
@@ -523,5 +534,26 @@ mod tests {
             LoggingOutcome::Failed(_)
         ));
         assert!(began.elapsed() >= Duration::from_millis(200));
+    }
+
+    /// After a timeout the 150 ms poll catches an echo that shows up on the 4th read (about
+    /// 60 ms in). Fails if the remembered wait is a single immediate check.
+    #[test]
+    fn test_late_echo_is_caught_by_the_short_poll() {
+        let memory = Arc::new(EchoMemory::default());
+        memory.timed_out.store(true, Ordering::SeqCst);
+        let ctl = control(&memory, ECHO_TIMEOUT);
+        let journal = FakeJournal::new(Some(4));
+        assert_eq!(ctl.ensure_enabled(&journal), LoggingOutcome::Enabled);
+        assert!(!memory.timed_out.load(Ordering::SeqCst));
+    }
+
+    /// `trace_captured` clears a set memory, so the next missing echo waits the full timeout.
+    #[test]
+    fn test_trace_captured_clears_the_timeout_memory() {
+        let memory = Arc::new(EchoMemory::default());
+        memory.timed_out.store(true, Ordering::SeqCst);
+        control(&memory, ECHO_TIMEOUT).trace_captured();
+        assert!(!memory.timed_out.load(Ordering::SeqCst));
     }
 }

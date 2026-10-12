@@ -305,3 +305,45 @@ fn test_enable_time_is_excluded_from_duration_ms() {
     assert!(res.duration_ms < 250, "duration_ms was {}", res.duration_ms);
     assert_full_pass(&res);
 }
+
+/// Wraps a fake extension and counts `trace_captured` calls.
+struct CountingCaptured(
+    FakeExtension,
+    std::sync::Arc<std::sync::atomic::AtomicUsize>,
+);
+
+impl crate::ext_logging::LoggingControl for CountingCaptured {
+    /// Delegates to the wrapped fake.
+    fn ensure_enabled(
+        &self,
+        log: &dyn crate::log_source::LogSource,
+    ) -> crate::ext_logging::LoggingOutcome {
+        self.0.ensure_enabled(log)
+    }
+
+    /// Counts the call.
+    fn trace_captured(&self) {
+        self.1.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
+
+/// A run whose slice holds the window's trace calls `trace_captured` once; a run whose log is
+/// off (empty slice) does not. Fails if the memory were cleared without a captured trace.
+#[test]
+fn test_captured_trace_notifies_logging_control_and_empty_slice_does_not() {
+    use std::sync::{atomic::AtomicUsize, atomic::Ordering, Arc};
+    let hits = Arc::new(AtomicUsize::new(0));
+    let ext = FakeExtension::new(false, &real_trace_lines());
+    let runner = runner_with(&ext)
+        .with_logging_control(Box::new(CountingCaptured(ext.clone(), hits.clone())));
+    run_once(&runner, &placement_spec());
+    assert_eq!(hits.load(Ordering::SeqCst), 1);
+
+    let off = FakeExtension::new(false, &real_trace_lines());
+    off.set_enable_error(Some("gdbus: no such object"));
+    let hits2 = Arc::new(AtomicUsize::new(0));
+    let runner = runner_with(&off)
+        .with_logging_control(Box::new(CountingCaptured(off.clone(), hits2.clone())));
+    run_once(&runner, &placement_spec());
+    assert_eq!(hits2.load(Ordering::SeqCst), 0);
+}
