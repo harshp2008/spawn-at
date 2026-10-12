@@ -200,6 +200,17 @@ pub struct RenderArgs {
     pub dir: Option<PathBuf>,
 }
 
+/// Which measurement mode(s) `calibrate` runs.
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum CalibrateMode {
+    /// N separate `run` processes, then N runs with `--repeat` in one process.
+    Both,
+    /// Only N separate `run` processes.
+    Separate,
+    /// Only N runs with `--repeat` in one process.
+    Repeat,
+}
+
 /// Arguments for the `calibrate` subcommand.
 #[derive(Args, Debug)]
 pub struct CalibrateArgs {
@@ -207,7 +218,7 @@ pub struct CalibrateArgs {
     #[arg(long)]
     pub case: String,
 
-    /// Runs per mode (separate processes, then --repeat), capped at 100
+    /// Runs per mode, capped at 100
     #[arg(long, default_value = "10")]
     pub runs: usize,
 
@@ -218,6 +229,10 @@ pub struct CalibrateArgs {
     /// Path to verify test library directory [default: auto-detected verify/]
     #[arg(long)]
     pub dir: Option<PathBuf>,
+
+    /// Which mode(s) to measure: both, separate, or repeat
+    #[arg(long, value_enum, default_value = "both")]
+    pub mode: CalibrateMode,
 
     /// Allow measuring a dirty build
     #[arg(long)]
