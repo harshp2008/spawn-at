@@ -969,3 +969,90 @@ Developer switch for a single log-out (never committed): the extension reads a v
 **Recommendation: no cloak change.** Keep the existing late-resize check and the post-reveal anchor correction, which already give the right final placement. If the flash must shrink, the data in 6.12 and the stage numbers here support a bounded grace after `SIZE_SETTLED` while the size differs from the request, with a learned minimum per app so min-bound apps do not pay it again; its cost is up to the grace on a first spawn of an app that never answers. Expected residual under a 22-thread load: about 25% of runs corrected after the reveal in the `run` path (10 of 40), higher for browser-class apps.
 
 **Not done.** No extension or product change. Chrome, nautilus and terminals were not traced at the protocol level. The idle discrepancy between the sampler harness and the `run` path is open. Whether mutter defers the configure send to the frame clock was not established (configure arrival at idle is 6-14 ms after the call, never earlier than 6 ms).
+
+### 6.14 Mutter API leads and an "arrival wait" simulation (2026-10-12, read-only, nothing implemented)
+
+Provenance tags: **[typelib]** = measured on this shell with gjs introspection of `Meta-14.typelib` (mutter 46.2); **[headers]** = grep of the installed `libmutter-14-dev` headers; **[web]** = read through WebFetch (a small model summarised the upstream file, so treat it as unverified); **[sim]** = offline simulation on the stored runs; **[inference]** = my reasoning.
+
+#### 1. Window API on GNOME 46
+
+| question | answer on this shell | source |
+| :--- | :--- | :--- |
+| `Meta.Window` signals | `workspace-changed`, `focus`, `raised`, `unmanaging`, `unmanaged`, `position-changed`, `monitor-changed(gint)`, `shown`, `size-changed`, `highest-scale-monitor-changed`. No `configure`. | CONFIRMED [typelib] |
+| `configure` signal | Exists only on `Meta.WaylandSurface`, with no arguments (`configure()`). `Meta.WaylandSurface` exposes only `window` / `get_window`; `Meta.Window` has no `get_wayland_surface`. | CONFIRMED [typelib] |
+| `add_external_constraint` / `remove_external_constraint` | not present (`typeof` is `undefined`; no `MetaExternalConstraint`; not in the 46.2 headers) | CONFIRMED [typelib][headers] |
+| `get_min_size` / `get_max_size` | not present on `Meta.Window` (46.2 typelib and headers) | CONFIRMED [typelib][headers] |
+| other constraint-like API | `Meta.Window.override_constraints(top, left, right, bottom)` taking `Meta.WindowConstraint` (`none`/`window`/`monitor`); declared in a private introspected header; it sets edge-constraint state, not a callback | CONFIRMED [typelib] |
+
+Where the names appear upstream [web, unverified]:
+
+- `meta_window_get_min_size`, `meta_window_get_max_size`, `meta_window_add_external_constraint`, `meta_window_remove_external_constraint` are absent from `window.h` at tags 47.0, 48.0 and 49.4 and present at 50.0 and `main`. The mutter NEWS lists "Add support for external window constraints" under 50.alpha and "Introduce API to get window min/max sizes" under 50.0. So the answer to "which version added get_min_size" is GNOME/mutter 50 (HYPOTHESIS, from summaries).
+- Signatures at 50.0 [web]: `gboolean meta_window_get_min_size (MetaWindow *window, int *width, int *height)` (same for max), `void meta_window_add_external_constraint (MetaWindow *window, MetaExternalConstraint *constraint)` (same for remove). `MetaExternalConstraint` is a GObject interface with one virtual function `gboolean constrain (MetaExternalConstraint *constraint, MetaWindow *window, MetaExternalConstraintInfo *info)`; `info` carries `new_rect` (`MtkRectangle *`, in/out), `flags` (`MetaExternalConstraintFlags`, MOVE or RESIZE) and `resize_gravity`. The callback may modify `new_rect` and returns TRUE when the window is fully constrained.
+
+When `configure` is emitted [web, unverified]: in `meta_wayland_surface_configure_notify()` with `g_signal_emit (surface, surface_signals[SURFACE_CONFIGURE], 0)`; the `MetaWaylandWindowConfiguration` is passed only to the shell-surface call that follows, not to the signal. So it is a notification that a configure is about to go out; it can change nothing and carries no size. I did not find who calls it.
+
+When an external constraint runs [web, unverified]: `constrain_external` is the last entry of `all_constraints` in 50.0 (`PRIORITY_EXTERNAL_CONSTRAINT = 5`, "highest priority"), so it is evaluated in `meta_window_constrain` on every pass. It has no action check. It passes a copy of the proposed rect, the resize gravity and flags derived from the MOVE/RESIZE action bits, then writes the possibly modified rect back. For a client-driven commit (`META_MOVE_RESIZE_WAYLAND_FINISH_MOVE_RESIZE`) the constraint code runs (the 46.2 summary says position-only constraints still apply for that flag) and `constrain_external` does not skip it, but that flag maps to neither MOVE nor RESIZE in the flags passed out, so a constraint would have to read the size from `new_rect` itself.
+
+Could a constraint pin the anchor corner in the same operation as a late client resize? Inference [inference] from the above: yes in principle. If the constraint recomputes `new_rect.x/y` from `new_rect.width/height` and the anchor each time it runs, the client's resized commit and the repositioning happen in one `meta_window_move_resize_internal`, so no separate corrector move and no intermediate frame at the wrong position. Not testable here: the API does not exist on 46 (and the extension cannot add a C vfunc; it would be a JS class implementing the interface, which I have not checked GJS can do). Whether it also runs on non-resizing moves (it would fight the user dragging) is unknown.
+
+Does the extension's min-size path activate on 50? `_getMinSize` calls `window.get_min_size?.()` and reads `size[0]`, `size[1]` (`extension.js:300-305`, same in `legacy/extension.js:310`). On 46 the method is missing, so it returns `[0,0]`; that is why every trace says `reportedMinSize=(0x0)` and `FALLBACK_USED reason="min size unreported"`. On 50, GJS would return `[true, width, height]` for a `gboolean` plus two out arguments [inference, GJS convention not tested]; `_num(true)` is 0 (`Number.isFinite(true)` is false), so the code would read `[0, width]` and place the width in the height slot. The path would activate and be wrong. It needs `[ok, w, h]` handling before it is relied on.
+
+#### 2. "Arrival wait" simulation
+
+Rule simulated: instead of the 30 ms quiet rule, wait until the frame first equals the requested size (a `size-changed` sample at that size), cap C; on the cap, fall back to today's rule. Data: the 320 stored g3 loaded runs, the 320 idle runs, and the 120 fixture-trace runs from 6.13 (run path). All times in ms after SET_SIZE_REQUEST; "extra" = new settle time minus today's `SIZE_SETTLED`/`AT_TARGET` time (negative = saved). Arrival time = the first `size-changed` sample at the final size when the app answered inside the latch, otherwise the post-reveal `ANCHOR_CORRECTION` time, or for runs caught by the late check the check time (an upper bound, so costs for those runs are overstated). Runs with no recorded arrival (8 top-left below-min runs and one grow run, all loaded) count as cap hits and avoid nothing. Fallback after the cap is modelled as: settle at max(C, today's time), or for below-min runs that answered before the cap, max(C, answer + 30 ms).
+
+Stored loaded runs (22 threads), by class. Flash = corrected after the reveal.
+
+| class | n | flash today | C | avoided | cap hits | extra median / p95 / max |
+| :--- | ---: | ---: | ---: | ---: | ---: | :--- |
+| (i) legal shrink | 100 | 39 | 100 / 150 / 250 | 16 / 33 / 36 | 25 / 7 / 4 | 14.0 / 54.7 / 66.8; 14.5 / 80.8 / 116.8; 14.6 / 97.8 / 208.3 |
+| (i) grow | 20 | 18 | 100 / 150 / 250 | 4 / 11 / 16 | 15 / 8 / 3 | 52.1 / 64.2 / 64.8; 74.5 / 114.2 / 114.8; 74.5 / 214.2 / 214.8 |
+| (ii) at-min | 20 | 9 | 100 / 150 / 250 | 3 / 8 / 8 | 7 / 1 / 1 | 8.6 / 42.6 / 58.0; 8.6 / 65.3 / 83.7; 8.6 / 65.3 / 83.7 |
+| (iii) below-min, min unknown | 180 | 68 | 100 / 150 / 250 | 32 / 50 / 63 | 180 / 180 / 180 | 40.8 / 66.2 / 79.0; 89.9 / 113.3 / 122.5; 189.0 / 213.3 / 216.4 |
+| (iii) below-min, min known | 180 | 68 | 100 / 150 / 250 | 32 / 50 / 63 | 49 / 27 / 13 | 11.3 / 49.5 / 64.5; 14.9 / 93.0 / 114.5; 16.0 / 181.2 / 214.5 |
+
+Below-min with the minimum unknown never reaches the requested size, so every run waits for the cap: the median extra is about C minus today's time. With the minimum known (target = max(request, min)) the arrival is the answer itself and the wait ends there. Known-min minimum extra is -184.8 ms (a run whose quiet timer was starved today). At idle (320 runs): legal shrink, grow and at-min cost about 0 (median -0.1); below-min with min unknown costs a median 58.8 / 108.8 / 208.8 ms for C = 100 / 150 / 250; with min known it saves a median 30.8 ms (the 30 ms quiet rule is no longer needed), at idle avoided flashes 0 / 0 / 2 of 2.
+
+Fixture-trace runs (run path, two legal-shrink specs, 40 each): back-to-back and idle with 30 s gaps have no flashes and the arrival wait changes nothing (extra 0). At 22 threads: 10 flashes today; avoided 9 / 9 / 10 for C = 100 / 150 / 250; cap hits 1 / 1 / 0; extra median 0, p95 29.8 / 35.5 / 35.5, max 40.3 / 66.4 / 84.5.
+
+Comparison with the fixed grace of 6.12, recomputed with the same code on the same 320 loaded runs (mean extra is over all runs, flashes of 134):
+
+| scheme | flashes avoided | mean extra ms | p95 extra ms | avoided per mean ms |
+| :--- | ---: | ---: | ---: | ---: |
+| fixed grace G = 50 / 100 / 150 / 200 / 300 | 66 / 109 / 118 / 124 / 130 | 28.5 / 38.3 / 43.4 / 47.0 / 51.9 | 63 / 100 / 150 / 200 / 230 | 2.3 / 2.9 / 2.7 / 2.6 / 2.5 |
+| arrival wait, min unknown, C = 100 / 150 / 250 | 55 / 102 / 123 | 30.9 / 61.2 / 120.0 | 64 / 111 / 211 | 1.8 / 1.7 / 1.0 |
+| arrival wait, min known, C = 100 / 150 / 250 | 55 / 102 / 123 | 10.7 / 19.1 / 27.7 | 58 / 96 / 178 | 5.2 / 5.3 / 4.4 |
+| arrival wait or answer-then-quiet (no cap on answered below-min runs), C = 100 / 150 / 250 | 55 / 102 / 123 | 23.0 / 33.5 / 43.4 | 63 / 103 / 181 | 2.4 / 3.1 / 2.8 |
+
+At idle the fixed grace costs a mean 0.7 ms (G ≥ 100, 3 of 3 flashes avoided); arrival wait with min unknown costs 32-117 ms on the 180 below-min specs; with min known it saves 17 ms on average.
+
+Which fixes more flashes per ms of cloak? Arrival wait with a known minimum, clearly (4.4-5.3 per mean ms against 2.5-2.9), and it shortens the cloak at idle. With the minimum unknown it is worse than the fixed grace (1.0-1.8) because every below-min run waits for the cap. The hybrid (arrival for compliant sizes, today's answer-then-quiet when the app answers with a different size) is about equal to the fixed grace (2.4-3.1) and costs nothing at idle.
+
+What the simulation cannot show:
+
+- **Real apps.** Only the fixture (every request is answered, either at the target or at the minimum) and the stored g3 runs. An app that never changes its frame (gnome-text-editor at 30x20, a fixed-size dialog) is not in the data; for it the wait always hits the cap.
+- **Arrival times are approximations** (post-reveal correction time, a late-check upper bound for 62 loaded runs); runs without a correction (8 top-left below-min, 1 grow) are cap hits by assumption.
+- **The minimum is taken from the final size.** On 46 there is no API for it; learning it from a previous spawn is not modelled, and a first spawn pays the unknown-min cost.
+- **Feedback.** It assumes the app's timing is unchanged by a longer cloak. 6.13 shows callbacks to a cloaked surface wait for the next stage update, which could slow a toolkit app's second frame.
+- **No second resize.** Apps that resize twice, snap to a grid, or are clamped by the work area are listed below, not simulated.
+- **Fixture-trace runs** are two specs of the same size class.
+
+#### 3. Edge cases that break "wait until frame == target", and the fallback
+
+| case | what happens | fallback |
+| :--- | :--- | :--- |
+| App ignores the request (fixed-size dialog, `resizeable` false) | the frame never changes; every spawn waits the full cap | skip the wait when `window.allows_resize()` / `resizeable` is false [typelib: both exist]; otherwise the cap, then today's quiet rule |
+| Terminal or other size-increment app | frame snaps to a grid and never equals the request (observed in 6.12: gnome-terminal asked 500x300, ended 494x292) | on the first `size-changed` to a different size switch to today's quiet rule (the "answer-then-quiet" hybrid); never wait for equality after an answer |
+| App resizes twice (overshoot then settle, or reaches the target and then re-lays out) | equality can fire on the transient size, or fire and a later resize arrives | finish at the first equality as today's `AT_TARGET` does; the existing late-resize check and reactive anchor handle the second resize |
+| Growth beyond the work area, or a request the compositor clamps | mutter constrains the frame, so it never equals the request | set the target to the request clamped to the work area the extension already computes; otherwise cap then quiet rule |
+| Maximised, fullscreen or tiled window | constraints force the size; the extension already unmaximises first | skip the wait for fullscreen and tiled windows; for maximised, unmaximise then wait as normal; on any mismatch use the quiet rule |
+| X11 client | mutter applies the resize and size hints itself and updates the frame rect immediately, so equality is immediate or the hints clamp it | if `get_client_type()` is X11 and the frame after the call differs from the request, do not wait for equality (use the quiet rule) |
+| Unknown minimum (below-min request) | never equal; waits for the cap on every spawn | treat the first different-size `size-changed` as the answer (quiet rule from there); keep a per-app learned minimum in memory only |
+| Request equals the current size | already equal | finish immediately |
+| Cap reached | | today's behaviour, so the worst case is the cap added on top of the old path |
+
+#### 4. Recommendation
+
+Do not build the arrival wait with the cap as the only stop. The data favour: (1) wait for equality with the requested size only for requests that can be met (resizeable, not fullscreen or tiled, within the work area); (2) the first `size-changed` to any other size counts as the answer and hands over to today's quiet rule, which keeps the below-min cost at the old level; (3) a cap of 150 ms (102 of 134 loaded flashes avoided at a mean 33.5 ms extra with the hybrid, 0 cost at idle); (4) a learned per-app minimum, in memory, to turn the below-min case into the known-min case (19 ms mean extra, 5.3 flashes per ms, and a saving at idle). External constraints and `get_min_size` need GNOME 50 and should be revisited there; the existing `_getMinSize` must be fixed for the `[ok, w, h]` return before then.
+
+**Not done.** No code. The constraint path, GJS's handling of the interface and of out-arguments, and the upstream version claims were not verified beyond the summaries above.
