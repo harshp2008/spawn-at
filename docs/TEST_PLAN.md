@@ -556,6 +556,8 @@ The Shell-stall probe of section 5 was not repeated, so the link between the sta
 | (a2) isolated, clean rerun | nothing else running, same specs | **318 / 320 (99.4%)** | 2 |
 | (b) `--repeat 20` | earlier windows alive | 315 / 320 (98.4%) | 6 |
 
+Regime (b), recounted from the 16 stored `report.json` files (`repeat_runs`): **5 failures, one each on bottom-right-smaller, -minsize-at-min, -below-min-width, -below-min-height and -far-below-min** (19/20 each); the other 11 specs passed 20/20. Six runs had no `size-changed` sample before `SIZE_SETTLED`, the five failures plus one run of bottom-right-larger that still passed (it was placed correctly). So "6" counts runs without a sample, not failures; an earlier summary that spoke of six failing bottom-right specs was wrong.
+
 (a1) and (a2) are the same 16 specs on the same binaries. Three of the specs re-run alone right after (a1) passed 60 of 60 (bottom-right-smaller 20, bottom-right-larger 20, top-left-below-min-both 20), as did `center-200x150` (20+20) and `center-1200x800` (20) via `run`, and 60 direct fixture drives (20 each without minimum flags, with `--min-width 100 --min-height 100`, and bottom-right with the flags). **Why (a1) was slow is not shown. HYPOTHESIS:** the Shell or machine was busy after the builds that preceded it; no load was recorded. Because of it there is no single "isolated" rate: 29.7% and 99.4% were both measured, on different minutes. Failures are reported as they came; no expectation was changed.
 
 **Per spec, regime (a2) / (b)** (a1 passes in brackets; size and position are the values at exit):
