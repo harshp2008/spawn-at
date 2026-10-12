@@ -185,3 +185,23 @@ fn test_drawer_non_trace_test_keeps_pass_and_shows_reason() {
     );
     assert!(flat.contains(note), "{}", plain);
 }
+
+/// The echo-timeout note is shown in the Reason row of every affected drawer: here two results
+/// in a row (as for two tests after one timed out) both carry the identical full sentence.
+#[test]
+fn test_drawer_echo_timeout_note_shown_for_every_affected_result() {
+    let note = spawn_at_verify::ext_logging::echo_timeout_note();
+    for _ in 0..2 {
+        let mut app = create_test_app();
+        let (test, res) = passed_result(&app, None, Some(&note));
+        let plain = drawer(&mut app, &test, res);
+        // The 100-column drawer wraps the long sentence, so compare with whitespace collapsed.
+        let flat = plain.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(
+            row(&plain, "Reason").contains("SetLogging(true) succeeded"),
+            "{}",
+            plain
+        );
+        assert!(flat.contains(&note), "{}", plain);
+    }
+}
