@@ -138,3 +138,16 @@ result still shows the comparison, but the drawer marks it "workarea from the ex
 independently probed" and the run message says so. With no workarea at all the placement is not
 verified and the test passes as "geometry unchecked" (exit code 2 for a required test; see
 `run --help`). The `spawn-at` installer is not involved.
+
+### Trace capture
+
+Cloak and "never visible off target" tests read the extension's timing log from the journal
+(`journalctl --user`, GNOME only). The extension has no way to report whether its logging is on
+and starts with logging off after every reload, so before each such run `spawn-at-verify`
+calls `SetLogging(true)` over D-Bus and waits for the extension's `SET_LOGGING enabled=true`
+line to appear in the journal. If a run's log slice holds no event for the window the fixture
+named, the result is not a clean pass: the test passes as "trace unchecked" (orange, exit code 2
+for a required test; see `run --help`), the drawer shows `Trace  not analysed (no trace
+captured)`, `Cloak  not measured` and `Budget  not measured`, and a `Reason` row says why (no
+GNOME log source, the timing log could not be enabled, an empty slice, or a slice with only other
+windows' events).

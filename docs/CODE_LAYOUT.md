@@ -304,6 +304,7 @@ crates/spawn-at-verify/
 │   ├── lib.rs                               # Module declarations and feature gates (20 lines)
 │   ├── main.rs                              # Thin entry point calling cli (10 lines)
 │   ├── log_source.rs                        # Journal and session log reader (162 lines)
+│   ├── ext_logging.rs                       # Extension timing-log control (SetLogging over gdbus, LoggingControl, FakeExtension) (216 lines)
 │   ├── preflight.rs                         # Host preflight checks (228 lines)
 │   ├── probe.rs                             # Compositor and monitor probe (264 lines)
 │   ├── process.rs                           # Subprocess execution and timeout (166 lines)
@@ -346,6 +347,7 @@ crates/spawn-at-verify/
 │   │   ├── mod.rs                           # Trace exports (10 lines)
 │   │   ├── models.rs                        # Trace data models, events, and violation structures (112 lines)
 │   │   ├── parser.rs                        # Trace log parsing and event extraction (231 lines)
+│   │   ├── state.rs                         # TraceState and assess_trace: analysed vs "no trace captured" with a reason (70 lines)
 │   │   ├── analyser.rs                      # Trace invariant analysis, lifecycle verification, timing budget checks (246 lines)
 │   │   └── report.rs                        # Trace analysis summary and outcome models (72 lines)
 │   ├── runner/                              # [SPLIT from runner.rs]
@@ -353,6 +355,7 @@ crates/spawn-at-verify/
 │   │   ├── models.rs                        # TestResult, FinalStatus, AutoStatus models (228 lines)
 │   │   ├── engine.rs                        # Test runner engine, repeat loops, process orchestration (113 lines)
 │   │   ├── executor.rs                      # Single-test execution, process invocation, log capture, attribution (361 lines)
+│   │   ├── trace_capture_tests.rs           # Executor tests: logging enabled before each run, missing trace recorded (245 lines)
 │   │   ├── validation.rs                    # Expectation verification, output matching, action argument building (175 lines)
 │   │   └── tests.rs                         # Runner unit tests (242 lines)
 │   ├── oracle/                              # [SPLIT from oracle.rs]
@@ -405,6 +408,7 @@ crates/spawn-at-verify/
     ├── fixture_test.rs                      # Fixture binary tests (254 lines)
     ├── oracle_cross_check.rs                # Oracle cross checks (577 lines) [Justified: matrix assertions]
     ├── trace_analyser_test.rs               # Trace analyzer tests (535 lines) [Justified: scenario data]
+    ├── trace_state_test.rs                  # assess_trace: empty / missing / foreign-window / normal slices (81 lines)
     ├── tui_test.rs                          # Root test crate wiring submodules (4 lines)
     └── tui/                                 # [SPLIT from tests/tui_test.rs (2,970 lines)]
         ├── mod.rs                           # Submodule definitions and common helpers (312 lines)
