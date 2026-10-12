@@ -1,6 +1,7 @@
 //! Common test harness helpers and submodule declarations for TUI test suite.
 
 pub mod app_flow;
+pub mod category_counts;
 pub mod drawer_content;
 pub mod drawer_geometry;
 pub mod drawer_keys_clipboard;

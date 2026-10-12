@@ -12,6 +12,57 @@ use ratatui::{
     Frame,
 };
 
+/// Per-category result counts shown on the heading.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct Tally {
+    /// Tests whose final status is Pass (an automatic pass still waiting on a human is not one).
+    pub pass: usize,
+    /// Tests whose automatic part passed and whose final status is still Pending: they wait
+    /// for a human verdict.
+    pub pending: usize,
+    /// Tests whose final status is Fail or Error, or whose automatic check failed.
+    pub fail: usize,
+}
+
+/// Counts `results` (one entry per test; `None` for a test that has not run).
+pub fn tally_results<'a>(
+    results: impl Iterator<Item = Option<&'a crate::runner::TestResult>>,
+) -> Tally {
+    let mut t = Tally::default();
+    for r in results.flatten() {
+        if r.final_status == FinalStatus::Fail
+            || r.final_status == FinalStatus::Error
+            || r.auto_status == AutoStatus::AutoFail
+        {
+            t.fail += 1;
+        } else if r.final_status == FinalStatus::Pass {
+            t.pass += 1;
+        } else if r.final_status == FinalStatus::Pending
+            && matches!(
+                r.auto_status,
+                AutoStatus::AutoPass
+                    | AutoStatus::AutoPassUnchecked
+                    | AutoStatus::AutoPassTraceUnchecked
+            )
+        {
+            t.pending += 1;
+        }
+    }
+    t
+}
+
+/// `"<pass>/<total>"`, then `" · <m> pending"` and `" · <k> fail"` only when those are not 0.
+pub fn category_counts_text(t: &Tally, total: usize) -> String {
+    let mut s = format!("{}/{}", t.pass, total);
+    if t.pending > 0 {
+        s.push_str(&format!(" · {} pending", t.pending));
+    }
+    if t.fail > 0 {
+        s.push_str(&format!(" · {} fail", t.fail));
+    }
+    s
+}
+
 /// Computes total visible row count in the test category tree factoring folded groups.
 pub fn compute_list_items_count(app: &TuiApp) -> usize {
     let filtered = app.filtered_tests();
@@ -75,17 +126,7 @@ pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
         let cat_tests: Vec<&&TestDefinition> =
             filtered.iter().filter(|t| t.category() == cat).collect();
         let cat_total = cat_tests.len();
-        let cat_passed = cat_tests
-            .iter()
-            .filter(|t| {
-                app.results
-                    .get(&t.id)
-                    .map(|r| {
-                        r.final_status == FinalStatus::Pass || r.auto_status == AutoStatus::AutoPass
-                    })
-                    .unwrap_or(false)
-            })
-            .count();
+        let tally = tally_results(cat_tests.iter().map(|t| app.results.get(&t.id)));
 
         if last_cat != Some(cat) {
             last_cat = Some(cat);
@@ -101,7 +142,13 @@ pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
             let right_text = if is_collapsed {
                 format!("({} hidden) ", cat_total)
             } else {
-                format!("{}/{} ", cat_passed, cat_total)
+                let full = format!("{} ", category_counts_text(&tally, cat_total));
+                // On a narrow panel keep only "pass/total" so the heading never overflows.
+                if cat_heading_text.chars().count() + full.chars().count() <= inner_w {
+                    full
+                } else {
+                    format!("{}/{} ", tally.pass, cat_total)
+                }
             };
 
             let fill = inner_w
