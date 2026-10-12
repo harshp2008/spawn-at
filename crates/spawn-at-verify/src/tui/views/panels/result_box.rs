@@ -3,6 +3,7 @@
 use super::description::count_wrapped_lines;
 use crate::runner::{AutoStatus, FinalStatus};
 use crate::tui::app::TuiApp;
+use crate::tui::views::theme::TRACE_UNCHECKED;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -66,6 +67,24 @@ pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
                 Span::styled(msg, Style::default().fg(Color::White)),
             ]);
             (plain, line, Color::Yellow)
+        } else if res.final_status == FinalStatus::PassTraceUnchecked
+            || res.auto_status == AutoStatus::AutoPassTraceUnchecked
+        {
+            let msg = res
+                .message
+                .clone()
+                .unwrap_or_else(|| format!("the trace was not captured ({} ms)", res.duration_ms));
+            let plain = format!("⚠ PASS (trace unchecked): {}", msg);
+            let line = Line::from(vec![
+                Span::styled(
+                    "⚠ PASS (trace unchecked): ",
+                    Style::default()
+                        .fg(TRACE_UNCHECKED)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(msg, Style::default().fg(Color::White)),
+            ]);
+            (plain, line, TRACE_UNCHECKED)
         } else if res.final_status == FinalStatus::Pass || res.auto_status == AutoStatus::AutoPass {
             let msg = format!("Assertions passed ({} ms)", res.duration_ms);
             let plain = format!("✔ PASS: {}", msg);

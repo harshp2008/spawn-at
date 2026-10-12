@@ -9,6 +9,7 @@ use super::validation::{
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
+use crate::trace::{assess_trace, TraceState};
 use crate::tracker::{query_window_ids, query_window_records, WindowTracker};
 use std::collections::HashSet;
 use std::path::Path;
@@ -299,7 +300,7 @@ impl TestRunner {
         let validation = validate_expectations(test, exit_code, &stderr, env_info)
             .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
         // Geometry caveats worth recording next to a pass.
-        let pass_message: String;
+        let mut pass_message: String;
         let auto_status = match validation {
             Ok(check) => {
                 let (status, message) = pass_assessment(check.as_ref());
@@ -329,45 +330,53 @@ impl TestRunner {
             }
         };
 
-        // Validate trace invariants if never_visible_off_target expectation is set and logs were captured
+        // A test that depends on the trace needs one for its window: violations fail it, and a
+        // missing trace downgrades a plain pass to "trace unchecked" instead of passing it as clean.
+        let window = extract_claimed_window_id(&stdout, &stderr).or(target_id);
         let auto_status = if matches!(
             auto_status,
             AutoStatus::AutoPass | AutoStatus::AutoPassUnchecked
-        ) && test.expect.never_visible_off_target
+        ) && needs_trace(test)
         {
-            if let Some(ref slice) = log_slice {
-                let mut analyser = crate::trace::TraceAnalyser::new();
-                if let Some(tid) = target_id {
-                    analyser = analyser.with_target_window_id(tid);
+            match assess_trace(log_slice.as_deref(), window, trace_note.as_deref()) {
+                TraceState::Analysed(report) => {
+                    if test.expect.never_visible_off_target && !report.is_pass() {
+                        let err_msg = format!("Trace verification failed: {:?}", report.violations);
+                        let (final_status, disagreement) = resolve_final_status(
+                            test.kind,
+                            AutoStatus::AutoFail,
+                            &HumanVerdict::default(),
+                        );
+                        return TestResult {
+                            id: test.id.clone(),
+                            title: test.title.clone(),
+                            kind: test.kind,
+                            required: test.required,
+                            auto_status: AutoStatus::AutoFail,
+                            human_verdict: HumanVerdict::default(),
+                            final_status,
+                            disagreement,
+                            duration_ms,
+                            exit_code: Some(exit_code),
+                            stdout,
+                            stderr,
+                            message: Some(err_msg),
+                            log_slice,
+                            trace_note: trace_note.clone(),
+                        };
+                    }
+                    auto_status
                 }
-                let report = analyser.analyse(slice);
-                if !report.is_pass() {
-                    let err_msg = format!("Trace verification failed: {:?}", report.violations);
-                    let (final_status, disagreement) = resolve_final_status(
-                        test.kind,
-                        AutoStatus::AutoFail,
-                        &HumanVerdict::default(),
-                    );
-                    return TestResult {
-                        id: test.id.clone(),
-                        title: test.title.clone(),
-                        kind: test.kind,
-                        required: test.required,
-                        auto_status: AutoStatus::AutoFail,
-                        human_verdict: HumanVerdict::default(),
-                        final_status,
-                        disagreement,
-                        duration_ms,
-                        exit_code: Some(exit_code),
-                        stdout,
-                        stderr,
-                        message: Some(err_msg),
-                        log_slice,
-                        trace_note: trace_note.clone(),
-                    };
+                TraceState::NotCaptured(why) => {
+                    pass_message =
+                        format!("{}, but the trace was not analysed: {}", pass_message, why);
+                    if auto_status == AutoStatus::AutoPass {
+                        AutoStatus::AutoPassTraceUnchecked
+                    } else {
+                        auto_status
+                    }
                 }
             }
-            auto_status
         } else {
             auto_status
         };

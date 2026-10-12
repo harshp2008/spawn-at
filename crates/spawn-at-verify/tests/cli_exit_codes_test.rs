@@ -17,7 +17,14 @@ fn test_run_help_documents_exit_codes() {
         assert!(text.contains("  0  no test failed"), "{}", text);
         assert!(text.contains("  1  at least one test failed"), "{}", text);
         assert!(
-            text.contains("  2  nothing failed, but at least one REQUIRED test passed with its geometry unchecked"),
+            text.contains("  2  nothing failed, but at least one REQUIRED test passed with part of its evidence unchecked"),
+            "{}",
+            text
+        );
+        // Both kinds of unchecked pass are named under code 2.
+        assert!(text.contains("its geometry (no workarea"), "{}", text);
+        assert!(
+            text.contains("or its\n     trace (the extension's timing log held no events"),
             "{}",
             text
         );

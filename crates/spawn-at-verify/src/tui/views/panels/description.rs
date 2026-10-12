@@ -3,6 +3,7 @@
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind};
 use crate::schema::TestKind;
 use crate::tui::app::{ActivePane, TuiApp};
+use crate::tui::views::theme::TRACE_UNCHECKED;
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -189,6 +190,12 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                         .fg(Color::Yellow)
                         .add_modifier(Modifier::BOLD),
                 ),
+                AutoStatus::AutoPassTraceUnchecked => Span::styled(
+                    "PASS (trace unchecked)",
+                    Style::default()
+                        .fg(TRACE_UNCHECKED)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 AutoStatus::AutoFail => Span::styled(
                     "FAIL",
                     Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
@@ -211,6 +218,9 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                 }
                 AutoStatus::AutoPassUnchecked => {
                     Span::styled("⚠ ", Style::default().fg(Color::Yellow))
+                }
+                AutoStatus::AutoPassTraceUnchecked => {
+                    Span::styled("⚠ ", Style::default().fg(TRACE_UNCHECKED))
                 }
                 AutoStatus::Running => Span::styled("◐ ", Style::default().fg(Color::Cyan)),
                 AutoStatus::Skipped | AutoStatus::Blocked => {

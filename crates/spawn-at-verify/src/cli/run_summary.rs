@@ -4,18 +4,20 @@ use crate::runner::{FinalStatus, TestResult};
 
 /// Exit code when at least one test failed, errored, was flaky or was blocked.
 pub const EXIT_FAILED: i32 = 1;
-/// Exit code when nothing failed but at least one REQUIRED test passed with its geometry
-/// unchecked. It is distinct from 0 so CI does not read it as a full pass.
+/// Exit code when nothing failed but at least one REQUIRED test passed with part of its
+/// evidence unchecked: its geometry was never verified, or its trace was never captured. It is
+/// distinct from 0 so CI does not read it as a full pass.
 pub const EXIT_UNCHECKED_REQUIRED: i32 = 2;
 
 /// Help text appended to `run --help` documenting the exit codes.
 pub const EXIT_CODE_HELP: &str = "\
 Exit codes:
-  0  no test failed; skipped, pending, and optional tests that passed with geometry
-     unchecked do not change the exit code
+  0  no test failed; skipped, pending, and optional tests that passed with geometry or
+     trace unchecked do not change the exit code
   1  at least one test failed, errored, was flaky, or was blocked
-  2  nothing failed, but at least one REQUIRED test passed with its geometry unchecked
-     (no workarea was available, so the placement was never verified): not a full pass
+  2  nothing failed, but at least one REQUIRED test passed with part of its evidence unchecked:
+     its geometry (no workarea was available, so the placement was never verified) or its
+     trace (the extension's timing log held no events for the window): not a full pass
 A failure (1) takes precedence over unchecked required passes (2).";
 
 /// Tallies of a run's final statuses.
@@ -33,6 +35,10 @@ pub struct RunSummary {
     pub unchecked_required: Vec<String>,
     /// Ids of optional tests that passed with geometry unchecked.
     pub unchecked_optional: Vec<String>,
+    /// Ids of required tests that passed with their trace unchecked.
+    pub trace_unchecked_required: Vec<String>,
+    /// Ids of optional tests that passed with their trace unchecked.
+    pub trace_unchecked_optional: Vec<String>,
 }
 
 impl RunSummary {
@@ -45,6 +51,10 @@ impl RunSummary {
                 FinalStatus::Pass => s.passed += 1,
                 FinalStatus::PassUnchecked if r.required => s.unchecked_required.push(r.id.clone()),
                 FinalStatus::PassUnchecked => s.unchecked_optional.push(r.id.clone()),
+                FinalStatus::PassTraceUnchecked if r.required => {
+                    s.trace_unchecked_required.push(r.id.clone())
+                }
+                FinalStatus::PassTraceUnchecked => s.trace_unchecked_optional.push(r.id.clone()),
                 FinalStatus::Fail | FinalStatus::Error | FinalStatus::Flaky => s.failed += 1,
                 FinalStatus::Skipped => s.skipped += 1,
                 FinalStatus::Blocked => s.blocked += 1,
@@ -55,11 +65,12 @@ impl RunSummary {
     }
 
     /// Process exit code: [`EXIT_FAILED`] for any failure or block, else
-    /// [`EXIT_UNCHECKED_REQUIRED`] if a required test passed unchecked, else 0.
+    /// [`EXIT_UNCHECKED_REQUIRED`] if a required test passed with its geometry or trace
+    /// unchecked, else 0.
     pub fn exit_code(&self) -> i32 {
         if self.failed > 0 || self.blocked > 0 {
             EXIT_FAILED
-        } else if !self.unchecked_required.is_empty() {
+        } else if !self.unchecked_required.is_empty() || !self.trace_unchecked_required.is_empty() {
             EXIT_UNCHECKED_REQUIRED
         } else {
             0
@@ -72,23 +83,38 @@ impl RunSummary {
             "\nTotal: {}, Passed: {}, Failed: {}, Skipped: {}, Blocked: {}",
             total, self.passed, self.failed, self.skipped, self.blocked
         )];
-        let unchecked = self.unchecked_required.len() + self.unchecked_optional.len();
-        if unchecked > 0 {
-            out.push(format!(
-                "Passed with geometry unchecked (not counted as Passed): {} (required: {}, optional: {})",
-                unchecked,
-                self.unchecked_required.len(),
-                self.unchecked_optional.len()
-            ));
-        }
-        if !self.unchecked_required.is_empty() {
-            out.push(format!(
-                "\n⚠ {} required test(s) passed with geometry UNCHECKED; this is not a full pass (exit code {}):",
-                self.unchecked_required.len(),
-                EXIT_UNCHECKED_REQUIRED
-            ));
-            for id in &self.unchecked_required {
-                out.push(format!("  - {}", id));
+        for (what, required, optional) in [
+            (
+                "geometry",
+                &self.unchecked_required,
+                &self.unchecked_optional,
+            ),
+            (
+                "trace",
+                &self.trace_unchecked_required,
+                &self.trace_unchecked_optional,
+            ),
+        ] {
+            let unchecked = required.len() + optional.len();
+            if unchecked > 0 {
+                out.push(format!(
+                    "Passed with {} unchecked (not counted as Passed): {} (required: {}, optional: {})",
+                    what,
+                    unchecked,
+                    required.len(),
+                    optional.len()
+                ));
+            }
+            if !required.is_empty() {
+                out.push(format!(
+                    "\n⚠ {} required test(s) passed with {} UNCHECKED; this is not a full pass (exit code {}):",
+                    required.len(),
+                    what,
+                    EXIT_UNCHECKED_REQUIRED
+                ));
+                for id in required {
+                    out.push(format!("  - {}", id));
+                }
             }
         }
         out
@@ -178,6 +204,55 @@ mod tests {
         let s = RunSummary::from_results(&[
             result("g", true, FinalStatus::Fail),
             result("u", true, FinalStatus::PassUnchecked),
+        ]);
+        assert_eq!(s.exit_code(), EXIT_FAILED);
+    }
+
+    /// A REQUIRED pass with its trace unchecked follows the same rule as geometry unchecked:
+    /// exit 2, listed by id, counted apart from Passed, and named as "trace" in the summary.
+    #[test]
+    fn test_required_trace_unchecked_pass_exits_two() {
+        let s = RunSummary::from_results(&[
+            result("a", true, FinalStatus::Pass),
+            result("t", true, FinalStatus::PassTraceUnchecked),
+        ]);
+        assert_eq!(s.passed, 1);
+        assert_eq!(s.trace_unchecked_required, vec!["t".to_string()]);
+        assert!(s.unchecked_required.is_empty());
+        assert_eq!(s.exit_code(), EXIT_UNCHECKED_REQUIRED);
+        let text = s.lines(2).join("\n");
+        assert!(
+            text.contains(
+                "Passed with trace unchecked (not counted as Passed): 1 (required: 1, optional: 0)"
+            ),
+            "{}",
+            text
+        );
+        assert!(
+            text.contains("1 required test(s) passed with trace UNCHECKED"),
+            "{}",
+            text
+        );
+        assert!(
+            text.contains("exit code 2") && text.contains("  - t"),
+            "{}",
+            text
+        );
+    }
+
+    /// An OPTIONAL trace-unchecked pass keeps exit 0 but is reported; a failure outranks a
+    /// required trace-unchecked pass.
+    #[test]
+    fn test_optional_trace_unchecked_exits_zero_and_failure_outranks_it() {
+        let s = RunSummary::from_results(&[result("o", false, FinalStatus::PassTraceUnchecked)]);
+        assert_eq!((s.passed, s.exit_code()), (0, 0));
+        let text = s.lines(1).join("\n");
+        assert!(text.contains("required: 0, optional: 1"), "{}", text);
+        assert!(!text.contains("not a full pass"), "{}", text);
+
+        let s = RunSummary::from_results(&[
+            result("f", true, FinalStatus::Fail),
+            result("t", true, FinalStatus::PassTraceUnchecked),
         ]);
         assert_eq!(s.exit_code(), EXIT_FAILED);
     }

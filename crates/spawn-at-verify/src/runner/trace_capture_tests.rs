@@ -3,7 +3,7 @@
 //! is the real recording in `tests/fixtures/real_trace.log`, so no timing is invented.
 
 use super::engine::TestRunner;
-use super::models::{RunOptions, TestResult};
+use super::models::{AutoStatus, FinalStatus, RunOptions, TestResult};
 use crate::ext_logging::FakeExtension;
 use crate::loader::TestRegistry;
 use crate::log_source::NoOpLogSource;
@@ -100,6 +100,25 @@ fn run_once(runner: &TestRunner, test: &TestDefinition) -> TestResult {
     runner.execute_single_test(test, &preflight, &env, &mut tracker)
 }
 
+/// Asserts the run passed on its evidence: plain pass, trace analysed.
+fn assert_full_pass(res: &TestResult) {
+    assert_eq!(res.auto_status, AutoStatus::AutoPass, "{:?}", res.message);
+    assert_eq!(res.final_status, FinalStatus::Pass);
+}
+
+/// Asserts the run passed only with its trace unchecked, and that the message says why.
+fn assert_trace_unchecked(res: &TestResult, reason_part: &str) {
+    assert_eq!(res.auto_status, AutoStatus::AutoPassTraceUnchecked);
+    assert_eq!(res.final_status, FinalStatus::PassTraceUnchecked);
+    let msg = res.message.as_deref().unwrap_or("");
+    assert!(
+        msg.contains("the trace was not analysed"),
+        "message was {}",
+        msg
+    );
+    assert!(msg.contains(reason_part), "message was {}", msg);
+}
+
 /// The window claim echo prints for the recording's window.
 fn claim_real() -> String {
     format!(r#"{{"window_id":{}}}"#, REAL_WINDOW)
@@ -113,6 +132,7 @@ fn test_normal_trace_is_captured_and_analysed() {
     assert_eq!(res.claimed_window_id(), Some(REAL_WINDOW));
     assert_eq!(res.trace_note, None);
     assert!(matches!(res.trace_state(), TraceState::Analysed(_)));
+    assert_full_pass(&res);
 }
 
 /// Logging was off when the run began (an extension reload): it is switched on before the
@@ -125,6 +145,7 @@ fn test_logging_off_at_run_time_is_re_enabled_before_the_run() {
     assert_eq!(ext.enable_calls(), 1);
     assert!(ext.is_enabled());
     assert!(matches!(res.trace_state(), TraceState::Analysed(_)));
+    assert_full_pass(&res);
 }
 
 /// A TUI session keeps running tests while the extension is reloaded between them: every run
@@ -137,6 +158,7 @@ fn test_logging_that_resets_mid_session_is_re_enabled_for_the_next_run() {
 
     let first = run_once(&runner, &test);
     assert!(matches!(first.trace_state(), TraceState::Analysed(_)));
+    assert_full_pass(&first);
 
     ext.reload();
     assert!(!ext.is_enabled());
@@ -144,6 +166,22 @@ fn test_logging_that_resets_mid_session_is_re_enabled_for_the_next_run() {
     let second = run_once(&runner, &test);
     assert_eq!(ext.enable_calls(), 2, "enabled once per run");
     assert!(matches!(second.trace_state(), TraceState::Analysed(_)));
+    assert_full_pass(&second);
+}
+
+/// The extension reloads and logging cannot be turned back on: the run after the reload has
+/// no trace and is "trace unchecked", not a pass.
+#[test]
+fn test_reset_mid_session_with_enable_failure_is_trace_unchecked() {
+    let ext = FakeExtension::new(true, &real_trace_lines());
+    let runner = runner_with(&ext);
+    let test = spec_claiming(&claim_real());
+    assert_full_pass(&run_once(&runner, &test));
+
+    ext.reload();
+    ext.set_enable_error(Some("extension is not running"));
+    let res = run_once(&runner, &test);
+    assert_trace_unchecked(&res, "extension is not running");
 }
 
 /// Logging cannot be turned on: the slice is empty, and the result carries the failure as the
@@ -159,6 +197,7 @@ fn test_logging_that_cannot_be_enabled_records_the_reason() {
     let why = state.reason().expect("no trace");
     assert!(why.contains("log slice is empty"), "reason was {}", why);
     assert!(why.contains("gdbus: no such object"), "reason was {}", why);
+    assert_trace_unchecked(&res, "gdbus: no such object");
 }
 
 /// No-op log source (not GNOME): the slice is empty and the note says there is no log source.
@@ -175,6 +214,7 @@ fn test_noop_log_source_records_no_log_source() {
         .reason()
         .unwrap()
         .contains("no log source"));
+    assert_trace_unchecked(&res, "no log source");
 }
 
 /// The slice holds the recording, but the fixture claims a different window: nothing of that
@@ -191,4 +231,15 @@ fn test_slice_with_only_another_windows_events_is_not_the_claimed_trace() {
         "reason was {}",
         why
     );
+    assert_trace_unchecked(&res, "no event for window 999");
+}
+
+/// Logging is on but the slice is empty (nothing was logged in the run's time window): the
+/// pass is "trace unchecked", never clean.
+#[test]
+fn test_empty_slice_with_logging_on_is_trace_unchecked() {
+    let ext = FakeExtension::new(true, &[]);
+    let res = run_once(&runner_with(&ext), &spec_claiming(&claim_real()));
+    assert_eq!(res.trace_note, None);
+    assert_trace_unchecked(&res, "log slice is empty");
 }

@@ -4,6 +4,7 @@ use crate::oracle::GeometryStatus;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
 use crate::tui::views::builder::DrawerBuilder;
+use crate::tui::views::theme::TRACE_UNCHECKED;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
@@ -91,6 +92,7 @@ pub fn render_result_section(
                 if test.kind == TestKind::Auto {
                     match r.final_status {
                         FinalStatus::PassUnchecked => unchecked_verdict(),
+                        FinalStatus::PassTraceUnchecked => trace_unchecked_verdict(),
                         FinalStatus::Pass if geometry_unchecked => unchecked_verdict(),
                         FinalStatus::Pass => (
                             vec![
@@ -440,6 +442,27 @@ pub fn render_result_section(
 
     // Exactly 1 blank row between sections
     builder.push_blank();
+}
+
+/// Verdict cell for an automatic test that passed without its trace being captured: an orange
+/// warning marker and "Pass (trace unchecked)", distinct from both "✔ Pass" and the yellow
+/// geometry-unchecked cell.
+fn trace_unchecked_verdict() -> (Vec<Span<'static>>, String) {
+    (
+        vec![
+            Span::styled(
+                "⚠ ",
+                Style::default()
+                    .fg(TRACE_UNCHECKED)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                "Pass (trace unchecked)",
+                Style::default().fg(TRACE_UNCHECKED),
+            ),
+        ],
+        "⚠ Pass (trace unchecked)".into(),
+    )
 }
 
 /// Verdict cell for an automatic test that passed without its geometry being verified: a yellow

@@ -254,3 +254,36 @@ fn test_old_report_without_repeat_runs_loads_and_new_round_trips() {
     let old: SessionReport = serde_json::from_value(value).unwrap();
     assert!(old.repeat_runs.is_empty());
 }
+
+/// A required test that passed with its trace unchecked does not qualify the platform: it is
+/// counted as failed-required, like a geometry-unchecked pass.
+#[test]
+fn test_required_trace_unchecked_pass_does_not_qualify() {
+    let result = |status: FinalStatus, auto: AutoStatus| TestResult {
+        id: "cloak/delayed-paint/delay-0".into(),
+        title: "t".into(),
+        kind: TestKind::Auto,
+        required: true,
+        auto_status: auto,
+        human_verdict: HumanVerdict::default(),
+        final_status: status,
+        disagreement: false,
+        duration_ms: 1,
+        exit_code: Some(0),
+        stdout: String::new(),
+        stderr: String::new(),
+        message: None,
+        log_slice: None,
+        trace_note: None,
+    };
+    let q = evaluate_qualification(&[result(FinalStatus::Pass, AutoStatus::AutoPass)]);
+    assert!(q.supported);
+    let q = evaluate_qualification(&[result(
+        FinalStatus::PassTraceUnchecked,
+        AutoStatus::AutoPassTraceUnchecked,
+    )]);
+    assert_eq!(
+        (q.supported, q.passed_required, q.failed_required),
+        (false, 0, 1)
+    );
+}

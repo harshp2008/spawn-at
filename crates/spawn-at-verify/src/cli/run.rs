@@ -110,6 +110,15 @@ pub fn handle_run(args: RunArgs) {
                         r.message.as_deref().unwrap_or("")
                     );
                 }
+                FinalStatus::PassTraceUnchecked => {
+                    println!(
+                        "  ◐ PASS (trace unchecked): {} ({}) [{}ms]: {}",
+                        r.id,
+                        r.title,
+                        r.duration_ms,
+                        r.message.as_deref().unwrap_or("")
+                    );
+                }
                 FinalStatus::Fail => {
                     let msg = r.message.as_deref().unwrap_or("Failed");
                     println!(

@@ -23,8 +23,10 @@ pub fn evaluate_qualification(results: &[TestResult]) -> QualificationReport {
             total_required += 1;
             match r.final_status {
                 FinalStatus::Pass => passed_required += 1,
-                // A pass whose geometry was not verified does not satisfy a required test.
-                FinalStatus::PassUnchecked => failed_required += 1,
+                // A pass whose geometry or trace was not verified does not satisfy a required test.
+                FinalStatus::PassUnchecked | FinalStatus::PassTraceUnchecked => {
+                    failed_required += 1
+                }
                 FinalStatus::Skipped => {
                     skipped_required.push(RequiredSkippedItem {
                         id: r.id.clone(),

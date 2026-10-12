@@ -4,6 +4,9 @@ use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
 use ratatui::style::Color;
 
+/// Orange used for "passed, but its trace was not captured"; yellow stays for geometry unchecked.
+pub const TRACE_UNCHECKED: Color = Color::Rgb(255, 140, 0);
+
 /// Maps test identifier to its primary category designation.
 pub fn get_test_category(cat_or_id: &str) -> &'static str {
     if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
@@ -102,6 +105,11 @@ pub fn status_symbol_and_color(
             {
                 // Passed, but the geometry was not verified: not the plain green check.
                 ("!", Color::Yellow)
+            } else if r.final_status == FinalStatus::PassTraceUnchecked
+                || r.auto_status == AutoStatus::AutoPassTraceUnchecked
+            {
+                // Passed, but its trace was not captured: a different colour from geometry unchecked.
+                ("!", TRACE_UNCHECKED)
             } else if r.final_status == FinalStatus::Pass || r.auto_status == AutoStatus::AutoPass {
                 ("✔", Color::Green)
             } else {

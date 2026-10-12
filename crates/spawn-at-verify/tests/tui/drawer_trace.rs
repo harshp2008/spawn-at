@@ -121,3 +121,47 @@ fn test_drawer_slice_with_only_another_windows_events_shows_not_analysed() {
         plain
     );
 }
+
+/// A passing trace-dependent run with no trace: the verdict reads "Pass (trace unchecked)", not
+/// the green "✔ Pass", and the Trace row still says "not analysed".
+#[test]
+fn test_drawer_trace_unchecked_verdict() {
+    let mut app = create_test_app();
+    let (test, mut res) = passed_result(
+        &app,
+        Some(""),
+        Some("no log source: XDG_CURRENT_DESKTOP is unset"),
+    );
+    res.auto_status = AutoStatus::AutoPassTraceUnchecked;
+    res.final_status = FinalStatus::PassTraceUnchecked;
+    let plain = drawer(&mut app, &test, res);
+    assert!(
+        row(&plain, "Verdict").contains("⚠ Pass (trace unchecked)"),
+        "{}",
+        plain
+    );
+    assert!(!plain.contains("✔ Pass"), "{}", plain);
+    assert_not_analysed(&plain);
+}
+
+/// The list symbol for a trace-unchecked pass is `!` in orange, which is neither the green
+/// check of a full pass nor the yellow of a geometry-unchecked pass.
+#[test]
+fn test_trace_unchecked_symbol_and_colour_are_distinct() {
+    use spawn_at_verify::tui::views::theme::{status_symbol_and_color, TRACE_UNCHECKED};
+    let app = create_test_app();
+    let (test, mut res) = passed_result(&app, Some(""), None);
+    let (full_sym, full_colour) = status_symbol_and_color(&test, Some(&res), false);
+    assert_eq!((full_sym, full_colour), ("✔", ratatui::style::Color::Green));
+
+    res.auto_status = AutoStatus::AutoPassUnchecked;
+    res.final_status = FinalStatus::PassUnchecked;
+    let (_, geometry_colour) = status_symbol_and_color(&test, Some(&res), false);
+
+    res.auto_status = AutoStatus::AutoPassTraceUnchecked;
+    res.final_status = FinalStatus::PassTraceUnchecked;
+    let (sym, colour) = status_symbol_and_color(&test, Some(&res), false);
+    assert_eq!((sym, colour), ("!", TRACE_UNCHECKED));
+    assert_ne!(colour, geometry_colour);
+    assert_ne!(colour, full_colour);
+}

@@ -21,6 +21,9 @@ pub enum AutoStatus {
     /// Automated checks passed, but a geometry expectation could not be verified because no
     /// workarea was available from the probe or the log. Not a plain pass.
     AutoPassUnchecked,
+    /// Automated checks passed, but the test depends on the extension's trace and none was
+    /// captured for its window. Not a plain pass.
+    AutoPassTraceUnchecked,
     /// Automated checks or trace lifecycle assertions failed.
     AutoFail,
     /// Internal execution error or unexpected exception occurred.
@@ -66,6 +69,9 @@ pub enum FinalStatus {
     /// Passed, but geometry was not verified (no workarea available); not a plain pass and not
     /// counted as a passed required test.
     PassUnchecked,
+    /// Passed, but the test depends on the extension's trace and none was captured for its
+    /// window; not a plain pass and not counted as a passed required test.
+    PassTraceUnchecked,
     /// Case failed automated verification or human review.
     Fail,
     /// Case was skipped and not executed.
@@ -209,6 +215,7 @@ pub fn resolve_final_status(
         TestKind::Auto => match auto_status {
             AutoStatus::AutoPass => FinalStatus::Pass,
             AutoStatus::AutoPassUnchecked => FinalStatus::PassUnchecked,
+            AutoStatus::AutoPassTraceUnchecked => FinalStatus::PassTraceUnchecked,
             AutoStatus::AutoFail => FinalStatus::Fail,
             AutoStatus::Skipped => FinalStatus::Skipped,
             AutoStatus::Blocked => FinalStatus::Blocked,
@@ -227,7 +234,9 @@ pub fn resolve_final_status(
             // Rule: Passes ONLY if BOTH auto-pass and human pass are achieved.
             let auto_passed = matches!(
                 auto_status,
-                AutoStatus::AutoPass | AutoStatus::AutoPassUnchecked
+                AutoStatus::AutoPass
+                    | AutoStatus::AutoPassUnchecked
+                    | AutoStatus::AutoPassTraceUnchecked
             );
             let human_passed = human.verdict == HumanVerdictKind::Pass;
 
@@ -248,6 +257,8 @@ pub fn resolve_final_status(
             } else if auto_passed && human_passed {
                 if auto_status == AutoStatus::AutoPassUnchecked {
                     FinalStatus::PassUnchecked
+                } else if auto_status == AutoStatus::AutoPassTraceUnchecked {
+                    FinalStatus::PassTraceUnchecked
                 } else {
                     FinalStatus::Pass
                 }
