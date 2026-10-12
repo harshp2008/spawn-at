@@ -92,19 +92,19 @@ fn test_tally_buckets() {
 #[test]
 fn test_counts_text() {
     let none = Tally::default();
-    assert_eq!(category_counts_text(&none, 13), "0/13");
+    assert_eq!(category_counts_text(&none, 30), "0/30");
     let some = Tally {
         pass: 1,
         pending: 2,
         fail: 3,
     };
-    assert_eq!(category_counts_text(&some, 13), "1/13 · 2 pending · 3 fail");
+    assert_eq!(category_counts_text(&some, 30), "1/30 · 2 pending · 3 fail");
 }
 
-/// In the rendered list (100 columns) the PLACEMENT heading reads `1/13 · 1 pending · 1 fail`
+/// In the rendered list (100 columns) the PLACEMENT heading reads `1/30 · 1 pending · 1 fail`
 /// for one final Pass (`placement/top`), one `both` test with an automatic pass awaiting a
 /// human (`placement/top-left`) and one failed `both` test (`placement/center-200x150`).
-/// Before the change the automatic pass of top-left was counted as passed (`2/13`).
+/// Before the change the automatic pass of top-left was counted as passed (`2/30`).
 #[test]
 fn test_heading_counts_pending_and_fail_separately() {
     let mut app = create_test_app();
@@ -138,5 +138,5 @@ fn test_heading_counts_pending_and_fail_separately() {
         .lines()
         .find(|l| l.contains("PLACEMENT"))
         .unwrap_or_else(|| panic!("no PLACEMENT heading in:\n{}", text));
-    assert!(heading.contains("1/13 · 1 pending · 1 fail"), "{}", heading);
+    assert!(heading.contains("1/30 · 1 pending · 1 fail"), "{}", heading);
 }

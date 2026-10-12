@@ -123,6 +123,7 @@ pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_w
                     || line.contains("/4")
                     || line.contains("/6")
                     || line.contains("/10")
+                    || line.contains("/30")
                     || line.contains("hidden)"));
 
             if is_cat_heading {
@@ -204,11 +205,17 @@ pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_w
         }
     }
 
+    // With 35 tests the 4-row list at 60x28 is scrolled to the selected test (`bottom-right`),
+    // and its category heading is one of the rows above ("▲ n more" in the Tests border title).
+    let list_scrolled = rendered
+        .lines()
+        .any(|l| l.contains(" Tests ") && l.contains('▲'));
     assert!(
-        cat_headings_found > 0 || (height <= 20 && is_waiting),
-        "Must have found category headings at {}x{}",
+        cat_headings_found > 0 || list_scrolled || (height <= 20 && is_waiting),
+        "Must have found category headings at {}x{} in:\n{}",
         width,
-        height
+        height,
+        rendered
     );
     assert!(
         test_rows_found > 0,

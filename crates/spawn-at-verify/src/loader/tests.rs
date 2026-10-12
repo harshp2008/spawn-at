@@ -35,7 +35,7 @@ fn test_combinable_filter() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(filtered_cat.len(), 13);
+    assert_eq!(filtered_cat.len(), 30);
     assert!(filtered_cat
         .iter()
         .any(|t| t.id == "placement/bottom-right"));
@@ -49,7 +49,8 @@ fn test_combinable_filter() {
             ..Default::default()
         })
         .unwrap();
-    // The six Both placement specs: the four corners, margin-0 and center-200x150.
+    // The eight Both placement specs: the four corners, margin-0, center-200x150 and the two
+    // bottom-right resize specs (smaller, below-min-both).
     let mut both_ids: Vec<_> = filtered_comb.iter().map(|t| t.id.as_str()).collect();
     both_ids.sort();
     assert_eq!(
@@ -57,6 +58,8 @@ fn test_combinable_filter() {
         [
             "placement/bottom-left",
             "placement/bottom-right",
+            "placement/bottom-right-below-min-both",
+            "placement/bottom-right-smaller",
             "placement/center-200x150",
             "placement/margin-0",
             "placement/top-left",

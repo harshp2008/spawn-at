@@ -1,0 +1,52 @@
+id = "placement/top-left-below-min-both"
+category = "placement"
+title = "Control: request below the minimum on both axes (200x150 vs min 300x200), top-left"
+description = "Control: the top-left position does not depend on the window size. The fixture enforces a 300x200 minimum and is asked for 200x150: it settles at 300x200 and must still be at the top-left corner with a 16px margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture", "resize"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+min_width = 300
+min_height = 200
+args = [
+    "--title", "Verify-Placement-TopLeftBelowMinBoth",
+    "--app-id", "verify.placement.topleftbelowminboth",
+    "--expect", "Should be 300x200 at the top-left corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.topleftbelowminboth",
+    "--anchor", "top-left",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "top-left"
+size = [200, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at its minimum size in the top-left corner?"
