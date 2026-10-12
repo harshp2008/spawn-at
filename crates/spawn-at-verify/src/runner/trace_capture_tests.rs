@@ -277,3 +277,31 @@ fn test_placement_test_with_enable_failure_keeps_its_verdict_and_shows_reason() 
     assert!(note.contains("gdbus: no such object"), "note was {}", note);
     assert_eq!(res.message.as_deref(), Some("Assertions passed"));
 }
+
+/// A control that takes 300 ms to enable logging, to show that time is not part of a run.
+struct SlowLogging(FakeExtension);
+
+impl crate::ext_logging::LoggingControl for SlowLogging {
+    /// Sleeps 300 ms, then enables the wrapped fake.
+    fn ensure_enabled(
+        &self,
+        log: &dyn crate::log_source::LogSource,
+    ) -> crate::ext_logging::LoggingOutcome {
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        self.0.ensure_enabled(log)
+    }
+}
+
+/// Enabling logging (here 300 ms) is excluded from `duration_ms`: the action is `/bin/echo`, so
+/// the recorded duration is far below the enable time. Fails if `start` is not moved forward by
+/// the time `ensure_enabled` took.
+#[test]
+fn test_enable_time_is_excluded_from_duration_ms() {
+    let ext = FakeExtension::new(false, &real_trace_lines());
+    let runner = runner_with(&ext).with_logging_control(Box::new(SlowLogging(ext.clone())));
+    let began = std::time::Instant::now();
+    let res = run_once(&runner, &placement_spec());
+    assert!(began.elapsed() >= std::time::Duration::from_millis(300));
+    assert!(res.duration_ms < 250, "duration_ms was {}", res.duration_ms);
+    assert_full_pass(&res);
+}
