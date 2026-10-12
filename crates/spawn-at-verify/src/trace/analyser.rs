@@ -216,6 +216,26 @@ impl TraceAnalyser {
                 _ => None,
             };
 
+            // 6. Placement corrected after the reveal (warning only): the first ANCHOR_CORRECTION
+            // after UNCLOAK means the window was shown at one geometry and moved to another
+            // (an app resize that arrived after the reveal). A correction before UNCLOAK
+            // (LATE_RESIZE_CORRECTED) is the reveal's own fix and is not reported.
+            if let Some(u_idx) = uncloak_idx {
+                let reveal_ms = lc_events[u_idx].elapsed_ms;
+                if let Some(corr) = lc_events
+                    .iter()
+                    .skip(u_idx + 1)
+                    .find(|e| e.tag == "ANCHOR_CORRECTION")
+                {
+                    let w = format!(
+                        "placement corrected after reveal (+{:.1} ms)",
+                        (corr.elapsed_ms - reveal_ms).max(0.0)
+                    );
+                    lc_warnings.push(w.clone());
+                    all_warnings.push(w);
+                }
+            }
+
             all_violations.extend(lc_violations.clone());
 
             lifecycles.push(PlacementLifecycle {

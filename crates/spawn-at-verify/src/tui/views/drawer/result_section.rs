@@ -332,6 +332,24 @@ pub fn render_result_section(
         )
     };
     builder.push_kv("Trace", t_spans, &t_plain);
+    // Trace warnings (cloak over budget, placement corrected after reveal) do not change the verdict.
+    if let Some(rep) = &trace_report {
+        for w in &rep.warnings {
+            builder.push_kv(
+                "Warning",
+                vec![
+                    Span::styled(
+                        "⚠ ",
+                        Style::default()
+                            .fg(Color::Yellow)
+                            .add_modifier(Modifier::BOLD),
+                    ),
+                    Span::styled(w.clone(), Style::default().fg(Color::Yellow)),
+                ],
+                &format!("⚠ {}", w),
+            );
+        }
+    }
     // Why there is no trace, or (with a trace) the run-time note, e.g. logging could not be enabled.
     let reason = trace_state
         .as_ref()

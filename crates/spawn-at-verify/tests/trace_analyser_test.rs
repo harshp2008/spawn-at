@@ -569,3 +569,62 @@ fn test_late_resize_corrected_event_is_not_a_violation() {
     assert_eq!(report.warnings.len(), 0);
     assert_eq!(report.cloak_duration_ms, Some(52.0));
 }
+
+/// A lifecycle shaped like the loaded gate-(b) failures: revealed 30 ms after the CLOAK
+/// with the window at 400x300, then an `ANCHOR_CORRECTION` 43.9 ms after the `UNCLOAK`. The
+/// analyser warns "placement corrected after reveal (+43.9 ms)" and it is a warning only: no
+/// violation, `is_pass()` still true. The warning is in the report's list and the lifecycle's.
+#[test]
+fn test_correction_after_reveal_is_a_warning_with_its_delay() {
+    let raw = r#"
++10.00ms | CLOAK win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,400x300)
++22.00ms | COMMIT_RESOLVED win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)
++25.00ms | AFTER_SET_POSITION_ANCHORED win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] opacity=0 frame=(760,764,400x300)
++30.00ms | UNCLOAK_4C win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
++40.00ms | UNCLOAK win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] opacity=255 frame=(760,764,400x300)
++40.10ms | ANCHOR_ARMED win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland]
++83.90ms | ANCHOR_CORRECTION win=[id=1007 pid=2007 class="post" app="post" type=NORMAL proto=Wayland] size=(300x200) from=(760,764) to=(810,864)
+"#;
+    let report = TraceAnalyser::new()
+        .with_target_window_id(1007)
+        .analyse(raw);
+    assert!(report.is_pass(), "{:?}", report.violations);
+    assert_eq!(
+        report.warnings,
+        vec!["placement corrected after reveal (+43.9 ms)".to_string()]
+    );
+    assert_eq!(report.lifecycles.len(), 1);
+    assert_eq!(report.lifecycles[0].warnings, report.warnings);
+}
+
+/// Negative direction: a correction before the reveal (`LATE_RESIZE_CORRECTED`, then
+/// `ANCHOR_CORRECTION` between `UNCLOAK_4C` and `UNCLOAK`) gives no warning, and a trace with no
+/// correction at all gives none.
+#[test]
+fn test_correction_before_reveal_is_not_a_warning() {
+    let before = r#"
++10.00ms | CLOAK win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,400x300)
++22.00ms | COMMIT_RESOLVED win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)
++25.00ms | AFTER_SET_POSITION_ANCHORED win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] opacity=0 frame=(1504,764,400x300)
++30.00ms | UNCLOAK_4C win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
++48.00ms | LATE_RESIZE_CORRECTED win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] positioned=(400x300) actual=(200x150)
++48.50ms | ANCHOR_CORRECTION win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] size=(200x150) from=(1504,764) to=(1704,914)
++62.00ms | UNCLOAK win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland] opacity=255 frame=(1704,914,200x150)
++62.10ms | ANCHOR_ARMED win=[id=1008 pid=2008 class="pre" app="pre" type=NORMAL proto=Wayland]
+"#;
+    let report = TraceAnalyser::new()
+        .with_target_window_id(1008)
+        .analyse(before);
+    assert!(report.is_pass(), "{:?}", report.violations);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+
+    let none = before
+        .lines()
+        .filter(|l| !l.contains("ANCHOR_CORRECTION"))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let report = TraceAnalyser::new()
+        .with_target_window_id(1008)
+        .analyse(&none);
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+}

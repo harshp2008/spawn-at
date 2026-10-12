@@ -179,6 +179,25 @@ impl TestResult {
         }
     }
 
+    /// Warnings that do not change the verdict, for the report: the printed rectangle differing
+    /// from the re-read final one, then the trace analyser's warnings (cloak over budget,
+    /// placement corrected after reveal). Empty for a run with neither.
+    pub fn run_warnings(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let (Some(printed), Some(fin)) = (
+            crate::oracle::check::actual_rect_from_stdout(&self.stdout),
+            self.final_rect,
+        ) {
+            if printed != fin {
+                out.push(crate::oracle::stale_print_warning(printed, fin));
+            }
+        }
+        if let Some(report) = self.trace_report() {
+            out.extend(report.warnings);
+        }
+        out
+    }
+
     /// Cloak duration in milliseconds of the claimed window, or `None` when there is no trace
     /// for it or the trace holds no complete CLOAK..UNCLOAK pair.
     pub fn cloak_duration_ms(&self) -> Option<f64> {

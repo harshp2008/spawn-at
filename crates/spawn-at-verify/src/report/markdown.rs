@@ -125,5 +125,33 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         }
     }
 
+    // Warnings never change a verdict; they are listed so a pass that needed a re-read or whose
+    // window was moved after the reveal is not mistaken for a clean one.
+    let mut warned: Vec<(String, Vec<String>)> = Vec::new();
+    for r in &report.results {
+        let w = r.run_warnings();
+        if !w.is_empty() {
+            warned.push((r.id.clone(), w));
+        }
+    }
+    for rr in &report.repeat_runs {
+        for (i, r) in rr.runs.iter().enumerate() {
+            let w = r.run_warnings();
+            if !w.is_empty() {
+                warned.push((format!("{} (repeat run {})", rr.id, i + 1), w));
+            }
+        }
+    }
+    if !warned.is_empty() {
+        md.push_str("## 5. Warnings\n\n");
+        md.push_str("| Test | Warning |\n| :--- | :--- |\n");
+        for (id, ws) in &warned {
+            for w in ws {
+                md.push_str(&format!("| `{}` | {} |\n", id, w));
+            }
+        }
+        md.push('\n');
+    }
+
     md
 }

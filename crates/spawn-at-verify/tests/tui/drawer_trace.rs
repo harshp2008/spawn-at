@@ -274,3 +274,58 @@ fn test_drawer_warns_only_when_the_machine_was_busy() {
         );
     }
 }
+
+/// A trace for `WINDOW`: CLOAK at +10 ms, UNCLOAK at +40 ms, and (when `correction_ms` is given)
+/// an `ANCHOR_CORRECTION` at that time.
+fn trace_with_correction(correction_ms: Option<&str>) -> String {
+    let win = format!(
+        "win=[id={} pid=2 class=\"verify.x\" app=\"\" type=NORMAL proto=Wayland]",
+        WINDOW
+    );
+    let mut s = format!(
+        "[spawn-at-time] +10.00ms | CLOAK {win} opacity=0 frame=(0,0,400x300)\n\
+         [spawn-at-time] +40.00ms | UNCLOAK {win} opacity=255 frame=(760,764,400x300)\n\
+         [spawn-at-time] +40.10ms | ANCHOR_ARMED {win}\n"
+    );
+    if let Some(t) = correction_ms {
+        s.push_str(&format!(
+            "[spawn-at-time] +{t}ms | ANCHOR_CORRECTION {win} size=(300x200) from=(760,764) to=(810,864)\n"
+        ));
+    }
+    s
+}
+
+/// A correction 43.9 ms after the UNCLOAK shows a Warning row with the delay; the Trace row is
+/// still "clean" (a warning is not a violation).
+#[test]
+fn test_drawer_shows_placement_corrected_after_reveal() {
+    let mut app = create_test_app();
+    let slice = trace_with_correction(Some("83.90"));
+    let (test, res) = passed_result(&app, Some(&slice), None);
+    let plain = drawer(&mut app, &test, res);
+    assert!(
+        row(&plain, "Warning").contains("placement corrected after reveal (+43.9 ms)"),
+        "{}",
+        plain
+    );
+    assert!(
+        row(&plain, "Trace").contains("clean, no violations"),
+        "{}",
+        plain
+    );
+}
+
+/// Negative control: the same trace without the correction has no Warning row.
+#[test]
+fn test_drawer_has_no_warning_row_without_a_post_reveal_correction() {
+    let mut app = create_test_app();
+    let slice = trace_with_correction(None);
+    let (test, res) = passed_result(&app, Some(&slice), None);
+    let plain = drawer(&mut app, &test, res);
+    assert!(!plain.contains("placement corrected"), "{}", plain);
+    assert!(
+        !plain.lines().any(|l| l.trim_start().starts_with("Warning")),
+        "{}",
+        plain
+    );
+}

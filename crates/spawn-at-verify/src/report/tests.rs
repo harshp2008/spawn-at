@@ -398,3 +398,46 @@ fn test_report_records_load_average_and_old_reports_still_load() {
     assert_eq!(back.environment.load_avg_start, None);
     assert_eq!(back.environment.cpu_count, None);
 }
+
+/// Slice for window 77 with an `ANCHOR_CORRECTION` 43.9 ms after the `UNCLOAK`.
+const POST_REVEAL_SLICE: &str = "\
+[spawn-at-time] +10.00ms | CLOAK win=[id=77 pid=2 class=\"verify.x\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(0,0,400x300)\n\
+[spawn-at-time] +40.00ms | UNCLOAK win=[id=77 pid=2 class=\"verify.x\" app=\"\" type=NORMAL proto=Wayland] opacity=255 frame=(760,764,400x300)\n\
+[spawn-at-time] +83.90ms | ANCHOR_CORRECTION win=[id=77 pid=2 class=\"verify.x\" app=\"\" type=NORMAL proto=Wayland] size=(300x200) from=(760,764) to=(810,864)\n";
+
+/// report.md lists a post-reveal correction and a stale printed rectangle under "5. Warnings",
+/// one row each, and a clean run adds no such section.
+#[test]
+fn test_markdown_lists_run_warnings_and_omits_the_section_when_clean() {
+    let mut warned = run_result(
+        "t/warned",
+        r#"{"window_id":77,"x":760,"y":764,"w":400,"h":300}"#,
+        5,
+    );
+    warned.log_slice = Some(POST_REVEAL_SLICE.into());
+    warned.final_rect = Some(crate::oracle::Rect::new(810, 864, 300, 200));
+    let clean = run_result("t/clean", r#"{"window_id":78,"x":1,"y":2,"w":3,"h":4}"#, 5);
+
+    let md = render_markdown_report(&report_with_runs(&[warned.clone(), clean.clone()], &[]));
+    assert!(md.contains("## 5. Warnings"), "{}", md);
+    assert!(
+        md.contains("| `t/warned` | placement corrected after reveal (+43.9 ms) |"),
+        "{}",
+        md
+    );
+    assert!(
+        md.contains("| `t/warned` | spawn-at printed a stale rectangle (printed 760,764 400×300, final 810,864 300×200) |"),
+        "{}",
+        md
+    );
+    assert!(!md.contains("`t/clean` |  "), "{}", md);
+    assert_eq!(
+        md.matches("| `t/clean` |").count(),
+        1,
+        "only its table row: {}",
+        md
+    );
+
+    let md = render_markdown_report(&report_with_runs(&[clean], &[]));
+    assert!(!md.contains("Warnings"), "{}", md);
+}
