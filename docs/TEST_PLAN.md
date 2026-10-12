@@ -17,7 +17,7 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: Node.js (Extension)** | 65 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers (`node --test tests/*.js`) |
 | **`spawn-at-verify` (bare default)** | 58 | 0 | 58 lib tests. Note: 1 test (`tui::logging::tests::test_parse_logging_state_transitions`) is gated behind `feature = "tui"`. |
 | **`spawn-at-verify --features tui`** | 124 | 0 | 59 lib + 0 main + 4 `category_library_test` + 5 `oracle_cross_check` + 18 `trace_analyser_test` + 38 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 243 | 4 | 110 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 12 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 68 `tui_test` (re-measured after the `delay-0@no-trace` recording was added; the other rows in this table were not re-measured) |
+| **`spawn-at-verify --features tui,fixture`** | 259 | 4 | 124 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 12 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 70 `tui_test` (re-measured after the placement batch and the echo-timeout changes were added; the other rows in this table were not re-measured) |
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
@@ -28,7 +28,7 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ---
 
-## 2. 31-Case Test Catalog across 8 Categories
+## 2. 41-Case Test Catalog across 8 Categories
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -39,8 +39,18 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 | `basics/shell-extension-active` | Extension IPC handshake and version ping | Auto | **Planned** | `verify/basics/shell-extension-active.toml` |
 | **Category: placement** | | | | |
 | `placement/bottom-right` | Window placed in bottom-right corner with margins | Both | **Covered** | `verify/placement/bottom-right.toml` |
-| `placement/top-left` | Window placed at top-left anchor | Both | **Planned** | `verify/placement/top-left.toml` |
-| `placement/center` | Window centered inside display workarea | Both | **Planned** | `verify/placement/center.toml` |
+| `placement/top-left` | Window placed at top-left anchor (400x300, margin 16) | Both | **Covered** | `verify/placement/top-left.toml` |
+| `placement/top` | Window placed at top edge (400x300, margin 16) | Auto | **Covered** | `verify/placement/top.toml` |
+| `placement/top-right` | Window placed at top-right anchor (400x300, margin 16) | Both | **Covered** | `verify/placement/top-right.toml` |
+| `placement/left` | Window placed at left edge (400x300, margin 16) | Auto | **Covered** | `verify/placement/left.toml` |
+| `placement/right` | Window placed at right edge (400x300, margin 16) | Auto | **Covered** | `verify/placement/right.toml` |
+| `placement/bottom-left` | Window placed at bottom-left anchor (400x300, margin 16) | Both | **Covered** | `verify/placement/bottom-left.toml` |
+| `placement/bottom` | Window placed at bottom edge (400x300, margin 16) | Auto | **Covered** | `verify/placement/bottom.toml` |
+| `placement/center` | Window centered inside display workarea (400x300, margin 16) | Auto | **Covered** | `verify/placement/center.toml` |
+| `placement/margin-0` | Bottom-right anchor with 0 px margin | Both | **Covered** | `verify/placement/margin-0.toml` |
+| `placement/margin-64` | Bottom-right anchor with 64 px margin | Auto | **Covered** | `verify/placement/margin-64.toml` |
+| `placement/center-200x150` | 200x150 window centered (**flaky live**: fails in about 2 of 5 runs, see 2.1) | Both | **Covered** | `verify/placement/center-200x150.toml` |
+| `placement/center-1200x800` | 1200x800 window centered (**flaky live**: fails in about 1 of 6 runs, see 2.1) | Auto | **Covered** | `verify/placement/center-1200x800.toml` |
 | `placement/area-screen-vs-workarea` | Boundary bounds: screen vs workarea vs unbounded | Auto | **Planned** | `verify/placement/area-screen-vs-workarea.toml` |
 | `placement/clamp-bounds` | Clamping window when position exceeds area | Auto | **Planned** | `verify/placement/clamp-bounds.toml` |
 | `placement/explicit-pos` | Explicit coordinates `--pos X Y` with custom pivot | Auto | **Planned** | `verify/placement/explicit-pos.toml` |
@@ -73,6 +83,10 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 | `platform/multi-monitor-secondary` | Target placement to secondary monitor index | Both | **Planned** | `verify/platform/multi-monitor-secondary.toml` |
 
 ---
+
+### 2.1 Known live failures (placement batch, recorded 2026-10-12)
+
+`placement/center-200x150` and `placement/center-1200x800` fail intermittently on the recording machine (Wayland GNOME, workarea `0,40 1920x1040`). On a failing run spawn-at logs `[spawn-at] WARNING: Window mapped at (760, 410) [WxH] but expected position was (X, Y)`: the window sits where a 400x300 window would be centred (760, 410) instead of where a WxH window would be. Repeat runs: `center-200x150` failed 2 of 5 (plus 1 more failure in 2 earlier runs), `center-1200x800` failed 1 of 5 (plus 1 of 2 earlier runs). The six 400x300 specs passed their automatic check every time. The specs are left failing as recorded; no product code was changed. A failing real recording is `tests/fixtures/real_placement_center_200x150_fail_run.json`.
 
 ## 3. CLI Coverage Matrix (`spawn-at --help`)
 
