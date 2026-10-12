@@ -145,7 +145,12 @@ pub fn handle_run(args: RunArgs) {
                     println!("  ● PENDING: {} ({})", r.id, r.title);
                 }
             }
-            if let Some(note) = &r.trace_note {
+            // A trace-unchecked message already carries the note as its reason.
+            if let Some(note) = r
+                .trace_note
+                .as_ref()
+                .filter(|n| !r.message.as_deref().unwrap_or("").contains(n.as_str()))
+            {
                 println!("      trace: {}", note);
             }
         }
