@@ -1,6 +1,8 @@
 //! xtask: Internal developer and CI tooling for spawn-at.
 //!
 //! Provides `check-comment-only` and `check-doc-coverage` without external dependencies.
+//! `check-doc-coverage` with no paths gates `crates/spawn-at-verify/src` and only reports a count
+//! for `tests/`.
 //! `check-doc-coverage` combines a text scan with the compiler's `missing_docs` lint.
 
 mod comment_only;
@@ -39,15 +41,16 @@ fn main() {
         }
         "check-doc-coverage" => {
             let paths: Vec<String> = args.collect();
-            let target_paths = if paths.is_empty() {
-                vec![
-                    "crates/spawn-at-verify/src".to_string(),
-                    "crates/spawn-at-verify/tests".to_string(),
-                ]
+            // Default: src/ is the gate; tests/ gets an informational count only.
+            let (target_paths, informational) = if paths.is_empty() {
+                (
+                    vec!["crates/spawn-at-verify/src".to_string()],
+                    vec!["crates/spawn-at-verify/tests".to_string()],
+                )
             } else {
-                paths
+                (paths, Vec::new())
             };
-            doc_coverage::run_check_doc_coverage(&target_paths);
+            doc_coverage::run_check_doc_coverage(&target_paths, &informational);
         }
         other => {
             eprintln!("Unknown subcommand: {}", other);

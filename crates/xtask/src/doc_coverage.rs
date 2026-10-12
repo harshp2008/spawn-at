@@ -105,17 +105,31 @@ fn is_pub_item_start(line: &str) -> Option<(&'static str, String)> {
     None
 }
 
-pub(crate) fn run_check_doc_coverage(target_dirs: &[String]) {
-    let mut rs_files = Vec::new();
-    for d in target_dirs {
-        collect_rs_files(Path::new(d), &mut rs_files);
+/// Prints, as information only, how many items under `dirs` lack a `///` doc (text scan only).
+/// Never affects the exit code: test functions are commented lightly by design.
+fn print_informational_coverage(label: &str, dirs: &[String]) {
+    let mut files = Vec::new();
+    for d in dirs {
+        collect_rs_files(Path::new(d), &mut files);
     }
-    rs_files.sort();
+    files.sort();
+    let misses = scan_files(&files);
+    let total: usize = misses.values().map(Vec::len).sum();
+    println!(
+        "\nINFO ({}, informational, not a failure): {} items without a /// doc across {} of {} files",
+        label,
+        total,
+        misses.len(),
+        files.len()
+    );
+}
 
-    let mut total_misses = 0usize;
+/// Text-scans `rs_files` and returns, per file with misses, `(line, description)` pairs:
+/// a missing `//!` file header and any `fn` / `pub` item without a `///` doc comment.
+fn scan_files(rs_files: &[PathBuf]) -> BTreeMap<String, Vec<(usize, String)>> {
     let mut file_misses: BTreeMap<String, Vec<(usize, String)>> = BTreeMap::new();
 
-    for file_path in &rs_files {
+    for file_path in rs_files {
         let display_path = file_path.to_string_lossy().to_string();
         let content = match fs::read_to_string(file_path) {
             Ok(c) => c,
@@ -197,10 +211,22 @@ pub(crate) fn run_check_doc_coverage(target_dirs: &[String]) {
         }
 
         if !misses.is_empty() {
-            total_misses += misses.len();
             file_misses.insert(display_path, misses);
         }
     }
+    file_misses
+}
+/// Runs the doc-coverage check over `target_dirs` (text scan plus the compiler lint); exits 1 on
+/// any miss. `informational_dirs` get a count only, never a failure.
+pub(crate) fn run_check_doc_coverage(target_dirs: &[String], informational_dirs: &[String]) {
+    let mut rs_files = Vec::new();
+    for d in target_dirs {
+        collect_rs_files(Path::new(d), &mut rs_files);
+    }
+    rs_files.sort();
+
+    let mut file_misses = scan_files(&rs_files);
+    let mut total_misses: usize = file_misses.values().map(Vec::len).sum();
 
     // 3. Merge the compiler's `missing_docs` findings, which cover items the text scan cannot
     // see (struct fields, variant fields). Skipped when no target dir is in spawn-at-verify.
@@ -235,12 +261,18 @@ pub(crate) fn run_check_doc_coverage(target_dirs: &[String]) {
             }
             println!();
         }
+        if !informational_dirs.is_empty() {
+            print_informational_coverage("tests/", informational_dirs);
+        }
         exit(1);
     } else {
         println!(
             "SUCCESS: ZERO documentation misses across all {} files!",
             rs_files.len()
         );
+        if !informational_dirs.is_empty() {
+            print_informational_coverage("tests/", informational_dirs);
+        }
         exit(0);
     }
 }
