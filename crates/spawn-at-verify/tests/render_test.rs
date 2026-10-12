@@ -338,3 +338,26 @@ fn test_no_trace_recording_renders_not_analysed_and_unchecked() {
         text
     );
 }
+
+/// The recorded `both`-mode run of `placement/center-200x150` whose automatic check failed (spawn-at
+/// warned that the window was not at the target) renders `✖ Fail` in the Verdict row and never
+/// `Pending`; only the "Your verdict" row, which is the human's, stays Pending.
+#[test]
+fn test_failed_automatic_check_of_a_both_test_shows_fail_not_pending() {
+    let case = find_case("placement/center-200x150").unwrap();
+    assert_eq!(
+        case.result.final_status,
+        spawn_at_verify::runner::FinalStatus::Fail
+    );
+    let text = render_case(&verify_dir(), &case, 80, 60, 0).unwrap();
+    let row = |label: &str| {
+        text.lines()
+            .find(|l| l.contains(label))
+            .unwrap_or_else(|| panic!("no {} row in:\n{}", label, text))
+            .to_string()
+    };
+    let verdict = row("Verdict");
+    assert!(verdict.contains("✖ Fail"), "{}", verdict);
+    assert!(!verdict.contains("Pending"), "{}", verdict);
+    assert!(row("Your verdict").contains("Pending"), "{}", text);
+}

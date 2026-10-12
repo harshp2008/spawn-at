@@ -89,7 +89,8 @@ pub fn render_result_section(
                 "- Skip (marked by you)".into(),
             ),
             HumanVerdictKind::Unset => {
-                if test.kind == TestKind::Auto {
+                // A failed automatic check is a failure even while the human verdict is still open.
+                if test.kind == TestKind::Auto || r.final_status == FinalStatus::Fail {
                     match r.final_status {
                         FinalStatus::PassUnchecked => unchecked_verdict(),
                         FinalStatus::PassTraceUnchecked => trace_unchecked_verdict(),
