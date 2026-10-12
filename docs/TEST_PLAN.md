@@ -18,8 +18,8 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: Node.js (Extension)** | 70 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`) (`node --test tests/*.js`) |
 | **`spawn-at-verify` (bare default)** | 196 | 0 | 151 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
 | **`spawn-at-verify --features tui`** | 292 | 0 | 157 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 77 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 303 | 4 | 157 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 77 `tui_test` |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 494 | 4 | 158 + 23 + 10 + 303; with the 70 Node tests: 564 passed |
+| **`spawn-at-verify --features tui,fixture`** | 305 | 4 | 157 lib + 9 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 77 `tui_test` |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 496 | 4 | 158 + 23 + 10 + 305; with the 70 Node tests: 566 passed |
 
 All rows re-measured on 2026-10-12 at commit `e47c41f` (`cargo test -p <crate>` per crate, `cargo test -p spawn-at-verify` bare, `--features tui` and `--features tui,fixture`, `node --test tests/*.js`); every run had 0 failures. The totals were summed with `awk` over the saved `test result:` lines, not by hand. A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 196 row, not 303; do not quote it for the verify crate.
 
@@ -896,3 +896,76 @@ A and B cost up to G on an app that never answers (a min-bound app already at it
 **Incident during this investigation (CONFIRMED).** A nested-shell experiment wrote `org.gnome.shell enabled-extensions` into the real dconf database: the D-Bus-activated dconf service in the private session did not inherit my `XDG_CONFIG_HOME`. The value was `['spawn-at@harsh.local']` for a while and is back to the original 25-entry list (compared by eye against the value captured at the start). I did not manage to restore it myself; how it came back is not established.
 
 **Not done / partial.** The user stopped the run at about 19:3x; the 22-thread v2 phase had completed by then. No phase was rerun. Real apps were not run at 22 threads, Chrome was not claimed, and `term1` at 11 threads has one run with no events. No fix was implemented.
+
+### 6.13 H4: does the cloak starve the app of frame callbacks? (2026-10-12, no extension change)
+
+H4: the app applies our resize only when it gets a `wl_surface.frame` callback; the compositor does not paint a cloaked (opacity 0) actor, so callbacks stop, and the app resizes only after the reveal. Labels: CONFIRMED = measured here; SOURCE = read from mutter 46.2 source through WebFetch (a small model summarised the files, so the quotes are indirect); HYPOTHESIS = not tested.
+
+**Verdict: H4 is not supported.** Two apps whose resize path is known show no gating by frame callbacks; mutter delivers callbacks to a cloaked surface; the delay sits in the configure's delivery and the app's own CPU time.
+
+**Tooling.** `SPAWN_AT_FIXTURE_TRACE_DIR=<dir>` (commit `fb4e082`) makes the fixture write `fixture-<pid>.log`: its own `Resized`, `RedrawRequested` and commit lines in CLOCK_MONOTONIC ns plus the libwayland client dump (`WAYLAND_DEBUG=client`). CONFIRMED about that dump: its `[ms.µs]` stamp is CLOCK_REALTIME µs modulo 2^32 (matched to 6 µs), not the monotonic clock; I map it with the fixture's own `COMMIT_DONE` lines or the boot offset. The extension's `+N ms` clock was tied to CLOCK_MONOTONIC with 16 `SetLogging` echoes per batch (offset drift between batch start and end: 2-64 µs). After new commits `spawn-at` must be rebuilt (`cargo build -p spawn-at`) or the verify preflight reports a stale binary.
+
+#### 1. Stored g3 runs and the sampler runs (post-reveal corrected runs only)
+
+Times in ms. `a` = resize - UNCLOAK, `b` = resize - SETTLED, `c` = UNCLOAK - SETTLED. The resize time is the `ANCHOR_CORRECTION`. These runs are selected by `a > 0`, so `b` correlates with `c` partly by construction.
+
+| source | n | a median / p90 / p99 / max | b median / p90 / p99 / max | c median | slope of b on c, corr |
+| :--- | ---: | :--- | :--- | ---: | :--- |
+| g3 loaded (22 threads) | 134 | 33.8 / 141.7 / 297.3 / 330.7 | 50.6 / 168.7 / 307.6 / 350.0 | 13.9 | 1.73, 0.39 |
+| sampler harness idle | 28 | 3.6 / 10.7 / 11.7 / 11.7 | 9.8 / 20.1 / 25.0 / 25.0 | 4.8 | 1.20, 0.83 |
+| sampler 1 thread | 18 | 3.8 / 12.7 / 24.4 / 24.4 | 8.7 / 16.7 / 30.0 / 30.0 | 4.5 | 2.51, 0.27 |
+| sampler 11 threads | 105 | 9.0 / 26.5 / 95.7 / 200.3 | 19.9 / 37.4 / 150.8 / 251.4 | 10.2 | 2.82, 0.91 |
+| sampler 22 threads | 91 | 28.6 / 71.9 / 337.4 / 337.4 | 39.0 / 84.3 / 369.1 / 369.1 | 12.0 | 3.79, 0.44 |
+
+- H4 predicts `a` small and about constant per level (one frame). Idle matches (3.6 ms). Loaded does not: the median grows with load (9.0 at 11 threads, 28.6 at 22) and the p90 is 26-142 ms. In the stored loaded runs corr(a, c) is 0.18 (a is not tied to the reveal time), mean a 56.7, sd 62.5.
+- Runs where the app resized before the reveal exist at every level, so a cloaked app does resize: sampler data, share of runs: idle 36 caught by the late check + 12 settled `AT_TARGET` of 84; 22 threads 5 + 21 of 120. Stored loaded: 62 late-checked + 43 `AT_TARGET` of 320.
+- Non-stale runs, `AT_TARGET` runs with a `size-changed` sample before the quiet timer: size-changed minus the first allocation (the quiet clock start) has median 29.1 ms idle (n=12, in the sampler harness), 19.3 ms at 22 threads (n=21), and in the stored loaded runs 25.7 ms (p95 30.9). So the successful runs land just inside the 30 ms window.
+
+#### 2. Fixture instrumentation through the normal `run` path
+
+`bottom-right-smaller` and `bottom-smaller`, 20 each, interleaved. Conditions: back-to-back (about 1 s apart), idle with 30 s gaps, 22-thread `burn-cpu` (60 s warm-up). All 120 runs produced a trace and parsed.
+
+| | back-to-back | idle, 30 s gap | 22 threads |
+| :--- | ---: | ---: | ---: |
+| runs / stale `SIZE_SETTLED` / corrected after reveal | 40 / 0 / 0 | 40 / 0 / 0 | 40 / 14 / 10 |
+| (a) configure received after SET_SIZE_REQUEST, median / p95 / max | 7.9 / 10.9 / 11.6 | 8.5 / 10.8 / 13.7 | 23.1 / 59.1 / 120.4 |
+| ack - configure, median | 0.1 | 0.1 | 0.2 |
+| (b) `Resized` event - configure, median / p95 / max | 0.3 / 0.4 / 0.4 | 0.3 / 0.4 / 0.4 | 0.7 / 4.8 / 20.0 |
+| (c) resized commit - `Resized` event, median / p95 / max | 0.7 / 1.1 / 1.5 | 0.8 / 1.2 / 1.2 | 4.8 / 21.1 / 35.6 |
+| `wl_surface.frame` requests by the fixture | 0 | 0 | 0 |
+
+- **The fixture never asks for a frame callback** (winit 0.29 + softbuffer; 0 `wl_surface.frame` lines in the 120 dumps). H4 cannot apply to it. It applies the configure within 0.3 ms (median) of receiving it.
+- **Stage (a) carries the delay.** Under load the 14 stale runs had the configure at a median 41.7 ms (p90 71.1, max 120.4) against 19.3 ms (max 25.3) for the 26 runs that settled correctly. A stale run is one whose configure arrives after about 25-30 ms. Stage (c) adds to it (stale runs: commit - configure median 14.3 ms vs 5.4 overall).
+- Where UNCLOAK falls (22 threads): in the 26 correct runs the configure and the commit were both before UNCLOAK. In the 14 stale runs the configure was before UNCLOAK in 7 and the commit in 5, so 9 resized commits happened after the reveal. SIZE_SETTLED came before the configure in 8 of the 14.
+- (b) "configure early, applied only at the next callback" is not what happens: the apply step is sub-millisecond at idle and 0.7 ms median loaded (the 20 ms maximum is CPU starvation).
+- Idle shows no stale runs in this path (0 of 80), while my earlier sampler harness showed 65-84%. The difference is not explained (the sampler harness spawned the fixture itself); the 6.12 idle comparison should be read with that in mind.
+
+#### 3. Toolkit apps (WAYLAND_DEBUG on the real app)
+
+- **gnome-text-editor (GTK4), idle, 12 runs alternating 500x300 and 580x380.** The resized commit follows the configure by 3-6 ms and always precedes the next frame callback `done` (commit 10-15 ms, next `done` 19-51 ms), so GTK4 did not wait for a callback to commit the resize. The editor remembers its window size, so the first 22-thread batch (11 of 12 runs opened already at the target size) was discarded and redone with alternating sizes.
+- **Callbacks while cloaked, from mutter's own timestamp in `wl_callback.done`** (idle editor runs): the first `done` after the request was emitted 5.4-7.5 ms after the request, with the window cloaked (UNCLOAK 18-50 ms). So a cloaked surface does receive callbacks. A callback requested at the resized commit (about 12 ms) was not answered until 46-50 ms, 0.6-1.0 ms before UNCLOAK logs, i.e. in the stage update that `waitForFrames` forces; in between there was no stage update. This is the part of H4's premise that holds: after the first frame, callbacks for the cloaked surface wait for the next stage update. It did not delay the resize.
+- **Firefox (snap), idle, 6 runs, 300x200 request (Firefox's minimum is 625 wide).** Mutter stamped its frame-callback `done` events 6.6-17.7 ms after the request, but the client printed them at 108-133 ms together with the configure; before that its socket was not read for about 190 ms (the last event it dispatched was 56 ms before the request). So the 135-312 ms to the correction is the browser's startup, not the compositor withholding callbacks. After the configure arrived it committed 0.3-0.5 ms later. SIZE_SETTLED came at 32-42 ms, UNCLOAK at 40-59 ms, in every run before the configure was even read.
+- Under 22 threads the editor's valid runs (12 with a real resize) settled stale in 4: configure 21-45 ms, commit 42-83 ms after the request.
+
+#### 4. Source reading (SOURCE, mutter 46.2) and what `waitForFrames` waits for
+
+- Frame callbacks are queued per surface (`wl_surface_frame`, `meta_wayland_actor_surface_queue_frame_callbacks`) and sent by `meta_wayland_actor_surface_emit_frame_callbacks`. The only caller found is `emit_frame_callbacks_for_stage_view` in `meta-wayland.c`, driven by the stage's `after-update` signal (immediately on non-native backends, via a per-view timerfd source at the frame deadline on native). It tests that the surface has an actor and that `meta_surface_actor_wayland_is_view_primary` is true; it has no opacity test. A surface that fails the test stays queued. No timer for unpainted surfaces was found. `meta_wayland_actor_surface_apply_state` calls `meta_surface_actor_schedule_update` when callbacks are pending.
+- `meta_window_actor_wayland` frame hooks (`queue_frame_drawn`, `frame_complete`, `after_paint`) are empty; `meta_window_move_resize_frame` calls `meta_window_move_resize_internal` directly. Where the Wayland configure is flushed was not in the portion read.
+- Not read: the body of `meta_surface_actor_wayland_is_view_primary`, Clutter's paint path for opacity 0. Inferred from the measurement above, not from source: callbacks are emitted only on a stage update, and nothing forces one for a cloaked window between its first frame and the extension's pre-reveal `waitForFrames`.
+- `waitForFrames(stage, 1, ceiling)` (`commit.js:144-172`) connects `after-update`, calls `stage.queue_redraw()` and resolves after one `after-update` or the ceiling timer. So it forces a stage redraw, and that update is the one that flushes the pending callbacks (observed: `done` 0.6-1.0 ms before UNCLOAK).
+
+#### 5. What the data points to, and the options
+
+Which stage: (a) the configure reaching the client late, and for slow starters the client not reading its socket (Firefox); then (c) commit late under CPU starvation. Not (b). Because the delay is the app's own and the CPU's, a cloak that is painted differently would not change it.
+
+| fix | expected effect | risk | one-log-out test |
+| :--- | :--- | :--- | :--- |
+| (i) cloak at opacity 1 | none expected: callbacks already arrive while cloaked and the fixture does not wait for them | visible ghost at the target-off position; effects | variant read per spawn |
+| (ii) zero-size clip / off-screen move while cloaked | none expected for the same reason | unredirect and animation side effects, clip bugs | variant read per spawn |
+| (iii) wait in compositor frames instead of ms | only changes the clock of the quiet timer; the stale cases have the configure at 25-120 ms, i.e. several frames late | longer cloak at idle if the count is high | variant read per spawn |
+
+Developer switch for a single log-out (never committed): the extension reads a variant name from a file in `$XDG_RUNTIME_DIR` at each spawn and picks the cloak/settle behaviour; the verify run above is then repeated per variant without logging out.
+
+**Recommendation: no cloak change.** Keep the existing late-resize check and the post-reveal anchor correction, which already give the right final placement. If the flash must shrink, the data in 6.12 and the stage numbers here support a bounded grace after `SIZE_SETTLED` while the size differs from the request, with a learned minimum per app so min-bound apps do not pay it again; its cost is up to the grace on a first spawn of an app that never answers. Expected residual under a 22-thread load: about 25% of runs corrected after the reveal in the `run` path (10 of 40), higher for browser-class apps.
+
+**Not done.** No extension or product change. Chrome, nautilus and terminals were not traced at the protocol level. The idle discrepancy between the sampler harness and the `run` path is open. Whether mutter defers the configure send to the frame clock was not established (configure arrival at idle is 6-14 ms after the call, never earlier than 6 ms).
