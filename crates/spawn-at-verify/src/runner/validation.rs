@@ -206,6 +206,13 @@ pub fn pass_assessment(check: Option<&GeometryCheck>) -> (AutoStatus, String) {
     (AutoStatus::AutoPass, message)
 }
 
+/// Whether the action was expected to fail with a non-zero exit code and did fail with exactly
+/// that code (for example `spawn --size 0 150`, which the CLI rejects with exit 2 before any
+/// window exists). No window can be attributed to such a run, so attribution is skipped.
+pub fn expects_no_window(test: &TestDefinition, exit_code: i32) -> bool {
+    test.expect.exit_code != 0 && exit_code == test.expect.exit_code
+}
+
 /// Whether a passing result for `test` depends on the extension's trace: it asserts that the
 /// window is never visible off target, or it is a cloak test (id under `cloak/`).
 pub fn needs_trace(test: &TestDefinition) -> bool {

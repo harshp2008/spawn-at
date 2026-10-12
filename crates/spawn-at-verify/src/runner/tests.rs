@@ -541,3 +541,34 @@ exit_code = 0
         .iter()
         .any(|a| a == "--min-width" || a == "--min-height"));
 }
+
+/// `expects_no_window` is true only when the spec expects a non-zero exit code and the run
+/// returned exactly that code: exit 2 expected and 2 seen skips attribution; exit 2 expected but
+/// 0 seen, and the usual expectation 0, do not. Fails if an expected-failure spawn is still sent
+/// through window attribution ("could not attribute; windows left open: []").
+#[test]
+fn test_expects_no_window_only_for_a_matched_nonzero_exit() {
+    let spec = |code: i32| -> TestDefinition {
+        toml::from_str(&format!(
+            r#"
+id = "placement/x"
+category = "placement"
+title = "t"
+description = "d"
+kind = "auto"
+
+[action]
+command = "spawn"
+args = []
+
+[expect]
+exit_code = {code}
+"#
+        ))
+        .unwrap()
+    };
+    assert!(super::validation::expects_no_window(&spec(2), 2));
+    assert!(!super::validation::expects_no_window(&spec(2), 0));
+    assert!(!super::validation::expects_no_window(&spec(2), 1));
+    assert!(!super::validation::expects_no_window(&spec(0), 0));
+}

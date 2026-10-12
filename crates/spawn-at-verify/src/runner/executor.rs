@@ -3,8 +3,8 @@
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
-    build_action_command_args, extract_claimed_window_id, needs_trace, pass_assessment,
-    validate_expectations, validate_geometry,
+    build_action_command_args, expects_no_window, extract_claimed_window_id, needs_trace,
+    pass_assessment, validate_expectations, validate_geometry,
 };
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
@@ -239,7 +239,7 @@ impl TestRunner {
         // It must come only from that test's own spawn (the window id from the SpawnClaimed
         // signal or the claim result, or the fixture's own app id), never "any new window since the snapshot".
         let mut attributed_id: Option<u64> = None;
-        if test.action.command == "spawn" {
+        if test.action.command == "spawn" && !expects_no_window(test, exit_code) {
             let claimed_id = extract_claimed_window_id(&stdout, &stderr);
             let subject_app = test.subject.as_ref().map(|s| s.app.as_str());
             if let Ok(records) = query_window_records(&self.options.bin_path) {
