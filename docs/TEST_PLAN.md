@@ -154,27 +154,85 @@ means `run --repeat 10` in one process; "separate" means 10 separate `run` proce
 | 2 | separate | 10 | 32.91 ms | 43.03 ms | 58.99 ms |
 | 2 | repeat | 10 | 6.97 ms | 13.64 ms | 57.24 ms |
 
-What these data do and do not show:
+What these four batches show (CONFIRMED unless marked):
 - Before the fix, neighbouring runs repeatedly reported identical values (for example 57.64 ms
   twice, 8.20 ms three times), the signature of one leftover window being measured for several
-  runs. After the fix no two runs report the same value.
-- The spread is wide and differs between batches run minutes apart (about 7 - 19 ms in batch 1
-  separate, about 33 - 59 ms in batch 2 separate). Only one machine and four batches of 10 were
-  measured, so no distribution, mode structure or cause is claimed.
-- In the three runs of batch 2 whose cloak was at least 50 ms (separate runs 9 and 10, repeat run 1), the printed event lists show
-  `ACTOR_MAP` about 540 - 566 ms after `WINDOW_CREATED`, `CLOAK` immediately after `ACTOR_MAP`,
-  then a gap of about 49 - 55 ms between `COMMIT_RESOLVED` and the next `BATCH_STEP` before
-  `UNCLOAK`. The gap accounts for the length of those cloaks; why it varies was not investigated.
-- In batch 1 repeat, the 140.18 ms and 115.71 ms runs and the unmeasured run were seen once and were not
-  reproduced in later batches. Their event lists were not captured, so they are unexplained.
-- `cloak/delayed-paint/delay-0`, `delay-50`, `delay-150` and `placement/bottom-right`: **not
-  measured** after the fix.
+  runs. After the fix no two runs report the same value. **CONFIRMED.**
+- The spread differs between batches (about 7 - 19 ms in batch 1 separate, about 33 - 59 ms in
+  batch 2 separate). The investigation below explains this as two regimes.
+- `cloak/delayed-paint/delay-0`, `delay-50`, `delay-150` and `placement/bottom-right` were not
+  re-measured with `calibrate` after the fix; single `run`s of them gave about 30 - 44 ms before
+  the regimes were understood.
+
+### Findings from the cloak investigation
+
+All numbers: `spawn-at-verify calibrate` (separate-process mode `--mode separate`, `--repeat` mode
+`--mode repeat`, per-run phase gaps) and throwaway scripts, on one GNOME 46 Wayland machine
+(`cloak/delayed-paint/delay-500` unless stated). Status of each statement is stated explicitly.
+
+**1. Cloak time has two regimes. CONFIRMED (measured), mechanism HYPOTHESIS.**
+
+| Regime | `COMMIT_RESOLVED` to `SetPositionAnchored` gap | Total cloak (UNCLOAK - CLOAK) |
+| :--- | :---: | :---: |
+| Isolated: no other test window alive | about 24 - 34 ms (batches of 20: 23.1 - 38.0) | about 27 - 40 ms (26.57 - 41.65) |
+| Another fixture or `zenity` window alive | about 5 - 8 ms (5.3 - 10.1) | about 8 - 17 ms (7.6 - 17.5; a few runs 25 - 41 ms, see 4) |
+
+- **CONFIRMED:** three 20-run `--mode separate` batches (A, B and an idle-machine batch) were all in
+  the isolated regime: cloak medians 31.99, 30.91 and 32.35 ms. Two 20-run `--mode repeat` batches
+  were in the fast regime from run 2 on (cloak medians 8.67 and 9.16 ms) but their first run was slow
+  (33.43 ms and 27.33 ms; gaps 29.5 and 24.8 ms).
+- **CONFIRMED, why `--repeat` differs from separate runs:** `--repeat` cleans up windows only after
+  the last repetition (`runner/engine.rs:131-132`), so earlier fixture windows are alive during
+  later runs. The TUI closes an automatic test's window after each run (`tui/app/queue.rs:66-68`),
+  so TUI runs of automatic tests are in the isolated regime.
+- **CONFIRMED, controlled switch** (same command, only the background changed): no other window
+  25.7 - 31.0 ms; one fixture window alive 5.4 - 7.9 ms; that window closed 25.8 - 34.5 ms; a static
+  GTK `zenity` window alive 5.6 - 7.6 ms.
+
+**2. There is no deliberate wait between `COMMIT_RESOLVED` and the next batch step.
+CONFIRMED (code); the stall itself CONFIRMED (probe, +/-10 ms alignment); its content HYPOTHESIS.**
+- Code: `commit.js:62-66` logs `COMMIT_RESOLVED` and calls `resolve()`; `extension.js:783-786`
+  `await`s it; the next code that runs is the `BATCH_STEP` log at `extension.js:697`. No timer,
+  idle callback, frame wait or other work is between them, and the log shows no events in the gap.
+- The gap appears only when the commit resolves synchronously (requested size equal to the
+  fixture's size): 24.0 - 52.3 ms in 12/12 runs. When the commit resolved from a later `size-changed`
+  signal (requested size different) the gap was 0.1 - 0.3 ms in 12/12 runs, but the total cloak was
+  not shorter (37.0 - 54.2 ms): the time moved into the commit wait. **CONFIRMED.**
+- A read-only probe calling the extension's `GetCursor` D-Bus method in a loop saw the Shell main
+  loop stalled for 28.5 - 33.9 ms starting 0.554 - 0.560 s after the spawn command (the map time) in
+  all four spawns probed, matching the 26.9 - 32.0 ms gaps. **CONFIRMED** (alignment about
+  +/-10 ms, because the exact `ACTOR_MAP` wall time is not known).
+- What the Shell does during that stall is **NOT shown. HYPOTHESIS:** work after the window maps
+  (for example first-frame handling); no measurement here identifies it.
+
+**3. Why another window makes the stall short is unexplained. HYPOTHESIS only.**
+- Slow batches occurred with about 10 windows open (10 windows were present in all three slow
+  batches), so the trigger is not simply "another window exists".
+- CPU load does not explain it: correlation of the gap with load1 over 40 runs was 0.18 and with CPU
+  MHz 0.31, and an idle-machine batch (load1 0.68 - 0.95) was just as slow. **CONFIRMED.**
+- Two earlier `separate` batches (14:37 and 18:37 on 2026-10-11) were in the fast regime; what else
+  was mapped then was not recorded. Not explained.
+
+**4. `UNCLOAK_4C` to `UNCLOAK` is a one-frame wait. Code CONFIRMED; frame quantisation HYPOTHESIS.**
+`extension.js:861` does `await waitForFrames(global.stage, 1, 50 ms)`, then `_reveal`. It was
+1.1 - 4.8 ms in the isolated batches, with occasional 10 - 35 ms waits (34.5, 19.9, 18.2, 11.1, 9.8 ms)
+that are why a few fast-regime cloaks were 25 - 41 ms. That these are multiples of the frame period
+was not shown.
+
+**5. Outliers did not reproduce. CONFIRMED (not reproduced); cause unknown.** The earlier 140.18 ms,
+115.71 ms and one unmeasured run did not recur in more than 100 runs afterwards (40 `--repeat` runs,
+60 separate runs and about 50 scripted runs); the largest cloak seen was 61.9 ms. `calibrate` saves the raw
+log slice of any run that is unmeasured or at least 50 ms (`verify-results/calibrate-slices/`) if one
+recurs.
+
 
 ### Budget Policy
 1. **Advisory budget warning:**
    The 100 ms warning threshold is **provisional**: it is a guess, not derived from the data above,
    and no measurement supports a budget that depends on the paint delay. It is shown in the TUI
-   drawer as `over provisional budget` and is not an automated pass/fail threshold.
+   drawer as `over provisional budget` and is not an automated pass/fail threshold. **CONFIRMED:** the
+   largest cloak observed after the fix is 61.9 ms, below 100 ms; the budget stays provisional, and
+   the two regimes above are why a single threshold cannot be derived from one batch.
 2. **Automated Verification Pass/Fail Invariants:**
    Automated pass/fail criteria are strictly anchored in correctness invariants rather than synthetic timing limits:
    - Window must never be visible off-target (zero flicker).
