@@ -1,0 +1,50 @@
+id = "placement/bottom-left"
+category = "placement"
+title = "Window placed in bottom-left corner"
+description = "Spawns a test window anchored to the bottom-left corner of the work area with a 16px boundary margin."
+kind = "both"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-BottomLeft",
+    "--app-id", "verify.placement.bottomleft",
+    "--expect", "Should appear at bottom-left corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.bottomleft",
+    "--anchor", "bottom-left",
+    "--size", "400", "300",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-left"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once in the bottom-left corner with a small gap from screen edges, without flickering or jumping?"

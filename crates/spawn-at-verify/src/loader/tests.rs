@@ -35,8 +35,10 @@ fn test_combinable_filter() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(filtered_cat.len(), 1);
-    assert_eq!(filtered_cat[0].id, "placement/bottom-right");
+    assert_eq!(filtered_cat.len(), 13);
+    assert!(filtered_cat
+        .iter()
+        .any(|t| t.id == "placement/bottom-right"));
 
     // 2. Filter combining kind and tag
     let filtered_comb = reg
@@ -47,8 +49,20 @@ fn test_combinable_filter() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(filtered_comb.len(), 1); // bottom-right
-    assert_eq!(filtered_comb[0].id, "placement/bottom-right");
+    // The six Both placement specs: the four corners, margin-0 and center-200x150.
+    let mut both_ids: Vec<_> = filtered_comb.iter().map(|t| t.id.as_str()).collect();
+    both_ids.sort();
+    assert_eq!(
+        both_ids,
+        [
+            "placement/bottom-left",
+            "placement/bottom-right",
+            "placement/center-200x150",
+            "placement/margin-0",
+            "placement/top-left",
+            "placement/top-right",
+        ]
+    );
 
     // 3. Filter Auto cases
     let filtered_auto = reg

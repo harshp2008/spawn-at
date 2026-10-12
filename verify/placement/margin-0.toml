@@ -1,0 +1,50 @@
+id = "placement/margin-0"
+category = "placement"
+title = "Window in bottom-right corner with 0px margin"
+description = "Spawns a test window anchored to the bottom-right corner of the work area with no boundary margin."
+kind = "both"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Margin0",
+    "--app-id", "verify.placement.margin0",
+    "--expect", "Should touch bottom-right corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.margin0",
+    "--anchor", "bottom-right",
+    "--size", "400", "300",
+    "--margin", "0"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 0
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once flush against the bottom-right corner, with no gap, without flickering or jumping?"
