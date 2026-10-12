@@ -119,6 +119,7 @@ pub fn resolve_backend(
 /// Entry point for the verification fixture binary.
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = FixtureArgs::parse();
+    fixture::trace::init();
 
     let wayland_display = std::env::var("WAYLAND_DISPLAY").ok();
     let display = std::env::var("DISPLAY").ok();

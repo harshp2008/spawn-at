@@ -133,7 +133,11 @@ pub(crate) fn run_window(
         }
     }
 
+    super::trace::log("EVENT_LOOP_ENTER", "");
     event_loop.run(move |event, window_target| {
+        if let winit::event::Event::NewEvents(cause) = &event {
+            super::trace::log("NEW_EVENTS", &format!("{:?}", cause));
+        }
         // Check signal termination
         if term_flag.load(Ordering::Relaxed) {
             window_target.exit();
@@ -195,6 +199,10 @@ pub(crate) fn run_window(
                 event: winit::event::WindowEvent::Resized(physical_size),
                 ..
             } => {
+                super::trace::log(
+                    "RESIZED",
+                    &format!("{}x{}", physical_size.width, physical_size.height),
+                );
                 if painted {
                     let _ = draw_frame(
                         &mut surface,
@@ -204,14 +212,19 @@ pub(crate) fn run_window(
                         args.paint_delay_ms,
                         &args.expect,
                     );
+                    super::trace::log(
+                        "COMMIT_DONE",
+                        &format!("{}x{}", physical_size.width, physical_size.height),
+                    );
                 }
             }
             winit::event::Event::WindowEvent {
                 event: winit::event::WindowEvent::RedrawRequested,
                 ..
             } => {
+                let size = window.inner_size();
+                super::trace::log("REDRAW_REQUESTED", &format!("{}x{}", size.width, size.height));
                 if painted {
-                    let size = window.inner_size();
                     let _ = draw_frame(
                         &mut surface,
                         size.width,
@@ -220,6 +233,7 @@ pub(crate) fn run_window(
                         args.paint_delay_ms,
                         &args.expect,
                     );
+                    super::trace::log("COMMIT_DONE", &format!("{}x{}", size.width, size.height));
                 }
             }
             winit::event::Event::AboutToWait => {
