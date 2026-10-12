@@ -7,7 +7,8 @@
 
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
+
+pub use crate::ext_logging::set_extension_logging;
 
 /// Locates the active session log file.
 pub fn get_session_log_path() -> PathBuf {
@@ -52,33 +53,6 @@ pub fn detect_current_logging_state() -> bool {
     std::env::var("SPAWN_AT_DEBUG")
         .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
         .unwrap_or(false)
-}
-
-/// Invokes `SetLogging` on the GNOME Shell extension via session D-Bus.
-pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
-    let output = Command::new("gdbus")
-        .args([
-            "call",
-            "--session",
-            "--dest",
-            "org.gnome.Shell",
-            "--object-path",
-            "/org/gnome/Shell/Extensions/SpawnAt",
-            "--method",
-            "org.gnome.Shell.Extensions.SpawnAt.SetLogging",
-            if enabled { "true" } else { "false" },
-        ])
-        .output();
-
-    match output {
-        Ok(out) if out.status.success() => Ok(()),
-        Ok(out) => Err(format!(
-            "gdbus returned non-zero exit code: {:?}, stderr: {}",
-            out.status.code(),
-            String::from_utf8_lossy(&out.stderr)
-        )),
-        Err(e) => Err(format!("Failed to execute gdbus: {}", e)),
-    }
 }
 
 /// RAII Guard ensuring extension logging state is faithfully restored on drop or exit.

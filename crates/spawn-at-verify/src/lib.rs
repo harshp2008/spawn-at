@@ -4,6 +4,7 @@
 #![warn(missing_docs)]
 
 pub mod cli;
+pub mod ext_logging;
 pub mod loader;
 pub mod log_source;
 pub mod oracle;
