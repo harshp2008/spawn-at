@@ -30,6 +30,8 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ## 2. 41-Case Test Catalog across 8 Categories
 
+The 41 rows are the planned catalogue: 18 are **Covered** (a spec file exists and `spawn-at-verify list` shows it, 18 tests) and 23 are **Planned** (no spec yet).
+
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
 | **Category: basics** | | | | |
