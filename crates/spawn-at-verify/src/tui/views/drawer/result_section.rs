@@ -387,10 +387,17 @@ pub fn render_result_section(
             ),
             GeometryStatus::Fail => {
                 let (dx, dy, dw, dh) = check.deltas().unwrap_or((0, 0, 0, 0));
-                let msg = format!(
-                    "off expected by dx={:+} dy={:+} dw={:+} dh={:+} (tolerance ±{} px)",
-                    dx, dy, dw, dh, tol
-                );
+                let msg = if check.position_ok() == Some(true)
+                    && check.size_ok() != Some(false)
+                    && check.inside_workarea == Some(false)
+                {
+                    "not fully inside the workarea although its size fits".to_string()
+                } else {
+                    format!(
+                        "off expected by dx={:+} dy={:+} dw={:+} dh={:+} (tolerance ±{} px)",
+                        dx, dy, dw, dh, tol
+                    )
+                };
                 (
                     vec![
                         Span::styled(

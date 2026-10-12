@@ -169,7 +169,7 @@ pub fn validate_geometry(
     log_slice: Option<&str>,
     env_info: &EnvironmentInfo,
 ) -> Result<Option<crate::oracle::GeometryCheck>, String> {
-    match &test.expect.rect {
+    match &test.effective_expect_rect() {
         Some(expect) => {
             let check = check_geometry(expect, stdout, log_slice, env_info.workarea_probe());
             check.verdict().map(|()| Some(check))

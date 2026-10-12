@@ -72,6 +72,19 @@ impl Default for OracleParams {
     }
 }
 
+/// Final window size when the app enforces a minimum on one or both axes: `max(requested, min)`
+/// per axis; an axis without a declared minimum keeps the requested value.
+pub fn final_size_with_min(
+    requested: (u32, u32),
+    min_w: Option<u32>,
+    min_h: Option<u32>,
+) -> (u32, u32) {
+    (
+        requested.0.max(min_w.unwrap_or(0)),
+        requested.1.max(min_h.unwrap_or(0)),
+    )
+}
+
 /// Computes the expected window rectangle given workarea bounds and placement parameters.
 pub fn calculate_expected_rect(workarea: Rect, params: &OracleParams) -> Result<Rect, String> {
     let (w, h) = params.size;

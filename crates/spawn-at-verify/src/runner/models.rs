@@ -135,9 +135,9 @@ impl TestResult {
         test: &crate::schema::TestDefinition,
         probe: crate::oracle::WorkareaProbe,
     ) -> Option<crate::oracle::GeometryCheck> {
-        let expect = test.expect.rect.as_ref()?;
+        let expect = test.effective_expect_rect()?;
         Some(crate::oracle::check_geometry(
-            expect,
+            &expect,
             &self.stdout,
             self.log_slice.as_deref(),
             probe,

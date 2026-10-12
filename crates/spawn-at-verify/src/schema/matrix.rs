@@ -3,6 +3,26 @@
 use super::types::*;
 
 impl TestDefinition {
+    /// The rectangle expectation the oracle must judge: `expect.rect` with its `size` replaced by
+    /// `max(requested, fixture minimum)` per axis when the subject declares `min_width` /
+    /// `min_height`. The position is then the anchor for that final size. `None` when the test
+    /// has no rectangle expectation; a rectangle without a size is returned unchanged.
+    pub fn effective_expect_rect(&self) -> Option<ExpectRect> {
+        let mut rect = self.expect.rect.clone()?;
+        if let (Some(size), Some(subject)) = (rect.size.as_mut(), self.subject.as_ref()) {
+            if size.len() >= 2 {
+                let (w, h) = crate::oracle::final_size_with_min(
+                    (size[0], size[1]),
+                    subject.min_width,
+                    subject.min_height,
+                );
+                size[0] = w;
+                size[1] = h;
+            }
+        }
+        Some(rect)
+    }
+
     /// Returns the effective tags for this test, automatically deriving
     /// platform tags (`wayland-only`, `x11-only`, `gnome-only`) from `[requires]`.
     pub fn effective_tags(&self) -> Vec<String> {

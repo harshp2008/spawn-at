@@ -78,6 +78,48 @@ pub struct GeometryCheck {
     /// `(independent, extension-derived)` when an independent workarea exists and an
     /// extension-derived one (layout or log) differs. Judging still uses the independent one.
     pub conflict: Option<(Rect, Rect)>,
+    /// Whether the observed rectangle lies fully inside the workarea. `None` when it does not
+    /// apply: the anchor is not one where the far edge matters (see [`FAR_EDGE_ANCHORS`]), the
+    /// observed size does not fit the workarea inside the margins, or the workarea / observed
+    /// rectangle is unavailable.
+    pub inside_workarea: Option<bool>,
+}
+
+/// Anchors whose far edge (right and/or bottom) is where an off-size window falls off the
+/// workarea; only for these is containment judged.
+pub const FAR_EDGE_ANCHORS: [&str; 5] = [
+    "bottom-right",
+    "bottom-left",
+    "top-right",
+    "bottom",
+    "right",
+];
+
+/// Containment of `actual` in `workarea` for a far-edge anchor whose observed size fits inside
+/// the margins (`w + ml + mr <= workarea.w` and `h + mt + mb <= workarea.h`); otherwise `None`.
+/// Margins default to 0 as in [`expected_rect`].
+fn containment(expect: &ExpectRect, workarea: Option<Rect>, actual: Option<Rect>) -> Option<bool> {
+    let anchor = expect.anchor.as_deref()?;
+    if !FAR_EDGE_ANCHORS.contains(&anchor) {
+        return None;
+    }
+    let (wa, a) = (workarea?, actual?);
+    let m = expect.margin.unwrap_or(0);
+    let ml = expect.margin_left.unwrap_or(m);
+    let mr = expect.margin_right.unwrap_or(m);
+    let mt = expect.margin_top.unwrap_or(m);
+    let mb = expect.margin_bottom.unwrap_or(m);
+    let fits = a.w as i64 + ml as i64 + mr as i64 <= wa.w as i64
+        && a.h as i64 + mt as i64 + mb as i64 <= wa.h as i64;
+    if !fits {
+        return None;
+    }
+    Some(
+        a.x >= wa.x
+            && a.y >= wa.y
+            && a.x as i64 + a.w as i64 <= wa.x as i64 + wa.w as i64
+            && a.y as i64 + a.h as i64 <= wa.y as i64 + wa.h as i64,
+    )
 }
 
 /// Formats a rectangle as `x,y WxH` for messages.
@@ -131,6 +173,7 @@ impl GeometryCheck {
         match (self.position_ok(), self.size_ok()) {
             (None, _) => GeometryStatus::Unchecked,
             (Some(false), _) | (_, Some(false)) => GeometryStatus::Fail,
+            _ if self.inside_workarea == Some(false) => GeometryStatus::Fail,
             _ => GeometryStatus::Pass,
         }
     }
@@ -141,6 +184,16 @@ impl GeometryCheck {
             return Ok(());
         }
         let (e, a) = (self.expected.unwrap(), self.actual.unwrap());
+        if self.position_ok() == Some(true)
+            && self.size_ok() != Some(false)
+            && self.inside_workarea == Some(false)
+        {
+            let wa = self.workarea.unwrap();
+            return Err(format!(
+                "Window rectangle [{}, {}, {}x{}] is not fully inside the workarea [{}, {}, {}x{}] although its size fits",
+                a.x, a.y, a.w, a.h, wa.x, wa.y, wa.w, wa.h
+            ));
+        }
         let (dx, dy, dw, dh) = self.deltas().unwrap();
         Err(format!(
             "Geometry mismatch (tolerance {}px): expected [{}, {}, {}x{}], actual [{}, {}, {}x{}] (delta actual-expected: dx={:+}, dy={:+}, dw={:+}, dh={:+})",
@@ -255,6 +308,7 @@ pub fn check_geometry(
         workarea,
         workarea_source,
         conflict,
+        inside_workarea: containment(expect, workarea, actual),
     }
 }
 
