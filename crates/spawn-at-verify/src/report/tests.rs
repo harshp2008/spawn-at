@@ -286,3 +286,45 @@ fn test_required_trace_unchecked_pass_does_not_qualify() {
         (false, 0, 1)
     );
 }
+
+/// Three runs written in the same second (same `generated_at`, same host) get three separate
+/// directories that sort in start order, each with its own `report.json`. Fails if a later run
+/// overwrote an earlier one's report: the three results here have different ids.
+#[test]
+fn test_same_second_runs_keep_separate_report_directories() {
+    let base = std::env::temp_dir().join(format!(
+        "spawn-at-verify-same-second-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut dirs = Vec::new();
+    for id in ["a/one", "a/two", "a/three"] {
+        let result = run_result(id, "", 1);
+        let mut report = report_with_runs(&[result], &[]);
+        report.environment.generated_at = 1_800_000_000;
+        report.environment.hostname = "host".into();
+        dirs.push(write_report_artifacts(&base, &report).unwrap());
+    }
+    let names: Vec<String> = dirs
+        .iter()
+        .map(|d| d.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert!(names[0].ends_with("-host"), "{:?}", names);
+    assert!(names[1].ends_with("-host-02"), "{:?}", names);
+    assert!(names[2].ends_with("-host-03"), "{:?}", names);
+    let mut sorted = names.clone();
+    sorted.sort();
+    assert_eq!(sorted, names, "names must sort in start order");
+    for (d, id) in dirs.iter().zip(["a/one", "a/two", "a/three"]) {
+        let json = std::fs::read_to_string(d.join("report.json")).unwrap();
+        assert!(
+            json.contains(&format!("\"id\": \"{}\"", id)),
+            "{}",
+            d.display()
+        );
+    }
+    std::fs::remove_dir_all(&base).unwrap();
+}

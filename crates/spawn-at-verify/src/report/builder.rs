@@ -138,6 +138,12 @@ pub fn build_session_report_with_runs(
 }
 
 /// Writes `report.json`, `report.md`, and log slices into `verify-results/<timestamp>-<host>/`.
+///
+/// The timestamp has one-second resolution, so when that directory already exists (another run
+/// started in the same second) the name gets a zero-padded counter: `<timestamp>-<host>-02`,
+/// `-03`, ... up to `-99`. `create_dir` fails if the name exists, so two runs never share a
+/// directory. Names still sort in start order: the plain name is a prefix of its counted
+/// siblings, and a later second differs earlier in the string.
 pub fn write_report_artifacts(
     output_base: &Path,
     report: &SessionReport,
@@ -146,14 +152,31 @@ pub fn write_report_artifacts(
         SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(report.environment.generated_at),
     );
     let dir_name = format!("{}-{}", ts, report.environment.hostname);
-    let session_dir = output_base.join(dir_name);
-    fs::create_dir_all(&session_dir).map_err(|e| {
+    fs::create_dir_all(output_base).map_err(|e| {
         format!(
             "Failed to create report dir {}: {}",
-            session_dir.display(),
+            output_base.display(),
             e
         )
     })?;
+    let mut session_dir = output_base.join(&dir_name);
+    let mut counter = 1;
+    loop {
+        match fs::create_dir(&session_dir) {
+            Ok(()) => break,
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && counter < 99 => {
+                counter += 1;
+                session_dir = output_base.join(format!("{}-{:02}", dir_name, counter));
+            }
+            Err(e) => {
+                return Err(format!(
+                    "Failed to create report dir {}: {}",
+                    session_dir.display(),
+                    e
+                ))
+            }
+        }
+    }
 
     // 1. report.json
     let json_path = session_dir.join("report.json");

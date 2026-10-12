@@ -263,7 +263,7 @@ cargo run -p spawn-at-verify --features tui,fixture -- tui
 
 ## 10. Reporting & Support Qualification
 
-Test outputs are recorded under `verify-results/<timestamp>-<host>/`:
+Test outputs are recorded under `verify-results/<timestamp>-<host>/` (`<timestamp>-<host>-02`, `-03`, ... when another run started in the same second):
 - `report.json`: Full machine-readable execution trace.
 - `report.md`: Markdown summary report.
 - `slices/`: Individual per-test journal and trace logs.
