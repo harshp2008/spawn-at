@@ -414,3 +414,63 @@ fn test_geometry_fail_is_an_error_with_deltas() {
     );
     assert_eq!(fin, FinalStatus::Fail);
 }
+
+/// Every automatic/human combination for a `both` test: (auto, human, final status, disagreement).
+/// Auto Fail with human Pass is Fail (and a disagreement); auto Pass with human Fail is Fail (and
+/// a disagreement); auto Pass with human unset is Pending; both Pass is Pass; an automatic Fail
+/// stays Fail whatever the human has not said or said.
+#[test]
+fn test_both_final_status_table() {
+    let human = |v: HumanVerdictKind| HumanVerdict {
+        verdict: v,
+        note: None,
+    };
+    let table = [
+        (
+            AutoStatus::AutoPass,
+            HumanVerdictKind::Pass,
+            FinalStatus::Pass,
+            false,
+        ),
+        (
+            AutoStatus::AutoPass,
+            HumanVerdictKind::Fail,
+            FinalStatus::Fail,
+            true,
+        ),
+        (
+            AutoStatus::AutoPass,
+            HumanVerdictKind::Unset,
+            FinalStatus::Pending,
+            false,
+        ),
+        (
+            AutoStatus::AutoFail,
+            HumanVerdictKind::Pass,
+            FinalStatus::Fail,
+            true,
+        ),
+        (
+            AutoStatus::AutoFail,
+            HumanVerdictKind::Fail,
+            FinalStatus::Fail,
+            false,
+        ),
+        (
+            AutoStatus::AutoFail,
+            HumanVerdictKind::Unset,
+            FinalStatus::Fail,
+            false,
+        ),
+    ];
+    for (auto, h, want, want_dis) in table {
+        let (got, dis) = resolve_final_status(TestKind::Both, auto, &human(h));
+        assert_eq!(
+            (got, dis),
+            (want, want_dis),
+            "auto {:?}, human {:?}",
+            auto,
+            h
+        );
+    }
+}
