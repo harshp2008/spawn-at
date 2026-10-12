@@ -34,6 +34,8 @@ const GEOMETRY_FLOOR_W = 100;
 const GEOMETRY_FLOOR_H = 60;
 const ANCHOR_RETIRE_QUIET_MS = 1000;
 const FRAME_WAIT_CEILING_MS = 50;
+// Most re-anchor checks made right before the reveal; at most one extra frame wait (2 - 1).
+const LATE_RESIZE_MAX_PASSES = 2;
 
 export default class SpawnAtExtension extends Extension {
 
@@ -862,6 +864,20 @@ export default class SpawnAtExtension extends Extension {
         if (this._disabled)
             return;
 
+        // The 4C check above ran before this frame wait, and the reactive anchor is only armed by
+        // _reveal(). A client resize that landed in between would be anchored for its old size.
+        // So check again in the same tick as the reveal: anything before the check is corrected
+        // here, anything after the arm reaches the reactive anchor, and nothing can land in
+        // between because this tick runs without yielding to the main loop. After a correction
+        // wait one more frame (bounded by LATE_RESIZE_MAX_PASSES) so the moved window is painted
+        // before it is revealed; the last check is still in the reveal's tick.
+        let passes = 0;
+        while (this._reanchorLateResize(ctx) && ++passes < LATE_RESIZE_MAX_PASSES) {
+            await this._commitLatch.waitForFrames(global.stage, 1, FRAME_WAIT_CEILING_MS);
+            if (this._disabled)
+                return;
+        }
+
         this._reveal(ctx);
     }
 
@@ -938,6 +954,27 @@ export default class SpawnAtExtension extends Extension {
         const after = window.get_frame_rect();
         ctx.positionedW = after.width;
         ctx.positionedH = after.height;
+    }
+
+    // Re-anchors a window whose frame size changed since it was last positioned, right before the
+    // reveal. Returns true when it moved the window. Maximized windows are left to the 4C check.
+    _reanchorLateResize(ctx) {
+        const { window } = ctx;
+        if (!ctx.anchorPayload || this._isMaximized(window))
+            return false;
+
+        const cur = window.get_frame_rect();
+        if (cur.width === ctx.positionedW && cur.height === ctx.positionedH)
+            return false;
+
+        this.logTime('LATE_RESIZE_CORRECTED',
+            `positioned=(${ctx.positionedW}x${ctx.positionedH}) actual=(${cur.width}x${cur.height})`,
+            window);
+        this._applyAnchoredPosition(window, ctx.anchorPayload);
+        const after = window.get_frame_rect();
+        ctx.positionedW = after.width;
+        ctx.positionedH = after.height;
+        return true;
     }
 
     _reveal(ctx) {
