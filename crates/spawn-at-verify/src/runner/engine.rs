@@ -35,7 +35,7 @@ fn no_log_source_reason() -> String {
 /// none. A no-op source carries `noop_reason` so the lack of a trace is explained.
 fn logging_for(source: &dyn LogSource, noop_reason: Option<String>) -> Box<dyn LoggingControl> {
     match source.name() {
-        "journalctl" => Box::new(GdbusLogging),
+        "journalctl" => Box::new(GdbusLogging::new()),
         "noop" => Box::new(NoLogging {
             reason: noop_reason,
         }),

@@ -100,21 +100,46 @@ pub trait LoggingControl: Send + Sync {
 }
 
 /// Real control: `SetLogging(true)` over D-Bus, then a wait for the echo in the journal.
-pub struct GdbusLogging;
+pub struct GdbusLogging {
+    /// How `SetLogging(true)` is sent; [`set_extension_logging`] unless a test replaces it.
+    set_logging: fn(bool) -> Result<(), String>,
+}
+
+impl GdbusLogging {
+    /// A control that sends `SetLogging` through the real `gdbus`.
+    pub fn new() -> Self {
+        Self {
+            set_logging: set_extension_logging,
+        }
+    }
+}
+
+impl Default for GdbusLogging {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl LoggingControl for GdbusLogging {
-    /// Calls `SetLogging(true)` and waits up to [`ECHO_TIMEOUT`] for [`ENABLE_ECHO`] (see
+    /// Calls `SetLogging(true)`. With the "noop" log source it stops there, because nothing can
+    /// echo into it; otherwise it waits up to [`ECHO_TIMEOUT`] for [`ENABLE_ECHO`] (see
     /// [`wait_for_echo`]).
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome {
         let since = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        if let Err(e) = set_extension_logging(true) {
+        if let Err(e) = (self.set_logging)(true) {
             return LoggingOutcome::Failed(format!(
                 "extension timing log could not be enabled: {}",
                 e.trim()
             ));
+        }
+        if log.name() == "noop" {
+            return LoggingOutcome::Failed(
+                "SetLogging(true) was sent, but the no-op log source cannot show whether the timing log is on"
+                    .to_string(),
+            );
         }
         if wait_for_echo(log, since, ECHO_TIMEOUT, ECHO_POLL_INTERVAL) {
             return LoggingOutcome::Enabled;
@@ -323,5 +348,46 @@ mod tests {
         assert!(took >= Duration::from_millis(100), "took {:?}", took);
         assert!(took < Duration::from_millis(400), "took {:?}", took);
         assert!(j.calls() >= 3, "polled {} times", j.calls());
+    }
+
+    /// Log source named "noop" that counts reads, to show none happen.
+    struct CountingNoop(AtomicUsize);
+
+    impl LogSource for CountingNoop {
+        /// Returns the provider name "noop".
+        fn name(&self) -> &'static str {
+            "noop"
+        }
+
+        /// Counts the read and returns an empty slice.
+        fn capture_slice(&self, _since: u64, _until: u64) -> Result<String, String> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Ok(String::new())
+        }
+    }
+
+    static NOOP_SET_CALLS: AtomicUsize = AtomicUsize::new(0);
+
+    /// Stand-in for `gdbus` that succeeds and counts the call.
+    fn counting_set_logging(_on: bool) -> Result<(), String> {
+        NOOP_SET_CALLS.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    }
+
+    /// With the "noop" source `SetLogging` is still sent once, but the journal is never read and
+    /// the call returns in well under one poll interval sequence (a skipped wait would otherwise
+    /// cost the full 1000 ms). Fails if the echo wait runs against a source that cannot echo.
+    #[test]
+    fn test_noop_source_sends_set_logging_but_skips_the_echo_wait() {
+        let log = CountingNoop(AtomicUsize::new(0));
+        let ctl = GdbusLogging {
+            set_logging: counting_set_logging,
+        };
+        let began = Instant::now();
+        let outcome = ctl.ensure_enabled(&log);
+        assert_eq!(NOOP_SET_CALLS.load(Ordering::SeqCst), 1);
+        assert_eq!(log.0.load(Ordering::SeqCst), 0, "journal was read");
+        assert!(began.elapsed() < Duration::from_millis(100));
+        assert!(matches!(outcome, LoggingOutcome::Failed(_)));
     }
 }
