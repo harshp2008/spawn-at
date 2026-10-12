@@ -56,6 +56,22 @@ impl TestRegistry {
                 ));
             }
 
+            // The oracle assumes margin 0 when `[expect.rect]` states none, but `spawn-at spawn`
+            // defaults to 16 (`src/cli/args.rs:134`), so an implicit margin would be judged wrong.
+            if let Some(rect) = &parsed.expect.rect {
+                let all_sides = rect.margin_top.is_some()
+                    && rect.margin_bottom.is_some()
+                    && rect.margin_left.is_some()
+                    && rect.margin_right.is_some();
+                if rect.margin.is_none() && !all_sides {
+                    return Err(format!(
+                        "Spec '{}' ({}): [expect.rect] has no explicit margin; set `margin` (or all four per-side margins), because the oracle assumes 0 while spawn-at defaults to 16",
+                        parsed.id,
+                        file_path.display()
+                    ));
+                }
+            }
+
             if !crate::schema::is_valid_category(&parsed.category) {
                 return Err(format!(
                     "Invalid category '{}' in {}. Valid categories are: {:?}",

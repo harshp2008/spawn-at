@@ -196,3 +196,33 @@ fn test_malformed_suite_is_an_error_not_skipped() {
     let err = TestRegistry::load_from_dir(&dir.0).unwrap_err();
     assert!(err.contains("Failed to parse suite"), "{}", err);
 }
+
+/// A spec whose `[expect.rect]` has no margin is a load error naming the spec id and the file;
+/// the same spec with `margin = 16`, or with all four per-side margins, loads. Fails if the
+/// oracle's implicit margin 0 is accepted silently.
+#[test]
+fn test_spec_without_explicit_margin_is_an_error() {
+    let top = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../verify/placement/top.toml"),
+    )
+    .unwrap();
+    assert!(top.contains("margin = 16\n"), "fixture spec changed");
+
+    let dir = TempVerifyDir::new("no-margin");
+    let without = top.replace("margin = 16\n", "");
+    std::fs::write(dir.0.join("placement/top.toml"), &without).unwrap();
+    let err = TestRegistry::load_from_dir(&dir.0).unwrap_err();
+    assert!(err.contains("placement/top"), "{}", err);
+    assert!(err.contains("no explicit margin"), "{}", err);
+    assert!(err.contains("placement/top.toml"), "{}", err);
+
+    std::fs::write(dir.0.join("placement/top.toml"), &top).unwrap();
+    assert!(TestRegistry::load_from_dir(&dir.0).is_ok());
+
+    let per_side = top.replace(
+        "margin = 16\n",
+        "margin_top = 16\nmargin_bottom = 16\nmargin_left = 16\nmargin_right = 16\n",
+    );
+    std::fs::write(dir.0.join("placement/top.toml"), per_side).unwrap();
+    assert!(TestRegistry::load_from_dir(&dir.0).is_ok());
+}
