@@ -2,7 +2,8 @@
 
 use crate::log_source::LogSource;
 use std::process::Command;
-use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant, SystemTime};
 
 /// Invokes `SetLogging` on the GNOME Shell extension via session D-Bus.
@@ -99,10 +100,39 @@ pub trait LoggingControl: Send + Sync {
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome;
 }
 
+/// Whether the last echo wait of this session timed out. It lives for the whole process, so
+/// `run`, `calibrate` and the TUI (which builds a runner per test) share it.
+#[derive(Debug, Default)]
+pub struct EchoMemory {
+    timed_out: AtomicBool,
+}
+
+impl EchoMemory {
+    /// The one memory shared by every real [`GdbusLogging`] in this process.
+    pub fn session() -> Arc<EchoMemory> {
+        static SESSION: OnceLock<Arc<EchoMemory>> = OnceLock::new();
+        SESSION.get_or_init(Arc::default).clone()
+    }
+}
+
+/// The reason recorded when no enable echo was seen. It holds for both a full wait and the
+/// single check made after an earlier timeout, so every affected result carries the same text.
+pub fn echo_timeout_note() -> String {
+    format!(
+        "SetLogging(true) succeeded but no '{}' line reached the journal (the first wait lasts {} ms; once one times out, later tests are checked once), so the timing log may be off",
+        ENABLE_ECHO,
+        ECHO_TIMEOUT.as_millis()
+    )
+}
+
 /// Real control: `SetLogging(true)` over D-Bus, then a wait for the echo in the journal.
 pub struct GdbusLogging {
     /// How `SetLogging(true)` is sent; [`set_extension_logging`] unless a test replaces it.
     set_logging: fn(bool) -> Result<(), String>,
+    /// Set when an echo wait timed out; later checks then poll once instead of up to the timeout.
+    memory: Arc<EchoMemory>,
+    /// Longest echo wait while no timeout is remembered.
+    timeout: Duration,
 }
 
 impl GdbusLogging {
@@ -110,6 +140,8 @@ impl GdbusLogging {
     pub fn new() -> Self {
         Self {
             set_logging: set_extension_logging,
+            memory: EchoMemory::session(),
+            timeout: ECHO_TIMEOUT,
         }
     }
 }
@@ -122,8 +154,8 @@ impl Default for GdbusLogging {
 
 impl LoggingControl for GdbusLogging {
     /// Calls `SetLogging(true)`. With the "noop" log source it stops there, because nothing can
-    /// echo into it; otherwise it waits up to [`ECHO_TIMEOUT`] for [`ENABLE_ECHO`] (see
-    /// [`wait_for_echo`]).
+    /// echo into it. Otherwise it waits up to the timeout for [`ENABLE_ECHO`] (see
+    /// [`wait_for_echo`]), or makes a single check once an earlier wait has timed out.
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome {
         let since = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -141,14 +173,19 @@ impl LoggingControl for GdbusLogging {
                     .to_string(),
             );
         }
-        if wait_for_echo(log, since, ECHO_TIMEOUT, ECHO_POLL_INTERVAL) {
+        // After a timeout the wait shrinks to one immediate check; seeing the echo again clears it.
+        let remembered = self.memory.timed_out.load(Ordering::SeqCst);
+        let timeout = if remembered {
+            Duration::ZERO
+        } else {
+            self.timeout
+        };
+        if wait_for_echo(log, since, timeout, ECHO_POLL_INTERVAL) {
+            self.memory.timed_out.store(false, Ordering::SeqCst);
             return LoggingOutcome::Enabled;
         }
-        LoggingOutcome::Failed(format!(
-            "SetLogging(true) succeeded but no '{}' line reached the journal within {} ms, so the timing log may be off",
-            ENABLE_ECHO,
-            ECHO_TIMEOUT.as_millis()
-        ))
+        self.memory.timed_out.store(true, Ordering::SeqCst);
+        LoggingOutcome::Failed(echo_timeout_note())
     }
 }
 
@@ -262,7 +299,7 @@ impl LoggingControl for FakeExtension {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize};
 
     /// Journal that shows the enable echo from its `echo_on_call`-th read on (1-based), or never.
     struct FakeJournal {
@@ -382,6 +419,8 @@ mod tests {
         let log = CountingNoop(AtomicUsize::new(0));
         let ctl = GdbusLogging {
             set_logging: counting_set_logging,
+            memory: Arc::default(),
+            timeout: ECHO_TIMEOUT,
         };
         let began = Instant::now();
         let outcome = ctl.ensure_enabled(&log);
@@ -389,5 +428,100 @@ mod tests {
         assert_eq!(log.0.load(Ordering::SeqCst), 0, "journal was read");
         assert!(began.elapsed() < Duration::from_millis(100));
         assert!(matches!(outcome, LoggingOutcome::Failed(_)));
+    }
+
+    /// Stand-in for `gdbus` that always succeeds.
+    fn ok_set_logging(_on: bool) -> Result<(), String> {
+        Ok(())
+    }
+
+    /// A control with its own memory (so tests do not share the process-wide one) and `timeout`.
+    fn control(memory: &Arc<EchoMemory>, timeout: Duration) -> GdbusLogging {
+        GdbusLogging {
+            set_logging: ok_set_logging,
+            memory: memory.clone(),
+            timeout,
+        }
+    }
+
+    /// Two tests in a row with no echo: the first waits the full 1000 ms, the second makes one
+    /// read and returns at once, so together they cost about 1 s, not 2 s. Fails if the second
+    /// test polls for another second.
+    #[test]
+    fn test_two_consecutive_echo_timeouts_cost_about_one_second() {
+        let memory = Arc::new(EchoMemory::default());
+        let ctl = control(&memory, ECHO_TIMEOUT);
+        let journal = FakeJournal::new(None);
+        let began = Instant::now();
+        assert!(matches!(
+            ctl.ensure_enabled(&journal),
+            LoggingOutcome::Failed(_)
+        ));
+        let first = began.elapsed();
+        let reads_after_first = journal.calls();
+        assert!(matches!(
+            ctl.ensure_enabled(&journal),
+            LoggingOutcome::Failed(_)
+        ));
+        assert_eq!(
+            journal.calls(),
+            reads_after_first + 1,
+            "second check polled"
+        );
+        let total = began.elapsed();
+        assert!(
+            first >= Duration::from_millis(1000),
+            "first took {:?}",
+            first
+        );
+        assert!(
+            total < Duration::from_millis(1400),
+            "total took {:?}",
+            total
+        );
+    }
+
+    /// Journal whose echo can be switched on after construction.
+    struct SwitchJournal(AtomicBool);
+
+    impl LogSource for SwitchJournal {
+        /// Returns the provider name "switch-journal".
+        fn name(&self) -> &'static str {
+            "switch-journal"
+        }
+
+        /// The echo line while switched on, else an unrelated line.
+        fn capture_slice(&self, _since: u64, _until: u64) -> Result<String, String> {
+            Ok(if self.0.load(Ordering::SeqCst) {
+                ENABLE_ECHO.to_string()
+            } else {
+                "other line".to_string()
+            })
+        }
+    }
+
+    /// After a timeout the single check sees the echo: the outcome is Enabled and the memory is
+    /// cleared, so the next missing echo gets the full 200 ms wait again. Fails if the memory
+    /// stays set (the last wait would then be about 0 ms).
+    #[test]
+    fn test_echo_reappearing_resets_the_timeout_memory() {
+        let memory = Arc::new(EchoMemory::default());
+        let ctl = control(&memory, Duration::from_millis(200));
+        let journal = SwitchJournal(AtomicBool::new(false));
+        assert!(matches!(
+            ctl.ensure_enabled(&journal),
+            LoggingOutcome::Failed(_)
+        ));
+        assert!(memory.timed_out.load(Ordering::SeqCst));
+        journal.0.store(true, Ordering::SeqCst);
+        assert_eq!(ctl.ensure_enabled(&journal), LoggingOutcome::Enabled);
+        assert!(!memory.timed_out.load(Ordering::SeqCst));
+        journal.0.store(false, Ordering::SeqCst);
+        let began = Instant::now();
+        assert!(matches!(
+            ctl.ensure_enabled(&journal),
+            LoggingOutcome::Failed(_)
+        ));
+        assert!(began.elapsed() >= Duration::from_millis(200));
     }
 }
