@@ -533,3 +533,39 @@ fn test_real_trace_golden_assertions() {
         );
     }
 }
+
+/// The extension's `LATE_RESIZE_CORRECTED` event (a window re-anchored after a resize that landed
+/// between the 4C check and the reveal) sits between `UNCLOAK_4C` and `UNCLOAK`. It is not a
+/// violation, not a warning and does not change the cloak duration (CLOAK at +10 ms, UNCLOAK at
+/// +62 ms = 52 ms): the analyser must not read it as a reveal, a second cloak or an order break.
+#[test]
+fn test_late_resize_corrected_event_is_not_a_violation() {
+    let raw = r#"
++10.00ms | CLOAK win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,400x300)
++22.00ms | COMMIT_RESOLVED win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)
++25.00ms | AFTER_SET_POSITION_ANCHORED win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] opacity=0 frame=(1504,764,400x300)
++30.00ms | UNCLOAK_4C win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false
++48.00ms | LATE_RESIZE_CORRECTED win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] positioned=(400x300) actual=(200x150)
++48.20ms | APPLY_ANCHOR win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] eff=(200x150) bounds=(0,40,1920x1040) final=(1704,914)
++48.40ms | POSITION_SET win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] preFrame=(1504,764,200x150) postFrame=(1704,914,200x150) bufferRect=(1704,914,200x150) actor=(1704,914) delta=(200,150)
++62.00ms | UNCLOAK win=[id=1003 pid=2003 class="late" app="late" type=NORMAL proto=Wayland] opacity=255 frame=(1704,914,200x150)
+"#;
+
+    let analyser = TraceAnalyser::new()
+        .with_target_window_id(1003)
+        .with_target_geometry(TraceRect {
+            x: 1704,
+            y: 914,
+            w: 200,
+            h: 150,
+        });
+    let report = analyser.analyse(raw);
+    assert!(
+        report.is_pass(),
+        "a late-resize correction must not be a violation, got: {:?}",
+        report.violations
+    );
+    assert_eq!(report.violations.len(), 0);
+    assert_eq!(report.warnings.len(), 0);
+    assert_eq!(report.cloak_duration_ms, Some(52.0));
+}
