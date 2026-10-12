@@ -32,6 +32,11 @@ const FIXTURES: &[(&str, &str, Option<&str>)] = &[
         include_str!("../../tests/fixtures/real_delay500_probed_run.json"),
         Some("probed"),
     ),
+    (
+        "real_delay0_no_trace_run.json",
+        include_str!("../../tests/fixtures/real_delay0_no_trace_run.json"),
+        Some("no-trace"),
+    ),
 ];
 
 /// One recorded real case that can be rendered.

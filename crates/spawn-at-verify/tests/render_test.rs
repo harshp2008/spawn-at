@@ -11,7 +11,7 @@ fn verify_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../verify")
 }
 
-/// Every embedded recording is listed, and each id is one of the two real recordings.
+/// Every embedded recording is listed, in fixture order.
 #[test]
 fn test_recorded_cases_list_the_real_recordings() {
     let names: Vec<String> = recorded_cases().into_iter().map(|c| c.name).collect();
@@ -20,7 +20,8 @@ fn test_recorded_cases_list_the_real_recordings() {
         vec![
             "placement/bottom-right",
             "cloak/delayed-paint/delay-500",
-            "cloak/delayed-paint/delay-500@probed"
+            "cloak/delayed-paint/delay-500@probed",
+            "cloak/delayed-paint/delay-0@no-trace"
         ]
     );
 }
@@ -290,4 +291,48 @@ fn test_old_and_probed_recordings_differ_in_independence_marker() {
     .unwrap();
     assert!(old.contains("workarea from the extension, not independently probed"));
     assert!(!new.contains("workarea from the extension, not independently probed"));
+}
+
+/// The `delay-0@no-trace` recording is a real run of the current binary whose timing log could
+/// not be enabled (`gdbus` was not on PATH) while the extension's logging was off. Its log slice
+/// is empty, so the drawer must say nothing was analysed or measured, give the reason, and show
+/// the unchecked verdict (never a clean trace or a cloak time).
+#[test]
+fn test_no_trace_recording_renders_not_analysed_and_unchecked() {
+    let case = find_case("delay-0@no-trace").unwrap();
+    assert_eq!(case.result.log_slice.as_deref(), Some(""));
+    assert_eq!(case.result.claimed_window_id(), Some(870906703));
+    let text = render_case(&verify_dir(), &case, 100, 150, 0).unwrap();
+    // The drawer row for `label`, without the box border on either side.
+    let row = |label: &str| {
+        text.lines()
+            .map(|l| l.trim_matches(|c: char| c == '│' || c.is_whitespace()))
+            .find(|l| l.starts_with(label))
+            .unwrap_or_else(|| panic!("no {} row in:\n{}", label, text))
+            .to_string()
+    };
+    assert!(
+        row("Verdict").contains("Pass (trace unchecked)"),
+        "{}",
+        text
+    );
+    assert!(
+        row("Trace").contains("not analysed (no trace captured)"),
+        "{}",
+        text
+    );
+    assert!(row("Cloak").ends_with("not measured"), "{}", text);
+    assert!(row("Budget").ends_with("not measured"), "{}", text);
+    assert!(row("Reason").contains("log slice is empty"), "{}", text);
+    assert!(
+        text.contains("extension timing log could not be enabled"),
+        "{}",
+        text
+    );
+    assert!(!text.contains("clean, no violations"), "{}", text);
+    assert!(
+        !text.contains("122.0 ms"),
+        "run duration is not a cloak time:\n{}",
+        text
+    );
 }

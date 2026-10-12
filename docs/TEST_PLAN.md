@@ -17,7 +17,7 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: Node.js (Extension)** | 65 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers (`node --test tests/*.js`) |
 | **`spawn-at-verify` (bare default)** | 58 | 0 | 58 lib tests. Note: 1 test (`tui::logging::tests::test_parse_logging_state_transitions`) is gated behind `feature = "tui"`. |
 | **`spawn-at-verify --features tui`** | 124 | 0 | 59 lib + 0 main + 4 `category_library_test` + 5 `oracle_cross_check` + 18 `trace_analyser_test` + 38 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 242 | 4 | 110 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 11 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 68 `tui_test` (re-measured at commit a4b6770; the other rows in this table were not re-measured) |
+| **`spawn-at-verify --features tui,fixture`** | 243 | 4 | 110 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 12 `render_test` + 18 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 68 `tui_test` (re-measured after the `delay-0@no-trace` recording was added; the other rows in this table were not re-measured) |
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
