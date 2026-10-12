@@ -100,7 +100,9 @@ pub struct RunArgs {
     #[arg(long)]
     pub filter: Option<String>,
 
-    /// Repeat each test N times (cap 100) for flakiness detection
+    /// Repeat each test N times (cap 100) for flakiness detection. report.json keeps the first
+    /// run in `results` (marked Flaky if outcomes differed) and stores all N runs under
+    /// `repeat_runs`
     #[arg(long, default_value = "1")]
     pub repeat: usize,
 

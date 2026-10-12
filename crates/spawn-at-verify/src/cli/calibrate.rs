@@ -7,7 +7,7 @@
 use super::args::{CalibrateArgs, CalibrateMode};
 use super::check::{resolve_bin_path, resolve_verify_dir};
 use crate::loader::{TestFilter, TestRegistry};
-use crate::report::{build_session_report, write_report_artifacts, SessionReport};
+use crate::report::{build_session_report_with_runs, write_report_artifacts, SessionReport};
 use crate::runner::{extract_claimed_window_id, RunOptions, TestResult, TestRunner};
 use crate::trace::phases::{phase_gaps, PhaseGaps};
 use crate::trace::TraceAnalyser;
@@ -367,7 +367,9 @@ pub fn handle_calibrate(args: CalibrateArgs) {
         let system = system_state(&bin);
         match runner.run_detailed() {
             Ok((preflight, env_info, results, all_runs)) => {
-                let report = build_session_report(&bin, &preflight, &env_info, &results, false);
+                let report = build_session_report_with_runs(
+                    &bin, &preflight, &env_info, &results, &all_runs, false,
+                );
                 let path = write_report_artifacts(Path::new("verify-results"), &report)
                     .ok()
                     .map(|d| d.join("report.json"));

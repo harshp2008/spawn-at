@@ -150,3 +150,104 @@ fn test_format_epoch_secs_sortable_test_vectors() {
     // (2024 is a leap year; 2024-02-29 12:00:00 UTC = 1709208000)
     assert_eq!(format_epoch_secs_sortable(1709208000), "20240229-120000");
 }
+
+/// A result with the given id, stdout and duration, used by the repeat-run tests.
+fn run_result(id: &str, stdout: &str, duration_ms: u64) -> TestResult {
+    TestResult {
+        id: id.into(),
+        title: id.into(),
+        kind: TestKind::Auto,
+        required: false,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms,
+        exit_code: Some(0),
+        stdout: stdout.into(),
+        stderr: String::new(),
+        message: None,
+        log_slice: None,
+    }
+}
+
+/// Builds a report for `results` and per-test `runs` with an empty environment.
+fn report_with_runs(results: &[TestResult], runs: &[Vec<TestResult>]) -> SessionReport {
+    let preflight = crate::preflight::PreflightReport {
+        repo_head: None,
+        detected_commit: None,
+        repo_dirty: false,
+        is_dirty_build: false,
+        verdict: crate::preflight::PreflightVerdict::Pass,
+        binary_version_output: String::new(),
+    };
+    let env = crate::probe::EnvironmentInfo {
+        session_type: "wayland".into(),
+        desktop: "gnome".into(),
+        gnome_version: None,
+        monitors_count: 1,
+        primary_workarea: None,
+        independent_workarea: None,
+    };
+    build_session_report_with_runs(
+        std::path::Path::new("bin"),
+        &preflight,
+        &env,
+        results,
+        runs,
+        false,
+    )
+}
+
+/// `--repeat 3`: all three runs are stored under `repeat_runs` in order, `results` keeps the
+/// first, and titles are redacted in every stored run.
+#[test]
+fn test_repeat_runs_are_all_stored_and_redacted() {
+    let runs: Vec<TestResult> = (1..=3)
+        .map(|i| run_result("t/a", "--title SecretWindow", i * 10))
+        .collect();
+    let report = report_with_runs(&runs[..1], &[runs.clone()]);
+    assert_eq!(report.results.len(), 1);
+    assert_eq!(report.repeat_runs.len(), 1);
+    assert_eq!(report.repeat_runs[0].id, "t/a");
+    let durations: Vec<u64> = report.repeat_runs[0]
+        .runs
+        .iter()
+        .map(|r| r.duration_ms)
+        .collect();
+    assert_eq!(durations, vec![10, 20, 30]);
+    for r in &report.repeat_runs[0].runs {
+        assert!(!r.stdout.contains("SecretWindow"), "{}", r.stdout);
+    }
+    let md = render_markdown_report(&report);
+    assert!(
+        md.contains("## 4. Repeat Runs") && md.contains("`t/a` (3 runs)"),
+        "{}",
+        md
+    );
+}
+
+/// A single run adds nothing: no `repeat_runs` in the struct or in the JSON, no Markdown section.
+#[test]
+fn test_single_run_has_no_repeat_runs_field() {
+    let r = run_result("t/a", "", 5);
+    let report = report_with_runs(&[r.clone()], &[vec![r]]);
+    assert!(report.repeat_runs.is_empty());
+    let json = serde_json::to_string(&report).unwrap();
+    assert!(!json.contains("repeat_runs"), "{}", json);
+    assert!(!render_markdown_report(&report).contains("Repeat Runs"));
+}
+
+/// A report written before `repeat_runs` existed still deserializes (field defaults to empty),
+/// and one with the field round-trips.
+#[test]
+fn test_old_report_without_repeat_runs_loads_and_new_round_trips() {
+    let runs = vec![run_result("t/a", "", 1), run_result("t/a", "", 2)];
+    let report = report_with_runs(&runs[..1], &[runs.clone()]);
+    let mut value = serde_json::to_value(&report).unwrap();
+    let back: SessionReport = serde_json::from_value(value.clone()).unwrap();
+    assert_eq!(back.repeat_runs[0].runs.len(), 2);
+    value.as_object_mut().unwrap().remove("repeat_runs");
+    let old: SessionReport = serde_json::from_value(value).unwrap();
+    assert!(old.repeat_runs.is_empty());
+}

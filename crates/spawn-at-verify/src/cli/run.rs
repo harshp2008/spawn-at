@@ -4,7 +4,7 @@ use super::args::RunArgs;
 use super::check::{resolve_bin_path, resolve_verify_dir};
 use super::run_summary::RunSummary;
 use crate::loader::{TestFilter, TestRegistry};
-use crate::report::{build_session_report, write_report_artifacts};
+use crate::report::{build_session_report_with_runs, write_report_artifacts};
 use crate::runner::{FinalStatus, RunOptions, TestRunner};
 use std::path::PathBuf;
 use std::process::exit;
@@ -59,7 +59,7 @@ pub fn handle_run(args: RunArgs) {
         },
     );
 
-    let (preflight, env_info, results) = match runner.run() {
+    let (preflight, env_info, results, all_runs) = match runner.run_detailed() {
         Ok(res) => res,
         Err(e) => {
             eprintln!("Runner execution failed: {}", e);
@@ -68,11 +68,12 @@ pub fn handle_run(args: RunArgs) {
     };
 
     // Build full session report
-    let session_report = build_session_report(
+    let session_report = build_session_report_with_runs(
         &bin_path,
         &preflight,
         &env_info,
         &results,
+        &all_runs,
         args.include_titles,
     );
 

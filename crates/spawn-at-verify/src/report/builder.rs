@@ -52,12 +52,42 @@ pub fn evaluate_qualification(results: &[TestResult]) -> QualificationReport {
     }
 }
 
-/// Builds the SessionReport data structure.
+/// Copy of `r` with window titles redacted from stdout, stderr, message and log slice.
+fn sanitize_result(r: &TestResult, include_titles: bool) -> TestResult {
+    let mut clone = r.clone();
+    clone.stdout = redact_titles(&clone.stdout, include_titles);
+    clone.stderr = redact_titles(&clone.stderr, include_titles);
+    if let Some(msg) = &clone.message {
+        clone.message = Some(redact_titles(msg, include_titles));
+    }
+    if let Some(slice) = &clone.log_slice {
+        clone.log_slice = Some(redact_titles(slice, include_titles));
+    }
+    clone
+}
+
+/// Builds the SessionReport data structure (no repeat runs).
 pub fn build_session_report(
     bin_path: &Path,
     preflight: &PreflightReport,
     env_info: &EnvironmentInfo,
     results: &[TestResult],
+    include_titles: bool,
+) -> SessionReport {
+    build_session_report_with_runs(bin_path, preflight, env_info, results, &[], include_titles)
+}
+
+/// Builds the SessionReport and also stores every repetition of tests run with `--repeat N`.
+///
+/// `all_runs` holds, per selected test and in the same order, the result of every repetition
+/// (as returned by `TestRunner::run_detailed`). Tests with a single run are not repeated in the
+/// report; for the others all runs are stored in `repeat_runs`, redacted like `results`.
+pub fn build_session_report_with_runs(
+    bin_path: &Path,
+    preflight: &PreflightReport,
+    env_info: &EnvironmentInfo,
+    results: &[TestResult],
+    all_runs: &[Vec<TestResult>],
     include_titles: bool,
 ) -> SessionReport {
     let now_secs = SystemTime::now()
@@ -69,17 +99,17 @@ pub fn build_session_report(
 
     let sanitized_results: Vec<TestResult> = results
         .iter()
-        .map(|r| {
-            let mut clone = r.clone();
-            clone.stdout = redact_titles(&clone.stdout, include_titles);
-            clone.stderr = redact_titles(&clone.stderr, include_titles);
-            if let Some(msg) = &clone.message {
-                clone.message = Some(redact_titles(msg, include_titles));
-            }
-            if let Some(slice) = &clone.log_slice {
-                clone.log_slice = Some(redact_titles(slice, include_titles));
-            }
-            clone
+        .map(|r| sanitize_result(r, include_titles))
+        .collect();
+    let repeat_runs: Vec<RepeatRuns> = all_runs
+        .iter()
+        .filter(|runs| runs.len() > 1)
+        .map(|runs| RepeatRuns {
+            id: runs[0].id.clone(),
+            runs: runs
+                .iter()
+                .map(|r| sanitize_result(r, include_titles))
+                .collect(),
         })
         .collect();
 
@@ -101,6 +131,7 @@ pub fn build_session_report(
         },
         qualification,
         results: sanitized_results,
+        repeat_runs,
     }
 }
 

@@ -70,4 +70,18 @@ pub struct SessionReport {
     pub qualification: QualificationReport,
     /// Detailed individual test execution results.
     pub results: Vec<TestResult>,
+    /// Every repetition of each test that was run more than once (`--repeat N`), in execution
+    /// order. `results` keeps the first run of such a test (marked flaky if outcomes differed);
+    /// this field holds all N. Absent for single runs and in older reports.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub repeat_runs: Vec<RepeatRuns>,
+}
+
+/// All repetitions of one test from a `--repeat N` run.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RepeatRuns {
+    /// Test id the runs belong to.
+    pub id: String,
+    /// One result per repetition, in execution order.
+    pub runs: Vec<TestResult>,
 }

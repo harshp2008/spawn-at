@@ -99,5 +99,31 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         md.push('\n');
     }
 
+    if !report.repeat_runs.is_empty() {
+        md.push_str("## 4. Repeat Runs\n\n");
+        md.push_str(
+            "`results` above holds the first run of each repeated test; every run is listed here.\n\n",
+        );
+        for rr in &report.repeat_runs {
+            md.push_str(&format!("### `{}` ({} runs)\n\n", rr.id, rr.runs.len()));
+            md.push_str("| Run | Auto | Final | Duration | Cloak |\n| :---: | :---: | :---: | :---: | :---: |\n");
+            for (i, r) in rr.runs.iter().enumerate() {
+                let cloak = r
+                    .cloak_duration_ms()
+                    .map(|c| format!("{:.1} ms", c))
+                    .unwrap_or_else(|| "n/a".into());
+                md.push_str(&format!(
+                    "| {} | `{:?}` | `{:?}` | {}ms | {} |\n",
+                    i + 1,
+                    r.auto_status,
+                    r.final_status,
+                    r.duration_ms,
+                    cloak
+                ));
+            }
+            md.push('\n');
+        }
+    }
+
     md
 }
