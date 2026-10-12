@@ -16,12 +16,12 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: `spawn-at-core`** | 23 | 0 | 21 unit tests (`lib.rs`) + 2 golden placement integration tests (`tests/golden_placement.rs`) |
 | **Workspace: `xtask`** | 10 | 0 | 8 unit tests (`src/main.rs`: 6 `burn_cpu`, 2 `compiler_docs`) + 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary) |
 | **Workspace: Node.js (Extension)** | 70 | 0 | Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`) (`node --test tests/*.js`) |
-| **`spawn-at-verify` (bare default)** | 184 | 0 | 141 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
-| **`spawn-at-verify --features tui`** | 278 | 0 | 147 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 75 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 289 | 4 | 147 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 19 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 75 `tui_test` |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 480 | 4 | 158 + 23 + 10 + 289; with the 70 Node tests: 550 passed |
+| **`spawn-at-verify` (bare default)** | 196 | 0 | 151 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
+| **`spawn-at-verify --features tui`** | 292 | 0 | 157 lib + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 77 `tui_test` |
+| **`spawn-at-verify --features tui,fixture`** | 303 | 4 | 157 lib + 7 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 2 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 77 `tui_test` |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 494 | 4 | 158 + 23 + 10 + 303; with the 70 Node tests: 564 passed |
 
-All rows re-measured on 2026-10-12 at commit `c7c4084` (`cargo test -p <crate>` per crate, `cargo test -p spawn-at-verify` bare, `--features tui` and `--features tui,fixture`, `node --test tests/*.js`); every run had 0 failures. The totals were summed with `awk` over the saved `test result:` lines, not by hand. A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 184 row, not 289; do not quote it for the verify crate.
+All rows re-measured on 2026-10-12 at commit `e47c41f` (`cargo test -p <crate>` per crate, `cargo test -p spawn-at-verify` bare, `--features tui` and `--features tui,fixture`, `node --test tests/*.js`); every run had 0 failures. The totals were summed with `awk` over the saved `test result:` lines, not by hand. A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 196 row, not 303; do not quote it for the verify crate.
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
@@ -610,6 +610,8 @@ Regime (b), recounted from the 16 stored `report.json` files (`repeat_runs`): **
 
 ### 6.11 Live results after the late-resize fix (2026-10-12)
 
+**Correction, added with 6.11.1 below.** The "failures" counted in this section were judged on the rectangle `spawn-at` printed at exit. In 195 of the 215 loaded fixture failures the extension moved the window to exactly the expected place a few milliseconds after `spawn-at` had printed (the other 20 are the top-left control, where only the printed size was stale), so those windows did not end up mis-placed; the printed rectangle was stale. The oracle now judges the window's final rectangle (6.11.1), and the tables in this section are the "judged on the printed rectangle" numbers. They are kept as measured.
+
 Fix under test: `9e6b65d` (modern tree only), a second size check in the reveal's own tick that logs `LATE_RESIZE_CORRECTED` and re-anchors. Binary under test `c7c4084` (HEAD; `is_dirty_build: false` in every report). No product code, spec, oracle, tolerance or fixture was changed for these measurements; the only new code is `cargo xtask burn-cpu` (`crates/xtask/src/burn_cpu.rs`). All tables: GNOME 46 Wayland, one machine (22 CPUs, `--virtual-monitor 1920x1080`, workarea `0,40 1920x1040`), other desktop windows open (4) and ordinary desktop load. Raw output is kept locally in the gitignored `verify-results/gate-20261012/`; the throwaway drivers were in the gitignored `scratch/`. Each statement is labelled **CONFIRMED** (shown by a log, a count or a line of code) or **HYPOTHESIS**.
 
 **Step 0: the running shell has the fix. CONFIRMED.** (1) The installed `extension.js` has the same sha256 as `assets/gnome/modern/extension.js` (`be88c6c6...8d8a`); it was written at 13:41:27 and `gnome-shell` (pid 2464446) started at 13:41:43, after the log-out and log-in. That alone is circumstantial (**HYPOTHESIS**, not tested here: the Shell caches imported modules, which is why a log-out and log-in, not `gnome-extensions disable/enable`, was used). (2) Direct: the string `LATE_RESIZE_CORRECTED` exists only in the fix (`git log -S` finds `9e6b65d` alone; absent from the legacy tree), and the journal, written by `gnome-shell[2464446]`, holds `+403921.11ms | LATE_RESIZE_CORRECTED win=[id=604717961 ... class="verify.placement.bottomrightsmaller"] positioned=(400x300) actual=(200x150)` (13:53:19, attempt 5 of `bottom-right-smaller` under `burn-cpu`; that run passed). An idle spawn with a 120 ms fixture paint delay did not trigger it (`ACTOR_MAP` came 160 ms after `WINDOW_CREATED` and the resize was answered within 10 ms of the size request, so nothing landed between `UNCLOAK_4C` and the reveal), so load was the trigger.
@@ -724,3 +726,90 @@ The 100 ms budget did not regress: the largest of 120 measured runs is 55.95 ms,
 **Effect on section 6.4.** Rows 2, 3 and 3b (final position correct for the final size; late resize) are fixed for a resize that lands before the reveal (idle: 0 of 640 failed; 150 windows under load, 145 fixture and 5 zenity, were re-anchored by the new check). They are **not** fixed for a resize that lands after the reveal under heavy load: the reactive anchor moves the window afterwards (log), but `spawn-at` prints the old rectangle and the window is shown first at the old size. Row 4 (the "window minimum is WxH" text taken while the window is still resizing) has the same cause and is unchanged.
 
 **Not done.** Whether the 215 + 3 failures are visible on screen. The TUI drawer's busy warning. A "before" for the cloak numbers of delay-0 and delay-50, and for the 16 specs under load (the old extension is not loadable without a log-out). A fixture-side re-read of the final geometry after a failing run. A named `--class` (instead of `'*'`) zenity run under load. Why `bottom-right-larger` never failed under load. GTK3, Qt and Electron apps.
+
+### 6.11.1 Final-state oracle, post-reveal warning and re-measure (2026-10-12)
+
+**What changed in `spawn-at-verify` (no product code).** Commit `d01687b`: when the rectangle `spawn-at` printed fails the geometry check, the runner keeps the window alive for `SETTLE_MS = 1300` ms (1 s for the extension's late-resize listener plus 300 ms), re-reads it with `spawn-at query windows --json` (the same read the zenity gate used: the entry with the claimed window id, fields `x y w h`) and judges the geometry on that final rectangle. Printed != final adds the warning `spawn-at printed a stale rectangle (printed A, final B)` to the result message, the drawer and `report.md`; it is not a failure. A wrong final rectangle still fails (the message names the final and the printed rectangle); a window that cannot be re-read keeps the verdict on the printed rectangle and says so. A printed rectangle that already matches waits for nothing: `settle_final_rect` calls its wait closure only when `settle_needed` is true (test `test_no_settle_wait_when_the_printed_rectangle_matches` counts the calls: 0). The final rectangle is stored in `TestResult.final_rect` (absent from `report.json` when no settle happened), and the log slice is taken again after the wait. `duration_ms` is not extended by the wait. Commit `e47c41f`: the trace analyser warns `placement corrected after reveal (+N ms)` for the first `ANCHOR_CORRECTION` after `UNCLOAK` (N = time after the `UNCLOAK`); a correction before the `UNCLOAK` (`LATE_RESIZE_CORRECTED`) is not reported; the drawer shows each trace warning as a `Warning` row and `report.md` has a `## 5. Warnings` section. Both are tested in both directions (see the test names `test_final_rect_wrong_fails`, `test_stale_print_with_right_final_passes_with_warning`, `test_printed_right_needs_no_settle_and_no_warning`, `test_correction_after_reveal_is_a_warning_with_its_delay`, `test_correction_before_reveal_is_not_a_warning`). **CONFIRMED** (tests ran).
+
+**Counting caveat. CONFIRMED by code.** The post-reveal warning is read from the run's log slice. With no settle the slice ends when `spawn-at` exits (whole-second bounds), so a correction made later is not seen; the post-reveal counts below are lower bounds for runs that did not settle.
+
+**Live re-measure.** Binary `e47c41f` (HEAD, clean build, preflight pass), fix `9e6b65d` live (same shell as 6.11), 16 resize specs x 20, each run a separate `spawn-at-verify run --glob placement/<id>`, isolated (no `verify.*` window and no fixture process before any run; 0 exceptions in 640), once idle and once under `cargo xtask burn-cpu --threads 22` (90 s warm-up). Raw: `verify-results/gate-20261012/g3/` (gitignored).
+
+| Condition | Final-pass | Fails | Settle reads (stale print) | Post-reveal-correction warnings | `LATE_RESIZE_CORRECTED` | Busy (load1 > 11) | 1-min load over the batch |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: | :--- |
+| idle, isolated | **320 / 320** | **0** | 3 | **3** | 0 | 0 / 320 | 1.26 - 6.24 (rose while the batch ran; start 1.32, end 3.01) |
+| `burn-cpu` 22 threads, isolated | **320 / 320** | **0** | 99 | 134 | 62 | **320 / 320** | 37.97 - 48.53 (start 37.19, end 44.95) |
+
+Target "idle: 0 failures and 0 post-reveal corrections": **0 failures met; 0 post-reveal corrections NOT met (3 of 320).** Nothing was relaxed.
+
+The three idle post-reveal corrections (all passed on the final rectangle; none had `LATE_RESIZE_CORRECTED`; the window was shown at 400x300, the resize arrived after the reveal):
+
+| Run | Printed | Final (re-read 1.3 s later) | Correction after `UNCLOAK` |
+| :--- | :--- | :--- | :---: |
+| `bottom-left-below-min-both` 12 | `16,764 400x300` | `16,864 300x200` | +42.8 ms |
+| `bottom-below-min-both` 10 | `760,764 400x300` | `810,864 300x200` | +53.3 ms |
+| `right-smaller` 18 | `1504,410 400x300` | `1704,485 200x150` | +7.8 ms |
+
+Trace of the first of them (window-scoped, `COMMIT_RESOLVED` to the end; `BATCH_STEP`, `POSITION_SET`, `UNCLOAK_4A/4B` omitted):
+
+```
++9041193.61 COMMIT_RESOLVED reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)
++9041196.08 APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(16,764)
++9041196.90 AFTER_SET_POSITION_ANCHORED opacity=0 frame=(16,764,400x300)
++9041201.22 UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false
++9041219.35 UNCLOAK opacity=255 frame=(16,764,400x300)
++9041220.07 ANCHOR_ARMED
++9041262.17 ANCHOR_CORRECTION size=(300x200) from=(16,764) to=(16,864)
+```
+
+All three idle traces are in `g3/g3_idle.warn_traces.txt`. Idle was 0 of 640 failing in 6.11 on the printed rectangle, with 0 `LATE_RESIZE_CORRECTED` and no post-reveal warning then (the warning did not exist), so whether these 3 post-reveal corrections are new or were present and invisible before is not known. Their printed rectangles were stale and would have failed a printed-rectangle check, and 0 of 640 failed in 6.11, so the rate differed between the batches; the idle 1-min load here rose to 6.24 against 0.8 - 2.7 in 6.11 (the cause of the difference is not established).
+
+**Per condition, loaded: how the 99 stale prints relate to the 134 warnings.** 94 runs have both a stale print and a post-reveal correction; 40 have a post-reveal correction with the printed rectangle already final (`spawn-at` waited long enough to print the corrected rectangle but the window was revealed at the old geometry first; 18 of these are `bottom-right-larger`); 5 have a stale print and no `ANCHOR_CORRECTION` (all `top-left-below-min-both`, the control: the position does not depend on the size, so only the printed size was stale and the extension logged no correction). Every settle read found the window at the expected rectangle (99 of 99): 0 failures. **CONFIRMED** (`g3_load.flat.tsv`). The delay of the first post-reveal correction after `UNCLOAK`: idle n=3, 7.8 / 42.8 / 53.3 ms (min / median / max); loaded n=134, min 2.5, median 33.8, p90 140.2, max 330.7 ms.
+
+**Per spec** (each cell 20 runs; final-pass | stale-print warnings | post-reveal-correction warnings | `LATE_RESIZE_CORRECTED`; busy flag: idle 0 of 20 for every spec, loaded 20 of 20 for every spec):
+
+| Spec | idle | loaded |
+| :--- | :---: | :---: |
+| bottom-right-smaller | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 6 \| 6 |
+| bottom-right-larger | 20 \| 0 \| 0 \| 0 | 20 \| 0 \| 18 \| 1 |
+| bottom-right-minsize-at-min | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 9 \| 3 |
+| bottom-right-below-min-width | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 7 \| 5 |
+| bottom-right-below-min-height | 20 \| 0 \| 0 \| 0 | 20 \| 9 \| 10 \| 8 |
+| bottom-right-below-min-both | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 7 \| 4 |
+| bottom-right-far-below-min | 20 \| 0 \| 0 \| 0 | 20 \| 8 \| 10 \| 2 |
+| bottom-left-smaller | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 8 \| 6 |
+| bottom-left-below-min-both | 20 \| 1 \| 1 \| 0 | 20 \| 3 \| 6 \| 2 |
+| top-right-smaller | 20 \| 0 \| 0 \| 0 | 20 \| 8 \| 10 \| 3 |
+| top-right-below-min-both | 20 \| 0 \| 0 \| 0 | 20 \| 4 \| 7 \| 4 |
+| bottom-smaller | 20 \| 0 \| 0 \| 0 | 20 \| 6 \| 7 \| 7 |
+| bottom-below-min-both | 20 \| 1 \| 1 \| 0 | 20 \| 8 \| 10 \| 3 |
+| right-smaller | 20 \| 1 \| 1 \| 0 | 20 \| 8 \| 8 \| 4 |
+| right-below-min-both | 20 \| 0 \| 0 \| 0 | 20 \| 10 \| 11 \| 1 |
+| top-left-below-min-both (control) | 20 \| 0 \| 0 \| 0 | 20 \| 5 \| 0 \| 3 |
+| **total** | **320 \| 3 \| 3 \| 0** | **320 \| 99 \| 134 \| 62** |
+
+**What the loaded failures of 6.11 were. CONFIRMED.** On the final rectangle there are none: 0 of 320 failed, where 6.11 had 108 and 107 failures on the printed rectangle for the same specs under load. The windows were revealed at the size the app had before its resize and moved to the expected place by the extension's reactive anchor 2.5 - 330.7 ms after the reveal; `spawn-at` printed the earlier rectangle. What is still wrong, and now shows as warnings, is that the window is shown at the wrong geometry first and `spawn-at`'s printed rectangle is not where the window ends up. Whether the jump is visible on screen was not observed (**HYPOTHESIS**: it is, for one to a few frames; the actor is uncloaked at the old geometry).
+
+The 6.11 "known flaky under CPU load" marks stay as a statement about the printed rectangle (`spawn-at`'s own output), not about final placement; the specs no longer fail the harness for it. The load differed from 6.11 (37.97 - 48.53 now against 21.13 - 28.83 then, same 22 threads), so the stale-print rate (99 / 320 against 108 / 320) is not a controlled comparison.
+
+**Cloak gap check, `UNCLOAK_4C` to `UNCLOAK`, stored pre-fix reports against today. No logout.** The gap is read the way `calibrate` prints `4c->uncloak`: for the claimed window, the first `UNCLOAK` minus the first `UNCLOAK_4C` in the report's own log slice. All `report.json` files in `verify-results/` (2544 dirs) were scanned for `cloak/delayed-paint/*` results (and `repeat_runs`); "pre-fix" = `generated_at` before 2026-10-12 13:41:43 +0530 (the shell with the fix started; epoch 1791792703). The script is `scratch/gap.jq` (throwaway, not committed); output: `g3/cloak_gap_all.tsv`, `g3/cloak_gap_stats.txt`. Median / p95 (nearest rank) in ms:
+
+| Case | Mode | Pre-fix: all stored sessions | Pre-fix: sessions since `calibrate` phase gaps (`444f409`, 10-12 07:09 +0530 on) | Today (fix live, `calibrate --runs 20 --mode both`, 20 runs) |
+| :--- | :--- | :---: | :---: | :---: |
+| delay-0 | separate | n=48, 5.63 / 13.04 | n=40, **5.44 / 9.72** | **13.15 / 14.30** |
+| delay-0 | repeat | none stored | none stored | 12.20 / 13.90 |
+| delay-50 | separate | n=9, 11.60 / 14.57 (10-11 sessions only) | none stored | **12.40 / 13.90** |
+| delay-50 | repeat | none stored | none stored | 12.75 / 14.30 |
+| delay-500 | separate | n=102, 2.50 / 10.68 | n=58, **2.55 / 3.98** | **11.55 / 12.40** |
+| delay-500 | repeat | none stored | none stored | 10.45 / 12.20 |
+
+Pre-fix delay-0 and delay-500 rows are the comparable ones (same specs, separate `run` processes, same harness era in the middle column). **There is no comparable pre-fix data for delay-50 beyond 9 single runs from 10-11, none for any `--repeat` regime, and no load average for any pre-fix session (`load_avg_*` was added in `3bef115` today), so "same regime" cannot be checked.** The 150 ms case has 9 pre-fix runs and 1 today and is not compared.
+
+Result: **the gap is larger today by about 7.7 ms (delay-0 median 5.44 to 13.15) and 9.0 ms (delay-500 median 2.55 to 11.55)** against the same-era sessions. The pre-fix gaps are bimodal: a fast mode (about 1.2 - 5 ms; 92 of 102 delay-500 runs) and a slow mode (about 9 - 15 ms; 10 of 102 delay-500 runs, median 10.84, p95 12.60). Of the 42 stored post-fix runs per case (the 20 + 20 of `calibrate` plus 2 others), 40 of 42 delay-500 runs and 42 of 42 delay-0 runs are in the slow mode (slow-mode medians: delay-500 pre 10.84 / post 11.28; delay-0 pre 7.18 over 21 runs / post 12.90). **CONFIRMED:** the numbers above. **CONFIRMED by code:** the fix adds no `await` and no wait when no late resize is found (`_reanchorLateResize` returns false after one `get_frame_rect()`; `extension.js` `LATE_RESIZE_MAX_PASSES` loop), and no run in the 120 cloak runs logged `LATE_RESIZE_CORRECTED`. **HYPOTHESIS (not tested, needs the old extension, i.e. a log-out):** the shift to the slow mode comes from the compositor's frame timing at that time (the frame wait before the reveal returns at once when frames are already being drawn and waits for the next frame when the shell is idle), not from the fix. The cloak duration itself (`CLOAK` to `UNCLOAK`) stayed far under the 100 ms budget (max 55.95 ms of 120 runs, 6.11); the budget has not regressed, the gap has risen. A before/after with the old extension would settle the cause; it was not done.
+
+**Read-only checks.**
+
+- (a) The verify runner never passes the flag that makes `spawn-at` non-blocking (`--no-wait`, global, `src/cli/mod.rs:24-26`). The only place the crate writes it is the TUI's window cleanup, `crates/spawn-at-verify/src/tui/app/state.rs:427`: `cmd.args(["focus", "--id", &term_id.to_string(), "--no-wait"]);`, a `focus` command, never a `spawn`. The `spawn` command line is built by `build_action_command_args` (`crates/spawn-at-verify/src/runner/validation.rs:12-20`: the action's command, then `test.action.args`, then fixture arguments) and run at `crates/spawn-at-verify/src/runner/executor.rs:195-196`; no spec under `verify/` contains `--no-wait` (`grep -rn no-wait verify crates` finds only `state.rs:427`). **CONFIRMED.**
+- (b) `verify-results/gate-20261012/load_phase_journal.txt` cannot answer this: it holds only `ANCHOR_ARMED` (657), `ANCHOR_CORRECTION` (277), `ANCHOR_RELEASED` (660) and `LATE_RESIZE_CORRECTED` (150) lines, no `ARM_SPAWN`. The same time range (`+1696451.16 ms` to `+3350877.85 ms` on the shell's clock) was read from the journal instead (`g3/arm_release_journal.txt`, `journalctl --user -b _COMM=gnome-shell`). 697 `ARM_SPAWN` lines fall in it; a spawn counts when at least one earlier window was `ANCHOR_ARMED` and not yet `ANCHOR_RELEASED`. **Isolated runs (6.11 gate (b): 320 placement spawns, plus 37 `verify.cloak.delayedpaint` spawns whose origin was not traced): 0 of 357. `--repeat 20` runs: 304 of 319** (by design the previous repeat's window is retired only on the next arm, and `ANCHOR_RELEASED reason=RETIRED` follows the next `ARM_SPAWN`). **zenity (wildcard `*`): 0 of 20.** The classification of a spawn as isolated / repeat / zenity is by the first overlap and by `target="zenity"`/`"*"`; it is not an independent label. **CONFIRMED** for the counts. So in the isolated regime no run's `ARM_SPAWN` came before the previous run's `ANCHOR_RELEASED`; in `--repeat` it almost always does, which is the regime's definition.
+
+**Not done.** Whether a stale-print jump is visible on screen. The TUI drawer's busy warning (the load flag was computed from `report.json`). The cloak gap with the old extension (needs a log-out). A named `--class` zenity run under load. The 37 `verify.cloak.delayedpaint` spawns inside the load-phase journal range were not traced to a run.
