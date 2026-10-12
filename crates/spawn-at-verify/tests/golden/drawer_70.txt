@@ -23,9 +23,9 @@
   Your verdict     ◐ Pending
 
  ── GEOMETRY ──────────────────────────────────────────────────────
-  Field            Expected        Actual          Result  
-  Position         1504, 764       1504, 764          ✔    
-  Size             400×300         400×300            ✔    
+  Field            Expected        Actual          Result
+  Position         1504, 764       1504, 764          ✔
+  Size             400×300         400×300            ✔
 
   Tolerance        ±1 px
 

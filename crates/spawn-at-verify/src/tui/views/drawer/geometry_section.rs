@@ -119,7 +119,7 @@ fn render_table(builder: &mut DrawerBuilder, check: &GeometryCheck) {
         builder.format_label("Field"),
         hdr("Expected", col_w),
         hdr("Actual", col_w),
-        hdr("Result", 8),
+        "Result".to_string(),
     );
     let plain = format!("{}{}{}{}{}", indent_str, f, e, a, r);
     builder.push(
@@ -200,23 +200,28 @@ fn table_row(
         ),
         None => (" ", Style::default()),
     };
-    // Result cell is 8 wide with the mark centred under the "Result" header.
-    let plain = format!(
-        "{}{}{}{}   {}    ",
-        indent_str, label_fmt, exp_fmt, act_fmt, mark_ch
-    );
-    builder.push(
-        Line::from(vec![
-            Span::raw(indent_str),
-            Span::styled(label_fmt, Style::default().fg(Color::DarkGray)),
-            Span::styled(exp_fmt, Style::default().fg(VALUE)),
-            Span::styled(act_fmt, act_style),
-            Span::raw("   "),
-            Span::styled(mark_ch, mark_style),
-            Span::raw("    "),
-        ]),
-        plain,
-    );
+    // The mark sits 3 columns after the Actual cell, under the "Result" header. Nothing follows
+    // it, and a row without a mark ends at the Actual text, so no row has trailing spaces.
+    let mut spans = vec![
+        Span::raw(indent_str.clone()),
+        Span::styled(label_fmt.clone(), Style::default().fg(Color::DarkGray)),
+        Span::styled(exp_fmt.clone(), Style::default().fg(VALUE)),
+    ];
+    let plain;
+    if mark.is_some() {
+        plain = format!(
+            "{}{}{}{}   {}",
+            indent_str, label_fmt, exp_fmt, act_fmt, mark_ch
+        );
+        spans.push(Span::styled(act_fmt, act_style));
+        spans.push(Span::raw("   "));
+        spans.push(Span::styled(mark_ch, mark_style));
+    } else {
+        let act_trim = act_fmt.trim_end().to_string();
+        plain = format!("{}{}{}{}", indent_str, label_fmt, exp_fmt, act_trim);
+        spans.push(Span::styled(act_trim, act_style));
+    }
+    builder.push(Line::from(spans), plain);
 }
 
 /// Pushes a label/value row in the ordinary value colour.
