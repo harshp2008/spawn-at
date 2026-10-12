@@ -127,3 +127,72 @@ fn test_format_test_tree() {
     assert!(tree.contains("basics/ (1 test)"));
     assert!(tree.contains("Summary: 2 tests (1 auto, 0 human, 1 both, 2 required)"));
 }
+
+/// A scratch `verify/`-shaped directory under the system temp dir, removed on drop.
+struct TempVerifyDir(std::path::PathBuf);
+
+impl TempVerifyDir {
+    /// Creates `<tmp>/spawn-at-verify-loader-<pid>-<name>` with a `placement/` subdirectory.
+    fn new(name: &str) -> Self {
+        let dir = std::env::temp_dir().join(format!(
+            "spawn-at-verify-loader-{}-{}",
+            std::process::id(),
+            name
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("placement")).unwrap();
+        Self(dir)
+    }
+}
+
+impl Drop for TempVerifyDir {
+    /// Removes the scratch directory.
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// A spec that is not valid TOML next to a valid one makes the whole load fail with an error
+/// naming the broken file and "Failed to parse TOML"; the valid sibling is not loaded alone.
+/// Fails if the loader skipped the broken file (the load would return Ok with 1 test).
+#[test]
+fn test_malformed_spec_is_an_error_not_skipped() {
+    let dir = TempVerifyDir::new("malformed-spec");
+    let good = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../verify/placement/top.toml");
+    std::fs::copy(good, dir.0.join("placement/top.toml")).unwrap();
+    std::fs::write(
+        dir.0.join("placement/broken.toml"),
+        "id = \"placement/broken\"\nthis is not toml\n",
+    )
+    .unwrap();
+    let err = TestRegistry::load_from_dir(&dir.0).unwrap_err();
+    assert!(err.contains("Failed to parse TOML"), "{}", err);
+    assert!(err.contains("placement/broken.toml"), "{}", err);
+}
+
+/// A spec whose declared id does not match its path is also an error, not a skipped file.
+#[test]
+fn test_spec_with_wrong_id_is_an_error_not_skipped() {
+    let dir = TempVerifyDir::new("wrong-id");
+    let good = std::fs::read_to_string(
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../verify/placement/top.toml"),
+    )
+    .unwrap();
+    std::fs::write(
+        dir.0.join("placement/other.toml"),
+        good, // still declares id = "placement/top"
+    )
+    .unwrap();
+    let err = TestRegistry::load_from_dir(&dir.0).unwrap_err();
+    assert!(err.contains("Test ID mismatch"), "{}", err);
+}
+
+/// A malformed file under `suites/` is reported too ("Failed to parse suite").
+#[test]
+fn test_malformed_suite_is_an_error_not_skipped() {
+    let dir = TempVerifyDir::new("malformed-suite");
+    std::fs::create_dir_all(dir.0.join("suites")).unwrap();
+    std::fs::write(dir.0.join("suites/bad.toml"), "name = \n").unwrap();
+    let err = TestRegistry::load_from_dir(&dir.0).unwrap_err();
+    assert!(err.contains("Failed to parse suite"), "{}", err);
+}
