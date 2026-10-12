@@ -3,7 +3,7 @@
 use crate::log_source::LogSource;
 use std::process::Command;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 /// Invokes `SetLogging` on the GNOME Shell extension via session D-Bus.
 pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
@@ -35,10 +35,37 @@ pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
 /// Line the extension writes when `SetLogging(true)` takes effect. It is only written while
 /// logging is on, so seeing it proves the call reached a live logger.
 const ENABLE_ECHO: &str = "SET_LOGGING enabled=true";
-/// How many times the log source is polled for [`ENABLE_ECHO`] after `SetLogging(true)`.
-const ECHO_POLLS: u32 = 6;
-/// Pause before each poll for the echo.
-const ECHO_POLL_INTERVAL: Duration = Duration::from_millis(40);
+/// Longest total wait for [`ENABLE_ECHO`] after `SetLogging(true)`; no new poll starts after it.
+const ECHO_TIMEOUT: Duration = Duration::from_millis(1000);
+/// Pause between polls for the echo (the first poll is immediate).
+const ECHO_POLL_INTERVAL: Duration = Duration::from_millis(20);
+
+/// Polls `log` for [`ENABLE_ECHO`] in the slice starting at `since`, immediately and then every
+/// `interval`, and stops at the first match. No poll starts once `timeout` has elapsed, so the
+/// wait is at most `timeout` plus one in-flight `capture_slice` call.
+pub fn wait_for_echo(
+    log: &dyn LogSource,
+    since: u64,
+    timeout: Duration,
+    interval: Duration,
+) -> bool {
+    let began = Instant::now();
+    loop {
+        let until = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(since);
+        if let Ok(slice) = log.capture_slice(since, until) {
+            if slice.contains(ENABLE_ECHO) {
+                return true;
+            }
+        }
+        if began.elapsed() >= timeout {
+            return false;
+        }
+        std::thread::sleep(interval);
+    }
+}
 
 /// What happened when the extension's timing log was asked to be on before a run.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -76,34 +103,26 @@ pub trait LoggingControl: Send + Sync {
 pub struct GdbusLogging;
 
 impl LoggingControl for GdbusLogging {
-    /// Calls `SetLogging(true)` and polls `log` up to [`ECHO_POLLS`] times, [`ECHO_POLL_INTERVAL`]
-    /// apart, for [`ENABLE_ECHO`].
+    /// Calls `SetLogging(true)` and waits up to [`ECHO_TIMEOUT`] for [`ENABLE_ECHO`] (see
+    /// [`wait_for_echo`]).
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome {
-        let secs = || {
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0)
-        };
-        let since = secs();
+        let since = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
         if let Err(e) = set_extension_logging(true) {
             return LoggingOutcome::Failed(format!(
                 "extension timing log could not be enabled: {}",
                 e.trim()
             ));
         }
-        for _ in 0..ECHO_POLLS {
-            std::thread::sleep(ECHO_POLL_INTERVAL);
-            if let Ok(slice) = log.capture_slice(since, secs()) {
-                if slice.contains(ENABLE_ECHO) {
-                    return LoggingOutcome::Enabled;
-                }
-            }
+        if wait_for_echo(log, since, ECHO_TIMEOUT, ECHO_POLL_INTERVAL) {
+            return LoggingOutcome::Enabled;
         }
         LoggingOutcome::Failed(format!(
             "SetLogging(true) succeeded but no '{}' line reached the journal within {} ms, so the timing log may be off",
             ENABLE_ECHO,
-            ECHO_POLLS as u128 * ECHO_POLL_INTERVAL.as_millis()
+            ECHO_TIMEOUT.as_millis()
         ))
     }
 }
@@ -212,5 +231,97 @@ impl LoggingControl for FakeExtension {
         }
         s.enabled = true;
         LoggingOutcome::Enabled
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    /// Journal that shows the enable echo from its `echo_on_call`-th read on (1-based), or never.
+    struct FakeJournal {
+        echo_on_call: Option<usize>,
+        calls: AtomicUsize,
+    }
+
+    impl FakeJournal {
+        /// A journal whose echo appears on read number `echo_on_call`, or never for `None`.
+        fn new(echo_on_call: Option<usize>) -> Self {
+            Self {
+                echo_on_call,
+                calls: AtomicUsize::new(0),
+            }
+        }
+
+        /// How many times the journal was read.
+        fn calls(&self) -> usize {
+            self.calls.load(Ordering::SeqCst)
+        }
+    }
+
+    impl LogSource for FakeJournal {
+        /// Returns the provider name "fake-journal".
+        fn name(&self) -> &'static str {
+            "fake-journal"
+        }
+
+        /// A line unrelated to logging until the echo's read number, then the echo line.
+        fn capture_slice(&self, _since: u64, _until: u64) -> Result<String, String> {
+            let n = self.calls.fetch_add(1, Ordering::SeqCst) + 1;
+            Ok(match self.echo_on_call {
+                Some(k) if n >= k => format!("other line\n+1.00ms | {}", ENABLE_ECHO),
+                _ => "other line".to_string(),
+            })
+        }
+    }
+
+    /// Echo already there: one read, no sleep, true.
+    #[test]
+    fn test_wait_for_echo_immediate() {
+        let j = FakeJournal::new(Some(1));
+        let began = Instant::now();
+        assert!(wait_for_echo(
+            &j,
+            0,
+            Duration::from_secs(5),
+            Duration::from_millis(200)
+        ));
+        assert_eq!(j.calls(), 1);
+        assert!(began.elapsed() < Duration::from_millis(150), "slept first");
+    }
+
+    /// Echo on the 4th read: stops there (no 5th read) after waiting about 3 intervals.
+    #[test]
+    fn test_wait_for_echo_late_stops_at_first_match() {
+        let j = FakeJournal::new(Some(4));
+        let began = Instant::now();
+        assert!(wait_for_echo(
+            &j,
+            0,
+            Duration::from_secs(5),
+            Duration::from_millis(20)
+        ));
+        assert_eq!(j.calls(), 4);
+        let took = began.elapsed();
+        assert!(took >= Duration::from_millis(60), "took {:?}", took);
+        assert!(took < Duration::from_millis(1000), "took {:?}", took);
+    }
+
+    /// No echo: gives up after the timeout, having polled repeatedly, and not much later.
+    #[test]
+    fn test_wait_for_echo_never_gives_up_at_the_timeout() {
+        let j = FakeJournal::new(None);
+        let began = Instant::now();
+        assert!(!wait_for_echo(
+            &j,
+            0,
+            Duration::from_millis(100),
+            Duration::from_millis(20)
+        ));
+        let took = began.elapsed();
+        assert!(took >= Duration::from_millis(100), "took {:?}", took);
+        assert!(took < Duration::from_millis(400), "took {:?}", took);
+        assert!(j.calls() >= 3, "polled {} times", j.calls());
     }
 }
