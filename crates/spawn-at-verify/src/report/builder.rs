@@ -143,7 +143,8 @@ pub fn build_session_report_with_runs(
 /// started in the same second) the name gets a zero-padded counter: `<timestamp>-<host>-02`,
 /// `-03`, ... up to `-99`. `create_dir` fails if the name exists, so two runs never share a
 /// directory. Names still sort in start order: the plain name is a prefix of its counted
-/// siblings, and a later second differs earlier in the string.
+/// siblings, and a later second differs earlier in the string. When all 100 names (plain, `-02`
+/// to `-99`) exist, it returns an error saying so and writes nothing.
 pub fn write_report_artifacts(
     output_base: &Path,
     report: &SessionReport,
@@ -167,6 +168,12 @@ pub fn write_report_artifacts(
             Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists && counter < 99 => {
                 counter += 1;
                 session_dir = output_base.join(format!("{}-{:02}", dir_name, counter));
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                return Err(format!(
+                    "Cannot create a report directory: {} and its counted names -02 to -99 all exist (100 runs in the same second). Nothing was written.",
+                    output_base.join(&dir_name).display()
+                ))
             }
             Err(e) => {
                 return Err(format!(

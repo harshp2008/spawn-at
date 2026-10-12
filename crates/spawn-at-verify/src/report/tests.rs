@@ -328,3 +328,36 @@ fn test_same_second_runs_keep_separate_report_directories() {
     }
     std::fs::remove_dir_all(&base).unwrap();
 }
+
+/// With the plain name and `-02` to `-99` all taken (100 runs in one second), the next write is
+/// an error that names the cause ("100 runs in the same second"), not a bare "File exists", and
+/// it creates no `-100` directory and no report file.
+#[test]
+fn test_hundred_same_second_runs_is_an_explicit_error() {
+    let base = std::env::temp_dir().join(format!(
+        "spawn-at-verify-hundred-{}-{}",
+        std::process::id(),
+        SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    let mut report = report_with_runs(&[run_result("a/one", "", 1)], &[]);
+    report.environment.generated_at = 1_800_000_000;
+    report.environment.hostname = "host".into();
+    let first = write_report_artifacts(&base, &report).unwrap();
+    let plain = first.file_name().unwrap().to_string_lossy().into_owned();
+    for n in 2..=99 {
+        std::fs::create_dir(base.join(format!("{}-{:02}", plain, n))).unwrap();
+    }
+    let err = write_report_artifacts(&base, &report).unwrap_err();
+    assert!(err.contains("100 runs in the same second"), "{}", err);
+    assert!(err.contains(&plain), "{}", err);
+    assert!(!base.join(format!("{}-100", plain)).exists());
+    assert_eq!(
+        std::fs::read_dir(&base).unwrap().count(),
+        99,
+        "plain name + -02..-99"
+    );
+    std::fs::remove_dir_all(&base).unwrap();
+}
