@@ -95,6 +95,7 @@ fn result_with(stdout: &str, slice: String) -> TestResult {
         stderr: String::new(),
         message: None,
         log_slice: Some(slice),
+        trace_note: None,
     }
 }
 
@@ -180,7 +181,15 @@ fn test_result_measures_window_named_in_stdout() {
 fn test_result_naming_absent_window_measures_nothing() {
     let res = result_with(r#"{"window_id":999}"#, two_cycle_slice(126.3));
     assert_eq!(res.cloak_duration_ms(), None);
-    assert!(res.trace_report().unwrap().events.is_empty());
+    // No event for window 999 means "not analysed", not an empty (clean) report.
+    assert!(res.trace_report().is_none());
+    let state = res.trace_state();
+    let why = state.reason().expect("no trace for window 999");
+    assert!(
+        why.contains("no event for window 999"),
+        "reason was {}",
+        why
+    );
 }
 
 /// An explicit `window_id: null` names no window, so the whole slice is analysed unscoped.

@@ -118,6 +118,7 @@ mod tests {
             stderr: String::new(),
             message: None,
             log_slice: None,
+            trace_note: None,
         }
     }
 

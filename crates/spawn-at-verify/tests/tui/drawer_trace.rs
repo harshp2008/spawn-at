@@ -1,0 +1,123 @@
+//! RESULT section when the log slice holds no trace for the window: "not analysed", never a
+//! clean mark, and never the run's wall-clock duration passed off as a cloak time.
+
+use super::create_test_app;
+use spawn_at_verify::runner::{AutoStatus, FinalStatus, HumanVerdict, TestResult};
+use spawn_at_verify::tui::views::build_drawer_content;
+
+/// Window id the fixture claims in stdout.
+const WINDOW: u64 = 870906691;
+/// Run duration distinctive enough to spot if it leaks into the Cloak row.
+const WALL_CLOCK_MS: u64 = 162;
+
+/// A passed result for the selected test, claiming `WINDOW`, with the given slice and note.
+fn passed_result(
+    app: &spawn_at_verify::tui::app::TuiApp,
+    slice: Option<&str>,
+    note: Option<&str>,
+) -> (spawn_at_verify::schema::TestDefinition, TestResult) {
+    let test = app.selected_test().unwrap().clone();
+    let res = TestResult {
+        id: test.id.clone(),
+        title: test.title.clone(),
+        kind: test.kind,
+        required: test.required,
+        auto_status: AutoStatus::AutoPass,
+        human_verdict: HumanVerdict::default(),
+        final_status: FinalStatus::Pass,
+        disagreement: false,
+        duration_ms: WALL_CLOCK_MS,
+        exit_code: Some(0),
+        stdout: format!(r#"{{"window_id":{}}}"#, WINDOW),
+        stderr: String::new(),
+        message: None,
+        log_slice: slice.map(String::from),
+        trace_note: note.map(String::from),
+    };
+    (test, res)
+}
+
+/// The compact drawer's plain text for `res`.
+fn drawer(
+    app: &mut spawn_at_verify::tui::app::TuiApp,
+    test: &spawn_at_verify::schema::TestDefinition,
+    res: TestResult,
+) -> String {
+    app.results.insert(test.id.clone(), res);
+    build_drawer_content(app, test, 100, true).1
+}
+
+/// The row of `plain` whose label is `label`.
+fn row<'a>(plain: &'a str, label: &str) -> &'a str {
+    plain
+        .lines()
+        .find(|l| l.trim_start().starts_with(label))
+        .unwrap_or_else(|| panic!("no {} row in:\n{}", label, plain))
+}
+
+/// Asserts the Trace/Cloak/Budget rows say nothing was measured.
+fn assert_not_analysed(plain: &str) {
+    assert!(
+        row(plain, "Trace").contains("not analysed (no trace captured)"),
+        "Trace row:\n{}",
+        plain
+    );
+    assert!(row(plain, "Cloak").ends_with("not measured"), "{}", plain);
+    assert!(row(plain, "Budget").ends_with("not measured"), "{}", plain);
+    assert!(
+        !plain.contains("clean, no violations"),
+        "an absent trace must not read as clean:\n{}",
+        plain
+    );
+    assert!(
+        !plain.contains("over provisional budget") && !plain.contains("within budget"),
+        "no budget verdict without a measurement:\n{}",
+        plain
+    );
+    assert!(
+        !plain.contains(&format!("{}.0 ms", WALL_CLOCK_MS)),
+        "the run duration must not appear as a cloak time:\n{}",
+        plain
+    );
+}
+
+/// An empty slice: not analysed, with the empty-slice reason on its own row.
+#[test]
+fn test_drawer_empty_slice_shows_not_analysed() {
+    let mut app = create_test_app();
+    let (test, res) = passed_result(&app, Some(""), None);
+    let plain = drawer(&mut app, &test, res);
+    assert_not_analysed(&plain);
+    assert!(
+        row(&plain, "Reason").contains("log slice is empty"),
+        "{}",
+        plain
+    );
+}
+
+/// No slice and a no-op log source note: the note is shown as the reason.
+#[test]
+fn test_drawer_noop_log_source_shows_reason() {
+    let mut app = create_test_app();
+    let note = "no log source: XDG_CURRENT_DESKTOP is unset";
+    let (test, res) = passed_result(&app, None, Some(note));
+    let plain = drawer(&mut app, &test, res);
+    assert_not_analysed(&plain);
+    assert!(row(&plain, "Reason").contains(note), "{}", plain);
+}
+
+/// A slice that only holds another window's events: not analysed, reason names the window.
+#[test]
+fn test_drawer_slice_with_only_another_windows_events_shows_not_analysed() {
+    let mut app = create_test_app();
+    let other = "[spawn-at-time] +10.00ms | CLOAK win=[id=870906689 pid=1 class=\"\" app=\"\" type=DROPDOWN_MENU proto=Wayland] opacity=0 frame=(0,0,10x10)\n\
+                 [spawn-at-time] +40.00ms | UNCLOAK win=[id=870906689 pid=1 class=\"\" app=\"\" type=DROPDOWN_MENU proto=Wayland] opacity=255 frame=(0,0,10x10)";
+    let (test, res) = passed_result(&app, Some(other), None);
+    let plain = drawer(&mut app, &test, res);
+    assert_not_analysed(&plain);
+    assert!(
+        row(&plain, "Reason").contains(&format!("no event for window {}", WINDOW)),
+        "{}",
+        plain
+    );
+}

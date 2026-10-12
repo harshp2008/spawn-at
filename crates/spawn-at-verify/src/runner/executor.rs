@@ -50,6 +50,7 @@ impl TestRunner {
                     stderr: String::new(),
                     message: Some(format!("Blocked by preflight failure: {}", reason)),
                     log_slice: None,
+                    trace_note: None,
                 };
             }
         }
@@ -73,6 +74,7 @@ impl TestRunner {
                 stderr: String::new(),
                 message: Some(skip_reason),
                 log_slice: None,
+                trace_note: None,
             };
         }
 
@@ -94,6 +96,7 @@ impl TestRunner {
                 stderr: String::new(),
                 message: Some("Dry-run only; skipped execution".into()),
                 log_slice: None,
+                trace_note: None,
             };
         }
 
@@ -128,6 +131,7 @@ impl TestRunner {
                 stderr: String::new(),
                 message: Some(msg),
                 log_slice: None,
+                trace_note: None,
             };
         }
 
@@ -166,6 +170,7 @@ impl TestRunner {
                             fixture_bin.display()
                         )),
                         log_slice: None,
+                        trace_note: None,
                     };
                 }
             }
@@ -211,6 +216,7 @@ impl TestRunner {
                     stderr: String::new(),
                     message: Some(format!("Harness error executing command: {}", e)),
                     log_slice,
+                    trace_note: None,
                 };
             }
         };
@@ -256,6 +262,7 @@ impl TestRunner {
                             stderr,
                             message: Some(err_msg),
                             log_slice,
+                            trace_note: None,
                         };
                     }
                 }
@@ -304,6 +311,7 @@ impl TestRunner {
                     stderr,
                     message: Some(err),
                     log_slice,
+                    trace_note: None,
                 };
             }
         };
@@ -342,6 +350,7 @@ impl TestRunner {
                         stderr,
                         message: Some(err_msg),
                         log_slice,
+                        trace_note: None,
                     };
                 }
             }
@@ -368,6 +377,7 @@ impl TestRunner {
             stderr,
             message: Some(pass_message),
             log_slice,
+            trace_note: None,
         }
     }
 }

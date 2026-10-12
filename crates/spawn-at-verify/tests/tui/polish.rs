@@ -92,6 +92,7 @@ fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
         log_slice: Some(
             "+0.00ms | CLOAK win=[id=1002 pid=2002 class=\"test\" app=\"test\" type=NORMAL proto=Wayland] opacity=0 frame=(50,50,400x300)\n+32.50ms | UNCLOAK win=[id=1002 pid=2002 class=\"test\" app=\"test\" type=NORMAL proto=Wayland] opacity=255 frame=(50,50,400x300)".into(),
         ),
+        trace_note: None,
     };
     outcome_app
         .results
@@ -203,6 +204,7 @@ fn test_result_and_spacing_polish_spec() {
             stderr: String::new(),
             message: Some("Assertions passed".into()),
             log_slice: Some("[spawn-at-time] +0.00ms | CLOAK".into()),
+            trace_note: None,
         };
         wait_app
             .results
@@ -422,6 +424,7 @@ fn test_result_and_spacing_polish_spec() {
         stderr: String::new(),
         message: Some(long_fail_msg.into()),
         log_slice: None,
+        trace_note: None,
     };
     tall_app
         .results

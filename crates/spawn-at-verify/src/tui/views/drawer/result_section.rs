@@ -173,20 +173,12 @@ pub fn render_result_section(
     };
     builder.push_kv("Verdict", v_spans, &v_plain);
 
-    let trace_report = res_opt.and_then(|r| r.trace_report());
+    let trace_state = res_opt.map(|r| r.trace_state());
+    let trace_report = trace_state.as_ref().and_then(|s| s.report().cloned());
 
-    let cloak_ms = trace_report
-        .as_ref()
-        .and_then(|rep| rep.cloak_duration_ms)
-        .or_else(|| {
-            res_opt.and_then(|r| {
-                if r.duration_ms > 0 {
-                    Some(r.duration_ms as f64)
-                } else {
-                    None
-                }
-            })
-        });
+    // Only the trace's own CLOAK..UNCLOAK pair counts. The run's wall-clock duration is the time
+    // the `spawn-at` process took, not a cloak time, so it is never substituted.
+    let cloak_ms = trace_report.as_ref().and_then(|rep| rep.cloak_duration_ms);
 
     let (c_spans, c_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
         (
@@ -305,19 +297,11 @@ pub fn render_result_section(
         }
     } else if res_opt.is_some() {
         (
-            vec![
-                Span::styled(
-                    "✔ ",
-                    Style::default()
-                        .fg(Color::Green)
-                        .add_modifier(Modifier::BOLD),
-                ),
-                Span::styled(
-                    "clean, no violations",
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                ),
-            ],
-            "✔ clean, no violations".into(),
+            vec![Span::styled(
+                "not analysed (no trace captured)",
+                Style::default().fg(Color::Yellow),
+            )],
+            "not analysed (no trace captured)".into(),
         )
     } else {
         (
@@ -331,6 +315,16 @@ pub fn render_result_section(
         )
     };
     builder.push_kv("Trace", t_spans, &t_plain);
+    if let Some(why) = trace_state.as_ref().and_then(|s| s.reason()) {
+        builder.push_kv(
+            "Reason",
+            vec![Span::styled(
+                why.to_string(),
+                Style::default().fg(Color::Yellow),
+            )],
+            why,
+        );
+    }
 
     // Geometry: the same comparison as the GEOMETRY table and the runner's verdict.
     if let Some(check) = &geometry_check {

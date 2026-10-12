@@ -26,6 +26,7 @@ fn test_skipped_is_never_a_pass() {
             stderr: "".into(),
             message: None,
             log_slice: None,
+            trace_note: None,
         },
         TestResult {
             id: "cloak/delayed-paint".into(),
@@ -42,6 +43,7 @@ fn test_skipped_is_never_a_pass() {
             stderr: "".into(),
             message: Some("Wayland only".into()),
             log_slice: None,
+            trace_note: None,
         },
     ];
 
@@ -168,6 +170,7 @@ fn run_result(id: &str, stdout: &str, duration_ms: u64) -> TestResult {
         stderr: String::new(),
         message: None,
         log_slice: None,
+        trace_note: None,
     }
 }
 

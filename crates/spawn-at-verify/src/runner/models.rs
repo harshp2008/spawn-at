@@ -111,6 +111,11 @@ pub struct TestResult {
     pub message: Option<String>,
     /// Relevant slice of compositor log or system journal.
     pub log_slice: Option<String>,
+    /// Run-time fact about the trace capture, recorded when the slice was taken: a no-op log
+    /// source, or a timing log that could not be enabled. Becomes part of the reason shown
+    /// when the slice holds no trace for the window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub trace_note: Option<String>,
 }
 
 impl TestResult {
@@ -138,23 +143,32 @@ impl TestResult {
         super::validation::extract_claimed_window_id(&self.stdout, &self.stderr)
     }
 
-    /// Analyses this result's log slice for the window named in stdout, never for "whichever
-    /// window of the class appears first".
+    /// Looks in this result's log slice for the trace of the window named in stdout, never
+    /// for "whichever window of the class appears first".
     ///
     /// The slice is captured with whole-second bounds, so it can contain a previous run's
     /// window; scoping to [`TestResult::claimed_window_id`] drops those events. When stdout
     /// names no window (e.g. `window_id: null`), the whole slice is analysed unscoped.
-    pub fn trace_report(&self) -> Option<crate::trace::TraceReport> {
-        let slice = self.log_slice.as_ref()?;
-        let mut analyser = crate::trace::TraceAnalyser::new();
-        if let Some(id) = self.claimed_window_id() {
-            analyser = analyser.with_target_window_id(id);
-        }
-        Some(analyser.analyse(slice))
+    pub fn trace_state(&self) -> crate::trace::TraceState {
+        crate::trace::assess_trace(
+            self.log_slice.as_deref(),
+            self.claimed_window_id(),
+            self.trace_note.as_deref(),
+        )
     }
 
-    /// Cloak duration in milliseconds of the claimed window, or `None` when there is no slice
-    /// or it holds no complete CLOAK..UNCLOAK pair for that window.
+    /// The trace analysis, or `None` when the slice holds no event for the window (no slice,
+    /// an empty one, or one with only other windows' events). `None` means "not analysed",
+    /// never "clean".
+    pub fn trace_report(&self) -> Option<crate::trace::TraceReport> {
+        match self.trace_state() {
+            crate::trace::TraceState::Analysed(report) => Some(report),
+            crate::trace::TraceState::NotCaptured(_) => None,
+        }
+    }
+
+    /// Cloak duration in milliseconds of the claimed window, or `None` when there is no trace
+    /// for it or the trace holds no complete CLOAK..UNCLOAK pair.
     pub fn cloak_duration_ms(&self) -> Option<f64> {
         self.trace_report().and_then(|r| r.cloak_duration_ms)
     }

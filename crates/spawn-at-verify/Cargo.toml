@@ -48,6 +48,10 @@ name = "trace_analyser_test"
 path = "tests/trace_analyser_test.rs"
 
 [[test]]
+name = "trace_state_test"
+path = "tests/trace_state_test.rs"
+
+[[test]]
 name = "tui_test"
 path = "tests/tui_test.rs"
 required-features = ["tui"]

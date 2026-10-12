@@ -155,6 +155,7 @@ impl TuiApp {
                             stderr: String::new(),
                             message: None,
                             log_slice: None,
+                            trace_note: None,
                         });
 
                 result.human_verdict = HumanVerdict {
