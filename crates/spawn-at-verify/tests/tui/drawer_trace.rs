@@ -33,6 +33,7 @@ fn passed_result(
         message: None,
         log_slice: slice.map(String::from),
         trace_note: note.map(String::from),
+        final_rect: None,
     };
     (test, res)
 }

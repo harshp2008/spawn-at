@@ -17,5 +17,6 @@ pub use models::{
 };
 pub use validation::{
     build_action_command_args, check_pattern_match, expects_no_window, extract_claimed_window_id,
-    needs_trace, pass_assessment, validate_expectations, validate_geometry,
+    needs_trace, pass_assessment, settle_final_rect, validate_expectations, validate_geometry,
+    validate_geometry_final, Settle,
 };

@@ -26,6 +26,7 @@ fn test_skipped_is_never_a_pass() {
             message: None,
             log_slice: None,
             trace_note: None,
+            final_rect: None,
         },
         TestResult {
             id: "cloak/delayed-paint".into(),
@@ -43,6 +44,7 @@ fn test_skipped_is_never_a_pass() {
             message: Some("Wayland only".into()),
             log_slice: None,
             trace_note: None,
+            final_rect: None,
         },
     ];
 
@@ -170,6 +172,7 @@ fn run_result(id: &str, stdout: &str, duration_ms: u64) -> TestResult {
         message: None,
         log_slice: None,
         trace_note: None,
+        final_rect: None,
     }
 }
 
@@ -274,6 +277,7 @@ fn test_required_trace_unchecked_pass_does_not_qualify() {
         message: None,
         log_slice: None,
         trace_note: None,
+        final_rect: None,
     };
     let q = evaluate_qualification(&[result(FinalStatus::Pass, AutoStatus::AutoPass)]);
     assert!(q.supported);

@@ -145,6 +145,7 @@ mod tests {
             message: None,
             log_slice: None,
             trace_note: None,
+            final_rect: None,
         }
     }
 

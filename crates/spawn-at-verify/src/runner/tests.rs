@@ -6,7 +6,7 @@ use super::models::{
 };
 use super::validation::{
     build_action_command_args, check_pattern_match, extract_claimed_window_id, pass_assessment,
-    validate_geometry,
+    settle_final_rect, validate_geometry, validate_geometry_final, Settle,
 };
 use crate::loader::TestRegistry;
 use crate::preflight::{PreflightReport, PreflightVerdict};
@@ -571,4 +571,65 @@ exit_code = {code}
     assert!(!super::validation::expects_no_window(&spec(2), 0));
     assert!(!super::validation::expects_no_window(&spec(2), 1));
     assert!(!super::validation::expects_no_window(&spec(0), 0));
+}
+
+/// What `spawn-at` printed in the loaded gate-(b) failures: the anchor's position for 200x150.
+const STALE_PRINT: &str = r#"{"window_id":7,"x":1704,"y":914,"w":200,"h":150}"#;
+
+/// Printed rectangle already at the target: the wait-and-read closure is never called, so the run
+/// takes no extra time, and the result is `NotNeeded`.
+#[test]
+fn test_no_settle_wait_when_the_printed_rectangle_matches() {
+    let env = env_with(Some(wa()), Some(wa()));
+    let calls = std::cell::Cell::new(0);
+    let settle = settle_final_rect(&bottom_right_spec(), AT_TARGET, None, &env, || {
+        calls.set(calls.get() + 1);
+        None
+    });
+    assert_eq!(settle, Settle::NotNeeded);
+    assert_eq!(calls.get(), 0, "a matching print must not wait");
+}
+
+/// Printed rectangle stale: the closure runs exactly once and its rectangle is returned; with the
+/// window at the target the run passes and carries the stale-print warning in its message.
+#[test]
+fn test_stale_print_settles_once_and_passes_with_warning_when_final_is_right() {
+    let env = env_with(Some(wa()), Some(wa()));
+    let calls = std::cell::Cell::new(0);
+    let fin = crate::oracle::Rect::new(1504, 764, 400, 300);
+    let settle = settle_final_rect(&bottom_right_spec(), STALE_PRINT, None, &env, || {
+        calls.set(calls.get() + 1);
+        Some(fin)
+    });
+    assert_eq!(settle, Settle::Read(fin));
+    assert_eq!(calls.get(), 1);
+    let check = validate_geometry_final(&bottom_right_spec(), STALE_PRINT, Some(fin), None, &env)
+        .unwrap()
+        .unwrap();
+    let (status, message) = pass_assessment(Some(&check));
+    assert_eq!(status, AutoStatus::AutoPass);
+    assert_eq!(
+        message,
+        "Assertions passed (warning: spawn-at printed a stale rectangle (printed 1704,914 200×150, final 1504,764 400×300))"
+    );
+}
+
+/// Negative control: stale print and a wrong final rectangle (1704,914 200x150 again) still fail.
+#[test]
+fn test_stale_print_with_wrong_final_still_fails() {
+    let env = env_with(Some(wa()), Some(wa()));
+    let wrong = crate::oracle::Rect::new(1604, 864, 300, 200);
+    let err = validate_geometry_final(&bottom_right_spec(), STALE_PRINT, Some(wrong), None, &env)
+        .unwrap_err();
+    assert!(err.contains("actual [1604, 864, 300x200]"), "{}", err);
+}
+
+/// A wait that cannot read the window gives `Unreadable`, and judging with no final rectangle
+/// keeps the printed (failing) verdict.
+#[test]
+fn test_unreadable_final_keeps_the_printed_verdict() {
+    let env = env_with(Some(wa()), Some(wa()));
+    let settle = settle_final_rect(&bottom_right_spec(), STALE_PRINT, None, &env, || None);
+    assert_eq!(settle, Settle::Unreadable);
+    assert!(validate_geometry_final(&bottom_right_spec(), STALE_PRINT, None, None, &env).is_err());
 }

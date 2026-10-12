@@ -4,17 +4,18 @@ use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
     build_action_command_args, expects_no_window, extract_claimed_window_id, needs_trace,
-    pass_assessment, validate_expectations, validate_geometry,
+    pass_assessment, settle_final_rect, validate_expectations, validate_geometry_final, Settle,
 };
+use crate::oracle::SETTLE_MS;
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
 use crate::trace::{assess_trace, TraceState};
-use crate::tracker::{query_window_ids, query_window_records, WindowTracker};
+use crate::tracker::{query_window_ids, query_window_records, query_window_rect, WindowTracker};
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
-use std::time::{Instant, SystemTime};
+use std::time::{Duration, Instant, SystemTime};
 
 impl TestRunner {
     /// Executes an individual verification test case, managing timeouts, logs, and attribution.
@@ -52,6 +53,7 @@ impl TestRunner {
                     message: Some(format!("Blocked by preflight failure: {}", reason)),
                     log_slice: None,
                     trace_note: None,
+                    final_rect: None,
                 };
             }
         }
@@ -76,6 +78,7 @@ impl TestRunner {
                 message: Some(skip_reason),
                 log_slice: None,
                 trace_note: None,
+                final_rect: None,
             };
         }
 
@@ -98,6 +101,7 @@ impl TestRunner {
                 message: Some("Dry-run only; skipped execution".into()),
                 log_slice: None,
                 trace_note: None,
+                final_rect: None,
             };
         }
 
@@ -133,6 +137,7 @@ impl TestRunner {
                 message: Some(msg),
                 log_slice: None,
                 trace_note: None,
+                final_rect: None,
             };
         }
 
@@ -171,7 +176,7 @@ impl TestRunner {
                             fixture_bin.display()
                         )),
                         log_slice: None,
-                        trace_note: None,
+                        trace_note: None, final_rect: None,
                     };
                 }
             }
@@ -227,6 +232,7 @@ impl TestRunner {
                     message: Some(format!("Harness error executing command: {}", e)),
                     log_slice,
                     trace_note: trace_note.clone(),
+                    final_rect: None,
                 };
             }
         };
@@ -283,6 +289,7 @@ impl TestRunner {
                             message: Some(err_msg),
                             log_slice,
                             trace_note: trace_note.clone(),
+                            final_rect: None,
                         };
                     }
                 }
@@ -302,6 +309,33 @@ impl TestRunner {
         };
         let target_id = attributed_id.or(transform_target_id);
 
+        // `spawn-at` can exit with the rectangle the window had before the app's late resize;
+        // when that printed rectangle fails the check, keep the window alive for SETTLE_MS and
+        // read where it ended up. A matching print waits for nothing. `duration_ms` above is
+        // not extended by the wait. The log slice is taken again so it covers the wait and any
+        // correction the extension made during it.
+        let settle_id = extract_claimed_window_id(&stdout, &stderr).or(target_id);
+        let settle = settle_final_rect(test, &stdout, log_slice.as_deref(), env_info, || {
+            std::thread::sleep(Duration::from_millis(SETTLE_MS));
+            settle_id.and_then(|id| query_window_rect(&self.options.bin_path, id))
+        });
+        let final_rect = match settle {
+            Settle::Read(r) => Some(r),
+            Settle::NotNeeded | Settle::Unreadable => None,
+        };
+        let log_slice = if settle == Settle::NotNeeded {
+            log_slice
+        } else {
+            let settled_secs = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(end_secs);
+            self.log_source
+                .capture_slice(start_secs, settled_secs)
+                .ok()
+                .or(log_slice)
+        };
+
         // A trace for the run's window proves the timing log is on, so a remembered echo timeout
         // no longer applies.
         if assess_trace(
@@ -316,8 +350,9 @@ impl TestRunner {
         }
 
         // Validate expectations
-        let validation = validate_expectations(test, exit_code, &stderr, env_info)
-            .and_then(|()| validate_geometry(test, &stdout, log_slice.as_deref(), env_info));
+        let validation = validate_expectations(test, exit_code, &stderr, env_info).and_then(|()| {
+            validate_geometry_final(test, &stdout, final_rect, log_slice.as_deref(), env_info)
+        });
         // Geometry caveats worth recording next to a pass.
         let mut pass_message: String;
         let auto_status = match validation {
@@ -327,6 +362,15 @@ impl TestRunner {
                 status
             }
             Err(err) => {
+                // Without a re-read the verdict is on the printed rectangle; say so.
+                let err = if settle == Settle::Unreadable {
+                    format!(
+                        "{} (the window could not be re-read after {} ms; judged on the printed rectangle)",
+                        err, SETTLE_MS
+                    )
+                } else {
+                    err
+                };
                 let (final_status, disagreement) =
                     resolve_final_status(test.kind, AutoStatus::AutoFail, &HumanVerdict::default());
                 return TestResult {
@@ -345,6 +389,7 @@ impl TestRunner {
                     message: Some(err),
                     log_slice,
                     trace_note: trace_note.clone(),
+                    final_rect,
                 };
             }
         };
@@ -382,6 +427,7 @@ impl TestRunner {
                             message: Some(err_msg),
                             log_slice,
                             trace_note: trace_note.clone(),
+                            final_rect,
                         };
                     }
                     auto_status
@@ -419,6 +465,7 @@ impl TestRunner {
             message: Some(pass_message),
             log_slice,
             trace_note,
+            final_rect,
         }
     }
 }

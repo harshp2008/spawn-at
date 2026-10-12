@@ -431,7 +431,7 @@ pub fn render_result_section(
             ),
         };
         builder.push_kv("Geometry", g_spans, &g_plain);
-        if let Some(w) = check.warning() {
+        for w in check.warnings() {
             builder.push_kv(
                 "Warning",
                 vec![

@@ -69,7 +69,7 @@ fn test_headless_render_80x24_shows_clipping_hint_when_overflowed() {
             "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.50ms | UNCLOAK\n[spawn-at-time] +9.00ms | VIOLATION: visible flicker\n[spawn-at-time] +10.00ms | WATCHDOG: frame timeout"
                 .into(),
         ),
-        trace_note: None,
+        trace_note: None, final_rect: None,
     };
     app.results.insert(test.id.clone(), overflow_result);
 
@@ -181,6 +181,7 @@ fn test_render_snapshots() {
             "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
         ),
         trace_note: None,
+        final_rect: None,
     };
     wait_app
         .results
@@ -208,7 +209,7 @@ fn test_render_snapshots() {
         stderr: "[spawn-at] ERROR: Geometric target mismatch".into(),
         message: Some("Window mapped at (1200, 600) but expected (1504, 764)".into()),
         log_slice: Some("[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +8.20ms | VIOLATION: visible flicker\n[spawn-at-time] +9.50ms | UNCLOAK".into()),
-        trace_note: None,
+        trace_note: None, final_rect: None,
     };
     fail_app.results.insert(fail_test.id.clone(), fail_res);
     let mut fail_term = Terminal::new(TestBackend::new(width, height)).unwrap();
@@ -253,6 +254,7 @@ fn test_render_passing_case_contains_no_red_styled_cells() {
                 "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +5.00ms | UNCLOAK".into(),
             ),
             trace_note: None,
+            final_rect: None,
         };
         app.results.insert(test.id.clone(), pass_res);
     }
@@ -350,6 +352,7 @@ fn test_render_responsive_breakpoints_60_70_80_100_140_and_small_height_60x20() 
                 "[spawn-at-time] +0.00ms | CLOAK\n[spawn-at-time] +4.80ms | UNCLOAK".into(),
             ),
             trace_note: None,
+            final_rect: None,
         };
         wait_app
             .results

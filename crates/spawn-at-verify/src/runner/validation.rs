@@ -2,7 +2,7 @@
 
 use super::models::AutoStatus;
 use crate::oracle::check::expected_rect;
-use crate::oracle::{check_geometry, GeometryCheck, GeometryStatus, Rect};
+use crate::oracle::{check_geometry_final, settle_needed, GeometryCheck, GeometryStatus, Rect};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
 use regex::Regex;
@@ -169,12 +169,64 @@ pub fn validate_geometry(
     log_slice: Option<&str>,
     env_info: &EnvironmentInfo,
 ) -> Result<Option<crate::oracle::GeometryCheck>, String> {
+    validate_geometry_final(test, stdout, None, log_slice, env_info)
+}
+
+/// [`validate_geometry`] judged on `final_rect` (the window re-read after the settle) when it
+/// is `Some`; the printed rectangle is then only reported, as a warning on the check.
+pub fn validate_geometry_final(
+    test: &TestDefinition,
+    stdout: &str,
+    final_rect: Option<Rect>,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+) -> Result<Option<crate::oracle::GeometryCheck>, String> {
     match &test.effective_expect_rect() {
         Some(expect) => {
-            let check = check_geometry(expect, stdout, log_slice, env_info.workarea_probe());
+            let check = check_geometry_final(
+                expect,
+                stdout,
+                final_rect,
+                log_slice,
+                env_info.workarea_probe(),
+            );
             check.verdict().map(|()| Some(check))
         }
         None => Ok(None),
+    }
+}
+
+/// What the settle step found for one run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Settle {
+    /// The printed rectangle already matched (or could not be judged): `read` was not called
+    /// and nothing was waited for.
+    NotNeeded,
+    /// The window was waited for and re-read; this is its rectangle.
+    Read(Rect),
+    /// The window was waited for but its rectangle could not be read (gone, or no id).
+    Unreadable,
+}
+
+/// Decides whether to settle and, only if so, calls `wait_and_read` once. The runner passes a
+/// closure that sleeps [`crate::oracle::SETTLE_MS`] and then reads the window's rectangle, so
+/// a run whose printed rectangle already matches takes no extra time.
+pub fn settle_final_rect(
+    test: &TestDefinition,
+    stdout: &str,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+    wait_and_read: impl FnOnce() -> Option<Rect>,
+) -> Settle {
+    let Some(expect) = test.effective_expect_rect() else {
+        return Settle::NotNeeded;
+    };
+    if !settle_needed(&expect, stdout, log_slice, env_info.workarea_probe()) {
+        return Settle::NotNeeded;
+    }
+    match wait_and_read() {
+        Some(r) => Settle::Read(r),
+        None => Settle::Unreadable,
     }
 }
 
@@ -197,7 +249,7 @@ pub fn pass_assessment(check: Option<&GeometryCheck>) -> (AutoStatus, String) {
     if c.status() == GeometryStatus::NotMeasured {
         message.push_str(" (geometry not measured: no rectangle in stdout)");
     }
-    if let Some(w) = c.warning() {
+    for w in c.warnings() {
         message.push_str(&format!(" (warning: {})", w));
     }
     if c.workarea_source.is_extension_derived() {

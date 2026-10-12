@@ -6,6 +6,6 @@ pub mod state;
 mod tests;
 
 pub use state::{
-    query_window_ids, query_window_records, AttributionOutcome, WindowRecord, WindowTracker,
-    MAX_CONCURRENT_WINDOWS,
+    query_window_ids, query_window_records, query_window_rect, AttributionOutcome, WindowRecord,
+    WindowTracker, MAX_CONCURRENT_WINDOWS,
 };

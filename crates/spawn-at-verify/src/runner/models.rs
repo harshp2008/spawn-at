@@ -122,6 +122,11 @@ pub struct TestResult {
     /// when the slice holds no trace for the window.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub trace_note: Option<String>,
+    /// The window's rectangle re-read after the settle wait, recorded only when the printed one
+    /// failed the geometry check and the window could still be read. The geometry verdict is
+    /// judged on it instead of the printed rectangle in `stdout`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub final_rect: Option<crate::oracle::Rect>,
 }
 
 impl TestResult {
@@ -136,9 +141,10 @@ impl TestResult {
         probe: crate::oracle::WorkareaProbe,
     ) -> Option<crate::oracle::GeometryCheck> {
         let expect = test.effective_expect_rect()?;
-        Some(crate::oracle::check_geometry(
+        Some(crate::oracle::check_geometry_final(
             &expect,
             &self.stdout,
+            self.final_rect,
             self.log_slice.as_deref(),
             probe,
         ))

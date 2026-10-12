@@ -83,7 +83,17 @@ pub struct GeometryCheck {
     /// observed size does not fit the workarea inside the margins, or the workarea / observed
     /// rectangle is unavailable.
     pub inside_workarea: Option<bool>,
+    /// The rectangle `spawn-at` printed, kept only when it differs from `actual` because the
+    /// window was re-read after a settle ([`check_geometry_final`]): `actual` is then the final
+    /// rectangle and this is the stale one that was printed. `None` when printed and judged
+    /// rectangles are the same.
+    pub printed: Option<Rect>,
 }
+
+/// How long the runner keeps a window alive after `spawn-at` exits, before re-reading its
+/// rectangle, when the printed rectangle is not the expected one: 1 s for the extension's
+/// late-resize listener plus 300 ms for the correction it makes and the compositor to show it.
+pub const SETTLE_MS: u64 = 1300;
 
 /// Anchors whose far edge (right and/or bottom) is where an off-size window falls off the
 /// workarea; only for these is containment judged.
@@ -127,16 +137,32 @@ fn fmt_rect(r: Rect) -> String {
     format!("{},{} {}×{}", r.x, r.y, r.w, r.h)
 }
 
+/// The warning row for a printed rectangle that is not where the window ended up.
+pub fn stale_print_warning(printed: Rect, final_rect: Rect) -> String {
+    format!(
+        "spawn-at printed a stale rectangle (printed {}, final {})",
+        fmt_rect(printed),
+        fmt_rect(final_rect)
+    )
+}
+
 impl GeometryCheck {
-    /// Warning to show next to the verdict, if any: a probe/extension workarea disagreement.
-    pub fn warning(&self) -> Option<String> {
-        self.conflict.map(|(probe, ext)| {
-            format!(
+    /// Warnings to show next to the verdict, none when there is nothing to flag: a
+    /// probe/extension workarea disagreement, and a printed rectangle that differs from the
+    /// final one the verdict was judged on. Neither changes the verdict.
+    pub fn warnings(&self) -> Vec<String> {
+        let mut out = Vec::new();
+        if let Some((probe, ext)) = self.conflict {
+            out.push(format!(
                 "workarea differs: probe {} vs extension {}",
                 fmt_rect(probe),
                 fmt_rect(ext)
-            )
-        })
+            ));
+        }
+        if let (Some(printed), Some(fin)) = (self.printed, self.actual) {
+            out.push(stale_print_warning(printed, fin));
+        }
+        out
     }
 
     /// Signed differences `actual - expected` as `(dx, dy, dw, dh)`, when both rectangles exist.
@@ -195,9 +221,18 @@ impl GeometryCheck {
             ));
         }
         let (dx, dy, dw, dh) = self.deltas().unwrap();
+        // With a re-read window, say that `actual` is the final rectangle and what was printed.
+        let basis = match self.printed {
+            Some(p) => format!(
+                " (final, re-read after {} ms; printed {})",
+                SETTLE_MS,
+                fmt_rect(p)
+            ),
+            None => String::new(),
+        };
         Err(format!(
-            "Geometry mismatch (tolerance {}px): expected [{}, {}, {}x{}], actual [{}, {}, {}x{}] (delta actual-expected: dx={:+}, dy={:+}, dw={:+}, dh={:+})",
-            self.tolerance_px, e.x, e.y, e.w, e.h, a.x, a.y, a.w, a.h, dx, dy, dw, dh
+            "Geometry mismatch (tolerance {}px): expected [{}, {}, {}x{}], actual [{}, {}, {}x{}]{} (delta actual-expected: dx={:+}, dy={:+}, dw={:+}, dh={:+})",
+            self.tolerance_px, e.x, e.y, e.w, e.h, a.x, a.y, a.w, a.h, basis, dx, dy, dw, dh
         ))
     }
 }
@@ -268,7 +303,34 @@ pub fn check_geometry(
     log_slice: Option<&str>,
     probe: WorkareaProbe,
 ) -> GeometryCheck {
-    let actual = actual_rect_from_stdout(stdout);
+    check_geometry_final(expect, stdout, None, log_slice, probe)
+}
+
+/// Whether the rectangle `spawn-at` printed already fails `expect`, so the runner should keep
+/// the window alive for [`SETTLE_MS`] and re-read it. A printed rectangle that matches (or that
+/// cannot be judged: nothing printed, no workarea) needs no wait.
+pub fn settle_needed(
+    expect: &ExpectRect,
+    stdout: &str,
+    log_slice: Option<&str>,
+    probe: WorkareaProbe,
+) -> bool {
+    check_geometry(expect, stdout, log_slice, probe).status() == GeometryStatus::Fail
+}
+
+/// [`check_geometry`] judged on `final_rect` when it is `Some`: the window's rectangle re-read
+/// after the settle. The rectangle printed on stdout is then kept in `printed` if it differs,
+/// so the caller can warn that it was stale. With `None` the printed rectangle is judged, as in
+/// [`check_geometry`].
+pub fn check_geometry_final(
+    expect: &ExpectRect,
+    stdout: &str,
+    final_rect: Option<Rect>,
+    log_slice: Option<&str>,
+    probe: WorkareaProbe,
+) -> GeometryCheck {
+    let printed = actual_rect_from_stdout(stdout);
+    let actual = final_rect.or(printed);
     let spec_size = match &expect.size {
         Some(s) if s.len() >= 2 => Some((s[0], s[1])),
         _ => None,
@@ -309,6 +371,7 @@ pub fn check_geometry(
         workarea_source,
         conflict,
         inside_workarea: containment(expect, workarea, actual),
+        printed: printed.filter(|p| Some(*p) != actual),
     }
 }
 
@@ -356,7 +419,7 @@ mod tests {
         assert_eq!(c.workarea_source, WorkareaSource::Independent);
         assert_eq!(c.status(), GeometryStatus::Pass);
         assert_eq!(
-            c.warning().as_deref(),
+            c.warnings().first().map(String::as_str),
             Some("workarea differs: probe 0,40 1920×1040 vs extension 0,0 1920×1000")
         );
     }
@@ -456,7 +519,7 @@ mod tests {
         );
         assert_eq!(c.workarea_source, WorkareaSource::Independent);
         assert_eq!(c.conflict, None);
-        assert_eq!(c.warning(), None);
+        assert!(c.warnings().is_empty());
         assert_eq!(c.status(), GeometryStatus::Pass);
     }
 
@@ -473,7 +536,7 @@ mod tests {
         assert_eq!(c.workarea, Some(wa()));
         assert_eq!(c.expected, Some(Rect::new(1504, 764, 400, 300)));
         assert_eq!(
-            c.warning().as_deref(),
+            c.warnings().first().map(String::as_str),
             Some("workarea differs: probe 0,40 1920×1040 vs extension 0,0 1920×1000")
         );
         assert_eq!(c.status(), GeometryStatus::Pass);
@@ -491,7 +554,7 @@ mod tests {
             indep(wa()),
         );
         assert_eq!(c.status(), GeometryStatus::Fail);
-        assert!(c.warning().is_some());
+        assert!(!c.warnings().is_empty());
         assert!(c.verdict().is_err());
     }
 
@@ -507,7 +570,7 @@ mod tests {
         );
         assert_eq!(c.workarea_source, WorkareaSource::ExtensionLog);
         assert_eq!(c.status(), GeometryStatus::Pass);
-        assert_eq!(c.warning(), None);
+        assert!(c.warnings().is_empty());
         let c = check_geometry(
             &spec(),
             &out(1500, 764, 400, 300),
@@ -554,5 +617,114 @@ mod tests {
             indep(wa()),
         );
         assert_eq!(c.status(), GeometryStatus::Pass);
+    }
+}
+
+#[cfg(test)]
+mod final_rect_tests {
+    use super::*;
+
+    /// Bottom-right, 400x300, 16 px margin, 1 px tolerance.
+    fn spec() -> ExpectRect {
+        ExpectRect {
+            anchor: Some("bottom-right".into()),
+            pivot: None,
+            size: Some(vec![400, 300]),
+            margin: Some(16),
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
+            tolerance_px: 1,
+        }
+    }
+
+    /// Independent workarea 1920x1040 at (0, 40) and no extension value.
+    fn probe() -> WorkareaProbe {
+        WorkareaProbe {
+            independent: Some(Rect::new(0, 40, 1920, 1040)),
+            extension: None,
+        }
+    }
+
+    /// Stdout JSON of a `spawn --json` that reported rectangle `r`.
+    fn out(r: Rect) -> String {
+        format!(r#"{{"x":{},"y":{},"w":{},"h":{}}}"#, r.x, r.y, r.w, r.h)
+    }
+
+    /// The bottom-right rectangle of a 400x300 window in a 1920x1040 workarea at (0, 40) with a
+    /// 16 px margin.
+    const RIGHT: Rect = Rect {
+        x: 1504,
+        y: 764,
+        w: 400,
+        h: 300,
+    };
+    /// What `spawn-at` printed in the loaded gate-(b) failures: the window at the anchor's
+    /// position for the requested 200x150, before the app's resize arrived.
+    const STALE: Rect = Rect {
+        x: 1704,
+        y: 914,
+        w: 200,
+        h: 150,
+    };
+
+    /// Negative control: the printed rectangle is stale AND the re-read one is also wrong
+    /// (1500 instead of 1504, beyond the 1 px tolerance). Judged on the final one: Fail, and the
+    /// message names both the final and the printed rectangle.
+    #[test]
+    fn test_final_rect_wrong_fails() {
+        let wrong = Rect::new(1500, 764, 400, 300);
+        let c = check_geometry_final(&spec(), &out(STALE), Some(wrong), None, probe());
+        assert_eq!(c.status(), GeometryStatus::Fail);
+        assert_eq!(c.actual, Some(wrong));
+        let msg = c.verdict().unwrap_err();
+        assert!(msg.contains("actual [1500, 764, 400x300]"), "{}", msg);
+        assert!(msg.contains("printed 1704,914 200×150"), "{}", msg);
+    }
+
+    /// The printed rectangle fails but the window ended at the expected one: Pass, with exactly
+    /// one warning naming both rectangles. The same printed rectangle judged alone fails, so
+    /// the pass comes from the final rectangle.
+    #[test]
+    fn test_stale_print_with_right_final_passes_with_warning() {
+        assert_eq!(
+            check_geometry(&spec(), &out(STALE), None, probe()).status(),
+            GeometryStatus::Fail
+        );
+        let c = check_geometry_final(&spec(), &out(STALE), Some(RIGHT), None, probe());
+        assert_eq!(c.status(), GeometryStatus::Pass);
+        assert!(c.verdict().is_ok());
+        assert_eq!(
+            c.warnings(),
+            vec![
+                "spawn-at printed a stale rectangle (printed 1704,914 200×150, final 1504,764 400×300)"
+                    .to_string()
+            ]
+        );
+    }
+
+    /// The printed rectangle is the expected one: no settle is needed, and a final rectangle
+    /// equal to it produces no warning.
+    #[test]
+    fn test_printed_right_needs_no_settle_and_no_warning() {
+        assert!(!settle_needed(&spec(), &out(RIGHT), None, probe()));
+        let c = check_geometry_final(&spec(), &out(RIGHT), Some(RIGHT), None, probe());
+        assert_eq!(c.status(), GeometryStatus::Pass);
+        assert!(c.warnings().is_empty());
+        assert_eq!(c.printed, None);
+    }
+
+    /// A stale print needs the settle; printing nothing or having no workarea does not (there
+    /// is nothing to judge, so waiting would not change the verdict).
+    #[test]
+    fn test_settle_needed_only_for_a_failing_printed_rectangle() {
+        assert!(settle_needed(&spec(), &out(STALE), None, probe()));
+        assert!(!settle_needed(&spec(), "not json", None, probe()));
+        let no_wa = WorkareaProbe {
+            independent: None,
+            extension: None,
+        };
+        assert!(!settle_needed(&spec(), &out(STALE), None, no_wa));
     }
 }

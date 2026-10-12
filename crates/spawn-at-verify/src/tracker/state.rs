@@ -298,3 +298,52 @@ pub fn query_window_ids(bin_path: &Path) -> Result<Vec<u64>, String> {
     let records = query_window_records(bin_path)?;
     Ok(records.into_iter().map(|r| r.id).collect())
 }
+
+/// Reads window `id`'s current rectangle (`x`, `y`, `w`, `h`) from `spawn-at query windows
+/// --json`, the same read the zenity gate used to find where a window ended up after
+/// `spawn-at` had exited. `None` when the query fails, the window is gone, or an entry lacks
+/// one of the four numbers.
+pub fn query_window_rect(bin_path: &Path, id: u64) -> Option<crate::oracle::Rect> {
+    let mut cmd = Command::new(bin_path);
+    cmd.args(["query", "windows", "--json"]);
+    let output =
+        crate::process::execute_with_timeout(cmd, std::time::Duration::from_secs(5)).ok()?;
+    if output.exit_code != Some(0) {
+        return None;
+    }
+    window_rect_from_json(&output.stdout, id)
+}
+
+/// Rectangle of window `id` in the JSON array printed by `query windows --json`.
+pub fn window_rect_from_json(json: &[u8], id: u64) -> Option<crate::oracle::Rect> {
+    let parsed: serde_json::Value = serde_json::from_slice(json).ok()?;
+    let w = parsed
+        .as_array()?
+        .iter()
+        .find(|w| w.get("id").and_then(|v| v.as_u64()) == Some(id))?;
+    Some(crate::oracle::Rect::new(
+        i32::try_from(w.get("x")?.as_i64()?).ok()?,
+        i32::try_from(w.get("y")?.as_i64()?).ok()?,
+        u32::try_from(w.get("w")?.as_u64()?).ok()?,
+        u32::try_from(w.get("h")?.as_u64()?).ok()?,
+    ))
+}
+
+#[cfg(test)]
+mod rect_tests {
+    use super::*;
+
+    /// The entry with the requested id supplies the rectangle; a different id's numbers are
+    /// not used, and an unknown id or a missing field gives `None`.
+    #[test]
+    fn test_window_rect_from_json_picks_the_requested_id() {
+        let json = br#"[{"id":5,"x":0,"y":0,"w":10,"h":10},{"id":7,"x":1504,"y":764,"w":400,"h":300},{"id":9,"x":1,"y":2,"w":3}]"#;
+        assert_eq!(
+            window_rect_from_json(json, 7),
+            Some(crate::oracle::Rect::new(1504, 764, 400, 300))
+        );
+        assert_eq!(window_rect_from_json(json, 8), None);
+        assert_eq!(window_rect_from_json(json, 9), None, "no h");
+        assert_eq!(window_rect_from_json(b"not json", 7), None);
+    }
+}

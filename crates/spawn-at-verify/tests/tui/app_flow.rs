@@ -261,6 +261,7 @@ fn test_done_count_excludes_waiting_human_case() {
         message: None,
         log_slice: None,
         trace_note: None,
+        final_rect: None,
     };
     app.results.insert(t0.id.clone(), pass_res);
 
@@ -288,6 +289,7 @@ fn test_done_count_excludes_waiting_human_case() {
             message: None,
             log_slice: None,
             trace_note: None,
+            final_rect: None,
         };
         app.results.insert(t1.id.clone(), wait_res);
 
