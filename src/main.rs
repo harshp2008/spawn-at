@@ -232,7 +232,15 @@ async fn main() {
                 ));
             }
 
-            if let Err(e) = crate::config::install_login_autostart_entry() {
+            // The binary this run installed; with the binary step skipped, the one running now.
+            let autostart_exe = if args.skip_bin {
+                std::env::current_exe().map_err(|e| e.to_string())
+            } else {
+                crate::platform::installer::installed_binary_path(args.scope)
+            };
+            if let Err(e) =
+                autostart_exe.and_then(|exe| crate::config::install_login_autostart_entry(&exe))
+            {
                 crate::diagnostics::render_warning(&format!(
                     "Failed to set up login update check: {}",
                     e

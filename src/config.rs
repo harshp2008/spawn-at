@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -189,22 +189,58 @@ pub fn autostart_desktop_path() -> Result<PathBuf, String> {
 }
 
 /// Deploys an XDG autostart desktop entry so spawn-at performs a silent update check on user login.
-pub fn install_login_autostart_entry() -> Result<(), String> {
+///
+/// `exe` is the absolute path of the binary to run: the session that reads the entry at login
+/// does not have `~/.local/bin` on its `PATH`, so a bare `spawn-at` is never found.
+pub fn install_login_autostart_entry(exe: &Path) -> Result<(), String> {
+    if !exe.is_absolute() {
+        return Err(format!(
+            "autostart needs an absolute binary path, got '{}'",
+            exe.display()
+        ));
+    }
     let path = autostart_desktop_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let content = r#"[Desktop Entry]
-Type=Application
-Name=spawn-at Update Check
-Exec=spawn-at update --check --headless
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-Comment=Check for spawn-at updates silently on login
-"#;
-    fs::write(&path, content).map_err(|e| e.to_string())?;
+    fs::write(&path, autostart_entry_content(exe)).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Quotes one word of an `Exec=` line as the Desktop Entry specification asks: a word with a
+/// space or a reserved character goes in double quotes, and `"`, `` ` ``, `$` and `\` inside
+/// are escaped with a backslash. A literal `%` is written `%%`.
+fn exec_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/._-+,:@=".contains(c));
+    if plain {
+        return word.to_string();
+    }
+    let mut out = String::from("\"");
+    for c in word.chars() {
+        match c {
+            '"' | '`' | '$' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            }
+            '%' => out.push_str("%%"),
+            _ => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// Text of the autostart entry for the binary at `exe`.
+pub fn autostart_entry_content(exe: &Path) -> String {
+    format!(
+        "[Desktop Entry]\nType=Application\nName=spawn-at Update Check\n\
+         Exec={} update --check --headless\nHidden=false\nNoDisplay=true\n\
+         X-GNOME-Autostart-enabled=true\nComment=Check for spawn-at updates silently on login\n",
+        exec_word(&exe.to_string_lossy())
+    )
 }
 
 /// Removes the XDG autostart desktop entry during uninstallation.
@@ -219,6 +255,35 @@ pub fn uninstall_login_autostart_entry() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The Exec= line starts with the absolute path, never a bare `spawn-at`, and keeps the
+    /// arguments after it.
+    #[test]
+    fn test_autostart_exec_is_absolute_path() {
+        let text = autostart_entry_content(Path::new("/home/u/.local/bin/spawn-at"));
+        assert!(
+            text.contains("\nExec=/home/u/.local/bin/spawn-at update --check --headless\n"),
+            "{text}"
+        );
+        assert!(!text.contains("Exec=spawn-at"));
+    }
+
+    /// A home directory with a space (as in this repo's own path) is quoted so the desktop
+    /// session reads it as one word; `$` and `"` are escaped.
+    #[test]
+    fn test_autostart_exec_quotes_special_paths() {
+        let text = autostart_entry_content(Path::new("/home/a b/$x\"y/spawn-at"));
+        assert!(
+            text.contains("Exec=\"/home/a b/\\$x\\\"y/spawn-at\" update --check --headless\n"),
+            "{text}"
+        );
+    }
+
+    /// A relative path is refused rather than written: the entry would fail at login again.
+    #[test]
+    fn test_autostart_refuses_relative_path() {
+        assert!(install_login_autostart_entry(Path::new("spawn-at")).is_err());
+    }
 
     /// The update checker saves its table into a file that also holds `spawn-at config`
     /// settings and unknown keys: they all survive, and the update table is replaced.

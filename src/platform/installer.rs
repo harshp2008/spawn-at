@@ -45,6 +45,11 @@ fn get_target_dir(scope: InstallScope) -> Result<PathBuf, String> {
     }
 }
 
+/// Absolute path `install_binary(scope)` puts the binary at.
+pub fn installed_binary_path(scope: InstallScope) -> Result<PathBuf, String> {
+    Ok(get_target_dir(scope)?.join("spawn-at"))
+}
+
 /// Checks if `dir` is present in the current process's `$PATH`.
 fn is_in_path(dir: &PathBuf) -> bool {
     let path_env = match std::env::var_os("PATH") {
