@@ -10,6 +10,7 @@ use spawn_at_verify::tui::views::draw_ui;
 /// 1. Row 0 (above header), row 2 (below header), and the bottom row are blank.
 /// 2. List rows have padding before the right border so "auto│", "both│", or "human│" never touch it.
 /// 3. At 100x30, Result box lines use a 2-char symbol slot ("✔ Auto: PASS (121 ms)", "? You: pending review").
+///
 /// Fails if panel borders shift into padding rows or symbol glyph alignment drifts.
 #[test]
 fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
@@ -122,6 +123,7 @@ fn test_ui_polish_spacing_padding_outcome_symbols_and_result_box() {
 /// 1. In idle state, row 0 (above header), row 2 (between header and first box), and row 27 (below keys bar) are blank.
 /// 2. Exactly 1 blank row separates the bottom border of the Result box from the keys bar in both idle and waiting states.
 /// 3. In stacked 60x28 mode, exactly 1 blank row sits between the Tests box bottom border and Description box top border.
+///
 /// Fails if vertical layout constraints add or drop a row, colliding widgets or breaking terminal height limits.
 #[test]
 fn test_result_and_spacing_polish_spec() {

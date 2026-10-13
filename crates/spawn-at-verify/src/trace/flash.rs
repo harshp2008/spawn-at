@@ -501,7 +501,7 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
         .find(|e| e.tag == "ANCHOR_CORRECTION");
     if let Some(corr) = correction {
         let moved = correction_move(&corr.extra);
-        if moved.map_or(true, |(from, to)| !same_pos(from, to)) {
+        if moved.is_none_or(|(from, to)| !same_pos(from, to)) {
             let at = (corr.elapsed_ms - reveal_ms).max(0.0);
             let detail = match moved {
                 Some((f, t)) => format!(
@@ -565,7 +565,7 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
         let last_of = |events: &[ClientEvent], near: Option<(u32, u32)>| {
             events.iter().rev().find_map(|e| match e.kind {
                 ClientEventKind::FirstPaint { w, h }
-                    if near.map_or(true, |n| same_size(n, (w, h))) =>
+                    if near.is_none_or(|n| same_size(n, (w, h))) =>
                 {
                     Some(((w, h), e.t_ns))
                 }
@@ -690,7 +690,7 @@ fn client_flashes(
         .iter()
         .filter(|e| matches!(rel(e.t_ns), Rel::Before))
         .filter_map(paint_of)
-        .last();
+        .next_back();
     for e in client.iter().filter(|e| watched(e.t_ns)) {
         let (Some(sz), r) = (paint_of(e), rel(e.t_ns)) else {
             continue;
@@ -740,7 +740,7 @@ fn client_flashes(
             ClientEventKind::Moved { x, y } => Some((e.t_ns, (x, y))),
             _ => None,
         })
-        .last();
+        .next_back();
     if let Some((t_ns, pos)) = last_move {
         let r = rel(t_ns);
         if !matches!(r, Rel::Before) && !same_pos(pos, rev) {

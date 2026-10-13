@@ -76,7 +76,7 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
         };
 
         let mut col_widths = [0usize; 3];
-        for col in 0..3 {
+        for (col, width) in col_widths.iter_mut().enumerate() {
             let mut max_cell_w = 0;
             for row in 0..2 {
                 let idx = row * 3 + col;
@@ -89,13 +89,13 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
                     }
                 }
             }
-            col_widths[col] = max_cell_w;
+            *width = max_cell_w;
         }
 
         let mut lines = Vec::new();
         for row in 0..2 {
             let mut spans = vec![Span::raw(" ")];
-            for col in 0..3 {
+            for (col, &col_w) in col_widths.iter().enumerate() {
                 let idx = row * 3 + col;
                 if idx < entries.len() {
                     if col > 0 {
@@ -111,7 +111,7 @@ pub fn render_key_grid(entries: &[(&str, &str)], inner_width: usize) -> Vec<Line
                     ));
                     spans.push(Span::raw("  "));
                     let cell_w = chip.width() + 2 + label.width();
-                    let pad_end = col_widths[col].saturating_sub(cell_w);
+                    let pad_end = col_w.saturating_sub(cell_w);
                     spans.push(Span::styled(
                         label.to_string(),
                         Style::default().fg(Color::Rgb(200, 200, 200)),

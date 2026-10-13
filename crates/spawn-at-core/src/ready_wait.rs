@@ -466,8 +466,10 @@ mod tests {
     /// A cap larger than the hard limit never gets to fire: a hung app is ended by the hard limit.
     #[test]
     fn test_cap_beyond_hard_limit_reports_the_hard_limit() {
-        let mut p = Policy::default();
-        p.cap_ms = 5000;
+        let p = Policy {
+            cap_ms: 5000,
+            ..Policy::default()
+        };
         let o = run(p, Request::new(BIG, SMALL), &[]);
         assert_eq!(
             o,

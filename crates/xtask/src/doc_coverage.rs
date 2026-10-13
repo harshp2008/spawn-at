@@ -32,10 +32,9 @@ fn is_fn_start(line: &str) -> Option<String> {
     if rest.starts_with("pub") {
         rest = rest[3..].trim_start();
         if rest.starts_with('(') {
-            if let Some(idx) = rest.find(')') {
+            {
+                let idx = rest.find(')')?;
                 rest = rest[idx + 1..].trim_start();
-            } else {
-                return None;
             }
         }
     }
@@ -73,10 +72,9 @@ fn is_pub_item_start(line: &str) -> Option<(&'static str, String)> {
     }
     let mut rest = s[3..].trim_start();
     if rest.starts_with('(') {
-        if let Some(idx) = rest.find(')') {
+        {
+            let idx = rest.find(')')?;
             rest = rest[idx + 1..].trim_start();
-        } else {
-            return None;
         }
     }
 
@@ -90,8 +88,8 @@ fn is_pub_item_start(line: &str) -> Option<(&'static str, String)> {
     ];
 
     for (kw, desc) in keywords {
-        if rest.starts_with(kw) {
-            let after_kw = rest[kw.len()..].trim_start();
+        if let Some(after_kw) = rest.strip_prefix(kw) {
+            let after_kw = after_kw.trim_start();
             let name_end = after_kw
                 .find(|c: char| !c.is_alphanumeric() && c != '_')
                 .unwrap_or(after_kw.len());

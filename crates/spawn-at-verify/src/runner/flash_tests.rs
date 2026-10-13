@@ -78,7 +78,7 @@ fn test_evaluate_ties_slice_fixture_text_and_brackets_together() {
 /// the extension's own log instead of guessing an order.
 #[test]
 fn test_evaluate_without_a_usable_anchor_says_why() {
-    let far = vec![MonoBracket {
+    let far = [MonoBracket {
         before_ns: T0_NS + 900_000_000,
         after_ns: T0_NS + 901_000_000,
     }];

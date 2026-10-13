@@ -217,7 +217,7 @@ fn test_repeat_runs_are_all_stored_and_redacted() {
     let runs: Vec<TestResult> = (1..=3)
         .map(|i| run_result("t/a", "--title SecretWindow", i * 10))
         .collect();
-    let report = report_with_runs(&runs[..1], &[runs.clone()]);
+    let report = report_with_runs(&runs[..1], std::slice::from_ref(&runs));
     assert_eq!(report.results.len(), 1);
     assert_eq!(report.repeat_runs.len(), 1);
     assert_eq!(report.repeat_runs[0].id, "t/a");
@@ -242,7 +242,7 @@ fn test_repeat_runs_are_all_stored_and_redacted() {
 #[test]
 fn test_single_run_has_no_repeat_runs_field() {
     let r = run_result("t/a", "", 5);
-    let report = report_with_runs(&[r.clone()], &[vec![r]]);
+    let report = report_with_runs(std::slice::from_ref(&r), &[vec![r.clone()]]);
     assert!(report.repeat_runs.is_empty());
     let json = serde_json::to_string(&report).unwrap();
     assert!(!json.contains("repeat_runs"), "{}", json);
@@ -254,7 +254,7 @@ fn test_single_run_has_no_repeat_runs_field() {
 #[test]
 fn test_old_report_without_repeat_runs_loads_and_new_round_trips() {
     let runs = vec![run_result("t/a", "", 1), run_result("t/a", "", 2)];
-    let report = report_with_runs(&runs[..1], &[runs.clone()]);
+    let report = report_with_runs(&runs[..1], std::slice::from_ref(&runs));
     let mut value = serde_json::to_value(&report).unwrap();
     let back: SessionReport = serde_json::from_value(value.clone()).unwrap();
     assert_eq!(back.repeat_runs[0].runs.len(), 2);

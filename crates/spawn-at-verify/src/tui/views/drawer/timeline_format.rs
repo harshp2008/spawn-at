@@ -134,11 +134,11 @@ pub fn parse_key_value_pairs(text: &str) -> Vec<(String, String)> {
                 pairs.push((String::new(), prefix.to_string()));
             }
             let rest = s[eq_pos + 1..].trim_start();
-            let (val, next_s) = if rest.starts_with('"') {
-                if let Some(end_q) = rest[1..].find('"') {
-                    (&rest[1..1 + end_q], rest[1 + end_q + 1..].trim_start())
+            let (val, next_s) = if let Some(quoted) = rest.strip_prefix('"') {
+                if let Some(end_q) = quoted.find('"') {
+                    (&quoted[..end_q], quoted[end_q + 1..].trim_start())
                 } else {
-                    (&rest[1..], "")
+                    (quoted, "")
                 }
             } else if rest.starts_with('(') {
                 if let Some(end_p) = rest.find(')') {

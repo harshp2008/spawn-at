@@ -20,7 +20,7 @@ pub struct PhaseGaps {
 /// First event with `tag` at or after index `from`.
 fn find(events: &[TraceEvent], from: usize, tag: &str, extra: Option<&str>) -> Option<usize> {
     (from..events.len())
-        .find(|&i| events[i].tag == tag && extra.map_or(true, |x| events[i].extra.contains(x)))
+        .find(|&i| events[i].tag == tag && extra.is_none_or(|x| events[i].extra.contains(x)))
 }
 
 /// Computes the phase gaps from one window's events in log order.

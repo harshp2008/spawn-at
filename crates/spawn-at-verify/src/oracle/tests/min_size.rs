@@ -42,7 +42,9 @@ tolerance_px = 1
 /// `max(requested, min)` per axis, and an axis without a declared minimum is left alone.
 #[test]
 fn test_final_size_with_min_table() {
-    let table: [((u32, u32), Option<u32>, Option<u32>, (u32, u32)); 7] = [
+    /// Request, reported minimum width, reported minimum height, expected final size.
+    type Row = ((u32, u32), Option<u32>, Option<u32>, (u32, u32));
+    let table: [Row; 7] = [
         ((300, 200), Some(300), Some(200), (300, 200)), // exactly at the minimum
         ((200, 500), Some(300), Some(200), (300, 500)), // width below
         ((500, 100), Some(300), Some(200), (500, 200)), // height below

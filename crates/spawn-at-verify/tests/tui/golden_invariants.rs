@@ -312,7 +312,7 @@ fn test_real_placement_drawer_grid_invariants() {
             use unicode_width::UnicodeWidthStr;
             let line_w = line.width();
             assert!(
-                line_w <= inner_width - 1,
+                line_w < inner_width,
                 "Line display width ({}) must not touch or exceed inner right boundary ({} - 1) at width {}: '{}'",
                 line_w, inner_width, w, line
             );

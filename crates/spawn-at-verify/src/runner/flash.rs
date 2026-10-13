@@ -126,7 +126,7 @@ impl Drop for FlashCapture {
 pub fn wants_flash_capture(test: &TestDefinition) -> bool {
     test.action.command == "spawn"
         && test.expect.exit_code == 0
-        && test.subject.as_ref().map_or(false, |s| s.app == "fixture")
+        && test.subject.as_ref().is_some_and(|s| s.app == "fixture")
 }
 
 /// What a flash does to a run's automatic status and message.
