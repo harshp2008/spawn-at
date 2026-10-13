@@ -133,6 +133,12 @@ pub struct TestResult {
     /// a report written before the check existed reads back as no flash.
     #[serde(flatten, default)]
     pub flash_info: crate::trace::flash::FlashInfo,
+    /// The wait rule the run used, from the extension's own log (`wait_strategy`, `wait_cap_ms`)
+    /// and what `run --wait-strategy / --wait-cap-ms` asked for (`wait_requested`, `wait_notes`).
+    /// Written into the report next to the other result fields; a report written before this
+    /// existed reads back as nothing recorded.
+    #[serde(flatten, default)]
+    pub wait_info: crate::trace::wait::WaitInfo,
 }
 
 impl TestResult {
@@ -337,6 +343,9 @@ pub struct RunOptions {
     /// Lowest lead in milliseconds that counts as a flash, on top of the clock uncertainty
     /// (`--flash-threshold-ms`).
     pub flash_threshold_ms: f64,
+    /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
+    /// empty by default, which adds nothing to the command line.
+    pub wait: crate::trace::wait::WaitRequest,
 }
 
 impl Default for RunOptions {
@@ -353,6 +362,7 @@ impl Default for RunOptions {
             test_timeout: std::time::Duration::from_secs(10),
             strict_flash: false,
             flash_threshold_ms: 0.0,
+            wait: Default::default(),
         }
     }
 }

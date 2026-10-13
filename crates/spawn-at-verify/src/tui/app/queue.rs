@@ -164,6 +164,7 @@ impl TuiApp {
                             trace_note: None,
                             final_rect: None,
                             flash_info: Default::default(),
+                            wait_info: Default::default(),
                         });
 
                 result.human_verdict = HumanVerdict {

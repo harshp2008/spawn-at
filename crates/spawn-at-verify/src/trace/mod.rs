@@ -7,6 +7,7 @@ pub mod parser;
 pub mod phases;
 pub mod report;
 pub mod state;
+pub mod wait;
 
 pub use models::*;
 pub use parser::*;

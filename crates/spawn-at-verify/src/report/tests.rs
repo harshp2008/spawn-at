@@ -28,6 +28,7 @@ fn test_skipped_is_never_a_pass() {
             trace_note: None,
             final_rect: None,
             flash_info: Default::default(),
+            wait_info: Default::default(),
         },
         TestResult {
             id: "cloak/delayed-paint".into(),
@@ -47,6 +48,7 @@ fn test_skipped_is_never_a_pass() {
             trace_note: None,
             final_rect: None,
             flash_info: Default::default(),
+            wait_info: Default::default(),
         },
     ];
 
@@ -176,6 +178,7 @@ fn run_result(id: &str, stdout: &str, duration_ms: u64) -> TestResult {
         trace_note: None,
         final_rect: None,
         flash_info: Default::default(),
+        wait_info: Default::default(),
     }
 }
 
@@ -282,6 +285,7 @@ fn test_required_trace_unchecked_pass_does_not_qualify() {
         trace_note: None,
         final_rect: None,
         flash_info: Default::default(),
+        wait_info: Default::default(),
     };
     let q = evaluate_qualification(&[result(FinalStatus::Pass, AutoStatus::AutoPass)]);
     assert!(q.supported);
@@ -556,4 +560,71 @@ fn test_markdown_lists_flash_events_and_counts_the_pass_with_flash() {
     let none = render_markdown_report(&report_with_runs(&[run_result("t/clean", "", 5)], &[]));
     assert!(!none.contains("## 6. Flash"), "{}", none);
     assert!(none.contains("**Tests Passed With Flash:** 0"), "{}", none);
+}
+
+/// report.json carries the wait rule of each run at the result level: `wait_strategy` and
+/// `wait_cap_ms` from the extension's log for every traced run, and `wait_requested` only when
+/// `run` was given the options. A run with nothing recorded has none of the keys, and a report
+/// written before the fields existed reads back as nothing recorded.
+#[test]
+fn test_json_wait_fields_with_and_without_an_override() {
+    use crate::trace::wait::{WaitInfo, WaitRequest};
+    let mut default_run = run_result("t/default", "", 5);
+    default_run.wait_info = WaitInfo {
+        wait_strategy: Some("ready-wait".into()),
+        wait_cap_ms: Some(150),
+        ..Default::default()
+    };
+    let mut legacy_run = run_result("t/legacy", "", 5);
+    legacy_run.wait_info = WaitInfo {
+        wait_strategy: Some("legacy".into()),
+        wait_requested: Some(WaitRequest {
+            strategy: Some("legacy".into()),
+            cap_ms: Some("90".into()),
+        }),
+        wait_notes: vec!["override had no effect: cap_ms(legacy-has-no-cap)".into()],
+        ..Default::default()
+    };
+    let untraced = run_result("t/untraced", "", 5);
+    let report = report_with_runs(&[default_run, legacy_run, untraced], &[]);
+    let value = serde_json::to_value(&report).unwrap();
+    let results = value["results"].as_array().unwrap();
+
+    // Without the options: the effective rule, no request, no notes.
+    assert_eq!(results[0]["wait_strategy"], "ready-wait");
+    assert_eq!(results[0]["wait_cap_ms"], 150);
+    assert!(results[0].get("wait_requested").is_none());
+    assert!(results[0].get("wait_notes").is_none());
+
+    // With the options: the request as typed, the effective rule, no cap for legacy, the note.
+    assert_eq!(results[1]["wait_strategy"], "legacy");
+    assert!(results[1].get("wait_cap_ms").is_none());
+    assert_eq!(
+        results[1]["wait_requested"],
+        serde_json::json!({"strategy": "legacy", "cap_ms": "90"})
+    );
+    assert_eq!(
+        results[1]["wait_notes"],
+        serde_json::json!(["override had no effect: cap_ms(legacy-has-no-cap)"])
+    );
+
+    // Nothing recorded: none of the keys.
+    for key in [
+        "wait_strategy",
+        "wait_cap_ms",
+        "wait_requested",
+        "wait_notes",
+    ] {
+        assert!(results[2].get(key).is_none(), "{key}");
+    }
+
+    // The fields sit next to the other result fields, not nested.
+    assert!(results[0].get("wait_info").is_none());
+
+    let mut old = value.clone();
+    for key in ["wait_strategy", "wait_cap_ms"] {
+        old["results"][0].as_object_mut().unwrap().remove(key);
+    }
+    let back: SessionReport = serde_json::from_value(old).unwrap();
+    assert_eq!(back.results[0].wait_info, WaitInfo::default());
 }

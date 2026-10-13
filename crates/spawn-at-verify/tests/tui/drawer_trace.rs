@@ -35,6 +35,7 @@ fn passed_result(
         trace_note: note.map(String::from),
         final_rect: None,
         flash_info: Default::default(),
+        wait_info: Default::default(),
     };
     (test, res)
 }

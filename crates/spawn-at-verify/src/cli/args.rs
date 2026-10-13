@@ -132,6 +132,29 @@ pub struct RunArgs {
     /// floor is never lower than the measured clock uncertainty (about 2 ms)
     #[arg(long, default_value_t = 0.0)]
     pub flash_threshold_ms: f64,
+
+    /// For same-login A/B runs: pass `--wait-strategy <auto|legacy|ready-wait>` to every `spawn`
+    /// action (`legacy` is the original 30 ms rule, also for native Wayland). The value is passed
+    /// as typed and judged by `spawn-at`; the rule each run really used is recorded in
+    /// `report.json` as `wait_strategy`. Needs an extension that knows the override
+    #[arg(long, value_name = "auto|legacy|ready-wait")]
+    pub wait_strategy: Option<String>,
+
+    /// For same-login A/B runs: pass `--wait-cap-ms <MS>` (1 to 1500) to every `spawn` action,
+    /// the cap of the ready-wait. Recorded per run as `wait_cap_ms`
+    #[arg(long, value_name = "MS")]
+    pub wait_cap_ms: Option<String>,
+}
+
+impl RunArgs {
+    /// The wait override these arguments ask every `spawn` action to carry; empty without the
+    /// two options.
+    pub fn wait_request(&self) -> crate::trace::wait::WaitRequest {
+        crate::trace::wait::WaitRequest {
+            strategy: self.wait_strategy.clone(),
+            cap_ms: self.wait_cap_ms.clone(),
+        }
+    }
 }
 
 /// Arguments for the `list` subcommand.

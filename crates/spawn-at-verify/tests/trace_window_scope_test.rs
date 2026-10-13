@@ -98,6 +98,7 @@ fn result_with(stdout: &str, slice: String) -> TestResult {
         trace_note: None,
         final_rect: None,
         flash_info: Default::default(),
+        wait_info: Default::default(),
     }
 }
 

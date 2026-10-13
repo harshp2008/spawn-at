@@ -65,6 +65,7 @@ fn flash_result(
             flash_clock_uncertainty_ms: Some(1.2),
             ..Default::default()
         },
+        wait_info: Default::default(),
     };
     (test, res)
 }

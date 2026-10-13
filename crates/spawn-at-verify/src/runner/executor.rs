@@ -11,6 +11,7 @@ use crate::oracle::SETTLE_MS;
 use crate::preflight::{PreflightReport, PreflightVerdict};
 use crate::probe::EnvironmentInfo;
 use crate::schema::TestDefinition;
+use crate::trace::wait::WaitInfo;
 use crate::trace::{assess_trace, TraceState};
 use crate::tracker::{query_window_ids, query_window_records, query_window_rect, WindowTracker};
 use std::collections::HashSet;
@@ -56,6 +57,7 @@ impl TestRunner {
                     trace_note: None,
                     final_rect: None,
                     flash_info: Default::default(),
+                    wait_info: Default::default(),
                 };
             }
         }
@@ -82,6 +84,7 @@ impl TestRunner {
                 trace_note: None,
                 final_rect: None,
                 flash_info: Default::default(),
+                wait_info: Default::default(),
             };
         }
 
@@ -106,6 +109,7 @@ impl TestRunner {
                 trace_note: None,
                 final_rect: None,
                 flash_info: Default::default(),
+                wait_info: Default::default(),
             };
         }
 
@@ -143,6 +147,7 @@ impl TestRunner {
                 trace_note: None,
                 final_rect: None,
                 flash_info: Default::default(),
+                wait_info: Default::default(),
             };
         }
 
@@ -181,7 +186,7 @@ impl TestRunner {
                             fixture_bin.display()
                         )),
                         log_slice: None,
-                        trace_note: None, final_rect: None, flash_info: Default::default(),
+                        trace_note: None, final_rect: None, flash_info: Default::default(), wait_info: Default::default(),
                     };
                 }
             }
@@ -204,7 +209,7 @@ impl TestRunner {
         };
         start += began.elapsed();
 
-        let cmd_args = build_action_command_args(test, &fixture_bin);
+        let cmd_args = build_action_command_args(test, &fixture_bin, &self.options.wait);
         let mut cmd = Command::new(&self.options.bin_path);
         cmd.args(cmd_args);
         if let Some(cap) = &flash_capture {
@@ -250,6 +255,7 @@ impl TestRunner {
                     trace_note: trace_note.clone(),
                     final_rect: None,
                     flash_info: Default::default(),
+                    wait_info: Default::default(),
                 };
             }
         };
@@ -308,6 +314,7 @@ impl TestRunner {
                             trace_note: trace_note.clone(),
                             final_rect: None,
                             flash_info: Default::default(),
+                            wait_info: Default::default(),
                         };
                     }
                 }
@@ -362,6 +369,13 @@ impl TestRunner {
             extract_claimed_window_id(&stdout, &stderr).or(target_id),
             start_secs,
             log_slice,
+        );
+
+        // The wait rule the extension reports for this window, next to what `run` asked for.
+        let wait_info = WaitInfo::from_slice(
+            log_slice.as_deref(),
+            extract_claimed_window_id(&stdout, &stderr).or(target_id),
+            &self.options.wait,
         );
 
         // A trace for the run's window proves the timing log is on, so a remembered echo timeout
@@ -419,6 +433,7 @@ impl TestRunner {
                     trace_note: trace_note.clone(),
                     final_rect,
                     flash_info,
+                    wait_info,
                 };
             }
         };
@@ -458,6 +473,7 @@ impl TestRunner {
                             trace_note: trace_note.clone(),
                             final_rect,
                             flash_info,
+                            wait_info,
                         };
                     }
                     auto_status
@@ -506,6 +522,7 @@ impl TestRunner {
             trace_note,
             final_rect,
             flash_info,
+            wait_info,
         }
     }
 }

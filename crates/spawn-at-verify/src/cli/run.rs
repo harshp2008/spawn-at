@@ -45,6 +45,9 @@ pub fn handle_run(args: RunArgs) {
         eprintln!("Note: {}", hint);
     }
 
+    // Read before the other fields are moved out of `args`.
+    let wait = args.wait_request();
+
     let verify_dir = match resolve_verify_dir(args.dir) {
         Ok(d) => d,
         Err(e) => {
@@ -91,6 +94,7 @@ pub fn handle_run(args: RunArgs) {
             include_titles: args.include_titles,
             strict_flash: args.strict_flash,
             flash_threshold_ms: args.flash_threshold_ms,
+            wait,
             ..Default::default()
         },
     );
@@ -249,6 +253,7 @@ mod tests {
             trace_note: trace_note.map(String::from),
             final_rect: None,
             flash_info: Default::default(),
+            wait_info: Default::default(),
         }
     }
 

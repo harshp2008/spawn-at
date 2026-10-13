@@ -194,7 +194,7 @@ fn test_build_action_command_args_fixture_and_class() {
         regression: None,
     };
 
-    let args = build_action_command_args(&test_explicit, &fixture_bin);
+    let args = build_action_command_args(&test_explicit, &fixture_bin, &Default::default());
     assert!(args.contains(&"--json".to_string()));
     let class_idx = args.iter().position(|a| a == "--class").unwrap();
     assert_eq!(args[class_idx + 1], "custom.app.explicit");
@@ -237,7 +237,7 @@ fn test_build_action_command_args_fixture_and_class() {
         regression: None,
     };
 
-    let args_inf = build_action_command_args(&test_inferred, &fixture_bin);
+    let args_inf = build_action_command_args(&test_inferred, &fixture_bin, &Default::default());
     let inf_class_idx = args_inf.iter().position(|a| a == "--class").unwrap();
     assert_eq!(args_inf[inf_class_idx + 1], "verify.inferred.id");
 
@@ -523,7 +523,7 @@ exit_code = 0
     let with_min = spec("min_width = 300\nmin_height = 200", r#""--title", "T""#);
     assert_eq!(with_min.subject.as_ref().unwrap().min_width, Some(300));
     assert_eq!(with_min.subject.as_ref().unwrap().min_height, Some(200));
-    let args = build_action_command_args(&with_min, &fixture_bin);
+    let args = build_action_command_args(&with_min, &fixture_bin, &Default::default());
     assert_eq!(value_after(&args, "--min-width").as_deref(), Some("300"));
     assert_eq!(value_after(&args, "--min-height").as_deref(), Some("200"));
     let min_idx = args.iter().position(|a| a == "--min-width").unwrap();
@@ -531,12 +531,12 @@ exit_code = 0
     assert!(min_idx < exit_idx, "{:?}", args);
 
     let spelled = spec("min_width = 300", r#""--min-width", "250", "--title", "T""#);
-    let args = build_action_command_args(&spelled, &fixture_bin);
+    let args = build_action_command_args(&spelled, &fixture_bin, &Default::default());
     assert_eq!(args.iter().filter(|a| *a == "--min-width").count(), 1);
     assert_eq!(value_after(&args, "--min-width").as_deref(), Some("250"));
 
     let none = spec("", r#""--title", "T""#);
-    let args = build_action_command_args(&none, &fixture_bin);
+    let args = build_action_command_args(&none, &fixture_bin, &Default::default());
     assert!(!args
         .iter()
         .any(|a| a == "--min-width" || a == "--min-height"));
@@ -632,4 +632,120 @@ fn test_unreadable_final_keeps_the_printed_verdict() {
     let settle = settle_final_rect(&bottom_right_spec(), STALE_PRINT, None, &env, || None);
     assert_eq!(settle, Settle::Unreadable);
     assert!(validate_geometry_final(&bottom_right_spec(), STALE_PRINT, None, None, &env).is_err());
+}
+
+/// A spawn spec for the wait-override tests: a fixture spawn at 800x600, `command` as its action.
+fn wait_spec(command: &str, action_args: &str) -> TestDefinition {
+    toml::from_str(&format!(
+        r#"
+id = "placement/w"
+category = "placement"
+title = "t"
+description = "d"
+kind = "auto"
+required = true
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = ["--title", "T"]
+
+[action]
+command = "{command}"
+args = [{action_args}]
+
+[expect]
+exit_code = 0
+"#
+    ))
+    .unwrap()
+}
+
+fn wait_request(strategy: Option<&str>, cap_ms: Option<&str>) -> crate::trace::wait::WaitRequest {
+    crate::trace::wait::WaitRequest {
+        strategy: strategy.map(String::from),
+        cap_ms: cap_ms.map(String::from),
+    }
+}
+
+/// The two options reach the `spawn` command line, after the spec's own arguments and before the
+/// `--` that starts the fixture (after it they would be the fixture's arguments). Fails if they
+/// land behind the `--`, are dropped, or are not passed as typed.
+#[test]
+fn test_run_wait_options_reach_the_spawn_command_before_the_double_dash() {
+    let spec = wait_spec("spawn", r#""--anchor", "center", "--size", "800", "600""#);
+    let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+    let args = build_action_command_args(
+        &spec,
+        &fixture_bin,
+        &wait_request(Some("legacy"), Some("90")),
+    );
+    let at = |flag: &str| args.iter().position(|a| a == flag).unwrap();
+    let dashes = args.iter().position(|a| a == "--").unwrap();
+    assert_eq!(args[at("--wait-strategy") + 1], "legacy");
+    assert_eq!(args[at("--wait-cap-ms") + 1], "90");
+    assert!(at("--size") < at("--wait-strategy"), "{args:?}");
+    assert!(at("--wait-cap-ms") < dashes, "{args:?}");
+    assert!(
+        args[dashes..].iter().all(|a| !a.starts_with("--wait-")),
+        "{args:?}"
+    );
+    // A typo is passed as typed: spawn-at is the one that warns about it.
+    let typo = build_action_command_args(&spec, &fixture_bin, &wait_request(Some("legcy"), None));
+    assert_eq!(
+        typo[typo.iter().position(|a| a == "--wait-strategy").unwrap() + 1],
+        "legcy"
+    );
+}
+
+/// Without the options the argument list is the one built before they existed: nothing added,
+/// whether the request is empty or absent. Fails if a default run gets any `--wait-` argument.
+#[test]
+fn test_run_without_wait_options_adds_nothing_to_the_spawn_command() {
+    let spec = wait_spec("spawn", r#""--anchor", "center", "--size", "800", "600""#);
+    let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+    let args = build_action_command_args(&spec, &fixture_bin, &Default::default());
+    assert!(!args.iter().any(|a| a.starts_with("--wait-")), "{args:?}");
+    // `auto` alone is still passed (spawn-at treats it as the default); the harness does not
+    // second-guess the value.
+    let auto = build_action_command_args(&spec, &fixture_bin, &wait_request(Some("auto"), None));
+    let without: Vec<_> = auto
+        .iter()
+        .filter(|a| !["--wait-strategy", "auto"].contains(&a.as_str()))
+        .cloned()
+        .collect();
+    assert_eq!(without, args);
+}
+
+/// Only a `spawn` action takes the options: a `transform` or `query` action is left alone (the
+/// flags do not exist there and would fail the command).
+#[test]
+fn test_run_wait_options_are_not_added_to_other_commands() {
+    let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+    let transform = wait_spec("transform", r#""--class", "x", "--size", "800", "600""#);
+    let args = build_action_command_args(
+        &transform,
+        &fixture_bin,
+        &wait_request(Some("legacy"), Some("90")),
+    );
+    assert!(!args.iter().any(|a| a.starts_with("--wait-")), "{args:?}");
+}
+
+/// A spec that spells out one of the options keeps its own value, the other one is still added,
+/// and no flag appears twice (a repeated flag is a parse error in `spawn-at`).
+#[test]
+fn test_run_wait_options_do_not_duplicate_spec_flags() {
+    let spec = wait_spec("spawn", r#""--size", "800", "600", "--wait-cap-ms", "40""#);
+    let fixture_bin = PathBuf::from("/path/to/target/debug/fixture");
+    let args = build_action_command_args(
+        &spec,
+        &fixture_bin,
+        &wait_request(Some("legacy"), Some("90")),
+    );
+    assert_eq!(args.iter().filter(|a| *a == "--wait-cap-ms").count(), 1);
+    assert_eq!(
+        args[args.iter().position(|a| a == "--wait-cap-ms").unwrap() + 1],
+        "40"
+    );
+    assert_eq!(args.iter().filter(|a| *a == "--wait-strategy").count(), 1);
 }

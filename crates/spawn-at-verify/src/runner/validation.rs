@@ -5,15 +5,27 @@ use crate::oracle::check::expected_rect;
 use crate::oracle::{check_geometry_final, settle_needed, GeometryCheck, GeometryStatus, Rect};
 use crate::probe::EnvironmentInfo;
 use crate::schema::{ExpectRect, TestDefinition, TestKind};
+use crate::trace::wait::WaitRequest;
 use regex::Regex;
 use std::path::Path;
 
 /// Assembles command-line arguments for executing a test action or spawning a fixture.
-pub fn build_action_command_args(test: &TestDefinition, fixture_bin: &Path) -> Vec<String> {
+///
+/// `wait` is the developer override of `run --wait-strategy / --wait-cap-ms`; it is added to a
+/// `spawn` action only (before the `--` that starts the spawned command) and an empty request
+/// adds nothing, so the argument list is the one built without it.
+pub fn build_action_command_args(
+    test: &TestDefinition,
+    fixture_bin: &Path,
+    wait: &WaitRequest,
+) -> Vec<String> {
     let mut args = Vec::new();
     args.push(test.action.command.clone());
     for arg in &test.action.args {
         args.push(arg.clone());
+    }
+    if test.action.command == "spawn" {
+        wait.append_to(&mut args);
     }
 
     if test.action.command == "spawn" {

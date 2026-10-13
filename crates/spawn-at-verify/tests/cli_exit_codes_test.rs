@@ -68,3 +68,51 @@ fn test_run_help_documents_flash_threshold() {
     assert!(text.contains("--flash-threshold-ms"), "{}", text);
     assert!(text.contains("[default: 0]"), "{}", text);
 }
+
+/// `run --help` lists the two same-login A/B options and what they do.
+#[test]
+fn test_run_help_documents_the_wait_options() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        text.contains("--wait-strategy <auto|legacy|ready-wait>"),
+        "{}",
+        text
+    );
+    assert!(text.contains("--wait-cap-ms <MS>"), "{}", text);
+    assert!(text.contains("original 30 ms rule"), "{}", text);
+    // They belong to `run`: `list` does not take them.
+    let list = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["list", "--help"])
+        .output()
+        .unwrap();
+    assert!(!String::from_utf8_lossy(&list.stdout).contains("--wait-"));
+}
+
+/// The options parse into the request the runner passes to every spawn, and mean "nothing" when
+/// they are not given.
+#[test]
+fn test_run_wait_options_become_the_runner_request() {
+    use clap::Parser;
+    use spawn_at_verify::cli::args::{Cli, Commands};
+    let parse = |extra: &[&str]| -> spawn_at_verify::trace::wait::WaitRequest {
+        let mut argv = vec!["spawn-at-verify", "run"];
+        argv.extend_from_slice(extra);
+        match Cli::try_parse_from(argv).unwrap().command {
+            Commands::Run(run) => run.wait_request(),
+            _ => panic!("expected the run subcommand"),
+        }
+    };
+    let none = parse(&[]);
+    assert!(none.is_empty());
+    let both = parse(&["--wait-strategy", "legacy", "--wait-cap-ms", "90"]);
+    assert_eq!(both.strategy.as_deref(), Some("legacy"));
+    assert_eq!(both.cap_ms.as_deref(), Some("90"));
+    // Passed as typed, even when wrong: spawn-at warns about it.
+    let typo = parse(&["--wait-strategy", "legcy", "--wait-cap-ms", "x"]);
+    assert_eq!(typo.strategy.as_deref(), Some("legcy"));
+    assert_eq!(typo.cap_ms.as_deref(), Some("x"));
+}
