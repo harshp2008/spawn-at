@@ -1,0 +1,429 @@
+//! Flash detection on synthetic traces: the extension's log lines and the fixture's event file
+//! are written by hand so every timing in the assertions is a number in the test.
+
+use spawn_at_verify::trace::flash::{
+    detect_flash, echo_times_ms, parse_client_events, ClockAnchor, FlashBasis, FlashInputs,
+    FlashKind, FlashSource, MonoBracket,
+};
+use spawn_at_verify::trace::{TraceAnalyser, TraceEvent};
+
+/// Where the extension's clock starts on the monotonic clock in these traces: 1000 s.
+const T0_NS: u64 = 1_000_000_000_000;
+
+/// One extension log line for window 77.
+fn line(ms: f64, tag: &str, extra: &str) -> String {
+    format!(
+        "+{:.2}ms | {} win=[id=77 pid=9 class=\"verify.x\" app=\"\" type=NORMAL proto=X11] {}",
+        ms, tag, extra
+    )
+}
+
+/// The extension's events for window 77 parsed from `lines`.
+fn events(lines: &[String]) -> Vec<TraceEvent> {
+    TraceAnalyser::new()
+        .with_target_window_id(77)
+        .parse_events(&lines.join("\n"))
+}
+
+/// One fixture event line stamped `ms` after the extension's clock origin.
+fn client_line(ms: f64, tag: &str, detail: &str) -> String {
+    format!("{} FIXTURE {} {}", T0_NS + (ms * 1e6) as u64, tag, detail)
+}
+
+/// An anchor whose interval is `half_ms` wide on each side of `T0_NS`: one echo at 5 ms
+/// (`+5.00ms | SET_LOGGING enabled=true`) in a call bracketed `half_ms` before and after it.
+fn anchor(half_ms: f64) -> ClockAnchor {
+    let echo_at = T0_NS + 5_000_000;
+    let b = MonoBracket {
+        before_ns: echo_at - (half_ms * 1e6) as u64,
+        after_ns: echo_at + (half_ms * 1e6) as u64,
+    };
+    ClockAnchor::from_samples(&[b], &[5.0]).unwrap()
+}
+
+/// The extension side of `placement/bottom-right-larger` on X11, as in the screen recording:
+/// the frame rect reads 800x600 0.2 ms after SetSize and COMMIT_RESOLVED says AT_TARGET 0.1 ms
+/// later, whatever the client has painted. The reveal is at +70 ms.
+fn x11_lying_trace() -> Vec<TraceEvent> {
+    events(&[
+        line(30.0, "CLOAK", "opacity=0 frame=(1104,464,400x300)"),
+        line(34.3, "SET_SIZE_REQUEST", "requestedSize=(800x600)"),
+        line(34.5, "AFTER_SET_SIZE", "opacity=0 frame=(1104,464,800x600)"),
+        line(
+            34.7,
+            "COMMIT_RESOLVED",
+            "reason=AT_TARGET finalFrame=(800x600) target=(800x600) safe=(800x600)",
+        ),
+        line(60.5, "BATCH_STEP", "inst=SetPositionAnchored"),
+        line(
+            62.0,
+            "AFTER_SET_POSITION_ANCHORED",
+            "opacity=0 frame=(1104,464,800x600)",
+        ),
+        line(70.0, "UNCLOAK", "opacity=255 frame=(1104,464,800x600)"),
+    ])
+}
+
+/// A fixture that was told to resize at +35 ms (the X server applied it at once) but painted the
+/// new size only at +95 ms, 25 ms after the reveal: the recorded flash.
+fn x11_late_paint_client() -> String {
+    [
+        client_line(10.0, "FIRST_PAINT", "400x300"),
+        client_line(10.4, "RESIZED", "400x300"),
+        client_line(35.0, "RESIZED", "800x600"),
+        client_line(95.0, "FIRST_PAINT", "800x600"),
+    ]
+    .join("\n")
+}
+
+/// The X11 recording: the extension's frame says 800x600 at +34.5 and the trace has no warning of
+/// any kind, but the fixture's first paint at 800x600 came 25 ms after the reveal. The check
+/// must call it a flash, count it, and name the 25 ms.
+#[test]
+fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
+    let ev = x11_lying_trace();
+    let client = parse_client_events(&x11_late_paint_client());
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(info.flash, "events: {:?}", info.flash_events);
+    assert_eq!(info.flash_basis, Some(FlashBasis::Client));
+    assert_eq!(info.flash_events.len(), 1, "{:?}", info.flash_events);
+    let e = &info.flash_events[0];
+    assert_eq!(e.kind, FlashKind::PaintAfterReveal);
+    assert_eq!(e.source, FlashSource::Client);
+    assert!(e.certain);
+    assert!(
+        (e.at_ms_after_reveal - 25.0).abs() < 0.01,
+        "paint at +95 ms, reveal at +70 ms: {}",
+        e.at_ms_after_reveal
+    );
+    assert!(e.detail.contains("800x600"), "{}", e.detail);
+    assert!((info.flash_clock_uncertainty_ms.unwrap() - 1.0).abs() < 0.02);
+}
+
+/// The same extension trace judged without the fixture's events: the old signals see nothing.
+/// This is the blind spot: no ANCHOR_CORRECTION, the frame rect equals the target, so the run is
+/// "clean" and `flash` stays false, with a note that only the extension was consulted.
+#[test]
+fn test_x11_lying_frame_rect_is_invisible_to_the_extension_only_check() {
+    let ev = x11_lying_trace();
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &[],
+        anchor: None,
+    });
+    assert!(!info.flash);
+    assert_eq!(info.flash_basis, Some(FlashBasis::ExtensionOnly));
+    assert!(info
+        .flash_notes
+        .iter()
+        .any(|n| n.contains("no fixture events")));
+    let report = TraceAnalyser::new()
+        .with_target_window_id(77)
+        .analyse(&x11_raw());
+    assert!(report.is_pass());
+    assert!(
+        report.warnings.is_empty(),
+        "the existing warnings are blind to it: {:?}",
+        report.warnings
+    );
+}
+
+/// The raw text of [`x11_lying_trace`], for the analyser.
+fn x11_raw() -> String {
+    [
+        line(30.0, "CLOAK", "opacity=0 frame=(1104,464,400x300)"),
+        line(34.5, "AFTER_SET_SIZE", "opacity=0 frame=(1104,464,800x600)"),
+        line(
+            34.7,
+            "COMMIT_RESOLVED",
+            "reason=AT_TARGET finalFrame=(800x600) target=(800x600) safe=(800x600)",
+        ),
+        line(
+            62.0,
+            "AFTER_SET_POSITION_ANCHORED",
+            "opacity=0 frame=(1104,464,800x600)",
+        ),
+        line(70.0, "UNCLOAK", "opacity=255 frame=(1104,464,800x600)"),
+    ]
+    .join("\n")
+}
+
+/// Control: the fixture repainted at 800x600 1.2 ms after the resize, 33 ms before the reveal.
+/// Nothing changes after the reveal, so there is no flash and no event.
+#[test]
+fn test_paint_before_reveal_is_not_a_flash() {
+    let ev = x11_lying_trace();
+    let client = parse_client_events(
+        &[
+            client_line(10.0, "FIRST_PAINT", "400x300"),
+            client_line(35.0, "RESIZED", "800x600"),
+            client_line(36.2, "FIRST_PAINT", "800x600"),
+        ]
+        .join("\n"),
+    );
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(!info.flash);
+    assert!(info.flash_events.is_empty(), "{:?}", info.flash_events);
+    assert_eq!(info.flash_basis, Some(FlashBasis::Client));
+}
+
+/// Top-left anchor, window shrinks in place from 400x300 to 300x200 after the reveal. The
+/// anchor corner does not move, so the extension logs no ANCHOR_CORRECTION and the old warning
+/// stays silent; the fixture's RESIZED + FIRST_PAINT 30 ms after the reveal is a size flash.
+#[test]
+fn test_top_left_in_place_shrink_after_reveal_is_a_size_flash() {
+    let lines = [
+        line(20.0, "CLOAK", "opacity=0 frame=(16,56,400x300)"),
+        line(24.0, "AFTER_SET_SIZE", "opacity=0 frame=(16,56,400x300)"),
+        line(
+            54.0,
+            "COMMIT_RESOLVED",
+            "reason=SIZE_SETTLED finalFrame=(400x300) target=(300x200) safe=(300x200)",
+        ),
+        line(
+            56.0,
+            "AFTER_SET_POSITION_ANCHORED",
+            "opacity=0 frame=(16,56,400x300)",
+        ),
+        line(60.0, "UNCLOAK", "opacity=255 frame=(16,56,400x300)"),
+        line(61.0, "ANCHOR_ARMED", ""),
+    ];
+    let ev = events(&lines);
+    let report = TraceAnalyser::new()
+        .with_target_window_id(77)
+        .analyse(&lines.join("\n"));
+    assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+
+    let client = parse_client_events(
+        &[
+            client_line(8.0, "FIRST_PAINT", "400x300"),
+            client_line(90.0, "RESIZED", "300x200"),
+            client_line(91.0, "FIRST_PAINT", "300x200"),
+        ]
+        .join("\n"),
+    );
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(info.flash, "{:?}", info.flash_events);
+    let kinds: Vec<FlashKind> = info.flash_events.iter().map(|e| e.kind).collect();
+    assert_eq!(kinds, vec![FlashKind::SizeChangeAfterReveal]);
+    let e = &info.flash_events[0];
+    assert!(
+        (e.at_ms_after_reveal - 30.0).abs() < 0.01,
+        "{}",
+        e.at_ms_after_reveal
+    );
+    assert!(e.detail.contains("400x300 -> 300x200"), "{}", e.detail);
+}
+
+/// A window revealed before its first paint with no size change at all (the fixture's
+/// `--paint-delay-ms`): the first and only paint comes 240 ms after the reveal.
+#[test]
+fn test_first_paint_after_reveal_without_a_size_change_is_a_flash() {
+    let ev = x11_lying_trace();
+    let client = parse_client_events(&client_line(310.0, "FIRST_PAINT", "800x600"));
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(info.flash);
+    assert_eq!(info.flash_events.len(), 1);
+    assert_eq!(info.flash_events[0].kind, FlashKind::PaintAfterReveal);
+    assert!((info.flash_events[0].at_ms_after_reveal - 240.0).abs() < 0.01);
+}
+
+/// A paint 3 ms after the reveal with a clock anchor that is 5 ms wide on each side cannot be
+/// ordered against the reveal: the event is listed as not certain and the run is not a flash.
+#[test]
+fn test_order_inside_the_clock_uncertainty_is_listed_but_not_counted() {
+    let ev = x11_lying_trace();
+    let client = parse_client_events(&client_line(73.0, "FIRST_PAINT", "800x600"));
+    let a = anchor(5.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(!info.flash);
+    assert_eq!(info.flash_events.len(), 1);
+    assert!(!info.flash_events[0].certain);
+}
+
+/// A size change of 2 px (within the tolerance) after the reveal is not a flash; one of 3 px is.
+/// A change 1600 ms after the reveal is outside the 1500 ms watch and is not reported.
+#[test]
+fn test_tolerance_and_watch_window() {
+    let ev = x11_lying_trace();
+    let a = anchor(1.0);
+    let run = |client: &str| {
+        let c = parse_client_events(client);
+        detect_flash(&FlashInputs {
+            trace_events: &ev,
+            client_events: &c,
+            anchor: Some(&a),
+        })
+    };
+    // The fixture is at 800x600 and has painted it before the reveal; `extra` is one more event.
+    let with = |extra: String| {
+        run(&[
+            client_line(10.0, "FIRST_PAINT", "800x600"),
+            client_line(35.0, "RESIZED", "800x600"),
+            extra,
+        ]
+        .join("\n"))
+    };
+    let within = with(client_line(100.0, "RESIZED", "802x598"));
+    assert!(!within.flash, "{:?}", within.flash_events);
+    let beyond = with(client_line(100.0, "RESIZED", "803x600"));
+    assert!(beyond.flash, "{:?}", beyond.flash_events);
+    let late = with(client_line(1670.0, "RESIZED", "400x300"));
+    assert!(!late.flash, "{:?}", late.flash_events);
+}
+
+/// Without the fixture (a real app) the extension's own ANCHOR_CORRECTION after UNCLOAK is the
+/// only signal: it makes a flash with source Extension, exact on the extension's clock.
+#[test]
+fn test_extension_only_position_correction_after_reveal() {
+    let ev = events(&[
+        line(30.0, "CLOAK", "opacity=0 frame=(760,764,400x300)"),
+        line(50.0, "UNCLOAK", "opacity=255 frame=(760,764,400x300)"),
+        line(
+            83.9,
+            "ANCHOR_CORRECTION",
+            "size=(300x200) from=(760,764) to=(810,864)",
+        ),
+    ]);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &[],
+        anchor: None,
+    });
+    assert!(info.flash);
+    assert_eq!(info.flash_basis, Some(FlashBasis::ExtensionOnly));
+    let e = &info.flash_events[0];
+    assert_eq!(e.kind, FlashKind::PositionChangeAfterReveal);
+    assert_eq!(e.source, FlashSource::Extension);
+    assert!((e.at_ms_after_reveal - 33.9).abs() < 0.01);
+}
+
+/// On X11 the client reports its own moves, so the extension's ANCHOR_CORRECTION and the
+/// fixture's MOVED are one jump: it is listed once, from the client.
+#[test]
+fn test_client_move_replaces_the_extension_correction_instead_of_doubling_it() {
+    let ev = events(&[
+        line(30.0, "CLOAK", "opacity=0 frame=(760,764,400x300)"),
+        line(50.0, "UNCLOAK", "opacity=255 frame=(760,764,400x300)"),
+        line(
+            83.9,
+            "ANCHOR_CORRECTION",
+            "size=(300x200) from=(760,764) to=(810,864)",
+        ),
+    ]);
+    let client = parse_client_events(
+        &[
+            client_line(5.0, "FIRST_PAINT", "300x200"),
+            client_line(20.0, "MOVED", "760,764"),
+            client_line(84.5, "MOVED", "810,864"),
+        ]
+        .join("\n"),
+    );
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(info.flash);
+    assert_eq!(info.flash_events.len(), 1, "{:?}", info.flash_events);
+    assert_eq!(info.flash_events[0].source, FlashSource::Client);
+    assert_eq!(
+        info.flash_events[0].kind,
+        FlashKind::PositionChangeAfterReveal
+    );
+}
+
+/// A trace with no UNCLOAK has no reveal to compare with: nothing is checked and the basis says so.
+#[test]
+fn test_no_uncloak_means_nothing_was_checked() {
+    let ev = events(&[line(30.0, "CLOAK", "opacity=0 frame=(0,0,400x300)")]);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &[],
+        anchor: None,
+    });
+    assert!(!info.flash);
+    assert_eq!(info.flash_basis, Some(FlashBasis::None));
+}
+
+/// The fixture file is parsed by tag: FIRST_PAINT, RESIZED and MOVED are kept, TRACE_START,
+/// NEW_EVENTS and a half-written line are dropped, and the result is ordered by time.
+#[test]
+fn test_parse_client_events_keeps_known_tags_in_time_order() {
+    let text = "300 FIXTURE MOVED -5,40\n\
+                100 FIXTURE TRACE_START realtime_ns=1\n\
+                200 FIXTURE FIRST_PAINT 400x300\n\
+                250 FIXTURE NEW_EVENTS Init\n\
+                oops\n\
+                150 FIXTURE RESIZED 400x";
+    let ev = parse_client_events(text);
+    assert_eq!(ev.len(), 2);
+    assert_eq!(ev[0].t_ns, 200);
+    assert_eq!(ev[1].t_ns, 300);
+}
+
+/// Echo lines are read from journal text, each value once even when the line appears twice.
+#[test]
+fn test_echo_times_are_read_once_and_sorted() {
+    let slice = "[spawn-at-time] +120.50ms | SET_LOGGING enabled=true\n\
+                 [spawn-at-time] +120.50ms | SET_LOGGING enabled=true\n\
+                 [spawn-at-time] +95.25ms | SET_LOGGING enabled=true\n\
+                 [spawn-at-time] +100.00ms | CLOAK win=[id=1]";
+    assert_eq!(echo_times_ms(slice), vec![95.25, 120.5]);
+}
+
+/// Two brackets of 6 ms and 4 ms around the same origin intersect to a 4 ms interval; two that
+/// cannot both contain one origin are refused instead of averaged.
+#[test]
+fn test_anchor_intersects_brackets_and_refuses_disagreement() {
+    let echo_a = 10.0;
+    let echo_b = 40.0;
+    let a = MonoBracket {
+        before_ns: T0_NS + 8_000_000,
+        after_ns: T0_NS + 14_000_000,
+    };
+    let b = MonoBracket {
+        before_ns: T0_NS + 38_000_000,
+        after_ns: T0_NS + 42_000_000,
+    };
+    let anchor = ClockAnchor::from_samples(&[a, b], &[echo_a, echo_b]).unwrap();
+    assert_eq!(anchor.samples, 2);
+    // Interval from b: [-2, +2] ms; from a: [-2, +4] ms; intersection [-2, +2] ms, +-5 us slack.
+    assert!(
+        (anchor.half_width_ms() - 2.005).abs() < 0.01,
+        "{}",
+        anchor.half_width_ms()
+    );
+    let off = MonoBracket {
+        before_ns: T0_NS + 100_000_000,
+        after_ns: T0_NS + 102_000_000,
+    };
+    let err = ClockAnchor::from_samples(&[a, off], &[echo_a, echo_b]).unwrap_err();
+    assert!(err.contains("disagree"), "{}", err);
+    assert!(ClockAnchor::from_samples(&[], &[1.0]).is_err());
+}
