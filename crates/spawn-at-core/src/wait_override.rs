@@ -22,15 +22,26 @@ pub enum WaitStrategy {
     /// The ready-wait machine where it applies (native Wayland, size request). Any other window
     /// keeps the original rule, as under `Auto`.
     ReadyWait,
+    /// Experimental, XWayland and X11 windows only (`docs/DESIGN_READY_WAIT.md` section 13): keep
+    /// the window cloaked, ignore the first `damaged` after the size request, reveal on the next
+    /// one or at the cap. A native Wayland window behaves as under `Auto`. Selectable only by the
+    /// hidden `--wait-strategy` flag, never by the config file, never the default.
+    X11HoldDamage,
 }
 
 impl WaitStrategy {
+    /// True for a value that exists for experiments: the config file does not accept it.
+    pub fn is_experimental(self) -> bool {
+        matches!(self, WaitStrategy::X11HoldDamage)
+    }
+
     /// The spelling used on the command line, in the instruction JSON and in the logs.
     pub fn as_str(self) -> &'static str {
         match self {
             WaitStrategy::Auto => "auto",
             WaitStrategy::Legacy => "legacy",
             WaitStrategy::ReadyWait => "ready-wait",
+            WaitStrategy::X11HoldDamage => "x11-hold-damage",
         }
     }
 
@@ -40,6 +51,7 @@ impl WaitStrategy {
             "auto" => Some(WaitStrategy::Auto),
             "legacy" => Some(WaitStrategy::Legacy),
             "ready-wait" => Some(WaitStrategy::ReadyWait),
+            "x11-hold-damage" => Some(WaitStrategy::X11HoldDamage),
             _ => None,
         }
     }
@@ -180,6 +192,7 @@ mod tests {
             WaitStrategy::Auto,
             WaitStrategy::Legacy,
             WaitStrategy::ReadyWait,
+            WaitStrategy::X11HoldDamage,
         ] {
             assert_eq!(WaitStrategy::parse(s.as_str()), Some(s));
             assert_eq!(
@@ -187,6 +200,26 @@ mod tests {
                 format!("\"{}\"", s.as_str())
             );
         }
+    }
+
+    /// The experimental value is taken from the flag, is not the default, and is the only
+    /// experimental one; the three public values are not.
+    #[test]
+    fn test_x11_hold_damage_is_an_opt_in_flag_value() {
+        let (o, problems) = WaitOverride::from_raw(Some("x11-hold-damage"), Some("400"));
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(o.strategy, WaitStrategy::X11HoldDamage);
+        assert_eq!(o.cap_ms, Some(400));
+        assert!(!o.is_default());
+        assert!(WaitStrategy::X11HoldDamage.is_experimental());
+        for s in [
+            WaitStrategy::Auto,
+            WaitStrategy::Legacy,
+            WaitStrategy::ReadyWait,
+        ] {
+            assert!(!s.is_experimental());
+        }
+        assert_eq!(WaitOverride::default().strategy, WaitStrategy::Auto);
     }
 
     #[test]

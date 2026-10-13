@@ -620,6 +620,21 @@ mod tests {
         );
     }
 
+    /// The experimental strategy reaches the extension only when it was asked for by name.
+    #[test]
+    fn test_x11_hold_damage_is_sent_only_when_selected() {
+        let (o, _) = WaitOverride::from_raw(Some("x11-hold-damage"), None);
+        let json = serde_json::to_string(&Instruction::wait_for_commit(300, &o)).unwrap();
+        assert_eq!(
+            json,
+            r#"{"WaitForCommit":{"timeout_ms":300,"strategy":"x11-hold-damage"}}"#
+        );
+        let json =
+            serde_json::to_string(&Instruction::wait_for_commit(300, &WaitOverride::default()))
+                .unwrap();
+        assert_eq!(json, r#"{"WaitForCommit":{"timeout_ms":300}}"#);
+    }
+
     #[test]
     fn test_wait_instruction_without_override_fields_still_deserialises() {
         let parsed: Instruction =

@@ -181,6 +181,11 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
         "x11_observe.js",
         include_str!("../../../../assets/gnome/modern/x11_observe.js"),
     ),
+    // Imported by extension.js: the experimental x11-hold-damage wait (off unless asked for by name).
+    (
+        "x11_hold.js",
+        include_str!("../../../../assets/gnome/modern/x11_hold.js"),
+    ),
     // Not imported by extension.js yet: shipped only because the guard test below requires the
     // list to equal the directory. Inert until the ready-wait machine is wired in.
     (

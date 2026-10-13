@@ -21,6 +21,9 @@ const COMMIT_HARD_CAP_MS = 1500;
  * @returns {string} `at-target`, `quiet`, `cap`, `hard`, or the skip reason (`not-resizable`, `fullscreen`, `tiled`)
  */
 export function readyReason(outcome) {
+    // Only the experimental x11-hold-damage path sets a label (x11_hold.js); no ready-wait outcome has one.
+    if (outcome.label !== undefined)
+        return outcome.label;
     switch (outcome.outcome) {
         case 'reached': return 'at-target';
         case 'adjusted': return 'quiet';

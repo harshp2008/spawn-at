@@ -29,6 +29,7 @@ import { computeAnchoredPosition } from './anchor.js';
 import { SessionLogger } from './logger.js';
 import { validateInstructions } from './validator.js';
 import { X11Observer, readTextureSize } from './x11_observe.js';
+import { HOLD_STRATEGY, isHoldTarget, holdForSecondDamage } from './x11_hold.js';
 
 const ARM_EXPIRY_MS = 15000;
 const WILDCARD_EXPIRY_MS = 1200;
@@ -816,7 +817,22 @@ export default class SpawnAtExtension extends Extension {
         const forceLegacy = args.strategy === 'legacy';
         const useMachine = kind === 'NativeWayland' && hasRequest && !forceLegacy;
 
-        this._logWaitOverride(window, args, useMachine, hasRequest);
+        // EXPERIMENT (x11_hold.js), only when asked for by name and only for XWayland/X11 with a size
+        // request. Every other spawn skips this line's branch, so nothing else changes.
+        const holdDamage = args.strategy === HOLD_STRATEGY && isHoldTarget(kind) && hasRequest;
+
+        this._logWaitOverride(window, args, useMachine, hasRequest, holdDamage);
+
+        if (holdDamage) {
+            const result = await holdForSecondDamage(this._x11HoldHost(), window, ctx.actor, {
+                kind,
+                target: [ctx.safeW, ctx.safeH],
+                capMs: args.cap_ms,
+            });
+            ctx.resize = result;
+            this._x11Observer?.mark(window, 'commit_resolved');
+            return;
+        }
 
         if (useMachine) {
             const before = ctx.preSetSizeFrame;
@@ -859,7 +875,7 @@ export default class SpawnAtExtension extends Extension {
     // effective strategy and cap). Silent when the instruction carries no override field, so a
     // default spawn logs exactly what it did before. `unused` names valid fields that had no
     // effect on this window; `ignored` (last, free text) names fields the validator dropped.
-    _logWaitOverride(window, args, useMachine, hasRequest) {
+    _logWaitOverride(window, args, useMachine, hasRequest, holdDamage = false) {
         const ignored = args.ignored ?? [];
         if (args.strategy === undefined && args.cap_ms === undefined && ignored.length === 0)
             return;
@@ -867,7 +883,9 @@ export default class SpawnAtExtension extends Extension {
         const unused = [];
         if (args.strategy === 'ready-wait' && !useMachine)
             unused.push(`strategy(ready-wait:${hasRequest ? 'not-native-wayland' : 'no-size-request'})`);
-        if (args.cap_ms !== undefined && !useMachine)
+        if (args.strategy === HOLD_STRATEGY && !holdDamage)
+            unused.push(`strategy(${HOLD_STRATEGY}:${hasRequest ? 'not-x11' : 'no-size-request'})`);
+        if (args.cap_ms !== undefined && !useMachine && !holdDamage)
             unused.push('cap_ms(legacy-has-no-cap)');
 
         this.logTime('READY_WAIT_OVERRIDE',
@@ -875,6 +893,26 @@ export default class SpawnAtExtension extends Extension {
             `unused=${unused.length > 0 ? unused.join(';') : 'none'} ` +
             `ignored=${ignored.length > 0 ? ignored.join(';') : 'none'}`,
             window);
+    }
+
+    // What the experimental x11-hold-damage wait (x11_hold.js) needs from the shell.
+    _x11HoldHost() {
+        return {
+            nowMs: () => this.nowMs(),
+            logTime: (tag, extra, window) => this.logTime(tag, extra, window),
+            tryConnect: (t, s, cb) => this._tryConnect(t, s, cb),
+            safeDisconnect: (t, id) => this._safeDisconnect(t, id),
+            addTimer: (ms, cb) => this._addTimer(ms, cb),
+            removeTimer: id => this._removeTimer(id),
+            signalExists: (actor, name) => this._try(() => {
+                const gtype = actor.constructor?.$gtype ?? Meta.WindowActor?.$gtype;
+                return GObject.signal_lookup(name, gtype) !== 0;
+            }, false),
+            frameSize: w => this._try(() => {
+                const r = w.get_frame_rect();
+                return [r.width, r.height];
+            }, [NaN, NaN]),
+        };
     }
 
     // What the observe-only X11 logging (x11_observe.js) needs from the shell. Every call is

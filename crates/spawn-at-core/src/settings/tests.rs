@@ -77,6 +77,9 @@ fn test_ranges_and_messages() {
         parse_value(Key::WaitStrategy, "legacy"),
         Ok(Value::Strategy(WaitStrategy::Legacy))
     );
+    // The experimental value is for the hidden flag only: `config set` and the file refuse it.
+    let e = parse_value(Key::WaitStrategy, "x11-hold-damage").unwrap_err();
+    assert!(e.contains("auto, legacy or ready-wait"), "{e}");
     let e = parse_value(Key::WaitStrategy, "fast").unwrap_err();
     assert!(
         e.contains("auto, legacy or ready-wait") && e.contains("'fast'"),

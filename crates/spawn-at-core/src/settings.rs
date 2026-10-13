@@ -133,6 +133,7 @@ pub fn parse_value(key: Key, text: &str) -> Result<Value, String> {
     let bad = || format!("{} must be {} (got '{text}')", key.name(), key.allowed());
     match key {
         Key::WaitStrategy => WaitStrategy::parse(text)
+            .filter(|s| !s.is_experimental())
             .map(Value::Strategy)
             .ok_or_else(bad),
         Key::WaitCapMs | Key::SpawnWindowTimeoutMs => {

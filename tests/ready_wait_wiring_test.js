@@ -667,3 +667,92 @@ test('x11 observation: disabling the extension ends a running watch and disconne
         GObject.signal_lookup = saved;
     }
 });
+
+// ---------------------------------------------------------------------------------------------
+// 5. EXPERIMENT x11-hold-damage (x11_hold.js): only for XWayland/X11 windows with a size request, only
+//    when asked for by name; every other spawn is byte-identical to before.
+// ---------------------------------------------------------------------------------------------
+
+/** One batch with the instruction text `batch` on an X11-kind window; `script(sim, window, actor)` schedules events. */
+async function runHold(rig, batch, { windowOptions = { kind: 'x11' }, script = () => {} } = {}) {
+    const { sim, ext } = rig;
+    const logFrom = rig.logs.length;
+    const emitFrom = rig.emitted.length;
+    const window = createWindow(windowOptions);
+    const actor = createActor();
+    script(sim, window, actor);
+    const startedAt = sim.now();
+    await sim.run(ext._runBatch(window, actor, validateInstructions(batch), 'tgt-1'));
+    const logs = rig.logs.slice(logFrom);
+    const emitted = rig.emitted.slice(emitFrom);
+    return {
+        window, actor, logs, emitted, frame: window.get_frame_rect(), elapsed: sim.now() - startedAt,
+        line: tag => logs.find(l => l.tag === tag)?.extra,
+        outcome: emitted.find(e => e.name === 'ResizeOutcome')?.params,
+    };
+}
+
+test('x11-hold-damage on an X11 window: ignores the first damaged, reveals on the second, reports its own label', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const rig = makeRig();
+        const r = await runHold(rig, withWait({ strategy: 'x11-hold-damage' }), {
+            script: (sim, _w, actor) => { sim.at(5, () => actor.emit('damaged')); sim.at(60, () => actor.emit('damaged')); },
+        });
+        assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=x11-hold-damage cap_ms=none unused=none ignored=none');
+        assert.match(r.line('READY_WAIT_START'), /^strategy=x11-hold-damage kind=X11 target=\(800x600\) cap=250 hard=1500 /);
+        assert.match(r.line('READY_WAIT_RESOLVED'), /^strategy=x11-hold-damage outcome=reached elapsed_ms=60\.0 waited_ms=60 reason=x11-second-damaged damaged_seen=2 /);
+        assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 60, 'x11-second-damaged']);
+        assert.ok(r.elapsed >= 60, `the reveal waited for the second damaged (${r.elapsed} ms)`);
+        // The hold's handlers are gone: what is left on the window is what a default X11 batch leaves
+        // (the anchor's two), and the actor has none.
+        const baseline = await runHold(makeRig(), WITH_SIZE);
+        assert.equal(r.window.handlerCount(), baseline.window.handlerCount());
+        assert.equal(r.actor.handlerCount(), 0);
+        rig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11-hold-damage on an X11 window: no second damaged ends at the cap (cap_ms replaces 250)', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const rig = makeRig();
+        const r = await runHold(rig, withWait({ strategy: 'x11-hold-damage', cap_ms: 120 }), {
+            script: (sim, _w, actor) => sim.at(5, () => actor.emit('damaged')),
+        });
+        assert.match(r.line('READY_WAIT_START'), / cap=120 hard=1500 /);
+        assert.deepEqual(r.outcome.value, ['tgt-1', 'timed-out', 800, 600, 120, 'x11-cap']);
+        assert.match(r.line('COMMIT_RESOLVED'), /^reason=X11_HOLD_CAP /);
+        assert.equal(r.actor.handlerCount(), 0);
+        rig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11-hold-damage on a native Wayland window: completely unaffected (same lines as no override, plus the override note)', async () => {
+    const script = (sim, w) => sim.at(20, () => w.respond(800, 600));
+    const plain = await runBatch({}, script);
+    const held = await runBatch({}, script, withWait({ strategy: 'x11-hold-damage' }));
+    assert.deepEqual(logTrace(held).filter(l => !l.startsWith('READY_WAIT_OVERRIDE')), logTrace(plain));
+    assert.equal(held.line('READY_WAIT_OVERRIDE'), 'strategy=x11-hold-damage cap_ms=none unused=strategy(x11-hold-damage:not-x11) ignored=none');
+    assert.deepEqual(held.names, plain.names);
+    assert.deepEqual(held.outcome.value, plain.outcome.value);
+    assert.equal(held.logs.some(l => l.tag === 'X11_HOLD_DAMAGED'), false);
+});
+
+test('x11-hold-damage without a size request, and a default X11 spawn: the original rule, no hold line', async () => {
+    const noSize = await runBatch({ kind: 'x11' }, () => {}, JSON.stringify(['Cloak', { WaitForCommit: { timeout_ms: 300, strategy: 'x11-hold-damage' } },
+        { SetPositionAnchored: BOTTOM_RIGHT }, 'Uncloak']));
+    assert.match(noSize.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=no-size-request /);
+    assert.match(noSize.line('READY_WAIT_OVERRIDE'), /unused=strategy\(x11-hold-damage:no-size-request\)/);
+    const dflt = await runBatch({ kind: 'x11' });
+    assert.match(dflt.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland /);
+    assert.equal(dflt.line('READY_WAIT_OVERRIDE'), undefined);
+    assert.equal(dflt.logs.some(l => l.tag.startsWith('X11_HOLD')), false);
+    assert.deepEqual(dflt.names, ['SpawnClaimed']);
+});
