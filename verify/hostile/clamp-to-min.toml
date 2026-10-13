@@ -1,7 +1,7 @@
 id = "hostile/clamp-to-min"
 category = "hostile"
 title = "Shrink target below the app minimum 300x200"
-description = "Fixture reports a minimum of 300x200 and the request is 200x150. The extension raises the target to the reported minimum (SET_SIZE_CLAMPED), so the wait is for 300x200: Reached(300x200)."
+description = "Fixture reports a minimum of 300x200 and the request is 200x150. The extension raises the target to the reported minimum (SET_SIZE_CLAMPED), so the wait is for 300x200: Reached(300x200). KNOWN MISMATCH on GNOME 46: the extension cannot read the app's minimum (Meta-14 has no min-size accessor), so this cell fails until it can; TEST_PLAN 6.22."
 kind = "auto"
 required = false
 tags = ["hostile", "needs-fixture", "ready-wait"]

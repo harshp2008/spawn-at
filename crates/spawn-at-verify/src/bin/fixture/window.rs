@@ -199,6 +199,9 @@ pub(crate) fn run_window(
                 } else {
                     super::behaviour::Hostility::flap_size(base, flap_tick)
                 };
+                // winit pins the xdg window geometry to the configured size, so a different
+                // buffer alone would not change the frame: ask for the window size too.
+                let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(size.0, size.1));
                 if draw_frame(
                     &mut surface,
                     size.0,
@@ -287,6 +290,13 @@ pub(crate) fn run_window(
                     if plan.delay_ms > 0 {
                         std::thread::sleep(Duration::from_millis(plan.delay_ms));
                     }
+                    if plan.draw != configured {
+                        // A grid-snapping app also sets its own window size (see the flap).
+                        let _ = window.request_inner_size(winit::dpi::PhysicalSize::new(
+                            plan.draw.0,
+                            plan.draw.1,
+                        ));
+                    }
                     let drawn = draw_frame(
                         &mut surface,
                         plan.draw.0,
@@ -316,6 +326,10 @@ pub(crate) fn run_window(
                         (size.width, size.height),
                         hostile.resize_increment,
                     );
+                    if draw != (size.width, size.height) {
+                        let _ = window
+                            .request_inner_size(winit::dpi::PhysicalSize::new(draw.0, draw.1));
+                    }
                     let drawn = draw_frame(
                         &mut surface,
                         draw.0,

@@ -1,7 +1,7 @@
 id = "hostile/default-equals-min"
 category = "hostile"
 title = "App whose default size is its minimum"
-description = "Fixture starts at 400x300 and reports 400x300 as its minimum; the request is 200x150. The target raised to the minimum equals the current size: Reached at once (waited 0) with the window still 400x300."
+description = "Fixture starts at 400x300 and reports 400x300 as its minimum; the request is 200x150. The target raised to the minimum equals the current size: Reached at once (waited 0) with the window still 400x300. KNOWN MISMATCH on GNOME 46: the extension cannot read the app's minimum (Meta-14 has no min-size accessor), so this cell fails until it can; TEST_PLAN 6.22."
 kind = "auto"
 required = false
 tags = ["hostile", "needs-fixture", "ready-wait"]
