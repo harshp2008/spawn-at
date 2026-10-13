@@ -157,12 +157,28 @@ function createWindow({ kind = 'wayland', start = [400, 300], resizable = true, 
 
 function createActor() {
     const signals = [];
+    const handlers = new Map();
+    let nextId = 1;
     return {
         opacity: 255,
+        width: 800,
+        height: 600,
         get_stage: () => globalThis.global.stage,
         is_destroyed: () => false,
-        connect: signal => { signals.push(signal); return 1; },
-        disconnect: () => {},
+        get_texture: () => ({ get_width: () => 800, get_height: () => 600 }),
+        connect: (signal, callback) => {
+            signals.push(signal);
+            const id = nextId++;
+            handlers.set(id, { signal, callback });
+            return id;
+        },
+        disconnect: id => { handlers.delete(id); },
+        /** Delivers `signal` to the handlers connected for it, like the compositor. */
+        emit: signal => {
+            for (const handler of [...handlers.values()])
+                if (handler.signal === signal) handler.callback();
+        },
+        handlerCount: () => handlers.size,
         remove_all_transitions: () => {},
         signals,
     };
@@ -514,4 +530,140 @@ test('override: scoped to the spawn that carries it, the next spawn on the same 
     assert.match(second.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=250 quiet=30 hard=1500$/);
     assert.equal(second.outcome.value[4], 250);
     rig.ext.disable();
+});
+
+// ---------------------------------------------------------------------------------------------
+// 4. Observe-only X11 logging (x11_observe.js) inside the extension: no work with logging off, no
+//    change of outcome with it on, and no handler left after the window's watch ends.
+// ---------------------------------------------------------------------------------------------
+
+const { default: GObject } = await import('gi://GObject');
+
+/** Runs an x11-kind batch on a fresh rig and lets the 500 ms tail of the watch pass. */
+async function runX11(rig, { logging, windowOptions = { kind: 'x11' }, script = () => {} } = {}) {
+    if (logging)
+        rig.ext.SetLogging(true);
+    const { sim, ext } = rig;
+    const logFrom = rig.logs.length;
+    const window = createWindow(windowOptions);
+    const actor = createActor();
+    script(sim, window, actor);
+    await sim.run(ext._runBatch(window, actor, validateInstructions(WITH_SIZE), 'tgt-1'));
+    const afterBatch = {
+        activeCount: ext._x11Observer.activeCount,
+        actorHandlers: actor.handlerCount(),
+        windowHandlers: window.handlerCount(),
+    };
+    await sim.run(new Promise(resolve => ext._addTimer(600, resolve)));
+    return {
+        window, actor, afterBatch,
+        logs: rig.logs.slice(logFrom),
+        frame: window.get_frame_rect(),
+        after: { activeCount: ext._x11Observer.activeCount, actorHandlers: actor.handlerCount(), windowHandlers: window.handlerCount() },
+    };
+}
+
+test('x11 observation: logging off adds no work (no handler on the actor, no timer, no X11_OBS line)', async () => {
+    const rig = makeRig();
+    const timersBefore = rig.ext._timerIds.size;
+    const r = await runX11(rig, { logging: false });
+    assert.equal(r.actor.signals.some(s => s === 'damaged' || s === 'first-frame'), false, r.actor.signals.join());
+    assert.equal(r.logs.some(l => l.tag.startsWith('X11_OBS')), false);
+    assert.equal(r.afterBatch.activeCount, 0);
+    assert.equal(rig.ext._x11Observer.handlerCount, 0);
+    assert.equal(rig.ext._timerIds.size, timersBefore + 0, 'no timer of the observer is pending');
+    rig.ext.disable();
+});
+
+test('x11 observation: logging on writes the joinable lines, connects damaged and first-frame, and leaves no handler after the tail', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7; // the signals exist (decided at runtime, not by version)
+    try {
+        const rig = makeRig();
+        const r = await runX11(rig, {
+            logging: true,
+            script: (sim, _w, actor) => {
+                sim.at(5, () => actor.emit('damaged'));
+                sim.at(6, () => actor.emit('first-frame'));
+            },
+        });
+        const tags = r.logs.map(l => l.tag).filter(t => t.startsWith('X11_OBS'));
+        assert.equal(tags[0], 'X11_OBS_START');
+        assert.deepEqual(tags.filter(t => t === 'X11_OBS_SIGNAL').length, 2);
+        const marks = r.logs.filter(l => l.tag === 'X11_OBS_MARK').map(l => l.extra.split(' ')[0]);
+        assert.deepEqual(marks, ['what=set_size', 'what=commit_resolved', 'what=reveal']);
+        assert.equal(tags.at(-1), 'X11_OBS_END');
+        assert.match(r.logs.find(l => l.tag === 'X11_OBS_END').extra, /reason=reveal\+500ms .*damaged=1 first_frame=1$/);
+        assert.match(r.logs.find(l => l.tag === 'X11_OBS_START').extra, /^kind=X11 wayland=false client_type=1 id=301 /);
+        assert.match(r.logs.find(l => l.tag === 'X11_OBS_SIGNAL').extra, /texture=\(800x600\) actor=\(800x600\) frame=\(/);
+        // Connected during the batch, gone after the tail.
+        assert.equal(r.afterBatch.activeCount, 1);
+        assert.equal(r.afterBatch.actorHandlers > 0, true);
+        assert.equal(r.after.activeCount, 0);
+        assert.equal(r.after.actorHandlers, 0);
+        assert.equal(rig.ext._x11Observer.handlerCount, 0);
+        rig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11 observation: the batch gives the same frame, the same wait lines and the same signals with logging on as off', async () => {
+    const off = await runX11(makeRig(), { logging: false });
+    const on = await runX11(makeRig(), { logging: true });
+    assert.deepEqual(on.frame, off.frame);
+    const strip = logs => logs.filter(l => !l.tag.startsWith('X11_OBS') && l.tag !== 'SET_LOGGING')
+        .map(l => `${l.tag} ${l.extra}`.replace(/elapsed_ms=[0-9.]+/g, ''));
+    // `_logActorTrace` lines (CLOAK, AFTER_SET_SIZE, UNCLOAK, ...) were already skipped when logging
+    // is off; every line the off run logs is in the on run, in the same order and with the same text.
+    const onLines = strip(on.logs);
+    let at = 0;
+    for (const line of strip(off.logs)) {
+        at = onLines.indexOf(line, at);
+        assert.notEqual(at, -1, `missing from the logging-on run: ${line}`);
+        at += 1;
+    }
+    assert.equal(on.logs.filter(l => l.tag.startsWith('X11_OBS')).length > 0, true);
+});
+
+test('x11 observation: damaged missing is logged once as a note and does not stop the batch', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = (name) => (name === 'damaged' ? 0 : 7);
+    try {
+        const rig = makeRig();
+        const a = await runX11(rig, { logging: true });
+        const b = await runX11(rig, { logging: true });
+        const notes = [...a.logs, ...b.logs].filter(l => l.tag === 'X11_OBS_NOTE');
+        assert.equal(notes.length, 1);
+        assert.equal(notes[0].extra, 'damaged unavailable');
+        assert.deepEqual(a.actor.signals.filter(s => s === 'damaged'), []);
+        rig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11 observation: a native Wayland window is never watched, even with logging on', async () => {
+    const rig = makeRig();
+    const r = await runX11(rig, { logging: true, windowOptions: { kind: 'wayland' } });
+    assert.equal(r.logs.some(l => l.tag.startsWith('X11_OBS')), false);
+    rig.ext.disable();
+});
+
+test('x11 observation: disabling the extension ends a running watch and disconnects it', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const rig = makeRig();
+        rig.ext.SetLogging(true);
+        const window = createWindow({ kind: 'x11' });
+        const actor = createActor();
+        await rig.sim.run(rig.ext._runBatch(window, actor, validateInstructions(WITH_SIZE), 'tgt-1'));
+        assert.equal(rig.ext._x11Observer.activeCount, 1);
+        rig.ext.disable();
+        assert.equal(rig.ext._x11Observer.activeCount, 0);
+        assert.equal(actor.handlerCount(), 0);
+    } finally {
+        GObject.signal_lookup = saved;
+    }
 });

@@ -181,6 +181,45 @@ fn test_an_empty_dump_falls_back_to_the_stamp_with_a_note() {
     );
 }
 
+/// The observe-only `X11_OBS_*` lines are in the slice and change no verdict: the flash result
+/// with them in the slice equals the one without (same events, same flags, same notes).
+#[test]
+fn test_x11_observation_lines_in_the_slice_change_no_verdict() {
+    let win = "win=[id=77 pid=4242 class=\"verify.x\" app=\"\" type=NORMAL proto=X11]";
+    let extra = [
+        format!("[spawn-at-time] +31.00ms | X11_OBS_START {win} kind=X11 wayland=false client_type=1 id=77 mono_ms=1031.000 damaged=available first_frame=available"),
+        format!("[spawn-at-time] +45.00ms | X11_OBS_SIGNAL {win} signal=damaged id=77 mono_ms=1045.000 seq=1 texture=(800x600) actor=(800x600) frame=(0,0,800x600) buffer=(0,0,800x600)"),
+        format!("[spawn-at-time] +70.50ms | X11_OBS_MARK {win} what=reveal id=77 mono_ms=1070.500"),
+        format!("[spawn-at-time] +570.50ms | X11_OBS_END {win} id=77 reason=reveal+500ms mono_ms=1570.500 damaged=1 first_frame=0"),
+    ]
+    .join("\n");
+    let plain = slice();
+    let with_obs = format!("{plain}\n{extra}");
+    for (stamp_ms, wire_ms) in [(95_u64, 60_u64), (40, 40)] {
+        let a = evaluate(
+            Some(&plain),
+            Some(77),
+            &client_text(stamp_ms),
+            Some(&wire_text(wire_ms)),
+            &brackets(),
+            Default::default(),
+        );
+        let b = evaluate(
+            Some(&with_obs),
+            Some(77),
+            &client_text(stamp_ms),
+            Some(&wire_text(wire_ms)),
+            &brackets(),
+            Default::default(),
+        );
+        assert_eq!(a, b, "stamp {stamp_ms} wire {wire_ms}");
+    }
+    assert!(
+        with_obs.contains("X11_OBS_SIGNAL"),
+        "the raw lines stay in the slice"
+    );
+}
+
 /// `--wire-paint` also hands the fixture the trace directory (the same private directory as the
 /// events) and the dump is read by pid; without it the trace variable is absent and nothing is
 /// read, even when a stray `.log` is in the directory.

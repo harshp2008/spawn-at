@@ -19,6 +19,7 @@ import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 
 import { DBusManager } from './dbus.js';
 import { CloakManager } from './cloak.js';
@@ -27,6 +28,7 @@ import { FocusPulse } from './pulse.js';
 import { computeAnchoredPosition } from './anchor.js';
 import { SessionLogger } from './logger.js';
 import { validateInstructions } from './validator.js';
+import { X11Observer } from './x11_observe.js';
 
 const ARM_EXPIRY_MS = 15000;
 const WILDCARD_EXPIRY_MS = 1200;
@@ -73,6 +75,7 @@ export default class SpawnAtExtension extends Extension {
 
         // Initialize commit and pulse managers
         this._commitLatch = new CommitLatch(this);
+        this._x11Observer = new X11Observer(this._x11ObserveHost());
         this._focusPulse = new FocusPulse(this, this._commitLatch);
 
         // Dummy focus actor
@@ -111,6 +114,9 @@ export default class SpawnAtExtension extends Extension {
         this._batchQueue = [];
         this._batchBusy = false;
         this._currentBatchItem = null;
+
+        // End the observe-only X11 watches (disconnects their signal handlers)
+        this._x11Observer?.stopAll();
 
         // Disarm reactive anchors
         for (const window of [...this._anchors.keys()])
@@ -664,6 +670,9 @@ export default class SpawnAtExtension extends Extension {
     }
 
     async _runBatch(window, actor, instructions, targetId = '', item = null) {
+        // Observe-only (x11_observe.js): from the start of the batch; a no-op unless logging is on.
+        this._x11Observer?.start(window, actor, this._windowKind(window));
+
         const ops = instructions
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
@@ -786,6 +795,7 @@ export default class SpawnAtExtension extends Extension {
         else
             window.resize(true, safeW, safeH);
         ctx.setSizeAtMs = this.nowMs();
+        this._x11Observer?.mark(window, 'set_size');
 
         this._logActorTrace('AFTER_SET_SIZE', ctx.actor, window);
     }
@@ -823,6 +833,7 @@ export default class SpawnAtExtension extends Extension {
                 request.policy = { cap_ms: args.cap_ms };
             const result = await this._commitLatch.waitForReady(window, request);
             ctx.resize = result;
+            this._x11Observer?.mark(window, 'commit_resolved');
             return;
         }
 
@@ -838,6 +849,7 @@ export default class SpawnAtExtension extends Extension {
             window, ctx.actor, args.timeout_ms,
             ctx.targetW, ctx.targetH, ctx.safeW, ctx.safeH);
         ctx.commit = reason;
+        this._x11Observer?.mark(window, 'commit_resolved');
         this.logTime('READY_WAIT_RESOLVED',
             `strategy=legacy outcome=none elapsed_ms=${(this.nowMs() - startedAt).toFixed(1)} reason=${reason}`,
             window);
@@ -863,6 +875,40 @@ export default class SpawnAtExtension extends Extension {
             `unused=${unused.length > 0 ? unused.join(';') : 'none'} ` +
             `ignored=${ignored.length > 0 ? ignored.join(';') : 'none'}`,
             window);
+    }
+
+    // What the observe-only X11 logging (x11_observe.js) needs from the shell. Every call is
+    // guarded: a missing API gives 'na' in the log, never an exception into the batch.
+    //
+    // HYPOTHESIS (not run in a Shell): `get_texture()` on the window actor returns the shaped
+    // texture and its get_width/get_height follow the committed buffer; `damaged` and `first-frame`
+    // exist on Meta.WindowActor in GNOME 46. The runtime check below decides, not a version.
+    _x11ObserveHost() {
+        const size = o => (o && Number.isFinite(o.w) && Number.isFinite(o.h))
+            ? { width: o.w, height: o.h } : null;
+        return {
+            isLoggingEnabled: () => this.isLoggingEnabled(),
+            logTime: (tag, extra, window) => this.logTime(tag, extra, window),
+            nowMs: () => this.nowMs(),
+            tryConnect: (t, s, cb) => this._tryConnect(t, s, cb),
+            safeDisconnect: (t, id) => this._safeDisconnect(t, id),
+            addTimer: (ms, cb) => this._addTimer(ms, cb),
+            removeTimer: id => this._removeTimer(id),
+            signalExists: (actor, name) => this._try(() => {
+                const gtype = actor.constructor?.$gtype ?? Meta.WindowActor?.$gtype;
+                return GObject.signal_lookup(name, gtype) !== 0;
+            }, false),
+            windowId: w => this._try(() => w.get_id(), -1),
+            clientType: w => this._try(() => w.get_client_type?.(), null),
+            isWayland: () => this._try(() => Meta.is_wayland_compositor(), false),
+            frameRect: w => this._try(() => w.get_frame_rect(), null),
+            bufferRect: w => this._try(() => w.get_buffer_rect?.(), null),
+            textureSize: a => this._try(() => {
+                const t = a.get_texture?.();
+                return size({ w: t?.get_width?.(), h: t?.get_height?.() });
+            }, null),
+            actorSize: a => this._try(() => size({ w: a.width, h: a.height }), null),
+        };
     }
 
     // 'NativeWayland', 'XWayland', 'X11' or 'unknown' (no get_client_type). Same rule as the
@@ -1092,10 +1138,12 @@ export default class SpawnAtExtension extends Extension {
             `bufferRect=(${buf.x},${buf.y},${buf.width}x${buf.height})`,
             window);
 
+        this._x11Observer?.reveal(window);
+
         if (ctx.anchorPayload)
             this._armAnchor(window, ctx.anchorPayload);
 
-        const winId = typeof window.get_id === 'function' ? window.get_id() : 0;
+        const winId =typeof window.get_id === 'function' ? window.get_id() : 0;
         const targetId = ctx.targetId || '';
         const sizeRaised = Boolean(ctx.clampedSafeSize && (ctx.clampedSafeSize.w > ctx.targetW || ctx.clampedSafeSize.h > ctx.targetH));
 

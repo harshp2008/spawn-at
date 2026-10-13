@@ -520,3 +520,37 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 **Cost (not measured on a real refusing app).** An app that never answers a size request (it is at its minimum and the minimum is unknown) now holds the cloak up to 250 ms instead of up to 150 ms on its first spawn (the risk noted in section 9, acceptance A4 is written against the old cap and has not been re-run). 6.19 loaded cloak numbers for the two caps, same session: B (150) median/p95/max 131.6/167.0/183.9 ms, C (250) 129.3/200.9/263.4 ms. A hung app is still ended by the hard limit at 1500 ms.
 
 **Installed extension.** The change is in the repository tree. An extension already installed in a login session keeps the cap it was installed with until it is reinstalled and the session restarts; a run that wants 250 ms on such an extension passes `--wait-cap-ms 250`.
+
+## 12. X11 observation (observe-only logging, 2026-10-13)
+
+Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS = needs a real Shell. Nothing here is run in a Shell yet.
+
+**Why.** On X11 and XWayland the window manager sets the frame size at once, so `frame == target` says nothing about whether the app has painted into it (TEST_PLAN 6.15, 6.18); that is why those windows keep the original quiet rule (`strategy=legacy kind=XWayland|X11`). The ready-wait machine needs a signal that the app has finished painting a resize. Candidates from the Mutter documentation: `Meta.WindowActor::damaged` ("one or more surfaces damaged"), `::first-frame` (first frame only), and the size of the actor's surface texture, which may follow the committed buffer on XWayland. None of it is verified for GNOME 46. This section only **looks**; no strategy, verdict, timing or outcome uses it.
+
+**What is logged (modern tree only; `assets/gnome/modern/x11_observe.js`).** For a spawned window whose client type is X11 (XWayland under a Wayland session, or native X11), from the start of its batch until 500 ms after the reveal, only while the `SetLogging` flag is on. All lines go through the existing timing log (`[spawn-at-time] +N.NNms | TAG win=[...] ...`), so they land in a run's `log_slice` unchanged (the journal filter keeps every `[spawn-at-time]` line; test in `log_source.rs`). `mono_ms` is `GLib.get_monotonic_time()/1000`, the clock of the extension's other timestamps and, after the harness's clock anchor, of the fixture's events.
+
+| Line | Fields | When |
+| :--- | :--- | :--- |
+| `X11_OBS_START` | `kind` (`XWayland` or `X11`), `wayland` (compositor is Wayland), `client_type`, `id`, `mono_ms`, `damaged=available\|unavailable`, `first_frame=available\|unavailable` | start of the batch |
+| `X11_OBS_NOTE` | `damaged unavailable` | once per extension run, if `damaged` is not a signal of the actor class |
+| `X11_OBS_MARK` | `what=set_size\|commit_resolved\|reveal`, `id`, `mono_ms` | after the resize request, after the wait resolves (either rule), at the reveal |
+| `X11_OBS_SIGNAL` | `signal=damaged\|first-frame`, `id`, `mono_ms`, `seq`, `texture=(WxH)`, `actor=(WxH)`, `frame=(x,y,WxH)`, `buffer=(x,y,WxH)` (`(na)` when a value cannot be read) | each emission |
+| `X11_OBS_END` | `id`, `reason=unmanaged\|reveal+500ms\|disabled\|error`, `mono_ms`, `damaged=N`, `first_frame=N` | end of the watch |
+
+`damaged` and `first-frame` are looked up with `GObject.signal_lookup` on the actor's class at run time, never by version number. The existing `SET_SIZE_REQUEST`, `READY_WAIT_*`, `COMMIT_RESOLVED` and `UNCLOAK_4D_REVEAL` lines are still written, so the marks can also be joined on their `+N ms` stamps.
+
+**Observe-only guarantees (CONFIRMED by tests, `tests/x11_observe_test.js` and the last block of `tests/ready_wait_wiring_test.js`).**
+- With logging off the observer asks only "is logging on?": no signal handler on the actor or the window, no timer, no feature lookup, no line (tests: fake host and the extension with an X11-kind window).
+- Handlers are disconnected when the window is unmanaged, 500 ms after the reveal, or when the extension is disabled; afterwards the actor has no handler left from it and a late emission logs nothing.
+- Native Wayland windows are never watched. A host call that throws never reaches the compositor's signal emission.
+- With logging on, the window ends at the same frame with the same wait and reveal lines as with logging off (the only extra lines are the `X11_OBS_*` ones and the actor traces, which have always been written only when logging is on).
+- The harness changes nothing: the lines are plain text in `log_slice`, and the flash result with them in the slice equals the one without (test in `runner/wire_paint_tests.rs`).
+
+**Open questions this will answer (HYPOTHESIS until a Shell run).**
+1. Does `damaged` exist on `Meta.WindowActor` in GNOME 46? (`damaged=available` or the note.)
+2. On XWayland, when does the texture size change relative to `set_size` and to the app's repaint: is there a `damaged` after the texture reaches the target size, and is it distinguishable from the damage of the resize itself?
+3. Does the texture or buffer rect ever differ from the frame rect after `set_size`, i.e. can "texture == target" stand in for "the app painted at the target size"?
+4. How long after `set_size` does the last `damaged` of a resize arrive, compared with `commit_resolved` (the legacy quiet rule's answer) and with the fixture's `FIRST_PAINT` / wire commit (TEST_PLAN 6.21)? That is the gap a better rule would close.
+5. Is `first-frame` emitted for a window that is already mapped and resized (expected: only once, at map)?
+
+**Not shown.** Everything about real emissions: that the signals fire, their order and number, whether `get_texture().get_width()` is the surface size, and whether a handler on `damaged` costs measurable time in the compositor (it only formats a line when logging is on, but the handler is connected whenever logging is on).

@@ -176,6 +176,11 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
         "validator.js",
         include_str!("../../../../assets/gnome/modern/validator.js"),
     ),
+    // Imported by extension.js: observe-only logging of the paint signals of X11 windows.
+    (
+        "x11_observe.js",
+        include_str!("../../../../assets/gnome/modern/x11_observe.js"),
+    ),
     // Not imported by extension.js yet: shipped only because the guard test below requires the
     // list to equal the directory. Inert until the ready-wait machine is wired in.
     (
