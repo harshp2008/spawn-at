@@ -334,6 +334,9 @@ pub struct RunOptions {
     /// Fail a run that passed on placement but flashed (`--strict-flash`). Off by default: the
     /// run then keeps its pass and is reported as "PASS (flash)".
     pub strict_flash: bool,
+    /// Lowest lead in milliseconds that counts as a flash, on top of the clock uncertainty
+    /// (`--flash-threshold-ms`).
+    pub flash_threshold_ms: f64,
 }
 
 impl Default for RunOptions {
@@ -349,6 +352,7 @@ impl Default for RunOptions {
             step_timeout: std::time::Duration::from_secs(5),
             test_timeout: std::time::Duration::from_secs(10),
             strict_flash: false,
+            flash_threshold_ms: 0.0,
         }
     }
 }

@@ -4,6 +4,7 @@
 #![warn(missing_docs)]
 
 pub mod cli;
+pub mod display;
 pub mod ext_logging;
 pub mod loadavg;
 pub mod loader;

@@ -4,7 +4,9 @@
 use super::create_test_app;
 use ratatui::style::Color;
 use spawn_at_verify::runner::{AutoStatus, FinalStatus, HumanVerdict, TestResult};
-use spawn_at_verify::trace::flash::{FlashBasis, FlashEvent, FlashInfo, FlashKind, FlashSource};
+use spawn_at_verify::trace::flash::{
+    FlashBasis, FlashEvent, FlashInfo, FlashKind, FlashSource, Visibility,
+};
 use spawn_at_verify::tui::views::build_drawer_content;
 use spawn_at_verify::tui::views::panels::tests_list::{category_counts_text, tally_results};
 use spawn_at_verify::tui::views::theme::{
@@ -15,10 +17,25 @@ use spawn_at_verify::tui::views::theme::{
 /// a flash).
 fn flash_result(
     app: &spawn_at_verify::tui::app::TuiApp,
-    events: Vec<FlashEvent>,
+    mut events: Vec<FlashEvent>,
 ) -> (spawn_at_verify::schema::TestDefinition, TestResult) {
     let test = app.selected_test().unwrap().clone();
-    let flash = events.iter().any(|e| e.certain);
+    let frame_ms = 1000.0 / 60.0;
+    let (mut certain, mut possible) = (0, 0);
+    for e in &mut events {
+        e.visible_probability = (e.lead_ms / frame_ms).min(1.0);
+        e.visibility = Some(if e.lead_ms >= frame_ms {
+            Visibility::Certain
+        } else {
+            Visibility::Possible
+        });
+        if e.numeric && e.lead_ms >= frame_ms {
+            certain += 1;
+        } else if e.numeric {
+            possible += 1;
+        }
+    }
+    let flash = events.iter().any(|e| e.numeric);
     let res = TestResult {
         id: test.id.clone(),
         title: test.title.clone(),
@@ -38,10 +55,15 @@ fn flash_result(
         final_rect: None,
         flash_info: FlashInfo {
             flash,
+            flash_certain: certain,
+            flash_possible: possible,
+            refresh_hz: Some(60.0),
+            frame_ms: Some(frame_ms),
             flash_events: events,
             flash_basis: Some(FlashBasis::Client),
             flash_notes: vec![],
             flash_clock_uncertainty_ms: Some(1.2),
+            ..Default::default()
         },
     };
     (test, res)
@@ -52,8 +74,10 @@ fn event(certain: bool, detail: &str) -> FlashEvent {
     FlashEvent {
         kind: FlashKind::PaintAfterReveal,
         source: FlashSource::Client,
-        at_ms_after_reveal: 25.0,
-        certain,
+        lead_ms: 25.0,
+        numeric: certain,
+        visibility: None,
+        visible_probability: 0.0,
         detail: detail.into(),
     }
 }
@@ -119,17 +143,19 @@ fn test_drawer_shows_pass_flash_verdict_and_flash_rows() {
     assert!(row("Verdict").contains("✱ Pass (flash)"), "{}", plain);
     assert!(!plain.contains("✔ Pass"), "{}", plain);
     assert!(
-        row("Flash").contains("flash, fixture paint times against UNCLOAK (clock +-1.2 ms)"),
+        row("Flash").contains(
+            "flash (1 certain, 0 possible), fixture paint times against UNCLOAK (clock +-1.2 ms)"
+        ),
         "{}",
         plain
     );
     assert!(
-        plain.contains("✱ first paint at 800x600 came 25.0 ms after the reveal"),
+        flat(&plain).contains("✱ first paint at 800x600 came 25.0 ms after the reveal [visible: certain, lead >= 16.7 ms frame]"),
         "{}",
         plain
     );
     assert!(
-        plain.contains("? size 400x300 -> 800x600 3.0 ms after the reveal (inside the clock uncertainty: not counted)"),
+        flat(&plain).contains("? size 400x300 -> 800x600 3.0 ms after the reveal (not above the clock uncertainty or --flash-threshold-ms: not counted)"),
         "{}",
         plain
     );
@@ -161,4 +187,32 @@ fn test_category_heading_counts_flashes() {
     assert_eq!(category_counts_text(&tally, 5), "2/5 · 1 flash");
     let none = tally_results([Some(&plain_pass)].into_iter());
     assert_eq!(category_counts_text(&none, 5), "1/5");
+}
+
+/// A sub-frame numeric flash is labelled "possible" with its probability and the refresh rate;
+/// the Flash row counts it as possible, not certain, and the list icon is still the numeric flash.
+#[test]
+fn test_drawer_labels_a_sub_frame_flash_as_possible() {
+    let mut app = create_test_app();
+    let mut e = event(true, "first paint at 800x600 came 5.0 ms after the reveal");
+    e.lead_ms = 5.0;
+    let (test, res) = flash_result(&app, vec![e]);
+    assert_eq!(
+        status_symbol_and_color(&test, Some(&res), false),
+        (FLASH_SYMBOL, FLASH)
+    );
+    app.results.insert(test.id.clone(), res);
+    let plain = build_drawer_content(&app, &test, 120, true).1;
+    assert!(plain.contains("flash (0 certain, 1 possible)"), "{}", plain);
+    assert!(
+        flat(&plain).contains("[visible: possible, 30% at 60 Hz]"),
+        "{}",
+        plain
+    );
+}
+
+/// `text` with every run of whitespace (including the line breaks and hanging indent of a wrapped
+/// drawer value) collapsed to one space.
+fn flat(text: &str) -> String {
+    text.split_whitespace().collect::<Vec<_>>().join(" ")
 }

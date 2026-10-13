@@ -88,6 +88,7 @@ fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(info.flash, "events: {:?}", info.flash_events);
     assert_eq!(info.flash_basis, Some(FlashBasis::Client));
@@ -95,11 +96,11 @@ fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
     let e = &info.flash_events[0];
     assert_eq!(e.kind, FlashKind::SizeChangeAfterReveal);
     assert_eq!(e.source, FlashSource::Client);
-    assert!(e.certain);
+    assert!(e.numeric);
     assert!(
-        (e.at_ms_after_reveal - 25.0).abs() < 0.01,
+        (e.lead_ms - 25.0).abs() < 0.01,
         "paint at +95 ms, reveal at +70 ms: {}",
-        e.at_ms_after_reveal
+        e.lead_ms
     );
     assert!(
         e.detail.contains("first paint at 800x600") && e.detail.contains("content was 400x300"),
@@ -119,6 +120,7 @@ fn test_x11_lying_frame_rect_is_invisible_to_the_extension_only_check() {
         trace_events: &ev,
         client_events: &[],
         anchor: None,
+        params: Default::default(),
     });
     assert!(!info.flash);
     assert_eq!(info.flash_basis, Some(FlashBasis::ExtensionOnly));
@@ -175,6 +177,7 @@ fn test_paint_before_reveal_is_not_a_flash() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(!info.flash);
     assert!(info.flash_events.is_empty(), "{:?}", info.flash_events);
@@ -221,15 +224,16 @@ fn test_top_left_in_place_shrink_after_reveal_is_a_size_flash() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(info.flash, "{:?}", info.flash_events);
     let kinds: Vec<FlashKind> = info.flash_events.iter().map(|e| e.kind).collect();
     assert_eq!(kinds, vec![FlashKind::SizeChangeAfterReveal]);
     let e = &info.flash_events[0];
     assert!(
-        (e.at_ms_after_reveal - 31.0).abs() < 0.01,
+        (e.lead_ms - 31.0).abs() < 0.01,
         "paint at +91 ms, reveal at +60 ms: {}",
-        e.at_ms_after_reveal
+        e.lead_ms
     );
     assert!(
         e.detail.contains("first paint at 300x200") && e.detail.contains("content was 400x300"),
@@ -249,11 +253,12 @@ fn test_first_paint_after_reveal_without_a_size_change_is_a_flash() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(info.flash);
     assert_eq!(info.flash_events.len(), 1);
     assert_eq!(info.flash_events[0].kind, FlashKind::PaintAfterReveal);
-    assert!((info.flash_events[0].at_ms_after_reveal - 240.0).abs() < 0.01);
+    assert!((info.flash_events[0].lead_ms - 240.0).abs() < 0.01);
 }
 
 /// A paint 3 ms after the reveal with a clock anchor that is 5 ms wide on each side cannot be
@@ -267,10 +272,11 @@ fn test_order_inside_the_clock_uncertainty_is_listed_but_not_counted() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(!info.flash);
     assert_eq!(info.flash_events.len(), 1);
-    assert!(!info.flash_events[0].certain);
+    assert!(!info.flash_events[0].numeric);
 }
 
 /// A size change of 2 px (within the tolerance) after the reveal is not a flash; one of 3 px is.
@@ -285,6 +291,7 @@ fn test_tolerance_and_watch_window() {
             trace_events: &ev,
             client_events: &c,
             anchor: Some(&a),
+            params: Default::default(),
         })
     };
     // The fixture has painted 800x600 before the reveal; `extra` is one more paint.
@@ -321,13 +328,14 @@ fn test_extension_only_position_correction_after_reveal() {
         trace_events: &ev,
         client_events: &[],
         anchor: None,
+        params: Default::default(),
     });
     assert!(info.flash);
     assert_eq!(info.flash_basis, Some(FlashBasis::ExtensionOnly));
     let e = &info.flash_events[0];
     assert_eq!(e.kind, FlashKind::PositionChangeAfterReveal);
     assert_eq!(e.source, FlashSource::Extension);
-    assert!((e.at_ms_after_reveal - 33.9).abs() < 0.01);
+    assert!((e.lead_ms - 33.9).abs() < 0.01);
 }
 
 /// The extension's ANCHOR_CORRECTION and the fixture's MOVED report one jump: it is listed once,
@@ -356,6 +364,7 @@ fn test_extension_correction_is_listed_once_not_doubled_by_the_client_move() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(info.flash);
     assert_eq!(info.flash_events.len(), 1, "{:?}", info.flash_events);
@@ -385,6 +394,7 @@ fn test_late_moved_report_of_a_move_before_the_reveal_is_not_a_flash() {
         trace_events: &ev,
         client_events: &client,
         anchor: Some(&a),
+        params: Default::default(),
     });
     assert!(!info.flash, "{:?}", info.flash_events);
     assert!(info.flash_events.is_empty());
@@ -405,6 +415,7 @@ fn test_only_the_final_client_position_decides_a_move_after_the_reveal() {
             trace_events: &ev,
             client_events: &client,
             anchor: Some(&a),
+            params: Default::default(),
         })
     };
     let lagging = run(&[
@@ -420,14 +431,14 @@ fn test_only_the_final_client_position_decides_a_move_after_the_reveal() {
     assert_eq!(moved.flash_events.len(), 1);
     let e = &moved.flash_events[0];
     assert_eq!(
-        (e.kind, e.source, e.certain),
+        (e.kind, e.source, e.numeric),
         (
             FlashKind::PositionChangeAfterReveal,
             FlashSource::Client,
             true
         )
     );
-    assert!((e.at_ms_after_reveal - 30.0).abs() < 0.01);
+    assert!((e.lead_ms - 30.0).abs() < 0.01);
 }
 
 /// A trace with no UNCLOAK has no reveal to compare with: nothing is checked and the basis says so.
@@ -438,6 +449,7 @@ fn test_no_uncloak_means_nothing_was_checked() {
         trace_events: &ev,
         client_events: &[],
         anchor: None,
+        params: Default::default(),
     });
     assert!(!info.flash);
     assert_eq!(info.flash_basis, Some(FlashBasis::None));
@@ -500,41 +512,139 @@ fn test_anchor_intersects_brackets_and_refuses_disagreement() {
     assert!(ClockAnchor::from_samples(&[], &[1.0]).is_err());
 }
 
-/// A paint 10 ms after the reveal is counted (the order is what defines a flash) but its text
-/// says it is under one 60 Hz frame (16.7 ms) and may not have reached the screen; one 25 ms
-/// after the reveal carries no such note.
-#[test]
-fn test_paint_inside_one_frame_is_counted_but_annotated() {
+/// The numeric flash check at `refresh_hz` and `threshold_ms` for a fixture that painted 400x300
+/// at +10 ms and 800x600 `lead` ms after the reveal (+70 ms); the clock anchor is +-1.005 ms.
+fn lead_run(
+    lead: f64,
+    refresh_hz: f64,
+    threshold_ms: f64,
+) -> spawn_at_verify::trace::flash::FlashInfo {
+    use spawn_at_verify::trace::flash::FlashParams;
     let ev = x11_lying_trace();
-    let a = anchor(1.0);
-    let run = |paint_ms: f64| {
-        let c = parse_client_events(
-            &[
-                client_line(10.0, "FIRST_PAINT", "400x300"),
-                client_line(paint_ms, "FIRST_PAINT", "800x600"),
-            ]
-            .join("\n"),
-        );
-        detect_flash(&FlashInputs {
-            trace_events: &ev,
-            client_events: &c,
-            anchor: Some(&a),
-        })
-    };
-    let quick = run(80.0);
-    assert!(quick.flash);
-    assert!(
-        quick.flash_events[0]
-            .detail
-            .contains("less than one 60 Hz frame after the reveal"),
-        "{}",
-        quick.flash_events[0].detail
+    let c = parse_client_events(
+        &[
+            client_line(10.0, "FIRST_PAINT", "400x300"),
+            client_line(70.0 + lead, "FIRST_PAINT", "800x600"),
+        ]
+        .join("\n"),
     );
-    let slow = run(95.0);
-    assert!(slow.flash);
+    let a = anchor(1.0);
+    detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &c,
+        anchor: Some(&a),
+        params: FlashParams {
+            refresh_hz,
+            threshold_ms,
+        },
+    })
+}
+
+/// Lead above, at and below the frame period (50 Hz = exactly 20 ms): the headline flash is the
+/// same numeric yes for all three; only the label differs. Above: certain, probability 1. At the
+/// period: certain (>=), probability 1. Below: possible with probability lead / frame.
+#[test]
+fn test_visibility_label_above_at_and_below_the_frame_period() {
+    use spawn_at_verify::trace::flash::Visibility;
+    for (lead, label, prob, certain, possible) in [
+        (30.0, Visibility::Certain, 1.0, 1, 0),
+        (20.0, Visibility::Certain, 1.0, 1, 0),
+        (5.0, Visibility::Possible, 0.25, 0, 1),
+    ] {
+        let info = lead_run(lead, 50.0, 0.0);
+        assert!(info.flash, "lead {}: {:?}", lead, info.flash_events);
+        assert_eq!(
+            (info.flash_certain, info.flash_possible),
+            (certain, possible),
+            "lead {}",
+            lead
+        );
+        let e = &info.flash_events[0];
+        assert!(e.numeric);
+        assert_eq!(e.visibility, Some(label), "lead {}", lead);
+        assert!(
+            (e.visible_probability - prob).abs() < 1e-6,
+            "lead {}: {}",
+            lead,
+            e.visible_probability
+        );
+        assert_eq!((info.refresh_hz, info.frame_ms), (Some(50.0), Some(20.0)));
+        assert!((info.visible_probability.unwrap() - prob).abs() < 1e-6);
+    }
+}
+
+/// Leads at or below the clock uncertainty (half-width 1.005 ms) are listed but not counted: 0.5
+/// ms is inside it, 1.5 ms is outside. The headline is false, both counts are 0, and the event
+/// carries its lead and a label but is not numeric.
+#[test]
+fn test_lead_inside_the_clock_uncertainty_is_listed_not_counted() {
+    let inside = lead_run(0.5, 60.0, 0.0);
+    assert!(!inside.flash);
+    assert_eq!((inside.flash_certain, inside.flash_possible), (0, 0));
+    assert_eq!(inside.flash_events.len(), 1);
+    assert!(!inside.flash_events[0].numeric);
+    assert_eq!(inside.visible_probability, None);
+    let outside = lead_run(1.5, 60.0, 0.0);
+    assert!(outside.flash);
+    assert_eq!(outside.flash_possible, 1);
+}
+
+/// `--flash-threshold-ms` raises the floor: a 5 ms lead is a flash at a floor of 4.9 and is not at
+/// 5.0 (the lead must be above it) or 8.0; it stays listed.
+#[test]
+fn test_flash_threshold_raises_the_floor() {
+    assert!(lead_run(5.0, 60.0, 4.9).flash);
+    for floor in [5.0, 8.0] {
+        let info = lead_run(5.0, 60.0, floor);
+        assert!(!info.flash, "floor {}", floor);
+        assert_eq!(info.flash_events.len(), 1);
+        assert!(!info.flash_events[0].numeric);
+    }
+}
+
+/// The same 10 ms late paint on a 60 Hz and a 144 Hz screen: the headline is identical (one
+/// numeric flash, lead 10 ms); the label is "possible, 60%" at 60 Hz (frame 16.7 ms) and
+/// "certain" at 144 Hz (frame 6.9 ms).
+#[test]
+fn test_same_lead_on_60_and_144_hz() {
+    use spawn_at_verify::trace::flash::Visibility;
+    let slow = lead_run(10.0, 60.0, 0.0);
+    let fast = lead_run(10.0, 144.0, 0.0);
+    assert!(slow.flash && fast.flash);
+    assert_eq!(slow.flash_events[0].lead_ms, fast.flash_events[0].lead_ms);
+    assert_eq!(slow.flash_events[0].visibility, Some(Visibility::Possible));
+    assert!((slow.flash_events[0].visible_probability - 0.6).abs() < 1e-6);
+    assert_eq!(fast.flash_events[0].visibility, Some(Visibility::Certain));
+    assert_eq!(fast.flash_events[0].visible_probability, 1.0);
+    assert!((fast.frame_ms.unwrap() - 1000.0 / 144.0).abs() < 1e-9);
+}
+
+/// Two numeric events in one run (paints 400x300 -> 500x400 at +5 ms and -> 800x600 at +10 ms
+/// after the reveal, 60 Hz): the run is seen if either is, 1 - (1 - 0.3)(1 - 0.6) = 0.72.
+#[test]
+fn test_run_probability_combines_events() {
+    use spawn_at_verify::trace::flash::FlashParams;
+    let ev = x11_lying_trace();
+    let c = parse_client_events(
+        &[
+            client_line(10.0, "FIRST_PAINT", "400x300"),
+            client_line(75.0, "FIRST_PAINT", "500x400"),
+            client_line(80.0, "FIRST_PAINT", "800x600"),
+        ]
+        .join("\n"),
+    );
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &c,
+        anchor: Some(&a),
+        params: FlashParams::default(),
+    });
+    assert_eq!(info.flash_events.len(), 2);
+    assert_eq!((info.flash_certain, info.flash_possible), (0, 2));
     assert!(
-        !slow.flash_events[0].detail.contains("60 Hz"),
-        "{}",
-        slow.flash_events[0].detail
+        (info.visible_probability.unwrap() - 0.72).abs() < 1e-3,
+        "{:?}",
+        info.visible_probability
     );
 }

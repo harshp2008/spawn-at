@@ -42,6 +42,16 @@ pub struct EnvironmentFingerprint {
     /// CPUs available to the run, the basis of the busy-machine warning.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cpu_count: Option<usize>,
+    /// Display refresh rate the flash visibility labels were computed for (60 when it could not
+    /// be read; see `refresh_source`). Absent in older recordings.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_hz: Option<f64>,
+    /// One frame period in milliseconds at `refresh_hz`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frame_ms: Option<f64>,
+    /// Where the refresh rate came from, or why 60 Hz was assumed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_source: Option<String>,
 }
 
 impl EnvironmentFingerprint {

@@ -51,11 +51,23 @@ fn client_text(paint_ms: u64) -> String {
 /// flash on the client's evidence; at +40 ms it is not.
 #[test]
 fn test_evaluate_ties_slice_fixture_text_and_brackets_together() {
-    let late = evaluate(Some(&slice()), Some(77), &client_text(95), &brackets());
+    let late = evaluate(
+        Some(&slice()),
+        Some(77),
+        &client_text(95),
+        &brackets(),
+        Default::default(),
+    );
     assert!(late.flash, "{:?}", late.flash_events);
     assert_eq!(late.flash_basis, Some(FlashBasis::Client));
-    assert!((late.flash_events[0].at_ms_after_reveal - 25.0).abs() < 0.1);
-    let early = evaluate(Some(&slice()), Some(77), &client_text(40), &brackets());
+    assert!((late.flash_events[0].lead_ms - 25.0).abs() < 0.1);
+    let early = evaluate(
+        Some(&slice()),
+        Some(77),
+        &client_text(40),
+        &brackets(),
+        Default::default(),
+    );
     assert!(!early.flash, "{:?}", early.flash_events);
     assert_eq!(early.flash_basis, Some(FlashBasis::Client));
 }
@@ -69,7 +81,13 @@ fn test_evaluate_without_a_usable_anchor_says_why() {
         after_ns: T0_NS + 901_000_000,
     }];
     let two = [far[0], far[0]];
-    let info = evaluate(Some(&slice()), Some(77), &client_text(95), &two);
+    let info = evaluate(
+        Some(&slice()),
+        Some(77),
+        &client_text(95),
+        &two,
+        Default::default(),
+    );
     assert!(!info.flash);
     assert_eq!(info.flash_basis, Some(FlashBasis::ExtensionOnly));
     assert!(
@@ -85,10 +103,13 @@ fn test_evaluate_without_a_usable_anchor_says_why() {
 #[test]
 fn test_evaluate_needs_a_window_and_a_slice() {
     assert_eq!(
-        evaluate(Some(&slice()), None, "", &[]),
+        evaluate(Some(&slice()), None, "", &[], Default::default()),
         FlashInfo::default()
     );
-    assert_eq!(evaluate(None, Some(77), "", &[]), FlashInfo::default());
+    assert_eq!(
+        evaluate(None, Some(77), "", &[], Default::default()),
+        FlashInfo::default()
+    );
 }
 
 /// The reveal is placed at the middle of the anchor interval plus its +70 ms; a missing UNCLOAK
@@ -114,8 +135,10 @@ fn flashing() -> FlashInfo {
         flash_events: vec![FlashEvent {
             kind: FlashKind::PaintAfterReveal,
             source: FlashSource::Client,
-            at_ms_after_reveal: 25.0,
-            certain: true,
+            lead_ms: 25.0,
+            numeric: true,
+            visibility: None,
+            visible_probability: 0.0,
             detail: "first paint at 800x600 came 25.0 ms after the reveal".into(),
         }],
         flash_basis: Some(FlashBasis::Client),
@@ -256,4 +279,25 @@ never_visible_off_target = false
     assert!(!wants_flash_capture(&spec("gedit", "spawn", 0)));
     assert!(!wants_flash_capture(&spec("fixture", "query", 0)));
     assert!(!wants_flash_capture(&spec("fixture", "spawn", 2)));
+}
+
+/// `--strict-flash` acts on the numeric flash, not on visibility: a run whose only event is a
+/// sub-frame (possible) flash fails, and a run with no numeric flash passes even though an
+/// uncounted event is listed.
+#[test]
+fn test_strict_flash_follows_the_numeric_flash_not_visibility() {
+    let mut possible = flashing();
+    possible.flash_possible = 1;
+    possible.flash_events[0].lead_ms = 3.0;
+    possible.flash_events[0].visibility = Some(crate::trace::flash::Visibility::Possible);
+    possible.flash_events[0].visible_probability = 0.18;
+    let (s, _) = apply_flash_policy(AutoStatus::AutoPass, "ok".into(), &possible, true);
+    assert_eq!(s, AutoStatus::AutoFail);
+
+    let mut listed_only = possible.clone();
+    listed_only.flash = false;
+    listed_only.flash_possible = 0;
+    listed_only.flash_events[0].numeric = false;
+    let (s, m) = apply_flash_policy(AutoStatus::AutoPass, "ok".into(), &listed_only, true);
+    assert_eq!((s, m.as_str()), (AutoStatus::AutoPass, "ok"));
 }

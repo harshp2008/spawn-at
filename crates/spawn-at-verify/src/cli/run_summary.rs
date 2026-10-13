@@ -45,6 +45,9 @@ pub struct RunSummary {
     /// Ids of tests that passed on placement and flashed: "PASS (flash)". They are counted in
     /// `passed` too; `--strict-flash` makes them failures instead, and they are then in `failed`.
     pub flashed: Vec<String>,
+    /// How many of `flashed` have at least one flash whose lead is a full frame period or more
+    /// on this screen; the rest are only possible (a sub-frame lead).
+    pub flashed_certain: usize,
 }
 
 impl RunSummary {
@@ -55,6 +58,9 @@ impl RunSummary {
         for r in results {
             if r.is_flash_pass() {
                 s.flashed.push(r.id.clone());
+                if r.flash_info.flash_certain > 0 {
+                    s.flashed_certain += 1;
+                }
             }
             match r.final_status {
                 FinalStatus::Pass => s.passed += 1,
@@ -99,6 +105,11 @@ impl RunSummary {
                 self.flashed.len(),
                 self.passed,
                 self.flashed.join(", ")
+                    + &format!(
+                        " [{} certain, {} possible on this screen]",
+                        self.flashed_certain,
+                        self.flashed.len() - self.flashed_certain
+                    )
             ));
         }
         for (what, required, optional) in [

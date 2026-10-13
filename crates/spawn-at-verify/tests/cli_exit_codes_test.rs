@@ -56,3 +56,15 @@ fn test_run_help_documents_strict_flash() {
         .unwrap();
     assert!(!String::from_utf8_lossy(&list.stdout).contains("--strict-flash"));
 }
+
+/// `run --help` lists `--flash-threshold-ms`, which defaults to 0.
+#[test]
+fn test_run_help_documents_flash_threshold() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("--flash-threshold-ms"), "{}", text);
+    assert!(text.contains("[default: 0]"), "{}", text);
+}

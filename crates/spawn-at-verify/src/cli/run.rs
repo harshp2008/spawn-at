@@ -90,6 +90,7 @@ pub fn handle_run(args: RunArgs) {
             filter,
             include_titles: args.include_titles,
             strict_flash: args.strict_flash,
+            flash_threshold_ms: args.flash_threshold_ms,
             ..Default::default()
         },
     );

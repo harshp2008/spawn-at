@@ -8,7 +8,7 @@ use crate::ext_logging::LoggingControl;
 use crate::schema::TestDefinition;
 use crate::trace::flash::{
     detect_flash, echo_times_ms, monotonic_ns, parse_client_events, ClockAnchor, FlashInfo,
-    FlashInputs, MonoBracket, ANCHOR_SAMPLES, POST_REVEAL_WATCH_MS,
+    FlashInputs, FlashParams, MonoBracket, ANCHOR_SAMPLES, POST_REVEAL_WATCH_MS,
 };
 use crate::trace::{TraceAnalyser, TraceEvent};
 use std::os::unix::fs::DirBuilderExt;
@@ -179,6 +179,7 @@ pub fn evaluate(
     window: Option<u64>,
     client_text: &str,
     brackets: &[MonoBracket],
+    params: FlashParams,
 ) -> FlashInfo {
     let (Some(slice), Some(window)) = (slice, window) else {
         return FlashInfo::default();
@@ -201,6 +202,7 @@ pub fn evaluate(
         trace_events: &events,
         client_events: &client,
         anchor: anchor.as_ref(),
+        params,
     });
     notes.append(&mut info.flash_notes);
     info.flash_notes = notes;
@@ -273,7 +275,22 @@ impl TestRunner {
             _ => String::new(),
         };
         let brackets: &[MonoBracket] = capture.map(|c| c.brackets.as_slice()).unwrap_or(&[]);
-        let info = evaluate(slice.as_deref(), Some(window), &client_text, brackets);
+        let refresh = crate::display::refresh();
+        let params = FlashParams {
+            refresh_hz: refresh.hz,
+            threshold_ms: self.options.flash_threshold_ms,
+        };
+        let mut info = evaluate(
+            slice.as_deref(),
+            Some(window),
+            &client_text,
+            brackets,
+            params,
+        );
+        if refresh.assumed && info.flash_basis.is_some() {
+            info.flash_notes
+                .push(format!("refresh rate not read: {}", refresh.source));
+        }
         (info, slice)
     }
 }

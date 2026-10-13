@@ -2,6 +2,7 @@
 
 use super::models::*;
 use crate::runner::TestResult;
+use crate::trace::flash::Visibility;
 
 /// Formats the markdown report.
 pub fn render_markdown_report(report: &SessionReport) -> String {
@@ -38,7 +39,7 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
          - **Required Tests Passed:** {}\n\
          - **Required Tests Failed:** {}\n\
          - **Required Tests Skipped:** {}\n\
-         - **Tests Passed With Flash:** {}\n\n",
+         - **Tests Passed With Flash:** {} ({} with a certain flash, {} with only possible ones; display {})\n\n",
         env.hostname,
         env.session_type,
         env.desktop,
@@ -54,7 +55,21 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         qual.passed_required,
         qual.failed_required,
         qual.skipped_required.len(),
-        report.results.iter().filter(|r| r.is_flash_pass()).count()
+        report.results.iter().filter(|r| r.is_flash_pass()).count(),
+        report
+            .results
+            .iter()
+            .filter(|r| r.is_flash_pass() && r.flash_info.flash_certain > 0)
+            .count(),
+        report
+            .results
+            .iter()
+            .filter(|r| r.is_flash_pass() && r.flash_info.flash_certain == 0)
+            .count(),
+        match (env.refresh_hz, &env.refresh_source) {
+            (Some(hz), Some(src)) => format!("{:.0} Hz, {}", hz, src),
+            _ => "refresh rate not recorded".to_string(),
+        }
     );
 
     if !qual.skipped_required.is_empty() {
@@ -166,15 +181,22 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
     let mut add_flash = |id: String, r: &TestResult| {
         for e in &r.flash_info.flash_events {
             flash_rows.push(format!(
-                "| `{}` | {:?} | {:?} | {:.1} | {} | {} |\n",
+                "| `{}` | {:?} | {:?} | {:.1} | {} | {} | {} |\n",
                 id,
                 e.kind,
                 e.source,
-                e.at_ms_after_reveal,
-                if e.certain {
+                e.lead_ms,
+                if e.numeric {
                     "yes"
                 } else {
-                    "no (inside clock uncertainty)"
+                    "no (not above the uncertainty or threshold)"
+                },
+                match (e.numeric, e.visibility) {
+                    (false, _) | (_, None) => "-".to_string(),
+                    (true, Some(Visibility::Certain)) => "certain".to_string(),
+                    (true, Some(Visibility::Possible)) => {
+                        format!("possible ({:.0}%)", e.visible_probability * 100.0)
+                    }
                 },
                 e.detail
             ));
@@ -191,7 +213,7 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
     if !flash_rows.is_empty() {
         md.push_str("## 6. Flash\n\n");
         md.push_str(
-            "| Test | Kind | Source | ms after reveal | Counted | Detail |\n| :--- | :--- | :--- | ---: | :--- | :--- |\n",
+            "| Test | Kind | Source | Lead (ms) | Counted | Visible on this screen | Detail |\n| :--- | :--- | :--- | ---: | :--- | :--- | :--- |\n",
         );
         for row in &flash_rows {
             md.push_str(row);

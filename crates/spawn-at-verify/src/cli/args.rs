@@ -127,6 +127,11 @@ pub struct RunArgs {
     /// Without it such a test is reported as PASS (flash) and the exit code is unchanged
     #[arg(long)]
     pub strict_flash: bool,
+
+    /// Raise the floor under which a late paint is not counted as a flash, in milliseconds. The
+    /// floor is never lower than the measured clock uncertainty (about 2 ms)
+    #[arg(long, default_value_t = 0.0)]
+    pub flash_threshold_ms: f64,
 }
 
 /// Arguments for the `list` subcommand.

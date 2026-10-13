@@ -33,18 +33,38 @@ pub const GEOMETRY_TOLERANCE_PX: u32 = 2;
 /// Number of bracketed `SetLogging(true)` calls made per run to anchor the extension's clock.
 pub const ANCHOR_SAMPLES: usize = 4;
 
-/// One refresh interval at 60 Hz. The compositor shows the revealed window at its next frame,
-/// which can be this long after `UNCLOAK`, so a paint that lands sooner may share that frame and
-/// never be seen. The flash definition does not use it (the event is counted all the same); it
-/// only adds a note to the event.
-pub const FRAME_60HZ_MS: f64 = 1000.0 / 60.0;
+/// Refresh rate assumed when the display's own cannot be read.
+pub const DEFAULT_REFRESH_HZ: f64 = 60.0;
 
-/// Text appended to a paint event that came less than one 60 Hz frame after the reveal.
-fn frame_note(after_reveal_ms: f64) -> &'static str {
-    if after_reveal_ms < FRAME_60HZ_MS {
-        " (less than one 60 Hz frame after the reveal: it may not have reached the screen)"
-    } else {
-        ""
+/// Per-screen and per-run settings of the flash check.
+///
+/// Whether a run is a flash does not depend on them except `threshold_ms`: lateness is a number
+/// that is the same on every screen. `frame_ms` only labels how likely the user is to have seen
+/// it: the compositor shows the revealed window at its next frame, up to one frame period after
+/// `UNCLOAK`, so a paint that lands within that period may share the frame and never be seen.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct FlashParams {
+    /// Display refresh rate in Hz the visibility label is computed for.
+    pub refresh_hz: f64,
+    /// Lowest lead in milliseconds that counts as a flash, on top of the clock uncertainty
+    /// (`--flash-threshold-ms`); 0 leaves only the uncertainty floor.
+    pub threshold_ms: f64,
+}
+
+impl Default for FlashParams {
+    /// 60 Hz and no extra threshold.
+    fn default() -> Self {
+        Self {
+            refresh_hz: DEFAULT_REFRESH_HZ,
+            threshold_ms: 0.0,
+        }
+    }
+}
+
+impl FlashParams {
+    /// One frame period in milliseconds.
+    pub fn frame_ms(&self) -> f64 {
+        1000.0 / self.refresh_hz
     }
 }
 
@@ -265,13 +285,29 @@ pub struct FlashEvent {
     /// Where it was read from.
     pub source: FlashSource,
     /// Milliseconds after the reveal, taken at the middle of the clock anchor's interval; an
-    /// uncertain event can be slightly negative.
-    pub at_ms_after_reveal: f64,
-    /// False when the clock anchor's uncertainty is larger than the margin to the reveal, so the
-    /// order could not be established. Such an event is listed but does not make the run a flash.
-    pub certain: bool,
+    /// event inside the uncertainty can be slightly negative.
+    pub lead_ms: f64,
+    /// True when the lead is above the clock uncertainty and the `--flash-threshold-ms` floor:
+    /// the event is a flash on every screen. Other events are listed but not counted.
+    pub numeric: bool,
+    /// Per-screen label: `certain` when the lead is at least one frame period (a frame was
+    /// drawn between the reveal and the paint), `possible` when it is shorter.
+    pub visibility: Option<Visibility>,
+    /// Probability that a frame was drawn in between, `min(1, lead / frame_ms)`, taking the
+    /// reveal to fall at a random point of the frame period (HYPOTHESIS: it is not measured).
+    pub visible_probability: f64,
     /// One line describing the change, with the values.
     pub detail: String,
+}
+
+/// How likely a numeric flash is to have been on screen, for the display's refresh rate.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Visibility {
+    /// The lead is at least one frame period.
+    Certain,
+    /// The lead is shorter than one frame period.
+    Possible,
 }
 
 /// What evidence the flash check had for a run.
@@ -291,9 +327,23 @@ pub enum FlashBasis {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct FlashInfo {
-    /// True when at least one certain flash event was found.
+    /// True when at least one numeric flash event was found (screen-independent).
     pub flash: bool,
-    /// Every flash event found, certain or not.
+    /// Numeric events whose lead is at least one frame period.
+    pub flash_certain: usize,
+    /// Numeric events whose lead is shorter than one frame period.
+    pub flash_possible: usize,
+    /// Display refresh rate the labels were computed for (60 when it could not be read).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub refresh_hz: Option<f64>,
+    /// One frame period in milliseconds at `refresh_hz`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame_ms: Option<f64>,
+    /// Probability that the run showed at least one of its numeric events,
+    /// `1 - prod(1 - p)`; absent when there is none.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub visible_probability: Option<f64>,
+    /// Every flash event found, numeric or not.
     pub flash_events: Vec<FlashEvent>,
     /// What evidence the check had; absent when the check did not run for this test.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -307,12 +357,12 @@ pub struct FlashInfo {
 }
 
 impl FlashInfo {
-    /// One-line description of the certain events, for result messages.
+    /// One-line description of the numeric events, for result messages.
     pub fn summary(&self) -> String {
         let certain: Vec<&str> = self
             .flash_events
             .iter()
-            .filter(|e| e.certain)
+            .filter(|e| e.numeric)
             .map(|e| e.detail.as_str())
             .collect();
         certain.join("; ")
@@ -327,6 +377,8 @@ pub struct FlashInputs<'a> {
     pub client_events: &'a [ClientEvent],
     /// Origin of the extension's clock on the monotonic clock, when one could be built.
     pub anchor: Option<&'a ClockAnchor>,
+    /// Refresh rate for the visibility label and the threshold floor.
+    pub params: FlashParams,
 }
 
 /// Where a client event falls against the reveal.
@@ -418,8 +470,11 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
             info.flash_events.push(FlashEvent {
                 kind: FlashKind::PositionChangeAfterReveal,
                 source: FlashSource::Extension,
-                at_ms_after_reveal: at,
-                certain: true,
+                lead_ms: at,
+                // The extension's own clock has no uncertainty; only the floor applies.
+                numeric: at > inp.params.threshold_ms,
+                visibility: None,
+                visible_probability: 0.0,
                 detail,
             });
         }
@@ -438,11 +493,39 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
             } else {
                 revealed_pos
             },
+            inp.params.threshold_ms,
             &mut info,
         );
     }
-    info.flash = info.flash_events.iter().any(|e| e.certain);
+    label_visibility(&mut info, inp.params);
     info
+}
+
+/// Fills in the per-screen labels and the counts. The headline `flash` is the numeric count
+/// being above zero and does not look at the frame period.
+fn label_visibility(info: &mut FlashInfo, params: FlashParams) {
+    let frame_ms = params.frame_ms();
+    info.refresh_hz = Some(params.refresh_hz);
+    info.frame_ms = Some(frame_ms);
+    let mut none_seen = 1.0;
+    for e in &mut info.flash_events {
+        e.visible_probability = (e.lead_ms / frame_ms).clamp(0.0, 1.0);
+        e.visibility = Some(if e.lead_ms >= frame_ms {
+            Visibility::Certain
+        } else {
+            Visibility::Possible
+        });
+        if e.numeric {
+            none_seen *= 1.0 - e.visible_probability;
+            if e.visibility == Some(Visibility::Certain) {
+                info.flash_certain += 1;
+            } else {
+                info.flash_possible += 1;
+            }
+        }
+    }
+    info.flash = info.flash_certain + info.flash_possible > 0;
+    info.visible_probability = info.flash.then_some(1.0 - none_seen);
 }
 
 /// Adds the flash events the fixture's own timeline shows, relative to the reveal at `reveal_ms`
@@ -453,6 +536,7 @@ fn client_flashes(
     anchor: &ClockAnchor,
     reveal_ms: f64,
     revealed_pos: Option<(i32, i32)>,
+    threshold_ms: f64,
     info: &mut FlashInfo,
 ) {
     let (r_lo, r_hi) = anchor.mono_range(reveal_ms);
@@ -510,9 +594,11 @@ fn client_flashes(
         info.flash_events.push(FlashEvent {
             kind,
             source: FlashSource::Client,
-            at_ms_after_reveal: at,
-            certain: matches!(r, Rel::After),
-            detail: format!("{}{}", detail, frame_note(at)),
+            lead_ms: at,
+            numeric: matches!(r, Rel::After) && at > threshold_ms,
+            visibility: None,
+            visible_probability: 0.0,
+            detail,
         });
         shown = Some(sz);
     }
@@ -535,8 +621,10 @@ fn client_flashes(
             info.flash_events.push(FlashEvent {
                 kind: FlashKind::PositionChangeAfterReveal,
                 source: FlashSource::Client,
-                at_ms_after_reveal: after_ms(t_ns),
-                certain: matches!(r, Rel::After),
+                lead_ms: after_ms(t_ns),
+                numeric: matches!(r, Rel::After) && after_ms(t_ns) > threshold_ms,
+                visibility: None,
+                visible_probability: 0.0,
                 detail: format!(
                     "position {},{} -> {},{} reported {:.1} ms after the reveal",
                     rev.0,

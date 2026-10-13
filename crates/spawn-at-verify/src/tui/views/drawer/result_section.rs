@@ -533,7 +533,7 @@ fn flash_verdict() -> (Vec<Span<'static>>, String) {
 /// (an event inside the clock uncertainty is marked "?" and does not make the run a flash) and
 /// one per limitation. Nothing is added for a result that never had the check.
 fn push_flash_rows(builder: &mut DrawerBuilder, r: &TestResult) {
-    use crate::trace::flash::FlashBasis;
+    use crate::trace::flash::{FlashBasis, Visibility};
     let f = &r.flash_info;
     let Some(basis) = f.flash_basis else {
         return;
@@ -549,11 +549,15 @@ fn push_flash_rows(builder: &mut DrawerBuilder, r: &TestResult) {
         }
         (FlashBasis::None, _) => "not checked (no UNCLOAK in the trace)".into(),
     };
-    let (head, head_color) = if f.flash {
-        ("flash", FLASH)
+    let head: String = if f.flash {
+        format!(
+            "flash ({} certain, {} possible)",
+            f.flash_certain, f.flash_possible
+        )
     } else {
-        ("none seen", grey)
+        "none seen".into()
     };
+    let head_color = if f.flash { FLASH } else { grey };
     builder.push_kv(
         "Flash",
         vec![
@@ -565,7 +569,7 @@ fn push_flash_rows(builder: &mut DrawerBuilder, r: &TestResult) {
                 },
                 Style::default().fg(FLASH).add_modifier(Modifier::BOLD),
             ),
-            Span::styled(head, Style::default().fg(head_color)),
+            Span::styled(head.clone(), Style::default().fg(head_color)),
             Span::styled(format!(", {}", basis_text), Style::default().fg(grey)),
         ],
         &format!(
@@ -580,15 +584,25 @@ fn push_flash_rows(builder: &mut DrawerBuilder, r: &TestResult) {
         ),
     );
     for e in &f.flash_events {
-        let (mark, color) = if e.certain {
+        let (mark, color) = if e.numeric {
             (FLASH_SYMBOL, FLASH)
         } else {
             ("?", Color::Yellow)
         };
-        let tail = if e.certain {
-            ""
+        let tail = if !e.numeric {
+            " (not above the clock uncertainty or --flash-threshold-ms: not counted)".to_string()
         } else {
-            " (inside the clock uncertainty: not counted)"
+            match e.visibility {
+                Some(Visibility::Certain) => format!(
+                    " [visible: certain, lead >= {:.1} ms frame]",
+                    f.frame_ms.unwrap_or(0.0)
+                ),
+                _ => format!(
+                    " [visible: possible, {:.0}% at {:.0} Hz]",
+                    e.visible_probability * 100.0,
+                    f.refresh_hz.unwrap_or(0.0)
+                ),
+            }
         };
         let text = format!("{}{}", e.detail, tail);
         builder.push_kv(

@@ -453,25 +453,33 @@ fn flashing_result(id: &str) -> TestResult {
     let mut r = run_result(id, r#"{"window_id":77,"x":1,"y":2,"w":3,"h":4}"#, 5);
     r.flash_info = FlashInfo {
         flash: true,
+        flash_certain: 1,
+        refresh_hz: Some(60.0),
+        frame_ms: Some(1000.0 / 60.0),
         flash_events: vec![
             FlashEvent {
                 kind: FlashKind::PaintAfterReveal,
                 source: FlashSource::Client,
-                at_ms_after_reveal: 25.0,
-                certain: true,
+                lead_ms: 25.0,
+                numeric: true,
+                visibility: Some(crate::trace::flash::Visibility::Certain),
+                visible_probability: 1.0,
                 detail: "first paint at 800x600 came 25.0 ms after the reveal".into(),
             },
             FlashEvent {
                 kind: FlashKind::SizeChangeAfterReveal,
                 source: FlashSource::Client,
-                at_ms_after_reveal: 3.0,
-                certain: false,
+                lead_ms: 3.0,
+                numeric: false,
+                visibility: None,
+                visible_probability: 0.0,
                 detail: "size 400x300 -> 800x600 3.0 ms after the reveal".into(),
             },
         ],
         flash_basis: Some(FlashBasis::Client),
         flash_notes: vec![],
         flash_clock_uncertainty_ms: Some(1.2),
+        ..Default::default()
     };
     r
 }
@@ -489,12 +497,19 @@ fn test_json_has_flash_and_flash_events_at_the_result_level() {
     assert_eq!(results[0]["flash"], true);
     assert_eq!(results[0]["flash_basis"], "client");
     assert_eq!(results[0]["flash_clock_uncertainty_ms"], 1.2);
+    assert_eq!(results[0]["flash_certain"], 1);
+    assert_eq!(results[0]["flash_possible"], 0);
+    assert_eq!(results[0]["refresh_hz"], 60.0);
+    assert!((results[0]["frame_ms"].as_f64().unwrap() - 16.6667).abs() < 1e-3);
+    assert_eq!(results[0]["flash_events"][0]["lead_ms"], 25.0);
+    assert_eq!(results[0]["flash_events"][0]["visible_probability"], 1.0);
+    assert_eq!(results[0]["flash_events"][0]["visibility"], "certain");
     let events = results[0]["flash_events"].as_array().unwrap();
     assert_eq!(events.len(), 2);
     assert_eq!(events[0]["kind"], "paint-after-reveal");
     assert_eq!(events[0]["source"], "client");
-    assert_eq!(events[0]["certain"], true);
-    assert_eq!(events[1]["certain"], false);
+    assert_eq!(events[0]["numeric"], true);
+    assert_eq!(events[1]["numeric"], false);
     assert_eq!(results[1]["flash"], false);
     assert_eq!(results[1]["flash_events"], serde_json::json!([]));
     assert!(results[1].get("flash_basis").is_none());
@@ -523,16 +538,16 @@ fn test_markdown_lists_flash_events_and_counts_the_pass_with_flash() {
     let clean = run_result("t/clean", "", 5);
     let md = render_markdown_report(&report_with_runs(&[flashed, clean], &[]));
     assert!(md.contains("**`Pass (flash)`**"), "{}", md);
-    assert!(md.contains("**Tests Passed With Flash:** 1"), "{}", md);
+    assert!(md.contains("**Tests Passed With Flash:** 1 (1 with a certain flash, 0 with only possible ones; display "), "{}", md);
     assert!(md.contains("## 6. Flash"), "{}", md);
     assert!(
-        md.contains("| `t/flash` | PaintAfterReveal | Client | 25.0 | yes | first paint at 800x600 came 25.0 ms after the reveal |"),
+        md.contains("| `t/flash` | PaintAfterReveal | Client | 25.0 | yes | certain | first paint at 800x600 came 25.0 ms after the reveal |"),
         "{}",
         md
     );
     assert!(
         md.contains(
-            "| `t/flash` | SizeChangeAfterReveal | Client | 3.0 | no (inside clock uncertainty) |"
+            "| `t/flash` | SizeChangeAfterReveal | Client | 3.0 | no (not above the uncertainty or threshold) | - |"
         ),
         "{}",
         md
