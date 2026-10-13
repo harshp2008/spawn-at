@@ -425,3 +425,38 @@ Implemented exactly the contract of 2.2 and 4.3 for the native Wayland strategy,
 **Evidence the two builds agree:** both run the 20 scripts, with expectations derived by hand from the rules before either ran them (they matched on the first run of the Rust machine; the JS port also matched on its first run). Mutation check of the JS port (temporary, restored, file byte-identical): changing the late-input comparison `>` to `>=` fails scripts 04 and 10c; changing the hard-limit test `>=` to `>` fails 12, 13, 14 and two mirrored unit cases. Counts: core 34 (was 23), node 101 (was 70); the verify counts did not change (352 / 338 / 236).
 
 **Not covered by these tests:** that the real extension feeds the machine the right samples (`size-changed`, not `allocation`), a real Mutter, and any app other than the scripted ones. Those are the wiring step's tests (section 5).
+
+## 9. Status: wired into the modern extension, the CLI and the JSON (2026-10-13)
+
+Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = not run. **Nothing in this section was run in a GNOME Shell.** The extension changes take effect only after the user reinstalls the extension and logs out and in; real Mutter sample timing is unmeasured.
+
+| Step | Commit | What |
+| :--- | :--- | :--- |
+| 1 | `94d9c3c` | `commit.js` `CommitLatch.waitForReady` runs `ReadyWait` on the window **frame** size (one read at the request plus one per `size-changed`; `notify::allocation` is not connected), the helper's `nowMs()` clock and timers (one for the machine's deadline, one for the hard limit). `extension.js` `_stepWaitForCommit` picks the strategy per window: native Wayland (`get_client_type()` is `WAYLAND`) with a size request uses the machine, target = the requested size after the existing floor clamp (`ctx.safeW/safeH`); X11, XWayland, unknown, and a request without a size run `waitForCommit` unchanged and log `strategy=legacy`. Skipped when `allows_resize()` is false (feature-detected with `typeof`; a window without the method counts as resizable), fullscreen, or tiled. The cloak watchdog (6000 ms), the late-resize pass and the one-second corrector are untouched |
+| 2a | `5ad4023` | `ProtocolVersion` 6; D-Bus signal `ResizeOutcome(target_id s, outcome s, final_w u, final_h u, waited_ms u, reason s)`, emitted in `_reveal` just before `SpawnClaimed`, only when the machine ran |
+| 2b | `082b1f0` | CLI subscribes to `ResizeOutcome` when the extension reports protocol >= 6 and attaches the newest outcome for the claimed target to `ClaimResult.resize`; `--json` gains `resize` (`spawn-at-core/src/resize_report.rs`). Exit codes and stderr text unchanged |
+| 2c | `65c011b` | section 2.3, D5 and S3 of this document |
+| 3 | `993e673`, `1a255f4` | Rust and node tests |
+
+**Log tags (CONFIRMED, `tests/ready_wait_wiring_test.js`).** `READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(WxH) current=(WxH) cap=150 quiet=30 hard=1500`; `READY_WAIT_RESOLVED strategy=ready-wait outcome=<reached|adjusted|timed-out|skipped> elapsed_ms=.. waited_ms=.. reason=<at-target|quiet|cap|hard|not-resizable|fullscreen|tiled> finalFrame=.. target=..`. Legacy: `READY_WAIT_START strategy=legacy kind=<X11|XWayland|NativeWayland|unknown> why=<not-native-wayland|no-size-request> timeoutMs=..` and `READY_WAIT_RESOLVED strategy=legacy outcome=none elapsed_ms=.. reason=<AT_TARGET|SIZE_SETTLED|TIMEOUT_NO_CHANGE|HARD_CAP>`. `COMMIT_SAMPLE` is still written (sources `initial` and `size-changed` on the new path) and `COMMIT_RESOLVED` is still written once per wait, with `reason` `AT_TARGET`, `SIZE_SETTLED`, `TIMEOUT_NO_CHANGE`, `HARD_CAP`, and `SKIPPED` for a skipped wait (new). The verify analyser reads only the tag names (`CLOAK`, `COMMIT_RESOLVED`, ...), so it was not changed (CONFIRMED (source), `trace/phases.rs`, `trace/analyser.rs`).
+
+**Differences from the design text (CONFIRMED (source)).**
+1. The strategy tag is `strategy=legacy` for all non-native-Wayland windows, not `legacy-x11` (S2); the window kind is a separate `kind=` field.
+2. Transport: a typed `ResizeOutcome` signal instead of the `SpawnClaimed.error` overload (section 2.3, D5).
+3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (150 / 30 / 1500); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
+4. No new stderr lines (section 2.3 allowed them); only the JSON `resize` object is new. `settle_window_geometry` on the CLI side is unchanged (D7: kept).
+5. A skipped wait reports the frame size at the end of the wait as `final` and `waited_ms` 0.
+6. The legacy extension tree (GNOME 42-44) has no wiring and stays at protocol 5. Because the modern D-Bus XML now has a signal the legacy XML lacks, both XML parity tests (`legacy_dispatcher_test.js`, `gnome/mod.rs`) compare the legacy XML with the modern XML minus `ResizeOutcome`. The legacy tree is byte-identical to before.
+7. `outcome.waited_ms` in the signal is the machine's number (the deadline that fired), not the wall time; `elapsed_ms` in the log is wall time on `nowMs()`.
+
+**Tests (CONFIRMED, run).**
+- Node, `tests/ready_wait_wiring_test.js` (33): the 20 golden scripts through `CommitLatch.waitForReady` on a virtual clock (outcomes equal the scripts' `expect`; no handler survives; a skipped or already-satisfied request connects none); 13 scenarios through the real `_runBatch` with a mock window: fast (reached at 20 ms), slow (120 ms), refusing (TimedOut at 150 ms, placed at 400x300), adjusted (494x292, quiet, placed for 494x292), restless (hard limit at 1500 ms and the batch still reveals), not resizable, fullscreen and tiled (Skipped), allocation not connected, feature detection by presence, X11 and XWayland (legacy, no `ResizeOutcome`, allocation still watched), no size request, unknown window kind. The signal order `ResizeOutcome` before `SpawnClaimed` is asserted.
+- Mutation check (temporary, restored): routing every window to the machine fails 3 tests; not disconnecting `size-changed` fails 16.
+- Rust: 4 `resize_report` unit tests; 3 `--json` tests (shape, no `resize` key when absent, older output parses); 3 claim tests against stub services on the real session bus with two connections (protocol 6 attaches the outcome and ignores another target's; protocol 6 without an outcome returns at once; protocol 5 has none). The protocol 6 claim test passed 40 of 40 repeated runs (ordering of the two signals across two streams on an idle machine).
+
+**Not verified.**
+- Real Mutter: whether `size-changed` on a real native Wayland window arrives with the frame size the app committed, and how late under load. The sample source was changed from the allocation to the frame size on the strength of TEST_PLAN 6.12; the effect on the 15 of 20 flashing runs at 22 threads (6.17) is **unmeasured**.
+- Tiled detection: `get_tile_match` is in the Meta-14 typelib (CONFIRMED by `strings`), but whether it is non-null for a window tiled alone, and whether `tile_mode` exists, was not run (HYPOTHESIS). A tiled window that is not detected just waits to the cap.
+- `allows_resize()` on the fixture and on real apps; GNOME 45, 47, 48; the legacy tree.
+- That the CLI sees `ResizeOutcome` before the claim when GNOME Shell is the sender and the machine is loaded (HYPOTHESIS; the stub test covers ordering on an idle machine only).
+- The cloak now stays up to 150 ms longer for a refusing app and up to 1500 ms for a restless one (risk 3 of 6.1); its effect on the cloak numbers was not measured.
