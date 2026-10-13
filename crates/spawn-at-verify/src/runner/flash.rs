@@ -10,6 +10,7 @@ use crate::trace::flash::{
     detect_flash, echo_times_ms, monotonic_ns, parse_client_events, ClockAnchor, FlashInfo,
     FlashInputs, FlashParams, MonoBracket, ANCHOR_SAMPLES, POST_REVEAL_WATCH_MS,
 };
+use crate::trace::wire::parse_wire_paints;
 use crate::trace::{TraceAnalyser, TraceEvent};
 use std::os::unix::fs::DirBuilderExt;
 use std::path::PathBuf;
@@ -19,6 +20,10 @@ use std::time::{Duration, SystemTime};
 
 /// Environment variable naming the directory the fixture writes `fixture-<pid>.events` into.
 pub const EVENT_DIR_ENV: &str = "SPAWN_AT_FIXTURE_EVENT_DIR";
+
+/// Environment variable that makes the fixture write `fixture-<pid>.log` with the Wayland protocol
+/// dump (`WAYLAND_DEBUG=client`) into the named directory; set unless `run --no-wire-paint`.
+pub const TRACE_DIR_ENV: &str = "SPAWN_AT_FIXTURE_TRACE_DIR";
 
 /// Longest the run waits for the reveal to show up in the log before it gives up and judges
 /// without a watch window (the log is written from an idle callback, a little after the event).
@@ -37,17 +42,20 @@ static DIR_SEQ: AtomicUsize = AtomicUsize::new(0);
 /// the fixture writes its events into, and the bracketed `SetLogging` calls made before the action.
 /// The directory is removed when this is dropped.
 pub struct FlashCapture {
-    /// Directory named by [`EVENT_DIR_ENV`] for this run.
+    /// Directory named by [`EVENT_DIR_ENV`] (and [`TRACE_DIR_ENV`] with `wire`) for this run.
     dir: PathBuf,
     /// Monotonic brackets of the anchor calls, oldest first.
     pub brackets: Vec<MonoBracket>,
+    /// Whether the fixture also writes the protocol dump into `dir`.
+    wire: bool,
 }
 
 impl FlashCapture {
     /// Makes the event directory and sends [`ANCHOR_SAMPLES`] bracketed `SetLogging(true)` calls.
     /// `None` when the logging control cannot bracket calls (no GNOME extension) or the directory
-    /// cannot be created: the run is then judged on the extension's log alone.
-    pub fn start(logging: &dyn LoggingControl) -> Option<FlashCapture> {
+    /// cannot be created: the run is then judged on the extension's log alone. `wire` asks the
+    /// fixture for the protocol dump too (on unless `run --no-wire-paint`).
+    pub fn start(logging: &dyn LoggingControl, wire: bool) -> Option<FlashCapture> {
         let brackets = logging.anchor_brackets(ANCHOR_SAMPLES);
         if brackets.is_empty() {
             return None;
@@ -58,12 +66,32 @@ impl FlashCapture {
             DIR_SEQ.fetch_add(1, Ordering::SeqCst)
         ));
         std::fs::DirBuilder::new().mode(0o700).create(&dir).ok()?;
-        Some(FlashCapture { dir, brackets })
+        Some(FlashCapture {
+            dir,
+            brackets,
+            wire,
+        })
     }
 
     /// Makes the spawned command (and the fixture it starts) write its events into this run's directory.
     pub fn apply(&self, cmd: &mut Command) {
         cmd.env(EVENT_DIR_ENV, &self.dir);
+        if self.wire {
+            cmd.env(TRACE_DIR_ENV, &self.dir);
+        }
+    }
+
+    /// The text of the fixture's trace file `fixture-<pid>.log` (its own lines and the protocol
+    /// dump) when the dump was asked for and the file exists, else nothing. Unlike the event
+    /// file there is no fallback to "the only file": a run without a known pid is not guessed.
+    pub fn read_wire(&self, pid: Option<u64>) -> String {
+        match (self.wire, pid) {
+            (true, Some(pid)) => {
+                std::fs::read_to_string(self.dir.join(format!("fixture-{}.log", pid)))
+                    .unwrap_or_default()
+            }
+            _ => String::new(),
+        }
     }
 
     /// The text of the fixture's event file: `fixture-<pid>.events` for `pid` when it exists,
@@ -172,12 +200,16 @@ pub fn reveal_mono_ns(slice: &str, window: u64, brackets: &[MonoBracket]) -> Rev
     }
 }
 
-/// Combines the extension's log slice, the fixture's event text and the anchor brackets into the
-/// run's [`FlashInfo`]. Without a `window` nothing can be attributed and the check is not run.
+/// Combines the extension's log slice, the fixture's event text, the fixture's protocol-dump text
+/// (`None` when the run did not ask for one) and the anchor brackets into the run's [`FlashInfo`].
+/// Without a `window` nothing can be attributed and the check is not run. A dump that was asked
+/// for but yields no commit leaves the verdict on the fixture's stamps and says so in
+/// `flash_notes`.
 pub fn evaluate(
     slice: Option<&str>,
     window: Option<u64>,
     client_text: &str,
+    wire_text: Option<&str>,
     brackets: &[MonoBracket],
     params: FlashParams,
 ) -> FlashInfo {
@@ -186,7 +218,15 @@ pub fn evaluate(
     };
     let events = window_events(slice, window);
     let client = parse_client_events(client_text);
+    let wire = wire_text.map(parse_wire_paints).unwrap_or_default();
     let mut notes = Vec::new();
+    if wire_text.is_some() && wire.is_empty() {
+        notes.push(
+            "no wire paint times (the protocol dump has no commit or no TRACE_START): \
+             paint times are the fixture's stamps"
+                .to_string(),
+        );
+    }
     let anchor = if brackets.is_empty() {
         None
     } else {
@@ -201,6 +241,7 @@ pub fn evaluate(
     let mut info = detect_flash(&FlashInputs {
         trace_events: &events,
         client_events: &client,
+        wire_paints: &wire,
         anchor: anchor.as_ref(),
         params,
     });
@@ -274,6 +315,10 @@ impl TestRunner {
             (Some(cap), Some(s)) => cap.read_events(window_pid(s, window)),
             _ => String::new(),
         };
+        let wire_text = match (capture, slice.as_deref()) {
+            (Some(cap), Some(s)) if cap.wire => Some(cap.read_wire(window_pid(s, window))),
+            _ => None,
+        };
         let brackets: &[MonoBracket] = capture.map(|c| c.brackets.as_slice()).unwrap_or(&[]);
         let refresh = crate::display::refresh();
         let params = FlashParams {
@@ -284,6 +329,7 @@ impl TestRunner {
             slice.as_deref(),
             Some(window),
             &client_text,
+            wire_text.as_deref(),
             brackets,
             params,
         );

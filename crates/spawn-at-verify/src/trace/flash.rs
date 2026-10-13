@@ -12,6 +12,11 @@
 //!   [`GEOMETRY_TOLERANCE_PX`], within [`POST_REVEAL_WATCH_MS`].
 //!
 //! Size is judged on the fixture's paints, because a paint is the moment the content changes.
+//! A paint time is the client's `wl_surface.commit` of the buffer when the run has the fixture's
+//! protocol dump ([`super::wire`]; on by default, `run --no-wire-paint` turns it off), else the
+//! fixture's `FIRST_PAINT` stamp, which is written after `present()` returns and can lag the
+//! commit when the fixture thread is not scheduled (TEST_PLAN 6.20). `paint_source` says which
+//! one the verdict used.
 //! The toolkit's `Resized` and `Moved` events are times at which it *delivered* the news, which
 //! lag the window manager's change, so they are logged but never taken as the time of one;
 //! position is judged by the last position the client reports against the one the extension
@@ -22,6 +27,7 @@
 //! reads; the comparison is only counted when it holds for every origin the anchor allows.
 
 use super::models::TraceEvent;
+use super::wire::WirePaint;
 use serde::{Deserialize, Serialize};
 
 /// How long after the reveal a size or position change still counts as a flash.
@@ -354,6 +360,37 @@ pub struct FlashInfo {
     /// Half-width of the clock anchor in milliseconds, when one was built.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flash_clock_uncertainty_ms: Option<f64>,
+    /// Where the paint times of the verdict came from; absent when the run had no paints.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paint_source: Option<PaintSource>,
+    /// Size of the last paint (the final size) the two paint times below refer to.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paint_size: Option<(u32, u32)>,
+    /// Milliseconds after the reveal (middle of the clock anchor) of the client's first commit at
+    /// the final size, from the protocol dump; absent without a dump.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paint_wire_ms: Option<f64>,
+    /// Milliseconds after the reveal of the fixture's `FIRST_PAINT` stamp for the same size.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paint_stamp_ms: Option<f64>,
+    /// Stamp minus wire commit in milliseconds: how late the fixture's own stamp was.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paint_stamp_lag_ms: Option<f64>,
+    /// Whether the run would have been a flash on the fixture's stamps alone; written only when
+    /// the verdict used the wire times, so both verdicts can be compared.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flash_by_stamp: Option<bool>,
+}
+
+/// Which clock reading stands for "the client painted" in a run's verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PaintSource {
+    /// The client's `wl_surface.commit` of the buffer, from the protocol dump.
+    Wire,
+    /// The fixture's `FIRST_PAINT` stamp (written after `present()` returned): the fallback when
+    /// there is no dump.
+    Stamp,
 }
 
 impl FlashInfo {
@@ -375,6 +412,10 @@ pub struct FlashInputs<'a> {
     pub trace_events: &'a [TraceEvent],
     /// The fixture's events, ordered by time; empty when the fixture wrote none.
     pub client_events: &'a [ClientEvent],
+    /// The client's commits at each new buffer size from the protocol dump
+    /// ([`super::wire::parse_wire_paints`]); empty without a dump. When present they replace the
+    /// fixture's `FIRST_PAINT` stamps as the paint times.
+    pub wire_paints: &'a [WirePaint],
     /// Origin of the extension's clock on the monotonic clock, when one could be built.
     pub anchor: Option<&'a ClockAnchor>,
     /// Refresh rate for the visibility label and the threshold floor.
@@ -433,7 +474,9 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
     let reveal_ms = inp.trace_events[unc_idx].elapsed_ms;
     let revealed_pos = inp.trace_events[unc_idx].frame.map(|f| (f.x, f.y));
 
-    let client_usable = match (inp.client_events.is_empty(), inp.anchor) {
+    // A run that has a protocol dump but no fixture event file is still judged on the dump.
+    let no_client = inp.client_events.is_empty() && inp.wire_paints.is_empty();
+    let client_usable = match (no_client, inp.anchor) {
         (false, Some(_)) => true,
         (true, _) => {
             info.flash_notes.push(
@@ -482,20 +525,84 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
 
     if let (true, Some(anchor)) = (client_usable, inp.anchor) {
         info.flash_clock_uncertainty_ms = Some(anchor.half_width_ms());
+        // The extension's correction already names the move; the client's position is only
+        // consulted when there is none.
+        let pos_check = if correction.is_some() {
+            None
+        } else {
+            revealed_pos
+        };
+        let by_extension = info.flash_events.clone();
+        let use_wire = !inp.wire_paints.is_empty();
+        let judged = if use_wire {
+            with_wire_paints(inp.client_events, inp.wire_paints)
+        } else {
+            inp.client_events.to_vec()
+        };
         client_flashes(
-            inp.client_events,
+            &judged,
             anchor,
             reveal_ms,
-            // The extension's correction already names the move; the client's position is only
-            // consulted when there is none.
-            if correction.is_some() {
-                None
-            } else {
-                revealed_pos
-            },
+            pos_check,
             inp.params.threshold_ms,
+            use_wire,
             &mut info,
         );
+        let has_stamps = inp
+            .client_events
+            .iter()
+            .any(|e| matches!(e.kind, ClientEventKind::FirstPaint { .. }));
+        info.paint_source = match (use_wire, has_stamps) {
+            (true, _) => Some(PaintSource::Wire),
+            (false, true) => Some(PaintSource::Stamp),
+            (false, false) => None,
+        };
+        let r_mid = {
+            let (lo, hi) = anchor.mono_range(reveal_ms);
+            (lo + hi) / 2.0
+        };
+        let ms = |t_ns: u64| (t_ns as f64 - r_mid) / 1e6;
+        let last_of = |events: &[ClientEvent], near: Option<(u32, u32)>| {
+            events.iter().rev().find_map(|e| match e.kind {
+                ClientEventKind::FirstPaint { w, h }
+                    if near.map_or(true, |n| same_size(n, (w, h))) =>
+                {
+                    Some(((w, h), e.t_ns))
+                }
+                _ => None,
+            })
+        };
+        if use_wire {
+            // The final size is the size of the last commit; the stamp for it is the newest stamp
+            // of the same size, so the two times describe the same paint.
+            if let Some(last) = inp.wire_paints.last() {
+                info.paint_size = Some((last.w, last.h));
+                info.paint_wire_ms = Some(ms(last.t_ns));
+                if let Some((_, t)) = last_of(inp.client_events, Some((last.w, last.h))) {
+                    info.paint_stamp_ms = Some(ms(t));
+                    info.paint_stamp_lag_ms = Some(ms(t) - ms(last.t_ns));
+                }
+            }
+            // The verdict the fixture's stamps alone would have given, for comparison.
+            let mut alt = FlashInfo {
+                flash_events: by_extension,
+                ..FlashInfo::default()
+            };
+            client_flashes(
+                inp.client_events,
+                anchor,
+                reveal_ms,
+                pos_check,
+                inp.params.threshold_ms,
+                false,
+                &mut alt,
+            );
+            label_visibility(&mut alt, inp.params);
+            info.flash_by_stamp = Some(alt.flash);
+        } else if let Some((sz, t)) = last_of(inp.client_events, None) {
+            info.paint_size = Some(sz);
+            info.paint_stamp_ms = Some(ms(t));
+        }
     }
     label_visibility(&mut info, inp.params);
     info
@@ -528,17 +635,36 @@ fn label_visibility(info: &mut FlashInfo, params: FlashParams) {
     info.visible_probability = info.flash.then_some(1.0 - none_seen);
 }
 
+/// `client` with its `FIRST_PAINT` stamps replaced by the commits in `wire`, ordered by time;
+/// `Resized` and `Moved` events are kept.
+fn with_wire_paints(client: &[ClientEvent], wire: &[WirePaint]) -> Vec<ClientEvent> {
+    let mut out: Vec<ClientEvent> = client
+        .iter()
+        .filter(|e| !matches!(e.kind, ClientEventKind::FirstPaint { .. }))
+        .copied()
+        .collect();
+    out.extend(wire.iter().map(|p| ClientEvent {
+        t_ns: p.t_ns,
+        kind: ClientEventKind::FirstPaint { w: p.w, h: p.h },
+    }));
+    out.sort_by_key(|e| e.t_ns);
+    out
+}
+
 /// Adds the flash events the fixture's own timeline shows, relative to the reveal at `reveal_ms`
 /// on the extension's clock. `revealed_pos` is the window position the extension logged at the
-/// reveal, or `None` to skip the position check.
+/// reveal, or `None` to skip the position check. `wire` says the `FirstPaint` events are commits
+/// read from the protocol dump rather than the fixture's stamps; the event text then says so.
 fn client_flashes(
     client: &[ClientEvent],
     anchor: &ClockAnchor,
     reveal_ms: f64,
     revealed_pos: Option<(i32, i32)>,
     threshold_ms: f64,
+    wire: bool,
     info: &mut FlashInfo,
 ) {
+    let how = if wire { " (wire commit)" } else { "" };
     let (r_lo, r_hi) = anchor.mono_range(reveal_ms);
     let r_mid = (r_lo + r_hi) / 2.0;
     let rel = |t_ns: u64| {
@@ -578,16 +704,16 @@ fn client_flashes(
             None => (
                 FlashKind::PaintAfterReveal,
                 format!(
-                    "first paint at {}x{} came {:.1} ms after the reveal (nothing was painted at the reveal)",
-                    sz.0, sz.1, at
+                    "first paint at {}x{}{} came {:.1} ms after the reveal (nothing was painted at the reveal)",
+                    sz.0, sz.1, how, at
                 ),
             ),
             Some(cur) if same_size(sz, cur) => continue,
             Some(cur) => (
                 FlashKind::SizeChangeAfterReveal,
                 format!(
-                    "first paint at {}x{} came {:.1} ms after the reveal (content was {}x{})",
-                    sz.0, sz.1, at, cur.0, cur.1
+                    "first paint at {}x{}{} came {:.1} ms after the reveal (content was {}x{})",
+                    sz.0, sz.1, how, at, cur.0, cur.1
                 ),
             ),
         };

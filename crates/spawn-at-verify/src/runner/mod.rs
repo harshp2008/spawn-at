@@ -12,6 +12,8 @@ mod flash_tests;
 mod tests;
 #[cfg(test)]
 mod trace_capture_tests;
+#[cfg(test)]
+mod wire_paint_tests;
 
 pub use engine::TestRunner;
 pub use models::{

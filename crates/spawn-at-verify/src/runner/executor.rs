@@ -203,7 +203,7 @@ impl TestRunner {
         // for the fixture's own paint events; both are for the flash check and, like the
         // enable above, are not part of the run's duration.
         let flash_capture = if trace_note.is_none() && wants_flash_capture(test) {
-            FlashCapture::start(&*self.logging)
+            FlashCapture::start(&*self.logging, self.options.wire_paint)
         } else {
             None
         };

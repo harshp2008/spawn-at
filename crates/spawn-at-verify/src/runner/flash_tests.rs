@@ -55,6 +55,7 @@ fn test_evaluate_ties_slice_fixture_text_and_brackets_together() {
         Some(&slice()),
         Some(77),
         &client_text(95),
+        None,
         &brackets(),
         Default::default(),
     );
@@ -65,6 +66,7 @@ fn test_evaluate_ties_slice_fixture_text_and_brackets_together() {
         Some(&slice()),
         Some(77),
         &client_text(40),
+        None,
         &brackets(),
         Default::default(),
     );
@@ -85,6 +87,7 @@ fn test_evaluate_without_a_usable_anchor_says_why() {
         Some(&slice()),
         Some(77),
         &client_text(95),
+        None,
         &two,
         Default::default(),
     );
@@ -103,11 +106,11 @@ fn test_evaluate_without_a_usable_anchor_says_why() {
 #[test]
 fn test_evaluate_needs_a_window_and_a_slice() {
     assert_eq!(
-        evaluate(Some(&slice()), None, "", &[], Default::default()),
+        evaluate(Some(&slice()), None, "", None, &[], Default::default()),
         FlashInfo::default()
     );
     assert_eq!(
-        evaluate(None, Some(77), "", &[], Default::default()),
+        evaluate(None, Some(77), "", None, &[], Default::default()),
         FlashInfo::default()
     );
 }
@@ -196,7 +199,7 @@ fn test_strict_flash_fails_a_flashing_pass_only() {
 fn test_capture_directory_is_private_read_by_pid_and_removed() {
     let ext = FakeExtension::new(true, &[]);
     ext.set_brackets(brackets());
-    let cap = FlashCapture::start(&ext).expect("brackets were provided");
+    let cap = FlashCapture::start(&ext, false).expect("brackets were provided");
     let mut cmd = Command::new("/bin/true");
     cap.apply(&mut cmd);
     let dir = cmd
@@ -234,7 +237,7 @@ fn test_capture_directory_is_private_read_by_pid_and_removed() {
 #[test]
 fn test_no_brackets_means_no_capture() {
     let ext = FakeExtension::new(true, &[]);
-    assert!(FlashCapture::start(&ext).is_none());
+    assert!(FlashCapture::start(&ext, false).is_none());
 }
 
 /// Only a fixture spawn that is expected to start gets a capture.

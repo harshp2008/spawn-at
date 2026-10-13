@@ -133,6 +133,16 @@ pub struct RunArgs {
     #[arg(long, default_value_t = 0.0)]
     pub flash_threshold_ms: f64,
 
+    /// Do not run the fixture with the Wayland protocol dump. By default the paint time of the
+    /// flash check is the client's `wl_surface.commit` read from that dump; with this flag it is
+    /// the fixture's own `FIRST_PAINT` stamp, which is written after the commit returns and can
+    /// be late when the fixture is not scheduled. The verdict, the visibility labels and
+    /// `--strict-flash` use the commit time when there is one; the report says which source was
+    /// used (`paint_source`, `paint_wire_ms`, `paint_stamp_ms`, `flash_by_stamp`). The dump
+    /// writes the fixture's stderr into a trace file, so the fixture's own messages are not shown
+    #[arg(long)]
+    pub no_wire_paint: bool,
+
     /// For same-login A/B runs: pass `--wait-strategy <auto|legacy|ready-wait>` to every `spawn`
     /// action (`legacy` is the original 30 ms rule, also for native Wayland). The value is passed
     /// as typed and judged by `spawn-at`; the rule each run really used is recorded in

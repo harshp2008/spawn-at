@@ -87,6 +87,7 @@ fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -119,6 +120,7 @@ fn test_x11_lying_frame_rect_is_invisible_to_the_extension_only_check() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &[],
+        wire_paints: &[],
         anchor: None,
         params: Default::default(),
     });
@@ -176,6 +178,7 @@ fn test_paint_before_reveal_is_not_a_flash() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -223,6 +226,7 @@ fn test_top_left_in_place_shrink_after_reveal_is_a_size_flash() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -252,6 +256,7 @@ fn test_first_paint_after_reveal_without_a_size_change_is_a_flash() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -271,6 +276,7 @@ fn test_order_inside_the_clock_uncertainty_is_listed_but_not_counted() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -290,6 +296,7 @@ fn test_tolerance_and_watch_window() {
         detect_flash(&FlashInputs {
             trace_events: &ev,
             client_events: &c,
+            wire_paints: &[],
             anchor: Some(&a),
             params: Default::default(),
         })
@@ -327,6 +334,7 @@ fn test_extension_only_position_correction_after_reveal() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &[],
+        wire_paints: &[],
         anchor: None,
         params: Default::default(),
     });
@@ -363,6 +371,7 @@ fn test_extension_correction_is_listed_once_not_doubled_by_the_client_move() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -393,6 +402,7 @@ fn test_late_moved_report_of_a_move_before_the_reveal_is_not_a_flash() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &client,
+        wire_paints: &[],
         anchor: Some(&a),
         params: Default::default(),
     });
@@ -414,6 +424,7 @@ fn test_only_the_final_client_position_decides_a_move_after_the_reveal() {
         detect_flash(&FlashInputs {
             trace_events: &ev,
             client_events: &client,
+            wire_paints: &[],
             anchor: Some(&a),
             params: Default::default(),
         })
@@ -448,6 +459,7 @@ fn test_no_uncloak_means_nothing_was_checked() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &[],
+        wire_paints: &[],
         anchor: None,
         params: Default::default(),
     });
@@ -532,6 +544,7 @@ fn lead_run(
     detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &c,
+        wire_paints: &[],
         anchor: Some(&a),
         params: FlashParams {
             refresh_hz,
@@ -637,6 +650,7 @@ fn test_run_probability_combines_events() {
     let info = detect_flash(&FlashInputs {
         trace_events: &ev,
         client_events: &c,
+        wire_paints: &[],
         anchor: Some(&a),
         params: FlashParams::default(),
     });

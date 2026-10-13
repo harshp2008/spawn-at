@@ -628,3 +628,41 @@ fn test_json_wait_fields_with_and_without_an_override() {
     let back: SessionReport = serde_json::from_value(old).unwrap();
     assert_eq!(back.results[0].wait_info, WaitInfo::default());
 }
+
+/// The paint fields are written next to the other flash fields as `paint_source` ("wire" or
+/// "stamp"), `paint_size` as `[w, h]`, `paint_wire_ms`, `paint_stamp_ms`, `paint_stamp_lag_ms`
+/// and `flash_by_stamp`, round-trip, and are absent for a run without paints.
+#[test]
+fn test_json_carries_the_paint_source_and_both_paint_times() {
+    use crate::trace::flash::PaintSource;
+    let mut r = flashing_result("t/wire");
+    r.flash_info.paint_source = Some(PaintSource::Wire);
+    r.flash_info.paint_size = Some((800, 600));
+    r.flash_info.paint_wire_ms = Some(-10.0);
+    r.flash_info.paint_stamp_ms = Some(25.0);
+    r.flash_info.paint_stamp_lag_ms = Some(35.0);
+    r.flash_info.flash_by_stamp = Some(true);
+    let clean = run_result("t/clean", "", 5);
+    let report = report_with_runs(&[r, clean], &[]);
+    let value = serde_json::to_value(&report).unwrap();
+    let results = value["results"].as_array().unwrap();
+    assert_eq!(results[0]["paint_source"], "wire");
+    assert_eq!(results[0]["paint_size"], serde_json::json!([800, 600]));
+    assert_eq!(results[0]["paint_wire_ms"], -10.0);
+    assert_eq!(results[0]["paint_stamp_ms"], 25.0);
+    assert_eq!(results[0]["paint_stamp_lag_ms"], 35.0);
+    assert_eq!(results[0]["flash_by_stamp"], true);
+    for key in [
+        "paint_source",
+        "paint_size",
+        "paint_wire_ms",
+        "flash_by_stamp",
+    ] {
+        assert!(
+            results[1].get(key).is_none(),
+            "{key} written for a run without paints"
+        );
+    }
+    let round: SessionReport = serde_json::from_value(value).unwrap();
+    assert_eq!(round.results[0].flash_info, report.results[0].flash_info);
+}

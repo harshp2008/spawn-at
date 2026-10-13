@@ -343,6 +343,12 @@ pub struct RunOptions {
     /// Lowest lead in milliseconds that counts as a flash, on top of the clock uncertainty
     /// (`--flash-threshold-ms`).
     pub flash_threshold_ms: f64,
+    /// Take paint times from the fixture's Wayland protocol dump: the fixture is started with
+    /// `SPAWN_AT_FIXTURE_TRACE_DIR`, which redirects its stderr into a trace file and runs
+    /// libwayland's client dump. On by default (`--no-wire-paint` turns it off; TEST_PLAN 6.21:
+    /// no measurable cost at idle or under load); without it the fixture's own `FIRST_PAINT`
+    /// stamps are the paint times.
+    pub wire_paint: bool,
     /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
     /// empty by default, which adds nothing to the command line.
     pub wait: crate::trace::wait::WaitRequest,
@@ -362,6 +368,7 @@ impl Default for RunOptions {
             test_timeout: std::time::Duration::from_secs(10),
             strict_flash: false,
             flash_threshold_ms: 0.0,
+            wire_paint: true,
             wait: Default::default(),
         }
     }

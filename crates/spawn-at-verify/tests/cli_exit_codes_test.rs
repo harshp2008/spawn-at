@@ -116,3 +116,22 @@ fn test_run_wait_options_become_the_runner_request() {
     assert_eq!(typo.strategy.as_deref(), Some("legcy"));
     assert_eq!(typo.cap_ms.as_deref(), Some("x"));
 }
+
+/// `run --help` lists `--no-wire-paint` (the wire paint time is the default) and `list --help`
+/// does not take it.
+#[test]
+fn test_run_help_documents_no_wire_paint() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("--no-wire-paint"), "{}", text);
+    assert!(text.contains("wl_surface.commit"), "{}", text);
+    assert!(!text.contains("--wire-paint"), "{}", text);
+    let list = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["list", "--help"])
+        .output()
+        .unwrap();
+    assert!(!String::from_utf8_lossy(&list.stdout).contains("wire-paint"));
+}
