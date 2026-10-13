@@ -1939,3 +1939,33 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. F
 **Phase 2, smoke (CONFIRMED).** Direct `spawn-at spawn --json --wait-strategy x11-hold-damage` of the fixture, idle, `SetLogging(true)` for the run only.
 - **XWayland fixture, `larger` (400x300 to 800x600):** `READY_WAIT_OVERRIDE strategy=x11-hold-damage cap_ms=none unused=none ignored=none`; `READY_WAIT_START strategy=x11-hold-damage kind=XWayland target=(800x600) cap=250 hard=1500 reveal_on_damaged=2`; `X11_HOLD_DAMAGED n=1 ignored=true since_start_ms=11.4`; `X11_HOLD_DAMAGED n=2 ignored=false since_start_ms=45.1`; `COMMIT_RESOLVED reason=X11_HOLD_SECOND_DAMAGED finalFrame=(800x600)`; **`READY_WAIT_RESOLVED strategy=x11-hold-damage outcome=reached elapsed_ms=45.2 waited_ms=45 reason=x11-second-damaged damaged_seen=2`**; reveal 13.9 ms later (`UNCLOAK_4D_REVEAL`). A `damaged` did arrive while the window was cloaked, and both `damaged` lines show the frame still at the old position (50,90): the move to the final position came after the wait.
 - **Native Wayland fixture, same flag:** `READY_WAIT_OVERRIDE ... unused=strategy(x11-hold-damage:not-x11)`, then the normal `READY_WAIT_START strategy=ready-wait kind=NativeWayland ... cap=250`, `COMMIT_RESOLVED reason=AT_TARGET`, `READY_WAIT_RESOLVED strategy=ready-wait outcome=reached ... reason=at-target`. 0 `X11_HOLD` and 0 `X11_OBS` lines in the journal of the run.
+
+**Phase 3, A/B on the XWayland fixture (CONFIRMED data; verdict: not usable as a ready signal).** Arm **A** = `--wait-strategy legacy`, arm **H** = `--wait-strategy x11-hold-damage`; direct `spawn-at spawn --json` of the fixture with `--protocol x11`, `SPAWN_AT_FIXTURE_EVENT_DIR` set, arms rotated per iteration and spec order alternating, 3.2 s apart, one login. 20 runs per spec per arm idle (80 runs), then the same under 22 `xtask burn-cpu` threads after a 70 s warm-up (80 runs; load average 18.0 after the warm-up, 23.7 at the end). All 160 runs exit 0 and have their window; burn PID gone and `pgrep -cx xtask`/`fixture` 0 afterwards. Times are ms after the `set_size` mark S. **Final paint = the LAST fixture `FIRST_PAINT` at the target size (6.23).** "Flash" = reveal before that stamp (the stamp can be late by up to about 19 ms under load, 6.23), so "clearly early" counts reveals more than 19 ms before it. Cloak = `UNCLOAK` minus `CLOAK` log stamps.
+
+| Cell (20 runs) | Arm | H label distribution | Reveal minus final paint, median (min to max) | Flashes (reveal before paint) | of which clearly early | Cloak median / p95 / max |
+| :-- | :-: | :-- | :-- | :-: | :-: | :-- |
+| idle smaller | A | - | +26.1 (+9.9 to +35.3) | 0 | 0 | 32.0 / 33.5 / 39.4 |
+| idle smaller | H | second-damaged 20 | +40.3 (+28.7 to +49.5) | 0 | 0 | 45.5 / 51.2 / 59.5 |
+| idle larger | A | - | +6.9 (-5.3 to +13.6) | **3** | 0 | 30.2 / 34.2 / 34.4 |
+| idle larger | H | second-damaged 20 | +26.0 (+12.1 to +42.0) | **0** | 0 | 48.1 / 54.6 / 63.7 |
+| loaded smaller | A | - | -41.7 (-676.9 to +5.5) | **17** | 16 | 25.9 / 35.1 / 227.1 |
+| loaded smaller | H | second-damaged 20 | +8.0 (-42.0 to +36.3) | **6** | 1 | 53.2 / 75.7 / 107.0 |
+| loaded larger | A | - | -147.9 (-322.2 to -60.1) | **20** | 20 | 28.3 / 38.5 / 62.5 |
+| loaded larger | H | second-damaged 19, cap 1 | -123.9 (-223.2 to +10.1) | **18** | 18 | 66.2 / 219.6 / 262.4 |
+
+No H run ended on `x11-hard`, `x11-unmanaged` or `x11-no-damaged-signal` (the `damaged` signal exists: 160 of 160). The only cap run (loaded larger, run 1) saw no `damaged` at all during its 262 ms, then the first one at 277.9 ms: the shell itself was stalled.
+
+**Did the second `damaged` come after the client's final paint, or is it another shell-side event? (CONFIRMED: shell-side.)**
+
+| Cell | H ended on the 2nd damaged | After the client's final paint / before it | t2 minus final paint, median (min to max) | t1 / t2 ms after S, median | Runs with no 2nd damaged |
+| :-- | :-: | :-: | :-- | :-: | :-: |
+| idle smaller | 20 | 20 / 0 | +26.4 (+12.9 to +35.2) | 3.7 / 30.6 | 0 |
+| idle larger | 20 | 20 / 0 | +10.8 (+2.2 to +19.8) | 5.2 / 33.6 | 0 |
+| loaded smaller | 20 | 7 / **13** | -4.8 (-53.3 to +23.1) | 15.4 / 38.1 | 0 |
+| loaded larger | 19 | 2 / **17** (all more than 19 ms before) | -128.4 (-195.2 to +6.0) | 20.7 / 56.2 | 1 (cap) |
+
+- The second `damaged` arrives at about 30 to 34 ms after S idle in **both** specs, although the client paints at 4.3 ms (smaller) and 20.8 ms (larger): it is not tied to the client's paint (a paint-driven event would follow the stamp by a constant few ms, 6.23 saw 0.2 to 8 ms for the visible window; here it follows it by 26 and 11 ms). Under load it comes before the client has painted in 30 of 39 runs, by up to 195 ms. Its correlation with the paint time under load (Pearson r 0.94 and 0.80) comes from a few stalls that delay the shell and the client together, not from the paint driving it (HYPOTHESIS for that reading).
+- **A cloaked window does get `damaged`** (CONFIRMED: at least 2 in 159 of 160... in 79 of 80 H runs during the hold). This contradicts the 6.25 reading "a cloaked window may get none"; the events are there but they are not the client's.
+- What H did buy is a longer, fixed-looking cloak: +13 to +18 ms idle and +27 to +38 ms median under load (p95 up to 220 ms), which cuts loaded `smaller` flashes from 17 to 6 of 20 and loaded `larger` from 20 to 18 of 20, and idle `larger` from 3 to 0 of 20. That is a delay, not a readiness signal (HYPOTHESIS: a fixed 40 to 50 ms hold would give about the same; not run).
+
+**Verdict: not usable** as a ready signal for XWayland/X11. What would change it: a second `damaged` (or any shell signal) that tracks the client's commit, e.g. one that follows the stamp by a near-constant lag in loaded runs; or a client-side signal (the X sync counter, still untried). Open: a fixed-hold control arm, and real X11 clients (the fixture is cooperative).
