@@ -176,6 +176,12 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
         "validator.js",
         include_str!("../../../../assets/gnome/modern/validator.js"),
     ),
+    // Not imported by extension.js yet: shipped only because the guard test below requires the
+    // list to equal the directory. Inert until the ready-wait machine is wired in.
+    (
+        "ready_wait.js",
+        include_str!("../../../../assets/gnome/modern/ready_wait.js"),
+    ),
     (
         "metadata.json",
         include_str!("../../../../assets/gnome/modern/metadata.json"),
