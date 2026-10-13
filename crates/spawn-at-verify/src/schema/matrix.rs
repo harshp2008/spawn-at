@@ -162,6 +162,7 @@ pub const VALID_CATEGORIES: &[&str] = &[
     "queries",
     "robustness",
     "platform",
+    "hostile",
 ];
 
 /// Returns true if the given category string is in VALID_CATEGORIES.

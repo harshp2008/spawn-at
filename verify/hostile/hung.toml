@@ -1,0 +1,54 @@
+id = "hostile/hung"
+category = "hostile"
+title = "App hung for 2500 ms after it maps"
+description = "Fixture blocks its event loop for 2500 ms right after the first paint (--stall-after-map-ms 2500, under GNOME's 5 s not-responding limit). No answer within the cap of 250 ms: TimedOut(cap) at 400x300, well before the 1500 ms hard limit; the app resizes when it wakes (a real late paint)."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-Hung",
+    "--app-id", "verify.hostile.hung",
+    "--width", "400",
+    "--height", "300",
+    "--stall-after-map-ms", "2500",
+    "--expect", "App hung for 2500 ms after it maps"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.hung",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "timed-out"
+reason = "cap"
+waited_ms_min = 240
+waited_ms_max = 330
+final_size = [400, 300]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

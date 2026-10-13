@@ -1,0 +1,53 @@
+id = "hostile/clamp-to-min"
+category = "hostile"
+title = "Shrink target below the app minimum 300x200"
+description = "Fixture reports a minimum of 300x200 and the request is 200x150. The extension raises the target to the reported minimum (SET_SIZE_CLAMPED), so the wait is for 300x200: Reached(300x200)."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-ClampToMin",
+    "--app-id", "verify.hostile.clamp-to-min",
+    "--width", "400",
+    "--height", "300",
+    "--min-size", "300x200",
+    "--expect", "Shrink target below the app minimum 300x200"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.clamp-to-min",
+    "--anchor", "bottom-right",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "reached"
+reason = "at-target"
+waited_ms_max = 249
+final_size = [300, 200]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

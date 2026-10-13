@@ -1,0 +1,54 @@
+id = "hostile/slow-below-cap"
+category = "hostile"
+title = "App answers a resize 100 ms late (below the 250 ms cap)"
+description = "Fixture paints at a new size 100 ms after the configure (--resize-delay-ms 100). The ready-wait (default cap 250 ms) should wait for it and report Reached at 800x600. Written for the default cap of 250 ms; run it with --wait-cap-ms 250 on an extension whose default is 150."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-SlowBelowCap",
+    "--app-id", "verify.hostile.slow-below-cap",
+    "--width", "400",
+    "--height", "300",
+    "--resize-delay-ms", "100",
+    "--expect", "App answers a resize 100 ms late (below the 250 ms cap)"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.slow-below-cap",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "reached"
+reason = "at-target"
+waited_ms_min = 90
+waited_ms_max = 249
+final_size = [800, 600]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

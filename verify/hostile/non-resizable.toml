@@ -1,0 +1,53 @@
+id = "hostile/non-resizable"
+category = "hostile"
+title = "App that cannot be resized"
+description = "Fixture is not resizable (--fixed-size: minimum = maximum). The extension skips the wait: Skipped(not-resizable) and the window keeps 400x300."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-NonResizable",
+    "--app-id", "verify.hostile.non-resizable",
+    "--width", "400",
+    "--height", "300",
+    "--fixed-size",
+    "--expect", "App that cannot be resized"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.non-resizable",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "skipped"
+reason = "not-resizable"
+waited_ms_max = 5
+final_size = [400, 300]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

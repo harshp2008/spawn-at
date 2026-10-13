@@ -1,0 +1,53 @@
+id = "hostile/restless"
+category = "hostile"
+title = "App that keeps resizing for 2000 ms"
+description = "Fixture alternates between two buffer sizes every 20 ms for 2000 ms after the first resize (--flap-ms 2000), never at the requested size. Every change restarts the 30 ms quiet window, so the 1500 ms hard limit ends the wait: TimedOut(hard) at about 1500 ms, window revealed while still changing."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-Restless",
+    "--app-id", "verify.hostile.restless",
+    "--width", "400",
+    "--height", "300",
+    "--flap-ms", "2000",
+    "--expect", "App that keeps resizing for 2000 ms"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.restless",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "timed-out"
+reason = "hard"
+waited_ms_min = 1490
+waited_ms_max = 1600
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

@@ -1,0 +1,54 @@
+id = "hostile/slow-above-cap"
+category = "hostile"
+title = "App answers a resize 400 ms late (above the 250 ms cap)"
+description = "Fixture paints at a new size 400 ms after the configure (--resize-delay-ms 400). The cap of 250 ms ends the wait first: TimedOut(cap) with the window still at 400x300; the app resizes after the reveal (a real late paint)."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-SlowAboveCap",
+    "--app-id", "verify.hostile.slow-above-cap",
+    "--width", "400",
+    "--height", "300",
+    "--resize-delay-ms", "400",
+    "--expect", "App answers a resize 400 ms late (above the 250 ms cap)"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.slow-above-cap",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "timed-out"
+reason = "cap"
+waited_ms_min = 240
+waited_ms_max = 330
+final_size = [400, 300]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

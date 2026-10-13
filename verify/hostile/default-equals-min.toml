@@ -1,0 +1,53 @@
+id = "hostile/default-equals-min"
+category = "hostile"
+title = "App whose default size is its minimum"
+description = "Fixture starts at 400x300 and reports 400x300 as its minimum; the request is 200x150. The target raised to the minimum equals the current size: Reached at once (waited 0) with the window still 400x300."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-DefaultEqualsMin",
+    "--app-id", "verify.hostile.default-equals-min",
+    "--width", "400",
+    "--height", "300",
+    "--min-size", "400x300",
+    "--expect", "App whose default size is its minimum"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.default-equals-min",
+    "--anchor", "bottom-right",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "reached"
+reason = "at-target"
+waited_ms_max = 20
+final_size = [400, 300]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

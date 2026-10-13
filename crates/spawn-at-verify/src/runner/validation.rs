@@ -140,6 +140,107 @@ pub fn validate_expectations(
     Ok(())
 }
 
+/// The `resize` object of the CLI's `--json` output (`spawn_at_core::resize_report`), read from
+/// the printed JSON. This crate depends on the core only for tests, so it keeps its own shape.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct PrintedResize {
+    /// `reached`, `adjusted`, `timed-out` or `skipped`.
+    pub outcome: String,
+    /// The frame size when the wait ended.
+    #[serde(rename = "final")]
+    pub final_size: PrintedDim,
+    /// Milliseconds the wait reports.
+    pub waited_ms: u32,
+    /// Why the wait ended.
+    pub reason: String,
+}
+
+/// A width and height as printed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub struct PrintedDim {
+    /// Width in pixels.
+    pub w: u32,
+    /// Height in pixels.
+    pub h: u32,
+}
+
+/// The `resize` object in the first JSON object of `stdout` that has one (`None`: no JSON, or
+/// `"resize": null` / absent, as the legacy rule and an old extension print).
+pub fn printed_resize(stdout: &str) -> Option<PrintedResize> {
+    stdout.lines().find_map(|line| {
+        let v: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+        serde_json::from_value(v.get("resize")?.clone()).ok()
+    })
+}
+
+/// Checks `[expect.resize]` against the printed `resize` object. `legacy_run` says the run used
+/// the original quiet rule, which reports no outcome: the expectation is then not judged (`Ok`).
+/// A ready-wait run that printed no outcome fails, naming what is missing.
+pub fn validate_resize(
+    test: &TestDefinition,
+    stdout: &str,
+    legacy_run: bool,
+) -> Result<(), String> {
+    let Some(want) = &test.expect.resize else {
+        return Ok(());
+    };
+    if legacy_run {
+        return Ok(());
+    }
+    let Some(got) = printed_resize(stdout) else {
+        return Err(format!(
+            "Expected resize outcome '{}' but the CLI printed none (no ready-wait outcome in the JSON)",
+            want.outcome
+        ));
+    };
+    let mut problems = Vec::new();
+    if got.outcome != want.outcome {
+        problems.push(format!(
+            "outcome {} (expected {})",
+            got.outcome, want.outcome
+        ));
+    }
+    if let Some(reason) = &want.reason {
+        if &got.reason != reason {
+            problems.push(format!("reason {} (expected {})", got.reason, reason));
+        }
+    }
+    if let Some(min) = want.waited_ms_min {
+        if got.waited_ms < min {
+            problems.push(format!(
+                "waited_ms {} (expected at least {})",
+                got.waited_ms, min
+            ));
+        }
+    }
+    if let Some(max) = want.waited_ms_max {
+        if got.waited_ms > max {
+            problems.push(format!(
+                "waited_ms {} (expected at most {})",
+                got.waited_ms, max
+            ));
+        }
+    }
+    if let Some(size) = &want.final_size {
+        if let [w, h] = size[..] {
+            let tol = want.tolerance_px;
+            if got.final_size.w.abs_diff(w) > tol || got.final_size.h.abs_diff(h) > tol {
+                problems.push(format!(
+                    "final size {}x{} (expected {}x{} within {} px)",
+                    got.final_size.w, got.final_size.h, w, h, tol
+                ));
+            }
+        } else {
+            problems.push("final_size in the spec must be [w, h]".to_string());
+        }
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("Resize outcome mismatch: {}", problems.join("; ")))
+    }
+}
+
 /// Checks if pattern matches text. Supports literal string matching or `re:` prefix for regex.
 pub fn check_pattern_match(pattern: &str, text: &str) -> Result<bool, String> {
     if let Some(regex_str) = pattern.strip_prefix("re:") {

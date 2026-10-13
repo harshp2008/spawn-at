@@ -294,3 +294,66 @@ fn test_category_filtering_in_registry() {
         assert_eq!(t.category(), "animation-and-cloak");
     }
 }
+
+/// The catalog has the nine hostile-app cells of `verify/hostile/` (each with a declared resize
+/// outcome and exactly one hostile fixture flag), and 45 specs in all: the 36 earlier ones plus
+/// these nine. Fails when a cell is added or removed without this count being updated.
+#[test]
+fn test_catalog_count_and_hostile_cells() {
+    let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap()
+        .parent()
+        .unwrap()
+        .join("verify");
+    let registry = TestRegistry::load_from_dir(&verify_path).expect("failed to load registry");
+    assert_eq!(registry.tests.len(), 45, "catalog size");
+
+    let hostile: Vec<_> = registry
+        .tests
+        .iter()
+        .filter(|t| t.category() == "hostile")
+        .collect();
+    let mut ids: Vec<&str> = hostile.iter().map(|t| t.id.as_str()).collect();
+    ids.sort();
+    assert_eq!(
+        ids,
+        [
+            "hostile/clamp-to-min",
+            "hostile/default-equals-min",
+            "hostile/grid-snap",
+            "hostile/hung",
+            "hostile/non-resizable",
+            "hostile/refuse-grow",
+            "hostile/restless",
+            "hostile/slow-above-cap",
+            "hostile/slow-below-cap",
+        ]
+    );
+    let flags = [
+        "--resize-delay-ms",
+        "--min-size",
+        "--max-size",
+        "--resize-increment",
+        "--fixed-size",
+        "--stall-after-map-ms",
+        "--flap-ms",
+    ];
+    for t in hostile {
+        let resize = t
+            .expect
+            .resize
+            .as_ref()
+            .unwrap_or_else(|| panic!("{} has no [expect.resize]", t.id));
+        assert!(
+            ["reached", "adjusted", "timed-out", "skipped"].contains(&resize.outcome.as_str()),
+            "{}: {}",
+            t.id,
+            resize.outcome
+        );
+        let args = &t.subject.as_ref().expect("subject").args;
+        let used = args.iter().filter(|a| flags.contains(&a.as_str())).count();
+        assert_eq!(used, 1, "{}: one hostile flag per cell", t.id);
+        assert!(!t.required, "{}: hostile cells are not required", t.id);
+    }
+}

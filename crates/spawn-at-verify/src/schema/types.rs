@@ -142,9 +142,41 @@ fn default_tolerance_px() -> i32 {
     1
 }
 
+/// What the ready-wait reported for the resize, under `[expect.resize]`: the `resize` object of
+/// the CLI's `--json` output. Judged only for a run that used the ready-wait machine (the legacy
+/// rule reports no outcome); every field but `outcome` is optional.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpectResize {
+    /// `reached`, `adjusted`, `timed-out` or `skipped`.
+    pub outcome: String,
+    /// Expected `reason`: `at-target`, `quiet`, `cap`, `hard`, `not-resizable`, `fullscreen`, `tiled`.
+    #[serde(default)]
+    pub reason: Option<String>,
+    /// Lowest accepted `waited_ms`.
+    #[serde(default)]
+    pub waited_ms_min: Option<u32>,
+    /// Highest accepted `waited_ms` (for the hard limit: a little over 1500).
+    #[serde(default)]
+    pub waited_ms_max: Option<u32>,
+    /// Expected `final` size `[w, h]`, within `tolerance_px`.
+    #[serde(default)]
+    pub final_size: Option<Vec<u32>>,
+    /// Allowed difference per axis for `final_size`.
+    #[serde(default = "default_resize_tolerance_px")]
+    pub tolerance_px: u32,
+}
+
+/// Default tolerance for `final_size`: 2 pixels, the harness's size tolerance elsewhere.
+fn default_resize_tolerance_px() -> u32 {
+    2
+}
+
 /// Automated test expectations under `[expect]`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct TestExpect {
+    /// What the ready-wait reported (`[expect.resize]`), judged for ready-wait runs only.
+    #[serde(default)]
+    pub resize: Option<ExpectResize>,
     /// Expected process exit code.
     #[serde(default)]
     pub exit_code: i32,

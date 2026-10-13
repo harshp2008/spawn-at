@@ -1,0 +1,53 @@
+id = "hostile/grid-snap"
+category = "hostile"
+title = "App that snaps to a 37x41 grid"
+description = "Fixture paints a buffer rounded down to a multiple of 37x41 (a terminal cell grid): 800x600 becomes 777x574. The first answer is not the target: Adjusted(777x574) after the quiet window."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-GridSnap",
+    "--app-id", "verify.hostile.grid-snap",
+    "--width", "400",
+    "--height", "300",
+    "--resize-increment", "37x41",
+    "--expect", "App that snaps to a 37x41 grid"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.grid-snap",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "adjusted"
+reason = "quiet"
+waited_ms_max = 249
+final_size = [777, 574]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

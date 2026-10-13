@@ -5,7 +5,8 @@ use super::flash::{apply_flash_policy, wants_flash_capture, FlashCapture};
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
     build_action_command_args, expects_no_window, extract_claimed_window_id, needs_trace,
-    pass_assessment, settle_final_rect, validate_expectations, validate_geometry_final, Settle,
+    pass_assessment, settle_final_rect, validate_expectations, validate_geometry_final,
+    validate_resize, Settle,
 };
 use crate::oracle::SETTLE_MS;
 use crate::preflight::{PreflightReport, PreflightVerdict};
@@ -394,9 +395,14 @@ impl TestRunner {
         }
 
         // Validate expectations
-        let validation = validate_expectations(test, exit_code, &stderr, env_info).and_then(|()| {
-            validate_geometry_final(test, &stdout, final_rect, log_slice.as_deref(), env_info)
-        });
+        // The legacy rule reports no resize outcome, so `[expect.resize]` is not judged for it.
+        let legacy_run = wait_info.wait_strategy.as_deref() == Some("legacy")
+            || self.options.wait.strategy.as_deref() == Some("legacy");
+        let validation = validate_expectations(test, exit_code, &stderr, env_info)
+            .and_then(|()| validate_resize(test, &stdout, legacy_run))
+            .and_then(|()| {
+                validate_geometry_final(test, &stdout, final_rect, log_slice.as_deref(), env_info)
+            });
         // Geometry caveats worth recording next to a pass.
         let mut pass_message: String;
         let auto_status = match validation {

@@ -81,6 +81,56 @@ pub struct FixtureArgs {
     /// Expected visual behavior description shown on the window canvas
     #[arg(long, default_value = "")]
     pub expect: String,
+
+    /// Hostile app: sleep this many ms before painting at a new size, so a resize is answered late
+    #[arg(long, default_value_t = 0)]
+    pub resize_delay_ms: u64,
+
+    /// Hostile app: minimum window size WxH sent to the compositor (sets both minimums)
+    #[arg(long, value_name = "WxH", value_parser = fixture::behaviour::parse_size)]
+    pub min_size: Option<(u32, u32)>,
+
+    /// Hostile app: maximum window size WxH sent to the compositor
+    #[arg(long, value_name = "WxH", value_parser = fixture::behaviour::parse_size)]
+    pub max_size: Option<(u32, u32)>,
+
+    /// Hostile app: paint buffers rounded down to a multiple of WxH (a terminal's cell grid)
+    #[arg(long, value_name = "WxH", value_parser = fixture::behaviour::parse_size)]
+    pub resize_increment: Option<(u32, u32)>,
+
+    /// Hostile app: not resizable (minimum = maximum = the initial size)
+    #[arg(long, default_value_t = false)]
+    pub fixed_size: bool,
+
+    /// Hostile app: block the event loop this many ms right after the first paint (under 4000)
+    #[arg(long, value_name = "MS", value_parser = fixture::behaviour::parse_stall_ms)]
+    pub stall_after_map_ms: Option<u64>,
+
+    /// Hostile app: after the first resize, alternate between two buffer sizes every 20 ms for this many ms
+    #[arg(long, value_name = "MS")]
+    pub flap_ms: Option<u64>,
+}
+
+impl FixtureArgs {
+    /// The hostile behaviours these arguments switch on.
+    pub fn hostility(&self) -> fixture::behaviour::Hostility {
+        fixture::behaviour::Hostility {
+            resize_delay_ms: self.resize_delay_ms,
+            resize_increment: self.resize_increment,
+            stall_after_map_ms: self.stall_after_map_ms,
+            flap_ms: self.flap_ms,
+        }
+    }
+
+    /// The effective minimum window size: `--min-size` wins over the single-axis flags, and a
+    /// missing axis is 0.
+    pub fn effective_min(&self) -> Option<(u32, u32)> {
+        match (self.min_size, self.min_width, self.min_height) {
+            (Some(s), _, _) => Some(s),
+            (None, None, None) => None,
+            (None, w, h) => Some((w.unwrap_or(0), h.unwrap_or(0))),
+        }
+    }
 }
 
 /// Resolves the effective windowing protocol string based on requested mode and environment.
@@ -252,5 +302,75 @@ mod tests {
         assert_eq!(args.exit_after_ms, Some(1000));
         assert!(args.print_ready);
         assert_eq!(args.expect, "Should appear centered");
+    }
+}
+
+#[cfg(test)]
+mod hostile_flag_tests {
+    use super::*;
+    use clap::Parser;
+
+    /// Without the hostile flags nothing is switched on and the old minimums read as before.
+    #[test]
+    fn test_hostile_flags_default_to_off() {
+        let a = FixtureArgs::try_parse_from(["fixture"]).unwrap();
+        assert!(a.hostility().is_default());
+        assert_eq!(
+            (a.min_size, a.max_size, a.resize_increment),
+            (None, None, None)
+        );
+        assert!(!a.fixed_size);
+        assert_eq!(a.effective_min(), None);
+        let a = FixtureArgs::try_parse_from(["fixture", "--min-width", "300"]).unwrap();
+        assert_eq!(a.effective_min(), Some((300, 0)));
+    }
+
+    /// Every hostile flag is read into the plan or the window hints.
+    #[test]
+    fn test_hostile_flags_are_parsed() {
+        let a = FixtureArgs::try_parse_from([
+            "fixture",
+            "--resize-delay-ms",
+            "400",
+            "--min-size",
+            "400x300",
+            "--max-size",
+            "600x450",
+            "--resize-increment",
+            "37x41",
+            "--fixed-size",
+            "--stall-after-map-ms",
+            "2500",
+            "--flap-ms",
+            "2000",
+        ])
+        .unwrap();
+        let h = a.hostility();
+        assert_eq!(h.resize_delay_ms, 400);
+        assert_eq!(h.resize_increment, Some((37, 41)));
+        assert_eq!(h.stall_after_map_ms, Some(2500));
+        assert_eq!(h.flap_ms, Some(2000));
+        assert_eq!(a.effective_min(), Some((400, 300)));
+        assert_eq!(a.max_size, Some((600, 450)));
+        assert!(a.fixed_size);
+    }
+
+    /// `--min-size` beats the single-axis flags; a malformed size or a stall of 4000 ms or more is refused.
+    #[test]
+    fn test_hostile_flags_validate() {
+        let a =
+            FixtureArgs::try_parse_from(["fixture", "--min-width", "10", "--min-size", "300x200"])
+                .unwrap();
+        assert_eq!(a.effective_min(), Some((300, 200)));
+        for bad in [
+            vec!["--min-size", "300"],
+            vec!["--max-size", "0x100"],
+            vec!["--resize-increment", "axb"],
+            vec!["--stall-after-map-ms", "4000"],
+        ] {
+            let mut argv = vec!["fixture"];
+            argv.extend(bad.iter());
+            assert!(FixtureArgs::try_parse_from(argv).is_err(), "{bad:?}");
+        }
     }
 }

@@ -43,32 +43,33 @@ pub(crate) fn run_window(
         .with_title(&args.title)
         .with_decorations(args.decorations == DecorationMode::On);
 
+    // Size hints for the compositor: the minimum (`--min-size`, or the single-axis flags with a
+    // missing axis as 0), the maximum, and `--fixed-size` (not resizable).
     if backend_str == "x11" {
         window_builder =
             window_builder.with_inner_size(winit::dpi::PhysicalSize::new(args.width, args.height));
-        if let (Some(mw), Some(mh)) = (args.min_width, args.min_height) {
+        if let Some((mw, mh)) = args.effective_min() {
             window_builder =
                 window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(mw, mh));
-        } else if let Some(mw) = args.min_width {
+        }
+        if let Some((xw, xh)) = args.max_size {
             window_builder =
-                window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(mw, 0));
-        } else if let Some(mh) = args.min_height {
-            window_builder =
-                window_builder.with_min_inner_size(winit::dpi::PhysicalSize::new(0, mh));
+                window_builder.with_max_inner_size(winit::dpi::PhysicalSize::new(xw, xh));
         }
     } else {
         window_builder =
             window_builder.with_inner_size(winit::dpi::LogicalSize::new(args.width, args.height));
-        if let (Some(mw), Some(mh)) = (args.min_width, args.min_height) {
+        if let Some((mw, mh)) = args.effective_min() {
             window_builder =
                 window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, mh));
-        } else if let Some(mw) = args.min_width {
-            window_builder =
-                window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(mw, 0));
-        } else if let Some(mh) = args.min_height {
-            window_builder =
-                window_builder.with_min_inner_size(winit::dpi::LogicalSize::new(0, mh));
         }
+        if let Some((xw, xh)) = args.max_size {
+            window_builder =
+                window_builder.with_max_inner_size(winit::dpi::LogicalSize::new(xw, xh));
+        }
+    }
+    if args.fixed_size {
+        window_builder = window_builder.with_resizable(false);
     }
 
     // Set Wayland app_id and X11 WM_CLASS
@@ -105,6 +106,17 @@ pub(crate) fn run_window(
     let mut remaximize_deadline = args
         .remaximize_after_ms
         .map(|ms| start_time + Duration::from_millis(ms));
+
+    // Hostile-app behaviours (harness only); all off unless a flag asks (behaviour.rs).
+    let hostile = args.hostility();
+    let initial_size = (args.width, args.height);
+    let mut stalled = false;
+    // The flap: the size the compositor configured when it began, the tick it is at, the next
+    // tick's time, and whether it already ran (it runs once).
+    let mut flap_base: Option<(u32, u32)> = None;
+    let mut flap_tick: u64 = 0;
+    let mut flap_next = Instant::now();
+    let mut flap_done = false;
 
     let mut painted = false;
     let mut ready_printed = false;
@@ -163,6 +175,47 @@ pub(crate) fn run_window(
             }
         }
 
+        // Hung app: once, right after the first paint, the event loop is blocked, so every
+        // configure the compositor sends meanwhile goes unanswered.
+        if let Some(ms) = hostile.stall_after_map_ms {
+            if painted && !stalled {
+                stalled = true;
+                super::trace::event("STALL_BEGIN", &ms.to_string());
+                std::thread::sleep(Duration::from_millis(ms));
+                super::trace::event("STALL_END", &ms.to_string());
+            }
+        }
+
+        // Restless app: every FLAP_TICK_MS commit the next of two alternating buffer sizes, then
+        // settle at the size the compositor configured when the flap began.
+        if let Some(base) = flap_base {
+            if Instant::now() >= flap_next {
+                flap_tick += 1;
+                let total = hostile.flap_ticks().unwrap_or(0);
+                let size = if flap_tick > total {
+                    flap_base = None;
+                    flap_done = true;
+                    base
+                } else {
+                    super::behaviour::Hostility::flap_size(base, flap_tick)
+                };
+                if draw_frame(
+                    &mut surface,
+                    size.0,
+                    size.1,
+                    &args.title,
+                    args.paint_delay_ms,
+                    &args.expect,
+                )
+                .is_ok()
+                {
+                    super::trace::note_paint(&mut last_painted_size, size.0, size.1);
+                }
+                super::trace::event("FLAP_TICK", &format!("{} {}x{}", flap_tick, size.0, size.1));
+                flap_next += Duration::from_millis(super::behaviour::FLAP_TICK_MS);
+            }
+        }
+
         // Check delayed paint
         if !painted {
             if let Some(deadline) = paint_deadline {
@@ -211,25 +264,43 @@ pub(crate) fn run_window(
                     "RESIZED",
                     &format!("{}x{}", physical_size.width, physical_size.height),
                 );
-                if painted {
+                let configured = (physical_size.width, physical_size.height);
+                // The first resize away from the initial size starts the flap, if asked for.
+                if hostile.flap_ms.is_some()
+                    && !flap_done
+                    && flap_base.is_none()
+                    && painted
+                    && configured != initial_size
+                {
+                    flap_base = Some(configured);
+                    flap_tick = 0;
+                    flap_next = Instant::now();
+                    super::trace::event(
+                        "FLAP_BEGIN",
+                        &format!("{}x{} {}ms", configured.0, configured.1, hostile.flap_ms.unwrap_or(0)),
+                    );
+                } else if painted && flap_base.is_none() {
+                    let plan = hostile.plan_resize(configured, last_painted_size);
+                    for (tag, detail) in &plan.events {
+                        super::trace::event(tag, detail);
+                    }
+                    if plan.delay_ms > 0 {
+                        std::thread::sleep(Duration::from_millis(plan.delay_ms));
+                    }
                     let drawn = draw_frame(
                         &mut surface,
-                        physical_size.width,
-                        physical_size.height,
+                        plan.draw.0,
+                        plan.draw.1,
                         &args.title,
                         args.paint_delay_ms,
                         &args.expect,
                     );
                     if drawn.is_ok() {
-                        super::trace::note_paint(
-                            &mut last_painted_size,
-                            physical_size.width,
-                            physical_size.height,
-                        );
+                        super::trace::note_paint(&mut last_painted_size, plan.draw.0, plan.draw.1);
                     }
                     super::trace::log(
                         "COMMIT_DONE",
-                        &format!("{}x{}", physical_size.width, physical_size.height),
+                        &format!("{}x{}", plan.draw.0, plan.draw.1),
                     );
                 }
             }
@@ -239,19 +310,24 @@ pub(crate) fn run_window(
             } => {
                 let size = window.inner_size();
                 super::trace::log("REDRAW_REQUESTED", &format!("{}x{}", size.width, size.height));
-                if painted {
+                if painted && flap_base.is_none() {
+                    // A redraw is never delayed: only a resize to a new size is slow.
+                    let draw = super::behaviour::snap(
+                        (size.width, size.height),
+                        hostile.resize_increment,
+                    );
                     let drawn = draw_frame(
                         &mut surface,
-                        size.width,
-                        size.height,
+                        draw.0,
+                        draw.1,
                         &args.title,
                         args.paint_delay_ms,
                         &args.expect,
                     );
                     if drawn.is_ok() {
-                        super::trace::note_paint(&mut last_painted_size, size.width, size.height);
+                        super::trace::note_paint(&mut last_painted_size, draw.0, draw.1);
                     }
-                    super::trace::log("COMMIT_DONE", &format!("{}x{}", size.width, size.height));
+                    super::trace::log("COMMIT_DONE", &format!("{}x{}", draw.0, draw.1));
                 }
             }
             winit::event::Event::WindowEvent {
@@ -273,6 +349,9 @@ pub(crate) fn run_window(
                     if e < next_wake {
                         next_wake = e;
                     }
+                }
+                if flap_base.is_some() && flap_next < next_wake {
+                    next_wake = flap_next;
                 }
                 if let Some(r) = remaximize_deadline {
                     if r < next_wake {
