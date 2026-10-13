@@ -1207,3 +1207,119 @@ The runs with an old warning are the runs with an `ANCHOR_CORRECTION` after the 
 | old warnings, idle | 0 of 60 | 0 of 10 | 0 of 90 |
 
 **Not done.** XWayland under load, with the release fixture, or for any spec but `bottom-right-larger`; `top-left-smaller` under load; native X11 in this session (needs a log-out); a release-built `spawn-at`; any screen capture; real toolkit apps. The scratch specs (delayed-paint control, `xwayland-bottom-right-larger`) and batch scripts live in `scratch/` and are not committed; raw per-run JSON stayed in the session scratchpad and is not stored in the repository.
+
+
+### 6.18 Ready-wait: live validation against the 6.17 baseline (2026-10-13, no code change)
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Nothing in the product, the extension or the harness was changed; the only files written are this section and throwaway scripts in `scratch/` (not committed). Tests were not run in this step. Binary under test: debug `spawn-at` and debug fixture at `6ecc537` (the ready-wait wiring); the extension in `~/.local/share/gnome-shell/extensions/spawn-at@harsh.local/` contains `ready_wait.js` (installed 11:18:31 IST, user logged back in afterwards). Session: `XDG_SESSION_TYPE=wayland`, GNOME Shell 46.0, 22 CPUs, 60 Hz. Same 4 scratch specs, same `scratch/baseline_batch.sh` (one isolated `run` per spec, specs interleaved, 1.5 s apart) as 6.17.
+
+**Preflight (all CONFIRMED before any measurement).**
+
+| check | result |
+| :--- | :--- |
+| session type | `wayland` (env and `loginctl`) |
+| extension state | `gnome-extensions info spawn-at@harsh.local`: `Enabled: Yes`, `State: ACTIVE` (the uuid is `spawn-at@harsh.local`; the name `spawn-at@harshp2008.github.com` does not exist) |
+| protocol | `gdbus ... Properties.Get ... ProtocolVersion` returned `uint32 6` |
+| native spawn | `READY_WAIT_START ... strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=150 quiet=30 hard=1500`, then `READY_WAIT_RESOLVED ... outcome=reached ... waited_ms=41.18 reason=at-target` |
+| `--protocol x11` spawn | `READY_WAIT_START ... proto=XWayland strategy=legacy kind=XWayland why=not-native-wayland timeoutMs=300`, then `READY_WAIT_RESOLVED strategy=legacy outcome=none reason=AT_TARGET` |
+
+**Two things the reader must know before the numbers.**
+
+1. **No same-session before/after exists (CONFIRMED).** The baseline (6.17) was taken in the login before this one. The extension has no switch back to the old rule (`grep` of `assets/gnome/modern/extension.js` finds only the `strategy=legacy` path for X11/XWayland), and the fixture binary is the same file in both (built 10:38, the baseline started 10:42). So every difference below is "this login with the change" against "the earlier login without it". The XWayland result below shows that the timing of the reveal can differ between logins on the unchanged legacy path.
+2. **No cloak durations for these batches were written down before (CONFIRMED).** TEST_PLAN 6.13, 6.15 and 6.17 contain no `UNCLOAK - CLOAK` figure for them (6.17 has `COMMIT_RESOLVED` 12.9 - 20.6 ms and, for the delayed-paint control, `CLOAK` 430 - 444 ms after `WINDOW_CREATED`). The "baseline cloak" below is therefore **recomputed here from the baseline runs' own lines in `~/.local/state/spawn-at/session.log`** (the log was not rotated; windows picked by the batch start/end times in the baseline `meta.txt`: idle debug 10:42:05 - 10:44:28 IST, 40 windows; loaded 10:49:38 - 10:51:12, 20 windows; XWayland 10:54:06 - 10:54:41, 10 windows). Definition: first `UNCLOAK` minus first `CLOAK` of a window, extension clock; median, p95 (nearest rank) and max. The log is local and not stored in the repository.
+
+**Idle, native Wayland, debug fixture: 4 specs x 10 runs (11:22:45 - 11:25:09 IST, load at run start 1.04 - 1.53).** All 40 exit 0; `bottom-right-larger`, `top-left-smaller`, `flash-control-delayed-paint` 10 of 10 `auto-pass`, `bottom-right-smaller` 10 of 10 `pending` (a `Both` spec, as in 6.17).
+
+| | baseline (6.17 + recomputed cloak) | this run |
+| :--- | :--- | :--- |
+| numeric flashes | 0 of 40 (0 of 80 with release) | **0 of 40** (0 of 10 per spec) |
+| cloak ms, all 40: median / p95 / max | 19.09 / 21.22 / 48.94 | **41.10 / 50.72 / 52.12** |
+| cloak median per spec: larger / smaller / top-left / control | 19.75 / 18.74 / 18.73 / 20.20 | 41.53 / 38.42 / 39.50 / 48.59 |
+| `bottom-right-larger`: `SET_SIZE_REQUEST` to `COMMIT_RESOLVED` | 12.9 - 20.6 ms, median 15.8 | 29.7 - 40.6 ms, median 35.3 |
+| `UNCLOAK_4C` to `UNCLOAK` gap, median (n=40) | 6.7 ms | 11.2 ms |
+| `READY_WAIT_RESOLVED` outcomes | none logged | **40 `reached` (reason `at-target`)**; 0 `adjusted`, 0 `timed-out`, 0 `skipped` |
+| `waited_ms`, all 40: min / median / p95 / max | - | 22.4 / 29.6 / 39.3 / 40.5 (per spec median: larger 35.2, smaller 26.6, top-left 25.6, control 35.2) |
+| warnings (post-reveal correction, stale print, cloak over 100 ms) | 0 | 0 |
+
+Reading (CONFIRMED for the numbers, cause HYPOTHESIS): in an idle run the machine waits for the app's `size-changed` and ends on it (`COMMIT_SAMPLE source=size-changed` and `READY_WAIT_RESOLVED` under 0.2 ms apart in the run inspected). The app's answer came about 20 ms later in this login (35 ms after the request, against 15 ms), and the `4C -> UNCLOAK` gap is about 4.5 ms longer; together that is the +22 ms of cloak. Whether the later answer is a property of this login, of the load of other programs on the machine, or of the wiring was not separated (HYPOTHESIS that the machine only observes and does not slow the client, since `SetSize` is issued before the wait in both builds; no run without the wiring exists in this login to show it).
+
+**Loaded, 22 `burn-cpu` threads, debug fixture: 10 runs each of `bottom-right-smaller`, `bottom-right-larger`, `top-left-smaller` (11:36:13 - 11:38:37 IST).** `target/debug/xtask burn-cpu --threads 22`, 70 s warm-up, load at run start 21.5 - 26.5 (mean 25.2; baseline 20.5 - 24.5, mean 22.7: **this batch ran under about 10% more load**), clock uncertainty 5.1 - 17.0 ms (baseline 6.3 - 17.2). All 30 exit 0. Burn threads stopped afterwards: `pgrep -cx xtask` printed 0 and `pgrep -cx fixture` printed 0.
+
+| spec | baseline flash runs | this run | numeric events (certain / possible) | `lead_ms` median / max | baseline events (certain / possible), lead median / max |
+| :--- | :---: | :---: | :---: | :--- | :--- |
+| `bottom-right-smaller` | 6 / 10 | **0 / 10** | 0 | - | 11 (8 / 3), 29.7 / 78.9 |
+| `bottom-right-larger` | 9 / 10 | **5 / 10** | 7 (5 / 2) | 50.3 / 76.4 | 16 (14 / 2), 32.1 / 60.0 |
+| comparable 20 runs | **15 / 20** | **5 / 20** | 7 (5 / 2) | all 7: median 50.3, max 76.4 | 27 (22 / 5) |
+| `top-left-smaller` (no baseline under load) | not measured | 2 / 10 | 2 (2 / 0) | 25.0 / 28.6 | - |
+| all 30 | - | 7 / 30 | 9 (7 / 2) | median 28.6 | - |
+
+- **Relative reduction against the baseline 15 of 20: 10 of 15 = 66.7%** (`bottom-right-smaller` 100%, `bottom-right-larger` 44%). Fisher exact, two-sided, 5/20 against 15/20: p = 0.0038 (a difference that size is unlikely to be chance; the point estimate is still below 70%, and 4/20 would have been 73.3%). Calculated here, not by the harness.
+- **What kind of flash is left (CONFIRMED).** Events by kind, baseline -> now: `position-change-after-reveal` (an `ANCHOR_CORRECTION` after the reveal) 15 -> 2; `size-change-after-reveal` (the client's first paint at the final size after the reveal) 12 -> 7. Runs with a correction after the reveal: baseline 15 of 20, now 2 of 20 (`ANCHOR_CORRECTION` appears twice in the log, both `bottom-right-larger`, +61.0 and +50.3 ms). The 7 `size-change-after-reveal` events are 14.1 - 76.4 ms (`bottom-right-larger`) and 21.4, 28.6 ms (`top-left-smaller`).
+- **Outcomes of `READY_WAIT_RESOLVED` (30 runs, CONFIRMED): 27 `reached` (`at-target`), 3 `timed-out` (reason `cap`, all `bottom-right-larger`, `waited_ms` exactly 150.0), 0 `adjusted`, 0 `skipped`.** Flash by outcome: **3 of 3 `timed-out` runs flashed; 4 of 27 `reached` runs flashed** (2 `bottom-right-larger`, 2 `top-left-smaller`; all `size-change-after-reveal`). `waited_ms` median / p95 / max: all 104.4 / 150.0 / 150.0; `bottom-right-smaller` 88.0 / 106.4 / 106.4; `bottom-right-larger` 136.6 / 150.0 / 150.0; `top-left-smaller` 101.2 / 142.5 / 142.5.
+- **Cloak (CONFIRMED).** Median / p95 / max, ms: all 30 117.7 / 166.6 / 166.9 (`bottom-right-smaller` 105.1, `bottom-right-larger` 141.9, `top-left-smaller` 113.9 per-spec medians); baseline (20 runs) 49.9 / 75.8 / 79.8. The cloak-duration warning (budget 100 ms, 6.12/5) fired in **24 of 30** runs; baseline max 79.8 ms, so 0 of 20.
+- Why 4 `reached` runs still flashed was not examined. The machine ends on a frame rect at the target; the flash is the client's first paint at that size arriving after the reveal. HYPOTHESIS: under load, the frame rect follows the committed buffer but the paint reaches the screen a frame or more later; not tested.
+
+**XWayland: 10 runs of `bottom-right-larger --protocol x11`, run twice (batch A 11:41:39, load at run start 1.88 - 2.47; baseline 1.67 - 1.96; batch B 11:45:42, load 0.67 - 0.87).**
+
+| | baseline (6.17) | batch A | batch B (repeat) |
+| :--- | :--- | :--- | :--- |
+| window recorded as / strategy | `proto=XWayland` | `proto=XWayland`, `strategy=legacy kind=XWayland`, 10 of 10 | same, 10 of 10 |
+| `READY_WAIT_RESOLVED` | none | `legacy outcome=none reason=AT_TARGET`, 10 of 10 | same, 10 of 10 |
+| `COMMIT_RESOLVED` after the request | 0.1 - 0.3 ms | 0.2 - 0.3 ms | not computed |
+| **numeric flashes** | **1 of 10** | **9 of 10** (3 certain, 6 possible; lead median 16.0, max 25.3 ms) | **10 of 10** (1 certain, 9 possible; median 11.6, max 21.0 ms) |
+| `ANCHOR_CORRECTION` / late resize | 0 | 0 | 0 |
+| cloak ms, median | 31.59 (p95 36.80) | 12.85 (p95 25.96) | 11.66 (p95 19.75) |
+| `UNCLOAK_4C` to `UNCLOAK`, median | 28.4 ms | 9.3 ms | 8.7 ms |
+
+**The XWayland result does not match the baseline (CONFIRMED), and it is not the wiring (CONFIRMED by the diff).** The strategy is `legacy` in 20 of 20 as required. `git diff 0756167 HEAD -- assets/gnome/modern/` shows the legacy path calls the same `waitForCommit` as before; the only changes to it are two added log lines and `resolve()` becoming `resolve(reason)`, and the event sequence of a baseline window and a new window is identical (same steps, same `AT_TARGET` at 0.2 ms). The difference is the time between `UNCLOAK_4C` and `UNCLOAK` (the forced stage update, 28 ms before, 9 ms now): HYPOTHESIS that in the baseline login the reveal came late enough for the X11 client to paint at 800x600 first (1 of 10), and in this login it comes earlier and the paint follows (9 and 10 of 10), which is what native X11 showed in 6.15 (9 and 10 of 10). Why the stage update is quicker in this login was not examined. Practical consequence: the 1 of 10 in 6.17 was a property of that login, not of the XWayland path, and XWayland should be treated as flashing on this machine.
+
+**Real apps, outcome survey from the extension log only (no screen capture; 15 spawns).** `spawn-at spawn --class <id> --anchor bottom-right --size W H --margin 16`, sizes alternating; each new window was found by diffing `query windows` and closed with `spawn-at close --id <that id>` (never by class, because the user's own terminal window was open); afterwards `query windows` listed only the 3 windows that existed before.
+
+| app | requested (alternating) | outcome x5 | `waited_ms` (min / median / max) | cloak ms (min / median / max) | cap or hard limit |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| gnome-terminal (grid snapping), opens at 974x697 | 803x601, 905x517 | **5 `adjusted`**, reason `quiet`; final 794x589 (x3) and 902x508 (x2), no correction after the reveal | 58.5 / 62.8 / 67.7 | 66.4 / 68.0 / 80.3 | none |
+| gnome-text-editor (remembers its size), opened at the previous size | 500x300, 580x380 | **5 `reached`**, `at-target`; each run a real resize (`current` was the other size) | 31.1 / 33.6 / 36.2 | 35.0 / 50.2 / 50.9 | none |
+| Firefox 157.0.1 (snap), fresh throwaway profile, `--no-remote`, cold start each time | 700x500, 760x560 (minimum width 625) | **1 `timed-out` (run 1), 4 `reached`** | run 1 150.0 (cap); runs 2-5 50.3 / 55.8 / 60.0 | 64.9 / 69.2 / 156.7 | **cap once** (run 1); hard limit none |
+
+- Firefox run 1 (CONFIRMED, log): the window still had its initial 1600x971 after 150 ms (`COMMIT_RESOLVED reason=TIMEOUT_NO_CHANGE`), was revealed at that size at (304,93), and `ANCHOR_CORRECTION size=(700x500)` came 68.9 ms after the reveal. Runs 2-5 had `current` equal to the other requested size (Firefox kept the size of the previous run) and reached the target in 50 - 60 ms. So the cold first start of a profile hits the cap; later starts did not. HYPOTHESIS that this matches the 6.13 finding that Firefox does not read its socket for about 190 ms at start-up; not traced.
+- Firefox, CLI side (CONFIRMED, CLI output): in 3 of 5 spawns (runs 2, 4, 5) `spawn-at` printed `WARNING: Timed out waiting for window to map ... did not appear within 2s` and exit code 0, although the extension log has a `READY_WAIT_START` / `READY_WAIT_RESOLVED` pair for all five windows. Not examined further; it concerns the CLI's 2 s wait for the window, not the ready-wait.
+- **No hard-limit (1500 ms) outcome occurred anywhere in this section.** The largest `waited_ms` is 150.0 (the cap), reached by 3 loaded fixture runs and 1 Firefox run.
+- Clean-up (CONFIRMED): every survey window closed by id; no `firefox` process left (`pgrep -cx firefox` 0); the throwaway profile `~/snap/firefox/common/spawn-at-survey-profile` (53 MB, created for this survey) deleted.
+
+**Judged against the proposed criteria.**
+
+| # | criterion | result | met? |
+| :---: | :--- | :--- | :---: |
+| 1 | idle stays at 0 flashes | 0 of 40 (4 specs x 10, debug fixture); baseline 0 of 40 debug, 0 of 80 with release. Release fixture not re-run. | **Met** |
+| 2 | loaded flashes drop by at least 70% against the baseline 15 of 20 | 5 of 20 = 66.7% reduction (p = 0.0038 against the baseline). 3.3 points short; one fewer flash would have met it. This batch also ran under about 10% more load. | **Not met** |
+| 3 | idle cloak median rises by no more than 10 ms | 19.09 -> 41.10 ms = **+22.0 ms** (p95 21.22 -> 50.72). Per spec +19.7 to +28.4. (The design's own A3 asked for +5 ms.) | **Not met** |
+| 4 | hung or refusing cases end by the hard limit | **Not shown.** No hung app and no refusing app was run (the fixture has no stall flag yet, `5.3`); the hard limit was never reached. What was seen: 4 runs (3 loaded fixture, 1 Firefox cold start) ended at the 150 ms cap, all revealed, none left cloaked. | **Not shown** |
+
+Also against the design's loaded criterion A2 (flash <= 5 of 100, p95 cloak within the 100 ms budget): loaded flash is 5 of 20 and the loaded cloak p95 is 166.6 ms, so neither holds; this section does not use A2 for the verdict because the user's criteria above replace it.
+
+**Before / after, one table.**
+
+| measure | before (6.17 baseline) | after (this section) |
+| :--- | :--- | :--- |
+| idle flashes (debug) | 0 / 40 | 0 / 40 |
+| idle cloak median / p95 (ms) | 19.1 / 21.2 | 41.1 / 50.7 |
+| loaded flash runs, `bottom-right-smaller` | 6 / 10 | 0 / 10 |
+| loaded flash runs, `bottom-right-larger` | 9 / 10 | 5 / 10 |
+| loaded flash runs, the two together | 15 / 20 | 5 / 20 (-66.7%) |
+| loaded runs with a correction after the reveal | 15 / 20 | 2 / 20 |
+| loaded `lead_ms` median (flash events) | about 30 (29.7 and 32.1) | 50.3 (`bottom-right-larger`, 7 events); 28.6 over all 9 events |
+| loaded cloak median / p95 (ms) | 49.9 / 75.8 | 117.7 / 166.6 |
+| loaded runs over the 100 ms cloak budget | 0 / 20 | 24 / 30 |
+| loaded outcomes | - | 27 reached, 3 timed-out (cap), 0 adjusted, 0 skipped |
+| XWayland `bottom-right-larger` flash runs | 1 / 10 | 9 / 10 and 10 / 10 (two batches); strategy `legacy` |
+| real apps | - | terminal 5 adjusted; text editor 5 reached; Firefox 4 reached + 1 cap (cold) |
+
+**Not shown / not done.**
+- A same-session before/after (needs the old rule switchable or a log-out between builds); every comparison here crosses two logins, and the XWayland result shows that crosses a real change in reveal timing.
+- Whether the +22 ms idle cloak comes from the wiring or from this login (the app answered about 20 ms later; not separated).
+- A hung app, a refusing app (below its minimum), a not-resizable app (`Skipped`), the hard limit, the learned-minimum cache (design A4 - A7).
+- The release fixture, a release `spawn-at`, 100-run cells, native X11, XWayland under load, `top-left-smaller` baseline under load.
+- Any screen capture: nothing here says which of the 7 flashes (5 certain by lead >= 16.7 ms) is visible to a person.
+- Why 4 of 27 `reached` loaded runs still flashed, why the loaded batch's `bottom-right-larger` timed out at the cap 3 times in 10, and the cause of the changed XWayland timing.
+- Firefox with a real profile, a warm Firefox, other sizes; only the extension log was read.
+- Scripts used (`scratch/rw_extract.sh`, `scratch/rw_stats.sh`, `scratch/app_survey.sh`, `scratch/baseline_batch.sh`) are throwaway and not committed; raw per-run JSON stayed in the session scratchpad.
