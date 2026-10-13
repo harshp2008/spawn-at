@@ -662,6 +662,15 @@ impl CompositorBackend for GnomeWaylandDriver {
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
     }
 
+    /// The notice for the detected GNOME Shell and session: none for GNOME 46 on Wayland, the only
+    /// configuration spawn-at has been run on.
+    fn install_notice(&self) -> Option<String> {
+        crate::platform::install_notice::gnome_notice(
+            detect_gnome_shell_major_version(),
+            is_wayland_session(),
+        )
+    }
+
     /// Installs the embedded GNOME Shell extension into the user's extensions directory
     /// using dual-mode execution (interactive TUI prompt or headless flag automation).
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
@@ -720,7 +729,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let is_legacy = major_version.is_some_and(|v| v < 45);
 
         let files = if is_legacy {
-            crate::diagnostics::render_warning("Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.");
+            // The untested-platform notice was printed (and confirmed) before the install began.
             println!(
                 "Deploying legacy GNOME (42-44) extension to: {}",
                 ext_dir.display()

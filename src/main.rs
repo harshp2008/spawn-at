@@ -86,6 +86,32 @@ async fn main() {
 
     match cli.command {
         Commands::Install(mut args) => {
+            // Before anything is installed: say so when this platform has not been run on, and ask
+            // (unless --yes, --headless or there is no terminal; then it only prints).
+            let interactive = !args.headless && std::io::stdout().is_terminal();
+            if let Some(notice) = driver.install_notice() {
+                println!("\x1b[1;33m{notice}\x1b[0m\n");
+                let go = crate::platform::install_notice::gate(args.yes, interactive, || {
+                    Confirm::new()
+                        .with_prompt("Install anyway?")
+                        .default(false)
+                        .interact()
+                        .unwrap_or(false)
+                });
+                if go == crate::platform::install_notice::Gate::Declined {
+                    println!("Nothing was installed.");
+                    std::process::exit(1);
+                }
+            }
+            if args.dry_run {
+                println!(
+                    "Dry run: would install the binary ({:?} scope{}) and the {} extension; nothing was changed.",
+                    args.scope,
+                    if args.skip_bin { ", skipped" } else { "" },
+                    driver.name()
+                );
+                return;
+            }
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
                 println!("\x1b[1;36m=== Binary Installation Setup ===\x1b[0m\n");
                 let choices = &[

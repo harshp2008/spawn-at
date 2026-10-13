@@ -9,6 +9,7 @@
 //! optimal driver without leaking display-server-specific IPC details to high-level commands.
 
 pub mod escalate;
+pub mod install_notice;
 pub mod installer;
 
 #[cfg(target_os = "linux")]
@@ -75,6 +76,12 @@ pub struct InstallArgs {
     pub skip_bin: bool,
     #[arg(long)]
     pub headless: bool,
+    /// Go on without asking after the notice for an untested platform (the notice is still printed)
+    #[arg(short = 'y', long)]
+    pub yes: bool,
+    /// Print the notice and what would be installed, then stop without changing anything
+    #[arg(long)]
+    pub dry_run: bool,
     /// Update release channel: 'stable' (official) or 'all' (beta/pre-releases)
     #[arg(long, value_parser = ["stable", "all"])]
     pub update_channel: Option<String>,
@@ -106,6 +113,12 @@ pub trait CompositorBackend: Driver + Send + Sync {
     fn name(&self) -> &'static str;
 
     // --- Setup & Teardown ---
+
+    /// A short notice to print (and confirm) before installing when this environment has not been
+    /// tested; `None` when it has, or when the driver has nothing to say.
+    fn install_notice(&self) -> Option<String> {
+        None
+    }
 
     /// Installs any necessary system hooks or extensions required by this driver.
     fn install(&self, _args: &InstallArgs) -> Result<(), DriverError> {

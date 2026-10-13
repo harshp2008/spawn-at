@@ -2,7 +2,7 @@ cle# Legacy GNOME (42–44) Differences & Compatibility Analysis
 
 **Author:** Antigravity (Advanced Agentic Coding)  
 **Date:** 2026-10-09  
-**Status:** Implemented & Verified with Test Harness (Pending live GNOME 42 VM session)
+**Status:** Implemented and checked with the test harness only. **UNTESTED on a real GNOME 42-44 session**: it may not work. The installer says so before it installs (see the README, "Support").
 
 ---
 

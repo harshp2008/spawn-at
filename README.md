@@ -21,7 +21,7 @@ Want to open an app at an exact spot and size? On X11 you can move anything, but
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
 ```
 
-Tested on Ubuntu with GNOME Shell, on both Wayland and X11. On Wayland, log out and back in once so GNOME loads the extension. On X11 the installer reloads the Shell in place and your apps stay open. See [more install options](#more-install-options).
+Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayland, log out and back in once so GNOME loads the extension. On X11 the installer reloads the Shell in place and your apps stay open. On any other GNOME version the installer prints a notice first and asks before it installs (`--yes` skips the question). See [more install options](#more-install-options).
 
 ## The problem
 
@@ -159,22 +159,24 @@ A value on the command line beats the file, and the file beats the default; `sho
 - `WARNING: ... did not appear within 2s` for a heavy app (a browser or an Electron app starting cold): raise `spawn.window_timeout_ms` (try 8000).
 - To compare with the pre-0.2 behaviour: `spawn-at config set wait.strategy legacy`.
 
-## Status
+## Support
+
+Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extension have not been thoroughly tested**, and everything marked untested below may not work. Bug reports are welcome: [issues](https://github.com/harshp2008/spawn-at/issues).
 
 | Environment | Status |
 | :--- | :--- |
-| Ubuntu, GNOME Shell on Wayland | Tested |
-| Ubuntu, GNOME Shell on X11 | Tested |
-| Other GNOME-based desktops | Should work (same extension), untested |
-| Other X11 desktops | Experimental native driver. No cloaking, so you'll see the flash. |
+| GNOME 46, Wayland session | **Tested** |
+| GNOME 46, X11 session | Partly tested (the test fixture only, no real apps) |
+| XWayland windows (X11 apps on a Wayland session) | Untested |
+| GNOME 42, 43, 44 (the legacy extension) | **Untested**: never run on a real GNOME 42-44, it may not work at all |
+| GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 48, but only 46 has been run) |
+| Multi-monitor, fractional scaling | Untested |
+| Qt, GTK3 and Electron apps | Untested |
+| GTK4 apps | A few tested (for example gnome-text-editor), including apps that enforce a minimum window size |
+| Other X11 desktops | Experimental native driver, untested. No cloaking, so you'll see the flash. |
 | Hyprland, Sway, KDE, macOS, Windows | Not implemented |
 
-The extension declares GNOME Shell 45 to 48 in its metadata. Tested on: Ubuntu `<version>`, GNOME Shell `<version>` (fill in from `gnome-shell --version`).
-
-Toolkit coverage: GTK3 and GTK4 apps are tested (6 apps so far), including apps that enforce a minimum
-window size. Electron and Qt apps should work but haven't been tested yet. Apps that refuse a requested
-size can still end up larger than you asked for, but they're positioned using their final size, so
-anchors land correctly.
+On an untested GNOME version the installer prints this before it installs anything and asks you to confirm; in a headless or non-interactive run it prints the notice and goes on. Apps that refuse a requested size can still end up larger than you asked for, but they're positioned using their final size, so anchors land correctly.
 
 ## Roadmap
 
@@ -201,6 +203,9 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 ```bash
 # Pin a version
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta
+
+# Skip the confirmation shown on an untested GNOME version (the notice is still printed)
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
 
 # Headless
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --headless --scope user

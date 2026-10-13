@@ -135,6 +135,10 @@ impl CompositorBackend for LinuxBackend {
         self.driver.name()
     }
 
+    fn install_notice(&self) -> Option<String> {
+        self.driver.install_notice()
+    }
+
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         self.driver.install(args)
     }
