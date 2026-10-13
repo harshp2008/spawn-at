@@ -1775,3 +1775,23 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. N
 - Default cap: a harness run with no override reports `wait_strategy ready-wait`, `wait_cap_ms 250`, and its log has `READY_WAIT_START ... strategy=ready-wait ... cap=250 quiet=30 hard=1500`. A direct `spawn-at spawn` of the fixture with `SPAWN_AT_CONFIG` pointing at a missing file logs `cap=250`, with no `READY_WAIT_OVERRIDE` line. `spawn-at config show` says `wait.cap_ms 250 default (not sent: the extension decides)`.
 - Temporary config (`[wait] cap_ms = 400`): `config show` says `400 file`; the spawn logs `READY_WAIT_OVERRIDE ... cap_ms=400` then `READY_WAIT_START ... cap=400`. A harness run with that same `SPAWN_AT_CONFIG` in its environment still reports `wait_cap_ms 250` and `cap=250`: the harness ignores the user's config file.
 - Disclosure: two `SetLogging(true)` / `SetLogging(false)` pairs by `gdbus` for the direct spawns; the fixture windows exited on their own (`--exit-after-ms`), `pgrep -cx fixture` printed 0.
+- The journal check above was made before these preflight spawns; their `[spawn-at-time]` lines are normal logging, not errors.
+
+**Phase 2, regression A (legacy by override) against D (no override, the new default), native Wayland fixture (CONFIRMED).** Specs `placement/bottom-right-smaller` (400x300 to 200x150) and `placement/bottom-right-larger`; arm order rotated every iteration (A,D then D,A, ...), one `run` per spec per arm, 1.5 s apart, same login, same session. Idle: 10 per arm per spec (40 runs). Loaded: 22 `xtask burn-cpu` threads for the whole phase after a 70 s warm-up (load average 19.65 after warm-up, 25.9 at the end), 20 per arm per spec (80 runs). Every run exited 0 and all 120 rows were valid (arm D: no `READY_WAIT_OVERRIDE` line, `READY_WAIT_START cap=250`; arm A: `READY_WAIT_OVERRIDE strategy=legacy`). The paint time of every verdict is the wire commit (`paint_source=wire`, 120 of 120). Flash is the numeric wire-time flash of 6.16 (reveal before the client's commit at the final size).
+
+| Load | Arm | Spec | Runs | Wire-time flash runs | Cloak median / p95 / max (ms) | Outcome |
+| :-- | :-: | :-- | --: | --: | :-- | :-- |
+| idle | A | all | 20 | 0 | 19.6 / 34.9 / 51.1 | `AT_TARGET` 20 |
+| idle | D | all | 20 | 0 | 19.5 / 35.0 / 49.1 | `reached/at-target` 20 |
+| idle | A | smaller / larger | 10 / 10 | 0 / 0 | 19.0 / 51.1 / 51.1 and 20.1 / 34.9 / 34.9 | `AT_TARGET` |
+| idle | D | smaller / larger | 10 / 10 | 0 / 0 | 19.3 / 35.0 / 35.0 and 19.8 / 49.1 / 49.1 | `reached/at-target` |
+| loaded | A | all | 40 | **26** (51 events, 38 `certain`, 13 `possible`) | 45.3 / 53.0 / 70.2 | `AT_TARGET` 13, `SIZE_SETTLED` 27 |
+| loaded | D | all | 40 | **0** | 66.8 / 104.7 / 116.2 | `reached/at-target` 40 |
+| loaded | A | smaller / larger | 20 / 20 | 6 / 20 | 44.9 / 50.0 / 70.2 and 45.3 / 53.0 / 54.3 | |
+| loaded | D | smaller / larger | 20 / 20 | 0 / 0 | 46.5 / 66.6 / 76.0 and 83.2 / 113.9 / 116.2 | |
+
+- **Loaded flash: D 0 of 40 against A 26 of 40 runs** (Fisher two-sided p = 6e-11). Idle: 0 of 20 in both arms, so idle shows nothing to separate. For A the median lead of the flashes is 22.8 ms and the largest 68.2 ms; `ANCHOR_CORRECTION` appears in 26 runs of A (I did not check that they are the same 26) and in none of D. Every D run ended `reached` at the target; no D run hit the cap (cap 250 ms, the longest wait 111.6 ms).
+- **Cost of D under load: cloak median 66.8 ms against 45.3 ms for A (+21.5 ms), p95 104.7 against 53.0, max 116.2 against 70.2.** Most of it is the larger window: 83.2 against 45.3 ms median. Idle there is no difference (19.5 against 19.6 ms).
+- **No `X11_OBS` line appears in any of the 120 native Wayland runs** (`grep -c X11_OBS` over every `log_slice`: 0 idle, 0 loaded).
+- Burn: started with PID 189009, stopped by that PID by the batch script; afterwards `pgrep -cx xtask` printed 0, `pgrep -cx fixture` printed 0 and `ps -p 189009` found nothing.
+- **Process finding (CONFIRMED).** My first idle batch ran 40 runs that were all `Blocked by preflight failure: Stale binary: binary commit '6ebace0' does not match repository HEAD '1655116'`, because I had committed the phase 1 draft first. The binary embeds the commit it was built at, so after every docs commit `cargo build -p spawn-at` has to run before the next harness batch (it rebuilt in 1 s; the product code is unchanged). Those 40 blocked rows are kept in `scratch/p23r/idle_blocked_stale_binary/` and are not measurements; the idle numbers above are the rerun.
