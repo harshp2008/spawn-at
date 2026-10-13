@@ -587,3 +587,19 @@ All of them fire at the shell-side resize, not at the client's paint. The client
 **Future work, untried.**
 1. Does a cloaked window get `damaged` for its repaint? It needs a build that holds the cloak until the client paints, to see whether the paint's `damaged` arrives while cloaked. This is a behaviour change, so it is not an observe-only experiment.
 2. A client-side signal: the X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`), used by GTK and Qt clients. HYPOTHESIS that it is usable; not looked at, and the fixture's toolkit (winit) may not implement it.
+
+## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14, built, not installed, not run in a Shell)
+
+Labels: CONFIRMED = covered by a node or Rust test in this tree; HYPOTHESIS = needs a real Shell. Details and counts: TEST_PLAN 6.25.
+
+**Why.** Section 12 found that the first `damaged` after `set_size` is the shell's own, and that the client's paint produced no `damaged` before the reveal while the window was cloaked, but the cloak was lifted at 17 to 38 ms, before most paints. This asks the question directly: keep the window cloaked and see whether a second `damaged` arrives, and when.
+
+**What.** `strategy = "x11-hold-damage"` (module `assets/gnome/modern/x11_hold.js`), for an XWayland or X11 window with a size request only. After `set_size` the window stays cloaked; the first `damaged` is ignored; the second ends the wait as `reached` (`reason=x11-second-damaged`); otherwise the cap (`cap_ms`, default 250) ends it as `timed-out` (`x11-cap`, or `x11-hard` at 1500). Same log tags as the ready-wait (`READY_WAIT_START`, `COMMIT_RESOLVED`, `READY_WAIT_RESOLVED`), plus `X11_HOLD_DAMAGED`; the label is also the `reason` of `ResizeOutcome`.
+
+**Off by default (CONFIRMED by tests).** Only the hidden `--wait-strategy x11-hold-damage` flag selects it; the config file and `config set` refuse it; the default instruction bytes are unchanged; a native Wayland window or an X11 spawn without the value behaves and logs as before (wiring tests compare the traces line for line).
+
+**How to read the live result (HYPOTHESIS).** If most runs end `x11-second-damaged` after the client's `FIRST_PAINT` (stamp lag allowed for, 6.23), `damaged` can gate the reveal and the cap is the only cost. If most end `x11-cap`, a cloaked window gets no `damaged` for its repaint and the idea fails. A second `damaged` before the client's paint (a shell-side one) would show up as a flash with `reason=x11-second-damaged`.
+
+**Ping/pong.** Nothing was added: `Meta.Window.check_alive(timestamp)` is an action, the only observable is the read-only `is-alive` property (changes after the 5000 ms check-alive timeout), and no signal carries a reply or its time (TEST_PLAN 6.25, phase 1a).
+
+**Not done.** A screen-capture check of what is visible: the Mutter screencast session is prompt-free but no local consumer could attach to its PipeWire node (6.25, phase 1b).
