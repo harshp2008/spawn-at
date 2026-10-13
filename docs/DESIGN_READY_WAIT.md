@@ -523,7 +523,7 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 
 ## 12. X11 observation (observe-only logging, 2026-10-13)
 
-Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS = needs a real Shell. Nothing here is run in a Shell yet.
+Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS = needs a real Shell. The first live runs are in TEST_PLAN 6.23 to 6.26.
 
 **Why.** On X11 and XWayland the window manager sets the frame size at once, so `frame == target` says nothing about whether the app has painted into it (TEST_PLAN 6.15, 6.18); that is why those windows keep the original quiet rule (`strategy=legacy kind=XWayland|X11`). The ready-wait machine needs a signal that the app has finished painting a resize. Candidates from the Mutter documentation: `Meta.WindowActor::damaged` ("one or more surfaces damaged"), `::first-frame` (first frame only), and the size of the actor's surface texture, which may follow the committed buffer on XWayland. None of it is verified for GNOME 46. This section only **looks**; no strategy, verdict, timing or outcome uses it.
 
@@ -582,13 +582,17 @@ Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS
 | Buffer rect | equals the frame rect in 351 of 351 lines | same |
 | Texture size (`shaped>multi`) | equals the target at the first `damaged` in 80 of 80 runs; 400x300 at `first-frame` | before the client painted in 59 of 80 runs, up to 359 ms early under load; the same moment as the first `damaged` |
 
-All of them fire at the shell-side resize, not at the client's paint. The client's own paint produces a `damaged` only 0.2 to 20 ms after the paint, and in the runs where the window was still cloaked it did not arrive before the reveal (0 of 14 idle larger runs).
+All of them fire at the shell-side resize, not at the client's paint. The client's own paint produces a `damaged` only 0.2 to 20 ms after the paint, and in the runs where the window was still cloaked it did not arrive before the reveal (0 of 14 idle larger runs). (Section 13 later showed that a cloaked window does get `damaged`; those events are the shell's, not the client's.)
 
-**Future work, untried.**
-1. Does a cloaked window get `damaged` for its repaint? It needs a build that holds the cloak until the client paints, to see whether the paint's `damaged` arrives while cloaked. This is a behaviour change, so it is not an observe-only experiment.
-2. A client-side signal: the X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`), used by GTK and Qt clients. HYPOTHESIS that it is usable; not looked at, and the fixture's toolkit (winit) may not implement it.
+**Ideas tried after this table (2026-10-14).**
+1. Hold the cloak and wait for a second `damaged`: tried (section 13), **not usable** (CONFIRMED, TEST_PLAN 6.26). A cloaked window does get `damaged`, but the second one arrives about 30 ms after `set_size` whatever the client does; it cuts some flashes only by holding the window longer.
+2. Window ping: **no API exposes the reply** (CONFIRMED, 6.25): `Meta.Window.check_alive` has no reply signal.
 
-## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14, built, not installed, not run in a Shell)
+**Still untried.** The X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`): client-side, used by GTK and Qt clients, partial toolkit support (HYPOTHESIS that it is usable; the fixture's toolkit, winit, may not implement it). A screen-capture measurement rig: the Mutter ScreenCast stream could not be consumed and the portal needs a user prompt (6.25, 6.26).
+
+## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; result: tried, not usable, TEST_PLAN 6.26)
+
+**Result (CONFIRMED, 160 fixture runs, TEST_PLAN 6.26).** The experiment works as built but is not a ready signal. The second `damaged` arrives about 30 ms after `set_size` in both specs, though the client paints at 4 and 21 ms; under load it came before the client's paint in 30 of 39 runs. It reduces flashes (loaded smaller 17 to 6 of 20, loaded larger 20 to 18, idle larger 3 to 0) only by holding the window longer (+13 to +38 ms at the median). The flag stays hidden, off by default, refused by the config file, and not recommended. The sections below are the design as written before the run.
 
 Labels: CONFIRMED = covered by a node or Rust test in this tree; HYPOTHESIS = needs a real Shell. Details and counts: TEST_PLAN 6.25.
 
@@ -598,7 +602,7 @@ Labels: CONFIRMED = covered by a node or Rust test in this tree; HYPOTHESIS = ne
 
 **Off by default (CONFIRMED by tests).** Only the hidden `--wait-strategy x11-hold-damage` flag selects it; the config file and `config set` refuse it; the default instruction bytes are unchanged; a native Wayland window or an X11 spawn without the value behaves and logs as before (wiring tests compare the traces line for line).
 
-**How to read the live result (HYPOTHESIS).** If most runs end `x11-second-damaged` after the client's `FIRST_PAINT` (stamp lag allowed for, 6.23), `damaged` can gate the reveal and the cap is the only cost. If most end `x11-cap`, a cloaked window gets no `damaged` for its repaint and the idea fails. A second `damaged` before the client's paint (a shell-side one) would show up as a flash with `reason=x11-second-damaged`.
+**How to read the live result (written before the run; the outcome is in the Result paragraph above).** If most runs end `x11-second-damaged` after the client's `FIRST_PAINT` (stamp lag allowed for, 6.23), `damaged` can gate the reveal and the cap is the only cost. If most end `x11-cap`, a cloaked window gets no `damaged` for its repaint and the idea fails. A second `damaged` before the client's paint (a shell-side one) would show up as a flash with `reason=x11-second-damaged`.
 
 **Ping/pong.** Nothing was added: `Meta.Window.check_alive(timestamp)` is an action, the only observable is the read-only `is-alive` property (changes after the 5000 ms check-alive timeout), and no signal carries a reply or its time (TEST_PLAN 6.25, phase 1a).
 

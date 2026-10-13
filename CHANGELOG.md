@@ -61,9 +61,14 @@ caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for t
   that says an X11 client has painted at its new size and found none that works: the first
   `damaged` event, `first-frame`, the actor size, the buffer rect and the surface texture size all
   change at the shell's resize, not at the client's paint (the texture size reached the target
-  before the client painted in 59 of 80 fixture runs). Two ideas are untried: holding the cloak to
-  see whether a hidden window gets `damaged` for its repaint, and the X sync counter. See
-  [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md), section 12.
+  before the client painted in 59 of 80 fixture runs). Two more ideas were tried and do not work:
+  holding the cloak and waiting for a second `damaged` (it arrives about 30 ms after the resize
+  whatever the client does, so it only holds the window longer), and a window ping (no API exposes
+  the reply). Still untried: the X sync counter (client-side, partial toolkit support) and a
+  screen-capture measurement rig (the Mutter screencast stream could not be consumed; the portal
+  needs a user prompt). See [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md), sections 12 and 13.
+- A hidden, off-by-default `--wait-strategy x11-hold-damage` experimental flag exists. The config
+  file refuses it, and it is not recommended.
 - On GNOME 46 the extension cannot read an app's reported minimum size (it reads 0x0), so it learns
   a minimum only by waiting.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
