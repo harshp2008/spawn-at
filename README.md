@@ -110,8 +110,7 @@ Three details do most of the work:
 - **Late resizes.** Right before the reveal, a resize that arrived late is corrected by re-anchoring, in up to two frame passes (GNOME 46 extension; the legacy 42-44 extension checks once). After the reveal the extension keeps a listener on the window's size changes: when the app resizes itself (font loading, client-side decorations) and the anchored position moves, the frame is moved back. The listener is dropped when the window closes, or one second after the last correction if the size then stays quiet. It does nothing while the window is maximized or fullscreen or while you are dragging it. A window that never needed a correction keeps the listener until it closes.
 - **Concurrent spawns.** Requests go through a queue, so two hotkeys pressed together don't interleave their configure events.
 - **Layout math.** Anchors, pivots, margins and clamping live in `spawn-at-core`, pure Rust with no display server dependency. Session type comes from `loginctl`, not `$XDG_SESSION_TYPE`.
-- **Minimum-size handling.** GTK3 apps that violate the requested size needed their own handling, and
-  the fix for that initially broke GTK4, so both paths are covered now.
+- **Minimum-size handling.** An observation from development, not a tested guarantee (no document in this repo records it): GTK3 apps that end up larger than the requested size needed their own handling, and the first fix broke GTK4 apps. The documented minimum-size evidence is for the test window and for gnome-text-editor, zenity and firefox: see [docs/TEST_PLAN.md](docs/TEST_PLAN.md) sections 6.2 to 6.4.
 </details>
 
 ## One CLI, a driver per desktop
