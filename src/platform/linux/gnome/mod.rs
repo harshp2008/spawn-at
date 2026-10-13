@@ -1786,4 +1786,141 @@ mod tests {
         assert!(win.state.is_none());
         assert!(win.workspace.is_none());
     }
+
+    /// A stand-in for the extension's claim signals. `version` is the protocol it reports; the
+    /// ResizeOutcome signal is declared on both versions (the object is only a signal source, a
+    /// protocol 5 extension simply never emits it).
+    struct StubClaim {
+        version: u32,
+    }
+
+    #[zbus::interface(name = "org.gnome.Shell.Extensions.SpawnAt")]
+    impl StubClaim {
+        #[zbus(property)]
+        fn protocol_version(&self) -> u32 {
+            self.version
+        }
+
+        #[zbus(signal)]
+        #[allow(clippy::too_many_arguments)]
+        async fn spawn_claimed(
+            ctxt: &zbus::SignalContext<'_>,
+            target_id: &str,
+            success: bool,
+            window_id: u64,
+            x: i32,
+            y: i32,
+            w: u32,
+            h: u32,
+            size_raised: bool,
+            error: &str,
+        ) -> zbus::Result<()>;
+
+        #[zbus(signal)]
+        async fn resize_outcome(
+            ctxt: &zbus::SignalContext<'_>,
+            target_id: &str,
+            outcome: &str,
+            final_w: u32,
+            final_h: u32,
+            waited_ms: u32,
+            reason: &str,
+        ) -> zbus::Result<()>;
+    }
+
+    /// Serves `StubClaim` on one session-bus connection and returns a driver on a second
+    /// connection, so the signals really travel through the bus. The first connection is returned
+    /// too and must be kept alive, with the path to emit from.
+    async fn claim_driver(
+        version: u32,
+        path: &'static str,
+    ) -> (zbus::Connection, GnomeWaylandDriver) {
+        let server = zbus::Connection::session().await.unwrap();
+        server
+            .object_server()
+            .at(path, StubClaim { version })
+            .await
+            .unwrap();
+        let client = zbus::Connection::session().await.unwrap();
+        let proxy = dbus::SpawnAtProxy::builder(&client)
+            .destination(server.unique_name().unwrap().to_owned())
+            .unwrap()
+            .path(path.to_string())
+            .unwrap()
+            .build()
+            .await
+            .unwrap();
+        (server, GnomeWaylandDriver::from_proxy(proxy))
+    }
+
+    async fn emit_claim(server: &zbus::Connection, path: &'static str, target: &str) {
+        let ctxt = zbus::SignalContext::new(server, path).unwrap();
+        StubClaim::spawn_claimed(&ctxt, target, true, 7, 1104, 464, 494, 292, false, "")
+            .await
+            .unwrap();
+    }
+
+    /// Protocol 6: the outcome emitted before the claim is attached to the claim, and one for
+    /// another target is not.
+    #[tokio::test]
+    async fn test_claim_carries_resize_outcome_with_protocol_6() {
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestClaim6";
+        let (server, driver) = claim_driver(6, path).await;
+        let mut sub = driver.prepare_claim_wait("t-1").await.unwrap().unwrap();
+
+        let ctxt = zbus::SignalContext::new(&server, path).unwrap();
+        StubClaim::resize_outcome(&ctxt, "other", "timed-out", 400, 300, 150, "cap")
+            .await
+            .unwrap();
+        StubClaim::resize_outcome(&ctxt, "t-1", "adjusted", 494, 292, 41, "quiet")
+            .await
+            .unwrap();
+        emit_claim(&server, path, "t-1").await;
+
+        let claim = sub.wait_claim(Duration::from_secs(2)).await.unwrap();
+        assert_eq!(claim.window_id, 7);
+        assert_eq!((claim.w, claim.h), (494, 292));
+        assert_eq!(
+            claim.resize,
+            Some(ResizeReport::from_wire("adjusted", 494, 292, 41, "quiet"))
+        );
+    }
+
+    /// Protocol 6 with a window the extension waits for with the legacy rule: no outcome is sent,
+    /// the claim has none, and the CLI does not wait for one.
+    #[tokio::test]
+    async fn test_claim_without_outcome_is_not_delayed_with_protocol_6() {
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestClaim6Legacy";
+        let (server, driver) = claim_driver(6, path).await;
+        let mut sub = driver.prepare_claim_wait("t-2").await.unwrap().unwrap();
+
+        emit_claim(&server, path, "t-2").await;
+        let started = std::time::Instant::now();
+        let claim = sub.wait_claim(Duration::from_secs(2)).await.unwrap();
+        assert!(claim.resize.is_none());
+        assert!(
+            started.elapsed() < Duration::from_millis(500),
+            "waited {:?} for an outcome that was never sent",
+            started.elapsed()
+        );
+    }
+
+    /// Protocol 5 (an extension that was not reinstalled): the claim works and has no outcome,
+    /// even if something emitted a ResizeOutcome, because the CLI does not subscribe below 6.
+    #[tokio::test]
+    async fn test_claim_against_protocol_5_has_no_resize_outcome() {
+        let path = "/org/gnome/Shell/Extensions/SpawnAtTestClaim5";
+        let (server, driver) = claim_driver(5, path).await;
+        let mut sub = driver.prepare_claim_wait("t-3").await.unwrap().unwrap();
+
+        let ctxt = zbus::SignalContext::new(&server, path).unwrap();
+        StubClaim::resize_outcome(&ctxt, "t-3", "reached", 800, 600, 20, "at-target")
+            .await
+            .unwrap();
+        emit_claim(&server, path, "t-3").await;
+
+        let claim = sub.wait_claim(Duration::from_secs(2)).await.unwrap();
+        assert_eq!((claim.x, claim.y), (1104, 464));
+        assert!(claim.resize.is_none());
+    }
 }

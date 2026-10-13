@@ -910,6 +910,87 @@ mod tests {
         assert_eq!(json_val["source"], "poll");
     }
 
+    fn sample_output(
+        resize: Option<spawn_at_core::resize_report::ResizeReport>,
+    ) -> SpawnOutputJson {
+        SpawnOutputJson {
+            window_id: Some(7),
+            x: 1104,
+            y: 464,
+            w: 494,
+            h: 292,
+            rel_x: 1104,
+            rel_y: 424,
+            area: "workarea".to_string(),
+            size_raised: false,
+            raised_w: false,
+            raised_h: false,
+            reused_existing_window: false,
+            source: "claim".to_string(),
+            resize,
+        }
+    }
+
+    /// With a protocol 6 outcome the JSON has a `resize` object with the keys outcome, requested,
+    /// final, waited_ms and reason, and every pre-existing key keeps its value.
+    #[test]
+    fn test_spawn_output_json_resize_object() {
+        let report = spawn_at_core::resize_report::ResizeReport::from_wire(
+            "adjusted", 494, 292, 41, "quiet",
+        )
+        .with_requested(500, 300);
+        let value = serde_json::to_value(sample_output(Some(report))).unwrap();
+        assert_eq!(
+            value["resize"],
+            serde_json::json!({
+                "outcome": "adjusted",
+                "requested": {"w": 500, "h": 300},
+                "final": {"w": 494, "h": 292},
+                "waited_ms": 41,
+                "reason": "quiet"
+            })
+        );
+        assert_eq!(value["window_id"], 7);
+        assert_eq!(value["source"], "claim");
+    }
+
+    /// Without an outcome (protocol 5, legacy-strategy window, poll fallback) the key is absent,
+    /// so the output is exactly what it was before protocol 6.
+    #[test]
+    fn test_spawn_output_json_without_resize_has_no_resize_key() {
+        let value = serde_json::to_value(sample_output(None)).unwrap();
+        assert!(value.as_object().unwrap().get("resize").is_none());
+        let mut keys: Vec<_> = value.as_object().unwrap().keys().cloned().collect();
+        keys.sort();
+        assert_eq!(
+            keys,
+            [
+                "area",
+                "h",
+                "raised_h",
+                "raised_w",
+                "rel_x",
+                "rel_y",
+                "reused_existing_window",
+                "size_raised",
+                "source",
+                "w",
+                "window_id",
+                "x",
+                "y"
+            ]
+        );
+    }
+
+    /// A consumer reading output from an older CLI (no `resize` key) still parses it.
+    #[test]
+    fn test_spawn_output_json_from_older_cli_parses() {
+        let old = r#"{"window_id":7,"x":1,"y":2,"w":3,"h":4,"rel_x":1,"rel_y":2,"area":"workarea",
+            "size_raised":false,"reused_existing_window":false,"source":"claim"}"#;
+        let parsed: SpawnOutputJson = serde_json::from_str(old).unwrap();
+        assert!(parsed.resize.is_none());
+    }
+
     #[test]
     fn test_capturing_stdout_returns_without_waiting_for_child() {
         let mut child_cmd = std::process::Command::new("sh");
