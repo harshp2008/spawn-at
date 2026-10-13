@@ -498,9 +498,9 @@ test('dispatcher: emits SpawnClaimed signal with failure status on error', async
     ext.disable();
 });
 
-test('dispatcher: ProtocolVersion property is 5', () => {
+test('dispatcher: ProtocolVersion property is 6', () => {
     const ext = new SpawnAtExtension({ path: '/dummy' });
-    assert.equal(ext.ProtocolVersion, 5);
+    assert.equal(ext.ProtocolVersion, 6);
 });
 
 test('dispatcher: GetWindows returns protocol 5 metadata (monitor, state, workspace)', () => {

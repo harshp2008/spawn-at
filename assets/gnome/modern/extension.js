@@ -22,7 +22,7 @@ import Clutter from 'gi://Clutter';
 
 import { DBusManager } from './dbus.js';
 import { CloakManager } from './cloak.js';
-import { CommitLatch } from './commit.js';
+import { CommitLatch, readyReason } from './commit.js';
 import { FocusPulse } from './pulse.js';
 import { computeAnchoredPosition } from './anchor.js';
 import { SessionLogger } from './logger.js';
@@ -1061,6 +1061,26 @@ export default class SpawnAtExtension extends Extension {
         const winId = typeof window.get_id === 'function' ? window.get_id() : 0;
         const targetId = ctx.targetId || '';
         const sizeRaised = Boolean(ctx.clampedSafeSize && (ctx.clampedSafeSize.w > ctx.targetW || ctx.clampedSafeSize.h > ctx.targetH));
+
+        // Only the ready-wait strategy has an outcome; legacy waits send none. Emitted first: the
+        // CLI reads it after it has seen SpawnClaimed, and signals from one sender arrive in order.
+        if (ctx.resize) {
+            try {
+                const { outcome, final } = ctx.resize;
+                const uint = n => Math.max(0, Math.round(Number(n) || 0));
+                this._dbusManager?.emitSignal('ResizeOutcome', new GLib.Variant('(ssuuus)', [
+                    targetId,
+                    outcome.outcome,
+                    uint(final[0]),
+                    uint(final[1]),
+                    uint(outcome.waited_ms),
+                    readyReason(outcome),
+                ]));
+            } catch (e) {
+                console.error(`[SpawnAt] Failed to emit ResizeOutcome signal: ${e}`);
+            }
+        }
+
         try {
             const params = new GLib.Variant('(sbtiiuubs)', [
                 targetId,
@@ -1422,8 +1442,9 @@ export default class SpawnAtExtension extends Extension {
     // 9. D-BUS API IMPLEMENTATION
     // =======================================================================
 
+    // 6 adds the ResizeOutcome signal (emitted before SpawnClaimed for native Wayland windows).
     get ProtocolVersion() {
-        return 5;
+        return 6;
     }
 
     DisarmSpawn(target_id) {

@@ -110,8 +110,14 @@ function createMockWindowAndActor() {
     return { window, actor };
 }
 
-test('contract: interface XML parity between modern and legacy D-Bus definitions', () => {
-    assert.equal(legacyIface.trim(), modernIface.trim(), 'Legacy and modern D-Bus interface XML must match character-for-character');
+// The legacy tree stays at protocol 5; protocol 6 added the ResizeOutcome signal to the modern tree only.
+const RESIZE_OUTCOME_SIGNAL = /    <signal name="ResizeOutcome">[\s\S]*?<\/signal>\n/;
+
+test('contract: interface XML parity between modern and legacy D-Bus definitions, apart from the protocol-6 ResizeOutcome signal', () => {
+    assert.ok(RESIZE_OUTCOME_SIGNAL.test(modernIface), 'modern XML must declare ResizeOutcome');
+    assert.ok(!legacyIface.includes('ResizeOutcome'), 'legacy XML stays at protocol 5');
+    assert.equal(legacyIface.trim(), modernIface.replace(RESIZE_OUTCOME_SIGNAL, '').trim(),
+        'Legacy and modern D-Bus interface XML must match character-for-character, minus ResizeOutcome');
 });
 
 test('dispatcher (legacy): ProtocolVersion property is 5', () => {

@@ -1312,12 +1312,25 @@ mod tests {
             src[start..end].trim().to_string()
         }
 
+        // The legacy tree (GNOME 42-44) stays at protocol 5; protocol 6 added the ResizeOutcome
+        // signal to the modern tree only. Everything else must still be identical.
+        fn without_resize_outcome(xml: &str) -> String {
+            let start = xml
+                .find("    <signal name=\"ResizeOutcome\">")
+                .expect("modern XML must declare ResizeOutcome (protocol 6)");
+            let end_tag = "</signal>\n";
+            let end = start + xml[start..].find(end_tag).unwrap() + end_tag.len();
+            format!("{}{}", &xml[..start], &xml[end..])
+        }
+
         let modern_xml = extract_xml(modern_dbus);
         let legacy_xml = extract_xml(legacy_dbus);
 
+        assert!(!legacy_xml.contains("ResizeOutcome"));
         assert_eq!(
-            modern_xml, legacy_xml,
-            "D-Bus interface XML must match between modern and legacy extensions"
+            without_resize_outcome(&modern_xml),
+            legacy_xml,
+            "D-Bus interface XML must match between modern and legacy extensions, apart from the protocol-6 ResizeOutcome signal"
         );
         assert!(modern_xml.contains("name=\"SpawnClaimed\""));
         assert!(modern_xml.contains("name=\"ProtocolVersion\""));

@@ -76,6 +76,14 @@ export const DBUS_IFACE = `
       <arg type="b" name="size_raised"/>
       <arg type="s" name="error"/>
     </signal>
+    <signal name="ResizeOutcome">
+      <arg type="s" name="target_id"/>
+      <arg type="s" name="outcome"/>
+      <arg type="u" name="final_w"/>
+      <arg type="u" name="final_h"/>
+      <arg type="u" name="waited_ms"/>
+      <arg type="s" name="reason"/>
+    </signal>
   </interface>
 </node>`;
 
