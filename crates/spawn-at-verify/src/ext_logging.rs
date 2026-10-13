@@ -1,6 +1,7 @@
 //! Control of the GNOME extension's timing log over session D-Bus.
 
 use crate::log_source::LogSource;
+use crate::trace::flash::{monotonic_ns, MonoBracket};
 use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
@@ -8,6 +9,14 @@ use std::time::{Duration, Instant, SystemTime};
 
 /// Invokes `SetLogging` on the GNOME Shell extension via session D-Bus.
 pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
+    set_extension_logging_bracketed(enabled).map(|_| ())
+}
+
+/// Invokes `SetLogging` like [`set_extension_logging`] and returns the monotonic reads taken
+/// just before the `gdbus` process was started and just after it exited. With `enabled` the
+/// extension writes a `SET_LOGGING enabled=true` echo somewhere inside that interval.
+pub fn set_extension_logging_bracketed(enabled: bool) -> Result<MonoBracket, String> {
+    let before_ns = monotonic_ns();
     let output = Command::new("gdbus")
         .args([
             "call",
@@ -21,9 +30,13 @@ pub fn set_extension_logging(enabled: bool) -> Result<(), String> {
             if enabled { "true" } else { "false" },
         ])
         .output();
+    let after_ns = monotonic_ns();
 
     match output {
-        Ok(out) if out.status.success() => Ok(()),
+        Ok(out) if out.status.success() => Ok(MonoBracket {
+            before_ns,
+            after_ns,
+        }),
         Ok(out) => Err(format!(
             "gdbus returned non-zero exit code: {:?}, stderr: {}",
             out.status.code(),
@@ -104,6 +117,14 @@ pub trait LoggingControl: Send + Sync {
     /// Called when a run's slice held a trace for its window, which proves the timing log is on.
     /// The default does nothing.
     fn trace_captured(&self) {}
+
+    /// Sends `n` more `SetLogging(true)` calls, each bracketed by monotonic reads, so the echoes
+    /// they leave in the log can tie the extension's `+N ms` clock to the monotonic clock. The
+    /// brackets are returned oldest first; a call that fails ends the series. The default sends
+    /// nothing, which leaves the run without a clock anchor.
+    fn anchor_brackets(&self, _n: usize) -> Vec<MonoBracket> {
+        Vec::new()
+    }
 }
 
 /// Whether the last echo wait of this session timed out. It lives for the whole process, so
@@ -200,6 +221,18 @@ impl LoggingControl for GdbusLogging {
     fn trace_captured(&self) {
         self.memory.timed_out.store(false, Ordering::SeqCst);
     }
+
+    /// Calls the real `gdbus` `n` times through [`set_extension_logging_bracketed`].
+    fn anchor_brackets(&self, n: usize) -> Vec<MonoBracket> {
+        let mut out = Vec::new();
+        for _ in 0..n {
+            match set_extension_logging_bracketed(true) {
+                Ok(b) => out.push(b),
+                Err(_) => break,
+            }
+        }
+        out
+    }
 }
 
 /// Control for log sources that are not the extension's journal.
@@ -230,6 +263,8 @@ struct FakeExtensionState {
     enable_error: Option<String>,
     /// How many times `ensure_enabled` was called.
     enable_calls: usize,
+    /// Brackets `anchor_brackets` hands out, for tests that need a clock anchor.
+    brackets: Vec<MonoBracket>,
 }
 
 /// In-memory stand-in for the extension: a log source plus its logging switch.
@@ -274,6 +309,11 @@ impl FakeExtension {
     pub fn enable_calls(&self) -> usize {
         self.state.lock().unwrap().enable_calls
     }
+
+    /// Sets the brackets `anchor_brackets` returns (whatever `n` is asked for).
+    pub fn set_brackets(&self, brackets: Vec<MonoBracket>) {
+        self.state.lock().unwrap().brackets = brackets;
+    }
 }
 
 impl LogSource for FakeExtension {
@@ -306,6 +346,11 @@ impl LoggingControl for FakeExtension {
         }
         s.enabled = true;
         LoggingOutcome::Enabled
+    }
+
+    /// The brackets set with [`FakeExtension::set_brackets`].
+    fn anchor_brackets(&self, _n: usize) -> Vec<MonoBracket> {
+        self.state.lock().unwrap().brackets.clone()
     }
 }
 

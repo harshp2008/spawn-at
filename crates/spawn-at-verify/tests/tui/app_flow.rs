@@ -262,6 +262,7 @@ fn test_done_count_excludes_waiting_human_case() {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(t0.id.clone(), pass_res);
 
@@ -290,6 +291,7 @@ fn test_done_count_excludes_waiting_human_case() {
             log_slice: None,
             trace_note: None,
             final_rect: None,
+            flash_info: Default::default(),
         };
         app.results.insert(t1.id.clone(), wait_res);
 

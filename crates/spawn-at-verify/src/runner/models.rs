@@ -127,9 +127,25 @@ pub struct TestResult {
     /// judged on it instead of the printed rectangle in `stdout`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub final_rect: Option<crate::oracle::Rect>,
+    /// Result of the flash check (reveal before the final paint, or a size or position change
+    /// after the reveal). Its fields are written into the report next to the other result fields
+    /// as `flash`, `flash_events`, `flash_basis`, `flash_notes` and `flash_clock_uncertainty_ms`;
+    /// a report written before the check existed reads back as no flash.
+    #[serde(flatten, default)]
+    pub flash_info: crate::trace::flash::FlashInfo,
 }
 
 impl TestResult {
+    /// True for a run that passed on placement but flashed: the third outcome, "PASS (flash)".
+    /// A failed run is a failure, whatever it did on screen.
+    pub fn is_flash_pass(&self) -> bool {
+        self.flash_info.flash
+            && matches!(
+                self.final_status,
+                FinalStatus::Pass | FinalStatus::PassUnchecked | FinalStatus::PassTraceUnchecked
+            )
+    }
+
     /// Expected vs actual placement for this result under `test`'s rectangle expectation, or
     /// `None` when the test states none. The same comparison decides the runner's verdict
     /// ([`crate::runner::validate_geometry`]).
@@ -318,6 +334,9 @@ pub struct RunOptions {
     pub step_timeout: std::time::Duration,
     /// Maximum duration permitted for an entire test case.
     pub test_timeout: std::time::Duration,
+    /// Fail a run that passed on placement but flashed (`--strict-flash`). Off by default: the
+    /// run then keeps its pass and is reported as "PASS (flash)".
+    pub strict_flash: bool,
 }
 
 impl Default for RunOptions {
@@ -332,6 +351,7 @@ impl Default for RunOptions {
             include_titles: false,
             step_timeout: std::time::Duration::from_secs(5),
             test_timeout: std::time::Duration::from_secs(10),
+            strict_flash: false,
         }
     }
 }

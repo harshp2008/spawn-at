@@ -32,6 +32,7 @@ fn test_tui_detail_drawer_content_ordering_and_failure_box() {
         ),
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), failed_result);
 
@@ -182,6 +183,7 @@ fn test_stdout_window_id_appears_exactly_once_in_compact_drawer() {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), res);
 
@@ -230,6 +232,7 @@ fn test_compact_timeline_contains_neither_prefix_nor_proto() {
         log_slice: Some(trace_log.into()),
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), res);
 
@@ -277,6 +280,7 @@ fn test_label_values_alignment_across_section() {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), res);
 
@@ -392,7 +396,7 @@ fn test_multisize_drawer_rendering_and_token_wrapping() {
                 stderr: "[spawn-at] INFO: Window mapped at final size (400x300)\n".into(),
                 message: None,
                 log_slice: Some(trace_log_12.into()),
-                trace_note: None, final_rect: None,
+                trace_note: None, final_rect: None, flash_info: Default::default(),
             };
             app.results.insert(test.id.clone(), res);
 
@@ -495,7 +499,7 @@ fn test_506_9_ms_cloak_yellow_warning_does_not_fail_pass() {
         log_slice: Some(
             "[spawn-at-time] +0.0ms | CLOAK win=[id=870906018]\n[spawn-at-time] +506.9ms | UNCLOAK win=[id=870906018]".into(),
         ),
-        trace_note: None, final_rect: None,
+        trace_note: None, final_rect: None, flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), res);
 
@@ -558,6 +562,7 @@ fn test_failing_case_renders_failure_row_with_real_reason_in_red() {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     app.results.insert(test.id.clone(), res);
 

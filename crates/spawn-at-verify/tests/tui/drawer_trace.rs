@@ -34,6 +34,7 @@ fn passed_result(
         log_slice: slice.map(String::from),
         trace_note: note.map(String::from),
         final_rect: None,
+        flash_info: Default::default(),
     };
     (test, res)
 }

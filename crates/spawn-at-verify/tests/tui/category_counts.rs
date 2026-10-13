@@ -27,6 +27,7 @@ fn result(test: &TestDefinition, auto: AutoStatus, fin: FinalStatus) -> TestResu
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     }
 }
 

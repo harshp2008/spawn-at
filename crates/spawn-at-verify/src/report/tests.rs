@@ -27,6 +27,7 @@ fn test_skipped_is_never_a_pass() {
             log_slice: None,
             trace_note: None,
             final_rect: None,
+            flash_info: Default::default(),
         },
         TestResult {
             id: "cloak/delayed-paint".into(),
@@ -45,6 +46,7 @@ fn test_skipped_is_never_a_pass() {
             log_slice: None,
             trace_note: None,
             final_rect: None,
+            flash_info: Default::default(),
         },
     ];
 
@@ -173,6 +175,7 @@ fn run_result(id: &str, stdout: &str, duration_ms: u64) -> TestResult {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     }
 }
 
@@ -278,6 +281,7 @@ fn test_required_trace_unchecked_pass_does_not_qualify() {
         log_slice: None,
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     };
     let q = evaluate_qualification(&[result(FinalStatus::Pass, AutoStatus::AutoPass)]);
     assert!(q.supported);

@@ -2,9 +2,12 @@
 
 pub mod engine;
 pub mod executor;
+pub mod flash;
 pub mod models;
 pub mod validation;
 
+#[cfg(test)]
+mod flash_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

@@ -237,6 +237,7 @@ mod tests {
             log_slice: None,
             trace_note: trace_note.map(String::from),
             final_rect: None,
+            flash_info: Default::default(),
         }
     }
 

@@ -146,6 +146,7 @@ mod tests {
             log_slice: None,
             trace_note: None,
             final_rect: None,
+            flash_info: Default::default(),
         }
     }
 

@@ -97,6 +97,7 @@ fn result_with(stdout: &str, slice: String) -> TestResult {
         log_slice: Some(slice),
         trace_note: None,
         final_rect: None,
+        flash_info: Default::default(),
     }
 }
 

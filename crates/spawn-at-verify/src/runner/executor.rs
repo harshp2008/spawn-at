@@ -1,6 +1,7 @@
 //! Single-test execution, process invocation, log capture, and attribution.
 
 use super::engine::TestRunner;
+use super::flash::{apply_flash_policy, wants_flash_capture, FlashCapture};
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::validation::{
     build_action_command_args, expects_no_window, extract_claimed_window_id, needs_trace,
@@ -54,6 +55,7 @@ impl TestRunner {
                     log_slice: None,
                     trace_note: None,
                     final_rect: None,
+                    flash_info: Default::default(),
                 };
             }
         }
@@ -79,6 +81,7 @@ impl TestRunner {
                 log_slice: None,
                 trace_note: None,
                 final_rect: None,
+                flash_info: Default::default(),
             };
         }
 
@@ -102,6 +105,7 @@ impl TestRunner {
                 log_slice: None,
                 trace_note: None,
                 final_rect: None,
+                flash_info: Default::default(),
             };
         }
 
@@ -138,6 +142,7 @@ impl TestRunner {
                 log_slice: None,
                 trace_note: None,
                 final_rect: None,
+                flash_info: Default::default(),
             };
         }
 
@@ -176,7 +181,7 @@ impl TestRunner {
                             fixture_bin.display()
                         )),
                         log_slice: None,
-                        trace_note: None, final_rect: None,
+                        trace_note: None, final_rect: None, flash_info: Default::default(),
                     };
                 }
             }
@@ -189,11 +194,22 @@ impl TestRunner {
         // lose their plain pass over it, the others keep their verdict.
         let began = Instant::now();
         let trace_note = self.logging.ensure_enabled(&*self.log_source).note();
+        // A fixture spawn also gets a clock anchor (bracketed SetLogging calls) and a directory
+        // for the fixture's own paint events; both are for the flash check and, like the
+        // enable above, are not part of the run's duration.
+        let flash_capture = if trace_note.is_none() && wants_flash_capture(test) {
+            FlashCapture::start(&*self.logging)
+        } else {
+            None
+        };
         start += began.elapsed();
 
         let cmd_args = build_action_command_args(test, &fixture_bin);
         let mut cmd = Command::new(&self.options.bin_path);
         cmd.args(cmd_args);
+        if let Some(cap) = &flash_capture {
+            cap.apply(&mut cmd);
+        }
 
         // Fresh window snapshot immediately before each test's action
         let pre_action_snapshot: HashSet<u64> = query_window_ids(&self.options.bin_path)
@@ -233,6 +249,7 @@ impl TestRunner {
                     log_slice,
                     trace_note: trace_note.clone(),
                     final_rect: None,
+                    flash_info: Default::default(),
                 };
             }
         };
@@ -290,6 +307,7 @@ impl TestRunner {
                             log_slice,
                             trace_note: trace_note.clone(),
                             final_rect: None,
+                            flash_info: Default::default(),
                         };
                     }
                 }
@@ -335,6 +353,16 @@ impl TestRunner {
                 .ok()
                 .or(log_slice)
         };
+
+        // Flash check. With a fixture spawn this waits until 1500 ms after the reveal (not part
+        // of `duration_ms`, which was taken above) and re-reads the log so a correction made
+        // during the wait is in the slice judged below.
+        let (flash_info, log_slice) = self.run_flash_check(
+            flash_capture.as_ref(),
+            extract_claimed_window_id(&stdout, &stderr).or(target_id),
+            start_secs,
+            log_slice,
+        );
 
         // A trace for the run's window proves the timing log is on, so a remembered echo timeout
         // no longer applies.
@@ -390,6 +418,7 @@ impl TestRunner {
                     log_slice,
                     trace_note: trace_note.clone(),
                     final_rect,
+                    flash_info,
                 };
             }
         };
@@ -428,6 +457,7 @@ impl TestRunner {
                             log_slice,
                             trace_note: trace_note.clone(),
                             final_rect,
+                            flash_info,
                         };
                     }
                     auto_status
@@ -445,6 +475,15 @@ impl TestRunner {
         } else {
             auto_status
         };
+
+        // A run that passed on placement but flashed keeps its pass and says so; with
+        // `--strict-flash` it fails instead.
+        let (auto_status, pass_message) = apply_flash_policy(
+            auto_status,
+            pass_message,
+            &flash_info,
+            self.options.strict_flash,
+        );
 
         let (final_status, disagreement) =
             resolve_final_status(test.kind, auto_status, &HumanVerdict::default());
@@ -466,6 +505,7 @@ impl TestRunner {
             log_slice,
             trace_note,
             final_rect,
+            flash_info,
         }
     }
 }
