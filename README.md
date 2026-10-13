@@ -107,7 +107,7 @@ Three details do most of the work:
 <summary>More internals</summary>
 
 - **GNOME Terminal quirk.** GTK3/libvte terminals don't lay out their character grid until they get a keyboard focus change. The extension detects libvte via `/proc/<pid>/maps` and pulses focus while the window is still hidden. Other toolkits skip this.
-- **Late resizes.** If an app resizes itself after reveal (font loading, client-side decorations), a 1-second listener re-applies your anchor so the window doesn't drift.
+- **Late resizes.** Right before the reveal, a resize that arrived late is corrected by re-anchoring, in up to two frame passes (GNOME 46 extension; the legacy 42-44 extension checks once). After the reveal the extension keeps a listener on the window's size changes: when the app resizes itself (font loading, client-side decorations) and the anchored position moves, the frame is moved back. The listener is dropped when the window closes, or one second after the last correction if the size then stays quiet. It does nothing while the window is maximized or fullscreen or while you are dragging it. A window that never needed a correction keeps the listener until it closes.
 - **Concurrent spawns.** Requests go through a queue, so two hotkeys pressed together don't interleave their configure events.
 - **Layout math.** Anchors, pivots, margins and clamping live in `spawn-at-core`, pure Rust with no display server dependency. Session type comes from `loginctl`, not `$XDG_SESSION_TYPE`.
 - **Minimum-size handling.** GTK3 apps that violate the requested size needed their own handling, and
@@ -184,8 +184,8 @@ Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extensi
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**: never run on a real GNOME 42-44, it may not work at all |
 | GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 48, but only 46 has been run) |
 | Multi-monitor, fractional scaling | Untested |
-| Qt, GTK3 and Electron apps | Untested |
-| GTK4 apps | A few tested (for example gnome-text-editor), including apps that enforce a minimum window size |
+| Real GTK apps | A few runs each, Wayland only: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 (the toolkit version was not checked). Firefox flashed in 6 of 6 runs under the old rule (TEST_PLAN 6.12). Chrome was never matched |
+| Qt and Electron apps | Untested |
 | Other X11 desktops | Experimental native driver, untested. No cloaking, so you'll see the flash. |
 | Hyprland, Sway, KDE, macOS, Windows | Not implemented |
 

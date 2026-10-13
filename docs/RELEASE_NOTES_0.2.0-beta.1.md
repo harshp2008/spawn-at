@@ -37,7 +37,7 @@ All numbers are from the project's own test window, not from real apps, on **one
 
 - Real X11 and XWayland applications (only the fixture was used), and native X11 sessions beyond the fixture.
 - GNOME 42, 43, 44 (the legacy extension has never run on a real GNOME of those versions) and GNOME 45, 47, 48 (the metadata lists 45 to 48, but only 46 has been run).
-- Qt and Electron apps. Real GTK apps were tried only a few times each (gnome-text-editor, nautilus, gnome-terminal, firefox) and Chrome was never matched.
+- Qt and Electron apps. Real apps were tried only a few times each, on Wayland: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 but did not check. Chrome was never matched.
 - Multi-monitor setups and fractional scaling.
 - Release builds of the test fixture, and any screen-capture check of what is visible.
 - Other desktops: Hyprland, Sway, KDE, macOS and Windows are not implemented.
