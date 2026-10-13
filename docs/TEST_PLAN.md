@@ -1448,3 +1448,139 @@ Cloak median per spec (A / B / C, ms): `bottom-right-smaller` 40.3 / 38.6 / 38.6
 - **Not examined.** Why `reached` loaded runs still flash (8 of 40 in B, 10 of 49 in C); why the login differs from the baseline login.
 
 **Clean-up and files (CONFIRMED).** Every spawned window was closed by id; no `fixture`, `xtask`, `firefox`, `gnome-text-edit` or terminal-server process remained; the throwaway Firefox profile `~/snap/firefox/common/spawn-at-ab-profile` (59 MB, created for this section) was deleted. Scripts (`scratch/ab_batch.sh`, `ab_loaded.sh`, `ab_rows.sh`, `ab_rows.jq`, `ab_stats.sh`, `ab_stats.jq`, `app_ab.sh`, `rw_extract2.sh`) are throwaway, gitignored and not committed; raw per-run JSON (330 fixture runs) and the app logs stayed in the session scratchpad and are not in the repository.
+
+### 6.20 Why arms B and C still flash under load: classification and a protocol-level re-run (2026-10-13, no code change)
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Nothing in the product, the extension, the fixture or the harness was changed; the only file written in the repository is this section. Tests (`cargo test`) were not run. Question: why do B (cap 150) and C (cap 250) still flash in 21 loaded runs, and is that the mechanism of A's shrink flashes? The user's observation to test: the remaining flashes do not look like "the app answered late".
+
+**Data and what was done beyond reading it.**
+- **Dataset (CONFIRMED).** `~/spawn-at-ab-data` is identical to `/tmp/myload` (`diff -rq` printed nothing). 150 run JSONs: `br/` (bottom-right-smaller and -larger, 20 per arm per spec, 14:02:55 - 14:12:46 IST) and `tl/` (top-left-smaller, 10 per arm, 14:12:46 - 14:15:15), 22 `burn-cpu` threads, `binary_commit` `0f90bc1`, not dirty, Wayland, 22 CPUs. Mean load at run start: A 22.62, B 22.63, C 22.62. `br/exits.txt` also holds 32 lines of an earlier, aborted batch (13:54 - 13:57); their JSONs were overwritten by the real batch (every JSON is dated 14:03:01 or later), so they are not in the data. The numbers reproduce exactly: flashed runs A 31 (larger 20/20, smaller 7/20, top-left 4/10), B 13 (6, 5, 2), C 8 (3, 4, 1); every run has the right `wait_strategy` / `wait_cap_ms` and no `wait_notes`.
+- **Two live batches of my own, to see the protocol (disclosed because the task named a dataset).** The fixture can write its Wayland protocol dump and its own events with `SPAWN_AT_FIXTURE_TRACE_DIR` (`trace.rs`; libwayland timestamps on `CLOCK_REALTIME`, fixture events on `CLOCK_MONOTONIC`, related by the `TRACE_START` line). I ran arms B and C through the unchanged harness with it set: **loaded** 80 runs (bottom-right-smaller and -larger, 20 per arm per spec, 22 burn threads, 15:32 - 15:39 IST) and **idle** 40 runs (15:44 - 15:46 IST). Only fixture windows were created; the harness closes them; the burn was stopped by PID (`pgrep -cx xtask` and `pgrep -cx fixture` printed 0 afterwards). The protocol dump perturbs timing; the flash rate of the `reached` runs is nevertheless the same as in the untraced data (traced 12 of 72 = 16.7%, user's untraced B+C 16 of 94 = 17.0%). No gsettings or dconf key was written. As in 6.19, `SetLogging true` (an in-memory flag, the harness calls it itself) was sent over D-Bus, 120 times for the clock calibration below. My batch scripts read `/proc/loadavg` (read only) for the load figures; nothing was written under `/proc` or `/sys`.
+- **Clock alignment (CONFIRMED).** 120 bracketed `SetLogging` calls (a throwaway Rust `CLOCK_MONOTONIC` reader in `scratch/`) before and after the loaded batch give the offset extension clock to monotonic as an interval 6.02 ms wide (the two calibrations overlap), so a comparison between an extension line and a client line is good to about +/-3 ms. The harness's own per-run anchor is 4 - 17 ms wide.
+
+**Item 1 and 2: every flashed B and C run (21) and every flashed A shrink run (11), classified (user's dataset).** All 32 have `kind=NativeWayland`. Ready-wait engaged in all 100 B and C runs (`strategy=ready-wait`, no `why`, `target` differs from `current`); no run was `Skipped` or `adjusted`. Classes: **a** = ready-wait reported `reached` and the frame was at the target at the anchor, at `UNCLOAK_4C`, at the reveal and at the end, yet the harness saw a first paint after the reveal; **b** = ended at the cap (`timed-out`); **c** = position-only; **d** = ready-wait not the path (A is the legacy rule by design; d1 = the legacy quiet rule resolved on the old 400x300 frame, d2 = legacy reached the target); **e** = other / cannot tell. `lead` is milliseconds after the reveal; "certain" = at least one 16.7 ms frame.
+
+| arm | spec | run | READY_WAIT outcome / reason | waited_ms | cloak ms | numeric flash events (lead ms, label) | what changed after the reveal | class |
+| :--- | :--- | :---: | :--- | ---: | ---: | :--- | :--- | :---: |
+| A | br-smaller | 1 | legacy / SIZE_SETTLED | 342.9 | 392.2 | position 178 (certain); first paint 174.9 (certain) | both: position (1504,764) -> (1704,914), and size | d1 |
+| A | br-smaller | 2 | legacy / SIZE_SETTLED | 134.7 | 145.8 | position 8.7 (possible); first paint 17.8 (certain) | both | d1 |
+| A | br-smaller | 3 | legacy / SIZE_SETTLED | 98.7 | 108.1 | position 7.7 (possible); first paint 17.7 (certain) | both | d1 |
+| A | br-smaller | 9 | legacy / AT_TARGET | 103.2 | 107.3 | first paint 15.2 (possible) | content only (frame already 200x150 at (1704,914)) | d2 |
+| A | br-smaller | 11 | legacy / SIZE_SETTLED | 98.3 | 105.7 | position 6.3 (possible); first paint 9.9 (possible) | both | d1 |
+| A | br-smaller | 15 | legacy / SIZE_SETTLED | 113.4 | 125.2 | position 29.1 (certain); first paint 35.1 (certain) | both | d1 |
+| A | br-smaller | 19 | legacy / SIZE_SETTLED | 84.6 | 90.3 | position 23.2 (certain); first paint 36.3 (certain) | both | d1 |
+| A | tl-smaller | 5 | legacy / SIZE_SETTLED | 101.3 | 108.4 | first paint 16.9 (certain) | size (frame 400x300 at the reveal) | d1 |
+| A | tl-smaller | 6 | legacy / SIZE_SETTLED | 99.3 | 112.0 | first paint 17.0 (certain) | size (frame 400x300 at the reveal) | d1 |
+| A | tl-smaller | 9 | legacy / SIZE_SETTLED | 83.6 | 99.2 | first paint 24.2 (certain) | size (frame 400x300 at the reveal) | d1 |
+| A | tl-smaller | 10 | legacy / SIZE_SETTLED | 118.7 | 124.6 | first paint 32.5 (certain) | size (frame 400x300 at the reveal) | d1 |
+| B | br-larger | 2 | timed-out / cap | 150 | 155.5 | position 30.4 (certain); first paint 36.2 (certain) | both: position (1504,764) -> (1104,464), and size | b |
+| B | br-larger | 3 | reached / at-target | 122.9 | 127.6 | first paint 10.7 (possible) | content only (frame already 800x600, same position) | a |
+| B | br-larger | 4 | timed-out / cap | 150 | 157.6 | position 23.5 (certain); first paint 12.4 (possible) | both | b |
+| B | br-larger | 10 | reached / at-target | 111.5 | 115.9 | first paint 19.1 (certain) | content only | a |
+| B | br-larger | 17 | timed-out / cap | 150 | 169.3 | position 12.2 (possible); first paint 24.7 (certain) | both | b |
+| B | br-larger | 18 | timed-out / cap | 150 | 162.0 | position 21.4 (certain); first paint 18.4 (certain) | both | b |
+| B | br-smaller | 1 | timed-out / cap | 150 | 258.8 | position 141.9 (certain); first paint 170.1 (certain) | both: position (1504,764) -> (1704,914), and size | b |
+| B | br-smaller | 4 | reached / at-target | 87.5 | 95.6 | first paint 12.1 (possible) | content only (frame already 200x150) | a |
+| B | br-smaller | 12 | reached / at-target | 86.5 | 91.0 | first paint 11.1 (possible) | content only | a |
+| B | br-smaller | 15 | reached / at-target | 89.2 | 96.5 | first paint 27.7 (certain) | content only | a |
+| B | br-smaller | 19 | reached / at-target | 109.8 | 114.4 | first paint 17.3 (certain) | content only | a |
+| B | tl-smaller | 1 | reached / at-target | 101.9 | 111.1 | first paint 20.0 (certain) | content only | a |
+| B | tl-smaller | 2 | reached / at-target | 97.3 | 102.2 | first paint 16.9 (certain) | content only | a |
+| C | br-larger | 2 | reached / at-target | 125.7 | 130.8 | first paint 22.2 (certain) | content only | a |
+| C | br-larger | 4 | reached / at-target | 83.2 | 87.4 | first paint 15.9 (possible) | content only | a |
+| C | br-larger | 16 | reached / at-target | 156.9 | 161.5 | first paint 11.6 (possible) | content only | a |
+| C | br-smaller | 3 | reached / at-target | 109.4 | 118.9 | first paint 25.7 (certain) | content only | a |
+| C | br-smaller | 9 | reached / at-target | 141.4 | 157.4 | first paint 15.8 (possible) | content only | a |
+| C | br-smaller | 10 | reached / at-target | 110.3 | 116.2 | first paint 17.5 (certain) | content only | a |
+| C | br-smaller | 19 | reached / at-target | 138.8 | 148.0 | first paint 17.5 (certain) | content only | a |
+| C | tl-smaller | 7 | reached / at-target | 74.2 | 81.2 | first paint 18.4 (certain) | content only | a |
+
+("A waited_ms" is the legacy rule's `elapsed_ms`; "content only" = the only numeric event is the fixture's first paint at the final size after the reveal, no frame size or position change.)
+
+| class | A br-smaller | A tl-smaller | B larger | B smaller | B tl | C larger | C smaller | C tl | total |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| a reached, frame at target, first paint after the reveal | 0 | 0 | 2 | 4 | 2 | 3 | 4 | 1 | **B 8, C 8** |
+| b ended at the cap | 0 | 0 | 4 | 1 | 0 | 0 | 0 | 0 | **B 5, C 0** |
+| c position-only | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| d1 legacy, resolved on the old frame | 6 | 4 | - | - | - | - | - | - | **A 10** |
+| d2 legacy, reached the target | 1 | 0 | - | - | - | - | - | - | **A 1** |
+| e other | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| flashed runs | 7 | 4 | 6 | 5 | 2 | 3 | 4 | 1 | A 11 / B 13 / C 8 |
+
+**Item 4: the shrink specs (CONFIRMED, user's dataset, all 90 shrink runs, not only flashed).** The request is 200x150 against the fixture's default 400x300 (half of each side, a quarter of the area; the fixture's minimum is 100x100, so it is legal). For B and C the ready-wait engaged in 60 of 60 (`target=(200x150) current=(400x300)`). The frame the anchor used equals the frame at `UNCLOAK_4C` in 60 of 60. The frame at the reveal is the target in 59 of 60 (the one exception is B bottom-right-smaller run 1, the cap timeout, still 400x300), and the printed final rectangle is the target in 59 of 60 (same run). A (control): the frame at the reveal is the target in 14 of 20 (bottom-right) and 6 of 10 (top-left); in the others it is the old 400x300. The anchor depends on the frame size for bottom-right (stale 400x300 gives (1504,764), the right frame (1704,914): 200 px and 150 px away) and not for top-left (16,56 either way), which is why A's top-left flashes carry no position event and its bottom-right flashes carry one.
+
+**What the extension log shows for class a (CONFIRMED, user's dataset).** In all 16 `reached` flashes: `READY_WAIT_RESOLVED outcome=reached reason=at-target` came from a `size-changed` sample at the target, `APPLY_ANCHOR eff` is the target size, `UNCLOAK_4C actual` is the target size, the frame logged at `UNCLOAK` is the target size at the final position, no `ANCHOR_CORRECTION`, and the printed rectangle is the target. The `size-changed` sample was seen 4.2 - 15.9 ms (median 5.4) before the reveal. The only event after the reveal is the fixture's `FIRST_PAINT` at the target size, 10.7 - 27.7 ms (median 17.4) after the reveal, i.e. 15.5 - 35.3 ms (median 23.4) after the sample, larger than the harness's own anchor uncertainty (+/-4.3 - 15.3 ms) in all 16. Across all 113 `reached`-type runs with a `size-changed` sample (B, C and A's AT_TARGET), the flash rate falls with the time between `size-changed` and the reveal: under 5 ms 8 of 23, 5 - 8 ms 5 of 25, 8 - 12 ms 3 of 34, 12 - 20 ms 1 of 27, over 20 ms 0 of 4. And in 85 of the 96 `reached`-type runs that did not flash, the first paint at the target size lies inside the clock uncertainty of the reveal (median -0.9 ms), so the reveal sits right on top of that paint.
+
+**The protocol-level re-run (CONFIRMED, my traced batches: 80 loaded runs, 72 `reached` and 8 `timed-out`; 40 idle, all `reached`).** Times in ms; `commit` = the `wl_surface.commit` carrying the target-size buffer in the fixture's own protocol dump; `stamp` = the fixture's `FIRST_PAINT` event, which the harness compares with the reveal.
+
+| measure | loaded, `reached` (72) | idle (40) |
+| :--- | :--- | :--- |
+| harness flash runs | 12 (B 5 of 33, C 7 of 39) | 0 |
+| `commit` minus `UNCLOAK` | **-39.9 / -12.2 / -3.3 (min / median / max): 0 of 72 after the reveal, 72 of 72 at least 3.3 ms before** | -10.7 median, max -3.3 |
+| the 12 flashed runs: `commit` minus `UNCLOAK` | -14.1 to -3.3 (11 of 12 beyond the +/-3 ms alignment; the closest is C bottom-right-smaller run 5 at -3.3) | - |
+| `stamp` minus `commit` | flashed runs 13.6 / 18.4 / 23.4; others 0 / 0 / 19 (17 of 60 above 3 ms) | **0 in 40 of 40** |
+| extension `size-changed` minus `commit` (min / median / max) | -0.8 / 3.0 / 16.1 | -0.9 / 0.9 / 4.0 |
+| configure received after `SET_SIZE_REQUEST` (median / max) | 93.1 / 148.5 | 26.2 median |
+| `Resized` event to `commit`, i.e. drawing in the debug fixture (median) | 800x600: 48.6 (max 75.4); 200x150: 4.1 (max 37.7) | 8.2 and 1.0 |
+
+- **Reading (CONFIRMED for the numbers).** In the traced loaded batch the extension's `size-changed` follows the client's commit of the target-size buffer by about 3 ms (so `size-changed` is the commit), and the commit is always before the reveal. Every flashed `reached` run is a run where the fixture's `FIRST_PAINT` stamp was written 13.6 - 23.4 ms after the commit it describes. At idle the stamp is never late and nothing flashes. So for the traced `reached` runs the harness's flash is a late timestamp, not content that arrived after the reveal.
+- **Cause of the late stamp (HYPOTHESIS).** `FIRST_PAINT` is written by `note_paint` after `draw_frame` returns, i.e. after `buffer.present()` (attach, damage, commit, flush, `softbuffer` 0.4.8). No protocol line lies between the commit and the stamp in the six dumps read in full (the five traced timelines below and C bottom-right-larger #10). The delay is zero at idle, bimodal under 22 CPU-bound threads (0 or 5 - 23 ms), and not tied to the draw time. HYPOTHESIS: after the flush wakes the compositor, the fixture thread waits for a CPU behind the burn threads before it reaches the next `clock_gettime`. Not tested (it would need the stamp taken before `present`, or a scheduler trace).
+- **Not shown.** That the committed buffer was on screen in the first frame after the reveal. The extension forces a stage update (`UNCLOAK_4B` -> `UNCLOAK`) after the commit in these runs, which is why it is expected, but no screen capture exists.
+- **For the user's own 16 untraced `reached` flashes (HYPOTHESIS).** They were not traced. They match the traced class in everything the extension log shows (class a; flash rate 17.0% against 16.7%; the harness's first-paint lead 10.7 - 27.7 ms against 8.9 - 26.0 ms in the 12 traced flashes), so I expect the same cause; it is inferred, not shown for those runs.
+
+**Timelines (CONFIRMED). Milliseconds after `SET_SIZE_REQUEST` (ext) on one clock, client lines from the fixture's dump and events. Traced re-run, loaded.** Rows: MAP = `ACTOR_MAP`; configure / ack / `Resized` / buffer / commit / `FIRST_PAINT` are the client; the rest are extension lines. No `MOVED` event occurs in any of the 120 traced runs; the harness's position events come from the extension's `ANCHOR_CORRECTION`.
+
+| t | line | B grow, reached, flashed (bottom-right-larger #4) | B shrink, reached, flashed (bottom-right-smaller #5) | C shrink, reached, flashed (bottom-right-smaller #14) |
+| :--- | :--- | :--- | :--- | :--- |
+| MAP / `CLOAK` | ext | -0.5 / -0.1 | -0.6 / -0.1 | -0.7 / -0.1 |
+| `SET_SIZE_REQUEST` | ext | 0.0 (800x600) | 0.0 (200x150) | 0.0 (200x150) |
+| `READY_WAIT_START` (cap) | ext | 0.3 (150) | 0.2 (150) | 0.3 (250) |
+| configure for the target | client | 100.1 | 110.0 | 97.2 |
+| ack, `set_window_geometry`, `Resized` | client | 100.3 / 100.4 / 101.1 | 110.2 / 110.3 / 110.7 | 97.4 / 97.5 / 97.9 |
+| buffer for the target created | client | 101.4 | 110.8 | 98.1 |
+| `wl_surface.commit` of the target buffer | client | **131.3** | **120.7** | **100.3** |
+| `COMMIT_SAMPLE source=size-changed` | ext | 133.5 | 120.0 | 99.8 |
+| `READY_WAIT_RESOLVED reached` (waited_ms) | ext | 133.8 (133.6) | 120.2 (120.0) | 100.1 (99.8) |
+| `APPLY_ANCHOR eff` -> `POSITION_SET` | ext | 800x600 -> (1104,464) at 134.2 / 134.3 | 200x150 -> (1704,914) at 120.8 / 121.0 | 200x150 -> (1704,914) at 100.7 / 100.8 |
+| `UNCLOAK_4B` / `UNCLOAK_4C` (needsReanchor) | ext | 135.0 / 135.0 (false) | 121.7 / 121.7 (false) | 101.6 / 101.7 (false) |
+| **`UNCLOAK`** | ext | **138.2** | **130.1** | **112.6** |
+| **`FIRST_PAINT` target size (stamp)** | client | **145.0** (6.8 after the reveal; 13.7 after the commit) | **134.8** (4.7; 14.1) | **121.8** (9.2; 21.5) |
+| `ANCHOR_CORRECTION` | ext | none | none | none |
+
+For each of the three, the commit precedes the reveal (by 6.9, 9.4 and 12.3 ms) and the stamp follows it.
+
+Two traced timed-out runs (class b), same layout:
+
+| t | B grow, timed-out, flashed (bottom-right-larger #11) | B shrink, timed-out, position-only flash (bottom-right-smaller #11) |
+| :--- | :--- | :--- |
+| `SET_SIZE_REQUEST` | 0.0 (800x600) | 0.0 (200x150) |
+| configure / `Resized` / buffer created | 118.8 / 119.3 / 119.6 | 126.8 / 127.6 / 127.8 |
+| `READY_WAIT_RESOLVED timed-out`, waited 150 (`COMMIT_RESOLVED TIMEOUT_NO_CHANGE`, frame 400x300) | 153.4 | 161.5 |
+| `APPLY_ANCHOR eff` -> `POSITION_SET` | 400x300 -> (1504,764) at 154.8 / 154.9 | 400x300 -> (1504,764) at 162.5 / 162.7 |
+| `UNCLOAK_4C` (needsReanchor) | 155.9 (false, 400x300) | 164.1 (false, 400x300) |
+| `wl_surface.commit` of the target buffer (client) | 234.5 (**72.7 after the reveal**) | 179.1 (11.0 **before** the reveal, 15 ms after 4C) |
+| `UNCLOAK`, frame logged | 161.8, (1504,764,400x300) | 190.1, (1504,764,400x300) |
+| `ANCHOR_CORRECTION` | 238.4: (1504,764) -> (1104,464), size 800x600 | 209.1: (1504,764) -> (1704,914), size 200x150, **19.0 after the reveal** |
+
+In the shrink one the commit left the client before the reveal, but the frame the extension logged at the reveal was still 400x300 (`size-changed` was processed after it): the extension's own log marks a position change after the reveal, so that flash is real, and it is an anchor computed from the stale frame (class c in its symptom, class b in its cause: the cap ended the wait at 161.5 ms, 17.6 ms before the commit).
+
+And an A (legacy) shrink from the user's dataset, extension log only (bottom-right-smaller #15): `CLOAK` 0.0, `SET_SIZE_REQUEST` 0.2, `READY_WAIT_START strategy=legacy why=override-legacy` 0.7, `COMMIT_SAMPLE allocation (400x300)` 82.1, **`COMMIT_RESOLVED SIZE_SETTLED finalFrame=(400x300)` 114.0**, `APPLY_ANCHOR eff=(400x300)` -> (1504,764) at 114.9 / 115.1, `UNCLOAK_4C actual=(400x300)` 116.9, `UNCLOAK` 125.2 with frame (1504,764,400x300), **`ANCHOR_CORRECTION size=(200x150) (1504,764) -> (1704,914)` 154.3 (29.1 after the reveal)**, first paint at 200x150 35.1 ms after the reveal. The app had not answered when the legacy rule stopped waiting.
+
+**Is it the same mechanism as A's shrink flashes? No (CONFIRMED for the classes; the cause of class a is partly HYPOTHESIS).**
+- **A (11 flashed shrink runs):** 10 of 11 are the legacy quiet rule resolving on the old 400x300 frame (class d1): the reveal happens with the wrong size, bottom-right is anchored on the stale frame and corrected 6 - 178 ms later, the top-left ones change size. That is "the app answered late" in the plain sense, and it is what ready-wait removes. The 11th (d2, AT_TARGET) looks like class a.
+- **B and C reached (16 of 21, class a):** ready-wait waited for the app, the frame, the anchor and the reveal are all at the target, and nothing moves. The user's observation is **CONFIRMED for these 16**: they are not "the app answered late". In the traced re-run the content was committed before the reveal and the flash is the fixture's late `FIRST_PAINT` stamp.
+- **B timeouts (5 of 21, class b):** the observation does **not** hold for these. The app really was late for a cap of 150 ms: on this loaded debug fixture the configure arrives 94 ms (median, max 149) after the request and drawing takes 49 ms (800x600), so the commit lands at about 145 ms, next to the cap; 4 of the 8 traced timeouts flashed and 3 of those 4 committed 35 - 73 ms after the reveal. C (cap 250) had none in the user's data (in my traced C batch one run's cap timer fired 450 ms late: `elapsed_ms` 700.8 against `waited_ms` 250, cloak 866 ms, commit before the reveal, not flashed; a Shell-side stall is the likely reason, HYPOTHESIS, not examined).
+
+**Item 5: what the evidence supports, what it does not, proposals (not implemented).**
+
+| class | share of the 21 B/C flashes | supported by | not shown | smallest fix (proposal) | measurement needed to confirm |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| a reached, then "first paint after the reveal" | 16 | frame state at every step (user's data); 72 of 72 traced `reached` runs committed at least 3.3 ms before the reveal; stamp lag 13.6 - 23.4 ms in the 12 flashed, 0 at idle | that the buffer was displayed in the first frame; the cause of the stamp lag; the 16 untraced runs individually | harness / fixture only: take the `FIRST_PAINT` time before `present()` (or write the commit time) so the stamp cannot be later than the commit; no product change | re-run the traced loaded batch with the stamp moved: `reached` flashes should fall to about 0 and equal the dump's commit times; plus a screen capture or a compositor-side frame time for the first frame after `UNCLOAK`; a release fixture (drawing time 49 ms in debug) and one toolkit app for comparison |
+| b cap timeout | 5 (B only) | log lines and dump: configure at 90 - 120 ms, drawing 30 - 115 ms, commit after the cap, position corrected after the reveal | whether 250 is enough on a release fixture or a real app; the Shell stall tail | raise the default cap from 150 to 250 (as 6.19 recommended); for the sub-case where the commit lands between `UNCLOAK_4C` and `UNCLOAK`, re-read the frame when the reveal is applied | cap sweep 150 / 200 / 250 / 300, 100 runs per arm, loaded, debug and release fixture; count timeouts, commits between 4C and `UNCLOAK`, and corrections after the reveal |
+| c position-only | 0 as the first cause; 1 symptom in a traced timeout | one traced run (above) | frequency | none beyond b (a stale frame is only anchored on after a cap) | the same sweep, counting runs whose only event is a position correction |
+| d ready-wait not engaged | 0 for B and C; A by design | all 100 B and C runs engaged | - | none (A is the control) | - |
+| e other | 0 | - | - | - | - |
+
+**What cannot be shown here.** Hung or refusing apps (no fixture flag), the 1500 ms hard limit, visibility on screen (no capture), X11 and XWayland, a release-build fixture (the debug fixture's software drawing is 49 ms at 800x600 under load and makes the waits longer), real toolkit apps under this analysis (their first-paint timing is not stamped by this fixture and a real late paint cannot be excluded), and the 16 untraced `reached` runs individually. Traced runs carry the protocol dump's own overhead. The alignment between the extension and client clocks is +/-3 ms (one run is at the edge).
+
+**Files (CONFIRMED).** Throwaway and not committed: `scratch/lf_rows.jq`, `lf_abs.jq`, `lf_trace.awk`, `lf_client.awk`, `lf_join.sh`, `lf_timeline.sh`, `lf_calib.sh`, `lf_trace_loaded.sh`, `mono.rs` (a 10-line `CLOCK_MONOTONIC` reader). Raw traced runs and the dumps stayed in the session scratchpad. After the work: no `fixture` or `xtask` process, no window of mine open (`query windows` lists the user's 2).
