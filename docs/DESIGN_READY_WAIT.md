@@ -107,6 +107,8 @@ enum ResizeOutcome {            // #[non_exhaustive]
 enum Evidence { FrameEquals, SizeChanged, SyncThaw, Damage, Probe, GraceElapsed }   // #[non_exhaustive]
 ```
 
+*Implemented subset (section 8): `evidence`, `AdjustedTo.reason` and the `NoSizeRequested` / `Unsupported` skip reasons are not in the machine's outcome yet, because it sees only sizes and time; the enum is `#[non_exhaustive]` so a backend can add them.*
+
 `Reached`: the presented size equals the request (tolerance 0 px; 1 px for backends that round). `AdjustedTo`: the window answered with a different size (the app's minimum, a clamp, a size increment such as a terminal grid, a work-area clamp) and that size is stable under the quiet rule. `TimedOut`: no answer inside the cap (`phase: Cap` when the optional probe also failed or is disabled, `Hard` when the hard limit ended it); `last_size` is what the window had. `Skipped`: no wait was attempted. The fourth variant is the only addition to the three requested; without it "not resizable" has to be forced into `TimedOut`, which would misreport a dialog as a hung app.
 
 Mapping from today's `COMMIT_RESOLVED` reasons (CONFIRMED (source), `commit.js`): `AT_TARGET` -> `Reached`; `SIZE_SETTLED` -> `AdjustedTo` **or a stale answer** (the case behind the flash: the first sample is the app's initial size; this is exactly what the new rule separates); `TIMEOUT_NO_CHANGE` -> `TimedOut{Cap}`; `HARD_CAP` -> `TimedOut{Hard}`.
@@ -230,6 +232,8 @@ It sees the *client's* drawing, independent of the compositor, which is what is 
 | `probe` | `Off` / `On{size, cap_ms}` | `Off` in the beta | - |
 | `x11_grace_ms` | fixed grace for X11-kind windows if no signal | unset until measured | - |
 | `late_resize_passes` | pre-reveal re-anchor passes | 2 | `LATE_RESIZE_MAX_PASSES` 2 |
+
+*Implemented subset (section 8): `Policy` currently holds `cap_ms`, `quiet_ms`, `hard_ms`, the three numbers the machine consumes; `frame_ceiling_ms`, `late_resize_passes`, `probe` and `x11_grace_ms` join it when the code that uses them is wired.*
 
 Delivery: serialised into the `WaitForCommit` args of the instruction JSON (`{"timeout_ms":300, "policy": {...}}`; old extensions read only `timeout_ms`). The extension keeps the numbers above as *safety defaults* for the case where `policy` is absent (old CLI), and one test asserts `JS defaults == Rust defaults` through a generated JSON file. The CLI's own poll constants (`settle_window_geometry`: 25 ms poll, 300 ms) read `Policy` too, or the CLI-side settle is removed once the outcome arrives in `SpawnClaimed` (decision D7). The verify tool keeps its own measurement constants (`SETTLE_MS` 1300, the 1500 ms flash watch): those are harness values, not product policy.
 
@@ -397,3 +401,27 @@ Read-only commands only; nothing was written to settings, `/sys`, `/proc`, or dc
 - Vendored sources: `x11rb 0.14.0` has `damage` and `sync` features; `winit 0.29.15` contains neither `_NET_WM_SYNC_REQUEST` handling nor `WINIT_UNIX_BACKEND`.
 - Repository reads: the files and lines in section 1; `verify-results/` protocol census (`proto=Wayland` 230 732, `proto=X11` 5 132, no `XWayland`).
 - Unverified leads, summarised by a small model and therefore not relied on: mutter NEWS on the X11 backend (49.alpha.0, 50.alpha) and the 6.14 summaries for GNOME 50 APIs.
+
+## 8. Status: core machine, golden scripts and JS port (2026-10-13)
+
+Implemented exactly the contract of 2.2 and 4.3 for the native Wayland strategy, with nothing wired into the extension, the CLI, JSON or D-Bus. Probe, learned-minimum cache and X11/XWayland/other-OS strategies are not implemented.
+
+| Piece | Where | Commit |
+| :--- | :--- | :--- |
+| Rust machine: `Policy` (150 / 30 / 1500 ms), `Request`, `Outcome`, `Action`, `ReadyWait::{start, on_sample, on_tick}`; no I/O, time passed in as milliseconds | `crates/spawn-at-core/src/ready_wait.rs` (9 unit tests) | `50b0002` |
+| 20 language-neutral golden scripts, the virtual-clock driver (README), shared `policy.json` | `tests/ready_wait_vectors/`; Rust runner `crates/spawn-at-core/tests/ready_wait_vectors.rs` | `e9e2265` |
+| JS port: no imports, no host APIs (a test asserts it) | `assets/gnome/modern/ready_wait.js`; `tests/ready_wait_test.js` runs the same 20 scripts | `9f78a1d` |
+| Installer list entry | `src/platform/linux/gnome/mod.rs` | `902dff3` |
+
+**Differences from the text above, decided while implementing (CONFIRMED (source)):**
+
+1. *Ties and late input* were unspecified. Rule, pinned by scripts 04, 10c, 14 and unit tests: a sample on a deadline beats the timer; a sample after a deadline is handled as if the timer had fired on time and the outcome reports the deadline, not the late arrival; hard beats quiet when equal.
+2. *The machine API* is `start` / `on_sample` / `on_tick` returning `Action::{Wait{deadline_ms}, Done(Outcome)}` instead of `step(state, event, now)`; same information.
+3. *Outcome and Policy are the subset* described in the two notes in 2.2 and 4.2.
+4. *Hard limit in the quiet phase* returns `TimedOut{Hard}` with the last size, as 4.3 says, although the window had answered (scripts 13 and 14). A caller that prefers `AdjustedTo` there can decide that when it is wired; the rule is one line in `expire`.
+5. **The installer ships the file.** I expected the unwired module to stay out of the installer; it does not: `test_embedded_extension_files_match_disk` requires the embedded list to equal `assets/gnome/modern`, so `ready_wait.js` is listed (and copied to the user's extension directory) but nothing imports it. Inert at runtime; it is the one change outside the allowed files, forced by an existing guard. Revert = remove the list entry together with the file.
+6. *The legacy tree (42-44)* has no copy. The module is ES-module syntax for `modern`; the legacy tree needs the same logic in its `var`/`require` style, which belongs to the wiring step (4.1 "plain JS module imported by each tree").
+
+**Evidence the two builds agree:** both run the 20 scripts, with expectations derived by hand from the rules before either ran them (they matched on the first run of the Rust machine; the JS port also matched on its first run). Mutation check of the JS port (temporary, restored, file byte-identical): changing the late-input comparison `>` to `>=` fails scripts 04 and 10c; changing the hard-limit test `>=` to `>` fails 12, 13, 14 and two mirrored unit cases. Counts: core 34 (was 23), node 101 (was 70); the verify counts did not change (352 / 338 / 236).
+
+**Not covered by these tests:** that the real extension feeds the machine the right samples (`size-changed`, not `allocation`), a real Mutter, and any app other than the scripted ones. Those are the wiring step's tests (section 5).
