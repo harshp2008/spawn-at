@@ -32,9 +32,9 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ---
 
-## 2. 58-Case Test Catalog across 8 Categories
+## 2. 59-Case Test Catalog across 8 Categories
 
-The 58 rows are the planned catalogue: 35 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 35 tests) and 23 are **Planned** (no spec yet). The last 17 Covered rows are the placement resize specs of section 6.10.
+The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Planned** (no spec yet). The last 18 Covered rows are the placement resize specs of section 6.10.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -73,6 +73,7 @@ The 58 rows are the planned catalogue: 35 are **Covered** (a spec file exists an
 | `placement/right-smaller` | 200x150 at the right edge | Auto | **Covered** | `verify/placement/right-smaller.toml` |
 | `placement/right-below-min-both` | 200x150 vs minimum 300x200 at the right edge | Auto | **Covered** | `verify/placement/right-below-min-both.toml` |
 | `placement/top-left-below-min-both` | control: 200x150 vs minimum 300x200 at top-left (position independent of size) | Auto | **Covered** | `verify/placement/top-left-below-min-both.toml` |
+| `placement/top-left-smaller` | 200x150 at top-left, fixture minimum 100x100 (real shrink; the window's origin does not move) | Auto | **Covered** | `verify/placement/top-left-smaller.toml` |
 | `placement/invalid-size-zero` | expected failure: `--size 0 150` is rejected by the CLI (exit 2, "Invalid size") | Auto | **Covered** | `verify/placement/invalid-size-zero.toml` |
 | `placement/area-screen-vs-workarea` | Boundary bounds: screen vs workarea vs unbounded | Auto | **Planned** | `verify/placement/area-screen-vs-workarea.toml` |
 | `placement/clamp-bounds` | Clamping window when position exceeds area | Auto | **Planned** | `verify/placement/clamp-bounds.toml` |

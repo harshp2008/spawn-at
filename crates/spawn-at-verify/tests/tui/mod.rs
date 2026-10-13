@@ -206,7 +206,7 @@ pub(crate) fn validate_render_spec(rendered: &str, width: u16, height: u16, is_w
         }
     }
 
-    // With 35 tests the 4-row list at 60x28 is scrolled to the selected test (`bottom-right`),
+    // With 36 tests the 4-row list at 60x28 is scrolled to the selected test (`bottom-right`),
     // and its category heading is one of the rows above ("▲ n more" in the Tests border title).
     let list_scrolled = rendered
         .lines()

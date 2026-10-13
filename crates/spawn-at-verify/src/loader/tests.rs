@@ -35,7 +35,7 @@ fn test_combinable_filter() {
             ..Default::default()
         })
         .unwrap();
-    assert_eq!(filtered_cat.len(), 30);
+    assert_eq!(filtered_cat.len(), 31);
     assert!(filtered_cat
         .iter()
         .any(|t| t.id == "placement/bottom-right"));
