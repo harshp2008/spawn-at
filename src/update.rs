@@ -1307,4 +1307,78 @@ pub mod tests {
         assert!(!should_render_update_notice(true, true, false));
         assert!(should_render_update_notice(true, true, true));
     }
+
+    /// SemVer order of the project's own tags: 0.1.0 < 0.2.0-alpha < 0.2.0-beta.1 < 0.2.0-beta.2 < 0.2.0.
+    /// A leading `v` and surrounding spaces are ignored; "alpha" sorts before "beta" and a
+    /// pre-release sorts before the release it leads to.
+    #[test]
+    fn test_beta1_ordering_against_the_neighbouring_tags() {
+        let v = |s: &str| parse_semver(s).unwrap();
+        assert!(v("0.1.0") < v("0.2.0-beta.1"));
+        assert!(v("v0.2.0-alpha") < v("0.2.0-beta.1"));
+        assert!(v("0.2.0-beta.1") < v("v0.2.0-beta.2"));
+        assert!(v("0.2.0-beta.1") < v(" v0.2.0 "));
+        assert!(
+            parse_semver("pre-cleanup-beta").is_none(),
+            "a non-version tag is not a version"
+        );
+    }
+
+    /// Running 0.2.0-beta.1 on the beta channel: 0.1.0 and 0.2.0-alpha are older and never
+    /// offered; 0.2.0-beta.2 and the final 0.2.0 are newer, and the highest wins.
+    #[test]
+    fn test_beta1_candidates_on_the_beta_channel() {
+        let run = Some("0.2.0-beta.1");
+        let old = [
+            mock_release("v0.1.0", false, false),
+            mock_release("v0.2.0-alpha", true, false),
+        ];
+        assert!(find_update_candidate(&old, "beta", run).is_none());
+        let b2 = [mock_release("v0.2.0-beta.2", true, false)];
+        assert_eq!(
+            find_update_candidate(&b2, "beta", run).unwrap().0.tag_name,
+            "v0.2.0-beta.2"
+        );
+        let fin = [mock_release("v0.2.0", false, false)];
+        assert_eq!(
+            find_update_candidate(&fin, "beta", run).unwrap().0.tag_name,
+            "v0.2.0"
+        );
+        let all = [
+            mock_release("v0.2.0", false, false),
+            mock_release("v0.2.0-beta.2", true, false),
+            mock_release("v0.1.0", false, false),
+            mock_release("v0.2.0-alpha", true, false),
+        ];
+        assert_eq!(
+            find_update_candidate(&all, "beta", run).unwrap().0.tag_name,
+            "v0.2.0"
+        );
+    }
+
+    /// The same running version on the stable channel: a pre-release (0.2.0-beta.2) is not
+    /// offered, the final 0.2.0 is; and 0.1.x to 0.2.x is the only upgrade flagged as a jump.
+    #[test]
+    fn test_beta1_candidates_on_the_stable_channel() {
+        let run = Some("0.2.0-beta.1");
+        let b2 = [mock_release("v0.2.0-beta.2", true, false)];
+        assert!(find_update_candidate(&b2, "stable", run).is_none());
+        let fin = [
+            mock_release("v0.2.0-beta.2", true, false),
+            mock_release("v0.2.0", false, false),
+        ];
+        assert_eq!(
+            find_update_candidate(&fin, "stable", run)
+                .unwrap()
+                .0
+                .tag_name,
+            "v0.2.0"
+        );
+        let cur = parse_semver("0.2.0-beta.1").unwrap();
+        assert!(!is_v01_to_v02_upgrade(
+            &cur,
+            &parse_semver("0.2.0").unwrap()
+        ));
+        assert!(is_v01_to_v02_upgrade(&parse_semver("0.1.0").unwrap(), &cur));
+    }
 }
