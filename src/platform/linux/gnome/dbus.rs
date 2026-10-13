@@ -36,4 +36,16 @@ pub trait SpawnAt {
         size_raised: bool,
         error: &str,
     ) -> zbus::Result<()>;
+    /// Protocol 6: how the size request of a native Wayland window ended. Emitted before
+    /// `SpawnClaimed` for the same target; an older extension never sends it.
+    #[zbus(signal)]
+    fn resize_outcome(
+        &self,
+        target_id: &str,
+        outcome: &str,
+        final_w: u32,
+        final_h: u32,
+        waited_ms: u32,
+        reason: &str,
+    ) -> zbus::Result<()>;
 }

@@ -5,6 +5,7 @@
 pub mod driver;
 pub mod geometry;
 pub mod ready_wait;
+pub mod resize_report;
 
 pub use driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
 pub use geometry::{

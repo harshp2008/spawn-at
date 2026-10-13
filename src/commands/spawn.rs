@@ -34,6 +34,11 @@ pub struct SpawnOutputJson {
     pub raised_h: bool,
     pub reused_existing_window: bool,
     pub source: String,
+    /// How the size request ended (protocol 6 extension, native Wayland window). Left out of the
+    /// JSON when the extension reported none: an older extension, a legacy-strategy window, a
+    /// poll fallback or no `--size`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
 }
 
 /// Executes the spawn subcommand pipeline.
@@ -298,6 +303,7 @@ pub async fn run_spawn(
             raised_h: false,
             reused_existing_window: false,
             source: "poll".to_string(),
+            resize: None,
         };
         println!("{}", serde_json::to_string(&output).unwrap());
     }
@@ -323,16 +329,19 @@ pub async fn run_spawn(
                 raised_h: false,
                 reused_existing_window: false,
                 source: "poll".to_string(),
+                resize: None,
             };
             println!("{}", serde_json::to_string(&output).unwrap());
         }
 
         if !no_wait {
             let mut claim_result: Option<(u64, Rect, bool)> = None;
+            let mut claim_resize: Option<spawn_at_core::resize_report::ResizeReport> = None;
 
             if let Some(mut waiter) = claim_waiter {
                 match waiter.wait_claim(Duration::from_millis(2000)).await {
                     Ok(claim) => {
+                        claim_resize = claim.resize.clone();
                         claim_result = Some((
                             claim.window_id,
                             Rect {
@@ -437,6 +446,7 @@ pub async fn run_spawn(
                                     raised_h: false,
                                     reused_existing_window: is_reused,
                                     source: "poll".to_string(),
+                                    resize: None,
                                 };
                                 println!("{}", serde_json::to_string(&output).unwrap());
                             }
@@ -513,6 +523,10 @@ pub async fn run_spawn(
                     raised_h,
                     reused_existing_window: false,
                     source: source.to_string(),
+                    resize: claim_resize.map(|r| match params.size {
+                        Some((w, h)) => r.with_requested(w, h),
+                        None => r,
+                    }),
                 };
                 println!("{}", serde_json::to_string(&output).unwrap());
             }
@@ -587,6 +601,7 @@ mod tests {
                 h: 300,
                 size_raised: false,
                 error: String::new(),
+                resize: None,
             })
         }
     }
@@ -789,6 +804,7 @@ mod tests {
             raised_h: false,
             reused_existing_window: false,
             source: "claim".to_string(),
+            resize: None,
         };
         let json_val: serde_json::Value = serde_json::to_value(&success_claim).unwrap();
         assert_eq!(json_val["window_id"], 101);
@@ -820,6 +836,7 @@ mod tests {
             raised_h: true,
             reused_existing_window: false,
             source: "poll".to_string(),
+            resize: None,
         };
         let json_val: serde_json::Value = serde_json::to_value(&success_fallback).unwrap();
         assert_eq!(json_val["window_id"], 202);
@@ -849,6 +866,7 @@ mod tests {
             raised_h: false,
             reused_existing_window: true,
             source: "poll".to_string(),
+            resize: None,
         };
         let json_val: serde_json::Value = serde_json::to_value(&reused).unwrap();
         assert!(json_val["window_id"].is_null());
@@ -877,6 +895,7 @@ mod tests {
             raised_h: false,
             reused_existing_window: false,
             source: "poll".to_string(),
+            resize: None,
         };
         let json_val: serde_json::Value = serde_json::to_value(&timeout).unwrap();
         assert!(json_val["window_id"].is_null());

@@ -431,13 +431,46 @@ impl GnomeWaylandDriver {
 
 pub const EXPECTED_PROTOCOL_VERSION: u32 = 3;
 
+/// The first extension protocol that sends the `ResizeOutcome` signal.
+pub const RESIZE_OUTCOME_PROTOCOL: u32 = 6;
+
 use crate::platform::{ClaimResult, ClaimSubscription};
-use futures_util::StreamExt;
+use futures_util::{FutureExt, StreamExt};
+use spawn_at_core::resize_report::ResizeReport;
 use std::time::Duration;
 
 pub struct GnomeClaimSubscription {
     stream: dbus::SpawnClaimedStream<'static>,
+    /// Subscribed only when the extension speaks protocol 6 or newer.
+    resize_stream: Option<dbus::ResizeOutcomeStream<'static>>,
     target_id: String,
+}
+
+impl GnomeClaimSubscription {
+    /// The newest `ResizeOutcome` already received for `claimed_target`, without waiting.
+    ///
+    /// The extension emits `ResizeOutcome` before `SpawnClaimed` and both arrive on one bus
+    /// connection in that order, so when the claim has been read the outcome is already queued.
+    /// Not waiting matters: windows the extension waits for with the legacy rule send no outcome,
+    /// and a wait here would delay every such spawn.
+    fn take_resize(&mut self, claimed_target: &str) -> Option<ResizeReport> {
+        let stream = self.resize_stream.as_mut()?;
+        let mut found = None;
+        while let Some(Some(sig)) = stream.next().now_or_never() {
+            if let Ok(args) = sig.args() {
+                if args.target_id == claimed_target {
+                    found = Some(ResizeReport::from_wire(
+                        args.outcome,
+                        args.final_w,
+                        args.final_h,
+                        args.waited_ms,
+                        args.reason,
+                    ));
+                }
+            }
+        }
+        found
+    }
 }
 
 #[async_trait::async_trait]
@@ -460,8 +493,9 @@ impl ClaimSubscription for GnomeClaimSubscription {
                                     format!("Compositor placement failed: {}", args.error).into(),
                                 ));
                             }
-                            return Ok(ClaimResult {
-                                target_id: sig_target.to_string(),
+                            let claimed = sig_target.to_string();
+                            let result = ClaimResult {
+                                target_id: claimed.clone(),
                                 success: args.success,
                                 window_id: args.window_id,
                                 x: args.x,
@@ -470,6 +504,11 @@ impl ClaimSubscription for GnomeClaimSubscription {
                                 h: args.h,
                                 size_raised: args.size_raised,
                                 error: args.error.to_string(),
+                                resize: None,
+                            };
+                            return Ok(ClaimResult {
+                                resize: self.take_resize(&claimed),
+                                ..result
                             });
                         }
                     }
@@ -588,8 +627,18 @@ impl CompositorBackend for GnomeWaylandDriver {
             DriverError::IpcError(format!("Failed to subscribe to SpawnClaimed: {}", e))
         })?;
 
+        // An older extension has no ResizeOutcome signal; the CLI then simply has no outcome.
+        let resize_stream = if ext_version >= RESIZE_OUTCOME_PROTOCOL {
+            Some(self.proxy.receive_resize_outcome().await.map_err(|e| {
+                DriverError::IpcError(format!("Failed to subscribe to ResizeOutcome: {}", e))
+            })?)
+        } else {
+            None
+        };
+
         Ok(Some(Box::new(GnomeClaimSubscription {
             stream,
+            resize_stream,
             target_id: target_id.to_string(),
         })))
     }

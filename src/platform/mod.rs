@@ -39,6 +39,9 @@ pub struct ClaimResult {
     pub h: u32,
     pub size_raised: bool,
     pub error: String,
+    /// How the size request ended, from the `ResizeOutcome` signal of extension protocol 6.
+    /// `None` for an older extension and for windows the extension waits for with the legacy rule.
+    pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
 }
 
 /// A subscription to window claim notifications issued by the compositor backend.
