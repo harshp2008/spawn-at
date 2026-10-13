@@ -16,14 +16,16 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: `spawn-at-core`** | 47 | 0 | 43 unit tests (`lib.rs`: 21 geometry/driver + 9 `ready_wait` + 4 `resize_report` + 9 `wait_override`) + 2 golden placement integration tests (`tests/golden_placement.rs`) + 2 `tests/ready_wait_vectors.rs` (20 shared golden scripts in one test, plus the policy check) |
 | **Workspace: `xtask`** | 10 | 0 | 8 unit tests (`src/main.rs`: 6 `burn_cpu`, 2 `compiler_docs`) + 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary) |
 | **Workspace: Node.js (Extension)** | 154 | 0 | 9 in `tests/wait_override_test.js` (the validator's reading of the per-spawn override: absent adds nothing, `auto` adds nothing, bounds 1 to 1500, bad values named and cut to 32 characters, legacy validator drops the fields) and 11 more in `tests/ready_wait_wiring_test.js` (44 there now: override honoured, invalid ignored, default unchanged line for line, scoped to one spawn on one extension instance); the rest as before: Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`), 31 in `tests/ready_wait_test.js` (the same 20 golden scripts one test each, the presence and policy checks, 8 mirrored unit cases, 1 portability check), and 33 of the 44 in `tests/ready_wait_wiring_test.js` (the 20 golden scripts again through `CommitLatch.waitForReady` on a virtual clock, plus 13 extension scenarios through `_runBatch`; the other 11 are the override tests above) (`node --test tests/*.js`) |
-| **`spawn-at-verify` (bare default)** | 252 | 0 | 183 lib + 0 main + 4 `category_library_test` + 6 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
-| **`spawn-at-verify --features tui`** | 354 | 0 | 189 lib + 0 main + 4 `category_library_test` + 6 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 368 | 4 | 189 lib + 10 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 6 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 600 | 4 | 175 + 47 + 10 + 368; with the 154 Node tests: 754 passed |
+| **`spawn-at-verify` (bare default)** | 265 | 0 | 195 lib + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
+| **`spawn-at-verify --features tui`** | 367 | 0 | 201 lib + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
+| **`spawn-at-verify --features tui,fixture`** | 381 | 4 | 201 lib + 10 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 613 | 4 | 175 + 47 + 10 + 381; with the 154 Node tests: 767 passed |
 
 The three `spawn-at-verify` rows and the total were re-measured on 2026-10-13 at commit `1de817f` (`cargo test -p spawn-at-verify` bare, `--features tui`, `--features tui,fixture`, summed with `awk` over the `test result:` lines; `cargo test --workspace` 427 = 158 + 23 + 10 + 236); 0 failures. The `spawn-at-core` (34), `spawn-at` (158), `xtask` (10) and Node (101) rows were re-measured on 2026-10-13 at commit `902dff3` after the ready-wait core and its JS port (section 8 of `DESIGN_READY_WAIT.md`): `cargo test --workspace` 438 = 158 + 34 + 10 + 236, `node --test tests/*.js` 101 pass, 0 failures; the verify rows did not change (352 / 338 / 236). A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 236 row, not 352; do not quote it for the verify crate. The `spawn-at` (164), `spawn-at-core` (38), `xtask` (10) and Node (134) rows and the total were re-measured on 2026-10-13 after the ready-wait wiring (section 8 and 9 of `DESIGN_READY_WAIT.md`): `cargo test --workspace --features spawn-at-verify/tui,spawn-at-verify/fixture` 564 passed, 4 ignored (164 + 38 + 352 + 10), `node --test tests/*.js` 134 pass, 0 failures; the `spawn-at-verify` count with `tui,fixture` is unchanged at 352 (the bare 236 and `tui` 338 rows were not re-run). Baseline before section 6.15 (`7400e57`): 305 with `tui,fixture`; section 6.15 took it to 341 (`1da549d`), section 6.16 to 352.
 
 **Re-measured 2026-10-13 after the per-spawn wait override** (section 10 of `DESIGN_READY_WAIT.md`; commits `44ee6b7`, `a1bb985`, `8edebca`, `80ef74a`), all on the new tree, 0 failures: `cargo test -p spawn-at-verify` 252 (was 236), `--features tui` 354 (338), `--features tui,fixture` 368 passed and 4 ignored (352); `spawn-at` 175 (164), `spawn-at-core` 47 (38), `xtask` 10 (10); `cargo test -p spawn-at -p spawn-at-core -p xtask` plus the `tui,fixture` run summed per binary with `scratch/counts.sh`: **600 passed, 4 ignored**; `node --test tests/*.js` 154 (134). The 16 new verify tests are 9 in `trace/wait.rs`, 4 in `runner/tests.rs`, 1 in `report/tests.rs` and 2 in `cli_exit_codes_test`. Not re-run: a bare `cargo test --workspace` number (it builds `spawn-at-verify` without features; do not quote it for that crate). Nothing here ran in a GNOME Shell.
+
+**Re-measured 2026-10-13 after the default cap 250 and the wire paint time** (commits `e9d5c77`, `8d65a48`; section 6.21), 0 failures: `cargo test -p spawn-at-verify` 265 (was 252), `--features tui` 367 (354), `--features tui,fixture` 381 passed and 4 ignored (368); `spawn-at` 175, `spawn-at-core` 47, `xtask` 10 unchanged; `node --test tests/*.js` 154 unchanged. Total with `tui,fixture`: 613 Rust, 767 with node. The 13 new verify tests are 5 in `trace/wire.rs`, 6 in `runner/wire_paint_tests.rs`, 1 in `report/tests.rs` and 1 in `cli_exit_codes_test`. Summed per binary from the `test result:` lines; the bare `cargo test --workspace` (497, default features) is not quoted for `spawn-at-verify`.
 
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
@@ -1584,3 +1586,89 @@ And an A (legacy) shrink from the user's dataset, extension log only (bottom-rig
 **What cannot be shown here.** Hung or refusing apps (no fixture flag), the 1500 ms hard limit, visibility on screen (no capture), X11 and XWayland, a release-build fixture (the debug fixture's software drawing is 49 ms at 800x600 under load and makes the waits longer), real toolkit apps under this analysis (their first-paint timing is not stamped by this fixture and a real late paint cannot be excluded), and the 16 untraced `reached` runs individually. Traced runs carry the protocol dump's own overhead. The alignment between the extension and client clocks is +/-3 ms (one run is at the edge).
 
 **Files (CONFIRMED).** Throwaway and not committed: `scratch/lf_rows.jq`, `lf_abs.jq`, `lf_trace.awk`, `lf_client.awk`, `lf_join.sh`, `lf_timeline.sh`, `lf_calib.sh`, `lf_trace_loaded.sh`, `mono.rs` (a 10-line `CLOCK_MONOTONIC` reader). Raw traced runs and the dumps stayed in the session scratchpad. After the work: no `fixture` or `xtask` process, no window of mine open (`query windows` lists the user's 2).
+
+### 6.21 Default cap 250 ms and the wire paint time: code, tests and a traced loaded A/B/C (2026-10-13)
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Sections 6.18 to 6.20 are unchanged: their 150 ms figures are what was measured then. Commits: `e9d5c77` (default cap 250), `8d65a48` (wire paint time in the harness), this section. The fixture (`src/bin/fixture/`) is **not** changed: `FIRST_PAINT` is still stamped after `present()` returns, so a real late paint stays visible in the stamp too (6.20 asked for exactly that).
+
+**1. Default cap 150 to 250 ms (CONFIRMED, code and tests; not live).**
+- Changed: `Policy::default()` (`ready_wait.rs`), `DEFAULT_POLICY` (`ready_wait.js`), `tests/ready_wait_vectors/policy.json`, golden vectors 02 (answer at 240 ms is `reached`), 03 (answer at 300 ms is `timed-out` at 250), 04 (answer exactly at 250 ms is `reached`), 05 (refusing app times out at 250), the Rust and node tests that name the cap, and `DESIGN_READY_WAIT.md` (sections 0, 4, 6, 8, 9, 10 and the new section 11). `quiet_ms` 30 and `hard_ms` 1500 are unchanged; vectors 12 to 15 do not depend on the cap. No README states 150.
+- The installed extension is **not** reinstalled and keeps its default of 150. Every live run below passes the cap explicitly (`--wait-cap-ms 150` or `250`); the extension log of all 80 B and C runs shows `READY_WAIT_START ... cap=150` or `cap=250` as asked, so the installed extension honours the override (CONFIRMED). The new default itself has not run in a Shell (HYPOTHESIS that it behaves like `--wait-cap-ms 250`: same code path, `mergePolicy` with no `cap_ms`).
+
+**2. Wire paint time in the harness (CONFIRMED, code, tests and live).**
+- `trace/wire.rs` reads the fixture's protocol dump (`fixture-<pid>.log`): per `wl_surface`, the first `commit` that follows an `attach` of a buffer of a new size (sizes from `wl_shm_pool.create_buffer`). The dump's `[ms.us]` prefix is `CLOCK_REALTIME` microseconds modulo 2^32; the `TRACE_START` line gives one reading of both clocks, so each commit lands on `CLOCK_MONOTONIC` and goes through the **same** clock anchor and uncertainty as before. `detect_flash` takes the paints from the commits when there are any, else from the `FIRST_PAINT` stamps; verdict, visibility labels and `--strict-flash` follow. A dump that was asked for but has no commit leaves the stamps in use and adds a `flash_notes` line.
+- Reported per run: `paint_source` (`wire` or `stamp`), `paint_size`, `paint_wire_ms` and `paint_stamp_ms` (ms after the reveal, middle of the anchor), `paint_stamp_lag_ms` (stamp minus commit) and `flash_by_stamp` (the verdict the stamp alone would have given). The event text says `(wire commit)`.
+- Live check of the clock conversion: with no load the commit and the stamp of the same paint agree to 7 us in both smoke runs (`paint_stamp_lag_ms` 0.0074 and 0.0071), and the idle batch below gives a median lag of 0.01 ms, maximum 0.02 ms over 30 runs. A wrong offset would show as a constant shift; there is none.
+- **Default on, `--no-wire-paint` opts out (CONFIRMED by the measurement below).** The dump writes about 37 KB per run into the run's private temporary directory (removed afterwards) and redirects the fixture's stderr into that file, so the fixture's own stderr messages are not shown while it is on.
+
+| cost of the dump, same session, interleaved, rotated order, `ready-wait --wait-cap-ms 250`, `bottom-right-larger` | idle (no burn), 30 pairs, off / on | loaded (22 burn threads, load1 mean 25.3), 20 pairs, off / on |
+| :--- | :---: | :---: |
+| valid runs / outcome `reached` | 30 / 30, 30 / 30 | 20 / 20, 20 / 20 |
+| run duration median / p95 / max ms | 122 / 142 / - , 122 / 162 / - | 464 / 595 / 632 , 455 / 533 / 557 |
+| cloak ms median / p95 / max | 20.2 / 48.4 / 255.4 , 19.7 / 51.3 / 55.0 | 76.0 / 117.6 / 141.6 , 73.9 / 116.0 / 117.5 |
+| ready-wait waited_ms median / p95 / max | - | 65.2 / 112.9 / 136.6 , 64.2 / 101.4 / 105.4 |
+| clock anchor half-width, median ms | 1.98 , 2.04 | 12.7 , 12.0 |
+| flash runs (off: on the stamp; on: on the wire time) | 0 , 0 | 3 , 0 (the stamp alone would have said 2) |
+| stamp lag, on arm: median / p95 / max ms | 0.01 / - / 0.02 | 0 / 14.5 / 35.2 |
+
+No measurable cost at these sizes (CONFIRMED for n = 30 and 20 pairs: the medians differ by 0.5 ms (idle cloak) and 9 ms (loaded duration); the p95 of run duration differs by 20 ms at idle (on is higher) and by 62 ms loaded (on is lower), so the sign of the p95 difference changes with the load). The largest idle cloak value, 255 ms, is a single run of the *off* arm (iteration 20, load1 1.3); the cause was not looked at. A cost smaller than the run-to-run spread would not be seen (not shown).
+
+**3. Traced loaded same-session A/B/C (CONFIRMED).** 22 `xtask burn-cpu` threads for the whole phase after a 70 s warm-up (load1 19.9 at the start of the batch, 26.2 at the end), `bottom-right-smaller` and `bottom-right-larger`, 20 per arm per spec, 120 runs in one login with the arm order rotated every iteration (A B C, B C A, C A B, ...; the first arm of iterations 1 to 20 cycles A B C A B C ...). A = `--wait-strategy legacy`, B = `ready-wait --wait-cap-ms 150`, C = `ready-wait --wait-cap-ms 250`, all with the wire paint time on (then the opt-in flag `--wire-paint`, now the default). 120 of 120 runs valid (exit 0, no wait notes, the extension's own `READY_WAIT_OVERRIDE`/`START` lines show the arm's rule and cap), `paint_source` is `wire` in 120 of 120, load1 mean per arm 24.97 / 25.05 / 25.05. After the batch `pgrep -cx xtask` and `pgrep -cx fixture` both printed 0 (script, and again by hand), and `query windows` lists only the user's two windows.
+
+| arm | spec | n | flash on the old stamp | flash on the wire time | stamp only | wire only |
+| :--- | :--- | ---: | ---: | ---: | ---: | ---: |
+| A legacy | bottom-right-larger | 20 | 19 | 19 | 0 | 0 |
+| A legacy | bottom-right-smaller | 20 | 5 | 5 | 0 | 0 |
+| B cap 150 | bottom-right-larger | 20 | 4 | 0 | 4 | 0 |
+| B cap 150 | bottom-right-smaller | 20 | 0 | 0 | 0 | 0 |
+| C cap 250 | bottom-right-larger | 20 | 4 | 0 | 4 | 0 |
+| C cap 250 | bottom-right-smaller | 20 | 3 | 0 | 3 | 0 |
+| **A / B / C total** | | 40 each | **24 / 4 / 7** | **24 / 0 / 0** | 0 / 4 / 7 | 0 / 0 / 0 |
+
+Against A (Fisher two-sided): old stamp B 4/40 (-83.3%, p = 4.2e-6) and C 7/40 (-70.8%, p = 1.9e-4); wire time B 0/40 and C 0/40 (-100%, p = 7.7e-10). B against C is not different on either measure (4 against 7 on the stamp, 0 against 0 on the wire). The stamp made C look worse than B (7 against 4), which is the stamp lag, not the cap.
+
+| arm | wait outcome | n | flash on the old stamp | flash on the wire time |
+| :--- | :--- | ---: | ---: | ---: |
+| A | legacy rule (no machine, no outcome) | 40 | 24 | 24 |
+| B | reached | 40 | 4 | 0 |
+| B | timed-out | 0 | - | - |
+| C | reached | 40 | 7 | 0 |
+| C | timed-out | 0 | - | - |
+
+**This batch produced no timed-out run at either cap** (6.20: 5 of 50 B runs timed out in the user's loaded batch), so the class "timed-out" cannot be compared here. That is weak evidence that the cap-150 timeouts are gone, not proof: 0 of 40 here against 5 of 50 in 6.20 is Fisher two-sided p = 0.063 (CONFIRMED, computed), and about 4 timeouts would be expected in 40 at the 6.20 rate. Different load, a different day's login state, and the 6.20 user batch also had the `top-left-smaller` spec.
+
+**Does the wire time hide real late paints? Not in A.** The legacy arm, whose flashes are real (the reveal happens before the app has resized, 6.20 class d), gives 24 flash runs on the wire time and the same 24 on the stamp; stamp lag in A is median 0, p95 7.8, maximum 11.6 ms, at or above 10 ms in 1 of 40 runs.
+
+| arm | anchor half-width median / max ms | wire commit of the final size against the reveal: median / min / max ms | commit after the reveal (middle estimate) | commit inside the anchor (could be after) | commit 5 ms or more before | stamp lag median / p95 / max ms | lag 10 ms or more |
+| :--- | :---: | :---: | ---: | ---: | ---: | :---: | ---: |
+| A | 12.8 / 17.4 | 21.6 / -22.7 / 84.6 | 24 | 33 | 15 | 0 / 7.8 / 11.6 | 1 |
+| B | 11.9 / 16.6 | -6.4 / -35.1 / 1.2 | 4 | 25 | 23 | 0 / 15.5 / 48.1 | 9 |
+| C | 13.0 / 17.5 | -4.9 / -24.4 / 6.1 | 10 | 34 | 17 | 0 / 16.4 / 19.5 | 11 |
+
+**Reading it honestly.**
+- **CONFIRMED:** all 11 runs that the old stamp called a flash in B and C were `reached` runs whose stamp came 10.3 to 48.1 ms after the commit of the same buffer; no wire verdict is a flash. This is the 6.20 finding (stamp lag, not a late app) reproduced with the harness itself, 11 of 11 times, with the cause visible in every run's JSON.
+- **Limit (CONFIRMED):** the flash verdict needs the lead to exceed the clock anchor. Under this load the harness's anchor (4 bracketed `SetLogging` calls per run) is wide: half-width 12 to 13 ms (17.5 at most), against 2 ms at idle. So "0 wire flashes" means *no commit is provably after the reveal*; it is not proof that every commit was before it. Ten C runs and four B runs have the commit after the reveal by the middle estimate (at most 6.1 and 1.2 ms), all inside the anchor, so they are neither flashes nor shown to be clean. B has 25 and C 34 runs of 40 with the commit inside the anchor. The 11 stamp-only runs have their commit at -5.5 to +6.1 ms against anchors of 6 to 15.7 ms. What 6.20 could prove (72 of 72 traced `reached` runs with the commit at least 3.3 ms before the reveal) needed a 120-call calibration of +-3 ms; the harness's per-run anchor cannot do that under load.
+- **HYPOTHESIS (not tested):** more bracketed calls per run, or keeping only the narrowest brackets, would narrow the anchor under load (6.20: 120 calls gave +-3 ms; the harness uses `ANCHOR_SAMPLES` = 4). Not changed here.
+- **Also unproven:** libwayland stamps a request when it is marshalled, before the connection is flushed. If the fixture thread is descheduled between marshal and flush, the compositor gets the commit later than the wire time says, so the wire time is the earliest the commit could have arrived. How large that gap is under this load was not measured (the compositor-side receive time is not in any log read here). The wire time therefore removes the stamp's lag but can still be a little early; it is the better lower bound, not the exact time.
+
+| the 11 runs the old stamp called a flash and the wire time did not | wire commit, ms after the reveal | stamp, ms after the reveal | stamp lag ms | anchor half-width ms |
+| :--- | ---: | ---: | ---: | ---: |
+| B larger #14 | -5.5 | 8.3 | 13.8 | 6.0 |
+| B larger #1 | 0.1 | 15.0 | 14.9 | 13.0 |
+| B larger #3 | -1.3 | 46.8 | 48.1 | 13.6 |
+| B larger #4 | -2.0 | 12.7 | 14.8 | 12.5 |
+| C larger #11 | 2.5 | 18.1 | 15.6 | 12.5 |
+| C larger #17 | 2.1 | 13.6 | 11.5 | 13.0 |
+| C larger #4 | 2.2 | 14.0 | 11.8 | 12.4 |
+| C larger #9 | 0.4 | 15.3 | 14.9 | 13.5 |
+| C smaller #11 | 0.1 | 13.4 | 13.3 | 13.0 |
+| C smaller #18 | -0.2 | 17.7 | 17.9 | 15.7 |
+| C smaller #9 | 6.1 | 16.5 | 10.3 | 13.3 |
+
+**Cap 150 against 250 when the app answers (CONFIRMED, loaded, 40 runs each, all `reached`):** cloak median / p95 / max 67.5 / 109.2 / 143.9 ms (B) against 68.3 / 96.7 / 106.6 ms (C); `waited_ms` median 55.4 against 57.2 ms. A longer cap costs nothing when the app answers inside it; its cost is only for an app that never answers (not exercised here). Arm A, for scale: cloak median 46.8 ms, p95 53.6 ms.
+
+**Tests (CONFIRMED, run).** Per binary, `cargo test -p spawn-at-verify --features tui,fixture`: 201 lib (+12: 5 in `trace/wire.rs`, 6 in `runner/wire_paint_tests.rs`, 1 in `report/tests.rs`), 10 fixture binary, 0 main, 4 `category_library_test`, 7 `cli_exit_codes_test` (+1), 4 `fixture_test` (+ 4 ignored), 20 `flash_test`, 5 `oracle_cross_check`, 1 `preflight_tools_test`, 13 `render_test`, 21 `trace_analyser_test`, 6 `trace_state_test`, 6 `trace_window_scope_test`, 83 `tui_test` = **381 passed, 4 ignored**. Bare 265, `--features tui` 367. `spawn-at` 175, `spawn-at-core` 47, `xtask` 10, node 154 (all pass after the cap change; the vectors and wiring tests moved with it). Rust total with `tui,fixture` 613, with node 767 (counts table in 1.1 updated). No test needs a display; the wire tests use text fixtures.
+
+**Still unshown.** On-screen visibility (no screen capture, no compositor frame time); hostile apps (hung, refusing, restless: no fixture flag, the cap-150 timeouts of 6.20 did not recur in the 40 B runs here, and the timed-out class is empty); X11 and XWayland (the dump is Wayland-only, so an X11 fixture would yield no commit and fall back to the stamp with a note: HYPOTHESIS, not run); a release-build fixture; real toolkit apps under the wire time; the new default cap in a reinstalled Shell; the compositor-side arrival time of a commit; a harness anchor narrow enough under load to prove commits earlier than the reveal.
+
+**Disclosures.** The harness sends four bracketed `SetLogging(true)` calls per run (in-memory flag, as in every flash run); no gsettings or dconf key was written, nothing under `/sys` or `/proc` was written (the batch scripts read `/proc/loadavg`); no nested shell; the extension was not reinstalled. The fixture windows were opened and closed by the harness by id. Throwaway scripts (not committed): `scratch/w21_loaded.sh`, `w21_rows.jq`, `w21_rows.sh` and the existing `ab_batch.sh`, `ab_stats.jq`; raw JSONs are in the session scratchpad.
