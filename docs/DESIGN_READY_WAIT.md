@@ -443,7 +443,7 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 **Differences from the design text (CONFIRMED (source)).**
 1. The strategy tag is `strategy=legacy` for all non-native-Wayland windows, not `legacy-x11` (S2); the window kind is a separate `kind=` field.
 2. Transport: a typed `ResizeOutcome` signal instead of the `SpawnClaimed.error` overload (section 2.3, D5).
-3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (150 / 30 / 1500); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
+3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (150 / 30 / 1500) (section 10 adds an optional `cap_ms` for a developer override, absent by default); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
 4. No new stderr lines (section 2.3 allowed them); only the JSON `resize` object is new. `settle_window_geometry` on the CLI side is unchanged (D7: kept).
 5. A skipped wait reports the frame size at the end of the wait as `final` and `waited_ms` 0.
 6. The legacy extension tree (GNOME 42-44) has no wiring and stays at protocol 5. Because the modern D-Bus XML now has a signal the legacy XML lacks, both XML parity tests (`legacy_dispatcher_test.js`, `gnome/mod.rs`) compare the legacy XML with the modern XML minus `ResizeOutcome`. The legacy tree is byte-identical to before.
@@ -460,3 +460,53 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 - `allows_resize()` on the fixture and on real apps; GNOME 45, 47, 48; the legacy tree.
 - That the CLI sees `ResizeOutcome` before the claim when GNOME Shell is the sender and the machine is loaded (HYPOTHESIS; the stub test covers ordering on an idle machine only).
 - The cloak now stays up to 150 ms longer for a refusing app and up to 1500 ms for a restless one (risk 3 of 6.1); its effect on the cloak numbers was not measured.
+
+## 10. Per-spawn override for same-login A/B (2026-10-13)
+
+Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = not run. **Nothing in this section was run in a GNOME Shell**, and no live session was touched while writing it (node and cargo tests only). The extension change takes effect only after the user backs up and reinstalls the extension and logs out and in.
+
+**Why.** TEST_PLAN 6.18 compared the change across two logins, and the legacy XWayland path, which the change does not touch (CONFIRMED by diff), moved from 1 of 10 to 9 and 10 of 10 flashes between them. A before/after across logins cannot separate the change from the login. The override lets one login run both rules, arm against arm, interleaved.
+
+**Interface (CONFIRMED, tests below).**
+
+| Where | Option | Values | Visible in `--help` |
+| :--- | :--- | :--- | :--- |
+| `spawn-at spawn` | `--wait-strategy` | `auto` (same as absent), `legacy`, `ready-wait` | no (`hide = true`) |
+| `spawn-at spawn` | `--wait-cap-ms` | whole milliseconds, 1 to 1500 (the hard limit of `Policy`) | no |
+| `spawn-at-verify run` | `--wait-strategy`, `--wait-cap-ms` | passed as typed to every `spawn` action | **yes**, in `run --help` (a decision of this step: `run` is the A/B driver and a developer tool; say so if it should be hidden too) |
+
+**Carrier and protocol (CONFIRMED).** The override travels in the existing `ArmSpawn` instruction JSON as two optional fields of the `WaitForCommit` instruction: `{"WaitForCommit":{"timeout_ms":300,"strategy":"legacy","cap_ms":200}}`. The D-Bus interface and `ProtocolVersion` are **unchanged (6)**; no protocol bump is needed. The fields are skipped when unset (`skip_serializing_if`), so a spawn without the flags sends the bytes it always sent. They live in the arguments of that one instruction in that one `ArmSpawn`, so they apply to that spawn only; nothing is stored in the extension. Consequence for mixed versions: an extension without this change (including the protocol 6 build of section 9) ignores the two fields without error, so an A/B run against it is two default runs. The harness makes that visible (below) instead of the CLI refusing, because the CLI cannot tell the two protocol 6 builds apart.
+
+**What each value does (CONFIRMED, `tests/ready_wait_wiring_test.js` section 3).**
+
+| `--wait-strategy` | native Wayland window with a size request | any other window (X11, XWayland, unknown, no size request) |
+| :--- | :--- | :--- |
+| absent / `auto` | the machine (cap 150 unless `--wait-cap-ms`) | original rule, `why=not-native-wayland` / `no-size-request` |
+| `legacy` | **original 30 ms rule** (`waitForCommit`, idle timeout 300 ms): `READY_WAIT_START strategy=legacy kind=NativeWayland why=override-legacy timeoutMs=300`, no `ResizeOutcome` signal | original rule, as under `auto` |
+| `ready-wait` | the machine, as under `auto` | original rule, as under `auto`, reported as unused. The machine is not forced onto X11 or XWayland: it would read their immediate frame rect as an instant answer (section 3.1) |
+
+`--wait-cap-ms N` replaces the cap of the machine (`request.policy = {cap_ms: N}`, merged over `DEFAULT_POLICY`); with `legacy`, or on a window that takes the original rule, it has nothing to apply to and is reported as unused.
+
+**Invalid values (CONFIRMED).** Two layers, both ignore and say so. `spawn-at` keeps the two options as text so clap cannot fail the spawn; `WaitOverride::from_raw` (core) drops a bad value, keeps the other one, and the CLI prints one `WARNING` per dropped value (`ignoring --wait-strategy 'fast' (expected auto, legacy or ready-wait)`). A harness spec that forbids `[spawn-at] WARNING:` in stderr therefore fails on a typo instead of silently running the default arm. The extension validator (`validator.js`) repeats the check for instructions that did not come from this CLI: a bad `strategy` or `cap_ms` (not an integer, outside 1 to 1500, any other type) is dropped, never thrown, and named in `READY_WAIT_OVERRIDE ... ignored=` (value text cut to 32 characters). An invalid `timeout_ms` still rejects the instruction, as before.
+
+**Log lines (CONFIRMED).**
+- `READY_WAIT_OVERRIDE strategy=<legacy|ready-wait|none> cap_ms=<N|none> unused=<field(reason);..|none> ignored=<field=value;..|none>`: written once, before `READY_WAIT_START`, **only when the instruction carries an override field**. A default spawn writes no such line.
+- `READY_WAIT_START` shows the effective values: `strategy=ready-wait ... cap=<effective>` for the machine, `strategy=legacy ... why=override-legacy` when the override sent a native window down the original rule. Every `READY_WAIT_START` of a spawn without the flags is byte-for-byte what section 9 logged (all 134 earlier node tests, which assert the exact lines, pass unchanged).
+
+**Defaults do not change (CONFIRMED by tests).**
+- Rust: the two existing golden tests that assert the exact `WaitForCommit` string (`mechanics.rs`, resize-only and anchored resize) pass unchanged (their lines are not in the diff); a new test builds a resize entry with the default override and with `--wait-strategy auto`, and asserts the exact string `["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300}},"Uncloak"]` for both; `run_spawn` with no flags arms an entry whose `wait` is the default and serialises without a `wait` key.
+- Node: the 134 earlier tests are unchanged and pass (the wiring test helper `runBatch` was split into `makeRig`/`runOn`/`runBatch` to let one extension instance run two batches; its callers are unchanged); a new test runs the same app with no field and with `strategy:'auto'` and asserts identical log lines, identical signals and the same final frame.
+- The `ready_wait_vectors` golden scripts (Rust and JS) are untouched and pass.
+
+**Harness (CONFIRMED, tests).** `run --wait-strategy X --wait-cap-ms N` adds the two options to every `spawn` action, after the spec's own action arguments and before the `--` that starts the fixture; not to other commands; not again if the spec already spells that flag out; unchanged command line without the options. Each result in `report.json` gains, next to the flash keys: `wait_strategy` (`ready-wait` or `legacy`, from the window's `READY_WAIT_START`), `wait_cap_ms` (the logged `cap=`, only for `ready-wait`), `wait_requested` (`{strategy, cap_ms}` as typed, only when `run` was given an option) and `wait_notes` (an override with no effect, values the extension dropped, or "override requested but the extension logged no READY_WAIT_OVERRIDE"). A run with no trace has none of the keys; an old report reads back as nothing recorded. The record comes from the extension's log, not from what was asked, so an arm that did not take effect is visible per run.
+
+**A/B recipe (HYPOTHESIS: not run).** `scratch/ab_batch.sh <out> <n> <bin> "legacy:--wait-strategy legacy" "rw:--wait-strategy ready-wait" -- <spec>...` interleaves the arms with the arm order rotating each iteration (the script is throwaway and not committed). Before reading any number, check per arm that `wait_strategy` is what the arm asked for and `wait_notes` is empty.
+
+**Tests added (CONFIRMED, run; counts in TEST_PLAN 1.1).** Core 9 (`wait_override.rs`); `spawn-at` 11 (4 CLI, 3 `run_spawn`, 4 instruction); node 20 (9 validator, 11 wiring); verify 16 (9 `trace/wait.rs`, 4 argument builder, 1 report JSON, 2 `run --help` and parse).
+
+**Not verified.**
+- Everything in a real GNOME Shell: that the installed extension logs `READY_WAIT_OVERRIDE` and takes the original rule for a native Wayland window under `legacy`; that `legacy` on native Wayland behaves like the pre-wiring build (the code path is the old `waitForCommit` call, but the old build was not run side by side).
+- That the legacy rule on a native Wayland window gives the results 6.17 measured before the wiring (same code, different login: exactly the gap this switch is for).
+- The 42-44 extension tree: it has no ready-wait and drops the fields (CONFIRMED by a validator test), so it needs no switch.
+- `transform` and the X11 driver take no override (`WaitForCommit` in `transform` is built with the default).
+- Whether `ready-wait` should force the machine on XWayland for a deliberate experiment: not done (it would produce a meaningless instant answer).
