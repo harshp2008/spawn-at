@@ -33,6 +33,21 @@ pub const GEOMETRY_TOLERANCE_PX: u32 = 2;
 /// Number of bracketed `SetLogging(true)` calls made per run to anchor the extension's clock.
 pub const ANCHOR_SAMPLES: usize = 4;
 
+/// One refresh interval at 60 Hz. The compositor shows the revealed window at its next frame,
+/// which can be this long after `UNCLOAK`, so a paint that lands sooner may share that frame and
+/// never be seen. The flash definition does not use it (the event is counted all the same); it
+/// only adds a note to the event.
+pub const FRAME_60HZ_MS: f64 = 1000.0 / 60.0;
+
+/// Text appended to a paint event that came less than one 60 Hz frame after the reveal.
+fn frame_note(after_reveal_ms: f64) -> &'static str {
+    if after_reveal_ms < FRAME_60HZ_MS {
+        " (less than one 60 Hz frame after the reveal: it may not have reached the screen)"
+    } else {
+        ""
+    }
+}
+
 /// The extension prints `elapsed_ms` with two decimals (`toFixed(2)`), so an echo time is exact
 /// to within 5 microseconds either way.
 const ECHO_QUANTUM_NS: f64 = 5_000.0;
@@ -497,7 +512,7 @@ fn client_flashes(
             source: FlashSource::Client,
             at_ms_after_reveal: at,
             certain: matches!(r, Rel::After),
-            detail,
+            detail: format!("{}{}", detail, frame_note(at)),
         });
         shown = Some(sz);
     }

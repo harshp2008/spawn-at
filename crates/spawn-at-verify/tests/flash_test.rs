@@ -499,3 +499,42 @@ fn test_anchor_intersects_brackets_and_refuses_disagreement() {
     assert!(err.contains("disagree"), "{}", err);
     assert!(ClockAnchor::from_samples(&[], &[1.0]).is_err());
 }
+
+/// A paint 10 ms after the reveal is counted (the order is what defines a flash) but its text
+/// says it is under one 60 Hz frame (16.7 ms) and may not have reached the screen; one 25 ms
+/// after the reveal carries no such note.
+#[test]
+fn test_paint_inside_one_frame_is_counted_but_annotated() {
+    let ev = x11_lying_trace();
+    let a = anchor(1.0);
+    let run = |paint_ms: f64| {
+        let c = parse_client_events(
+            &[
+                client_line(10.0, "FIRST_PAINT", "400x300"),
+                client_line(paint_ms, "FIRST_PAINT", "800x600"),
+            ]
+            .join("\n"),
+        );
+        detect_flash(&FlashInputs {
+            trace_events: &ev,
+            client_events: &c,
+            anchor: Some(&a),
+        })
+    };
+    let quick = run(80.0);
+    assert!(quick.flash);
+    assert!(
+        quick.flash_events[0]
+            .detail
+            .contains("less than one 60 Hz frame after the reveal"),
+        "{}",
+        quick.flash_events[0].detail
+    );
+    let slow = run(95.0);
+    assert!(slow.flash);
+    assert!(
+        !slow.flash_events[0].detail.contains("60 Hz"),
+        "{}",
+        slow.flash_events[0].detail
+    );
+}
