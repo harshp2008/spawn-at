@@ -191,6 +191,8 @@ Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extensi
 
 On an untested GNOME version the installer prints this before it installs anything and asks you to confirm; in a headless or non-interactive run it prints the notice and goes on. Apps that refuse a requested size can still end up larger than you asked for, but they're positioned using their final size, so anchors land correctly.
 
+**X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size, using the test window only. Five candidates were tried: the first `damaged` event, `first-frame`, the actor size, the buffer rect and the surface texture size. None works: all of them fire when the shell resizes the window, not when the client paints (the texture size reached the target before the client had painted in 59 of 80 runs). So XWayland and X11 windows keep the old 30 ms rule and can still flash. Two ideas are untried: holding the cloak to see whether a hidden window gets `damaged` for its repaint, and the X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`) that GTK and Qt clients use. Details: [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 12.
+
 ## Roadmap
 
 Next up: `<pick one: Hyprland / Sway / KDE>`. After that: the rest of the planned drivers. Support only gets claimed for an environment once its live test suite passes there.

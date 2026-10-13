@@ -571,3 +571,19 @@ Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS
   So the old reader called `get_texture()` successfully and then `get_width?.()` on a `ShapedTexture` that has none: `undefined`, hence `(na)`. My earlier guess that the method was missing from the window actor (TEST_PLAN 6.23, written before this) was wrong.
 - **New reader (`readTextureSize` in `x11_observe.js`, tested in Node with mocks of this shape).** It tries `shaped>multi` (`actor.get_texture().get_texture().get_width()/get_height()`), then `shaped>multi>plane0` (`...get_plane(0)`), each in its own try/catch. A log line now says `texture=(WxH) texture_via=<accessor>`, or `texture=(na) texture_err=<accessor>:<message>|<accessor>:<message>` with the real error text, so a failure can no longer look like "nothing". Still observe-only: only getters, no signal, timer or state added.
 - **HYPOTHESIS, not run in a Shell:** that the accessor works on a window actor in the live Shell (the chain is from the typelib, not from a live object), and that the multi-texture size follows the client's committed buffer on XWayland rather than the frame. The first live run with the new reader answers both.
+
+**X11/XWayland: investigated, no reliable signal (2026-10-13; TEST_PLAN 6.23 and 6.24).** Labels: CONFIRMED = measured on the fixture (`--protocol x11`, 160 runs idle and under load); HYPOTHESIS = not tested. The ready-wait stays Wayland-only; XWayland and X11 windows keep the legacy quiet rule.
+
+| Candidate | Result | Why it fails (CONFIRMED) |
+| :-- | :-- | :-- |
+| First `damaged` after `set_size` | before the client's final paint in 59 of 80 runs (idle larger 20 of 20, 13 to 20 ms early) | it comes about 5 ms after `set_size` in idle and tracks the shell (the extension's own move to the final position, HYPOTHESIS), not the client |
+| `first-frame` | one per run, 0.2 to 1.9 ms before `COMMIT_RESOLVED` | before the client's resize and paint in 80 of 80 runs |
+| Actor size | equals the frame size in 351 of 351 lines | the window manager's size, set at once |
+| Buffer rect | equals the frame rect in 351 of 351 lines | same |
+| Texture size (`shaped>multi`) | equals the target at the first `damaged` in 80 of 80 runs; 400x300 at `first-frame` | before the client painted in 59 of 80 runs, up to 359 ms early under load; the same moment as the first `damaged` |
+
+All of them fire at the shell-side resize, not at the client's paint. The client's own paint produces a `damaged` only 0.2 to 20 ms after the paint, and in the runs where the window was still cloaked it did not arrive before the reveal (0 of 14 idle larger runs).
+
+**Future work, untried.**
+1. Does a cloaked window get `damaged` for its repaint? It needs a build that holds the cloak until the client paints, to see whether the paint's `damaged` arrives while cloaked. This is a behaviour change, so it is not an observe-only experiment.
+2. A client-side signal: the X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`), used by GTK and Qt clients. HYPOTHESIS that it is usable; not looked at, and the fixture's toolkit (winit) may not implement it.
