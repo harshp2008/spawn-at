@@ -1325,3 +1325,126 @@ Also against the design's loaded criterion A2 (flash <= 5 of 100, p95 cloak with
 - Why 4 of 27 `reached` loaded runs still flashed, why the loaded batch's `bottom-right-larger` timed out at the cap 3 times in 10, and the cause of the changed XWayland timing.
 - Firefox with a real profile, a warm Firefox, other sizes; only the extension log was read.
 - Scripts used (`scratch/rw_extract.sh`, `scratch/rw_stats.sh`, `scratch/app_survey.sh`, `scratch/baseline_batch.sh`) are throwaway and not committed; raw per-run JSON stayed in the session scratchpad.
+
+### 6.19 Ready-wait: same-session A/B/C with the per-spawn override (2026-10-13, no code change)
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Nothing in the product, the extension or the harness was changed; the only file written in the repository is this section. Tests (`cargo test`) were not run in this step. Arms, all in one login and one extension instance, chosen per spawn with the hidden flags from `44ee6b7` / `80ef74a`: **A** = `--wait-strategy legacy` (the 30 ms rule), **B** = `--wait-strategy ready-wait --wait-cap-ms 150`, **C** = `--wait-strategy ready-wait --wait-cap-ms 250`. Binary under test: debug `spawn-at`, `spawn-at-verify` and `fixture` built from `5a2c7be`'s code (`binary_commit` in the report is `5a2c7be`, `is_dirty_build` false). Session: `XDG_SESSION_TYPE=wayland`, GNOME Shell 46, 22 CPUs, 60 Hz, one monitor.
+
+**What A is (CONFIRMED by reading, HYPOTHESIS for equivalence).** A is the legacy rule reached through the override, in the same extension that holds the ready-wait code. It is not a build from before the change. 6.18 showed by diff that the legacy path calls the same `waitForCommit`; that A behaves like the pre-change build is therefore expected but not shown.
+
+**Preflight (all CONFIRMED before any measurement).**
+
+| check | result |
+| :--- | :--- |
+| session type | `wayland` (env and `loginctl`) |
+| extension | `gnome-extensions info spawn-at@harsh.local`: `Enabled: Yes`, `State: ACTIVE`; `diff -rq assets/gnome/modern ~/.local/share/gnome-shell/extensions/spawn-at@harsh.local` printed nothing (files installed 12:27:22 IST, GNOME Shell process started 12:30:49 IST, so the running code is the installed code) |
+| protocol | `gdbus ... Properties.Get ... ProtocolVersion` returned `(<uint32 6>,)` |
+| `--wait-strategy legacy` by hand (fixture, 200x150 bottom-right) | `READY_WAIT_OVERRIDE ... strategy=legacy cap_ms=none unused=none ignored=none`, `READY_WAIT_START ... strategy=legacy kind=NativeWayland why=override-legacy timeoutMs=300`, `READY_WAIT_RESOLVED ... strategy=legacy outcome=none elapsed_ms=28.7 reason=AT_TARGET` |
+| `--wait-strategy ready-wait --wait-cap-ms 250` by hand | `READY_WAIT_OVERRIDE ... strategy=ready-wait cap_ms=250 unused=none ignored=none`, `READY_WAIT_START ... cap=250 quiet=30 hard=1500`, `READY_WAIT_RESOLVED ... outcome=reached waited_ms=28.5 reason=at-target` |
+
+Both checks passed, so the run went ahead. One thing to know about the by-hand check: the extension's timing log is off by default, so the first attempt produced no lines. I turned it on with the same D-Bus call the harness makes at the start of every `run` (`org.gnome.Shell.Extensions.SpawnAt.SetLogging true`, an in-memory flag in the extension; no gsettings or dconf key was written, and nothing under `/sys` or `/proc`). The windows of the by-hand spawns were closed by id.
+
+**The batch script (`scratch/ab_batch.sh`, throwaway) needed fixes (CONFIRMED).**
+- The arm rotation started at the second arm: iteration 1 ran B C A, not A B C. Fixed (`k + i - 1`); a 3-iteration trial then ran `A B C`, `B C A`, `C A B`.
+- It copied "the newest `verify-results/*/report.md`" after each run, which is a stale file if a run fails to write one. Removed: the `--json` stdout already holds `log_slice`, `flash_events`, `wait_strategy`, `wait_cap_ms`.
+- My first trial passed the fixture as `--bin` (the script takes the `spawn-at` binary); every run exited 1 with `unexpected argument 'spawn'`. A caller mistake, not a script bug; the usage line now says so and the trial was discarded.
+- Position balance over the real batches (how often each arm ran first / second / third): idle 21/18/21 (A), 21/21/18 (B), 18/21/21 (C); loaded bottom-right 14/12/14, 14/14/12, 12/14/14; loaded top-left 4/3/3, 3/4/3, 3/3/4. 20 iterations do not divide by 3, so the balance is not exact.
+- Every run is checked against its arm: `wait_strategy` and `wait_cap_ms` in the report (A: legacy and no cap; B: ready-wait and 150; C: ready-wait and 250), `READY_WAIT_OVERRIDE` in the window's own log lines naming the same strategy, `wait_notes` empty, spawn `exit_code` 0. **0 of 330 runs failed a check** (idle 180, loaded 150), so none was dropped. The check script is `scratch/ab_rows.jq` / `ab_stats.jq`, also throwaway.
+
+**Definitions.** Flash run = a run with at least one numeric flash event (the harness's client-side basis, 6.15 / 6.16). "Certain" = `lead_ms` of at least one frame (16.7 ms), "possible" = below one frame; the counts of events at or above and below 16.67 ms equal the harness's certain and possible counts in every arm (69 / 11, 13 / 8, 6 / 6, CONFIRMED). Cloak = first `UNCLOAK` minus first `CLOAK` of the window on the extension clock, taken from the run's own `log_slice`. `waited_ms` is from `READY_WAIT_RESOLVED`; arm A has no `waited_ms`, so its `elapsed_ms` is shown (the legacy rule's time in the wait). Median of an even count = mean of the two middle values; p95 = nearest rank. Fisher exact, two-sided, was computed with `jq` (`lgamma`) and checked against known values (5/20 against 15/20 gives 0.00385, the 6.18 figure). Runs are `spawn-at-verify run --dir scratch/flashlib --bin target/debug/spawn-at --glob placement/<spec> --json <arm flags>`, one process per run, specs and arms interleaved, 1.5 s sleep after each run.
+
+**Idle, debug fixture: `bottom-right-smaller`, `bottom-right-larger`, `top-left-smaller`, 20 runs per arm per spec (60 per arm), 13:06:16 - 13:16:47 IST. All 180 exit 0.** Mean load average (1 min, at run start): A 1.51, B 1.51, C 1.49.
+
+| | A legacy | B cap 150 | C cap 250 |
+| :--- | :--- | :--- | :--- |
+| flash runs | 1 / 60 | **0 / 60** | **0 / 60** |
+| numeric events (certain / possible); `lead_ms` | 2 (0 / 2); 8.4 and 9.2 ms | 0 | 0 |
+| cloak ms median / p95 / max | 41.2 / 65.7 / 68.6 | 39.8 / 50.5 / 52.8 | 40.6 / 51.0 / 53.5 |
+| cloak median change against A | - | **-1.4 ms** | **-0.6 ms** |
+| `READY_WAIT_RESOLVED` outcome | none / AT_TARGET x49, none / SIZE_SETTLED x11 | reached / at-target x60 | reached / at-target x60 |
+| `waited_ms` (A: `elapsed_ms`) median / p95 / max | 29.0 / 33.6 / 43.8 | 29.8 / 38.7 / 40.8 | 29.0 / 39.8 / 40.0 |
+| runs with a correction after the reveal | 1 | 0 | 0 |
+| runs over the 100 ms cloak budget | 0 | 0 | 0 |
+| relative flash reduction against A, Fisher p | - | 100% (1 to 0), p = 1.0 | 100% (1 to 0), p = 1.0 |
+
+Cloak median per spec (A / B / C, ms): `bottom-right-smaller` 40.3 / 38.6 / 38.6; `bottom-right-larger` 50.3 / 40.5 / 48.9; `top-left-smaller` 40.6 / 42.8 / 40.4. The 11 A runs that ended on `SIZE_SETTLED` were all `bottom-right-larger` (cloak median of those 11: 62.9 ms; the other 49: 40.2 ms), and the one A flash was one of them. The cap was never reached at idle (largest `waited_ms` 40.8). The 1 of 60 for A is not a significant difference from 0 of 60 (p = 1.0); the figure to take from this table is "idle ready-wait stayed at 0 and its cloak was not longer than the legacy rule's".
+
+**Loaded, 22 `burn-cpu` threads (`xtask burn-cpu --threads 22`, 70 s warm-up, load average 22.1 at the end of the warm-up), debug fixture. `bottom-right-smaller` and `bottom-right-larger` 20 runs per arm per spec (13:23:06 - 13:33:16 IST), `top-left-smaller` 10 per arm (13:33:16 - 13:35:50). All 150 exit 0.** Mean load average at run start: A 25.80, B 25.86, C 25.77 (ranges 22.1 - 27.8, 22.6 - 28.3, 22.7 - 28.1), so the three arms ran under the same load. The burn was stopped by its PID; afterwards `pgrep -cx xtask` printed 0 and `pgrep -cx fixture` printed 0.
+
+| all 50 runs per arm | A legacy | B cap 150 | C cap 250 |
+| :--- | :--- | :--- | :--- |
+| flash runs | 47 / 50 | 15 / 50 | 11 / 50 |
+| numeric events (certain / possible) | 80 (69 / 11) | 21 (13 / 8) | 12 (6 / 6) |
+| `lead_ms` median / max | 39.5 / 278.5 | 18.9 / 49.4 | 16.9 / 30.4 |
+| cloak ms median / p95 / max | 95.6 / 133.8 / 140.9 | 131.6 / 167.0 / 183.9 | 129.3 / 200.9 / 263.4 |
+| `READY_WAIT_RESOLVED` | SIZE_SETTLED x49, AT_TARGET x1 | reached x40, **timed-out (cap) x10** | reached x49, **timed-out (cap) x1** |
+| `waited_ms` (A: `elapsed_ms`) median / p95 / max | 86.0 / 119.6 / 128.8 | 120.9 / 150.0 / 150.0 | 119.1 / 188.2 / 250.0 |
+| runs with a correction after the reveal | 40 | 6 | 1 |
+| runs over the 100 ms cloak budget / over 150 ms | 19 / 0 | 41 / 13 | 42 / 16 |
+| **relative flash reduction against A** | - | **68.1%**, Fisher p = 1.6e-11 | **76.6%**, Fisher p = 5.3e-14 |
+
+| by spec (flash runs; cloak median ms) | A | B | C |
+| :--- | :--- | :--- | :--- |
+| `bottom-right-smaller` (20) | 20; 95.9 | 5; 105.7 | 4; 107.5 |
+| `bottom-right-larger` (20) | 20; 93.6 | 8; 154.3 | 5; 162.6 |
+| the two bottom-right specs together (40) | 40 / 40 | 13 / 40, **-67.5%**, p = 1.6e-11 | 9 / 40, **-77.5%**, p = 3.8e-14 |
+| `top-left-smaller` (10) | 7; 103.2 | 2; 115.5, -71.4%, p = 0.070 | 2; 113.2, -71.4%, p = 0.070 |
+
+- **Flash by outcome (CONFIRMED).** B: 8 of 40 `reached` runs flashed, 7 of 10 `timed-out` runs flashed. C: 10 of 49 `reached`, 1 of 1 `timed-out`. B's 10 cap timeouts were 9 in `bottom-right-larger`, 1 in `top-left-smaller`, 0 in `bottom-right-smaller`; C's one was in `bottom-right-larger`. The flashes left in B and C are mostly `reached` runs (the client's first paint at the final size arriving after the reveal; why was not examined, as in 6.18).
+- **Residual size of the flashes (CONFIRMED).** The largest `lead_ms` is 278.5 ms in A, 49.4 ms in B, 30.4 ms in C. 40 of A's 50 runs have an `ANCHOR_CORRECTION` after the reveal (B 6, C 1); why the legacy rule reveals early in these runs was not traced.
+- **B against C (CONFIRMED arithmetic).** 15 of 50 against 11 of 50: Fisher p = 0.49 (bottom-right only, 13 / 40 against 9 / 40: p = 0.45). At this sample size B and C are not distinguishable on flashes; both are far from A.
+
+**Comparison with 6.18 (CONFIRMED numbers, cause HYPOTHESIS).** 6.18 reported +22 ms idle cloak and loaded 5 / 20 for the change, each against the baseline from the earlier login. In this login the legacy arm itself has an idle cloak median of 41.2 ms (6.17 baseline login: 19.1 ms) and flashes in 40 of 40 loaded bottom-right runs (baseline login: 15 of 20, under a lower mean load of 22.7 against 25.8 here). So (CONFIRMED) the +22 ms idle cloak seen in 6.18 is also present in the legacy arm of this login: it came with the login, not with the ready-wait rule, and the cross-login loaded comparison understated how much A flashes in a loaded session like this one. Why the login differs (HYPOTHESIS: the same difference as the XWayland `UNCLOAK_4C -> UNCLOAK` timing in 6.18) was not examined.
+
+**Real apps, same session, A against B (extension log only; no screen capture).** `spawn-at spawn --class <id> --anchor bottom-right --size W H --margin 16 [override flags] -- <app>`; arm order A B B A A B B A A B, sizes alternating per spawn so each spawn is a real resize for apps that remember their size. Each new window was found by diffing `query windows` and closed with `spawn-at close --id <that id>`; afterwards `query windows` listed only the 2 windows that existed before (the user's), and `pgrep -cx` printed 0 for `gnome-text-edit`, `firefox`, `gnome-terminal-` (the server), `fixture`, `xtask`. 13:36 - 13:40 IST.
+
+| app (requested sizes) | arm | outcome x5 | `waited_ms` (A: `elapsed_ms`) min / median / max | cloak ms min / median / max | CLI "did not appear" |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| gnome-text-editor (500x300, 580x380) | A | AT_TARGET x4, SIZE_SETTLED x1 | 27.4 / 30.6 / 33.8 | 34.3 / 35.4 / 50.5 | 0 / 5 |
+| | B | reached x5 | 27.4 / 31.9 / 38.0 | 36.1 / 36.9 / 48.2 | 0 / 5 |
+| gnome-terminal (803x601, 905x517; ends 794x589 and 902x508 in both arms) | A | SIZE_SETTLED x5 | 32.6 / 33.3 / 71.8 | **162.7 / 178.4 / 208.6** | 0 / 5 |
+| | B | adjusted (reason `quiet`) x5 | 61.8 / 63.6 / 74.7 | **68.0 / 80.5 / 81.4** | 0 / 5 |
+| Firefox 157.0.1 snap, throwaway profile, `--no-remote` (700x500, 760x560) | A | AT_TARGET x4, SIZE_SETTLED x1 | 24.7 / 48.5 / 56.6 | 30.0 / 56.0 / 74.2 | **0 / 5** |
+| | B | reached x5 | 51.1 / 56.3 / 59.2 | 60.9 / 72.2 / 74.0 | **0 / 5** |
+
+- **Terminal (CONFIRMED numbers, cause HYPOTHESIS).** The legacy arm's cloak was 2 to 2.5 times the ready-wait arm's in all 5 pairs (163 - 209 ms against 68 - 81 ms). In the one A window read in the log (`id=1876180992`) the time was spent between `UNCLOAK_4B` and `UNCLOAK_4C` (131 ms, the forced stage update), not in the wait (33 ms). Why the stage update takes longer after a 33 ms wait than after a 62 ms wait was not traced; HYPOTHESIS that it waits for the terminal's own frame. Whether it is visible was not captured. No ready-wait terminal run had a correction after the reveal; none of the A runs did either.
+- **Text editor (CONFIRMED).** No difference in wait or cloak between the arms (medians 30.6 / 31.9 ms wait, 35.4 / 36.9 ms cloak). Every B run was a real resize (`current` was the other size) and ended `at-target`.
+- **Firefox (CONFIRMED log).** One uncounted warm-up spawn (default strategy, `auto`, which is ready-wait) created the profile: `timed-out`, `waited_ms` 150.0 (cap), window still 1600x971, revealed at that size at (304, 93), `ANCHOR_CORRECTION` to 700x500 85 ms after the reveal. The 10 counted spawns were all warm starts (the profile existed, Firefox had exited between spawns). A run 4 (legacy): `SIZE_SETTLED` after 31 ms while the frame was still 700x500 (requested 760x560), revealed at 700x500, `ANCHOR_CORRECTION` to 760x560 22 ms after the reveal. B had 0 corrections in 5. Whether a person sees A's correction was not captured. B hit the 150 ms cap 0 times in 15 real-app spawns (the only real-app cap hit was the cold warm-up).
+- **"did not appear" (CONFIRMED count, meaning HYPOTHESIS).** 0 of 5 in arm A, 0 of 5 in arm B, 0 of 1 in the warm-up, and 0 of 30 over all three apps. 6.18 saw 3 of 5. It did not reproduce in either arm, so this run cannot say whether the warning predates the change; it gives no sign that the override or the ready-wait causes it (arm A, which does not wait for the app, did not show it either). What differed from 6.18 (profile reused between spawns, a wait for the Firefox process to exit between spawns, a separate login) was not isolated.
+
+**Judged, arm B and C against A (same session).**
+
+| # | criterion | B cap 150 | C cap 250 |
+| :---: | :--- | :--- | :--- |
+| 1 | idle stays at 0 flashes | **Met**: 0 / 60 (A: 1 / 60) | **Met**: 0 / 60 |
+| 2 | loaded flashes down at least 70% | **Not met**: 68.1% (15 / 50 against 47 / 50); bottom-right only 67.5%; top-left alone 71.4% (n = 10, p = 0.07). One flash fewer (14 / 50) would be 70.2%. | **Met**: 76.6% (11 / 50); bottom-right only 77.5%; top-left alone 71.4% |
+| 3 | idle cloak median up by no more than 10 ms | **Met**: -1.4 ms (39.8 against 41.2) | **Met**: -0.6 ms (40.6 against 41.2) |
+| 4 | hung or refusing apps end by the hard limit (from 6.18) | **Not shown** | **Not shown** |
+
+**Cap 150 against cap 250: what each buys and costs (CONFIRMED numbers).**
+
+| measure | A | B 150 | C 250 | C minus B |
+| :--- | :--- | :--- | :--- | :--- |
+| **loaded** flash runs (of 50) | 47 | 15 | 11 | -4 |
+| flashes avoided against A (runs) | - | 32 | 36 | +4 |
+| loaded runs ending at the cap | - | 10 | 1 | -9 |
+| loaded cloak median (ms), change against A | 95.6 | 131.6 (+36.0) | 129.3 (+33.7) | -2.3 |
+| loaded cloak p95 (ms), change against A | 133.8 | 167.0 (+33.2) | 200.9 (+67.1) | **+33.9** |
+| loaded cloak max (ms), change against A | 140.9 | 183.9 (+43.0) | 263.4 (+122.5) | **+79.5** |
+| loaded runs over 100 ms / over 150 ms cloak | 19 / 0 | 41 / 13 | 42 / 16 | +1 / +3 |
+| **idle** flash runs (of 60) | 1 | 0 | 0 | 0 |
+| idle cloak median / p95 / max (ms) | 41.2 / 65.7 / 68.6 | 39.8 / 50.5 / 52.8 | 40.6 / 51.0 / 53.5 | +0.8 / +0.5 / +0.7 |
+| idle runs reaching the cap | - | 0 | 0 | 0 |
+
+**Cap recommendation: 250 (a recommendation; the decision is the user's).** At idle the two caps are indistinguishable and neither is ever reached (largest wait 40.8 ms), so the cap costs nothing there. Under load only 250 meets the 70% criterion (76.6% against 68.1%), because it turns 9 of B's 10 cap timeouts into runs that reached the target. The price is the tail of the cloak: p95 +34 ms and max +80 ms against 150 (263 ms at worst), paid only in runs where the app is that slow. Reasons to hold this loosely: (1) B and C are not separable on flashes at n = 50 (p = 0.49); B misses the 70% line by one flash; (2) both caps leave 41 - 42 of 50 loaded runs over the 100 ms cloak budget (A: 19 of 50), so no cap restores the budget at this load; (3) the load is extreme (load average 26 on 22 CPUs, all cores spinning), and a cap above 250, or one in between (200), was not tried; (4) the debug fixture, not a release build.
+
+**What this section cannot show (stated plainly).**
+- **Hung or refusing apps.** The fixture has no flag to stall or refuse a resize, so the 1500 ms hard limit, the `skipped` outcome and the not-resizable case were never exercised. The only cap hits were slow-but-responsive runs (loaded fixture, cold Firefox).
+- **Whether any flash is visible.** There is no screen capture: "flash" is the harness's numeric client-side measure and "certain" is a lead of at least one frame; nothing here says which of the 21 and 12 remaining events a person would see. The real-app rows come from the extension log only.
+- **X11 and XWayland.** Not run (the legacy path for X11 and XWayland is a separate path; 6.18 recorded its behaviour).
+- **Pre-change build.** A is the legacy rule through the override, not a build without the ready-wait code.
+- **Release build, other hardware, other sessions.** One machine, one login, debug fixture and debug `spawn-at`; load generated only by `burn-cpu`; 20 iterations per arm per spec do not divide evenly by the 3 rotations.
+- **Real apps.** n = 5 per arm and app; Firefox warm profile only (after one uncounted cold warm-up); sizes limited to two per app; the terminal's cloak cause and the 6.18 Firefox CLI warning were not traced.
+- **Not examined.** Why `reached` loaded runs still flash (8 of 40 in B, 10 of 49 in C); why the login differs from the baseline login.
+
+**Clean-up and files (CONFIRMED).** Every spawned window was closed by id; no `fixture`, `xtask`, `firefox`, `gnome-text-edit` or terminal-server process remained; the throwaway Firefox profile `~/snap/firefox/common/spawn-at-ab-profile` (59 MB, created for this section) was deleted. Scripts (`scratch/ab_batch.sh`, `ab_loaded.sh`, `ab_rows.sh`, `ab_rows.jq`, `ab_stats.sh`, `ab_stats.jq`, `app_ab.sh`, `rw_extract2.sh`) are throwaway, gitignored and not committed; raw per-run JSON (330 fixture runs) and the app logs stayed in the session scratchpad and are not in the repository.
