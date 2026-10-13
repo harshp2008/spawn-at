@@ -34,6 +34,51 @@ const sizeStr = s => (s && Number.isFinite(s.width) && Number.isFinite(s.height)
 
 const msStr = ms => Number(ms).toFixed(3);
 
+/** One line, no spaces (the log is split on spaces), at most 60 characters. */
+const oneWord = s => String(s).replace(/\s+/g, '_').slice(0, 60);
+
+/** Same, for an error list that is already joined with `|`: only the length is limited, to 240. */
+const oneWord2 = s => String(s).replace(/\s+/g, '_').slice(0, 240);
+
+const finiteSize =(w, h) => Number.isFinite(w) && Number.isFinite(h) && w >= 0 && h >= 0;
+
+/**
+ * The texture accessors, tried in this order, each in its own try/catch. The chain is the one
+ * GNOME 46's Meta-14 typelib has (read with gjs, DESIGN_READY_WAIT section 12): `WindowActor.get_texture()`
+ * returns a `Meta.ShapedTexture`, which has no `get_width`; its `get_texture()` returns a `Meta.MultiTexture`
+ * with `get_width()` / `get_height()` and `get_plane(n)`, a `Cogl.Texture` with the same two methods.
+ */
+export const TEXTURE_ACCESSORS = [
+    ['shaped>multi', actor => {
+        const m = actor.get_texture().get_texture();
+        return [m.get_width(), m.get_height()];
+    }],
+    ['shaped>multi>plane0', actor => {
+        const p = actor.get_texture().get_texture().get_plane(0);
+        return [p.get_width(), p.get_height()];
+    }],
+];
+
+/**
+ * Reads the size of the actor's surface texture. Returns `{ width, height, via }` for the first
+ * accessor that gives a finite size, else `{ error }` listing each accessor's own error message
+ * (`name:message`, joined by `|`). Never throws and changes nothing: every call is a getter.
+ */
+export function readTextureSize(actor) {
+    const errors = [];
+    for (const [name, read] of TEXTURE_ACCESSORS) {
+        try {
+            const [w, h] = read(actor);
+            if (finiteSize(w, h))
+                return { width: w, height: h, via: name };
+            errors.push(`${name}:bad_size_${w}x${h}`);
+        } catch (e) {
+            errors.push(`${name}:${oneWord(e?.message ?? e)}`);
+        }
+    }
+    return { error: errors.join('|') };
+}
+
 /** `X11_OBS_START` extra: what the window is and which signals exist. */
 export function formatStart(info) {
     return `kind=${info.kind} wayland=${Boolean(info.wayland)} client_type=${info.clientType ?? 'na'} ` +
@@ -49,8 +94,12 @@ export function formatMark(what, id, monoMs) {
 
 /** `X11_OBS_SIGNAL` extra: one emission with the sizes at that moment. */
 export function formatSignal(s) {
+    // `texture=(WxH) texture_via=<accessor>` when read, `texture=(na) texture_err=<name:message|...>`
+    // when every accessor failed, `texture=(na)` when the host gave nothing.
+    const tex = s.texture;
+    const texExtra = tex?.via ? ` texture_via=${tex.via}` : tex?.error ? ` texture_err=${oneWord2(tex.error)}` : '';
     return `signal=${s.signal} id=${s.id} mono_ms=${msStr(s.monoMs)} seq=${s.seq} ` +
-        `texture=${sizeStr(s.texture)} actor=${sizeStr(s.actor)} ` +
+        `texture=${sizeStr(tex)}${texExtra} actor=${sizeStr(s.actor)} ` +
         `frame=${rectStr(s.frame)} buffer=${rectStr(s.buffer)}`;
 }
 

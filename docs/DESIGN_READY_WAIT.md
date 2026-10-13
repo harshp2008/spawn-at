@@ -554,3 +554,20 @@ Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS
 5. Is `first-frame` emitted for a window that is already mapped and resized (expected: only once, at map)?
 
 **Not shown.** Everything about real emissions: that the signals fire, their order and number, whether `get_texture().get_width()` is the surface size, and whether a handler on `damaged` costs measurable time in the compositor (it only formats a line when logging is on, but the handler is connected whenever logging is on).
+
+**Update 2026-10-13: first live run, and the texture reader corrected.** Labels: CONFIRMED = seen in a run or in the typelib in this tree; HYPOTHESIS = not run in a Shell.
+
+- First live run (TEST_PLAN 6.23, 80 XWayland fixture runs): questions 1 and 5 are answered. `damaged` exists (`damaged=available` in 80 of 80 runs) and `first-frame` came once per run, before the client's resize and paint. The first `damaged` after `set_size` does not follow the client's paint (6.23, "Candidate rules").
+- **Why `texture=(na)` in 351 of 351 lines (CONFIRMED by introspection).** Read with standalone `gjs` outside the Shell (`GI_TYPELIB_PATH=/usr/lib/x86_64-linux-gnu/mutter-14`, Meta-14 of GNOME 46; the script was a throwaway in `scratch/`):
+
+  | Class | Has | Does not have |
+  | :-- | :-- | :-- |
+  | `Meta.WindowActor` | `get_texture()` (returns `Meta.ShapedTexture`, may be null), `get_image`, `paint_to_content`; from `Clutter.Actor`: `get_width`, `get_height`, `get_size`, `get_content`, `has_damage`; signals `first-frame`, `damaged`, `effects-completed`, `thawed` | |
+  | `Meta.ShapedTexture` (a `GObject.Object`, not an actor) | `get_texture()` (returns `Meta.MultiTexture`, never null), `get_image`, `set_mask_texture`, `set_create_mipmaps` | **`get_width`, `get_height`** |
+  | `Meta.MultiTexture` | `get_width()`, `get_height()` (int), `get_n_planes()`, `get_plane(n)` (returns `Cogl.Texture`), `get_format()`, `is_simple()` | |
+  | `Cogl.Texture` | `get_width()`, `get_height()` | |
+  | `Meta.SurfaceActor` | not in the typelib | |
+
+  So the old reader called `get_texture()` successfully and then `get_width?.()` on a `ShapedTexture` that has none: `undefined`, hence `(na)`. My earlier guess that the method was missing from the window actor (TEST_PLAN 6.23, written before this) was wrong.
+- **New reader (`readTextureSize` in `x11_observe.js`, tested in Node with mocks of this shape).** It tries `shaped>multi` (`actor.get_texture().get_texture().get_width()/get_height()`), then `shaped>multi>plane0` (`...get_plane(0)`), each in its own try/catch. A log line now says `texture=(WxH) texture_via=<accessor>`, or `texture=(na) texture_err=<accessor>:<message>|<accessor>:<message>` with the real error text, so a failure can no longer look like "nothing". Still observe-only: only getters, no signal, timer or state added.
+- **HYPOTHESIS, not run in a Shell:** that the accessor works on a window actor in the live Shell (the chain is from the typelib, not from a live object), and that the multi-texture size follows the client's committed buffer on XWayland rather than the frame. The first live run with the new reader answers both.

@@ -28,7 +28,7 @@ import { FocusPulse } from './pulse.js';
 import { computeAnchoredPosition } from './anchor.js';
 import { SessionLogger } from './logger.js';
 import { validateInstructions } from './validator.js';
-import { X11Observer } from './x11_observe.js';
+import { X11Observer, readTextureSize } from './x11_observe.js';
 
 const ARM_EXPIRY_MS = 15000;
 const WILDCARD_EXPIRY_MS = 1200;
@@ -880,9 +880,10 @@ export default class SpawnAtExtension extends Extension {
     // What the observe-only X11 logging (x11_observe.js) needs from the shell. Every call is
     // guarded: a missing API gives 'na' in the log, never an exception into the batch.
     //
-    // HYPOTHESIS (not run in a Shell): `get_texture()` on the window actor returns the shaped
-    // texture and its get_width/get_height follow the committed buffer; `damaged` and `first-frame`
-    // exist on Meta.WindowActor in GNOME 46. The runtime check below decides, not a version.
+    // `damaged` and `first-frame` exist on Meta.WindowActor in GNOME 46 (seen in the log, 80 of 80
+    // runs). The texture size is read by readTextureSize (x11_observe.js): ShapedTexture has no
+    // get_width, so it goes through its MultiTexture; HYPOTHESIS (not run in a Shell) that this
+    // follows the committed buffer. The runtime check below decides, not a version.
     _x11ObserveHost() {
         const size = o => (o && Number.isFinite(o.w) && Number.isFinite(o.h))
             ? { width: o.w, height: o.h } : null;
@@ -903,10 +904,7 @@ export default class SpawnAtExtension extends Extension {
             isWayland: () => this._try(() => Meta.is_wayland_compositor(), false),
             frameRect: w => this._try(() => w.get_frame_rect(), null),
             bufferRect: w => this._try(() => w.get_buffer_rect?.(), null),
-            textureSize: a => this._try(() => {
-                const t = a.get_texture?.();
-                return size({ w: t?.get_width?.(), h: t?.get_height?.() });
-            }, null),
+            textureSize: a => readTextureSize(a),
             actorSize: a => this._try(() => size({ w: a.width, h: a.height }), null),
         };
     }

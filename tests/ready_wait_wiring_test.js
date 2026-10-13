@@ -165,7 +165,7 @@ function createActor() {
         height: 600,
         get_stage: () => globalThis.global.stage,
         is_destroyed: () => false,
-        get_texture: () => ({ get_width: () => 800, get_height: () => 600 }),
+        get_texture: () => ({ get_texture: () => ({ get_width: () => 800, get_height: () => 600 }) }),
         connect: (signal, callback) => {
             signals.push(signal);
             const id = nextId++;
@@ -595,7 +595,7 @@ test('x11 observation: logging on writes the joinable lines, connects damaged an
         assert.equal(tags.at(-1), 'X11_OBS_END');
         assert.match(r.logs.find(l => l.tag === 'X11_OBS_END').extra, /reason=reveal\+500ms .*damaged=1 first_frame=1$/);
         assert.match(r.logs.find(l => l.tag === 'X11_OBS_START').extra, /^kind=X11 wayland=false client_type=1 id=301 /);
-        assert.match(r.logs.find(l => l.tag === 'X11_OBS_SIGNAL').extra, /texture=\(800x600\) actor=\(800x600\) frame=\(/);
+        assert.match(r.logs.find(l => l.tag === 'X11_OBS_SIGNAL').extra, /texture=\(800x600\) texture_via=shaped>multi actor=\(800x600\) frame=\(/);
         // Connected during the batch, gone after the tail.
         assert.equal(r.afterBatch.activeCount, 1);
         assert.equal(r.afterBatch.actorHandlers > 0, true);

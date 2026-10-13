@@ -214,3 +214,43 @@ test('a second start for the same window is ignored', () => {
     assert.equal(obs.start(WIN, ACTOR, 'XWayland'), false);
     assert.equal(host.logs.filter(l => l.tag === 'X11_OBS_START').length, 1);
 });
+
+// The texture reader. The mocks have the shape the Meta-14 typelib has (read with gjs): the shaped
+// texture has no get_width; its get_texture() is a multi-texture with get_width/get_height/get_plane.
+import { readTextureSize } from '../assets/gnome/modern/x11_observe.js';
+
+const multi = (w, h, plane) => ({ get_width: () => w, get_height: () => h, get_plane: () => plane });
+
+test('texture reader: the first accessor (shaped>multi) wins and is named', () => {
+    const actor = { get_texture: () => ({ get_texture: () => multi(800, 600) }) };
+    assert.deepEqual(readTextureSize(actor), { width: 800, height: 600, via: 'shaped>multi' });
+});
+
+test('texture reader: a failing first accessor falls through to the plane, and the name says so', () => {
+    const plane = { get_width: () => 200, get_height: () => 150 };
+    const bad = { get_width: () => { throw new Error('boom'); }, get_height: () => 1, get_plane: () => plane };
+    const actor = { get_texture: () => ({ get_texture: () => bad }) };
+    assert.deepEqual(readTextureSize(actor), { width: 200, height: 150, via: 'shaped>multi>plane0' });
+});
+
+test('texture reader: the old (wrong) shape fails with the real error text of each accessor, never "na" alone', () => {
+    const actor = { get_texture: () => ({ get_width: () => 800, get_height: () => 600 }) };
+    const r = readTextureSize(actor);
+    assert.equal(r.width, undefined);
+    assert.match(r.error, /^shaped>multi:.*get_texture.*\|shaped>multi>plane0:.*get_texture/);
+    assert.ok(!/\s/.test(r.error), 'no spaces: the log line is split on spaces');
+});
+
+test('texture reader: no get_texture, a null texture and a NaN size are each reported', () => {
+    assert.match(readTextureSize({}).error, /shaped>multi:.*\|shaped>multi>plane0:/);
+    assert.match(readTextureSize({ get_texture: () => null }).error, /shaped>multi:/);
+    const nan = { get_texture: () => ({ get_texture: () => multi(NaN, 5, { get_width: () => 3, get_height: () => 4 }) }) };
+    assert.deepEqual(readTextureSize(nan), { width: 3, height: 4, via: 'shaped>multi>plane0' });
+});
+
+test('texture reader: the log line names the accessor or the error, and stays one word per field', () => {
+    const ok = formatSignal({ signal: 'damaged', id: 1, monoMs: 1, seq: 1, texture: { width: 800, height: 600, via: 'shaped>multi' }, actor: null, frame: null, buffer: null });
+    assert.match(ok, /texture=\(800x600\) texture_via=shaped>multi actor=\(na\)/);
+    const bad = formatSignal({ signal: 'damaged', id: 1, monoMs: 1, seq: 1, texture: { error: 'shaped>multi:x|shaped>multi>plane0:y' }, actor: null, frame: null, buffer: null });
+    assert.match(bad, /texture=\(na\) texture_err=shaped>multi:x\|shaped>multi>plane0:y actor=\(na\)/);
+});
