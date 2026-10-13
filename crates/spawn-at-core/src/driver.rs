@@ -3,6 +3,7 @@
 //! Defines the high-level declarative `Batch` intent and the asynchronous `Driver` trait.
 
 use crate::geometry::PlacementParams;
+use crate::wait_override::WaitOverride;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -44,6 +45,10 @@ pub struct Entry {
     pub app_hint: String,
     /// Declarative spatial geometry and alignment constraints.
     pub placement: PlacementParams,
+    /// Developer override of the resize wait for this entry only; the default changes nothing and
+    /// is not serialised.
+    #[serde(default, skip_serializing_if = "WaitOverride::is_default")]
+    pub wait: WaitOverride,
 }
 
 /// A declarative batch of windows to be orchestrated and placed by the compositor driver.

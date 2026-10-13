@@ -14,6 +14,7 @@ use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
     check_geometry_diagnostics, resolve_workarea, Anchor, Area, GeometryDiagnostic, Rect,
 };
+use spawn_at_core::wait_override::WaitOverride;
 use std::time::Duration;
 
 /// Structured JSON output emitted to stdout when `--json` is supplied to `spawn-at spawn`.
@@ -226,12 +227,23 @@ pub async fn run_spawn(
         .clone()
         .unwrap_or_else(|| driver.resolve_id(&spawn_args.command, None));
 
+    // Developer override of the resize wait (hidden --wait-strategy / --wait-cap-ms). A bad value
+    // is dropped with a warning; the spawn goes on with the rest.
+    let (wait, wait_problems) = WaitOverride::from_raw(
+        spawn_args.wait_strategy.as_deref(),
+        spawn_args.wait_cap_ms.as_deref(),
+    );
+    for problem in &wait_problems {
+        crate::diagnostics::render_warning(problem);
+    }
+
     let batch = Batch {
         id: 1,
         entries: vec![Entry {
             key: entry_key.clone(),
             app_hint: app_hint.clone(),
             placement: params.clone(),
+            wait,
         }],
         reveal: Reveal::Together,
         focus: FocusIntent::Exclusive,
@@ -691,6 +703,142 @@ mod tests {
         assert_eq!(recorded.len(), 2);
         assert_eq!(recorded[0], "prepare_claim_wait");
         assert_eq!(recorded[1], "arm");
+    }
+
+    /// Backend that keeps the batch it was armed with.
+    struct BatchRecorder {
+        inner: OrderingMockBackend,
+        batches: Arc<Mutex<Vec<Batch>>>,
+    }
+
+    #[async_trait::async_trait]
+    impl Driver for BatchRecorder {
+        async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+            self.batches.lock().unwrap().push(batch.clone());
+            self.inner.arm(batch).await
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for BatchRecorder {
+        fn name(&self) -> &'static str {
+            "BatchRecorder"
+        }
+
+        fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
+            self.inner.resolve_id(command, explicit_class)
+        }
+
+        fn supports_claim_wait(&self) -> bool {
+            true
+        }
+
+        async fn prepare_claim_wait(
+            &self,
+            target_id: &str,
+        ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+            self.inner.prepare_claim_wait(target_id).await
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
+            self.inner.get_workareas().await
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            self.inner.get_windows().await
+        }
+    }
+
+    /// Runs `run_spawn` for a 400x300 window with the given hidden wait flags and returns the
+    /// batch that reached `arm` and the warnings printed on the way.
+    async fn arm_with_wait_flags(
+        strategy: Option<&str>,
+        cap_ms: Option<&str>,
+    ) -> (Batch, Vec<String>) {
+        let batches = Arc::new(Mutex::new(Vec::new()));
+        let backend = BatchRecorder {
+            inner: OrderingMockBackend {
+                calls: Arc::new(Mutex::new(Vec::new())),
+            },
+            batches: batches.clone(),
+        };
+        let args = SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            wait_strategy: strategy.map(String::from),
+            wait_cap_ms: cap_ms.map(String::from),
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_spawn(&backend, args, false).await;
+        assert!(
+            res.is_ok(),
+            "an override must never fail the spawn: {res:?}"
+        );
+        let warnings = crate::diagnostics::take_captured_diagnostics()
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .map(|(_, msg)| msg)
+            .collect();
+        let batch = batches
+            .lock()
+            .unwrap()
+            .first()
+            .cloned()
+            .expect("arm was called");
+        (batch, warnings)
+    }
+
+    #[tokio::test]
+    async fn test_wait_flags_reach_the_armed_entry() {
+        let (batch, warnings) = arm_with_wait_flags(Some("legacy"), Some("200")).await;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert_eq!(batch.entries.len(), 1);
+        let wait = batch.entries[0].wait;
+        assert_eq!(
+            wait.strategy,
+            spawn_at_core::wait_override::WaitStrategy::Legacy
+        );
+        assert_eq!(wait.cap_ms, Some(200));
+    }
+
+    #[tokio::test]
+    async fn test_without_wait_flags_the_entry_has_no_override() {
+        // The default must stay the default end to end: no override on the entry, no warning,
+        // and no "wait" key if the entry is serialised.
+        let (batch, warnings) = arm_with_wait_flags(None, None).await;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(batch.entries[0].wait.is_default());
+        let json = serde_json::to_string(&batch.entries[0]).unwrap();
+        assert!(!json.contains("wait"), "{json}");
+        // `--wait-strategy auto` is the same as saying nothing.
+        let (batch, warnings) = arm_with_wait_flags(Some("auto"), None).await;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(batch.entries[0].wait.is_default());
+    }
+
+    #[tokio::test]
+    async fn test_invalid_wait_flags_are_ignored_with_one_warning_each() {
+        let (batch, warnings) = arm_with_wait_flags(Some("fast"), Some("0")).await;
+        assert!(batch.entries[0].wait.is_default());
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert!(
+            warnings[0].contains("--wait-strategy 'fast'"),
+            "{warnings:?}"
+        );
+        assert!(warnings[1].contains("--wait-cap-ms '0'"), "{warnings:?}");
+        // A valid half survives an invalid other half.
+        let (batch, warnings) = arm_with_wait_flags(Some("ready-wait"), Some("abc")).await;
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert_eq!(
+            batch.entries[0].wait.strategy,
+            spawn_at_core::wait_override::WaitStrategy::ReadyWait
+        );
+        assert_eq!(batch.entries[0].wait.cap_ms, None);
     }
 
     struct FallbackMockBackend {

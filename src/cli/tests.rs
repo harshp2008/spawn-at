@@ -1245,3 +1245,84 @@ fn test_help_headings_order_and_grouping_snapshot() {
         "Transform help headings must appear in order: Reference area, Anchor and pivot, Position and size, Bounds, Behavior.\nActual:\n{transform_help}"
     );
 }
+
+#[test]
+fn test_wait_flags_parse_before_the_command() {
+    let cli = Cli::try_parse_from([
+        "spawn-at",
+        "spawn",
+        "--size",
+        "400",
+        "300",
+        "--wait-strategy",
+        "legacy",
+        "--wait-cap-ms",
+        "200",
+        "--",
+        "gnome-text-editor",
+        "--new-window",
+    ])
+    .expect("hidden wait flags must parse");
+    if let Commands::Spawn(s) = cli.command {
+        assert_eq!(s.wait_strategy.as_deref(), Some("legacy"));
+        assert_eq!(s.wait_cap_ms.as_deref(), Some("200"));
+        // The flags are the spawn-at's, not the child's.
+        assert_eq!(s.command, vec!["gnome-text-editor", "--new-window"]);
+    } else {
+        panic!("Expected Spawn command variant");
+    }
+}
+
+#[test]
+fn test_wait_flags_default_to_absent() {
+    let cli = Cli::try_parse_from(["spawn-at", "spawn", "--size", "400", "300", "--", "true"])
+        .expect("plain spawn must parse");
+    if let Commands::Spawn(s) = cli.command {
+        assert_eq!(s.wait_strategy, None);
+        assert_eq!(s.wait_cap_ms, None);
+    } else {
+        panic!("Expected Spawn command variant");
+    }
+}
+
+#[test]
+fn test_bad_wait_flag_values_still_parse_so_they_can_be_ignored_later() {
+    // Rejecting them in clap would fail the spawn; the contract is "ignored and logged".
+    let cli = Cli::try_parse_from([
+        "spawn-at",
+        "spawn",
+        "--wait-strategy",
+        "bogus",
+        "--wait-cap-ms",
+        "-3x",
+        "--",
+        "true",
+    ])
+    .expect("text values are not validated by the parser");
+    if let Commands::Spawn(s) = cli.command {
+        assert_eq!(s.wait_strategy.as_deref(), Some("bogus"));
+        assert_eq!(s.wait_cap_ms.as_deref(), Some("-3x"));
+    } else {
+        panic!("Expected Spawn command variant");
+    }
+}
+
+#[test]
+fn test_wait_flags_are_hidden_from_every_help_text() {
+    let mut cmd = Cli::command();
+    cmd.build();
+    let spawn_cmd = cmd.find_subcommand_mut("spawn").unwrap();
+    let short = spawn_cmd.render_help().to_string();
+    let long = spawn_cmd.render_long_help().to_string();
+    for text in [&short, &long] {
+        assert!(!text.contains("wait-strategy"), "{text}");
+        assert!(!text.contains("wait-cap-ms"), "{text}");
+        assert!(!text.contains("ready-wait"), "{text}");
+    }
+    // Top-level help does not mention them either.
+    let top = Cli::command().render_long_help().to_string();
+    assert!(
+        !top.contains("wait-strategy") && !top.contains("wait-cap-ms"),
+        "{top}"
+    );
+}

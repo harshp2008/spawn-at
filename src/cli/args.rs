@@ -237,6 +237,17 @@ pub struct SpawnArgs {
     #[arg(short = 'c', long)]
     pub class: Option<String>,
 
+    /// Developer switch for same-login A/B runs, hidden from --help: which rule waits for the
+    /// resized window (auto, legacy or ready-wait), for this spawn only. Kept as text so a bad
+    /// value can be ignored with a warning instead of failing the spawn.
+    #[arg(long, hide = true, value_name = "auto|legacy|ready-wait")]
+    pub wait_strategy: Option<String>,
+
+    /// Developer switch, hidden from --help: cap of the ready-wait in milliseconds (1 to 1500),
+    /// for this spawn only. Kept as text for the same reason as --wait-strategy.
+    #[arg(long, hide = true, value_name = "MS")]
+    pub wait_cap_ms: Option<String>,
+
     /// Command to spawn along with any trailing flags/arguments
     #[arg(
         trailing_var_arg = true,

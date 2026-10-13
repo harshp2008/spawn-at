@@ -6,6 +6,7 @@
 use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::Entry;
 use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
+use spawn_at_core::wait_override::{WaitOverride, WaitStrategy};
 
 /// Raw serialization payload expected by the GNOME Shell extension for anchored positioning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,11 +42,37 @@ fn default_true() -> bool {
 pub enum Instruction {
     Snapshot,
     Cloak,
-    SetSize { w: u32, h: u32 },
-    WaitForCommit { timeout_ms: u32 },
+    SetSize {
+        w: u32,
+        h: u32,
+    },
+    WaitForCommit {
+        timeout_ms: u32,
+        /// Developer override of the wait rule (`legacy` or `ready-wait`); left out of the JSON
+        /// when not set, so an unchanged spawn sends the bytes it always sent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        strategy: Option<WaitStrategy>,
+        /// Developer override of the ready-wait cap in milliseconds; left out when not set.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cap_ms: Option<u32>,
+    },
     SetPositionAnchored(PlacementPayload),
     Uncloak,
     DestroySnapshot,
+}
+
+impl Instruction {
+    /// A `WaitForCommit` carrying `wait`. `Auto` and an absent cap add nothing to the instruction.
+    pub fn wait_for_commit(timeout_ms: u32, wait: &WaitOverride) -> Self {
+        Instruction::WaitForCommit {
+            timeout_ms,
+            strategy: match wait.strategy {
+                WaitStrategy::Auto => None,
+                other => Some(other),
+            },
+            cap_ms: wait.cap_ms,
+        }
+    }
 }
 
 /// Translates declarative `PlacementParams` into a low-level `PlacementPayload`.
@@ -150,7 +177,7 @@ pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
             w: size.0,
             h: size.1,
         });
-        instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
+        instructions.push(Instruction::wait_for_commit(300, &entry.wait));
     }
 
     if has_move {
@@ -173,6 +200,7 @@ mod tests {
         let entry = Entry {
             key: "test-resize-only".to_string(),
             app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 size: Some((500, 400)),
                 ..Default::default()
@@ -194,6 +222,7 @@ mod tests {
         let entry = Entry {
             key: "test-pos-only".to_string(),
             app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 pos: Some((100, 200)),
                 area: Some(Area::Workarea),
@@ -234,6 +263,7 @@ mod tests {
         let entry = Entry {
             key: "test-anchor-only".to_string(),
             app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 anchor: Some(Anchor::Center),
                 area: Some(Area::Workarea),
@@ -272,6 +302,7 @@ mod tests {
         let entry = Entry {
             key: "test-anchor-offset".to_string(),
             app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 anchor: Some(Anchor::TopRight),
                 offset: Some((15, -10)),
@@ -311,6 +342,7 @@ mod tests {
         let entry = Entry {
             key: "test-cursor-no-pivot".to_string(),
             app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 anchor: Some(Anchor::Cursor),
                 cursor_pos: Some((500, 300)),
@@ -351,6 +383,7 @@ mod tests {
         let entry = Entry {
             key: "test-token-123".to_string(),
             app_hint: "org.gnome.TextEditor".to_string(),
+            wait: Default::default(),
             placement: PlacementParams {
                 size: Some((800, 600)),
                 anchor: Some(Anchor::TopRight),
@@ -425,7 +458,7 @@ mod tests {
             Instruction::Snapshot,
             Instruction::Cloak,
             Instruction::SetSize { w: 500, h: 400 },
-            Instruction::WaitForCommit { timeout_ms: 500 },
+            Instruction::wait_for_commit(500, &WaitOverride::default()),
             Instruction::SetPositionAnchored(payload),
             Instruction::Uncloak,
             Instruction::DestroySnapshot,
@@ -527,5 +560,81 @@ mod tests {
         assert_eq!(arr[2]["SetPositionAnchored"]["clamp"], false);
         assert_eq!(arr[3], "Uncloak");
         assert_eq!(arr[4], "DestroySnapshot");
+    }
+
+    fn resize_entry(wait: WaitOverride) -> Entry {
+        Entry {
+            key: "test-wait".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                size: Some((500, 400)),
+                ..Default::default()
+            },
+            wait,
+        }
+    }
+
+    #[test]
+    fn test_default_wait_override_leaves_the_instruction_bytes_unchanged() {
+        // The exact string a build without the override sent: no strategy, no cap_ms, key order
+        // timeout_ms only.
+        let json = serde_json::to_string(&build_instructions_for_entry(&resize_entry(
+            Default::default(),
+        )))
+        .unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300}},"Uncloak"]"#
+        );
+        // `auto` with no cap is the default too.
+        let (auto, _) = WaitOverride::from_raw(Some("auto"), None);
+        assert_eq!(
+            serde_json::to_string(&build_instructions_for_entry(&resize_entry(auto))).unwrap(),
+            json
+        );
+    }
+
+    #[test]
+    fn test_wait_override_is_carried_in_the_wait_instruction_only() {
+        let (wait, problems) = WaitOverride::from_raw(Some("legacy"), Some("200"));
+        assert!(problems.is_empty());
+        let json =
+            serde_json::to_string(&build_instructions_for_entry(&resize_entry(wait))).unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300,"strategy":"legacy","cap_ms":200}},"Uncloak"]"#
+        );
+    }
+
+    #[test]
+    fn test_wait_override_strategy_and_cap_are_independent() {
+        let (only_cap, _) = WaitOverride::from_raw(None, Some("90"));
+        let json = serde_json::to_string(&Instruction::wait_for_commit(300, &only_cap)).unwrap();
+        assert_eq!(json, r#"{"WaitForCommit":{"timeout_ms":300,"cap_ms":90}}"#);
+        let (only_strategy, _) = WaitOverride::from_raw(Some("ready-wait"), None);
+        let json =
+            serde_json::to_string(&Instruction::wait_for_commit(300, &only_strategy)).unwrap();
+        assert_eq!(
+            json,
+            r#"{"WaitForCommit":{"timeout_ms":300,"strategy":"ready-wait"}}"#
+        );
+    }
+
+    #[test]
+    fn test_wait_instruction_without_override_fields_still_deserialises() {
+        let parsed: Instruction =
+            serde_json::from_str(r#"{"WaitForCommit":{"timeout_ms":300}}"#).unwrap();
+        match parsed {
+            Instruction::WaitForCommit {
+                timeout_ms,
+                strategy,
+                cap_ms,
+            } => {
+                assert_eq!(timeout_ms, 300);
+                assert_eq!(strategy, None);
+                assert_eq!(cap_ms, None);
+            }
+            other => panic!("expected WaitForCommit, got {other:?}"),
+        }
     }
 }

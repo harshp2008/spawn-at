@@ -21,6 +21,7 @@ async fn test_x11_arm_generates_tokens() {
         entries: vec![Entry {
             key: "test-token-123".into(),
             app_hint: "test-app".into(),
+            wait: Default::default(),
             placement: PlacementParams::default(),
         }],
         reveal: Reveal::Together,

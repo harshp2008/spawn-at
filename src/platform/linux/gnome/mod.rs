@@ -938,7 +938,10 @@ impl CompositorBackend for GnomeWaylandDriver {
                 w: size.0,
                 h: size.1,
             });
-            instructions.push(mechanics::Instruction::WaitForCommit { timeout_ms: 500 });
+            instructions.push(mechanics::Instruction::wait_for_commit(
+                500,
+                &spawn_at_core::wait_override::WaitOverride::default(),
+            ));
         }
         if has_move {
             let payload = mechanics::calculate_placement(&params, current_w, current_h);
