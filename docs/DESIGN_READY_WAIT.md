@@ -1,0 +1,399 @@
+# Design: "wait until the window is ready before placing and revealing it"
+
+Status: design only, 2026-10-13. No product code changed; the only commit is this file. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
+
+## 0. Reading guide
+
+Every claim carries a tag. Evidence classes:
+
+| Tag | Meaning |
+| :--- | :--- |
+| **CONFIRMED (source)** | read in this repository's code |
+| **CONFIRMED (measured)** | measured in this session or in stored runs of this repository |
+| **CONFIRMED (typelib / symbols)** | read from the installed `Meta-14.typelib`, `libmutter-14.so`, or vendored crates on this machine (mutter 46.2, gjs 1.80.2) |
+| **CONFIRMED (docs)** | stated in this repository's docs; the underlying evidence is cited there |
+| **HYPOTHESIS (inference)** | my reasoning from the above; not tested |
+| **UNVERIFIED (web)** | a WebFetch summary written by a small model; treat as a lead |
+| **UNVERIFIED (knowledge)** | from general knowledge of the platform; not checked here |
+
+Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME Shell 46.0, mutter 46.2, gjs 1.80.2, 60.00 Hz display (CONFIRMED (measured), `xrandr`). Nothing in a Wayland session, on GNOME 50, on KDE/wlroots, Windows or macOS was run.
+
+### 0.1 Decisions in one page
+
+1. **One contract, per-window strategies.** The unit of choice is the window, not the session: a native Wayland window, an XWayland window and an X11 window need different "presented" signals even inside one GNOME Wayland session (section 3.1).
+2. **The policy and the outcome type live in `spawn-at-core`; the strategy engine is a small sans-IO state machine** (events in, actions out, a virtual clock for tests). GNOME runs it in JS inside the shell because the cloak and the hard limit must stay compositor-side; Rust backends (X11 driver, later Windows/macOS/wlroots) run the Rust build of the same machine. The two builds are checked against one set of golden event scripts (sections 4.1 and 5).
+3. **Tuning constants have one source:** `spawn_at_core::ready_wait::Policy`, serialised into the instruction the extension already receives (`WaitForCommit` args). The extension keeps safety defaults only; a test compares them with the Rust defaults.
+4. **Resize outcome** `Reached | AdjustedTo(WxH) | TimedOut{last} | Skipped` is additive everywhere: new JSON field, new D-Bus protocol version, new log tags. Exit codes and existing stderr text do not change in the beta (section 2.3).
+5. **Native Wayland first, the agreed wait:** wait for the requested size; the first different-size answer ends the exact wait and hands over to the quiet rule; cap 150 ms; hard limit 1500 ms; skip when `allows_resize()` is false; feature-detect by presence, never by version number. The unique-size probe and the learned-minimum cache are designed but kept out of the beta slice (sections 4.3, 4.4, 6).
+6. **X11 and XWayland get an observe-only slice first** (log when `damaged` / `thawed` fire) before any wait is built on them, because the "presented" semantics of those signals are unverified (section 3.2).
+
+## 1. Inventory: where readiness, wait and anchor logic lives today
+
+### 1.1 GNOME Shell extension (`assets/gnome/modern/`, `assets/gnome/legacy/`)
+
+All CONFIRMED (source). `modern` = GNOME 45-48 (`metadata.json`: `45,46,47,48`), `legacy` = GNOME 42-44. The two trees are parallel copies (different module syntax, same logic); `commit.js` is 174 lines modern and 152 legacy, `extension.js` 1631 and 1622.
+
+| What | Where (modern) | Role | GNOME-specific? |
+| :--- | :--- | :--- | :--- |
+| Instruction runner: `Snapshot`, `Cloak`, `SetSize`, `WaitForCommit`, `SetPositionAnchored`, `Uncloak`, `DestroySnapshot`; an unknown instruction throws | `extension.js:661` `_runBatch` | the step sequence of a placement (create/hide/size/wait/anchor/reveal) | contract is neutral, the implementation is GNOME |
+| Hide / reveal | `cloak.js` (`CloakManager`: opacity 0, offscreen redirect off, snapshot, 6000 ms watchdog `cloak.js:49`); `extension.js:323-335` `_cloak/_uncloak`; `_reveal` | Clutter actor opacity | GNOME (Clutter) |
+| Request size | `extension.js:738` `_stepSetSize` (clamps to floor 100x60, `move_resize_frame`) | `Meta.Window.move_resize_frame` | GNOME (Mutter) |
+| Minimum size | `extension.js:300` `_getMinSize` -> `window.get_min_size?.()`; constants `GEOMETRY_FLOOR_W/H = 100/60` (`:33-34`) | returns `[0,0]` on 46 because the method is absent (typelib, below) | GNOME; also wrong for 50 (`[ok,w,h]` return, 6.14) |
+| **The wait** | `commit.js:34` `waitForCommit` (`size-changed` + actor `notify::allocation`; quiet timer 30 ms, idle timeout `max(timeout_ms,120)`, hard cap 1500 ms; finishes on `AT_TARGET`, `SIZE_SETTLED`, `TIMEOUT_NO_CHANGE`, `HARD_CAP`); `extension.js:785` `_stepWaitForCommit` | the thing this design replaces | GNOME signals, **neutral algorithm** |
+| One-frame waits | `commit.js:144` `waitForFrames(stage, 1, 50 ms)` called from `_stepUncloak` (`extension.js:863, 876`) | lets the stage paint the moved window before the reveal | GNOME (Clutter `after-update`) |
+| Late-resize repair before reveal | `extension.js:961` `_reanchorLateResize` (max 2 passes, `LATE_RESIZE_MAX_PASSES`, `:38`), `:929` `_reanchorIfResized`, `:922` `_isToolkitClamped` | re-anchor if the frame size changed since positioning | neutral idea, GNOME calls |
+| Anchor | `extension.js:1022` `_computeAnchoredPosition`, `:1033` `_applyAnchoredPosition` | pivot/anchor/margin to x,y from the frame size | **platform-neutral maths** (same maths in `spawn-at-core::geometry`) |
+| Reactive anchor after reveal | `extension.js:1062` `_armAnchor`, `:1074` `_onAnchoredSizeChanged` (logs `ANCHOR_CORRECTION` only when the recomputed position differs), `:1098` `_disarmAnchor`, retire after 1000 ms (`ANCHOR_RETIRE_QUIET_MS`) | fixes a late resize after the reveal; it is the flash the verify tool reports | GNOME signals; neutral concept |
+| Result back to CLI | `_reveal` emits `SpawnClaimed` `(sbtiiuubs)`: target, success, window id, x, y, w, h, size_raised, error string (empty on success) | the only outcome channel | GNOME D-Bus |
+| Per-window client type | `logger.js:271-278`: `get_client_type()`; `X11` under a Wayland compositor is labelled `XWayland` | already distinguishes the window kinds, for logging only | GNOME |
+| Protocol version | `extension.js:1361` `ProtocolVersion` = 5 | gate for new behaviour | GNOME |
+| Tuning constants (JS) | `COMMIT_QUIET_MS 30`, `COMMIT_MIN_TIMEOUT_MS 120`, `COMMIT_HARD_CAP_MS 1500` (`commit.js:10-12`); `FRAME_WAIT_CEILING_MS 50` (`extension.js:36`); focus pulse constants in `pulse.js` | one of two sources (see 1.2) | neutral values |
+
+Not used anywhere: `Meta.Window.allows_resize` (grep: no use in the repo; CONFIRMED (source)).
+
+### 1.2 Rust CLI (`src/`) and core (`crates/spawn-at-core/`)
+
+| What | Where | Role | GNOME-specific? |
+| :--- | :--- | :--- | :--- |
+| Declarative intent | `crates/spawn-at-core/src/driver.rs` `Batch`, `Entry`, `Reveal`, `Driver::arm` | what to place; **no readiness concept at all** | neutral |
+| Geometry maths | `crates/spawn-at-core/src/geometry.rs` `calculate_rect_from_placement` (`:479`), `apply_anchor`, `clamp_to_bounds`, `compute_screen_anchor` | anchor/pivot/margin to rect | neutral |
+| Backend trait | `src/platform/mod.rs:101` `CompositorBackend` (`supports_runtime_transform`, `supports_claim_wait`, `prepare_claim_wait`, `get_window_rect`, `transform_window`, ...) | the platform seam today | neutral trait; capability flags are coarse booleans |
+| Instruction synthesis | `src/platform/linux/gnome/mechanics.rs:144` `build_instructions_for_entry` (spawn: `WaitForCommit{timeout_ms:300}`), `src/platform/linux/gnome/mod.rs:869` `transform_window` (`timeout_ms:500`), `Instruction` enum (`mechanics.rs:41-49`) | step list for the extension | GNOME |
+| Claim wait | `src/platform/linux/gnome/mod.rs:433-470, 560-600` `GnomeClaimSubscription` (needs protocol >= 2; a failed claim returns an error, a successful one ignores the `error` string) | receives `SpawnClaimed` | GNOME |
+| CLI-side settle | `src/commands/mod.rs:362` `settle_window_geometry` (polls `get_window_rect` every 25 ms, 300 ms timeout; "size matches" is `>=` the request), called from `spawn.rs:450` and `transform.rs:339`; `spawn.rs:465-495` re-asserts once if the client re-maximised | second, independent wait on the CLI side, with its own constants | neutral logic, polls the backend |
+| Final report | `src/commands/spawn.rs:21` `SpawnOutputJson {window_id,x,y,w,h,rel_x,rel_y,area,size_raised,raised_w,raised_h,reused_existing_window,source}`; `src/diagnostics.rs:570` `verify_and_report_placement` (`[spawn-at] INFO/WARNING/ERROR:` on stderr; `SizeRaisedToMinimum` is INFO) | what the user sees | neutral |
+| Native X11 driver | `src/platform/linux/x11/interception.rs:23-` `handle_spawn_interception`: `SubstructureNotify`, pre-map `WM_NORMAL_HINTS` `USPosition|PPosition` and `_NET_WM_USER_TIME=0`, poll `MapState`, wait until the geometry is above 50x50 plus 40 ms, `move_resize` via `_NET_MOVERESIZE_WINDOW`. **No hide, no sync, no damage** (grep of `x11/*.rs`: no unmap/opacity/cloak/damage/`_NET_WM_SYNC`) | post-map mover | X11 |
+| Backend selection | `src/platform/linux/mod.rs:96` `bootstrap`: `SPAWN_AT_BACKEND=x11` forces the X11 driver; if `XDG_CURRENT_DESKTOP` contains GNOME the GNOME driver is used (it also runs on a GNOME X11 session), else X11 | **per session** | Linux |
+| x11rb features | `Cargo.toml:17` `x11rb 0.14` with only `randr`. `damage` and `sync` features exist in x11rb 0.14.0 (CONFIRMED (symbols), vendored `Cargo.toml`) | a damage/sync listener needs two feature flags | X11 |
+
+Two constant sources exist today: JS (`commit.js`) and Rust (300/500 ms in `mechanics.rs`/`gnome/mod.rs`, 300 ms in `spawn.rs`/`transform.rs`). The JS idle timeout is `max(timeout_ms, 120)`, so the Rust 300/500 only matters above 120 ms. CONFIRMED (source).
+
+### 1.3 What would have to be rewritten per target
+
+| Target | Reusable as is | Rewrite |
+| :--- | :--- | :--- |
+| **X11 only (any WM)** | geometry maths, `Policy`, `ResizeOutcome`, state machine, JSON/stderr/exit surface | hide (none exists today), request (`_NET_MOVERESIZE_WINDOW` exists), presented signal (damage and/or `_NET_WM_SYNC_REQUEST_COUNTER`, section 3.2), min size (`WM_NORMAL_HINTS`, readable pre-map, section 3.2), reveal; **no resident process**: the CLI must stay alive for the whole wait |
+| **wlroots (Sway/Hyprland) / KDE** | as above | new backend per compositor: wlroots has no extension API, only IPC rules (Sway `for_window`, Hyprland window rules) or a layer-shell-free path; KDE has KWin scripts/rules. Hide, presented and min-size are all compositor-specific (UNVERIFIED (knowledge), section 3) |
+| **Windows** | geometry maths, policy, outcome, CLI surface | everything platform: Win32 hooks/DWM for hide, `SetWindowPos`, `WM_SIZE`/`WM_PAINT`/`DwmFlush` or equivalent for presented, `WM_GETMINMAXINFO` (app-answered) for min size (UNVERIFIED (knowledge)) |
+| **macOS** | same | Accessibility API (`AXUIElement`) for size/position, no supported way to hide another process's window, no presented signal, Spaces (UNVERIFIED (knowledge)); the README already says "needs a permission grant" |
+
+## 2. The contract
+
+### 2.1 Platform-neutral steps
+
+A placement is a transaction over one window. Names are neutral; GNOME's current instruction names map as shown.
+
+| # | Step | Contract | GNOME today |
+| :---: | :--- | :--- | :--- |
+| 1 | **claim** | identify the window that belongs to this spawn; learn its **kind** (`NativeWayland`, `XWayland`, `X11`, `Win32`, `Cocoa`, ...) and its **capabilities** | `window-created` + `ArmSpawn` match; kind from `get_client_type()` |
+| 2 | **hide** | make it invisible before any frame can reach the screen; must be released by a hard watchdog | `Cloak` (+ `Snapshot`) |
+| 3 | **request_size(w,h)** | ask for a size; returns at once with what the platform already knows (resizable, fullscreen/tiled, known minimum) | `SetSize` |
+| 4 | **wait_presented(policy) -> ResizeOutcome** | wait until the content at the new size has been presented (or the platform's best proxy), under `Policy` caps | `WaitForCommit` (to be replaced) |
+| 5 | **anchor(size)** | compute and apply the position for the **outcome size**, not the requested size | `SetPositionAnchored` |
+| 6 | **reveal** | un-hide in the same tick as the last position check | `Uncloak` / `_reveal` |
+| 7 | **verify** | re-read the final rectangle, keep a reactive anchor armed for a short time, report the outcome | reactive anchor; `SpawnClaimed`; CLI settle |
+
+Step 4 is the only new contract; 5-7 exist. The requirement that step 5 uses the outcome size is the fix for "every corrected run had the anchor computed for 400x300" (6.12).
+
+### 2.2 Resize outcome
+
+```text
+enum ResizeOutcome {            // #[non_exhaustive]
+    Reached    { size: (w,h), waited_ms, evidence },
+    AdjustedTo { size: (w,h), reason: Min | Max | Increment | WorkArea | Unknown, waited_ms, evidence },
+    TimedOut   { last_size: (w,h), waited_ms, phase: Cap | Hard },
+    Skipped    { reason: NotResizable | Fullscreen | Tiled | NoSizeRequested | Unsupported },
+}
+enum Evidence { FrameEquals, SizeChanged, SyncThaw, Damage, Probe, GraceElapsed }   // #[non_exhaustive]
+```
+
+`Reached`: the presented size equals the request (tolerance 0 px; 1 px for backends that round). `AdjustedTo`: the window answered with a different size (the app's minimum, a clamp, a size increment such as a terminal grid, a work-area clamp) and that size is stable under the quiet rule. `TimedOut`: no answer inside the cap (`phase: Cap` when the optional probe also failed or is disabled, `Hard` when the hard limit ended it); `last_size` is what the window had. `Skipped`: no wait was attempted. The fourth variant is the only addition to the three requested; without it "not resizable" has to be forced into `TimedOut`, which would misreport a dialog as a hung app.
+
+Mapping from today's `COMMIT_RESOLVED` reasons (CONFIRMED (source), `commit.js`): `AT_TARGET` -> `Reached`; `SIZE_SETTLED` -> `AdjustedTo` **or a stale answer** (the case behind the flash: the first sample is the app's initial size; this is exactly what the new rule separates); `TIMEOUT_NO_CHANGE` -> `TimedOut{Cap}`; `HARD_CAP` -> `TimedOut{Hard}`.
+
+### 2.3 How the outcome surfaces; minimum compatible shape for the beta
+
+Rule for the beta: **additive only**. A script written against today's CLI must see no change.
+
+| Channel | Beta shape | Why it does not break users |
+| :--- | :--- | :--- |
+| **Exit code** | unchanged: 0 whenever the window was placed, whatever the outcome. `TimedOut`/`AdjustedTo` do not change it | the exit code for a mis-positioned window is undefined today (TEST_PLAN 6.4 row 5, 6.10 "skipped as UNDEFINED"); defining a non-zero code now would turn today's passes into failures. An opt-in `--strict-size` (non-zero on `TimedOut`) can come later |
+| **stderr** | no new line for `Reached`. `AdjustedTo`: the existing `INFO` (`SizeRaisedToMinimum`, `diagnostics.rs:150`) already covers the raised-to-minimum case; other reasons add one `INFO` line. `TimedOut`: one `WARNING: window did not answer the size request within <ms>; placed for <WxH>` only when the final rectangle misses the target (today's `Window mapped at ... expected` warning already fires in that case, so the new line replaces nothing and adds one reason) | `[spawn-at] INFO/WARNING/ERROR:` prefixes are the contract the verify specs match (`stderr_absent`); a new WARNING can only appear in runs that already warn |
+| **JSON (`--json`)** | add `"resize": {"outcome":"reached"\|"adjusted"\|"timed-out"\|"skipped","w":..,"h":..,"waited_ms":..,"evidence":"..","reason":".."}` and `"schema":1`. Keep `size_raised`, `raised_w`, `raised_h` (derivable: adjusted and larger). Consumers must treat unknown `outcome`/`evidence`/`reason` strings as `adjusted`/opaque | `SpawnOutputJson` is read with serde and `#[serde(default)]` fields already exist for `raised_*`; the verify harness reads stdout as a generic JSON value |
+| **D-Bus** | bump `ProtocolVersion` 5 -> 6. New CLI sends the new policy args regardless (old extensions read only `args.timeout_ms`, so extra fields are ignored; CONFIRMED (source)). New extension returns the outcome as a JSON string in the **existing `error` field of `SpawnClaimed` on success** (empty today; the CLI ignores it when `success` is true; CONFIRMED (source), `gnome/mod.rs:441-465`). The CLI reads it only if protocol >= 6. A typed signal replaces the overload in Stage 4 | `SpawnClaimed` is `(sbtiiuubs)`; changing the signature would break every installed CLI/extension pair; new instruction *names* would too (the extension throws on an unknown instruction), so no new instruction is added |
+| **Logs** | keep every existing tag (`COMMIT_SAMPLE`, `COMMIT_RESOLVED` with its `reason`; the verify tool parses them: `trace/phases.rs`). Add `READY_WAIT_START strategy=.. kind=.. target=WxH cap=.. hard=..`, `READY_WAIT_ANSWER size=WxH t=..`, `READY_WAIT_DONE outcome=.. waited_ms=.. evidence=..` | additive lines; the analyser ignores unknown tags (CONFIRMED (source), parser regex accepts any tag) |
+| **Config / flags** | no user-facing flag in the beta. A hidden developer switch `--ready-wait=<variant>` on the CLI selects the strategy and is carried in the instruction args, so A/B runs need no extension reload and no file in `$XDG_RUNTIME_DIR` (the earlier idea in 6.13) | nothing to document or support |
+
+`Policy` and `ResizeOutcome` are `#[non_exhaustive]` and serialised with a `schema` number so they can grow in Stage 4 (new reasons, new evidence kinds, a typed D-Bus signal) without a breaking change.
+
+## 3. Backend capability matrix
+
+Columns: **hide** / **request size** / **detect "presented"** / **minimum knowable?** / **fallback**. "Presented" means the content at the requested size has been drawn by the client, which is what the user sees; the window manager's rectangle is not that on every platform (3.2).
+
+| Target | hide | request size | detect "presented" | minimum size knowable? | fallback | Evidence |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **GNOME 46 Wayland, native client** | actor opacity 0 (`CloakManager`) | `move_resize_frame` | the frame rect follows the client's committed buffer, so `size-changed` to the requested size is the signal. `WindowActor` has `damaged`, `first-frame`, `thawed` (semantics untested) | **no**: `get_min_size`/`get_max_size` are absent on 46; learn it by observation (4.4) | cap, then the quiet rule | hide, request, signal: CONFIRMED (source, 6.12-6.13 measured); typelib: CONFIRMED (typelib); minimum absent: CONFIRMED (typelib, 6.14) |
+| **GNOME 42-44 (`legacy`)** | same | same | same Mutter model; `Meta-10..12` API | `get_min_size` likely absent | same | the extension tree exists and is shipped (CONFIRMED (source)); the 46-only facts above were **not checked** on 42-44: UNVERIFIED (knowledge) for `get_client_type`, `allows_resize`, `thawed`, `damaged` |
+| **GNOME 45, 47, 48 (`modern`)** | same | same | same | absent per 6.14 (47.0, 48.0 headers) | same | `metadata.json` lists them (CONFIRMED (source)); 45/47/48 not run: UNVERIFIED |
+| **GNOME 50** | same | same | same, plus mutter 50 may offer external constraints | **`get_min_size`/`get_max_size` and `add_external_constraint` appear at 50** | use them when present (feature-detect), else observe | UNVERIFIED (web, 6.14 summaries). `shell-version` does not list 50 (CONFIRMED (source)); `_getMinSize` mishandles the `[ok,w,h]` return (CONFIRMED (source) + HYPOTHESIS (inference) about GJS out-argument convention) |
+| **GNOME on X11 (46, this session)** | actor opacity (same Clutter path) | `move_resize_frame`; the manager sets the rect at once | **the frame rect is not the signal**: `AFTER_SET_SIZE` reads the requested size 0.06-0.2 ms after the request and `COMMIT_RESOLVED` is `AT_TARGET` 0.15 ms later (CONFIRMED (measured), 60 stored traces in 6.15). Candidates: `thawed`/`damaged` on the actor, or a client damage listener | **yes, before map**: `WM_NORMAL_HINTS` program minimum, read with `xprop` (CONFIRMED (measured), 3.2) | grace of fixed length (HYPOTHESIS, no data) | see 3.2 |
+| **XWayland window inside a Wayland session** | same actor path | `move_resize_frame`; X11 semantics (HYPOTHESIS (inference): `MetaWindowXwayland` is an X11 window, the rect is the manager's) | as GNOME on X11 (damage/sync); plus mutter freezes commits for these windows: `meta_window_xwayland_thaw_commits`, `meta_window_actor_can_freeze_commits` exist (CONFIRMED (symbols)); meaning HYPOTHESIS | `WM_NORMAL_HINTS` is visible to the X server; whether mutter exposes it to the extension without `get_min_size` is **UNVERIFIED** | as X11 | 3.1 |
+| **wlroots (Sway, Hyprland), KDE** | no extension API. wlroots: compositor rules/IPC at map time; KDE: KWin script/rule; hiding another client's window before first frame is compositor-specific | Sway/Hyprland IPC commands; KWin script `frameGeometry` | generic Wayland: `xdg_toplevel.configure` -> `ack_configure` -> `wl_surface.commit` of that size is visible only to the compositor; an external tool sees it via toplevel-management events at best | the compositor knows `xdg_toplevel.set_min_size`; external access is compositor-specific | apply the placement through a compositor rule at map (no wait) | UNVERIFIED (knowledge); README says "Not implemented" for Hyprland, Sway, KDE (CONFIRMED (docs)) |
+| **Windows** | no supported cross-process hide before first paint; options (CBT hook that edits the create struct, layered-window alpha, DWM cloak) each have limits | `SetWindowPos` | `WM_SIZE` then the first `WM_PAINT` is the app's, not observable cross-process without a hook; `DwmFlush` is a compositor tick | the app answers `WM_GETMINMAXINFO` on demand; probe by request-and-read | probe-by-observation; fixed grace | UNVERIFIED (knowledge); README: "nothing places it before first paint" (docs) |
+| **macOS** | no supported hide for another process's window (private SkyLight alpha exists) | Accessibility `AXSize`/`AXPosition` (permission grant) | none public | Accessibility exposes no minimum; probe by request-and-read | fixed grace; Spaces complicate | UNVERIFIED (knowledge) |
+| **X11, any WM, no GNOME (`X11Driver`)** | none today (no unmap, no opacity) | `_NET_MOVERESIZE_WINDOW` | client damage (XDamage) and `_NET_WM_SYNC_REQUEST_COUNTER` are the available proxies; neither is used today (CONFIRMED (source)) | `WM_NORMAL_HINTS` | as above | CONFIRMED (source) for what exists |
+
+### 3.1 The backend choice is per window (item 3a)
+
+**How an extension tells the kinds apart.** `Meta.Window.get_client_type()` exists in the installed typelib and `Meta.WindowClientType` is `{WAYLAND: 0, X11: 1}` (CONFIRMED (typelib)). `logger.js:271-278` already calls it and labels an `X11` client under a Wayland compositor `XWayland` (CONFIRMED (source)). `Meta.is_wayland_compositor()` exists (CONFIRMED (typelib)). So the kind is known at claim time with no new API. The same typelib has no `get_client_pid` (`get_pid` exists and is documented as spoofable; 6.12), so kind detection must not depend on pid. Stored traces: 230 732 `proto=Wayland` lines and 5 132 `proto=X11` lines; **no `proto=XWayland` line has ever been recorded** (CONFIRMED (measured), grep of `verify-results/`), so the XWayland label has never been exercised.
+
+**Does the frame rect behave like native X11 for XWayland windows?** HYPOTHESIS (inference): yes. Mutter's XWayland windows are X11 windows managed by the same window code (the symbols `meta_window_xwayland_*` are an X11-window subclass layer; CONFIRMED (symbols) only that they exist), so the manager sets the rect immediately. Not tested: this machine has no Wayland session. The fixture can create one on demand: `fixture --protocol x11` inside a Wayland session (it needs `DISPLAY`, which XWayland provides; `resolve_backend` in `fixture.rs` requires it; CONFIRMED (source)). `WINIT_UNIX_BACKEND=x11` does **not** work with the pinned winit: the string does not occur in winit 0.29.15's source (CONFIRMED (symbols), grep of the vendored crate); use the existing `--protocol x11` flag.
+
+**Does `_NET_WM_SYNC_REQUEST` apply to XWayland windows?** HYPOTHESIS (inference): yes, because it is an X11 client protocol and mutter freezes and thaws commits for these windows (`xwayland_window->freeze_count`, `meta_window_xwayland_thaw_commits`, `meta_window_actor_can_freeze_commits`: CONFIRMED (symbols) that they exist). Whether a given XWayland client answers it depends on the client (3.2 data comes from a native X11 session).
+
+**Which popular apps run as XWayland on a GNOME 46 Wayland session by default** (UNVERIFIED (knowledge), version dependent, none checked here): Electron apps (VS Code, Slack, Discord, Teams, Claude desktop, Obsidian) unless started with an Ozone Wayland flag; Chrome/Chromium unless the Ozone hint is set; Steam and most games via SDL2/Proton; Wine; JetBrains IDEs; Java Swing/AWT; Zoom; some Qt5 apps. Native Wayland by default: GTK3/GTK4 apps, Firefox (since 121), Qt6 apps, most GNOME apps.
+
+**Consequence for strategy order.** On the default Ubuntu session (Wayland) a large share of the windows users place with this tool are X11-kind. So "X11/XWayland" is not a legacy path that can wait for Stage 4: the strategy engine must select per window from day one, and the beta must at least keep X11-kind windows on the old path **explicitly** (by kind), rather than accidentally by an unknown-API fallthrough. Order by kind:
+
+| Window kind | Strategy order (first that the window supports) |
+| :--- | :--- |
+| `NativeWayland` | 1 exact-size wait -> 2 first different-size answer then quiet -> 3 cap -> 4 optional probe (4.3) -> 5 hard limit |
+| `XWayland` / `X11` (extension) | 1 sync client: wait for the actor's `thawed` (UNVERIFIED) -> 2 `damaged` after the size change -> 3 fixed grace (>= 1 frame period) -> 4 hard limit. The frame rect is **not** consulted for "arrived" (it is immediate) |
+| `X11` (Rust `X11Driver`, no extension) | 1 `_NET_WM_SYNC_REQUEST_COUNTER` alarm -> 2 XDamage on the client window -> 3 grace -> hard limit |
+| `Win32`, `Cocoa` | observation (request-and-read) with grace; no presented signal |
+
+### 3.2 GNOME on X11 (item 3b), measured in this session
+
+**Which clients advertise `_NET_WM_SYNC_REQUEST` (CONFIRMED (measured), `xprop`, read-only, on this X11 session; the probe apps were opened for about 2 s and closed):**
+
+| Window | Toolkit | `WM_PROTOCOLS` includes `_NET_WM_SYNC_REQUEST` | `_NET_WM_SYNC_REQUEST_COUNTER` | `WM_NORMAL_HINTS` minimum |
+| :--- | :--- | :---: | :--- | :--- |
+| **spawn-at fixture** (`--protocol x11`) | winit 0.29.15 (Xlib/x11rb) | **no** (only `WM_DELETE_WINDOW`, `_NET_WM_PING`) | not set | as passed by `--min-width/--min-height`: 300x200 for `--min-width 300 --min-height 200` |
+| Nautilus (running) | GTK4 | yes | **two** counters (extended sync) | 360x380 |
+| gnome-text-editor | GTK4 | yes | two counters | 513x222; `_GTK_FRAME_EXTENTS` 61,61,55,67 (large client-side shadow) |
+| gnome-calculator | GTK4 | yes | two counters | not read |
+| Google Chrome (running) | Chromium | yes | one counter | 849x193 |
+| Claude desktop (running) | Electron | yes | one counter | 790x553 |
+| Antigravity IDE (running) | Electron | yes | one counter | 500x338 |
+| xterm, xclock, xcalc | Xt/Xaw | **no** (only `WM_DELETE_WINDOW`) | not set | not read |
+
+Two facts follow. (1) **The fixture is a worst-case client on X11**: it does not take part in sync, and winit 0.29.15 contains no sync-request code at all (CONFIRMED (symbols), grep of the vendored crate). That matches the measurement of 6.15 (X11, debug fixture: flash 19 of 20, release fixture: 0 of 10); GTK4, Chromium and Electron clients take part, so the X11 flash seen with the fixture may be much rarer with them. That last sentence is a HYPOTHESIS: no flash measurement exists for a sync-capable X11 client. (2) **The minimum size is knowable before map on X11** from `WM_NORMAL_HINTS` for every toolkit above; on native Wayland it is not (the matrix row for GNOME 46). With a caveat: GTK4's hint is for the client area while the window has a 61/55 px invisible shadow, so frame and buffer rectangles differ (`_GTK_FRAME_EXTENTS`); a wait that compares sizes must say which rectangle.
+
+**Does mutter already delay the resized frame until the client repaints?** What is established (CONFIRMED (symbols), strings and exports of `libmutter-14.so.0` 46.2): `_NET_WM_SYNC_REQUEST` and `_NET_WM_SYNC_REQUEST_COUNTER` handling, a log line "Window has _NET_WM_SYNC_REQUEST_COUNTER 0x%lx (extended=%s)", a `[mutter] sync_request_timeout`, `meta_window_actor_freeze` / `meta_window_actor_thaw` (exported), the `thawed` signal on `Meta.WindowActor`, and `_NET_WM_FRAME_DRAWN` / `_NET_WM_FRAME_TIMINGS` advertised in `_NET_SUPPORTED` (CONFIRMED (measured), `xprop -root`). What is **not** established: that the freeze delays only what is *drawn* while `get_frame_rect()` is already the new size. HYPOTHESIS (inference): that is how it works (mutter sets the rect, sends the sync request, keeps showing the old texture until the counter is updated, then thaws). Consequence if true: for sync-capable clients the compositor already hides the stale content once the actor is thawed, so a flash on X11 would need a non-sync client; and "frame == target" still says nothing about being presented. Test: log `thawed` timestamps next to `UNCLOAK` for a GTK4 app on X11 (section 5.4).
+
+**Can an extension observe a paint or damage signal on the window actor?** Present in the typelib (CONFIRMED (typelib)): `Meta.WindowActor` signals `first-frame`, `effects-completed`, `damaged`, `thawed`; methods `has_damage()`, `freeze()`, `thaw()`, `get_texture()`; `Meta.ShapedTexture` signal `size-changed`. Not present: `is_frozen`. When each fires relative to a client commit or an X11 repaint has **not** been tested (6.13: "not tested live"); that is the first thing the observe-only slice (6) measures.
+
+**What a Rust-side X11 damage listener would look like** (HYPOTHESIS (inference); needs `x11rb` features `damage` and `sync`, both present in 0.14.0 (CONFIRMED (symbols))):
+
+```text
+conn = x11rb connect (own connection; select SubstructureNotify on root to find the window)
+win  = the claimed window; read WM_NORMAL_HINTS (min size) and _NET_WM_SYNC_REQUEST_COUNTER (0, 1 or 2 ids)
+request size (_NET_MOVERESIZE_WINDOW)
+if counter present:  create_alarm(counter, PositiveComparison, last_value+1)  -> AlarmNotify == client finished a frame
+damage = damage_create(win, ReportLevel::NonEmpty)                           -> DamageNotify == client drew into the window
+loop until policy.hard:
+    ConfigureNotify w/ size  -> note answered size
+    AlarmNotify | DamageNotify with answered size == target (or quiet) -> presented
+    damage_subtract(damage)  to re-arm
+```
+
+It sees the *client's* drawing, independent of the compositor, which is what is wanted; it cannot see when the compositor shows it, and on GNOME the hide/reveal lives in the extension, so the listener would have to tell the extension (an extra D-Bus round trip, 0.3 ms idle per 6.12) or run in the extension through the actor's `damaged` signal instead. For the standalone `X11Driver` (no extension, no hide) the listener is the only place it can live. Given the next point, build it last.
+
+**Should GNOME-on-Xorg be a design driver?** UNVERIFIED (web): the mutter NEWS lists "Disable X11 backend by default" (49.alpha.0) and "Drop the X11 backend" (50.alpha); GNOME 50's release page says nothing about X11 (the page was fetched; the summary quoted nothing). If that holds, GNOME 50 has no Xorg *session* but keeps XWayland, so per-window X11 handling (3.1) remains necessary while "GNOME on Xorg" shrinks to GNOME 42-48 on distributions that still ship it. Decision D6 below.
+
+## 4. Placement of logic
+
+### 4.1 Rust core versus a backend
+
+| Belongs in `spawn-at-core` (new `ready_wait` module) | Belongs in a backend |
+| :--- | :--- |
+| `Policy` (all numbers), `ResizeOutcome`, `Evidence`, `WindowKind`, `Capabilities` | how to hide, how to request, which signals exist, how to read a minimum |
+| the **state machine**: pure `fn step(state, event, now) -> (state, actions)` with events `SizeSeen{w,h}`, `Presented`, `Tick`, `ProbeAnswered` and actions `Request(w,h)`, `StartTimer`, `Finish(outcome)`; no I/O, no clock; unit-testable with a virtual clock | feeding events: Mutter signals (JS), x11rb events, Win32/AX polling |
+| strategy selection from `(WindowKind, Capabilities)` | `fn capabilities(&self, window) -> Capabilities` on the backend trait, replacing today's coarse booleans for this purpose |
+| the learned-minimum **interface** (`MinSizeStore` trait) and its invalidation rules | where the store lives (4.4) |
+| outcome-to-surface mapping (JSON `resize`, diagnostics text, log tag text) | transport (D-Bus, in-process) |
+
+**Where it runs on GNOME.** In the shell, in JS. Reasons: the hard limit and the watchdog must be enforced where the cloak lives, so a dead or starved CLI cannot leave a window hidden (the cloak watchdog is 6000 ms, `cloak.js:49`); a Rust loop on the CLI side would add a D-Bus hop to every event and would be scheduled late under load, which is exactly when the wait matters (CONFIRMED (docs), 6.12-6.13: the shell and CPU-starved apps dominate the tail). The JS build is a port of the Rust machine (size: HYPOTHESIS (inference), about 100 lines). **Duplication control:** a directory of golden event scripts (`tests/ready_wait_vectors/*.json`: a list of timed events and the expected actions/outcome) is executed by a Rust test against the core machine and by a `node --test` against the JS machine. The repository already runs both kinds of tests (CONFIRMED (source), `tests/*.js`, 70 pass in 6.16). Divergence then fails a test instead of shipping.
+
+**Two extension trees.** `legacy` (42-44) and `modern` (45-48) are copy-forked. The machine is written once as a plain JS module with no `gi://` or `resource:///` imports (inject `timers`, `now`, and the event source), and each tree imports it; `CloakManager` already takes injected timers "for testing" (`cloak.js` header). HYPOTHESIS (inference): this keeps the fork from growing.
+
+### 4.2 Tuning constants: one source
+
+`spawn_at_core::ready_wait::Policy::default()` is the only definition:
+
+| Field | Meaning | Proposed default | Today |
+| :--- | :--- | ---: | :--- |
+| `cap_ms` | longest wait for any answer | 150 | JS idle timeout `max(timeout_ms,120)` |
+| `quiet_ms` | no further size change for this long ends the quiet phase | 30 | `COMMIT_QUIET_MS` 30 |
+| `hard_ms` | unconditional end of the wait | 1500 | `COMMIT_HARD_CAP_MS` 1500 |
+| `frame_ceiling_ms` | per one-frame wait before reveal | 50 | `FRAME_WAIT_CEILING_MS` 50 |
+| `probe` | `Off` / `On{size, cap_ms}` | `Off` in the beta | - |
+| `x11_grace_ms` | fixed grace for X11-kind windows if no signal | unset until measured | - |
+| `late_resize_passes` | pre-reveal re-anchor passes | 2 | `LATE_RESIZE_MAX_PASSES` 2 |
+
+Delivery: serialised into the `WaitForCommit` args of the instruction JSON (`{"timeout_ms":300, "policy": {...}}`; old extensions read only `timeout_ms`). The extension keeps the numbers above as *safety defaults* for the case where `policy` is absent (old CLI), and one test asserts `JS defaults == Rust defaults` through a generated JSON file. The CLI's own poll constants (`settle_window_geometry`: 25 ms poll, 300 ms) read `Policy` too, or the CLI-side settle is removed once the outcome arrives in `SpawnClaimed` (decision D7). The verify tool keeps its own measurement constants (`SETTLE_MS` 1300, the 1500 ms flash watch): those are harness values, not product policy.
+
+The source for the numbers is the simulation in 6.14: cap 150 ms with the hybrid rule avoided 102 of 134 loaded flashes at a mean 33.5 ms extra and no cost at idle (labelled there as a simulation on stored runs; arrival times are approximations).
+
+### 4.3 The wait for native Wayland (agreed design, as a state machine)
+
+```text
+request(w,h):
+  if !feature(allows_resize) -> proceed  else if !window.allows_resize() or fullscreen or tiled -> Skipped{..}
+  if frame == (w,h) -> Reached(0)
+  target = (w,h)             // see 4.4: the learned minimum only changes what we expect, never what we request
+  start cap timer (cap_ms), hard timer (hard_ms), phase = EXACT
+
+EXACT   on size-changed:  frame == target            -> Reached
+                          frame != previous frame    -> answered = frame ; phase = QUIET ; (re)start quiet timer
+        on cap:           no answer                  -> if probe enabled: PROBE  else TimedOut{last, Cap}
+QUIET   on size-changed:  frame == target            -> Reached
+                          other change               -> answered = frame ; restart quiet timer
+        on quiet timer:   -> AdjustedTo(answered)    // today's rule, but started by an *answer*, not by the first allocation
+PROBE   (native Wayland only, once, opt-in) request P = a unique size (e.g. 500x600, different from current, target, and any seen size)
+        wait for EXACTLY P within probe cap:
+            P arrives  -> app is alive: resend the real request ; wait cap2 for any change
+                              change -> as EXACT/QUIET ;  no change -> AdjustedTo(current, reason Min) and (4.4) learn min
+            P not exact (clamped) -> alive but constrained: AdjustedTo(answer) (grow-clamping app)
+            nothing   -> TimedOut{last, Cap}
+any phase, on hard timer: -> TimedOut{last, Hard}  (reveal anyway; watchdog is the backstop)
+```
+
+Rules that apply to every phase: the first `allocation` sample is **not** an answer (6.12 H1: it was the cause of the stale `SIZE_SETTLED`); only a `size-changed` to a size different from the one before the request is. `allows_resize()` skip is the 6.14 edge case "App ignores the request". Size-increment apps (terminals, 494x292 for a 500x300 request, observed in 6.12) end in `AdjustedTo{Increment}` through the QUIET phase, never in a wait for equality. Feature detection: `typeof window.allows_resize === 'function'`, `typeof window.get_client_type === 'function'`, `window.get_min_size` called through a normaliser that accepts both `[w,h]` and `[ok,w,h]`, `actor.connect('thawed' | 'damaged')` inside `try`, the stage `after-update` as today. **Never** branch on `Shell.version`/`Config.PACKAGE_VERSION`; log them only.
+
+Why the probe exists: without it "no answer by the cap" cannot tell a slow app from one that refuses (at its minimum). Its cost is real and is why it is off by default: it resizes the window twice under the cloak, and an app that persists its size on every configure could store the probe size if killed mid-probe (gnome-text-editor remembers its window size: 6.13; HYPOTHESIS that it writes on every configure). It needs prototype data before it is turned on (5.3).
+
+### 4.4 Learned-minimum cache
+
+Purpose: turn the "below-min, minimum unknown" case (never equals the request, costs the cap on every spawn) into the "minimum known" case, which the 6.14 simulation puts at 19 ms mean extra and 5.3 flashes avoided per ms against 1.8 without it.
+
+**Use rule (important): the cache changes only what the wait *expects* (`expected = max(request, cached_min)`), never what is *requested*.** If the cache is stale-high (the app lowered its minimum) and we requested `cached_min`, we would make the user's window bigger than asked. Requesting the real size and expecting the cached minimum is wrong only by one wasted quiet phase.
+
+| Question | Proposal |
+| :--- | :--- |
+| Memory or file? | **Beta: nothing** (the probe is also off, so nothing produces entries). **First implementation: memory only, inside the extension** (a `Map` that lives as long as the shell session; GNOME is the only resident backend). **Stage 4: a small file** `~/.local/state/spawn-at/min-sizes.json` (same state dir the logger already uses, `logger.js:79-95`) for non-resident backends (X11 driver, Windows, macOS) where the CLI process is the only process. Interface `MinSizeStore` so the choice is not in the core |
+| Key | app identity from what the backend already has: sandboxed app id, else GTK application id, else `wm_class`; plus `WindowKind` and toolkit hint if known. Never the title |
+| Value | `{min_w, min_h, learned_at, source: Observed\|Hint\|Api, evidence_count}` |
+| What may create an entry | only a *refusal observed by the probe* (request below `min` did not shrink, probe showed the app alive) or an API/hint value (`get_min_size` on 50, `WM_NORMAL_HINTS` on X11). Not a plain `AdjustedTo`: a work-area clamp, a tiled/maximised state or a monitor edge also adjusts |
+| Invalidation | drop on contradiction: any later answer smaller than the cached minimum, or `Reached` at a size below it; drop all entries of an app id when its executable identity changes (hash of exe path + mtime where readable, else a 7-day TTL); global TTL 30 days; drop everything when the toolkit-reported kind changes. Electron and GTK change their limits between versions, which is why the identity check exists (HYPOTHESIS (inference) that exe mtime tracks the version for packaged apps, not true for Flatpak/Snap re-mounts) |
+| Safety | the cache is advisory; a wrong entry costs one quiet phase, never a wrong placement |
+| Privacy | stores app ids and two integers; no titles, no paths in the file (the identity hash is a hash) |
+
+## 5. Test seams and acceptance
+
+### 5.1 What proves a change works
+
+The verify tool already measures the thing, on the client side: the fixture writes `FIRST_PAINT`, `RESIZED`, `MOVED` in `CLOCK_MONOTONIC` (6.15), a `ClockAnchor` ties the extension's `+N ms` to it (half-width 1.5-3.0 ms measured), and each run yields `flash` (numeric, screen independent), `flash_events[].lead_ms`, `flash_certain` / `flash_possible`, `visible_probability` (6.16). A readiness change is accepted when these numbers move, not when a log line looks right. Cloak cost comes from the existing `COMMIT_RESOLVED`/`UNCLOAK` timestamps (`cloak_duration_ms` in the trace report). The ground truth does not depend on the new code (it reads the fixture's own clock), so it can fail the new code.
+
+### 5.2 Numeric acceptance criteria (proposed; HYPOTHESIS that they are achievable)
+
+Baselines from stored data (CONFIRMED (docs/measured), 6.12-6.13): 22-thread load, corrected after the reveal in 134 of 320 g3 runs (42%) and 10 of 40 fixture-trace runs (25%); idle about 1% (3 of 320). Cells are 100 isolated runs (regime (a) of 6.10); the pass rule uses the Wilson 95% upper bound (computed here: 0/100 -> 3.7%, 1/100 -> 5.4%, 5/100 -> 11.2%, 10/100 -> 17.4%; 40 runs would not separate 25% from 10%: 4/40 -> 23.1%).
+
+| # | Condition (release-build fixture, native Wayland, GNOME 46) | Criterion |
+| :---: | :--- | :--- |
+| A1 | idle, legal shrink / grow / at-min, 100 runs each | numeric flash <= 1 of 100 |
+| A2 | 22-thread `burn-cpu`, legal shrink and grow, 100 runs each | numeric flash <= 5 of 100 (baseline 25-42%), and p95 `lead_ms` <= 50 ms for the rest |
+| A3 | idle, compliant sizes: cloak cost | median `UNCLOAK - CLOAK` increase <= +5 ms against the baseline commit; p95 <= 100 ms (the existing provisional budget, 6.12/5) |
+| A4 | idle, request below the app's minimum (fixture `--min-width/--min-height` above the request), **first spawn** | median extra <= +40 ms (6.14: cap-bound cost 41-90 ms at C=100-150 without a known minimum) |
+| A5 | same, **after** the minimum is learned (once the cache exists) | median extra <= +5 ms and a net saving against today's 30 ms quiet rule |
+| A6 | hung app (fixture stalls its event loop 3 s) | reveal at `hard_ms` +50 ms in 100 of 100 runs; no run left cloaked; exit code 0; one WARNING |
+| A7 | fixed-size / not-resizable app | `Skipped`; cloak cost equal to the no-resize path (<= +5 ms) |
+| A8 | regression | all existing tests (352 passed, 4 ignored with `tui,fixture` at `f26cef7`, plus the new ones), `node --test` 70, and `COMMIT_RESOLVED` tags still emitted |
+
+A2 and A3 trade against each other (6.14: more waiting avoids more flashes); the table fixes both so neither can be bought by giving up the other.
+
+### 5.3 Fixture-based prototype plan for the probe stages
+
+Fake apps are fixture flags (harness only, `crates/spawn-at-verify/src/bin/fixture.rs`; none of these exist yet except the minimum flags, CONFIRMED (source)):
+
+| Fake app | Fixture setting | What it exercises |
+| :--- | :--- | :--- |
+| answers at once | default (6.12: median 9-17 ms at idle) | EXACT -> `Reached` |
+| slow-answering | new `--resize-delay-ms N`: do not repaint on `Resized` for N ms (on Wayland the frame follows the committed buffer) | EXACT with answer after cap; the slow-vs-refusing split |
+| refusing / default equals minimum | `--min-width 400 --min-height 300` (existing) with a smaller request | no `size-changed` at all: cap, PROBE, `AdjustedTo{Min}` |
+| clamping the grow | new `--max-width/--max-height` (winit `with_max_inner_size`) | probe answer not exactly P: `AdjustedTo` |
+| size increment | new `--resize-increment WxH` | `AdjustedTo{Increment}`, QUIET path |
+| hung | new `--stall-after-map-ms N` (sleep in the event loop) | hard limit, watchdog |
+| not resizable | min == max == initial | `Skipped` |
+
+Plan, each step ends with numbers from the existing metric:
+
+1. **P0 - machine only.** Rust state machine + virtual clock + the golden vectors; the JS port passes the same vectors in `node --test`. No GNOME involved. Includes the cases above as event scripts.
+2. **P1 - observe only (extension).** Log `READY_OBSERVE` lines: `size-changed`, `damaged`, `thawed`, `first-frame` timestamps next to `UNCLOAK`, on X11 and Wayland, native and XWayland; no behaviour change. This answers "when does each signal fire" (UNVERIFIED today) and is the data the X11/XWayland strategies need.
+3. **P2 - machine in the extension behind the hidden `--ready-wait=<variant>`** (variants: `old`, `exact`, `exact+probe`), carried in the instruction args. Run the fixture matrix above x {idle, 11, 22 threads} x 100 runs; compare variants in one login.
+4. **P3 - probe on/off decision** from P2: keep the probe only if it separates slow from refusing without a visible side effect and without storing a wrong window size in apps that persist it.
+
+**XWayland test.** In a Wayland session run the fixture as an X11 client: spec `subject.args = ["--protocol","x11", ...]` (the flag exists, `fixture.rs`), `requires.backend` for the protocol, and the harness's protocol tracking (it records the protocol actually used; "A test requiring native Wayland fails or skips if the window was mapped under XWayland", `verify/README.md` section 7, CONFIRMED (docs)). The extension's trace shows `proto=XWayland` for it (`logger.js:278`). Cannot run on this X11 session; the result is UNVERIFIED until a Wayland session is available. The fixture does not take part in sync (3.2), so it models the non-sync XWayland client; a sync-capable XWayland client (Chromium/Electron with the X11 Ozone backend, or GTK with `GDK_BACKEND=x11`) needs a real app.
+
+### 5.4 Real-app tests still needed before trusting it
+
+The fixture answers every request (at the target or at its minimum) and is a winit client; the 6.14 simulation names the gaps. Needed, per app, 20+ runs idle and loaded, measured by the existing extension-only signal plus a screen capture for the cases the client cannot self-report:
+
+| App | Toolkit / kind | Why |
+| :--- | :--- | :--- |
+| Firefox (snap) | GTK3, native Wayland, slow starter | flashed 6/6 in 6.12-6.13; its first answer is 135-312 ms late |
+| gnome-text-editor, Nautilus | GTK4, remembers its size | min-bound (30x20 request); persistence side effects of the probe |
+| gnome-terminal | GTK3, size increments | `AdjustedTo{Increment}` |
+| a Qt6 app (e.g. KDE app) | Qt, native Wayland | different configure/ack timing; not yet traced at all |
+| Chrome / Electron (VS Code, Claude desktop) | Chromium, XWayland by default (UNVERIFIED) and native with the Ozone flag | the X11-kind path, sync single counter |
+| GTK4 app with `GDK_BACKEND=x11` | GTK4 over XWayland | sync client in the X11-kind path (`thawed` question) |
+| an SDL/Wine/Steam window | XWayland | no sync (3.2: Xt-style clients do not advertise it) |
+
+On this X11 session: a GTK4 app (gnome-text-editor) versus the fixture through the same run, to test the 3.2 hypothesis that sync clients do not flash.
+
+## 6. Smallest implementation slice for the 2.0 beta
+
+Goal: fix the measured defect on GNOME 46 native Wayland (stale `SIZE_SETTLED`, 25-42% post-reveal corrections under load) without closing any door in sections 2-4.
+
+| Step | Content | Touches | Compatibility |
+| :---: | :--- | :--- | :--- |
+| S1 | `spawn_at_core::ready_wait`: `Policy` (defaults above), `ResizeOutcome`, `WindowKind`, the pure state machine for EXACT/QUIET/hard (no PROBE yet) with a virtual clock; golden vectors | core, tests | none (unused) |
+| S2 | extension: replace the internals of `waitForCommit` with the JS machine (same module for modern and legacy via injection); EXACT + first-different-answer-then-QUIET, cap 150 ms, hard 1500 ms; `allows_resize()` skip; classify by `get_client_type()` and **route `XWayland`/`X11` windows to the old path explicitly, logged as `READY_WAIT_START strategy=legacy-x11`**; emit `READY_WAIT_*` tags; keep `COMMIT_RESOLVED` | `commit.js`, `extension.js`, `ProtocolVersion` 6 | policy args ignored by old extensions; old reasons still logged |
+| S3 | CLI: put `policy` in the `WaitForCommit` args; read the outcome from `SpawnClaimed.error` when protocol >= 6; print it in `--json` as `resize`; no exit-code change; stderr only as in 2.3 | `mechanics.rs`, `gnome/mod.rs`, `spawn.rs` | additive |
+| S4 | verify: acceptance cells A1-A3, A6-A8 with the existing fixture plus `--resize-delay-ms` and `--stall-after-map-ms`; record `lead_ms` and cloak numbers per commit in TEST_PLAN | harness | none |
+| S0 (parallel, tiny) | observe-only `READY_OBSERVE` logging of `damaged`/`thawed`/`first-frame`/`size-changed` for X11-kind windows | extension | log-only |
+
+Waits (each is designed above, none blocks the slice): the PROBE and the learned minimum (need P2/P3 data; interface stays in the core); GNOME 50 (`shell-version`, `[ok,w,h]` handling, `get_min_size`, optional external constraints); X11 and XWayland strategies (need S0 data); the Rust-side X11 damage/sync listener (standalone `X11Driver`; also needs a hide step that does not exist); wlroots/KDE; Windows; macOS; a typed D-Bus signal; a user-facing `--strict-size`.
+
+The slice does not close doors because: the contract (steps, `ResizeOutcome`, `Policy`, `WindowKind`) exists in the core before any second backend; X11-kind windows are routed by kind from the first commit, so adding their strategy later changes a match arm, not the flow; the outcome is already on the wire and in the JSON (additive), so growing it (new reasons, a typed signal) does not break readers; constants have one source.
+
+### 6.1 Risks
+
+1. **Two implementations of one machine** (Rust and JS). Mitigation: shared golden vectors, one module for both extension trees. Residual: behaviour that only shows against real Mutter.
+2. **Longer cloak changes app timing** (6.14 "feedback"; 6.13: callbacks to a cloaked surface wait for the next stage update), so the simulation may overstate the gain. Mitigation: A2/A3 measured on the real code (P2), not the simulation.
+3. **First-spawn cost for refusing apps**: up to the cap (150 ms) against 120 ms today when the minimum is unknown and no probe/cache exists (D2).
+4. **Signals not understood** (`damaged`, `thawed`): the X11-kind strategies stand on UNVERIFIED semantics. Mitigation: S0 observes before anyone waits on them.
+5. **The fixture is not representative on X11** (no sync client) and has never been run as XWayland. Mitigation: 5.4.
+6. **Probe side effects** (extra resize; persisted sizes in apps that remember them). Mitigation: off by default, decided in P3.
+7. **Learned-minimum poisoning** by transient states (maximised, tiled, monitor edge). Mitigation: only the probe or an API/hint creates entries; contradiction deletes.
+8. **GNOME 50 / API drift**: `get_min_size` return convention and `shell-version`; mutter 50 may drop the X11 backend (UNVERIFIED (web)). Mitigation: feature detection by presence; `[ok,w,h]` normaliser before any 50 claim.
+9. **Frame vs buffer rectangle** on X11 and client-decorated GTK (shadows of 55-67 px, `_GTK_FRAME_EXTENTS`): comparing the wrong rectangle makes `Reached` impossible. Mitigation: the machine compares the same rectangle the request used (`move_resize_frame` takes the frame rect), logs both.
+10. **Protocol skew** (new CLI with an old extension and the reverse). Mitigation: additive args, version gate, no new instruction names.
+11. **Visibility is not the metric**: a numeric flash under one frame may not be seen (6.16); acceptance uses the numeric count so a faster or slower screen does not move the bar.
+
+### 6.2 Decisions the user must make
+
+| # | Decision | Recommendation |
+| :---: | :--- | :--- |
+| D1 | Cap `cap_ms` (100 / 150 / 250) and keep `hard_ms` 1500 | 150 and 1500 (6.14: 102 of 134 loaded flashes avoided at +33.5 ms mean, 0 idle cost) |
+| D2 | Accept up to +30 ms on the first spawn of a refusing app until a minimum is learned | yes for the beta; revisit with the cache |
+| D3 | Probe in the beta | no; prototype (P2/P3) first |
+| D4 | Learned-minimum store: none in the beta; later memory in the extension, file for non-resident backends | as stated in 4.4 |
+| D5 | Outcome transport: overload `SpawnClaimed.error` on success + `ProtocolVersion` 6 now, typed signal in Stage 4 | yes; the alternative (a new signal now) forces both sides to change together |
+| D6 | How much to invest in GNOME-on-Xorg given the (UNVERIFIED) removal of the X11 backend in mutter 50, while XWayland stays | observe-only now; build a wait only for X11-kind windows, share it between Xorg and XWayland; no Xorg-only work |
+| D7 | Remove the CLI-side `settle_window_geometry` once the outcome arrives, or keep it as a fallback for protocol < 6 | keep as the fallback, read `Policy` for its constants |
+| D8 | Allow harness-only fixture flags (`--resize-delay-ms`, `--max-width/--max-height`, `--resize-increment`, `--stall-after-map-ms`) | yes (harness only, no product code) |
+| D9 | Adopt the acceptance table in 5.2 as the gate, including the sample size (n = 100 per cell) | yes; it costs about 15 minutes per cell set |
+| D10 | Ship GNOME 50 support in the same beta or after | after; first fix `_getMinSize` and the manifest |
+| D11 | A user-facing exit code for `TimedOut` (`--strict-size`) | not in the beta |
+
+## 7. Evidence log of this session
+
+Read-only commands only; nothing was written to settings, `/sys`, `/proc`, or dconf. Probe applications (fixture, xterm, xclock, xcalc, gnome-text-editor, gnome-calculator) were started for about 2 s and closed (no process left; `pgrep` empty afterwards).
+
+- `xprop -root _NET_CLIENT_LIST`, `xprop -id <id> WM_CLASS WM_PROTOCOLS _NET_WM_SYNC_REQUEST_COUNTER WM_NORMAL_HINTS _GTK_FRAME_EXTENTS` for the windows in the table in 3.2; `xprop -root _NET_SUPPORTED` (79 atoms; `_NET_WM_FRAME_DRAWN`, `_NET_WM_FRAME_TIMINGS` present; `_NET_WM_SYNC_REQUEST` is a client protocol, not a root atom).
+- `gjs` introspection of `/usr/lib/x86_64-linux-gnu/mutter-14/Meta-14.typelib` (a throwaway script in `scratch/`, gitignored, run with `GI_TYPELIB_PATH` and `LD_LIBRARY_PATH` set for that one process): `WindowActor` signals `first-frame, effects-completed, damaged, thawed`; `Window` has `get_client_type, allows_resize, allows_move, get_buffer_rect, get_frame_rect, get_frame_type, is_client_decorated, get_pid, get_sandboxed_app_id, get_gtk_application_id, move_resize_frame`; no `get_min_size`, `get_max_size`, `get_client_pid`; `WindowClientType {WAYLAND:0, X11:1}`; `ShapedTexture` signal `size-changed`.
+- `strings`/`nm -D` on `libmutter-14.so.0` (46.2): sync-request, freeze/thaw and XWayland-thaw symbols listed in 3.2.
+- Vendored sources: `x11rb 0.14.0` has `damage` and `sync` features; `winit 0.29.15` contains neither `_NET_WM_SYNC_REQUEST` handling nor `WINIT_UNIX_BACKEND`.
+- Repository reads: the files and lines in section 1; `verify-results/` protocol census (`proto=Wayland` 230 732, `proto=X11` 5 132, no `XWayland`).
+- Unverified leads, summarised by a small model and therefore not relied on: mutter NEWS on the X11 backend (49.alpha.0, 50.alpha) and the 6.14 summaries for GNOME 50 APIs.
