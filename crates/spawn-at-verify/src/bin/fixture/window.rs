@@ -108,6 +108,8 @@ pub(crate) fn run_window(
 
     let mut painted = false;
     let mut ready_printed = false;
+    // Size of the last buffer painted, so `FIRST_PAINT` is written once per new size.
+    let mut last_painted_size: Option<(u32, u32)> = None;
 
     // If no paint delay, paint immediately
     if paint_deadline.is_none() {
@@ -122,6 +124,7 @@ pub(crate) fn run_window(
         ) {
             eprintln!("[fixture] Frame render failed: {}", e);
         } else {
+            super::trace::note_paint(&mut last_painted_size, size.width, size.height);
             painted = true;
             if args.print_ready && !ready_printed {
                 println!(
@@ -175,6 +178,11 @@ pub(crate) fn run_window(
                     ) {
                         eprintln!("[fixture] Delayed frame render failed: {}", e);
                     } else {
+                        super::trace::note_paint(
+                            &mut last_painted_size,
+                            size.width,
+                            size.height,
+                        );
                         painted = true;
                         if args.print_ready && !ready_printed {
                             println!(
@@ -199,12 +207,12 @@ pub(crate) fn run_window(
                 event: winit::event::WindowEvent::Resized(physical_size),
                 ..
             } => {
-                super::trace::log(
+                super::trace::event(
                     "RESIZED",
                     &format!("{}x{}", physical_size.width, physical_size.height),
                 );
                 if painted {
-                    let _ = draw_frame(
+                    let drawn = draw_frame(
                         &mut surface,
                         physical_size.width,
                         physical_size.height,
@@ -212,6 +220,13 @@ pub(crate) fn run_window(
                         args.paint_delay_ms,
                         &args.expect,
                     );
+                    if drawn.is_ok() {
+                        super::trace::note_paint(
+                            &mut last_painted_size,
+                            physical_size.width,
+                            physical_size.height,
+                        );
+                    }
                     super::trace::log(
                         "COMMIT_DONE",
                         &format!("{}x{}", physical_size.width, physical_size.height),
@@ -225,7 +240,7 @@ pub(crate) fn run_window(
                 let size = window.inner_size();
                 super::trace::log("REDRAW_REQUESTED", &format!("{}x{}", size.width, size.height));
                 if painted {
-                    let _ = draw_frame(
+                    let drawn = draw_frame(
                         &mut surface,
                         size.width,
                         size.height,
@@ -233,8 +248,17 @@ pub(crate) fn run_window(
                         args.paint_delay_ms,
                         &args.expect,
                     );
+                    if drawn.is_ok() {
+                        super::trace::note_paint(&mut last_painted_size, size.width, size.height);
+                    }
                     super::trace::log("COMMIT_DONE", &format!("{}x{}", size.width, size.height));
                 }
+            }
+            winit::event::Event::WindowEvent {
+                event: winit::event::WindowEvent::Moved(position),
+                ..
+            } => {
+                super::trace::event("MOVED", &format!("{},{}", position.x, position.y));
             }
             winit::event::Event::AboutToWait => {
                 let mut next_wake = Instant::now() + Duration::from_millis(16);
