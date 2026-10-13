@@ -215,6 +215,11 @@ export default class SpawnAtExtension extends Extension {
         this._try(() => target.disconnect(id));
     }
 
+    // Milliseconds on the monotonic clock the shell's logger counts from.
+    nowMs() {
+        return GLib.get_monotonic_time() / 1000;
+    }
+
     addTimer(ms, callback) {
         return this._addTimer(ms, callback);
     }
@@ -678,6 +683,8 @@ export default class SpawnAtExtension extends Extension {
             clampedSafeSize: null,
             preSetSizeFrame: null,
             preSetSizeBuf: null,
+            setSizeAtMs: null,
+            resize: null,
             anchorPayload: null,
             positionedW: -1,
             positionedH: -1,
@@ -778,14 +785,71 @@ export default class SpawnAtExtension extends Extension {
             window.move_resize_frame(true, preFrame.x, preFrame.y, safeW, safeH);
         else
             window.resize(true, safeW, safeH);
+        ctx.setSizeAtMs = this.nowMs();
 
         this._logActorTrace('AFTER_SET_SIZE', ctx.actor, window);
     }
 
+    // Native Wayland windows with a size request use the ready-wait machine; everything else keeps
+    // the original rule (CommitLatch.waitForCommit) and says so with strategy=legacy. The kind, not
+    // the session, decides: an XWayland window inside a Wayland session reports its frame size
+    // immediately, which the machine would read as an instant answer.
     async _stepWaitForCommit(ctx, args) {
-        ctx.commit = await this._commitLatch.waitForCommit(
-            ctx.window, ctx.actor, args.timeout_ms,
+        const { window } = ctx;
+        const kind = this._windowKind(window);
+        const hasRequest = ctx.safeW !== null && ctx.safeH !== null;
+
+        if (kind === 'NativeWayland' && hasRequest) {
+            const before = ctx.preSetSizeFrame;
+            const result = await this._commitLatch.waitForReady(window, {
+                kind,
+                target: [ctx.safeW, ctx.safeH],
+                before: [before.width, before.height],
+                resizable: typeof window.allows_resize === 'function' ? Boolean(window.allows_resize()) : true,
+                fullscreen: this._isFullscreen(window),
+                tiled: this._isTiled(window),
+                startedAtMs: ctx.setSizeAtMs ?? this.nowMs(),
+            });
+            ctx.resize = result;
+            return;
+        }
+
+        const startedAt = this.nowMs();
+        this.logTime('READY_WAIT_START',
+            `strategy=legacy kind=${kind} why=${hasRequest ? 'not-native-wayland' : 'no-size-request'} ` +
+            `timeoutMs=${args.timeout_ms}`,
+            window);
+        const reason = await this._commitLatch.waitForCommit(
+            window, ctx.actor, args.timeout_ms,
             ctx.targetW, ctx.targetH, ctx.safeW, ctx.safeH);
+        ctx.commit = reason;
+        this.logTime('READY_WAIT_RESOLVED',
+            `strategy=legacy outcome=none elapsed_ms=${(this.nowMs() - startedAt).toFixed(1)} reason=${reason}`,
+            window);
+    }
+
+    // 'NativeWayland', 'XWayland', 'X11' or 'unknown' (no get_client_type). Same rule as the
+    // protocol label in logger.js: an X11 client under a Wayland compositor is XWayland.
+    _windowKind(window) {
+        const type = this._try(() => window.get_client_type?.(), null);
+        if (type === null || type === undefined)
+            return 'unknown';
+        if (type === Meta.WindowClientType?.WAYLAND || type === 0)
+            return 'NativeWayland';
+        if (type === Meta.WindowClientType?.X11 || type === 1) {
+            const wayland = typeof Meta.is_wayland_compositor === 'function' && Meta.is_wayland_compositor();
+            return wayland ? 'XWayland' : 'X11';
+        }
+        return 'unknown';
+    }
+
+    // HYPOTHESIS: `get_tile_match` is in the Meta-14 typelib (CONFIRMED by `strings`), but whether it
+    // is non-null for a window tiled alone, and whether `tile_mode` exists, was not run in a shell.
+    _isTiled(window) {
+        if (this._try(() => window.get_tile_match?.(), null))
+            return true;
+        const mode = window.tile_mode;
+        return mode !== undefined && mode !== null && mode !== 0;
     }
 
     _stepPosition(ctx, payload) {
