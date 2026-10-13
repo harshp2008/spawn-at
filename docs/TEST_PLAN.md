@@ -16,10 +16,10 @@ Automated test execution across the workspace is partitioned by crate and featur
 | **Workspace: `spawn-at-core`** | 64 | 0 | 60 unit tests (`lib.rs`: 21 geometry/driver + 9 `ready_wait` + 4 `resize_report` + 9 `wait_override` + 17 `settings`) + 2 golden placement integration tests (`tests/golden_placement.rs`) + 2 `tests/ready_wait_vectors.rs` (20 shared golden scripts in one test, plus the policy check) |
 | **Workspace: `xtask`** | 10 | 0 | 8 unit tests (`src/main.rs`: 6 `burn_cpu`, 2 `compiler_docs`) + 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary) |
 | **Workspace: Node.js (Extension)** | 171 | 0 | 9 in `tests/wait_override_test.js` (the validator's reading of the per-spawn override: absent adds nothing, `auto` adds nothing, bounds 1 to 1500, bad values named and cut to 32 characters, legacy validator drops the fields) and 11 more in `tests/ready_wait_wiring_test.js` (44 there now: override honoured, invalid ignored, default unchanged line for line, scoped to one spawn on one extension instance); the rest as before: Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`), 31 in `tests/ready_wait_test.js` (the same 20 golden scripts one test each, the presence and policy checks, 8 mirrored unit cases, 1 portability check), and 33 of the 44 in `tests/ready_wait_wiring_test.js` (the 20 golden scripts again through `CommitLatch.waitForReady` on a virtual clock, plus 13 extension scenarios through `_runBatch`; the other 11 are the override tests above) (`node --test tests/*.js`); 17 added for the observe-only X11 logging (DESIGN_READY_WAIT section 12): 11 in `tests/x11_observe_test.js` (formats, default-off does no work, handler set empty after the window ends, damaged unavailable noted once) and 6 in `tests/ready_wait_wiring_test.js` (the same through the extension: logging off adds no handler or line, logging on gives the joinable lines and the same outcome, disable ends a watch) |
-| **`spawn-at-verify` (bare default)** | 269 | 0 | 199 lib + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
-| **`spawn-at-verify --features tui`** | 371 | 0 | 205 lib + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
-| **`spawn-at-verify --features tui,fixture`** | 385 | 4 | 205 lib + 10 fixture binary (`src/bin/fixture.rs`) + 0 main + 4 `category_library_test` + 7 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 658 | 4 | 199 + 64 + 10 + 385; with the 171 Node tests: 829 passed |
+| **`spawn-at-verify` (bare default)** | 276 | 0 | 205 lib + 0 main + 5 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. |
+| **`spawn-at-verify --features tui`** | 378 | 0 | 211 lib + 0 main + 5 `category_library_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
+| **`spawn-at-verify --features tui,fixture`** | 402 | 4 | 211 lib + 20 fixture binary (`src/bin/fixture.rs`) + 0 main + 5 `category_library_test` + 7 `cli_exit_codes_test` + 4 `fixture_test` (+ 4 ignored) + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 83 `tui_test` |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 675 | 4 | 199 + 64 + 10 + 402; with the 171 Node tests: 846 passed |
 
 The three `spawn-at-verify` rows and the total were re-measured on 2026-10-13 at commit `1de817f` (`cargo test -p spawn-at-verify` bare, `--features tui`, `--features tui,fixture`, summed with `awk` over the `test result:` lines; `cargo test --workspace` 427 = 158 + 23 + 10 + 236); 0 failures. The `spawn-at-core` (34), `spawn-at` (158), `xtask` (10) and Node (101) rows were re-measured on 2026-10-13 at commit `902dff3` after the ready-wait core and its JS port (section 8 of `DESIGN_READY_WAIT.md`): `cargo test --workspace` 438 = 158 + 34 + 10 + 236, `node --test tests/*.js` 101 pass, 0 failures; the verify rows did not change (352 / 338 / 236). A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 236 row, not 352; do not quote it for the verify crate. The `spawn-at` (164), `spawn-at-core` (38), `xtask` (10) and Node (134) rows and the total were re-measured on 2026-10-13 after the ready-wait wiring (section 8 and 9 of `DESIGN_READY_WAIT.md`): `cargo test --workspace --features spawn-at-verify/tui,spawn-at-verify/fixture` 564 passed, 4 ignored (164 + 38 + 352 + 10), `node --test tests/*.js` 134 pass, 0 failures; the `spawn-at-verify` count with `tui,fixture` is unchanged at 352 (the bare 236 and `tui` 338 rows were not re-run). Baseline before section 6.15 (`7400e57`): 305 with `tui,fixture`; section 6.15 took it to 341 (`1da549d`), section 6.16 to 352.
 
@@ -33,6 +33,8 @@ The three `spawn-at-verify` rows and the total were re-measured on 2026-10-13 at
 
 **Re-measured 2026-10-13 after the observe-only X11 logging**, 0 failures, summed per binary: `spawn-at` 199, `spawn-at-core` 64, `xtask` 10 (unchanged); `spawn-at-verify` bare 269 (was 267), `--features tui` 371 (369), `--features tui,fixture` 385 passed and 4 ignored (383; the 2 new tests are in `log_source.rs` and `runner/wire_paint_tests.rs`); node 171 (154). Total with `tui,fixture`: 658 Rust, 829 with node. Nothing ran in a GNOME Shell; the extension code is exercised against mocks only.
 
+**Re-measured 2026-10-13 after the hostile-app fixture flags and cells** (commit `70dc120`, section 6.22), 0 failures, summed per binary: `spawn-at` 199, `spawn-at-core` 64, `xtask` 10 (unchanged); `spawn-at-verify` bare 276 (was 269), `--features tui` 378 (371), `--features tui,fixture` 402 passed and 4 ignored (385); node 171 (unchanged). The 17 new tests: 10 in the fixture binary (7 `fixture/behaviour.rs`, 3 flag parsing), 6 in `runner/resize_expect_tests.rs`, 1 in `category_library_test`. Total with `tui,fixture`: 675 Rust, 846 with node.
+
 #### `fixture_test` Ignored Tests Documentation
 The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
 1. `test_fixture_clean_exit_timeout`: Opens a live test window with softbuffer/winit event loop and verifies timing-based self-termination. Requires an active Wayland compositor or X11 display server.
@@ -44,7 +46,7 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ## 2. 59-Case Test Catalog across 8 Categories
 
-The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Planned** (no spec yet). The last 18 Covered rows are the placement resize specs of section 6.10.
+The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Planned** (no spec yet). The last 18 Covered rows are the placement resize specs of section 6.10. Since 6.22 `spawn-at-verify list` shows 45 tests: these 36 plus the nine `hostile/` cells, which are not rows of the 59.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -1678,3 +1680,86 @@ Against A (Fisher two-sided): old stamp B 4/40 (-83.3%, p = 4.2e-6) and C 7/40 (
 **Still unshown.** On-screen visibility (no screen capture, no compositor frame time); hostile apps (hung, refusing, restless: no fixture flag, the cap-150 timeouts of 6.20 did not recur in the 40 B runs here, and the timed-out class is empty); X11 and XWayland (the dump is Wayland-only, so an X11 fixture would yield no commit and fall back to the stamp with a note: HYPOTHESIS, not run); a release-build fixture; real toolkit apps under the wire time; the new default cap in a reinstalled Shell; the compositor-side arrival time of a commit; a harness anchor narrow enough under load to prove commits earlier than the reveal.
 
 **Disclosures.** The harness sends four bracketed `SetLogging(true)` calls per run (in-memory flag, as in every flash run); no gsettings or dconf key was written, nothing under `/sys` or `/proc` was written (the batch scripts read `/proc/loadavg`); no nested shell; the extension was not reinstalled. The fixture windows were opened and closed by the harness by id. Throwaway scripts (not committed): `scratch/w21_loaded.sh`, `w21_rows.jq`, `w21_rows.sh` and the existing `ab_batch.sh`, `ab_stats.jq`; raw JSONs are in the session scratchpad.
+
+### 6.22 Hostile apps: fixture flags, nine catalog cells and a live A/C run (2026-10-13)
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture, harness and catalog only: the product (CLI, core, extension) is not changed; two findings about it are reported below with evidence and left alone. Installed extension: the previous build (ready-wait present, default cap 150, hard limit 1500), not reinstalled; the ready-wait arm passes `--wait-cap-ms 250` explicitly and the extension log shows `cap=250` in every C run. Commits `70dc120` (code, tests, cells), the follow-up fixture fix and this section.
+
+**1. Fixture flags (harness only, `fixture` feature, never in the product binary).** Each decision is a pure function (`fixture/behaviour.rs`), tested without a display; the window loop carries it out.
+
+| Flag | What it does on Wayland | Shown live (direct spawn, fixture event file) |
+| :--- | :--- | :--- |
+| `--resize-delay-ms N` | sleeps N ms before painting at a new size; winit has already acknowledged the configure, so the compositor waits for a commit that is N ms late | `RESIZE_DELAY 400` written 36 ms after map; the cells below wait 119 ms for N = 100 and hit the cap for N = 400 |
+| `--min-size WxH`, `--max-size WxH` | xdg-toplevel `set_min_size` / `set_max_size`; the **compositor** enforces them, so "refusing" is a clamp of the request, not an app ignoring a configure | `refuse-grow`: request 800x600, window ends at 500x400 |
+| `--fixed-size` | not resizable (winit sets min = max) | `non-resizable`: `Skipped(not-resizable)` |
+| `--resize-increment WxH` | **cannot be a hint**: no Wayland protocol, winit ignores it. Emulated as a terminal does it: the app rounds its size down to the grid and sets its own window size | `SNAP 800x600->777x574` written; window ends at 777x574 |
+| `--stall-after-map-ms N` | blocks the event loop N ms after the first paint (N under 4000, enforced, so GNOME's 5 s not-responding dialog is not reached) | `STALL_BEGIN` at 0.0 ms, `STALL_END` at 2500.1 ms, the queued `RESIZED` events after it |
+| `--flap-ms T` | after the first resize, every 20 ms set the next of two alternating window sizes (both differ from the requested one) for T ms, then settle | `FLAP_TICK`s 17 to 25 ms apart (jitter stays under the 30 ms quiet window) |
+
+**What did not work first, and why (CONFIRMED).** My first version of grid-snap and flap painted a smaller or larger *buffer* only. The smoke run showed `Reached(800x600)` at 16 ms for grid-snap: **winit calls `xdg_surface.set_window_geometry(configured size)` on every configure** (`winit-0.29.15 .../wayland/window/state.rs:676`), so the frame stays at the configured size whatever buffer is committed. The fixture now also calls `request_inner_size`, which updates that geometry for a floating window; both cells then behaved as designed. A clamp that is *not* known to the compositor (an app that silently ignores a configure) is not modelled by any flag; `hung` is the nearest case.
+
+**2. The cells (`verify/hostile/`, category `hostile`, 9 specs; catalog 36 -> 45) and what each declares.** `[expect.resize]` is new: outcome, reason, `waited_ms` range, final size, read from the `resize` object of the CLI's `--json`; judged for ready-wait runs only (a legacy run reports no outcome and is not judged). The expectations were written from the design and the extension source **before** the first live run; nothing was changed afterwards except a "KNOWN MISMATCH" note in two descriptions.
+
+| Cell | Fixture | Request | Declared outcome (cap 250) |
+| :--- | :--- | :--- | :--- |
+| slow-below-cap | `--resize-delay-ms 100` | 800x600 | Reached, at-target, 90 to 249 ms, 800x600 |
+| slow-above-cap | `--resize-delay-ms 400` | 800x600 | TimedOut, cap, 240 to 330 ms, window still 400x300 |
+| refuse-grow | `--max-size 500x400` | 800x600 | Adjusted, quiet, under 250 ms, 500x400 |
+| clamp-to-min | `--min-size 300x200` | 200x150 | Reached, at-target, 300x200 (target raised to the minimum) |
+| default-equals-min | `--min-size 400x300` (= start) | 200x150 | Reached at once (waited 0), 400x300 |
+| grid-snap | `--resize-increment 37x41` | 800x600 | Adjusted, quiet, 777x574 |
+| non-resizable | `--fixed-size` | 800x600 | Skipped, not-resizable, 400x300 |
+| hung | `--stall-after-map-ms 2500` | 800x600 | TimedOut, cap, 240 to 330 ms, 400x300 (hard limit not reached) |
+| restless | `--flap-ms 2000` | 800x600 | TimedOut, **hard**, 1490 to 1600 ms |
+
+**3. Live run (CONFIRMED).** One login, idle (load1 1.5 to 1.2), `bottom-right` 16 px margin, 10 runs per cell per arm, arm order rotated per iteration by `ab_batch.sh` (A B, B A, ...), 190 runs. A = `--wait-strategy legacy`, C = `--wait-strategy ready-wait --wait-cap-ms 250`; plus **D = ready-wait with `--wait-cap-ms 1500` on `hung` only** (10 runs), my addition: with cap 250 a hung app never reaches the 1500 ms hard limit, and the hard limit had never run live. All 190 runs valid (the arm's rule and cap in the extension log, exit 0, no notes). The wire paint time is on (6.21): the flash counts on the wire time and on the old stamp are equal in every cell and arm.
+
+| Cell | Arm | Verdict vs declared | Wait outcome (n=10) | Wait ms med (min-max) | Cloak ms med / p95 / max | Frame at reveal | Later size / flash (wire = stamp) |
+| :--- | :-: | :-: | :--- | :--- | :--- | :--- | :--- |
+| slow-below-cap | A | not judged | legacy SIZE_SETTLED x10 | 32.1 (31.7-33.9) | 47.2 / 50.8 / 50.8 | 400x300 x10 | 800x600 painted 70.9 ms after the reveal (max 85.6); flash 10/10 |
+| | C | pass 10 | Reached/at-target x10 | 119 (115-121) | 133.3 / 135.1 / 135.1 | 800x600 x10 | none; flash 0/10 |
+| slow-above-cap | A | not judged | SIZE_SETTLED x10 | 32.2 (31.7-34.3) | 42.3 / 49.5 / 49.5 | 400x300 x10 | 800x600 375 ms after the reveal (max 384); flash 10/10 |
+| | C | pass 10 | TimedOut/cap x10 | 250 (250-250) | 266.7 / 267.9 / 267.9 | 400x300 x10 | 800x600 151 ms after the reveal (max 154); flash 10/10 |
+| refuse-grow | A | not judged | SIZE_SETTLED x10 | 43.7 (39.2-46) | 50.7 / 54.3 / 54.3 | 500x400 x10 | none; 0/10 |
+| | C | pass 10 | Adjusted/quiet x10 | 41.5 (39-44) | 50.7 / 52.4 / 52.4 | 500x400 x10 | none; 0/10 |
+| clamp-to-min | A | not judged | SIZE_SETTLED x10 | 40.3 (38.7-44.3) | 51.0 / 61.6 / 61.6 | 300x200 x10 | none; 0/10 |
+| | C | **FAIL 10** | Adjusted/quiet x10 (declared Reached) | 39 (38-41) | 50.8 / 52.2 / 52.2 | 300x200 x10 | none; 0/10 |
+| default-equals-min | A | not judged | SIZE_SETTLED x10 | 32.1 (31.8-33.3) | 35.4 / 50.9 / 50.9 | 400x300 x10 | none; 0/10 |
+| | C | **FAIL 10** | TimedOut/cap x10 (declared Reached, waited 0) | 250 (250-250) | 267.8 / 268.4 / 268.4 | 400x300 x10 | none; 0/10 |
+| grid-snap | A | not judged | SIZE_SETTLED x10 | 46.0 (44.4-52) | 50.7 / 66.5 / 66.5 | 777x574 x10 | none; 0/10 |
+| | C | pass 10 | Adjusted/quiet x10 | 45 (44-47) | 51.7 / 65.5 / 65.5 | 777x574 x10 | none; 0/10 |
+| non-resizable | A | not judged | SIZE_SETTLED x10 | 32.5 (31.3-34) | 49.7 / 51.0 / 51.0 | 400x300 x10 | none; 0/10 |
+| | C | pass 10 | Skipped/not-resizable x10 | 0 (0-0) | 18.9 / 20.8 / 20.8 | 400x300 x10 | none; 0/10 |
+| hung | A | not judged | SIZE_SETTLED x10 | 32.6 (31.9-35.2) | 47.8 / 51.2 / 51.2 | 400x300 x10 | not seen (see below); 0/10 |
+| | C | pass 10 | TimedOut/cap x10 | 250 (250-250) | 266.0 / 268.0 / 268.0 | 400x300 x10 | not seen (see below); 0/10 |
+| | D | (declared for cap 250: fails 10 by design) | TimedOut/**hard** x10 | 1500 (1500-1500) | 1516.2 / 1518.5 / 1518.5 | 400x300 x10 | 800x600 976 ms after the reveal (max 997.5), position corrected; flash 10/10 |
+| restless | A | not judged | HARD_CAP x9, SIZE_SETTLED x1 (958.5 ms) | 1500.9 (958.5-1501.4) | 1532.1 / 1534.6 / 1534.6 | mid-flap: 784x584 x4, 760x560 x6 | window keeps changing (median 26 events per run); flash 10/10 |
+| | C | pass 9, **FAIL 1** | TimedOut/hard x9, Adjusted/quiet x1 (322 ms, run 1) | 1500 (322-1500) | 1512.5 / 1533.7 / 1533.7 | mid-flap: 784x584 x7, 760x560 x3 | as A; flash 10/10 |
+
+**Final size against the request.** Every cell's window ended at the size in the "frame at reveal" column except where a later size is listed: `slow-below-cap` and `slow-above-cap` reach 800x600 only after the reveal (A both, C only above the cap), `restless` never rests at 800x600 while it flaps. The requested sizes: 800x600 for all but `clamp-to-min` and `default-equals-min` (200x150).
+
+**Hard limit, live for the first time (CONFIRMED).** `hung` with cap 1500 (D) and `restless` with cap 250 (C) both end in `TimedOut` with `waited_ms` exactly 1500 and `reason=hard` (with cap 1500 the report says `hard`, not `cap`). The window was revealed 1513 to 1518 ms after the size request in D and 1503 to 1534 ms in the nine restless C runs that hit it, i.e. 3 to 34 ms after the limit, at 400x300 (hung, the stalled app's old size) and at the flapping size 784x584 or 760x560 (restless), never at 800x600. A stuck or cloaked window did not occur: an `UNCLOAK` is in 190 of 190 runs, the longest cloak is 1534.6 ms against the 6000 ms watchdog, every run exited 0, and after each batch `query windows` listed only the user's two windows and `pgrep -cx fixture` printed 0.
+
+**Judgment: every mismatch against its declared expectation.**
+
+| # | Cell/arm | Declared | Seen | Cause and class |
+| :-: | :--- | :--- | :--- | :--- |
+| 1 | clamp-to-min C, 10 of 10 | Reached 300x200 | Adjusted/quiet 300x200 at 39 ms | **Product finding (CONFIRMED).** The extension logs `reportedMinSize=(0x0)` in all 20 clamp/default-equals-min C and A runs although the fixture declared 300x200 / 400x300, and the `Meta-14.typelib` of GNOME 46 has no min-size accessor (`strings` finds none; `_getMinSize` calls `window.get_min_size?.()` and falls back to 0x0). So `SET_SIZE_CLAMPED` cannot fire on GNOME 46 and the machine waits for the unraised 200x150. Effect here is benign: the first answer is the minimum, 39 ms. Not fixed. |
+| 2 | default-equals-min C, 10 of 10 | Reached at once, waited 0 | TimedOut/cap at 250 ms, window unchanged | Same cause: the target stays 200x150, the app at its minimum never answers, the cap ends it. **Cost (CONFIRMED): cloak 267.8 ms against 35.4 ms for legacy, +232 ms for an app that cannot change**; this is design risk 3 / decision D2 (first-spawn cost for an app at its minimum) happening live, without the learned-minimum cache or probe. Not fixed. |
+| 3 | restless C, 1 of 10 (run 1) | TimedOut/hard | Adjusted/quiet at 322 ms | **Fixture timing, not product.** One flap tick gap exceeded the 30 ms quiet window, so the quiet rule completed on the flapping size. The legacy arm had the same once (SIZE_SETTLED at 958.5 ms). HYPOTHESIS: first run after a rebuild; the direct trace showed tick gaps of 17 to 25 ms, so this is a rare jitter, 2 in 20. |
+| 4 | hung D, 10 of 10 | (spec is for cap 250) | TimedOut/hard at 1500 | Not a mismatch: D is the hard-limit probe and was judged by the hard-limit paragraph above; the spec fails by design at another cap. |
+
+No mismatch for slow-below-cap, slow-above-cap, refuse-grow, grid-snap, non-resizable, and hung (C): 60 of 60 runs match their declaration.
+
+**What the cells show about the strategies (CONFIRMED, idle, debug fixture).**
+- `slow-below-cap`: legacy reveals at 400x300 after a 32 ms quiet window and the app paints 71 ms later (flash 10 of 10); ready-wait waits 119 ms and flashes 0 of 10, at +86 ms cloak.
+- `slow-above-cap`: both flash 10 of 10; ready-wait reveals 151 ms before the app paints instead of 375 ms.
+- `hung`: both reveal at the old size (ready-wait at 266 ms, legacy at 48 ms). **The harness did not see the late resize in A and C**: the app wakes about 2.5 s after it maps, 2.2 s after those reveals, outside the 1500 ms post-reveal watch, so flash shows 0 of 10 there; only D, revealed at 1516 ms, sees it (976 ms after the reveal). That 0 is a limit of the watch, not a clean result.
+- `non-resizable`: ready-wait is faster (18.9 ms against 49.7 ms cloak median).
+- `refuse-grow` and `grid-snap`: both strategies reveal at the app's own size; ready-wait reports it (`Adjusted`) in about 40 ms.
+
+**Tests (CONFIRMED, run).** Fixture binary 20 (was 10): 7 in `fixture/behaviour.rs` (size parsing, stall limit, snap, default plan, delay on a new size only, increment with `SNAP` event, flap sizes) and 3 flag-parsing tests. `spawn-at-verify` lib +6 in `runner/resize_expect_tests.rs` (spec parsing, printed JSON, match, each mismatch named, size tolerance, legacy not judged and a missing outcome fails); `category_library_test` +1 (catalog is 45 specs, the nine hostile cells with a declared outcome and one hostile flag each). Counts in 1.1: `tui,fixture` 402 passed, 4 ignored; total 675 Rust, 846 with node.
+
+**Still unshown.** Load (everything here is idle; 6.19 and 6.20 showed the loaded cases differ); a release-build fixture; real hostile apps (a real hung or refusing Electron/GTK3/Qt app) and any app that ignores a configure without telling the compositor; whether GNOME shows a not-responding dialog for the 2500 ms stall (no screen capture; the stall is under the 5 s ping limit); on-screen visibility of any flash; X11 and XWayland (every cell requires Wayland); cap sweeps (only 250, and 1500 for `hung`); the legacy arm judged against an expectation (it reports no outcome); the late resize of a hung app in A and C (outside the 1500 ms watch); multi-monitor and fractional scaling; the cause of the one restless jitter. The two product findings above are open.
+
+**Disclosures.** The harness sends four bracketed `SetLogging(true)` calls per run (in-memory flag); no gsettings or dconf key was written, nothing under `/sys` or `/proc` was written (the batch scripts read `/proc/loadavg`), no nested shell, the extension was not reinstalled. Windows were spawned by the harness (closed by id) and by four direct `spawn-at spawn` probes for the event check (each closed by id with `spawn-at close --id`). Throwaway scripts, not committed: `scratch/h22_batch.sh`, `h22_rows.jq`, `h22_rows.sh` (copies of the 6.19 to 6.21 ones); raw JSONs are in the session scratchpad.
