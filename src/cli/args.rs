@@ -628,3 +628,46 @@ impl DefocusArgs {
         }
     }
 }
+
+/// What `spawn-at config` does; without one it is `show`.
+#[derive(Subcommand, Debug, Clone, PartialEq, Eq)]
+pub enum ConfigCommands {
+    /// Print every setting with its effective value and where the value comes from (default)
+    Show,
+    /// Print the effective value of one setting
+    Get {
+        /// Setting name, e.g. wait.cap_ms
+        key: String,
+    },
+    /// Write a setting to the config file (other keys in the file are kept)
+    Set {
+        /// Setting name, e.g. wait.cap_ms
+        key: String,
+        /// New value
+        value: String,
+    },
+    /// Remove a setting from the config file so its default applies again
+    Unset {
+        /// Setting name, e.g. wait.cap_ms
+        key: String,
+    },
+    /// Print the path of the config file
+    Path,
+    /// Remove every spawn-at setting from the config file (update preferences and unknown keys stay)
+    Reset,
+}
+
+/// Arguments of `spawn-at config`.
+#[derive(Args, Debug, Clone, PartialEq, Eq, Default)]
+pub struct ConfigArgs {
+    #[command(subcommand)]
+    pub action: Option<ConfigCommands>,
+
+    /// Show what a spawn with `--wait-strategy` would use (flag layer for show and get), hidden
+    #[arg(long, hide = true, value_name = "auto|legacy|ready-wait")]
+    pub wait_strategy: Option<String>,
+
+    /// Show what a spawn with `--wait-cap-ms` would use (flag layer for show and get), hidden
+    #[arg(long, hide = true, value_name = "MS")]
+    pub wait_cap_ms: Option<String>,
+}

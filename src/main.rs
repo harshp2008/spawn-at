@@ -57,6 +57,15 @@ async fn main() {
         return;
     }
 
+    // `config` needs no compositor, no driver and no update notice.
+    if let Commands::Config(config_args) = cli.command {
+        if let Err(e) = commands::run_config(config_args) {
+            crate::diagnostics::render_error(&e);
+            std::process::exit(1);
+        }
+        return;
+    }
+
     let suppress_update_notice = matches!(cli.command, Commands::Update(_))
         || match &cli.command {
             Commands::Query { cmd } => match cmd {
@@ -309,7 +318,7 @@ async fn main() {
                 std::process::exit(1);
             }
         }
-        Commands::Update(_) => unreachable!(),
+        Commands::Update(_) | Commands::Config(_) => unreachable!(),
     }
 
     if !suppress_update_notice {

@@ -133,6 +133,32 @@ sequenceDiagram
 
 Wayland is the worst case: no client-side placement, no global window API, and the compositor has to do everything. If one command can place a window with no flash there, the same model should carry to the easier platforms.
 
+## Settings
+
+`spawn-at config` shows and changes a few behaviours. Nothing needs to be set: with no config file and no flags `spawn-at` behaves exactly as before.
+
+| Key | Default | Allowed | What it does |
+| :--- | :--- | :--- | :--- |
+| `wait.cap_ms` | not sent (the extension's own default: 250 ms from this release, 150 ms before) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway. |
+| `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the original 30 ms quiet rule; `ready-wait` is the newer wait on GNOME Wayland. |
+| `spawn.window_timeout_ms` | 2000 | whole milliseconds, 200 to 60000 | How long `spawn` waits for the new window to appear before it warns that it did not (applies to the extension's claim and again to the fallback poll). |
+
+```sh
+spawn-at config                        # every setting, its value, and where the value comes from
+spawn-at config set wait.cap_ms 400
+spawn-at config get wait.cap_ms
+spawn-at config unset wait.cap_ms      # back to the default
+spawn-at config path                   # the file: $XDG_CONFIG_HOME/spawn-at/config.toml, or ~/.config/spawn-at/config.toml
+spawn-at config reset                  # remove all of the settings above (update preferences and other keys stay)
+```
+
+A value on the command line beats the file, and the file beats the default; `show` names the source of each value (`default`, `file` or `flag`). A setting that is not set sends nothing to the extension. An unknown key in the file is a warning, a file that is not valid TOML is one warning with the line number, and in both cases `spawn` carries on with the defaults. Setting a key rewrites the file without comments. Set `SPAWN_AT_CONFIG=<path>` to use a different file (a path that does not exist means "no config").
+
+**On a slow or busy machine:**
+- Windows that still appear at the wrong size or jump just after they appear: raise `wait.cap_ms` (try 400). A longer cap costs nothing when the app answers in time; it only delays the window for an app that never answers.
+- `WARNING: ... did not appear within 2s` for a heavy app (a browser or an Electron app starting cold): raise `spawn.window_timeout_ms` (try 8000).
+- To compare with the pre-0.2 behaviour: `spawn-at config set wait.strategy legacy`.
+
 ## Status
 
 | Environment | Status |

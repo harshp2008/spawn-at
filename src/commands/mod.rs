@@ -3,18 +3,20 @@
 //! This module contains platform-agnostic implementations of the CLI commands.
 //! It isolates CLI routing logic from the compositor-specific execution logic.
 
+pub mod config;
 pub mod focus;
 pub mod lifecycle;
 pub mod query;
 pub mod spawn;
 pub mod transform;
 
+pub use config::run_config;
 pub use focus::{apply_focus_policy, run_defocus, run_focus};
 pub use lifecycle::{
     run_close, run_close_with_timeout, run_maximize, run_minimize, run_restore, run_unminimize,
 };
 pub use query::run_query;
-pub use spawn::run_spawn;
+pub use spawn::{run_spawn, run_spawn_with};
 pub use transform::run_transform;
 
 use crate::platform::{CompositorBackend, DriverError, WindowMetadata};
@@ -1432,7 +1434,7 @@ mod tests {
         };
 
         crate::diagnostics::start_capturing_diagnostics();
-        let res = run_spawn(&driver, args, false).await;
+        let res = run_spawn_with(&driver, args, false, Default::default()).await;
         assert!(res.is_ok());
 
         let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
@@ -1475,7 +1477,7 @@ mod tests {
         };
 
         crate::diagnostics::start_capturing_diagnostics();
-        let res = run_spawn(&driver, args, false).await;
+        let res = run_spawn_with(&driver, args, false, Default::default()).await;
         assert!(res.is_ok());
 
         let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();

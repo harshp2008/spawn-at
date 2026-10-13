@@ -9,6 +9,7 @@ pub mod ext_logging;
 pub mod loadavg;
 pub mod loader;
 pub mod log_source;
+pub mod no_config;
 pub mod oracle;
 pub mod preflight;
 pub mod probe;

@@ -6,6 +6,7 @@ description = "Pure mathematical geometry and declarative scheduling primitives 
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
+toml = "1.1.6"
 async-trait = "0.1"
 clap = { version = "4.5", features = ["derive"], optional = true }
 

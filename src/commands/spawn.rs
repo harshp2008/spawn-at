@@ -42,12 +42,33 @@ pub struct SpawnOutputJson {
     pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
 }
 
-/// Executes the spawn subcommand pipeline.
+/// Executes the spawn subcommand pipeline with the user's config file. A file that is missing,
+/// unreadable or malformed never fails the spawn: the defaults apply and a warning is printed.
 pub async fn run_spawn(
     driver: &(dyn CompositorBackend + Sync),
     spawn_args: SpawnArgs,
     no_wait: bool,
 ) -> Result<(), DriverError> {
+    let store = crate::platform::linux::config_store::LinuxConfigStore::from_env();
+    let loaded = spawn_at_core::settings::load(&store);
+    run_spawn_with(driver, spawn_args, no_wait, loaded).await
+}
+
+/// [`run_spawn`] with the settings already read (`Loaded::default()` is "no config file").
+pub async fn run_spawn_with(
+    driver: &(dyn CompositorBackend + Sync),
+    spawn_args: SpawnArgs,
+    no_wait: bool,
+    loaded: spawn_at_core::settings::Loaded,
+) -> Result<(), DriverError> {
+    for warning in &loaded.warnings {
+        crate::diagnostics::render_warning(warning);
+    }
+    let file = loaded.settings;
+    let window_timeout = Duration::from_millis(u64::from(
+        file.window_timeout_ms
+            .unwrap_or(spawn_at_core::settings::WINDOW_TIMEOUT_DEFAULT_MS),
+    ));
     if spawn_args.command.is_empty() {
         return Err(DriverError::Execution(
             "No command specified to spawn.".into(),
@@ -229,13 +250,16 @@ pub async fn run_spawn(
 
     // Developer override of the resize wait (hidden --wait-strategy / --wait-cap-ms). A bad value
     // is dropped with a warning; the spawn goes on with the rest.
-    let (wait, wait_problems) = WaitOverride::from_raw(
+    // A flag beats the config file; with neither, `wait` is `WaitOverride::default()` and the
+    // instruction carries no extra field.
+    let (wait_flags, wait_problems) = spawn_at_core::settings::wait_flags(
         spawn_args.wait_strategy.as_deref(),
         spawn_args.wait_cap_ms.as_deref(),
     );
     for problem in &wait_problems {
         crate::diagnostics::render_warning(problem);
     }
+    let wait: WaitOverride = spawn_at_core::settings::wait_override(&wait_flags, &file);
 
     let batch = Batch {
         id: 1,
@@ -351,7 +375,7 @@ pub async fn run_spawn(
             let mut claim_resize: Option<spawn_at_core::resize_report::ResizeReport> = None;
 
             if let Some(mut waiter) = claim_waiter {
-                match waiter.wait_claim(Duration::from_millis(2000)).await {
+                match waiter.wait_claim(window_timeout).await {
                     Ok(claim) => {
                         claim_resize = claim.resize.clone();
                         claim_result = Some((
@@ -390,7 +414,7 @@ pub async fn run_spawn(
                         &app_hint,
                         &entry_key,
                         &pre_existing_ids,
-                        Duration::from_millis(2000),
+                        window_timeout,
                     )
                     .await
                     {
@@ -696,7 +720,7 @@ mod tests {
             ..Default::default()
         };
 
-        let res = run_spawn(&backend, args, false).await;
+        let res = run_spawn_with(&backend, args, false, Default::default()).await;
         assert!(res.is_ok());
 
         let recorded = calls.lock().unwrap().clone();
@@ -755,6 +779,15 @@ mod tests {
         strategy: Option<&str>,
         cap_ms: Option<&str>,
     ) -> (Batch, Vec<String>) {
+        arm_with_wait_flags_and_config(strategy, cap_ms, Default::default()).await
+    }
+
+    /// [`arm_with_wait_flags`] with a config file already read (`loaded`).
+    async fn arm_with_wait_flags_and_config(
+        strategy: Option<&str>,
+        cap_ms: Option<&str>,
+        loaded: spawn_at_core::settings::Loaded,
+    ) -> (Batch, Vec<String>) {
         let batches = Arc::new(Mutex::new(Vec::new()));
         let backend = BatchRecorder {
             inner: OrderingMockBackend {
@@ -773,7 +806,7 @@ mod tests {
             ..Default::default()
         };
         crate::diagnostics::start_capturing_diagnostics();
-        let res = run_spawn(&backend, args, false).await;
+        let res = run_spawn_with(&backend, args, false, loaded).await;
         assert!(
             res.is_ok(),
             "an override must never fail the spawn: {res:?}"
@@ -839,6 +872,108 @@ mod tests {
             spawn_at_core::wait_override::WaitStrategy::ReadyWait
         );
         assert_eq!(batch.entries[0].wait.cap_ms, None);
+    }
+
+    fn from_file(text: &str) -> spawn_at_core::settings::Loaded {
+        spawn_at_core::settings::load_text(text, "test.toml")
+    }
+
+    /// The instructions the GNOME driver would send for the entry that reached `arm`, as JSON.
+    fn instruction_bytes(batch: &Batch) -> String {
+        serde_json::to_string(
+            &crate::platform::linux::gnome::mechanics::build_instructions_for_entry(
+                &batch.entries[0],
+            ),
+        )
+        .unwrap()
+    }
+
+    /// No config file and no flags: the arming instruction of a 400x300 spawn is the one a build
+    /// without the config sent (the entry with `WaitOverride::default()`), and its wait step is
+    /// exactly `{"WaitForCommit":{"timeout_ms":300}}`. An empty file, a file with only unrelated
+    /// keys, and `strategy = "auto"` change nothing either.
+    #[tokio::test]
+    async fn test_default_spawn_instruction_bytes_are_unchanged() {
+        let (plain, _) = arm_with_wait_flags(None, None).await;
+        let mut reference = plain.entries[0].clone();
+        reference.wait = Default::default();
+        let before = serde_json::to_string(
+            &crate::platform::linux::gnome::mechanics::build_instructions_for_entry(&reference),
+        )
+        .unwrap();
+        assert_eq!(instruction_bytes(&plain), before);
+        assert!(
+            before.contains(r#"{"WaitForCommit":{"timeout_ms":300}}"#),
+            "{before}"
+        );
+        for file in [
+            "",
+            "[update]\nchannel = \"beta\"\n",
+            "[wait]\nstrategy = \"auto\"\n",
+            "[spawn]\nwindow_timeout_ms = 5000\n",
+        ] {
+            let (b, warnings) = arm_with_wait_flags_and_config(None, None, from_file(file)).await;
+            assert!(warnings.is_empty(), "{file:?}: {warnings:?}");
+            assert_eq!(instruction_bytes(&b), before, "{file:?}");
+        }
+    }
+
+    /// A value in the file is sent in the existing optional fields; a flag beats it; a flag of
+    /// `auto` beats a file `legacy`.
+    #[tokio::test]
+    async fn test_config_file_values_reach_the_instruction_and_flags_win() {
+        let file = "[wait]\ncap_ms = 120\nstrategy = \"legacy\"\n";
+        let (b, warnings) = arm_with_wait_flags_and_config(None, None, from_file(file)).await;
+        assert!(warnings.is_empty(), "{warnings:?}");
+        assert!(
+            instruction_bytes(&b).contains(
+                r#"{"WaitForCommit":{"timeout_ms":300,"strategy":"legacy","cap_ms":120}}"#
+            ),
+            "{}",
+            instruction_bytes(&b)
+        );
+        let (b, _) =
+            arm_with_wait_flags_and_config(Some("ready-wait"), Some("90"), from_file(file)).await;
+        assert!(
+            instruction_bytes(&b).contains(
+                r#"{"WaitForCommit":{"timeout_ms":300,"strategy":"ready-wait","cap_ms":90}}"#
+            ),
+            "{}",
+            instruction_bytes(&b)
+        );
+        let (b, _) = arm_with_wait_flags_and_config(Some("auto"), None, from_file(file)).await;
+        assert!(
+            instruction_bytes(&b).contains(r#"{"WaitForCommit":{"timeout_ms":300,"cap_ms":120}}"#),
+            "{}",
+            instruction_bytes(&b)
+        );
+    }
+
+    /// A malformed file or a bad value never fails the spawn: the warnings are printed, the rest
+    /// of the file still applies, and a bad flag falls back to the file value.
+    #[tokio::test]
+    async fn test_bad_config_warns_and_the_spawn_goes_on() {
+        let (b, warnings) =
+            arm_with_wait_flags_and_config(None, None, from_file("[wait\ncap_ms = 1\n")).await;
+        assert!(b.entries[0].wait.is_default());
+        assert_eq!(warnings.len(), 1, "{warnings:?}");
+        assert!(warnings[0].contains("line 1"), "{warnings:?}");
+        let (b, warnings) = arm_with_wait_flags_and_config(
+            None,
+            None,
+            from_file("[wait]\ncap_ms = 9999\nstrategy = \"legacy\"\nnope = 1\n"),
+        )
+        .await;
+        assert_eq!(warnings.len(), 2, "{warnings:?}");
+        assert_eq!(b.entries[0].wait.cap_ms, None);
+        assert_eq!(
+            b.entries[0].wait.strategy,
+            spawn_at_core::wait_override::WaitStrategy::Legacy
+        );
+        let (b, _) =
+            arm_with_wait_flags_and_config(None, Some("0"), from_file("[wait]\ncap_ms = 77\n"))
+                .await;
+        assert_eq!(b.entries[0].wait.cap_ms, Some(77));
     }
 
     struct FallbackMockBackend {
@@ -926,7 +1061,7 @@ mod tests {
             ..Default::default()
         };
 
-        let res = run_spawn(&backend, args, false).await;
+        let res = run_spawn_with(&backend, args, false, Default::default()).await;
         assert!(res.is_ok());
 
         let recorded = calls.lock().unwrap().clone();

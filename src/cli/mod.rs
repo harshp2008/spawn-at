@@ -51,6 +51,8 @@ pub enum Commands {
     Install(InstallArgs),
     /// Uninstall the GNOME Shell extension and binary from $PATH
     Uninstall(UninstallArgs),
+    /// Show or change spawn-at settings (wait cap, wait strategy, window timeout)
+    Config(ConfigArgs),
     /// Check for or install available updates
     Update(crate::update::UpdateArgs),
     /// Spawn an application at a specific target screen geometry

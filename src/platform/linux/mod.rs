@@ -1,3 +1,4 @@
+pub mod config_store;
 pub mod gnome;
 pub mod x11;
 pub mod xdg;

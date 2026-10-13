@@ -101,11 +101,14 @@ impl UpdateConfig {
 }
 
 impl Config {
-    /// Returns path to `~/.config/spawn-at/config.toml`.
+    /// Returns the path of the config file: `$SPAWN_AT_CONFIG`, else
+    /// `$XDG_CONFIG_HOME/spawn-at/config.toml`, else `~/.config/spawn-at/config.toml` (the same
+    /// file `spawn-at config` edits).
     pub fn config_path() -> Result<PathBuf, String> {
-        let home =
-            std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
-        Ok(PathBuf::from(home).join(".config/spawn-at/config.toml"))
+        crate::platform::linux::config_store::LinuxConfigStore::from_env()
+            .path()
+            .cloned()
+            .map_err(|_| "Failed to determine HOME directory".to_string())
     }
 
     /// Loads the configuration from disk, returning None if absent or corrupt.
@@ -140,19 +143,33 @@ impl Config {
         Self::load().unwrap_or_default()
     }
 
-    /// Persists the configuration to `~/.config/spawn-at/config.toml`.
+    /// Persists the update preferences to the config file. Only the `[update]` table is
+    /// replaced: the settings written by `spawn-at config` and any other key already in the file
+    /// are kept, and the file is replaced atomically. A file that is not valid TOML is
+    /// overwritten, as before (the update checker owns what it can read back).
     pub fn save(&self) -> Result<(), String> {
-        let path = Self::config_path()?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
-                format!("Failed to create config dir '{}': {}", parent.display(), e)
-            })?;
-        }
-        let serialized = toml::to_string_pretty(self)
+        let store = crate::platform::linux::config_store::LinuxConfigStore::from_env();
+        store.path()?;
+        self.save_to(&store)
+    }
+
+    /// [`Config::save`] into `store`.
+    pub fn save_to(
+        &self,
+        store: &dyn spawn_at_core::settings::SettingsStore,
+    ) -> Result<(), String> {
+        let mut table = store
+            .read()?
+            .and_then(|t| t.parse::<toml::Table>().ok())
+            .unwrap_or_default();
+        let mine = toml::Value::try_from(self)
             .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?;
-        fs::write(&path, serialized)
-            .map_err(|e| format!("Failed to write config file '{}': {}", path.display(), e))?;
-        Ok(())
+        if let Some(update) = mine.get("update") {
+            table.insert("update".to_string(), update.clone());
+        }
+        let serialized = toml::to_string_pretty(&table)
+            .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?;
+        store.write(&serialized)
     }
 }
 
@@ -202,6 +219,30 @@ pub fn uninstall_login_autostart_entry() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The update checker saves its table into a file that also holds `spawn-at config`
+    /// settings and unknown keys: they all survive, and the update table is replaced.
+    #[test]
+    fn test_save_keeps_settings_and_unknown_keys() {
+        use crate::platform::linux::config_store::LinuxConfigStore;
+        use spawn_at_core::settings::SettingsStore;
+        let dir = std::env::temp_dir().join(format!("spawn-at-save-{}", std::process::id()));
+        let store = LinuxConfigStore::at(dir.join("config.toml"));
+        store
+            .write(
+                "[wait]\ncap_ms = 120\nodd = 3\n\n[update]\nchannel = \"stable\"\n\n[zzz]\nk = 1\n",
+            )
+            .unwrap();
+        let mut cfg = Config::default();
+        cfg.update.channel = "beta".into();
+        cfg.save_to(&store).unwrap();
+        let text = store.read().unwrap().unwrap();
+        for kept in ["cap_ms = 120", "odd = 3", "[zzz]", "channel = \"beta\""] {
+            assert!(text.contains(kept), "{kept} lost in:\n{text}");
+        }
+        assert!(!text.contains("stable"), "{text}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn test_config_defaults() {

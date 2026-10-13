@@ -212,6 +212,8 @@ impl TestRunner {
         let cmd_args = build_action_command_args(test, &fixture_bin, &self.options.wait);
         let mut cmd = Command::new(&self.options.bin_path);
         cmd.args(cmd_args);
+        // The user's config file must not change what a run measures.
+        crate::no_config::isolate(&mut cmd);
         if let Some(cap) = &flash_capture {
             cap.apply(&mut cmd);
         }
