@@ -1157,3 +1157,53 @@ Labels: CONFIRMED = measured or read here; HYPOTHESIS = not tested. Commit `1de8
 **Against the observation (about 70%).** The model expects 55% to 57% of these runs to show the flash, against roughly 70% seen. They are in the same range but not the same number, and the comparison does not support more than that: the 70% is **an impression by eye, not a measurement** (no count of runs, no recording was analysed, and the user's runs are not these 20); with 19 numeric runs the model's own spread is large (the sum of 19 Bernoulli draws at these probabilities has a standard deviation of about 2 runs, i.e. 10 points of the 20); and the probability model is a HYPOTHESIS. Two readings are open and were not separated: the real exposure is longer than the lead (the compositor needs more than one frame, or the window is shown at the old content for longer), or the user counts a different or milder artefact as a flash. Only a screen capture of the same runs would show which; none was taken.
 
 **Not done.** Wayland and a refresh rate other than 60 Hz on a live screen (the 144 Hz case is a synthetic test and the Mutter parser runs on a sample, not a 144 Hz display); real apps; any screen capture.
+
+
+### 6.17 BASELINE before the ready-wait change: flash on native Wayland vs XWayland vs X11 (2026-10-13, harness and docs only)
+
+Labels: CONFIRMED = measured in this section; HYPOTHESIS = not tested. **This is the baseline taken before the ready-wait change: no product or extension code was touched, and nothing in it is a result of that change.** Session: `XDG_SESSION_TYPE=wayland`, GNOME Shell 46, 22 CPUs, 60.00 Hz (`mutter-displayconfig`), binary commit `0756167` (the catalog commit adding `placement/top-left-smaller`, 36 tests). Every run is one isolated `run` invocation, specs interleaved, 1.5 s apart, 10 runs per spec per batch, all exit 0 and `auto-pass`. `bottom-right-smaller` is a `Both` spec, so its final status stays `pending` (human verdict unset) by design.
+
+| batch | fixture | `spawn-at` | load (1 min) at run start |
+| :--- | :--- | :--- | :--- |
+| idle, debug | debug | debug | 1.38 - 2.91 |
+| idle, release | release (`cargo build --release --bin fixture`) | **debug copy** (a release `spawn-at` build was not made; the harness requires the binary's commit to equal `HEAD`) | 1.05 - 2.37 |
+| loaded | debug | debug | 20.53 - 24.49 (mean 22.7), after 22 `burn-cpu` threads and a 70 s warm-up |
+| XWayland | debug (`--protocol x11`) | debug | 1.67 - 1.96 (waited for the load to fall after the burn) |
+
+**Idle, native Wayland (CONFIRMED).** Numeric flash count was **0 in all 80 runs**: for each of `bottom-right-larger`, `bottom-right-smaller`, `top-left-smaller` and the delayed-paint control, 10 debug and 10 release runs. So certain 0, possible 0, `lead_ms` none, expected visible probability 0, **old-warning count 0** (no row in `report.md` "5. Warnings"; no `ANCHOR_CORRECTION` or `LATE_RESIZE_CORRECTED` in any of the 60 runs of the three real specs). Clock uncertainty 1.5 - 2.2 ms. In the debug `bottom-right-larger` runs `AFTER_SET_SIZE` still shows the old frame `(50,90,400x300)`, the first `COMMIT_SAMPLE` is `(400x300)`, and `COMMIT_RESOLVED reason=AT_TARGET finalFrame=(800x600)` comes 12.9 - 20.6 ms after `SET_SIZE_REQUEST`, i.e. the extension waited for the client and revealed at the new size.
+
+**The delayed-paint control does not work on Wayland (CONFIRMED that it produced 0 flashes in 20 of 20 runs; the cause is a HYPOTHESIS).** On X11 it flashed 10 of 10 (6.15). Here `CLOAK` came 430.6 - 444.3 ms (debug) and 424.8 - 439.9 ms (release) after `WINDOW_CREATED` in all 20 runs, so the 400 ms `--paint-delay-ms` moved the point at which the extension saw the window, not a late repaint of a shown window. HYPOTHESIS: on Wayland the surface is only mapped once the first buffer is committed. Consequence: on Wayland the control does not prove that the check can fire; the loaded batch below is what shows it can.
+
+**Loaded, 22 threads, debug (CONFIRMED).**
+
+| spec | runs with a numeric flash | numeric events | certain / possible | `lead_ms` median / max | mean expected visible probability per run | runs with an old warning |
+| :--- | :---: | :---: | :---: | :--- | :---: | :---: |
+| `bottom-right-smaller` | **6 / 10** | 11 | 8 / 3 | 29.7 / 78.9 | 0.581 | 6 |
+| `bottom-right-larger` | **9 / 10** | 16 | 14 / 2 | 32.1 / 60.0 | 0.769 | 9 |
+
+The runs with an old warning are the runs with an `ANCHOR_CORRECTION` after the reveal (6 and 9; one run of each also logged `LATE_RESIZE_CORRECTED`), and they are the same runs that have a numeric flash. Clock uncertainty under load was 6.3 - 17.2 ms (idle 1.5 - 2.2), so the counting floor was higher than idle. Together 15 of 20 runs (75%) were corrected after the reveal.
+
+**Against TEST_PLAN 6.12 and 6.13 (CONFIRMED for the numbers, cause not established).** 6.12 measured 91 of 120 runs (76%) corrected after reveal at 22 threads, which agrees with the 75% here. 6.13 measured 10 of 40 (25%) for `bottom-right-smaller` and `bottom-smaller` at 22 threads, which does not: `bottom-right-smaller` alone was 6 of 10 here. Different spec mix (6.13 pooled `bottom-smaller`), different batch (10 runs, not 40) and a small sample all fit; which one explains the gap was not tested. The burn threads were stopped afterwards: `pgrep -cx xtask` printed 0 and `pgrep -cx fixture` printed 0.
+
+**XWayland: `bottom-right-larger` with `--protocol x11` inside this Wayland session, 10 debug runs (CONFIRMED).**
+- Recorded as XWayland: `proto=XWayland` in the extension log of 10 of 10 runs (every native Wayland run, 100 of 100 across the batches above, says `proto=Wayland`).
+- The frame rect jumps to the target at once, like native X11: `AFTER_SET_SIZE frame=(50,90,800x600)`, first `COMMIT_SAMPLE source=initial` already `(800x600)`, and `COMMIT_RESOLVED reason=AT_TARGET` 0.1 - 0.3 ms after `SET_SIZE_REQUEST` in 10 of 10 runs (native Wayland: 12.9 - 20.6 ms, frame still 400x300).
+- Flash: **1 of 10 runs** had a numeric flash (`size-change-after-reveal`, lead 6.4 ms, possible, visible probability 0.38); the same batch listed a second event of 0.98 ms that is inside the uncertainty and not counted. Old warnings 0, `ANCHOR_CORRECTION` 0. HYPOTHESIS for why X11-style lying frame rect gives fewer flashes than the 9 and 10 of 10 seen on X11 (6.15 val1/val2): not examined. Only idle, debug and one spec were run for XWayland.
+
+**Native Wayland vs XWayland vs X11 (baseline).** The X11 column is **not re-measured**: it is copied from 6.15 section 5 (earlier X11 session, same machine, same harness, 10 runs per cell, debug unless noted), because this session is Wayland.
+
+| | native Wayland (this section) | XWayland (this section) | native X11 (6.15, earlier session) |
+| :--- | :--- | :--- | :--- |
+| window recorded as | `proto=Wayland` | `proto=XWayland` | X11 |
+| frame rect right after `SetSize` | old size (400x300) | target at once (800x600) | target at once (lying frame rect) |
+| `COMMIT_RESOLVED` after the request | 12.9 - 20.6 ms | 0.1 - 0.3 ms | not recorded in this form |
+| `bottom-right-larger`, idle, debug: flash runs | **0 / 10** | **1 / 10** | 9 / 10 (val1), 10 / 10 (val2) |
+| `bottom-right-larger`, idle, release fixture | **0 / 10** | not run | 0 / 10 (val3) |
+| `top-left-smaller`, idle, debug / release | 0 / 10, 0 / 10 | not run | 0 (1 uncertain) and 1 / 10 (val1, val2), 0 / 10 release |
+| `bottom-right-smaller`, idle, debug / release | 0 / 10, 0 / 10 | not run | not run |
+| delayed-paint control, idle | **0 / 20** (does not fire) | not run | 10 / 10 (val1, val2, val3) |
+| `bottom-right-larger`, 22 threads, debug | **9 / 10** | not run | not run |
+| `bottom-right-smaller`, 22 threads, debug | **6 / 10** | not run | not run |
+| old warnings, idle | 0 of 60 | 0 of 10 | 0 of 90 |
+
+**Not done.** XWayland under load, with the release fixture, or for any spec but `bottom-right-larger`; `top-left-smaller` under load; native X11 in this session (needs a log-out); a release-built `spawn-at`; any screen capture; real toolkit apps. The scratch specs (delayed-paint control, `xwayland-bottom-right-larger`) and batch scripts live in `scratch/` and are not committed; raw per-run JSON stayed in the session scratchpad and is not stored in the repository.
