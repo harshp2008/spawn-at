@@ -11,6 +11,12 @@
 //! - the window's size or position changes after the reveal by more than
 //!   [`GEOMETRY_TOLERANCE_PX`], within [`POST_REVEAL_WATCH_MS`].
 //!
+//! Size is judged on the fixture's paints, because a paint is the moment the content changes.
+//! The toolkit's `Resized` and `Moved` events are times at which it *delivered* the news, which
+//! lag the window manager's change, so they are logged but never taken as the time of one;
+//! position is judged by the last position the client reports against the one the extension
+//! logged at `UNCLOAK`.
+//!
 //! Both clocks are `CLOCK_MONOTONIC`, but the extension prints milliseconds since its own first
 //! log line. [`ClockAnchor`] recovers that origin from `SetLogging` echoes bracketed by monotonic
 //! reads; the comparison is only counted when it holds for every origin the anchor allows.
@@ -217,11 +223,12 @@ impl ClockAnchor {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FlashKind {
-    /// The window was revealed before the client's first paint at its final size.
+    /// The window was revealed before the client had painted anything.
     PaintAfterReveal,
-    /// The client's size changed by more than the tolerance after the reveal.
+    /// The client painted a different size after the reveal than the one it showed at it (this
+    /// includes reaching the final size late: reveal before the first paint at that size).
     SizeChangeAfterReveal,
-    /// The window's position changed by more than the tolerance after the reveal.
+    /// The window's position differs by more than the tolerance from the one logged at the reveal.
     PositionChangeAfterReveal,
 }
 
@@ -340,9 +347,14 @@ fn correction_move(extra: &str) -> Option<((i32, i32), (i32, i32))> {
 /// Finds the flashes of one run.
 ///
 /// `basis` is [`FlashBasis::Client`] when the fixture's events and a clock anchor are both
-/// present; the client times then decide whether the reveal came before the final paint and
-/// whether size or position moved afterwards. Otherwise only the extension's own
-/// `ANCHOR_CORRECTION` after `UNCLOAK` is used and `flash_notes` says what was missing.
+/// present. The fixture's paints then decide what the user saw: content that changed size after
+/// the reveal, or a window revealed before anything was painted. Only a paint is taken as the
+/// time of a visible change; `Resized` and `Moved` are times at which the toolkit *delivered* an
+/// event, which lag the window manager's change (on X11 the frame is resized and moved at once).
+/// A client position counts only when the last one reported differs from the position the
+/// extension logged at `UNCLOAK`. An `ANCHOR_CORRECTION` after `UNCLOAK` is always used, and is
+/// the only signal left when the fixture's events or the clock anchor are missing; `flash_notes`
+/// then says what was missing.
 pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
     let mut info = FlashInfo::default();
     let Some(unc_idx) = inp.trace_events.iter().position(|e| e.tag == "UNCLOAK") else {
@@ -352,11 +364,8 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
         return info;
     };
     let reveal_ms = inp.trace_events[unc_idx].elapsed_ms;
+    let revealed_pos = inp.trace_events[unc_idx].frame.map(|f| (f.x, f.y));
 
-    let client_positions = inp
-        .client_events
-        .iter()
-        .any(|e| matches!(e.kind, ClientEventKind::Moved { .. }));
     let client_usable = match (inp.client_events.is_empty(), inp.anchor) {
         (false, Some(_)) => true,
         (true, _) => {
@@ -377,48 +386,58 @@ pub fn detect_flash(inp: &FlashInputs) -> FlashInfo {
         FlashBasis::ExtensionOnly
     });
 
-    // The extension's own signal. On X11 the client reports moves itself, so a position change
-    // is taken from there to avoid listing the same jump twice.
-    if !(client_usable && client_positions) {
-        if let Some(corr) = inp.trace_events[unc_idx + 1..]
-            .iter()
-            .find(|e| e.tag == "ANCHOR_CORRECTION")
-        {
-            let moved = correction_move(&corr.extra);
-            if moved.map_or(true, |(from, to)| !same_pos(from, to)) {
-                let at = (corr.elapsed_ms - reveal_ms).max(0.0);
-                let detail = match moved {
-                    Some((f, t)) => format!(
-                        "position corrected {},{} -> {},{} {:.1} ms after the reveal",
-                        f.0, f.1, t.0, t.1, at
-                    ),
-                    None => format!("position corrected {:.1} ms after the reveal", at),
-                };
-                info.flash_events.push(FlashEvent {
-                    kind: FlashKind::PositionChangeAfterReveal,
-                    source: FlashSource::Extension,
-                    at_ms_after_reveal: at,
-                    certain: true,
-                    detail,
-                });
-            }
+    let correction = inp.trace_events[unc_idx + 1..]
+        .iter()
+        .find(|e| e.tag == "ANCHOR_CORRECTION");
+    if let Some(corr) = correction {
+        let moved = correction_move(&corr.extra);
+        if moved.map_or(true, |(from, to)| !same_pos(from, to)) {
+            let at = (corr.elapsed_ms - reveal_ms).max(0.0);
+            let detail = match moved {
+                Some((f, t)) => format!(
+                    "position corrected {},{} -> {},{} {:.1} ms after the reveal",
+                    f.0, f.1, t.0, t.1, at
+                ),
+                None => format!("position corrected {:.1} ms after the reveal", at),
+            };
+            info.flash_events.push(FlashEvent {
+                kind: FlashKind::PositionChangeAfterReveal,
+                source: FlashSource::Extension,
+                at_ms_after_reveal: at,
+                certain: true,
+                detail,
+            });
         }
     }
 
     if let (true, Some(anchor)) = (client_usable, inp.anchor) {
         info.flash_clock_uncertainty_ms = Some(anchor.half_width_ms());
-        client_flashes(inp.client_events, anchor, reveal_ms, &mut info);
+        client_flashes(
+            inp.client_events,
+            anchor,
+            reveal_ms,
+            // The extension's correction already names the move; the client's position is only
+            // consulted when there is none.
+            if correction.is_some() {
+                None
+            } else {
+                revealed_pos
+            },
+            &mut info,
+        );
     }
     info.flash = info.flash_events.iter().any(|e| e.certain);
     info
 }
 
 /// Adds the flash events the fixture's own timeline shows, relative to the reveal at `reveal_ms`
-/// on the extension's clock.
+/// on the extension's clock. `revealed_pos` is the window position the extension logged at the
+/// reveal, or `None` to skip the position check.
 fn client_flashes(
     client: &[ClientEvent],
     anchor: &ClockAnchor,
     reveal_ms: f64,
+    revealed_pos: Option<(i32, i32)>,
     info: &mut FlashInfo,
 ) {
     let (r_lo, r_hi) = anchor.mono_range(reveal_ms);
@@ -436,108 +455,82 @@ fn client_flashes(
     let after_ms = |t_ns: u64| (t_ns as f64 - r_mid) / 1e6;
     let watched = |t_ns: u64| after_ms(t_ns) <= POST_REVEAL_WATCH_MS;
 
-    // Size at the reveal: the newest size event that is certainly before it.
-    let size_of = |k: &ClientEventKind| match *k {
-        ClientEventKind::FirstPaint { w, h } | ClientEventKind::Resized { w, h } => Some((w, h)),
-        ClientEventKind::Moved { .. } => None,
+    // The paints: `FIRST_PAINT` is written once per new size, so each one is a change of what the
+    // window shows. The content at the reveal is the newest paint that is certainly before it.
+    let paint_of = |e: &ClientEvent| match e.kind {
+        ClientEventKind::FirstPaint { w, h } => Some((w, h)),
+        _ => None,
     };
-    let size_at_reveal = client
+    let mut shown = client
         .iter()
         .filter(|e| matches!(rel(e.t_ns), Rel::Before))
-        .filter_map(|e| size_of(&e.kind))
+        .filter_map(paint_of)
         .last();
-    let mut reported_sizes: Vec<(u32, u32)> = Vec::new();
-    if let Some(mut cur) = size_at_reveal {
-        for e in client.iter().filter(|e| watched(e.t_ns)) {
-            let Some(sz) = size_of(&e.kind) else { continue };
-            let r = rel(e.t_ns);
-            if matches!(r, Rel::Before) || same_size(sz, cur) {
-                continue;
-            }
-            info.flash_events.push(FlashEvent {
-                kind: FlashKind::SizeChangeAfterReveal,
-                source: FlashSource::Client,
-                at_ms_after_reveal: after_ms(e.t_ns),
-                certain: matches!(r, Rel::After),
-                detail: format!(
-                    "size {}x{} -> {}x{} {:.1} ms after the reveal",
-                    cur.0,
-                    cur.1,
-                    sz.0,
-                    sz.1,
-                    after_ms(e.t_ns)
-                ),
-            });
-            reported_sizes.push(sz);
-            cur = sz;
+    for e in client.iter().filter(|e| watched(e.t_ns)) {
+        let (Some(sz), r) = (paint_of(e), rel(e.t_ns)) else {
+            continue;
+        };
+        if matches!(r, Rel::Before) {
+            continue;
         }
+        let at = after_ms(e.t_ns);
+        let (kind, detail) = match shown {
+            // Nothing had been painted when the window was revealed.
+            None => (
+                FlashKind::PaintAfterReveal,
+                format!(
+                    "first paint at {}x{} came {:.1} ms after the reveal (nothing was painted at the reveal)",
+                    sz.0, sz.1, at
+                ),
+            ),
+            Some(cur) if same_size(sz, cur) => continue,
+            Some(cur) => (
+                FlashKind::SizeChangeAfterReveal,
+                format!(
+                    "first paint at {}x{} came {:.1} ms after the reveal (content was {}x{})",
+                    sz.0, sz.1, at, cur.0, cur.1
+                ),
+            ),
+        };
+        info.flash_events.push(FlashEvent {
+            kind,
+            source: FlashSource::Client,
+            at_ms_after_reveal: at,
+            certain: matches!(r, Rel::After),
+            detail,
+        });
+        shown = Some(sz);
     }
 
-    // The reveal against the first paint at the final size. A size change already reported
-    // above covers its own paint; this adds the case where the size never changed but the first
-    // paint came late (a window shown empty).
-    let last_paint = client
+    // The position the client ends up reporting, against the one the extension logged at the
+    // reveal. A report delivered late for a move that happened before the reveal equals the
+    // revealed position, so only a different final position is a move after it.
+    let Some(rev) = revealed_pos else { return };
+    let last_move = client
         .iter()
         .filter(|e| watched(e.t_ns))
         .filter_map(|e| match e.kind {
-            ClientEventKind::FirstPaint { w, h } => Some((e.t_ns, (w, h))),
+            ClientEventKind::Moved { x, y } => Some((e.t_ns, (x, y))),
             _ => None,
         })
         .last();
-    if let Some((t_ns, sz)) = last_paint {
+    if let Some((t_ns, pos)) = last_move {
         let r = rel(t_ns);
-        let covered = reported_sizes.iter().any(|&s| same_size(s, sz));
-        if !covered && !matches!(r, Rel::Before) {
+        if !matches!(r, Rel::Before) && !same_pos(pos, rev) {
             info.flash_events.push(FlashEvent {
-                kind: FlashKind::PaintAfterReveal,
+                kind: FlashKind::PositionChangeAfterReveal,
                 source: FlashSource::Client,
                 at_ms_after_reveal: after_ms(t_ns),
                 certain: matches!(r, Rel::After),
                 detail: format!(
-                    "first paint at {}x{} came {:.1} ms after the reveal",
-                    sz.0,
-                    sz.1,
+                    "position {},{} -> {},{} reported {:.1} ms after the reveal",
+                    rev.0,
+                    rev.1,
+                    pos.0,
+                    pos.1,
                     after_ms(t_ns)
                 ),
             });
-        }
-    }
-
-    // Position reported by the client (X11): the newest move certainly before the reveal is the
-    // baseline.
-    let moved_of = |k: &ClientEventKind| match *k {
-        ClientEventKind::Moved { x, y } => Some((x, y)),
-        _ => None,
-    };
-    let base = client
-        .iter()
-        .filter(|e| matches!(rel(e.t_ns), Rel::Before))
-        .filter_map(|e| moved_of(&e.kind))
-        .last();
-    if let Some(mut cur) = base {
-        for e in client.iter().filter(|e| watched(e.t_ns)) {
-            let Some(pos) = moved_of(&e.kind) else {
-                continue;
-            };
-            let r = rel(e.t_ns);
-            if matches!(r, Rel::Before) || same_pos(pos, cur) {
-                continue;
-            }
-            info.flash_events.push(FlashEvent {
-                kind: FlashKind::PositionChangeAfterReveal,
-                source: FlashSource::Client,
-                at_ms_after_reveal: after_ms(e.t_ns),
-                certain: matches!(r, Rel::After),
-                detail: format!(
-                    "position {},{} -> {},{} {:.1} ms after the reveal",
-                    cur.0,
-                    cur.1,
-                    pos.0,
-                    pos.1,
-                    after_ms(e.t_ns)
-                ),
-            });
-            cur = pos;
         }
     }
 }

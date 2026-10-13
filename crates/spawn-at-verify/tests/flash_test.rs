@@ -93,7 +93,7 @@ fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
     assert_eq!(info.flash_basis, Some(FlashBasis::Client));
     assert_eq!(info.flash_events.len(), 1, "{:?}", info.flash_events);
     let e = &info.flash_events[0];
-    assert_eq!(e.kind, FlashKind::PaintAfterReveal);
+    assert_eq!(e.kind, FlashKind::SizeChangeAfterReveal);
     assert_eq!(e.source, FlashSource::Client);
     assert!(e.certain);
     assert!(
@@ -101,7 +101,11 @@ fn test_x11_lying_frame_rect_late_paint_is_a_flash() {
         "paint at +95 ms, reveal at +70 ms: {}",
         e.at_ms_after_reveal
     );
-    assert!(e.detail.contains("800x600"), "{}", e.detail);
+    assert!(
+        e.detail.contains("first paint at 800x600") && e.detail.contains("content was 400x300"),
+        "{}",
+        e.detail
+    );
     assert!((info.flash_clock_uncertainty_ms.unwrap() - 1.0).abs() < 0.02);
 }
 
@@ -223,11 +227,15 @@ fn test_top_left_in_place_shrink_after_reveal_is_a_size_flash() {
     assert_eq!(kinds, vec![FlashKind::SizeChangeAfterReveal]);
     let e = &info.flash_events[0];
     assert!(
-        (e.at_ms_after_reveal - 30.0).abs() < 0.01,
-        "{}",
+        (e.at_ms_after_reveal - 31.0).abs() < 0.01,
+        "paint at +91 ms, reveal at +60 ms: {}",
         e.at_ms_after_reveal
     );
-    assert!(e.detail.contains("400x300 -> 300x200"), "{}", e.detail);
+    assert!(
+        e.detail.contains("first paint at 300x200") && e.detail.contains("content was 400x300"),
+        "{}",
+        e.detail
+    );
 }
 
 /// A window revealed before its first paint with no size change at all (the fixture's
@@ -279,7 +287,7 @@ fn test_tolerance_and_watch_window() {
             anchor: Some(&a),
         })
     };
-    // The fixture is at 800x600 and has painted it before the reveal; `extra` is one more event.
+    // The fixture has painted 800x600 before the reveal; `extra` is one more paint.
     let with = |extra: String| {
         run(&[
             client_line(10.0, "FIRST_PAINT", "800x600"),
@@ -288,11 +296,11 @@ fn test_tolerance_and_watch_window() {
         ]
         .join("\n"))
     };
-    let within = with(client_line(100.0, "RESIZED", "802x598"));
+    let within = with(client_line(100.0, "FIRST_PAINT", "802x598"));
     assert!(!within.flash, "{:?}", within.flash_events);
-    let beyond = with(client_line(100.0, "RESIZED", "803x600"));
+    let beyond = with(client_line(100.0, "FIRST_PAINT", "803x600"));
     assert!(beyond.flash, "{:?}", beyond.flash_events);
-    let late = with(client_line(1670.0, "RESIZED", "400x300"));
+    let late = with(client_line(1670.0, "FIRST_PAINT", "400x300"));
     assert!(!late.flash, "{:?}", late.flash_events);
 }
 
@@ -322,10 +330,10 @@ fn test_extension_only_position_correction_after_reveal() {
     assert!((e.at_ms_after_reveal - 33.9).abs() < 0.01);
 }
 
-/// On X11 the client reports its own moves, so the extension's ANCHOR_CORRECTION and the
-/// fixture's MOVED are one jump: it is listed once, from the client.
+/// The extension's ANCHOR_CORRECTION and the fixture's MOVED report one jump: it is listed once,
+/// from the extension (exact on its own clock); the client's position is not consulted then.
 #[test]
-fn test_client_move_replaces_the_extension_correction_instead_of_doubling_it() {
+fn test_extension_correction_is_listed_once_not_doubled_by_the_client_move() {
     let ev = events(&[
         line(30.0, "CLOAK", "opacity=0 frame=(760,764,400x300)"),
         line(50.0, "UNCLOAK", "opacity=255 frame=(760,764,400x300)"),
@@ -351,11 +359,75 @@ fn test_client_move_replaces_the_extension_correction_instead_of_doubling_it() {
     });
     assert!(info.flash);
     assert_eq!(info.flash_events.len(), 1, "{:?}", info.flash_events);
-    assert_eq!(info.flash_events[0].source, FlashSource::Client);
+    assert_eq!(info.flash_events[0].source, FlashSource::Extension);
     assert_eq!(
         info.flash_events[0].kind,
         FlashKind::PositionChangeAfterReveal
     );
+}
+
+/// The first live run on X11: the window manager moved the window to 1104,464 before the reveal
+/// (the extension logged that frame at UNCLOAK), but the fixture was told 11 ms after the reveal.
+/// A late *report* of a move is not a move after the reveal: no flash, no event.
+#[test]
+fn test_late_moved_report_of_a_move_before_the_reveal_is_not_a_flash() {
+    let ev = x11_lying_trace();
+    let client = parse_client_events(
+        &[
+            client_line(10.0, "FIRST_PAINT", "800x600"),
+            client_line(20.0, "MOVED", "50,90"),
+            client_line(81.4, "MOVED", "1104,464"),
+        ]
+        .join("\n"),
+    );
+    let a = anchor(1.0);
+    let info = detect_flash(&FlashInputs {
+        trace_events: &ev,
+        client_events: &client,
+        anchor: Some(&a),
+    });
+    assert!(!info.flash, "{:?}", info.flash_events);
+    assert!(info.flash_events.is_empty());
+}
+
+/// The client may deliver several old positions after the reveal; only where it ends up counts.
+/// Ending at the revealed position is lag (no flash); ending 30 px away is a move after the
+/// reveal, certain and attributed to the client.
+#[test]
+fn test_only_the_final_client_position_decides_a_move_after_the_reveal() {
+    let ev = x11_lying_trace();
+    let a = anchor(1.0);
+    let run = |moves: &[String]| {
+        let mut lines = vec![client_line(10.0, "FIRST_PAINT", "800x600")];
+        lines.extend(moves.iter().cloned());
+        let client = parse_client_events(&lines.join("\n"));
+        detect_flash(&FlashInputs {
+            trace_events: &ev,
+            client_events: &client,
+            anchor: Some(&a),
+        })
+    };
+    let lagging = run(&[
+        client_line(72.0, "MOVED", "50,90"),
+        client_line(76.0, "MOVED", "1104,464"),
+    ]);
+    assert!(!lagging.flash, "{:?}", lagging.flash_events);
+    let moved = run(&[
+        client_line(72.0, "MOVED", "1104,464"),
+        client_line(100.0, "MOVED", "1134,464"),
+    ]);
+    assert!(moved.flash, "{:?}", moved.flash_events);
+    assert_eq!(moved.flash_events.len(), 1);
+    let e = &moved.flash_events[0];
+    assert_eq!(
+        (e.kind, e.source, e.certain),
+        (
+            FlashKind::PositionChangeAfterReveal,
+            FlashSource::Client,
+            true
+        )
+    );
+    assert!((e.at_ms_after_reveal - 30.0).abs() < 0.01);
 }
 
 /// A trace with no UNCLOAK has no reveal to compare with: nothing is checked and the basis says so.
