@@ -60,7 +60,7 @@ All compositor-specific IPC mechanisms (D-Bus, UNIX domain sockets, X11 atom man
 
 ## 3. GNOME Wayland "Opacity Cloaking" Lifecycle
 
-Under Wayland, client applications are sandboxed and cannot position their own windows. `spawn-at` uses an embedded GNOME Shell extension ([`assets/gnome/extension.esm.js`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js)) to achieve zero-flicker cold-starts:
+Under Wayland, client applications are sandboxed and cannot position their own windows. `spawn-at` uses an embedded GNOME Shell extension ([`assets/gnome/extension.esm.js`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js)) to place windows with few flashes (see the README, "How well it works"):
 
 ```text
 [spawn-at CLI] ───1. D-Bus Arm(app_id, x, y, w, h)───► [GNOME Shell Extension]

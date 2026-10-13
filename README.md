@@ -10,7 +10,7 @@
 
 Want to open an app at an exact spot and size? On X11 you can move anything, but you'll watch it jump. On Wayland, apps can't place themselves and there's no standard way for anyone else to do it. Each compositor has its own answer, and macOS and Windows are their own worlds.
 
-`spawn-at` is one command and one placement model, with a driver per desktop underneath. The finished driver today is GNOME Shell, on both Wayland and X11. The window stays invisible until it's exactly where you asked.
+`spawn-at` is one command and one placement model, with a driver per desktop underneath. The finished driver today is GNOME Shell, on both Wayland and X11. On GNOME Shell the window is kept invisible until it has been placed and (on Wayland) the app has had time to draw at the new size. That removes most flashes but not all of them: see [How well it works](#how-well-it-works).
 
 <!-- TODO: demo gif: split screen. Left: sleep + xdotool script, window flashes at the default spot, then jumps. Right: spawn-at, window just appears in place. Same app, same target. -->
 
@@ -100,7 +100,7 @@ sequenceDiagram
 Three details do most of the work:
 
 - **Registered before launch.** The extension already knows what to do when the window appears, so there's no race between the window existing and us finding out about it.
-- **It waits for the app, not just the compositor.** Resizing a frame doesn't mean the app has drawn into it. The extension watches the app's buffer settle (30ms quiet period, 120ms minimum, 1500ms hard cap) before revealing.
+- **It waits for the app, not just the compositor.** Resizing a frame doesn't mean the app has drawn into it. On GNOME 46 Wayland the extension waits until the app has answered the size request (default cap 250 ms, hard limit 1500 ms) before revealing. XWayland and X11 windows, and the legacy GNOME 42-44 extension, still use the old rule: a 30 ms quiet period, 120 ms minimum, 1500 ms hard cap.
 - **A window never stays invisible.** Registrations expire after 15 seconds (1.2s for wildcard matches), unmatched windows are revealed immediately, and errors during placement restore opacity. If something goes wrong you get a normally placed window, not a ghost.
 
 <details>
@@ -131,7 +131,20 @@ sequenceDiagram
     Ext->>App: 6. Reveal
 ```
 
-Wayland is the worst case: no client-side placement, no global window API, and the compositor has to do everything. If one command can place a window with no flash there, the same model should carry to the easier platforms.
+Wayland is the worst case: no client-side placement, no global window API, and the compositor has to do everything. If one command can place a window with few or no flashes there, the same model should carry to the easier platforms.
+
+## How well it works
+
+Measured on one machine (GNOME 46, Wayland, one monitor, the project's own test window, not real apps), same login, runs alternating between the old rule and the new one:
+
+- **Far fewer flashes in our measurements on GNOME 46 Wayland.** Under heavy CPU load (22 busy threads), the old rule flashed in 26 of 40 runs and the ready-wait in 0 of 40, judged by wire time. Idle, neither flashed in 20 runs.
+- **Wire time is the optimistic bound.** A "flash" here means the window was revealed before the app's first commit at its final size, read from the Wayland protocol. It says nothing about what a compositor frame actually showed.
+- **No screen capture was done.** Nobody measured pixels on screen.
+- **Cost:** under load the window is hidden longer (median 67 ms against 45 ms); idle there is no difference.
+- **XWayland, X11 and GNOME 42-44 still use the old rule**, and flash. Only the test window has been tried there, not real X11 apps.
+- **An app already at its minimum size** (so it cannot answer a resize) makes the ready-wait run for the full `wait.cap_ms` (about +230 ms in our test). The same goes for an app that never answers (a hung one).
+
+The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 and 6.23).
 
 ## Settings
 
@@ -155,7 +168,7 @@ spawn-at config reset                  # remove all of the settings above (updat
 A value on the command line beats the file, and the file beats the default; `show` names the source of each value (`default`, `file` or `flag`). A setting that is not set sends nothing to the extension. An unknown key in the file is a warning, a file that is not valid TOML is one warning with the line number, and in both cases `spawn` carries on with the defaults. Setting a key rewrites the file without comments. Set `SPAWN_AT_CONFIG=<path>` to use a different file (a path that does not exist means "no config").
 
 **On a slow or busy machine:**
-- Windows that still appear at the wrong size or jump just after they appear: raise `wait.cap_ms` (try 400). A longer cap costs nothing when the app answers in time; it only delays the window for an app that never answers.
+- Windows that still appear at the wrong size or jump just after they appear: raise `wait.cap_ms` (try 400). A longer cap costs nothing when the app answers in time; it only delays the window for an app that never answers. An app that is already at its minimum size is such an app: it costs the full cap on every spawn.
 - `WARNING: ... did not appear within 2s` for a heavy app (a browser or an Electron app starting cold): raise `spawn.window_timeout_ms` (try 8000).
 - To compare with the pre-0.2 behaviour: `spawn-at config set wait.strategy legacy`.
 
@@ -167,7 +180,7 @@ Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extensi
 | :--- | :--- |
 | GNOME 46, Wayland session | **Tested** |
 | GNOME 46, X11 session | Partly tested (the test fixture only, no real apps) |
-| XWayland windows (X11 apps on a Wayland session) | Untested |
+| XWayland windows (X11 apps on a Wayland session) | Test window only, no real apps. Uses the old rule, so it flashes more |
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**: never run on a real GNOME 42-44, it may not work at all |
 | GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 48, but only 46 has been run) |
 | Multi-monitor, fractional scaling | Untested |
