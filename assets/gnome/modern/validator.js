@@ -3,6 +3,8 @@
  * Zero external or gi:// dependencies - pure ES module.
  */
 
+import { DEFAULT_POLICY } from './ready_wait.js';
+
 const ALLOWED_OPS = new Set([
     'Snapshot',
     'Cloak',
@@ -22,6 +24,43 @@ const MAX_TIMEOUT_MS = 60_000;
 
 function isFiniteNumber(val, min, max) {
     return typeof val === 'number' && Number.isFinite(val) && val >= min && val <= max;
+}
+
+/** The spellings of `WaitStrategy` in spawn-at-core (`wait_override.rs`). */
+const WAIT_STRATEGIES = new Set(['auto', 'legacy', 'ready-wait']);
+
+/** Longest value text kept in an `ignored` entry, so a hostile value cannot flood the log. */
+const MAX_IGNORED_VALUE_LEN = 32;
+
+/**
+ * Reads the developer override of a `WaitForCommit` (`strategy`, `cap_ms`). It never throws: an
+ * invalid field is left out and named in `ignored` (`field=<JSON text of the value>`), because
+ * the spawn must still happen. `auto` is the same as no override and adds nothing.
+ *
+ * @param {object} args - the instruction's argument object
+ * @returns {{strategy?: string, cap_ms?: number, ignored: string[]}} only the valid fields
+ */
+function readWaitOverride(args) {
+    const out = { ignored: [] };
+    const describe = value => String(JSON.stringify(value)).slice(0, MAX_IGNORED_VALUE_LEN);
+
+    if ('strategy' in args) {
+        const value = args.strategy;
+        if (typeof value === 'string' && WAIT_STRATEGIES.has(value)) {
+            if (value !== 'auto')
+                out.strategy = value;
+        } else {
+            out.ignored.push(`strategy=${describe(value)}`);
+        }
+    }
+    if ('cap_ms' in args) {
+        const value = args.cap_ms;
+        if (Number.isInteger(value) && value >= 1 && value <= DEFAULT_POLICY.hard_ms)
+            out.cap_ms = value;
+        else
+            out.ignored.push(`cap_ms=${describe(value)}`);
+    }
+    return out;
 }
 
 export function validateInstruction(op) {
@@ -65,7 +104,17 @@ export function validateInstruction(op) {
             const { timeout_ms } = args;
             if (!isFiniteNumber(timeout_ms, 0, MAX_TIMEOUT_MS))
                 throw new Error(`WaitForCommit invalid timeout_ms: ${timeout_ms}`);
-            return { name, args: { timeout_ms: Math.round(timeout_ms) } };
+            // The override fields are added only when present, so an instruction without them
+            // validates to exactly the object it always did.
+            const override = readWaitOverride(args);
+            const out = { timeout_ms: Math.round(timeout_ms) };
+            if (override.strategy !== undefined)
+                out.strategy = override.strategy;
+            if (override.cap_ms !== undefined)
+                out.cap_ms = override.cap_ms;
+            if (override.ignored.length > 0)
+                out.ignored = override.ignored;
+            return { name, args: out };
         }
 
         case 'SetPositionAnchored': {

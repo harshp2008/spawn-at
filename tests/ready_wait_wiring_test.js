@@ -242,7 +242,7 @@ const WITHOUT_SIZE = JSON.stringify(['Cloak', { WaitForCommit: { timeout_ms: 300
     { SetPositionAnchored: BOTTOM_RIGHT }, 'Uncloak']);
 
 /** Runs one batch on a fresh extension with the virtual clock; `script(sim, window)` schedules the app's answers. */
-async function runBatch(windowOptions, script = () => {}, batch = WITH_SIZE) {
+function makeRig() {
     const sim = createSim();
     const ext = new SpawnAtExtension({ path: '/dummy' });
     ext.enable();
@@ -254,21 +254,38 @@ async function runBatch(windowOptions, script = () => {}, batch = WITH_SIZE) {
     const logs = [];
     const orig = ext.logTime.bind(ext);
     ext.logTime = (tag, extra, win) => { logs.push({ tag, extra }); orig(tag, extra, win); };
+    return { sim, ext, emitted, logs };
+}
+
+/** Runs one batch on `rig` (a new window each time); the result holds only what this batch logged and emitted. */
+async function runOn(rig, windowOptions, script = () => {}, batch = WITH_SIZE) {
+    const { sim, ext } = rig;
+    const logFrom = rig.logs.length;
+    const emitFrom = rig.emitted.length;
+    const startedAt = sim.now();
 
     const window = createWindow(windowOptions);
     const actor = createActor();
     script(sim, window);
     await sim.run(ext._runBatch(window, actor, validateInstructions(batch), 'tgt-1'));
     const frame = window.get_frame_rect();
-    ext.disable();
+    const logs = rig.logs.slice(logFrom);
+    const emitted = rig.emitted.slice(emitFrom);
     const line = tag => logs.find(entry => entry.tag === tag)?.extra;
     const outcomeSignal = emitted.find(entry => entry.name === 'ResizeOutcome');
     return {
         logs, emitted, frame, window, actor, line,
         names: emitted.map(entry => entry.name),
         outcome: outcomeSignal?.params,
-        elapsed: sim.now(),
+        elapsed: sim.now() - startedAt,
     };
+}
+
+async function runBatch(windowOptions, script = () => {}, batch = WITH_SIZE) {
+    const rig = makeRig();
+    const result = await runOn(rig, windowOptions, script, batch);
+    rig.ext.disable();
+    return result;
 }
 
 const rect = f => [f.x, f.y, f.width, f.height];
@@ -389,4 +406,112 @@ test('a window that cannot say what it is (no get_client_type) keeps the origina
     const r = await runBatch({ hasClientType: false, kind: 'x11' });
     assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=unknown /);
     assert.deepEqual(r.names, ['SpawnClaimed']);
+});
+
+// ---------------------------------------------------------------------------------------------
+// 3. Per-spawn override (`strategy`, `cap_ms` in the WaitForCommit arguments): honoured for the
+//    spawn that carries it, ignored when invalid, and no trace of it when absent.
+// ---------------------------------------------------------------------------------------------
+
+const withWait = extra => JSON.stringify(['Cloak', { SetSize: { w: 800, h: 600 } },
+    { WaitForCommit: { timeout_ms: 300, ...extra } }, { SetPositionAnchored: BOTTOM_RIGHT }, 'Uncloak']);
+const logTrace = r => r.logs.map(entry => `${entry.tag} ${entry.extra}`);
+
+test('override: an instruction without the fields logs no READY_WAIT_OVERRIDE and starts with cap=150', async () => {
+    const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), undefined);
+    assert.match(r.line('READY_WAIT_START'), / cap=150 quiet=30 hard=1500$/);
+});
+
+test('override: strategy "auto" is the same as no override, line for line', async () => {
+    const script = (sim, w) => sim.at(20, () => w.respond(800, 600));
+    const plain = await runBatch({}, script);
+    const auto = await runBatch({}, script, withWait({ strategy: 'auto' }));
+    assert.deepEqual(logTrace(auto), logTrace(plain));
+    assert.deepEqual(auto.names, plain.names);
+    assert.deepEqual(auto.outcome.value, plain.outcome.value);
+    assert.deepEqual(rect(auto.frame), rect(plain.frame));
+});
+
+test('override legacy: a native Wayland window takes the original rule and says why', async () => {
+    const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)), withWait({ strategy: 'legacy' }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=legacy cap_ms=none unused=none ignored=none');
+    assert.equal(r.line('READY_WAIT_START'), 'strategy=legacy kind=NativeWayland why=override-legacy timeoutMs=300');
+    assert.match(r.line('READY_WAIT_RESOLVED'), /^strategy=legacy outcome=none .* reason=AT_TARGET$/);
+    assert.deepEqual(r.names, ['SpawnClaimed']);
+    assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
+});
+
+test('override legacy: a refusing app ends on the old idle timeout (300 ms), not the 150 ms cap', async () => {
+    const legacy = await runBatch({}, () => {}, withWait({ strategy: 'legacy' }));
+    assert.match(legacy.line('COMMIT_RESOLVED'), /^reason=TIMEOUT_NO_CHANGE /);
+    assert.ok(legacy.elapsed >= 300 && legacy.elapsed < 1500, `legacy ended at ${legacy.elapsed} ms`);
+    // The batch also spends the frame wait (50 ms) after the resize wait, so the 150 ms is read
+    // from the outcome (`waited_ms`), not from the length of the batch.
+    const auto = await runBatch({});
+    assert.equal(auto.outcome.value[4], 150);
+});
+
+test('override ready-wait: the machine as under auto, with the override recorded', async () => {
+    const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)), withWait({ strategy: 'ready-wait' }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=ready-wait cap_ms=none unused=none ignored=none');
+    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 /);
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 20, 'at-target']);
+});
+
+test('override ready-wait on an X11 window: still the original rule, reported as unused', async () => {
+    const r = await runBatch({ kind: 'x11' }, () => {}, withWait({ strategy: 'ready-wait' }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=ready-wait cap_ms=none unused=strategy(ready-wait:not-native-wayland) ignored=none');
+    assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland /);
+    assert.deepEqual(r.names, ['SpawnClaimed']);
+});
+
+test('override cap_ms: a smaller cap turns a 100 ms answer into TimedOut at the new cap', async () => {
+    const answer = (sim, w) => sim.at(100, () => w.respond(800, 600));
+    const r = await runBatch({}, answer, withWait({ cap_ms: 60 }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=none cap_ms=60 unused=none ignored=none');
+    assert.match(r.line('READY_WAIT_START'), / cap=60 quiet=30 hard=1500$/);
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'timed-out', 400, 300, 60, 'cap']);
+    // The same app under the default cap is reached.
+    const plain = await runBatch({}, answer);
+    assert.deepEqual(plain.outcome.value, ['tgt-1', 'reached', 800, 600, 100, 'at-target']);
+});
+
+test('override cap_ms: a larger cap waits for a 300 ms answer that the default cap would miss', async () => {
+    const answer = (sim, w) => sim.at(300, () => w.respond(800, 600));
+    const r = await runBatch({}, answer, withWait({ cap_ms: 400 }));
+    assert.match(r.line('READY_WAIT_START'), / cap=400 quiet=30 hard=1500$/);
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 300, 'at-target']);
+    const plain = await runBatch({}, answer);
+    assert.deepEqual(plain.outcome.value, ['tgt-1', 'timed-out', 400, 300, 150, 'cap']);
+});
+
+test('override cap_ms together with legacy: the cap has nothing to apply to and is reported as unused', async () => {
+    const r = await runBatch({}, () => {}, withWait({ strategy: 'legacy', cap_ms: 60 }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=legacy cap_ms=60 unused=cap_ms(legacy-has-no-cap) ignored=none');
+    assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=NativeWayland why=override-legacy /);
+    assert.ok(r.elapsed >= 300, `legacy ended at ${r.elapsed} ms, not at the unused cap`);
+});
+
+test('override: invalid values are ignored, named in the log, and the spawn runs with the defaults', async () => {
+    const answer = (sim, w) => sim.at(20, () => w.respond(800, 600));
+    const r = await runBatch({}, answer, withWait({ strategy: 'fast', cap_ms: 0 }));
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=none cap_ms=none unused=none ignored=strategy="fast";cap_ms=0');
+    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 quiet=30 hard=1500$/);
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 20, 'at-target']);
+    // A valid field next to an invalid one is still used.
+    const mixed = await runBatch({}, answer, withWait({ strategy: 'legacy', cap_ms: 9999 }));
+    assert.match(mixed.line('READY_WAIT_START'), /why=override-legacy/);
+    assert.match(mixed.line('READY_WAIT_OVERRIDE'), /ignored=cap_ms=9999$/);
+});
+
+test('override: scoped to the spawn that carries it, the next spawn on the same extension is back to the defaults', async () => {
+    const rig = makeRig();
+    const first = await runOn(rig, {}, () => {}, withWait({ strategy: 'legacy', cap_ms: 60 }));
+    assert.match(first.line('READY_WAIT_START'), /why=override-legacy/);
+    const second = await runOn(rig, {});
+    assert.equal(second.line('READY_WAIT_OVERRIDE'), undefined);
+    assert.match(second.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 quiet=30 hard=1500$/);
+    assert.equal(second.outcome.value[4], 150);
+    rig.ext.disable();
 });

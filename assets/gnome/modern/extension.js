@@ -794,14 +794,23 @@ export default class SpawnAtExtension extends Extension {
     // the original rule (CommitLatch.waitForCommit) and says so with strategy=legacy. The kind, not
     // the session, decides: an XWayland window inside a Wayland session reports its frame size
     // immediately, which the machine would read as an instant answer.
+    //
+    // A developer override rides in `args` of this one instruction (`strategy`, `cap_ms`, validator.js)
+    // and so applies to this spawn only; nothing is stored on the extension. `legacy` sends even a
+    // native Wayland window down the original rule (`why=override-legacy`); `ready-wait` changes
+    // nothing a native window would not do anyway; `cap_ms` replaces the 150 ms cap of the machine.
     async _stepWaitForCommit(ctx, args) {
         const { window } = ctx;
         const kind = this._windowKind(window);
         const hasRequest = ctx.safeW !== null && ctx.safeH !== null;
+        const forceLegacy = args.strategy === 'legacy';
+        const useMachine = kind === 'NativeWayland' && hasRequest && !forceLegacy;
 
-        if (kind === 'NativeWayland' && hasRequest) {
+        this._logWaitOverride(window, args, useMachine, hasRequest);
+
+        if (useMachine) {
             const before = ctx.preSetSizeFrame;
-            const result = await this._commitLatch.waitForReady(window, {
+            const request = {
                 kind,
                 target: [ctx.safeW, ctx.safeH],
                 before: [before.width, before.height],
@@ -809,14 +818,20 @@ export default class SpawnAtExtension extends Extension {
                 fullscreen: this._isFullscreen(window),
                 tiled: this._isTiled(window),
                 startedAtMs: ctx.setSizeAtMs ?? this.nowMs(),
-            });
+            };
+            if (args.cap_ms !== undefined)
+                request.policy = { cap_ms: args.cap_ms };
+            const result = await this._commitLatch.waitForReady(window, request);
             ctx.resize = result;
             return;
         }
 
         const startedAt = this.nowMs();
+        const why = forceLegacy && kind === 'NativeWayland' && hasRequest
+            ? 'override-legacy'
+            : (hasRequest ? 'not-native-wayland' : 'no-size-request');
         this.logTime('READY_WAIT_START',
-            `strategy=legacy kind=${kind} why=${hasRequest ? 'not-native-wayland' : 'no-size-request'} ` +
+            `strategy=legacy kind=${kind} why=${why} ` +
             `timeoutMs=${args.timeout_ms}`,
             window);
         const reason = await this._commitLatch.waitForCommit(
@@ -825,6 +840,28 @@ export default class SpawnAtExtension extends Extension {
         ctx.commit = reason;
         this.logTime('READY_WAIT_RESOLVED',
             `strategy=legacy outcome=none elapsed_ms=${(this.nowMs() - startedAt).toFixed(1)} reason=${reason}`,
+            window);
+    }
+
+    // Says what a developer override did, in one line before READY_WAIT_START (which then shows the
+    // effective strategy and cap). Silent when the instruction carries no override field, so a
+    // default spawn logs exactly what it did before. `unused` names valid fields that had no
+    // effect on this window; `ignored` (last, free text) names fields the validator dropped.
+    _logWaitOverride(window, args, useMachine, hasRequest) {
+        const ignored = args.ignored ?? [];
+        if (args.strategy === undefined && args.cap_ms === undefined && ignored.length === 0)
+            return;
+
+        const unused = [];
+        if (args.strategy === 'ready-wait' && !useMachine)
+            unused.push(`strategy(ready-wait:${hasRequest ? 'not-native-wayland' : 'no-size-request'})`);
+        if (args.cap_ms !== undefined && !useMachine)
+            unused.push('cap_ms(legacy-has-no-cap)');
+
+        this.logTime('READY_WAIT_OVERRIDE',
+            `strategy=${args.strategy ?? 'none'} cap_ms=${args.cap_ms ?? 'none'} ` +
+            `unused=${unused.length > 0 ? unused.join(';') : 'none'} ` +
+            `ignored=${ignored.length > 0 ? ignored.join(';') : 'none'}`,
             window);
     }
 
