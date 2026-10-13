@@ -95,6 +95,6 @@ fn test_default_policy_matches_the_shared_file() {
     assert_eq!(shared, Policy::default());
     assert_eq!(
         (shared.cap_ms, shared.quiet_ms, shared.hard_ms),
-        (150, 30, 1500)
+        (250, 30, 1500)
     );
 }

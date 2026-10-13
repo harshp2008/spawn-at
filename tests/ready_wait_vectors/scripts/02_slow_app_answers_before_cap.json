@@ -1,7 +1,7 @@
 {
   "name": "slow app answering before the cap",
-  "description": "The app reaches the requested size at 140 ms, 10 ms before the 150 ms cap.",
+  "description": "The app reaches the requested size at 240 ms, 10 ms before the 250 ms cap.",
   "request": { "target": [800, 600], "current": [400, 300] },
-  "events": [ { "at": 140, "size": [800, 600] } ],
-  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 140 }
+  "events": [ { "at": 240, "size": [800, 600] } ],
+  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 240 }
 }

@@ -47,11 +47,11 @@ pub struct Policy {
 }
 
 impl Default for Policy {
-    /// Cap 150 ms, quiet 30 ms (the existing `COMMIT_QUIET_MS`), hard limit 1500 ms (the existing
+    /// Cap 250 ms, quiet 30 ms (the existing `COMMIT_QUIET_MS`), hard limit 1500 ms (the existing
     /// `COMMIT_HARD_CAP_MS`).
     fn default() -> Self {
         Self {
-            cap_ms: 150,
+            cap_ms: 250,
             quiet_ms: 30,
             hard_ms: 1500,
         }
@@ -379,11 +379,11 @@ mod tests {
         );
     }
 
-    /// The first action of a real wait is `Wait` until the cap (150 ms after the start).
+    /// The first action of a real wait is `Wait` until the cap (250 ms after the start).
     #[test]
     fn test_first_deadline_is_the_cap() {
         let (_, a) = ReadyWait::start(Policy::default(), Request::new(BIG, SMALL), 1000);
-        assert_eq!(a, Action::Wait { deadline_ms: 1150 });
+        assert_eq!(a, Action::Wait { deadline_ms: 1250 });
     }
 
     /// A sample equal to the size at the request is not an answer: the cap clock is untouched and
@@ -399,7 +399,7 @@ mod tests {
             o,
             Outcome::TimedOut {
                 last_size: SMALL,
-                waited_ms: 150,
+                waited_ms: 250,
                 phase: TimeoutPhase::Cap
             }
         );
@@ -423,7 +423,7 @@ mod tests {
     }
 
     /// A sample that arrives after the cap without any tick in between is handled as if the timer
-    /// had fired on time: `TimedOut` at 150 ms, not a late `Reached`.
+    /// had fired on time: `TimedOut` at 250 ms, not a late `Reached`.
     #[test]
     fn test_late_sample_does_not_beat_an_expired_cap() {
         let (mut m, _) = ReadyWait::start(Policy::default(), Request::new(BIG, SMALL), 0);
@@ -431,7 +431,7 @@ mod tests {
             m.on_sample(BIG, 400),
             Action::Done(Outcome::TimedOut {
                 last_size: SMALL,
-                waited_ms: 150,
+                waited_ms: 250,
                 phase: TimeoutPhase::Cap
             })
         );
@@ -487,7 +487,7 @@ mod tests {
         assert_eq!(
             a,
             Action::Wait {
-                deadline_ms: 10_150
+                deadline_ms: 10_250
             }
         );
         assert_eq!(

@@ -51,7 +51,7 @@ impl WaitStrategy {
 pub struct WaitOverride {
     /// The wait rule; `Auto` leaves the choice to the extension.
     pub strategy: WaitStrategy,
-    /// Cap of the ready-wait in milliseconds, `None` for the policy default (150).
+    /// Cap of the ready-wait in milliseconds, `None` for the policy default (250).
     pub cap_ms: Option<u32>,
 }
 

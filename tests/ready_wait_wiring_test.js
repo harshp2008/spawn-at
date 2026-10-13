@@ -292,7 +292,7 @@ const rect = f => [f.x, f.y, f.width, f.height];
 
 test('native Wayland, fast app: reached at 20 ms, signal before SpawnClaimed, anchored for 800x600', async () => {
     const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)));
-    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland target=\(800x600\) current=\(400x300\) cap=150 quiet=30 hard=1500$/);
+    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland target=\(800x600\) current=\(400x300\) cap=250 quiet=30 hard=1500$/);
     assert.match(r.line('READY_WAIT_RESOLVED'), /^strategy=ready-wait outcome=reached elapsed_ms=20\.0 waited_ms=20 reason=at-target /);
     assert.match(r.line('COMMIT_RESOLVED'), /^reason=AT_TARGET finalFrame=\(800x600\)/);
     assert.deepEqual(r.names, ['ResizeOutcome', 'SpawnClaimed']);
@@ -301,17 +301,17 @@ test('native Wayland, fast app: reached at 20 ms, signal before SpawnClaimed, an
     assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
 });
 
-test('native Wayland, slow app: answering at 120 ms (inside the 150 ms cap) is still reached', async () => {
-    const r = await runBatch({}, (sim, w) => sim.at(120, () => w.respond(800, 600)));
-    assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 120, 'at-target']);
+test('native Wayland, slow app: answering at 220 ms (inside the 250 ms cap) is still reached', async () => {
+    const r = await runBatch({}, (sim, w) => sim.at(220, () => w.respond(800, 600)));
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 220, 'at-target']);
     assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
 });
 
-test('native Wayland, refusing app: no answer by the cap is TimedOut at 150 ms, placed for the size it has', async () => {
+test('native Wayland, refusing app: no answer by the cap is TimedOut at 250 ms, placed for the size it has', async () => {
     const r = await runBatch({});
-    assert.match(r.line('READY_WAIT_RESOLVED'), /outcome=timed-out .* waited_ms=150 reason=cap /);
+    assert.match(r.line('READY_WAIT_RESOLVED'), /outcome=timed-out .* waited_ms=250 reason=cap /);
     assert.match(r.line('COMMIT_RESOLVED'), /^reason=TIMEOUT_NO_CHANGE finalFrame=\(400x300\)/);
-    assert.deepEqual(r.outcome.value, ['tgt-1', 'timed-out', 400, 300, 150, 'cap']);
+    assert.deepEqual(r.outcome.value, ['tgt-1', 'timed-out', 400, 300, 250, 'cap']);
     assert.deepEqual(rect(r.frame), [1504, 764, 400, 300]);
 });
 
@@ -339,7 +339,7 @@ test('native Wayland, restless app that never settles: the hard limit ends the w
 test('native Wayland, window that does not allow resize: Skipped at once, the frame is left as it is', async () => {
     const r = await runBatch({ resizable: false });
     assert.deepEqual(r.outcome.value, ['tgt-1', 'skipped', 400, 300, 0, 'not-resizable']);
-    assert.equal(r.elapsed < 150, true, `the wait did not run to the cap (virtual ${r.elapsed} ms)`);
+    assert.equal(r.elapsed < 250, true, `the wait did not run to the cap (virtual ${r.elapsed} ms)`);
     assert.match(r.line('COMMIT_RESOLVED'), /^reason=SKIPPED /);
 });
 
@@ -417,10 +417,10 @@ const withWait = extra => JSON.stringify(['Cloak', { SetSize: { w: 800, h: 600 }
     { WaitForCommit: { timeout_ms: 300, ...extra } }, { SetPositionAnchored: BOTTOM_RIGHT }, 'Uncloak']);
 const logTrace = r => r.logs.map(entry => `${entry.tag} ${entry.extra}`);
 
-test('override: an instruction without the fields logs no READY_WAIT_OVERRIDE and starts with cap=150', async () => {
+test('override: an instruction without the fields logs no READY_WAIT_OVERRIDE and starts with cap=250', async () => {
     const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)));
     assert.equal(r.line('READY_WAIT_OVERRIDE'), undefined);
-    assert.match(r.line('READY_WAIT_START'), / cap=150 quiet=30 hard=1500$/);
+    assert.match(r.line('READY_WAIT_START'), / cap=250 quiet=30 hard=1500$/);
 });
 
 test('override: strategy "auto" is the same as no override, line for line', async () => {
@@ -442,20 +442,20 @@ test('override legacy: a native Wayland window takes the original rule and says 
     assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
 });
 
-test('override legacy: a refusing app ends on the old idle timeout (300 ms), not the 150 ms cap', async () => {
+test('override legacy: a refusing app ends on the old idle timeout (300 ms), not the 250 ms cap', async () => {
     const legacy = await runBatch({}, () => {}, withWait({ strategy: 'legacy' }));
     assert.match(legacy.line('COMMIT_RESOLVED'), /^reason=TIMEOUT_NO_CHANGE /);
     assert.ok(legacy.elapsed >= 300 && legacy.elapsed < 1500, `legacy ended at ${legacy.elapsed} ms`);
-    // The batch also spends the frame wait (50 ms) after the resize wait, so the 150 ms is read
+    // The batch also spends the frame wait (50 ms) after the resize wait, so the 250 ms is read
     // from the outcome (`waited_ms`), not from the length of the batch.
     const auto = await runBatch({});
-    assert.equal(auto.outcome.value[4], 150);
+    assert.equal(auto.outcome.value[4], 250);
 });
 
 test('override ready-wait: the machine as under auto, with the override recorded', async () => {
     const r = await runBatch({}, (sim, w) => sim.at(20, () => w.respond(800, 600)), withWait({ strategy: 'ready-wait' }));
     assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=ready-wait cap_ms=none unused=none ignored=none');
-    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 /);
+    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=250 /);
     assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 20, 'at-target']);
 });
 
@@ -483,7 +483,7 @@ test('override cap_ms: a larger cap waits for a 300 ms answer that the default c
     assert.match(r.line('READY_WAIT_START'), / cap=400 quiet=30 hard=1500$/);
     assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 300, 'at-target']);
     const plain = await runBatch({}, answer);
-    assert.deepEqual(plain.outcome.value, ['tgt-1', 'timed-out', 400, 300, 150, 'cap']);
+    assert.deepEqual(plain.outcome.value, ['tgt-1', 'timed-out', 400, 300, 250, 'cap']);
 });
 
 test('override cap_ms together with legacy: the cap has nothing to apply to and is reported as unused', async () => {
@@ -497,7 +497,7 @@ test('override: invalid values are ignored, named in the log, and the spawn runs
     const answer = (sim, w) => sim.at(20, () => w.respond(800, 600));
     const r = await runBatch({}, answer, withWait({ strategy: 'fast', cap_ms: 0 }));
     assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=none cap_ms=none unused=none ignored=strategy="fast";cap_ms=0');
-    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 quiet=30 hard=1500$/);
+    assert.match(r.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=250 quiet=30 hard=1500$/);
     assert.deepEqual(r.outcome.value, ['tgt-1', 'reached', 800, 600, 20, 'at-target']);
     // A valid field next to an invalid one is still used.
     const mixed = await runBatch({}, answer, withWait({ strategy: 'legacy', cap_ms: 9999 }));
@@ -511,7 +511,7 @@ test('override: scoped to the spawn that carries it, the next spawn on the same 
     assert.match(first.line('READY_WAIT_START'), /why=override-legacy/);
     const second = await runOn(rig, {});
     assert.equal(second.line('READY_WAIT_OVERRIDE'), undefined);
-    assert.match(second.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=150 quiet=30 hard=1500$/);
-    assert.equal(second.outcome.value[4], 150);
+    assert.match(second.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland .* cap=250 quiet=30 hard=1500$/);
+    assert.equal(second.outcome.value[4], 250);
     rig.ext.disable();
 });

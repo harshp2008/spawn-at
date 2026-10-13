@@ -24,7 +24,7 @@ Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME She
 2. **The policy and the outcome type live in `spawn-at-core`; the strategy engine is a small sans-IO state machine** (events in, actions out, a virtual clock for tests). GNOME runs it in JS inside the shell because the cloak and the hard limit must stay compositor-side; Rust backends (X11 driver, later Windows/macOS/wlroots) run the Rust build of the same machine. The two builds are checked against one set of golden event scripts (sections 4.1 and 5).
 3. **Tuning constants have one source:** `spawn_at_core::ready_wait::Policy`, serialised into the instruction the extension already receives (`WaitForCommit` args). The extension keeps safety defaults only; a test compares them with the Rust defaults.
 4. **Resize outcome** `Reached | AdjustedTo(WxH) | TimedOut{last} | Skipped` is additive everywhere: new JSON field, new D-Bus protocol version, new log tags. Exit codes and existing stderr text do not change in the beta (section 2.3).
-5. **Native Wayland first, the agreed wait:** wait for the requested size; the first different-size answer ends the exact wait and hands over to the quiet rule; cap 150 ms; hard limit 1500 ms; skip when `allows_resize()` is false; feature-detect by presence, never by version number. The unique-size probe and the learned-minimum cache are designed but kept out of the beta slice (sections 4.3, 4.4, 6).
+5. **Native Wayland first, the agreed wait:** wait for the requested size; the first different-size answer ends the exact wait and hands over to the quiet rule; cap 250 ms (150 ms until section 11); hard limit 1500 ms; skip when `allows_resize()` is false; feature-detect by presence, never by version number. The unique-size probe and the learned-minimum cache are designed but kept out of the beta slice (sections 4.3, 4.4, 6).
 6. **X11 and XWayland get an observe-only slice first** (log when `damaged` / `thawed` fire) before any wait is built on them, because the "presented" semantics of those signals are unverified (section 3.2).
 
 ## 1. Inventory: where readiness, wait and anchor logic lives today
@@ -225,7 +225,7 @@ It sees the *client's* drawing, independent of the compositor, which is what is 
 
 | Field | Meaning | Proposed default | Today |
 | :--- | :--- | ---: | :--- |
-| `cap_ms` | longest wait for any answer | 150 | JS idle timeout `max(timeout_ms,120)` |
+| `cap_ms` | longest wait for any answer | 250 | JS idle timeout `max(timeout_ms,120)` |
 | `quiet_ms` | no further size change for this long ends the quiet phase | 30 | `COMMIT_QUIET_MS` 30 |
 | `hard_ms` | unconditional end of the wait | 1500 | `COMMIT_HARD_CAP_MS` 1500 |
 | `frame_ceiling_ms` | per one-frame wait before reveal | 50 | `FRAME_WAIT_CEILING_MS` 50 |
@@ -237,7 +237,7 @@ It sees the *client's* drawing, independent of the compositor, which is what is 
 
 Delivery: serialised into the `WaitForCommit` args of the instruction JSON (`{"timeout_ms":300, "policy": {...}}`; old extensions read only `timeout_ms`). The extension keeps the numbers above as *safety defaults* for the case where `policy` is absent (old CLI), and one test asserts `JS defaults == Rust defaults` through a generated JSON file. The CLI's own poll constants (`settle_window_geometry`: 25 ms poll, 300 ms) read `Policy` too, or the CLI-side settle is removed once the outcome arrives in `SpawnClaimed` (decision D7). The verify tool keeps its own measurement constants (`SETTLE_MS` 1300, the 1500 ms flash watch): those are harness values, not product policy.
 
-The source for the numbers is the simulation in 6.14: cap 150 ms with the hybrid rule avoided 102 of 134 loaded flashes at a mean 33.5 ms extra and no cost at idle (labelled there as a simulation on stored runs; arrival times are approximations).
+The source for the original numbers (cap 150 ms, raised to 250 ms in section 11) is the simulation in 6.14: cap 150 ms with the hybrid rule avoided 102 of 134 loaded flashes at a mean 33.5 ms extra and no cost at idle (labelled there as a simulation on stored runs; arrival times are approximations).
 
 ### 4.3 The wait for native Wayland (agreed design, as a state machine)
 
@@ -352,7 +352,7 @@ Goal: fix the measured defect on GNOME 46 native Wayland (stale `SIZE_SETTLED`, 
 | Step | Content | Touches | Compatibility |
 | :---: | :--- | :--- | :--- |
 | S1 | `spawn_at_core::ready_wait`: `Policy` (defaults above), `ResizeOutcome`, `WindowKind`, the pure state machine for EXACT/QUIET/hard (no PROBE yet) with a virtual clock; golden vectors | core, tests | none (unused) |
-| S2 | extension: replace the internals of `waitForCommit` with the JS machine (same module for modern and legacy via injection); EXACT + first-different-answer-then-QUIET, cap 150 ms, hard 1500 ms; `allows_resize()` skip; classify by `get_client_type()` and **route `XWayland`/`X11` windows to the old path explicitly, logged as `READY_WAIT_START strategy=legacy-x11`**; emit `READY_WAIT_*` tags; keep `COMMIT_RESOLVED` | `commit.js`, `extension.js`, `ProtocolVersion` 6 | policy args ignored by old extensions; old reasons still logged |
+| S2 | extension: replace the internals of `waitForCommit` with the JS machine (same module for modern and legacy via injection); EXACT + first-different-answer-then-QUIET, cap 250 ms, hard 1500 ms; `allows_resize()` skip; classify by `get_client_type()` and **route `XWayland`/`X11` windows to the old path explicitly, logged as `READY_WAIT_START strategy=legacy-x11`**; emit `READY_WAIT_*` tags; keep `COMMIT_RESOLVED` | `commit.js`, `extension.js`, `ProtocolVersion` 6 | policy args ignored by old extensions; old reasons still logged |
 | S3 | CLI: read the outcome from the `ResizeOutcome` signal when protocol >= 6 (see 2.3; not `SpawnClaimed.error`); print it in `--json` as `resize`; no exit-code change. *Wired without the `policy` args (the extension uses the JS defaults, which a test keeps equal to the Rust ones) and without the new stderr lines of 2.3* | `gnome/dbus.rs`, `gnome/mod.rs`, `spawn.rs` | additive |
 | S4 | verify: acceptance cells A1-A3, A6-A8 with the existing fixture plus `--resize-delay-ms` and `--stall-after-map-ms`; record `lead_ms` and cloak numbers per commit in TEST_PLAN | harness | none |
 | S0 (parallel, tiny) | observe-only `READY_OBSERVE` logging of `damaged`/`thawed`/`first-frame`/`size-changed` for X11-kind windows | extension | log-only |
@@ -365,7 +365,7 @@ The slice does not close doors because: the contract (steps, `ResizeOutcome`, `P
 
 1. **Two implementations of one machine** (Rust and JS). Mitigation: shared golden vectors, one module for both extension trees. Residual: behaviour that only shows against real Mutter.
 2. **Longer cloak changes app timing** (6.14 "feedback"; 6.13: callbacks to a cloaked surface wait for the next stage update), so the simulation may overstate the gain. Mitigation: A2/A3 measured on the real code (P2), not the simulation.
-3. **First-spawn cost for refusing apps**: up to the cap (150 ms) against 120 ms today when the minimum is unknown and no probe/cache exists (D2).
+3. **First-spawn cost for refusing apps**: up to the cap (250 ms) against 120 ms today when the minimum is unknown and no probe/cache exists (D2).
 4. **Signals not understood** (`damaged`, `thawed`): the X11-kind strategies stand on UNVERIFIED semantics. Mitigation: S0 observes before anyone waits on them.
 5. **The fixture is not representative on X11** (no sync client) and has never been run as XWayland. Mitigation: 5.4.
 6. **Probe side effects** (extra resize; persisted sizes in apps that remember them). Mitigation: off by default, decided in P3.
@@ -379,7 +379,7 @@ The slice does not close doors because: the contract (steps, `ResizeOutcome`, `P
 
 | # | Decision | Recommendation |
 | :---: | :--- | :--- |
-| D1 | Cap `cap_ms` (100 / 150 / 250) and keep `hard_ms` 1500 | 150 and 1500 (6.14: 102 of 134 loaded flashes avoided at +33.5 ms mean, 0 idle cost) |
+| D1 | Cap `cap_ms` (100 / 150 / 250) and keep `hard_ms` 1500 | 150 and 1500 at first (6.14: 102 of 134 loaded flashes avoided at +33.5 ms mean, 0 idle cost); **250 and 1500 since section 11** |
 | D2 | Accept up to +30 ms on the first spawn of a refusing app until a minimum is learned | yes for the beta; revisit with the cache |
 | D3 | Probe in the beta | no; prototype (P2/P3) first |
 | D4 | Learned-minimum store: none in the beta; later memory in the extension, file for non-resident backends | as stated in 4.4 |
@@ -408,7 +408,7 @@ Implemented exactly the contract of 2.2 and 4.3 for the native Wayland strategy,
 
 | Piece | Where | Commit |
 | :--- | :--- | :--- |
-| Rust machine: `Policy` (150 / 30 / 1500 ms), `Request`, `Outcome`, `Action`, `ReadyWait::{start, on_sample, on_tick}`; no I/O, time passed in as milliseconds | `crates/spawn-at-core/src/ready_wait.rs` (9 unit tests) | `50b0002` |
+| Rust machine: `Policy` (250 / 30 / 1500 ms), `Request`, `Outcome`, `Action`, `ReadyWait::{start, on_sample, on_tick}`; no I/O, time passed in as milliseconds | `crates/spawn-at-core/src/ready_wait.rs` (9 unit tests) | `50b0002` |
 | 20 language-neutral golden scripts, the virtual-clock driver (README), shared `policy.json` | `tests/ready_wait_vectors/`; Rust runner `crates/spawn-at-core/tests/ready_wait_vectors.rs` | `e9e2265` |
 | JS port: no imports, no host APIs (a test asserts it) | `assets/gnome/modern/ready_wait.js`; `tests/ready_wait_test.js` runs the same 20 scripts | `9f78a1d` |
 | Installer list entry | `src/platform/linux/gnome/mod.rs` | `902dff3` |
@@ -438,19 +438,19 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 | 2c | `65c011b` | section 2.3, D5 and S3 of this document |
 | 3 | `993e673`, `1a255f4` | Rust and node tests |
 
-**Log tags (CONFIRMED, `tests/ready_wait_wiring_test.js`).** `READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(WxH) current=(WxH) cap=150 quiet=30 hard=1500`; `READY_WAIT_RESOLVED strategy=ready-wait outcome=<reached|adjusted|timed-out|skipped> elapsed_ms=.. waited_ms=.. reason=<at-target|quiet|cap|hard|not-resizable|fullscreen|tiled> finalFrame=.. target=..`. Legacy: `READY_WAIT_START strategy=legacy kind=<X11|XWayland|NativeWayland|unknown> why=<not-native-wayland|no-size-request> timeoutMs=..` and `READY_WAIT_RESOLVED strategy=legacy outcome=none elapsed_ms=.. reason=<AT_TARGET|SIZE_SETTLED|TIMEOUT_NO_CHANGE|HARD_CAP>`. `COMMIT_SAMPLE` is still written (sources `initial` and `size-changed` on the new path) and `COMMIT_RESOLVED` is still written once per wait, with `reason` `AT_TARGET`, `SIZE_SETTLED`, `TIMEOUT_NO_CHANGE`, `HARD_CAP`, and `SKIPPED` for a skipped wait (new). The verify analyser reads only the tag names (`CLOAK`, `COMMIT_RESOLVED`, ...), so it was not changed (CONFIRMED (source), `trace/phases.rs`, `trace/analyser.rs`).
+**Log tags (CONFIRMED, `tests/ready_wait_wiring_test.js`).** `READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(WxH) current=(WxH) cap=250 quiet=30 hard=1500`; `READY_WAIT_RESOLVED strategy=ready-wait outcome=<reached|adjusted|timed-out|skipped> elapsed_ms=.. waited_ms=.. reason=<at-target|quiet|cap|hard|not-resizable|fullscreen|tiled> finalFrame=.. target=..`. Legacy: `READY_WAIT_START strategy=legacy kind=<X11|XWayland|NativeWayland|unknown> why=<not-native-wayland|no-size-request> timeoutMs=..` and `READY_WAIT_RESOLVED strategy=legacy outcome=none elapsed_ms=.. reason=<AT_TARGET|SIZE_SETTLED|TIMEOUT_NO_CHANGE|HARD_CAP>`. `COMMIT_SAMPLE` is still written (sources `initial` and `size-changed` on the new path) and `COMMIT_RESOLVED` is still written once per wait, with `reason` `AT_TARGET`, `SIZE_SETTLED`, `TIMEOUT_NO_CHANGE`, `HARD_CAP`, and `SKIPPED` for a skipped wait (new). The verify analyser reads only the tag names (`CLOAK`, `COMMIT_RESOLVED`, ...), so it was not changed (CONFIRMED (source), `trace/phases.rs`, `trace/analyser.rs`).
 
 **Differences from the design text (CONFIRMED (source)).**
 1. The strategy tag is `strategy=legacy` for all non-native-Wayland windows, not `legacy-x11` (S2); the window kind is a separate `kind=` field.
 2. Transport: a typed `ResizeOutcome` signal instead of the `SpawnClaimed.error` overload (section 2.3, D5).
-3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (150 / 30 / 1500) (section 10 adds an optional `cap_ms` for a developer override, absent by default); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
+3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (250 / 30 / 1500) (section 10 adds an optional `cap_ms` for a developer override, absent by default); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
 4. No new stderr lines (section 2.3 allowed them); only the JSON `resize` object is new. `settle_window_geometry` on the CLI side is unchanged (D7: kept).
 5. A skipped wait reports the frame size at the end of the wait as `final` and `waited_ms` 0.
 6. The legacy extension tree (GNOME 42-44) has no wiring and stays at protocol 5. Because the modern D-Bus XML now has a signal the legacy XML lacks, both XML parity tests (`legacy_dispatcher_test.js`, `gnome/mod.rs`) compare the legacy XML with the modern XML minus `ResizeOutcome`. The legacy tree is byte-identical to before.
 7. `outcome.waited_ms` in the signal is the machine's number (the deadline that fired), not the wall time; `elapsed_ms` in the log is wall time on `nowMs()`.
 
 **Tests (CONFIRMED, run).**
-- Node, `tests/ready_wait_wiring_test.js` (33): the 20 golden scripts through `CommitLatch.waitForReady` on a virtual clock (outcomes equal the scripts' `expect`; no handler survives; a skipped or already-satisfied request connects none); 13 scenarios through the real `_runBatch` with a mock window: fast (reached at 20 ms), slow (120 ms), refusing (TimedOut at 150 ms, placed at 400x300), adjusted (494x292, quiet, placed for 494x292), restless (hard limit at 1500 ms and the batch still reveals), not resizable, fullscreen and tiled (Skipped), allocation not connected, feature detection by presence, X11 and XWayland (legacy, no `ResizeOutcome`, allocation still watched), no size request, unknown window kind. The signal order `ResizeOutcome` before `SpawnClaimed` is asserted.
+- Node, `tests/ready_wait_wiring_test.js` (33): the 20 golden scripts through `CommitLatch.waitForReady` on a virtual clock (outcomes equal the scripts' `expect`; no handler survives; a skipped or already-satisfied request connects none); 13 scenarios through the real `_runBatch` with a mock window: fast (reached at 20 ms), slow (220 ms), refusing (TimedOut at 250 ms, placed at 400x300), adjusted (494x292, quiet, placed for 494x292), restless (hard limit at 1500 ms and the batch still reveals), not resizable, fullscreen and tiled (Skipped), allocation not connected, feature detection by presence, X11 and XWayland (legacy, no `ResizeOutcome`, allocation still watched), no size request, unknown window kind. The signal order `ResizeOutcome` before `SpawnClaimed` is asserted.
 - Mutation check (temporary, restored): routing every window to the machine fails 3 tests; not disconnecting `size-changed` fails 16.
 - Rust: 4 `resize_report` unit tests; 3 `--json` tests (shape, no `resize` key when absent, older output parses); 3 claim tests against stub services on the real session bus with two connections (protocol 6 attaches the outcome and ignores another target's; protocol 6 without an outcome returns at once; protocol 5 has none). The protocol 6 claim test passed 40 of 40 repeated runs (ordering of the two signals across two streams on an idle machine).
 
@@ -459,7 +459,7 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 - Tiled detection: `get_tile_match` is in the Meta-14 typelib (CONFIRMED by `strings`), but whether it is non-null for a window tiled alone, and whether `tile_mode` exists, was not run (HYPOTHESIS). A tiled window that is not detected just waits to the cap.
 - `allows_resize()` on the fixture and on real apps; GNOME 45, 47, 48; the legacy tree.
 - That the CLI sees `ResizeOutcome` before the claim when GNOME Shell is the sender and the machine is loaded (HYPOTHESIS; the stub test covers ordering on an idle machine only).
-- The cloak now stays up to 150 ms longer for a refusing app and up to 1500 ms for a restless one (risk 3 of 6.1); its effect on the cloak numbers was not measured.
+- The cloak now stays up to 250 ms longer for a refusing app and up to 1500 ms for a restless one (risk 3 of 6.1); its effect on the cloak numbers was not measured.
 
 ## 10. Per-spawn override for same-login A/B (2026-10-13)
 
@@ -481,7 +481,7 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 
 | `--wait-strategy` | native Wayland window with a size request | any other window (X11, XWayland, unknown, no size request) |
 | :--- | :--- | :--- |
-| absent / `auto` | the machine (cap 150 unless `--wait-cap-ms`) | original rule, `why=not-native-wayland` / `no-size-request` |
+| absent / `auto` | the machine (cap 250 unless `--wait-cap-ms`) | original rule, `why=not-native-wayland` / `no-size-request` |
 | `legacy` | **original 30 ms rule** (`waitForCommit`, idle timeout 300 ms): `READY_WAIT_START strategy=legacy kind=NativeWayland why=override-legacy timeoutMs=300`, no `ResizeOutcome` signal | original rule, as under `auto` |
 | `ready-wait` | the machine, as under `auto` | original rule, as under `auto`, reported as unused. The machine is not forced onto X11 or XWayland: it would read their immediate frame rect as an instant answer (section 3.1) |
 
@@ -510,3 +510,13 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 - The 42-44 extension tree: it has no ready-wait and drops the fields (CONFIRMED by a validator test), so it needs no switch.
 - `transform` and the X11 driver take no override (`WaitForCommit` in `transform` is built with the default).
 - Whether `ready-wait` should force the machine on XWayland for a deliberate experiment: not done (it would produce a meaningless instant answer).
+
+## 11. Default cap raised from 150 ms to 250 ms
+
+**Change (CONFIRMED, code and tests).** `Policy::default()` (Rust), `DEFAULT_POLICY` (JS) and `tests/ready_wait_vectors/policy.json` now read `cap_ms` 250. `quiet_ms` 30 and `hard_ms` 1500 are unchanged. The golden vectors 02 to 05 moved with the cap (02: answer at 240 ms is `reached`; 03: answer at 300 ms is `timed-out` at 250 ms; 04: answer exactly on 250 ms is `reached`; 05: refusing app times out at 250 ms); 12 sets its own cap (5000) and 13 to 15 do not depend on it. Rust core tests, node tests and the shared-file equality test pass (counts in TEST_PLAN 1.1). A developer can still pass `--wait-cap-ms` (section 10); the field and its 1 to 1500 range are unchanged.
+
+**Why (evidence is in TEST_PLAN, not here).** 6.19: same-session loaded A/B/C, cap 250 avoided 76.6% of the flash runs of the legacy rule where cap 150 avoided 68.1%. 6.20: all 5 loaded flashes of the 150 ms arm that were not a late first-paint stamp ended at the cap (`timed-out`), 4 of them for the larger spec; the 250 ms arm had none.
+
+**Cost (not measured on a real refusing app).** An app that never answers a size request (it is at its minimum and the minimum is unknown) now holds the cloak up to 250 ms instead of up to 150 ms on its first spawn (the risk noted in section 9, acceptance A4 is written against the old cap and has not been re-run). 6.19 loaded cloak numbers for the two caps, same session: B (150) median/p95/max 131.6/167.0/183.9 ms, C (250) 129.3/200.9/263.4 ms. A hung app is still ended by the hard limit at 1500 ms.
+
+**Installed extension.** The change is in the repository tree. An extension already installed in a login session keeps the cap it was installed with until it is reinstalled and the session restarts; a run that wants 250 ms on such an extension passes `--wait-cap-ms 250`.

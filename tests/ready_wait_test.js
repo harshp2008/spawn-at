@@ -46,8 +46,8 @@ for (const file of scriptFiles) {
 test('the default policy equals the shared policy.json (one source of the numbers)', () => {
     const shared = JSON.parse(readFileSync(new URL('policy.json', VECTORS), 'utf8'));
     assert.deepEqual({ ...DEFAULT_POLICY }, shared);
-    assert.deepEqual(shared, { cap_ms: 150, quiet_ms: 30, hard_ms: 1500 });
-    assert.deepEqual(mergePolicy({ quiet_ms: 100 }), { cap_ms: 150, quiet_ms: 100, hard_ms: 1500 });
+    assert.deepEqual(shared, { cap_ms: 250, quiet_ms: 30, hard_ms: 1500 });
+    assert.deepEqual(mergePolicy({ quiet_ms: 100 }), { cap_ms: 250, quiet_ms: 100, hard_ms: 1500 });
     assert.ok(Object.isFrozen(DEFAULT_POLICY));
 });
 
@@ -67,12 +67,12 @@ test('skip is checked before the equal-size check and in a fixed order', () => {
 
 test('the first deadline is the cap, counted from the start time', () => {
     const { action } = ReadyWait.start(DEFAULT_POLICY, req(), 1000);
-    assert.deepEqual(action, { kind: 'wait', deadline_ms: 1150 });
+    assert.deepEqual(action, { kind: 'wait', deadline_ms: 1250 });
 });
 
 test('a sample equal to the starting size is not an answer', () => {
     const outcome = drive(DEFAULT_POLICY, req(), [{ at: 5, size: SMALL }, { at: 60, size: SMALL }]);
-    assert.deepEqual(outcome, { outcome: 'timed-out', last_size: SMALL, waited_ms: 150, phase: 'cap' });
+    assert.deepEqual(outcome, { outcome: 'timed-out', last_size: SMALL, waited_ms: 250, phase: 'cap' });
 });
 
 test('done is sticky', () => {
@@ -86,7 +86,7 @@ test('done is sticky', () => {
 test('a sample after an expired cap does not become a late Reached', () => {
     const { machine } = ReadyWait.start(DEFAULT_POLICY, req(), 0);
     assert.deepEqual(machine.onSample(BIG, 400).outcome,
-        { outcome: 'timed-out', last_size: SMALL, waited_ms: 150, phase: 'cap' });
+        { outcome: 'timed-out', last_size: SMALL, waited_ms: 250, phase: 'cap' });
 });
 
 test('the hard limit wins a tie with the quiet deadline', () => {

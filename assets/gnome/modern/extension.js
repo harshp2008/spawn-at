@@ -798,7 +798,7 @@ export default class SpawnAtExtension extends Extension {
     // A developer override rides in `args` of this one instruction (`strategy`, `cap_ms`, validator.js)
     // and so applies to this spawn only; nothing is stored on the extension. `legacy` sends even a
     // native Wayland window down the original rule (`why=override-legacy`); `ready-wait` changes
-    // nothing a native window would not do anyway; `cap_ms` replaces the 150 ms cap of the machine.
+    // nothing a native window would not do anyway; `cap_ms` replaces the 250 ms cap of the machine.
     async _stepWaitForCommit(ctx, args) {
         const { window } = ctx;
         const kind = this._windowKind(window);

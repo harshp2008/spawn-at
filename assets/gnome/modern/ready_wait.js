@@ -29,7 +29,7 @@
  */
 
 /** The single JS copy of the timing constants; tests/ready_wait_vectors/policy.json keeps it equal to the Rust default. */
-export const DEFAULT_POLICY = Object.freeze({ cap_ms: 150, quiet_ms: 30, hard_ms: 1500 });
+export const DEFAULT_POLICY = Object.freeze({ cap_ms: 250, quiet_ms: 30, hard_ms: 1500 });
 
 /**
  * @param {object} [partial] - policy fields to override

@@ -18,7 +18,7 @@ first; a divergence between the two implementations fails a test.
 ```json
 {
   "name": "...", "description": "...",
-  "policy":  { "cap_ms": 150, "quiet_ms": 30, "hard_ms": 1500 },   // optional, missing fields use the defaults
+  "policy":  { "cap_ms": 250, "quiet_ms": 30, "hard_ms": 1500 },   // optional, missing fields use the defaults
   "request": { "target": [w, h], "current": [w, h], "resizable": true, "fullscreen": false, "tiled": false },
   "events":  [ { "at": ms, "size": [w, h] } ],                     // size samples, ascending "at", ms from the request
   "expect":  { "outcome": "reached", "size": [w, h], "waited_ms": n }
