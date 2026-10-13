@@ -121,6 +121,12 @@ pub struct RunArgs {
     /// Output results in JSON format
     #[arg(long)]
     pub json: bool,
+
+    /// Fail a test that passed on placement but flashed (the window was shown before the
+    /// fixture painted its final size, or its size or position changed after the reveal).
+    /// Without it such a test is reported as PASS (flash) and the exit code is unchanged
+    #[arg(long)]
+    pub strict_flash: bool,
 }
 
 /// Arguments for the `list` subcommand.

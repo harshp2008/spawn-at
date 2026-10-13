@@ -46,6 +46,7 @@ fn test_tally_buckets() {
                 pass: 1,
                 pending: 0,
                 fail: 0,
+                flash: 0,
             },
         ),
         (
@@ -55,6 +56,7 @@ fn test_tally_buckets() {
                 pass: 0,
                 pending: 1,
                 fail: 0,
+                flash: 0,
             },
         ),
         (
@@ -64,6 +66,7 @@ fn test_tally_buckets() {
                 pass: 0,
                 pending: 0,
                 fail: 1,
+                flash: 0,
             },
         ),
         (
@@ -73,6 +76,7 @@ fn test_tally_buckets() {
                 pass: 0,
                 pending: 0,
                 fail: 1,
+                flash: 0,
             },
         ),
         (AutoStatus::Skipped, FinalStatus::Skipped, Tally::default()),
@@ -99,6 +103,7 @@ fn test_counts_text() {
         pass: 1,
         pending: 2,
         fail: 3,
+        flash: 0,
     };
     assert_eq!(category_counts_text(&some, 30), "1/30 · 2 pending · 3 fail");
 }

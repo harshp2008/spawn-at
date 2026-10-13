@@ -37,7 +37,8 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
          - **Required Tests Total:** {}\n\
          - **Required Tests Passed:** {}\n\
          - **Required Tests Failed:** {}\n\
-         - **Required Tests Skipped:** {}\n\n",
+         - **Required Tests Skipped:** {}\n\
+         - **Tests Passed With Flash:** {}\n\n",
         env.hostname,
         env.session_type,
         env.desktop,
@@ -52,7 +53,8 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         qual.total_required,
         qual.passed_required,
         qual.failed_required,
-        qual.skipped_required.len()
+        qual.skipped_required.len(),
+        report.results.iter().filter(|r| r.is_flash_pass()).count()
     );
 
     if !qual.skipped_required.is_empty() {
@@ -91,9 +93,14 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         for r in tests {
             let req_str = if r.required { "Yes" } else { "No" };
             let human_str = format!("{:?}", r.human_verdict.verdict);
+            let final_str = if r.is_flash_pass() {
+                "Pass (flash)".to_string()
+            } else {
+                format!("{:?}", r.final_status)
+            };
             md.push_str(&format!(
-                "| `{}` | `{:?}` | {} | `{:?}` | `{}` | **`{:?}`** | {}ms |\n",
-                r.id, r.kind, req_str, r.auto_status, human_str, r.final_status, r.duration_ms
+                "| `{}` | `{:?}` | {} | `{:?}` | `{}` | **`{}`** | {}ms |\n",
+                r.id, r.kind, req_str, r.auto_status, human_str, final_str, r.duration_ms
             ));
         }
         md.push('\n');
@@ -149,6 +156,45 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
             for w in ws {
                 md.push_str(&format!("| `{}` | {} |\n", id, w));
             }
+        }
+        md.push('\n');
+    }
+
+    // Flash events, certain or not, with the evidence they rest on. A run counted as a flash has
+    // at least one certain event; the others are listed so a near-miss is not lost.
+    let mut flash_rows: Vec<String> = Vec::new();
+    let mut add_flash = |id: String, r: &TestResult| {
+        for e in &r.flash_info.flash_events {
+            flash_rows.push(format!(
+                "| `{}` | {:?} | {:?} | {:.1} | {} | {} |\n",
+                id,
+                e.kind,
+                e.source,
+                e.at_ms_after_reveal,
+                if e.certain {
+                    "yes"
+                } else {
+                    "no (inside clock uncertainty)"
+                },
+                e.detail
+            ));
+        }
+    };
+    for r in &report.results {
+        add_flash(r.id.clone(), r);
+    }
+    for rr in &report.repeat_runs {
+        for (i, r) in rr.runs.iter().enumerate() {
+            add_flash(format!("{} (repeat run {})", rr.id, i + 1), r);
+        }
+    }
+    if !flash_rows.is_empty() {
+        md.push_str("## 6. Flash\n\n");
+        md.push_str(
+            "| Test | Kind | Source | ms after reveal | Counted | Detail |\n| :--- | :--- | :--- | ---: | :--- | :--- |\n",
+        );
+        for row in &flash_rows {
+            md.push_str(row);
         }
         md.push('\n');
     }

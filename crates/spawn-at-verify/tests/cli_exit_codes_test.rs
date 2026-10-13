@@ -37,3 +37,22 @@ fn test_exit_code_constants_match_help() {
     assert_eq!(EXIT_FAILED, 1);
     assert_eq!(EXIT_UNCHECKED_REQUIRED, 2);
 }
+
+/// `run --help` lists `--strict-flash` and the exit-code text says a PASS (flash) keeps the code
+/// unless the flag is given; `list --help` does not take the flag.
+#[test]
+fn test_run_help_documents_strict_flash() {
+    let out = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["run", "--help"])
+        .output()
+        .unwrap();
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("--strict-flash"), "{}", text);
+    assert!(text.contains("A PASS (flash)"), "{}", text);
+    assert!(text.contains("with --strict-flash it is a"), "{}", text);
+    let list = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args(["list", "--help"])
+        .output()
+        .unwrap();
+    assert!(!String::from_utf8_lossy(&list.stdout).contains("--strict-flash"));
+}

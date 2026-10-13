@@ -3,7 +3,7 @@
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind};
 use crate::schema::TestKind;
 use crate::tui::app::{ActivePane, TuiApp};
-use crate::tui::views::theme::TRACE_UNCHECKED;
+use crate::tui::views::theme::{FLASH, FLASH_SYMBOL, TRACE_UNCHECKED};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -178,6 +178,10 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
 
         if let Some(res) = res_opt {
             let auto_label = match res.auto_status {
+                AutoStatus::AutoPass if res.flash_info.flash => Span::styled(
+                    "PASS (flash)",
+                    Style::default().fg(FLASH).add_modifier(Modifier::BOLD),
+                ),
                 AutoStatus::AutoPass => Span::styled(
                     "PASS",
                     Style::default()
@@ -212,6 +216,9 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
             };
 
             let auto_sym = match res.auto_status {
+                AutoStatus::AutoPass if res.flash_info.flash => {
+                    Span::styled(format!("{} ", FLASH_SYMBOL), Style::default().fg(FLASH))
+                }
                 AutoStatus::AutoPass => Span::styled("✔ ", Style::default().fg(Color::Green)),
                 AutoStatus::AutoFail | AutoStatus::Error => {
                     Span::styled("✖ ", Style::default().fg(Color::Red))

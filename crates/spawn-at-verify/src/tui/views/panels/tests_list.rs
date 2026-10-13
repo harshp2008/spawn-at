@@ -22,6 +22,8 @@ pub struct Tally {
     pub pending: usize,
     /// Tests whose final status is Fail or Error, or whose automatic check failed.
     pub fail: usize,
+    /// Tests counted in `pass` that flashed: "PASS (flash)".
+    pub flash: usize,
 }
 
 /// Counts `results` (one entry per test; `None` for a test that has not run).
@@ -37,6 +39,9 @@ pub fn tally_results<'a>(
             t.fail += 1;
         } else if r.final_status == FinalStatus::Pass {
             t.pass += 1;
+            if r.is_flash_pass() {
+                t.flash += 1;
+            }
         } else if r.final_status == FinalStatus::Pending
             && matches!(
                 r.auto_status,
@@ -51,9 +56,13 @@ pub fn tally_results<'a>(
     t
 }
 
-/// `"<pass>/<total>"`, then `" · <m> pending"` and `" · <k> fail"` only when those are not 0.
+/// `"<pass>/<total>"`, then `" · <f> flash"`, `" · <m> pending"` and `" · <k> fail"` only when
+/// those are not 0. The flash tests are among the `pass` ones.
 pub fn category_counts_text(t: &Tally, total: usize) -> String {
     let mut s = format!("{}/{}", t.pass, total);
+    if t.flash > 0 {
+        s.push_str(&format!(" · {} flash", t.flash));
+    }
     if t.pending > 0 {
         s.push_str(&format!(" · {} pending", t.pending));
     }

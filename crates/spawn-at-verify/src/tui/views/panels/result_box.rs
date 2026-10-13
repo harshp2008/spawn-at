@@ -3,7 +3,7 @@
 use super::description::count_wrapped_lines;
 use crate::runner::{AutoStatus, FinalStatus};
 use crate::tui::app::TuiApp;
-use crate::tui::views::theme::TRACE_UNCHECKED;
+use crate::tui::views::theme::{FLASH, FLASH_SYMBOL, TRACE_UNCHECKED};
 use ratatui::{
     layout::Rect,
     style::{Color, Modifier, Style},
@@ -49,6 +49,17 @@ pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
                 Span::styled(reason, Style::default().fg(Color::LightRed)),
             ]);
             (plain, line, Color::Red)
+        } else if res.is_flash_pass() {
+            let msg = format!("{} ({} ms)", res.flash_info.summary(), res.duration_ms);
+            let plain = format!("{} PASS (flash): {}", FLASH_SYMBOL, msg);
+            let line = Line::from(vec![
+                Span::styled(
+                    format!("{} PASS (flash): ", FLASH_SYMBOL),
+                    Style::default().fg(FLASH).add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(msg, Style::default().fg(Color::White)),
+            ]);
+            (plain, line, FLASH)
         } else if res.final_status == FinalStatus::PassUnchecked
             || res.auto_status == AutoStatus::AutoPassUnchecked
         {

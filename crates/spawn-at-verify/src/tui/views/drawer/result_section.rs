@@ -4,7 +4,7 @@ use crate::oracle::GeometryStatus;
 use crate::runner::{AutoStatus, FinalStatus, HumanVerdictKind, TestResult};
 use crate::schema::{TestDefinition, TestKind};
 use crate::tui::views::builder::DrawerBuilder;
-use crate::tui::views::theme::TRACE_UNCHECKED;
+use crate::tui::views::theme::{FLASH, FLASH_SYMBOL, TRACE_UNCHECKED};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Span;
 
@@ -109,6 +109,7 @@ pub fn render_result_section(
                         FinalStatus::PassUnchecked => unchecked_verdict(),
                         FinalStatus::PassTraceUnchecked => trace_unchecked_verdict(),
                         FinalStatus::Pass if geometry_unchecked => unchecked_verdict(),
+                        FinalStatus::Pass if r.flash_info.flash => flash_verdict(),
                         FinalStatus::Pass => (
                             vec![
                                 Span::styled(
@@ -350,6 +351,9 @@ pub fn render_result_section(
             );
         }
     }
+    if let Some(r) = res_opt {
+        push_flash_rows(builder, r);
+    }
     // Why there is no trace, or (with a trace) the run-time note, e.g. logging could not be enabled.
     let reason = trace_state
         .as_ref()
@@ -508,6 +512,101 @@ fn trace_unchecked_verdict() -> (Vec<Span<'static>>, String) {
         ],
         "⚠ Pass (trace unchecked)".into(),
     )
+}
+
+/// Verdict cell for an automatic test that passed on placement but flashed: a pink asterisk and
+/// "Pass (flash)", distinct from the green "✔ Pass" and from the unchecked passes.
+fn flash_verdict() -> (Vec<Span<'static>>, String) {
+    (
+        vec![
+            Span::styled(
+                format!("{} ", FLASH_SYMBOL),
+                Style::default().fg(FLASH).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled("Pass (flash)", Style::default().fg(FLASH)),
+        ],
+        format!("{} Pass (flash)", FLASH_SYMBOL),
+    )
+}
+
+/// Adds the FLASH rows of the TRACE block: what the check compared, then one row per event
+/// (an event inside the clock uncertainty is marked "?" and does not make the run a flash) and
+/// one per limitation. Nothing is added for a result that never had the check.
+fn push_flash_rows(builder: &mut DrawerBuilder, r: &TestResult) {
+    use crate::trace::flash::FlashBasis;
+    let f = &r.flash_info;
+    let Some(basis) = f.flash_basis else {
+        return;
+    };
+    let grey = Color::Rgb(200, 200, 200);
+    let basis_text = match (basis, f.flash_clock_uncertainty_ms) {
+        (FlashBasis::Client, Some(u)) => {
+            format!("fixture paint times against UNCLOAK (clock +-{:.1} ms)", u)
+        }
+        (FlashBasis::Client, None) => "fixture paint times against UNCLOAK".to_string(),
+        (FlashBasis::ExtensionOnly, _) => {
+            "extension log only (sees a position correction after the reveal, nothing else)".into()
+        }
+        (FlashBasis::None, _) => "not checked (no UNCLOAK in the trace)".into(),
+    };
+    let (head, head_color) = if f.flash {
+        ("flash", FLASH)
+    } else {
+        ("none seen", grey)
+    };
+    builder.push_kv(
+        "Flash",
+        vec![
+            Span::styled(
+                if f.flash {
+                    format!("{} ", FLASH_SYMBOL)
+                } else {
+                    String::new()
+                },
+                Style::default().fg(FLASH).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(head, Style::default().fg(head_color)),
+            Span::styled(format!(", {}", basis_text), Style::default().fg(grey)),
+        ],
+        &format!(
+            "{}{}, {}",
+            if f.flash {
+                format!("{} ", FLASH_SYMBOL)
+            } else {
+                String::new()
+            },
+            head,
+            basis_text
+        ),
+    );
+    for e in &f.flash_events {
+        let (mark, color) = if e.certain {
+            (FLASH_SYMBOL, FLASH)
+        } else {
+            ("?", Color::Yellow)
+        };
+        let tail = if e.certain {
+            ""
+        } else {
+            " (inside the clock uncertainty: not counted)"
+        };
+        let text = format!("{}{}", e.detail, tail);
+        builder.push_kv(
+            "",
+            vec![
+                Span::styled(format!("{} ", mark), Style::default().fg(color)),
+                Span::styled(text.clone(), Style::default().fg(color)),
+            ],
+            &format!("{} {}", mark, text),
+        );
+    }
+    for n in &f.flash_notes {
+        builder.push_kv(
+            "",
+            vec![Span::styled(n.clone(), Style::default().fg(Color::Yellow))],
+            n,
+        );
+    }
 }
 
 /// Verdict cell for an automatic test that passed without its geometry being verified: a yellow

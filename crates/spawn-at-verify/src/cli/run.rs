@@ -89,6 +89,7 @@ pub fn handle_run(args: RunArgs) {
             repeat: args.repeat,
             filter,
             include_titles: args.include_titles,
+            strict_flash: args.strict_flash,
             ..Default::default()
         },
     );
@@ -132,6 +133,15 @@ pub fn handle_run(args: RunArgs) {
         for r in &results {
             let r = &collapse_repeat_note(r, &echo_note, &mut echo_note_shown);
             match r.final_status {
+                FinalStatus::Pass if r.is_flash_pass() => {
+                    println!(
+                        "  ✱ PASS (flash): {} ({}) [{}ms]: {}",
+                        r.id,
+                        r.title,
+                        r.duration_ms,
+                        r.flash_info.summary()
+                    );
+                }
                 FinalStatus::Pass => {
                     println!("  ✓ PASS: {} ({}) [{}ms]", r.id, r.title, r.duration_ms);
                 }

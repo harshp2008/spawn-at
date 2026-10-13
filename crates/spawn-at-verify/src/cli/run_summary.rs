@@ -18,7 +18,10 @@ Exit codes:
   2  nothing failed, but at least one REQUIRED test passed with part of its evidence unchecked:
      its geometry (no workarea was available, so the placement was never verified) or its
      trace (the extension's timing log held no events for the window): not a full pass
-A failure (1) takes precedence over unchecked required passes (2).";
+A failure (1) takes precedence over unchecked required passes (2).
+A PASS (flash) (the placement is right but the window was shown before it was ready, or its size
+or position changed after the reveal) does not change the exit code; with --strict-flash it is a
+failure (1).";
 
 /// Tallies of a run's final statuses.
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -39,6 +42,9 @@ pub struct RunSummary {
     pub trace_unchecked_required: Vec<String>,
     /// Ids of optional tests that passed with their trace unchecked.
     pub trace_unchecked_optional: Vec<String>,
+    /// Ids of tests that passed on placement and flashed: "PASS (flash)". They are counted in
+    /// `passed` too; `--strict-flash` makes them failures instead, and they are then in `failed`.
+    pub flashed: Vec<String>,
 }
 
 impl RunSummary {
@@ -47,6 +53,9 @@ impl RunSummary {
     pub fn from_results(results: &[TestResult]) -> Self {
         let mut s = Self::default();
         for r in results {
+            if r.is_flash_pass() {
+                s.flashed.push(r.id.clone());
+            }
             match r.final_status {
                 FinalStatus::Pass => s.passed += 1,
                 FinalStatus::PassUnchecked if r.required => s.unchecked_required.push(r.id.clone()),
@@ -83,6 +92,15 @@ impl RunSummary {
             "\nTotal: {}, Passed: {}, Failed: {}, Skipped: {}, Blocked: {}",
             total, self.passed, self.failed, self.skipped, self.blocked
         )];
+        if !self.flashed.is_empty() {
+            out.push(format!(
+                "Flash: {} of the {} passed test(s) flashed (PASS (flash); still counted as Passed, \
+                 --strict-flash fails them): {}",
+                self.flashed.len(),
+                self.passed,
+                self.flashed.join(", ")
+            ));
+        }
         for (what, required, optional) in [
             (
                 "geometry",
@@ -272,5 +290,45 @@ mod tests {
             let s = RunSummary::from_results(&[result("x", true, st)]);
             assert_eq!(s.exit_code(), code, "{:?}", st);
         }
+    }
+
+    /// A flashing pass is still a pass (counted in Passed, exit 0) and is named in its own
+    /// summary line with the count of flashes; an unflashed run adds no such line. A pass whose
+    /// geometry is unchecked is not a "PASS (flash)" even if it flashed.
+    #[test]
+    fn test_flash_pass_is_counted_apart_and_keeps_exit_zero() {
+        let mut flashed = result("f", true, FinalStatus::Pass);
+        flashed.flash_info.flash = true;
+        let mut unchecked = result("u", false, FinalStatus::PassUnchecked);
+        unchecked.flash_info.flash = true;
+        let s =
+            RunSummary::from_results(&[flashed, result("ok", true, FinalStatus::Pass), unchecked]);
+        assert_eq!(
+            (s.passed, s.flashed.clone(), s.exit_code()),
+            (2, vec!["f".to_string()], 0)
+        );
+        let text = s.lines(3).join("\n");
+        assert!(
+            text.contains("Flash: 1 of the 2 passed test(s) flashed (PASS (flash)"),
+            "{}",
+            text
+        );
+        assert!(text.contains("--strict-flash fails them): f"), "{}", text);
+        let clean = RunSummary::from_results(&[result("ok", true, FinalStatus::Pass)]);
+        assert!(!clean.lines(1).join("\n").contains("Flash:"));
+    }
+
+    /// With `--strict-flash` the runner turns the flashing pass into a Fail, so the summary counts
+    /// it as failed and the exit code is 1; it is no longer listed as a flash pass.
+    #[test]
+    fn test_strict_flash_failure_exits_one() {
+        let mut failed = result("f", true, FinalStatus::Fail);
+        failed.auto_status = AutoStatus::AutoFail;
+        failed.flash_info.flash = true;
+        let s = RunSummary::from_results(&[failed]);
+        assert_eq!(
+            (s.failed, s.flashed.len(), s.exit_code()),
+            (1, 0, EXIT_FAILED)
+        );
     }
 }

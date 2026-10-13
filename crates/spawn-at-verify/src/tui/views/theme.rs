@@ -7,6 +7,14 @@ use ratatui::style::Color;
 /// Orange used for "passed, but its trace was not captured"; yellow stays for geometry unchecked.
 pub const TRACE_UNCHECKED: Color = Color::Rgb(255, 140, 0);
 
+/// Pink used for "PASS (flash)": the placement is right but the window was shown before it was
+/// ready or changed after the reveal. Distinct from the orange and yellow of the unchecked passes
+/// and from the red of a failure.
+pub const FLASH: Color = Color::Rgb(255, 105, 180);
+
+/// List symbol of "PASS (flash)": a single-width glyph, unlike the lightning-bolt emoji.
+pub const FLASH_SYMBOL: &str = "✱";
+
 /// Maps test identifier to its primary category designation.
 pub fn get_test_category(cat_or_id: &str) -> &'static str {
     if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
@@ -89,6 +97,9 @@ pub fn status_symbol_and_color(
                 && r.human_verdict.verdict == HumanVerdictKind::Unset
             {
                 ("?", Color::Yellow)
+            } else if r.is_flash_pass() {
+                // Placement passed, but the window flashed: not the plain green check.
+                (FLASH_SYMBOL, FLASH)
             } else if r
                 .message
                 .as_deref()

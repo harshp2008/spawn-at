@@ -9,6 +9,7 @@ pub mod drawer_labels;
 pub mod drawer_order;
 pub mod drawer_trace;
 pub mod drawer_workarea;
+pub mod flash;
 pub mod footer_widths;
 pub mod golden_invariants;
 pub mod layout_responsive;

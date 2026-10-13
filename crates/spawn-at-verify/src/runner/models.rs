@@ -136,14 +136,11 @@ pub struct TestResult {
 }
 
 impl TestResult {
-    /// True for a run that passed on placement but flashed: the third outcome, "PASS (flash)".
-    /// A failed run is a failure, whatever it did on screen.
+    /// True for a run that passed on placement and its evidence but flashed: the third outcome,
+    /// "PASS (flash)". A failed run is a failure whatever it did on screen, and a pass whose
+    /// geometry or trace is unchecked keeps that label (its message still names the flash).
     pub fn is_flash_pass(&self) -> bool {
-        self.flash_info.flash
-            && matches!(
-                self.final_status,
-                FinalStatus::Pass | FinalStatus::PassUnchecked | FinalStatus::PassTraceUnchecked
-            )
+        self.flash_info.flash && self.final_status == FinalStatus::Pass
     }
 
     /// Expected vs actual placement for this result under `test`'s rectangle expectation, or
