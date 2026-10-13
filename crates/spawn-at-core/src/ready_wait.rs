@@ -196,7 +196,7 @@ impl ReadyWait {
     /// Starts a wait at time `now`. Returns the machine and its first action: `Done` for a skipped
     /// or already-satisfied request, else `Wait` until the cap.
     pub fn start(policy: Policy, request: Request, now: Millis) -> (ReadyWait, Action) {
-        let mut machine = ReadyWait {
+        let machine = ReadyWait {
             policy,
             target: request.target,
             started: now,

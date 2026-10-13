@@ -1,0 +1,7 @@
+{
+  "name": "slow app answering after the cap",
+  "description": "The app would reach the requested size at 200 ms, but the 150 ms cap fires first: TimedOut(Cap) with the starting size as the last size. The late sample is never seen.",
+  "request": { "target": [800, 600], "current": [400, 300] },
+  "events": [ { "at": 200, "size": [800, 600] } ],
+  "expect": { "outcome": "timed-out", "last_size": [400, 300], "waited_ms": 150, "phase": "cap" }
+}

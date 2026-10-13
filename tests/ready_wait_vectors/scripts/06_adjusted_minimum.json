@@ -1,0 +1,7 @@
+{
+  "name": "adjusted to the app's minimum",
+  "description": "A request for 200x150 is answered at 12 ms with the app's minimum 300x200. That first different size starts the 30 ms quiet rule: AdjustedTo at 42 ms.",
+  "request": { "target": [200, 150], "current": [400, 300] },
+  "events": [ { "at": 12, "size": [300, 200] } ],
+  "expect": { "outcome": "adjusted", "size": [300, 200], "waited_ms": 42 }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "fast compliant app",
+  "description": "The app repaints at the requested size 12 ms after the request. A first sample at 2 ms still carries the initial size (the window's first allocation) and is not an answer.",
+  "request": { "target": [800, 600], "current": [400, 300] },
+  "events": [ { "at": 2, "size": [400, 300] }, { "at": 12, "size": [800, 600] } ],
+  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 12 }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "target already equal",
+  "description": "The window already has the requested size: Reached at once, no wait, no events needed.",
+  "request": { "target": [800, 600], "current": [800, 600] },
+  "events": [],
+  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 0 }
+}

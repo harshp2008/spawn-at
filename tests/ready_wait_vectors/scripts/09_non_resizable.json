@@ -1,0 +1,7 @@
+{
+  "name": "non-resizable window",
+  "description": "allows_resize() is false: Skipped, even though the size also differs. The skip check comes first.",
+  "request": { "target": [800, 600], "current": [400, 300], "resizable": false },
+  "events": [ { "at": 10, "size": [800, 600] } ],
+  "expect": { "outcome": "skipped", "reason": "not-resizable" }
+}

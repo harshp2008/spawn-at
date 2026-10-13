@@ -1,0 +1,8 @@
+{
+  "name": "hung app reaching the hard limit",
+  "description": "With a cap longer than the hard limit (5000 ms) a hung app that never answers is ended by the hard limit at 1500 ms: TimedOut(Hard).",
+  "policy": { "cap_ms": 5000 },
+  "request": { "target": [800, 600], "current": [400, 300] },
+  "events": [],
+  "expect": { "outcome": "timed-out", "last_size": [400, 300], "waited_ms": 1500, "phase": "hard" }
+}

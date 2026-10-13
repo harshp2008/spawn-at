@@ -1,0 +1,8 @@
+{
+  "name": "policy override",
+  "description": "A policy with quiet_ms 100 (other fields default): answer at 20 ms, AdjustedTo at 120 ms.",
+  "policy": { "quiet_ms": 100 },
+  "request": { "target": [200, 150], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [300, 200] } ],
+  "expect": { "outcome": "adjusted", "size": [300, 200], "waited_ms": 120 }
+}

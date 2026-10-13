@@ -1,0 +1,7 @@
+{
+  "name": "adjusted by a terminal grid",
+  "description": "A terminal asked for 500x300 snaps to its character grid, 494x292, at 20 ms (observed in TEST_PLAN 6.12). It never equals the request: AdjustedTo at 50 ms.",
+  "request": { "target": [500, 300], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [494, 292] } ],
+  "expect": { "outcome": "adjusted", "size": [494, 292], "waited_ms": 50 }
+}

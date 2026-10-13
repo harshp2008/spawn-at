@@ -1,0 +1,7 @@
+{
+  "name": "resizes twice, second size is the target",
+  "description": "The app overshoots to 900x700 at 20 ms (first answer, quiet rule starts), then settles at the requested 800x600 at 45 ms, before the quiet deadline at 50 ms: Reached at 45 ms.",
+  "request": { "target": [800, 600], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [900, 700] }, { "at": 45, "size": [800, 600] } ],
+  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 45 }
+}

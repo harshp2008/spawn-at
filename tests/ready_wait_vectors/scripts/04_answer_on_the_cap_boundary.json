@@ -1,0 +1,7 @@
+{
+  "name": "answer on the cap boundary",
+  "description": "A sample at exactly 150 ms is applied before the cap timer fires (a sample wins a tie with a timer).",
+  "request": { "target": [800, 600], "current": [400, 300] },
+  "events": [ { "at": 150, "size": [800, 600] } ],
+  "expect": { "outcome": "reached", "size": [800, 600], "waited_ms": 150 }
+}

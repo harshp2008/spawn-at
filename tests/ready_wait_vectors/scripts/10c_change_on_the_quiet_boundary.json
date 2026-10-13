@@ -1,0 +1,7 @@
+{
+  "name": "change on the quiet boundary",
+  "description": "First answer 300x200 at 20 ms (quiet deadline 50 ms). A second change at exactly 50 ms is applied before the timer fires and restarts the clock: AdjustedTo(310x210) at 80 ms.",
+  "request": { "target": [200, 150], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [300, 200] }, { "at": 50, "size": [310, 210] } ],
+  "expect": { "outcome": "adjusted", "size": [310, 210], "waited_ms": 80 }
+}
