@@ -314,11 +314,17 @@ download_tag() {
     local rc=0
     if [ -t 2 ]; then
         # Preflight (terminal only): ask for the first byte with the silent fetch()
-        # path. A 404 or other HTTP/network error is then reported with no progress
-        # bar and no curl message, because the bar only starts for a URL that answers.
-        # (Erasing curl's own "curl: (22)" line with cursor codes was not reliable:
-        # curl prints it followed by an extra blank line.) Costs one extra request.
-        fetch "$url" "$TMP_DIR/preflight" -r 0-0 --max-time 20 || return 1
+        # path. A definite HTTP error status (404, 403, a 5xx that survived the retry)
+        # is reported with no progress bar and no curl message. Anything else that
+        # fails (timeout, DNS, connection) is ignored here: the real download below
+        # has its own retries and error report. (Erasing curl's own "curl: (22)" line
+        # with cursor codes was not reliable: curl prints it followed by an extra
+        # blank line.) At most 2 attempts of 15 s each; later options override fetch()'s.
+        if ! fetch "$url" "$TMP_DIR/preflight" -r 0-0 --max-time 15 --retry 1; then
+            case "$FETCH_REASON" in
+                "HTTP "*|"rate limit"*) return 1 ;;
+            esac
+        fi
         FETCH_PROGRESS=1
     fi
     fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000 || rc=$?
