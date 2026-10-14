@@ -178,6 +178,9 @@ pub enum Diagnostic {
         actual_size: (u32, u32),
     },
     /// Window never mapped within the timeout duration.
+    // Nothing outside tests constructs this yet; its level, message and tests exist, so it is
+    // kept as the message to use once a caller reports a window that never appeared.
+    #[allow(dead_code)]
     WindowNeverMapped {
         app_hint: String,
         pid: u32,

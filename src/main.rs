@@ -15,13 +15,13 @@
 //! - **Geometry Engine ([`core::geometry`]):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
 //! - **Target Resolver ([`target`]):** Resolves deterministic window targets by PID, class, title, or focus.
 
-pub mod cli;
-pub mod commands;
-pub mod config;
-pub mod diagnostics;
-pub mod platform;
-pub mod target;
-pub mod update;
+mod cli;
+mod commands;
+mod config;
+mod diagnostics;
+mod platform;
+mod target;
+mod update;
 
 use clap::Parser;
 use cli::{Cli, Commands};

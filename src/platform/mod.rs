@@ -57,6 +57,9 @@ pub trait ClaimSubscription: Send + Sync {
 pub enum WindowState {
     Maximize,
     Minimize,
+    // Only `run_unminimize` constructs this (see the note there); the GNOME and X11 drivers
+    // still map it, and the extension still implements the `unminimize` state string.
+    #[allow(dead_code)]
     Unminimize,
     Restore,
 }
@@ -140,6 +143,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// True if the compositor supports asynchronous event/signal notification for claimed windows.
+    // Backend contract: implemented by the GNOME driver and forwarded by LinuxBackend, exercised
+    // by tests, but no production code asks it today.
+    #[allow(dead_code)]
     fn supports_claim_wait(&self) -> bool {
         false
     }
@@ -240,11 +246,16 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Moves a window to the specified coordinates without altering its dimensions.
+    // Backend contract for the extension's MoveWindow D-Bus method (protocol surface); no
+    // command calls it today, only tests do.
+    #[allow(dead_code)]
     async fn move_window(&self, _target_id: &str, _x: i32, _y: i32) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("move_window"))
     }
 
     /// Moves and resizes a target window to the specified geometry.
+    // Same as `move_window`: backend contract, no production caller, tests only.
+    #[allow(dead_code)]
     async fn move_resize_window(
         &self,
         _target_id: &str,
