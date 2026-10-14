@@ -139,7 +139,7 @@ Measured on one machine (GNOME 46, Wayland, one monitor, the project's own test 
 - **Far fewer flashes in our measurements on GNOME 46 Wayland.** Under heavy CPU load (22 busy threads), the old rule flashed in 26 of 40 runs and the ready-wait in 0 of 40, judged by wire time. Idle, neither flashed in 20 runs.
 - **Wire time is the optimistic bound.** A "flash" here means the window was revealed before the app's first commit at its final size, read from the Wayland protocol. It says nothing about what a compositor frame actually showed.
 - **No screen capture was done.** Nobody measured pixels on screen.
-- **Cost:** under load the window is hidden longer (median 67 ms against 45 ms); idle there is no difference.
+- **Cost:** under load the window is hidden longer. The median was 45.3 ms (old rule) against 66.8 ms (new) in one measurement and 48.9 against 56.2 ms in a second one, so it varies between runs; idle there is no difference. In the second measurement 1 of 40 idle runs with the new rule hit the 250 ms cap (the app answered late); the cause is unknown.
 - **XWayland, X11 and GNOME 42-44 still use the old rule**, and flash. Only the test window has been tried there, not real X11 apps.
 - **An app already at its minimum size** (so it cannot answer a resize) makes the ready-wait run for the full `wait.cap_ms` (about +230 ms in our test). The same goes for an app that never answers (a hung one).
 

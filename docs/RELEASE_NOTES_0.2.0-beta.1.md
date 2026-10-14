@@ -22,12 +22,12 @@ All numbers are from the project's own test window, not from real apps, on **one
 | :-- | :-: | :-: |
 | Flashes, idle (20 runs each) | 0 | 0 |
 | Flashes, under heavy CPU load (22 busy threads, 40 runs each) | 26 | **0** |
-| Window hidden for, under load (median, ms) | 45 | 67 |
+| Window hidden for, under load (median, ms; two measurements) | 45.3 and 48.9 | 66.8 and 56.2 |
 | Window hidden for, idle (median, ms) | 19.6 | 19.5 |
 
 - **Wire time is the optimistic bound.** A "flash" here means the window was revealed before the app's first commit at its final size, read from the Wayland protocol dump. A commit is not a frame on the screen, so this can only undercount what you would see.
 - **No screen capture was done.** Nobody measured pixels. "Far fewer flashes in our measurements" is the claim; "no flashes" is not.
-- **It costs time under load:** about 21 ms more hidden time at the median, 105 ms against 53 ms at the 95th percentile.
+- **It costs time under load, and the cost varies between runs:** the median hidden time was 66.8 against 45.3 ms in one measurement and 56.2 against 48.9 ms in a second (95th percentile 105 against 53 ms, then 116 against 71 ms). In the second measurement 1 of 40 idle runs with the new rule hit the 250 ms cap; the cause is unknown.
 - **An app that is already at its minimum size, or one that never answers, costs the full cap** on every spawn (about +230 ms in our test, with the cap at 250 ms).
 - **XWayland/X11: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size, using the test window only. Tried and not usable: the first `damaged` event, `first-frame`, the actor size, the buffer rect, the surface texture size, holding the cloak and waiting for a second `damaged`, and resizing before the map. They fire at the shell's resize or at the map, not at the client's paint (for example the texture size reached the target before the client painted in 59 of 80 runs). A window ping has no reply API. A pixel probe could tell a blank buffer from the painted one on the test window, but it crashed GNOME Shell in testing and was removed. XWayland and X11 therefore keep the old rule and can still flash. Still untried: the X sync counter (client-side, partial toolkit support) and a screen-capture measurement rig (the Mutter screencast stream could not be consumed; the portal needs a user prompt). See [DESIGN_READY_WAIT.md](DESIGN_READY_WAIT.md), section 12.
 - **Known gap:** on GNOME 46 the extension cannot read an app's reported minimum size (it reads 0x0), so it learns a minimum only by waiting.

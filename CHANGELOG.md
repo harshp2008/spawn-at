@@ -35,8 +35,11 @@ caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for t
 
 - **Default `wait.cap_ms` is 250 ms** (it was 150 ms in development builds). The extension's own
   default applies when nothing is set; an explicit value is sent with the spawn.
-- Under load the window is hidden longer with the ready-wait: median 67 ms against 45 ms for
-  the old rule, 95th percentile 105 ms against 53 ms. Idle there is no difference (19.5 and 19.6 ms).
+- Under load the window is hidden longer with the ready-wait. The median was 66.8 ms against 45.3 ms
+  for the old rule in one measurement and 56.2 against 48.9 ms in a second, so it varies between
+  runs (95th percentile 105 against 53 ms, then 116 against 71 ms). Idle there is no difference
+  (about 20 ms). In the second measurement 1 of 40 idle runs with the new rule hit the 250 ms cap
+  (the app answered late); the cause is unknown.
 - An app that is already at its minimum size, or that never answers, makes the ready-wait run
   for the full cap on every spawn (about +230 ms in our test with the cap at 250 ms).
 - The four crates are versioned 0.2.0-beta.1. The version the binary reports and the update
