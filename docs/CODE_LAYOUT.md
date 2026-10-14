@@ -1,823 +1,275 @@
-# spawn-at Codebase Reorganization & Architecture Layout Plan
-
-> **PROPOSAL SPECIFICATION ONLY**  
-> *Target Branch:* `refactor/v0.2.0-beta.1`  
-> *Status:* Proposed Architecture (Pending Owner Review)  
-> *Author:* Antigravity AI Assistant  
-> *Date:* 2026-10-11  
-
----
-
-## 1. Executive Summary & Goals
-
-This document proposes a comprehensive codebase reorganization for the `spawn-at` repository. As the project has matured through the `v0.2.0-beta.1` refactor—adding extensive automated verification, mathematical placement oracles, compositor trace analyzers, interactive TUI harnesses, and multi-version GNOME Shell integration—several core files have grown far beyond maintainable thresholds (reaching up to ~3,500 lines).
-
-### Core Architectural Goals
-1. **Clean, Well-Organized Directory Structure:** A directory-per-concept hierarchy with no generic dumping grounds (`utils`, `helpers`, `misc`, `common`). Every folder represents a single domain concept.
-2. **Strict File Size Budgets:**
-   - **Target File Size:** 150 – 400 lines per file.
-   - **Hard Cap:** 600 lines maximum for both production code and integration tests (any exception must be explicitly justified).
-   - `lib.rs`, `main.rs`, and `mod.rs` files contain only declarations, re-exports, and top-level wiring.
-3. **Single Responsibility Principle:** Each file has one focused responsibility (e.g. separate layout calculation from widget rendering; separate TUI state management from input handling and clipboard I/O).
-4. **Heavily Commented Code ("Dense" Standard):** Mandatory top-level module documentation, doc comments on every declaration, block-level rationale, and explanations of all protocol quirks and mathematical formulas.
-5. **Zero Behavior Regressions:** Pure file-level moves and modularizations with no semantic changes, identical CLI flags, unchanged test counts, and byte-identical golden output files.
-
----
-
-## 2. Step 1: Codebase Inventory
-
-### 2.1. Repository Root Tree (Depth 3)
-*(Excluding `target/`, `node_modules/`, `verify-results/`, `.git/`)*
-
-```text
-.
-├── .agent_notes
-│   ├── 00_survey.md
-│   ├── 01_findings.md
-│   ├── 02_reconciliation.md
-│   ├── 03_target_architecture.md
-│   ├── 04_work_plan.md
-│   └── readme-angles.md
-├── .github
-│   └── workflows
-│       └── release.yml
-├── .gitignore
-├── AI_DEV
-│   ├── spawn-at_master_architecture_blueprint.md
-│   └── system_survey_and_understanding.md
-├── CONTRIBUTING.md
-├── Cargo.lock
-├── Cargo.toml
-├── LICENSE
-├── README.md
-├── assets
-│   └── gnome
-│       ├── legacy
-│       └── modern
-├── build.rs
-├── crates
-│   ├── spawn-at-core
-│   │   ├── Cargo.toml
-│   │   ├── src
-│   │   └── tests
-│   └── spawn-at-verify
-│       ├── Cargo.toml
-│       ├── THIRD_PARTY_NOTICES.md
-│       ├── src
-│       └── tests
-├── docs
-│   ├── TEST_PLAN.md
-│   ├── behavior-notes.md
-│   └── legacy-gnome.md
-├── install.sh
-├── scripts
-│   └── smoke-live.sh
-├── src
-│   ├── cli
-│   │   ├── args.rs
-│   │   ├── mod.rs
-│   │   └── tests.rs
-│   ├── commands
-│   │   ├── focus.rs
-│   │   ├── lifecycle.rs
-│   │   ├── mod.rs
-│   │   ├── query.rs
-│   │   ├── spawn.rs
-│   │   └── transform.rs
-│   ├── config.rs
-│   ├── diagnostics.rs
-│   ├── main.rs
-│   ├── platform
-│   │   ├── escalate.rs
-│   │   ├── installer.rs
-│   │   ├── linux
-│   │   └── mod.rs
-│   ├── target.rs
-│   └── update.rs
-├── tests
-│   ├── cloak_test.js
-│   ├── dispatcher_test.js
-│   ├── extension_test.js
-│   ├── gi_loader.js
-│   ├── golden_anchor_test.js
-│   └── legacy_dispatcher_test.js
-└── verify
-    ├── README.md
-    ├── apps
-    │   └── README.md
-    ├── cloak
-    │   ├── README.md
-    │   └── delayed-paint.toml
-    ├── diagnostics
-    │   └── README.md
-    ├── golden
-    │   └── placement.json
-    ├── launchers
-    │   └── README.md
-    ├── lifecycle
-    │   └── README.md
-    ├── placement
-    │   ├── README.md
-    │   └── bottom-right.toml
-    ├── preflight
-    │   ├── README.md
-    │   └── binary-head.toml
-    ├── query
-    │   └── README.md
-    ├── regression
-    │   └── README.md
-    ├── resilience
-    │   └── README.md
-    ├── suites
-    │   ├── README.md
-    │   ├── full.toml
-    │   ├── quick.toml
-    │   ├── regression.toml
-    │   ├── release-gate.toml
-    │   └── visual.toml
-    └── transform
-        └── README.md
-```
-
----
-
-### 2.2. Rust Source Files Inventory
-
-| File Path | Lines | One-Line Responsibility | Top-Level Items (Names Only) | Flags |
-| :--- | :---: | :--- | :--- | :---: |
-| `build.rs` | 119 | Git commit hash and build dirtiness detection | `main` | Clean |
-| **`crates/spawn-at-core/`** | | | | |
-| `crates/spawn-at-core/src/lib.rs` | 14 | Root module exports and documentation | `driver`, `geometry`, re-exports | Clean |
-| `crates/spawn-at-core/src/driver.rs` | 135 | Declarative scheduling types and driver traits | `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` | Clean |
-| `crates/spawn-at-core/src/geometry.rs` | 1680 | Pure coordinate maths, anchors, pivots, bounds clamping, workarea insets, diagnostics, and 1,200 lines of tests | `Anchor`, `Pivot`, `Area`, `Rect`, `PlacementParams`, `GeometryDiagnostic`, `apply_anchor`, `apply_pivot`, `clamp_to_bounds`, `compute_screen_anchor`, `resolve_workarea`, `calculate_rect_from_placement`, `check_geometry_diagnostics`, `tests` | **OVER 400**<br>*(Multi-concern)* |
-| `crates/spawn-at-core/tests/golden_placement.rs` | 292 | Oracle integration tests against shared JSON placement vectors | `test_core_reads_shared_golden_placement_vectors`, `test_core_odd_and_even_sizes_exhaustive` | Clean |
-| **`crates/spawn-at-verify/`** *(post-Stage 1 / Stage 1b state, commit `e963f52`; modules split into directories show total lines)* | | | | |
-| `crates/spawn-at-verify/src/lib.rs` | 20 | Verify library crate module declarations | `cli`, `loader`, `log_source`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, `tui` | Clean |
-| `crates/spawn-at-verify/src/main.rs` | 10 | Thin binary entry point calling `cli` | `main` | Clean |
-| `crates/spawn-at-verify/src/cli/` | 857 | CLI argument models and handlers for `run`, `list`, `check`, `report`, `tui`, plus smoke-live JSON evaluation helpers | `args.rs`, `run.rs`, `list.rs`, `check.rs`, `report.rs`, `tui.rs`, `smoke_eval.rs`, `mod.rs` | Clean *(split from `main.rs`)* |
-| `crates/spawn-at-verify/src/bin/fixture.rs` | 255 | Standalone GUI test fixture entry point (`winit` + `softbuffer`) | `main` | Clean |
-| `crates/spawn-at-verify/src/bin/fixture/` | 795 | Fixture window, renderer, and bitmap font data | `window.rs`, `renderer.rs`, `font.rs` (404), `mod.rs` | `font.rs` **OVER 400** *(justified data table)* |
-| `crates/spawn-at-verify/src/loader/` | 477 | Test registry discovery and loading, filter criteria, hierarchical test tree formatting | `registry.rs`, `filter.rs`, `tree.rs`, `tests.rs`, `mod.rs` | Clean *(split from `loader.rs`)* |
-| `crates/spawn-at-verify/src/log_source.rs` | 162 | Compositor log extraction from `journalctl` and session log files | `LogSource`, `read_journal_since`, `read_session_log` | Clean |
-| `crates/spawn-at-verify/src/oracle/` | 239 + 619 tests | Mathematical placement oracle; tests are hand-computed goldens and shared vector cross-validation | `calculator.rs`, `tests/golden.rs` (516), `tests/vectors.rs`, `mod.rs` | Clean *(split from `oracle.rs`)* |
-| `crates/spawn-at-verify/src/preflight.rs` | 228 | Host environment and build sanity preflight checks | `PreflightVerdict`, `PreflightReport`, `inspect_binary`, `parse_binary_version`, `evaluate_preflight_verdict` | Clean |
-| `crates/spawn-at-verify/src/probe.rs` | 264 | Host compositor, Wayland/X11 session, and monitor layout probing | `EnvironmentInfo`, `probe`, `check_requirements`, `probe_gnome_shell_version`, `probe_layout` | Clean |
-| `crates/spawn-at-verify/src/process.rs` | 166 | Child process execution with non-blocking I/O and timeouts | `ProcessOutput`, `set_nonblocking`, `drain_nonblocking`, `execute_with_timeout` | Clean |
-| `crates/spawn-at-verify/src/report/` | 603 | Session report models, builder, Markdown rendering, redaction | `models.rs`, `builder.rs`, `markdown.rs`, `redaction.rs`, `tests.rs`, `mod.rs` | Clean *(split from `report.rs`)* |
-| `crates/spawn-at-verify/src/runner/` | 1138 | Test execution engine, executor, result models, expectation validation, repeat flakiness detection | `engine.rs`, `executor.rs` (361), `models.rs`, `validation.rs`, `tests.rs`, `mod.rs` | Clean *(split from `runner.rs`)* |
-| `crates/spawn-at-verify/src/schema/` | 680 | Declarative TOML schema definitions for verify specifications | `types.rs`, `matrix.rs`, `suite.rs`, `tests.rs`, `mod.rs` | Clean *(split from `schema.rs`)* |
-| `crates/spawn-at-verify/src/trace/` | 671 | Trace parsing, lifecycle analysis, and timing budget checks | `models.rs`, `parser.rs`, `analyser.rs`, `report.rs`, `mod.rs` | Clean *(split from `trace.rs`)* |
-| `crates/spawn-at-verify/src/tracker/` | 769 | Window tracker preventing window leaks across test sessions | `state.rs` (300), `tests.rs` (458), `mod.rs` | Clean *(split from `tracker.rs`)* |
-| `crates/spawn-at-verify/src/tui/` (`mod.rs`, `logging.rs`) | 315 | TUI entry point, event loop lifecycle, extension debug logging guard | `mod.rs` (163), `logging.rs` (152) | Clean |
-| `crates/spawn-at-verify/src/tui/app/` | 1001 | TUI state model, key input, execution queue, clipboard I/O | `state.rs`, `input.rs`, `queue.rs`, `clipboard.rs`, `mod.rs` | Clean *(split from `tui/app.rs`)* |
-| `crates/spawn-at-verify/src/tui/views/` | 3809 | TUI view layer: root router, constants, theme, wrapping, builder, footer, panels, drawer, modals | `mod.rs`, `constants.rs`, `theme.rs`, `wrapping.rs`, `builder.rs`, `footer.rs`, `panels/` (883), `drawer/` (1527), `modals/` (485) | Clean *(split from `tui/views.rs`)* |
-| `crates/spawn-at-verify/tests/category_library_test.rs` | 296 | Registry category validation integration tests | `test_every_active_case_has_valid_category`, `test_missing_category_in_toml_is_deserialization_error`, `test_unknown_category_is_validation_error`, `test_category_filtering_in_registry` | Clean |
-| `crates/spawn-at-verify/tests/fixture_test.rs` | 254 | Standalone GUI fixture integration tests | `test_fixture_binary_help`, `test_fixture_rejects_invalid_args`, `test_fixture_clean_exit_timeout`, `test_fixture_signal_termination` | Clean |
-| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | 577 | Mathematical cross-validation between Oracle and Core geometry | `test_oracle_vs_core_cross_check_matrix`, `test_oracle_vs_core_directional_margins_cross_check`, `test_oracle_vs_core_cursor_anchor_cross_check` | Clean (under 600 test cap) |
-| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | 535 | Invariant verification tests for trace analyzer scenarios | `test_scenario_visible_passes`, `test_scenario_covered_passes`, `test_scenario_minimized_passes_and_checks_pre_reveal_unminimize`, `test_violation_off_target_visibility` | Under 600 test cap |
-| `crates/spawn-at-verify/tests/tui_test.rs` + `tests/tui/` | 3046 | 38-test TUI integration suite; `tui_test.rs` (4 lines) wires `tests/tui/` (7 files, 3042 lines, largest `golden_invariants.rs` 571) | `app_flow`, `layout_responsive`, `polish`, `drawer_content`, `drawer_keys_clipboard`, `golden_invariants`, `mod` | Under 600 test cap *(split from `tui_test.rs`)* |
-| **`src/` (Main `spawn-at` CLI)** | | | | |
-| `src/main.rs` | 318 | Main CLI routing, double-dash handling, subcommands dispatch | `Cli`, `main` | Clean |
-| `src/config.rs` | 279 | Configuration file load/save and autostart setup | `Config`, `UpdateConfig`, `config_path`, `load`, `save` | Clean |
-| `src/diagnostics.rs` | 1468 | Diagnostic rendering engine, ANSI color detection, label formatters, capturing sink, plus 900 lines of tests | `DiagnosticLevel`, `ColorCapability`, `detect_color_capability`, `format_label`, `render_diagnostic_message`, `DIAGNOSTIC_SINK`, `tests` | **OVER 400**<br>*(Engine + Tests)* |
-| `src/target.rs` | 592 | Window target resolver (ID, PID, class, title, focused window) | `WindowSelector`, `RelPosition`, `WindowMetadata`, `resolve_target`, `resolve_target_id`, `tests` | **OVER 400** |
-| `src/update.rs` | 1310 | GitHub release checker, semver comparison, update banner renderer, binary replacement, plus tests | `UpdateArgs`, `GitHubRelease`, `parse_semver`, `render_update_banner`, `apply_update`, `tests` | **OVER 400**<br>*(Updater + Banner + Tests)* |
-| `src/cli/mod.rs` | 82 | CLI module declarations and top-level commands enum | `args`, `Cli`, `Commands` | Clean |
-| `src/cli/args.rs` | 619 | Clap CLI argument structs and Levenshtein typo suggestion engine | `GeometryArgs`, `SpawnArgs`, `TransformArgs`, `QueryCommands`, `find_option_suggestion`, `KNOWN_OPTIONS` | **OVER 400** |
-| `src/cli/tests.rs` | 1247 | 25 CLI argument parsing characterization tests | `test_parse_negative_pos_coordinates`, `test_clamp_flag_parsing`, `test_pivot_parsing_and_conflicts`, *(25 tests)* | **OVER 400** |
-| `src/commands/mod.rs` | 1496 | Subcommand router, window polling/matching (`matches_target`), mock backends, and characterization tests | `matches_target`, `match_window_app_hint`, `strip_daemon_suffix`, `wait_for_spawn`, `wait_for_state_change`, `MockPollBackend`, `tests` | **OVER 400**<br>*(Router + Polling + Tests)* |
-| `src/commands/focus.rs` | 122 | Execution handlers for `focus` and `defocus` | `apply_focus_policy`, `run_focus`, `run_defocus` | Clean |
-| `src/commands/lifecycle.rs` | 204 | Execution handlers for `close`, `maximize`, `minimize`, `restore` | `run_close`, `run_maximize`, `run_minimize`, `run_unminimize`, `run_restore` | Clean |
-| `src/commands/query.rs` | 817 | Handlers for `query layout`, `query windows`, `query pointer` and JSON schemas | `run_query`, `compute_relative_window_coordinates`, `MockQueryBackend`, `tests` | **OVER 400** |
-| `src/commands/spawn.rs` | 959 | Core `spawn` pipeline, process launch, Wayland claim waiting, fallback polling | `SpawnOutputJson`, `run_spawn`, `configure_child_process`, `OrderingMockBackend`, `tests` | **OVER 400** |
-| `src/commands/transform.rs` | 372 | Core `transform` pipeline for repositioning/resizing active windows | `run_transform` | Clean |
-| `src/platform/mod.rs` | 294 | Compositor backend trait definitions and factory router | `ClaimResult`, `ClaimSubscription`, `WindowState`, `InstallScope`, `InstallArgs`, `UninstallArgs`, `CompositorBackend`, `init_backend` | Clean |
-| `src/platform/escalate.rs` | 93 | Privilege escalation helpers (`pkexec`, `sudo`) for system installation | `copy_elevated`, `remove_elevated` | Clean |
-| `src/platform/installer.rs` | 230 | Binary installation, `$PATH` resolution, desktop entry generation | `install_binary`, `uninstall_binary`, `is_in_path`, `get_target_dir` | Clean |
-| `src/platform/linux/mod.rs` | 670 | Composite `LinuxBackend` routing between GNOME Wayland and X11 | `LinuxBackend`, `get_parent_pid`, `is_process_descendant`, `query_x11_monitors` | **OVER 400** |
-| `src/platform/linux/xdg.rs` | 198 | Desktop application ID matching from `.desktop` files and process env | `resolve_linux_app_id`, `collect_xdg_application_dirs`, `match_desktop_file` | Clean |
-| `src/platform/linux/gnome/mod.rs` | 1721 | GNOME Shell D-Bus client, extension lifecycle, embedded extension assets, and backend tests | `GnomeInstallArgs`, `GnomeUninstallArgs`, `EXTENSION_UUID`, `EMBEDDED_EXTENSION_FILES_MODERN`, `EMBEDDED_EXTENSION_FILES_LEGACY`, `GnomeBackend`, `tests` | **OVER 400**<br>*(D-Bus + Install + Assets + Tests)* |
-| `src/platform/linux/gnome/dbus.rs` | 39 | `zbus` proxy trait definitions for GNOME Shell D-Bus interface | `SpawnAt` trait | Clean |
-| `src/platform/linux/gnome/mechanics.rs` | 531 | Instruction batch builder converting placement parameters to D-Bus payloads | `PlacementPayload`, `Instruction`, `calculate_placement`, `build_instructions_for_entry`, `tests` | **OVER 400** |
-| `src/platform/linux/x11/mod.rs` | 396 | X11 fallback driver implementation (`x11rb`) | `X11Driver`, `calculate_rect_from_placement` | Clean |
-| `src/platform/linux/x11/atoms.rs` | 38 | EWMH/ICCCM atom definitions and debug logging macro | `Atoms`, `x11_debug` | Clean |
-| `src/platform/linux/x11/interception.rs` | 294 | Subprocess spawn interception and X11 token tracking | `handle_spawn_interception` | Clean |
-| `src/platform/linux/x11/process.rs` | 30 | X11 process ancestor discovery | `get_parent_pid`, `is_process_descendant` | Clean |
-| `src/platform/linux/x11/session.rs` | 643 | Low-level X11 connection, window property queries, geometry manipulation | `X11Session`, `fetch_monitors`, `fetch_workareas`, `fetch_windows`, `move_resize` | **OVER 400** |
-| `src/platform/linux/x11/tests.rs` | 264 | Characterization unit tests for X11 placement mechanics | `test_x11_driver_capabilities`, `test_calculate_rect_center_anchor`, `test_compare_x11_and_mechanics_anchor_outputs` | Clean |
-
----
-
-### 2.3. JavaScript & Extension Source Files Inventory
-
-| File Path | Lines | Target GNOME Version | Responsibility |
-| :--- | :---: | :---: | :--- |
-| `assets/gnome/modern/metadata.json` | 11 | GNOME 45 – 48 | Extension manifest and UUID specification for modern GNOME |
-| `assets/gnome/modern/extension.js` | 1594 | GNOME 45 – 48 | Main extension entry point: actor monitoring, window batch dispatch, zero-flicker cloaking, and state management |
-| `assets/gnome/modern/dbus.js` | 107 | GNOME 45 – 48 | D-Bus interface export (`org.gnome.Shell.Extensions.SpawnAt`) via modern ESM syntax |
-| `assets/gnome/modern/anchor.js` | 60 | GNOME 45 – 48 | Pure anchor calculations, workarea bounds clamping, pivot offsets (zero `gi://` imports) |
-| `assets/gnome/modern/cloak.js` | 180 | GNOME 45 – 48 | Window actor cloaking (opacity 0), reveal transitions, safety watchdogs, pulse animations |
-| `assets/gnome/modern/commit.js` | 174 | GNOME 45 – 48 | Wayland client buffer commit sampling and resolution detection |
-| `assets/gnome/modern/pulse.js` | 224 | GNOME 45 – 48 | Clutter timeline actor pulse animations for visual feedback |
-| `assets/gnome/modern/logger.js` | 324 | GNOME 45 – 48 | Structured trace logger with ring buffer and timing checkpoints |
-| `assets/gnome/modern/validator.js` | 155 | GNOME 45 – 48 | Input payload validator guarding against adversarial D-Bus instruction calls |
-| `assets/gnome/legacy/metadata.json` | 10 | GNOME 42 – 44 | Extension manifest for legacy GNOME Shell versions |
-| `assets/gnome/legacy/extension.js` | 1622 | GNOME 42 – 44 | Legacy extension entry point using GObject wrapper syntax and legacy Clutter APIs |
-| `assets/gnome/legacy/dbus.js` | 113 | GNOME 42 – 44 | D-Bus interface export using legacy GJS GObject D-Bus export mechanisms |
-| `assets/gnome/legacy/anchor.js` | 53 | GNOME 42 – 44 | Legacy anchor and bounds calculations (pure math) |
-| `assets/gnome/legacy/cloak.js` | 159 | GNOME 42 – 44 | Legacy window cloaking mechanics adapted for older Mutter actor models |
-| `assets/gnome/legacy/commit.js` | 152 | GNOME 42 – 44 | Buffer commit sampling for GNOME 42-44 Wayland window actors |
-| `assets/gnome/legacy/pulse.js` | 205 | GNOME 42 – 44 | Legacy pulse animation implementation |
-| `assets/gnome/legacy/logger.js` | 321 | GNOME 42 – 44 | Legacy trace logger matching modern structured event schema |
-| `assets/gnome/legacy/validator.js` | 158 | GNOME 42 – 44 | Legacy payload validator |
-| **`tests/` (Node.js Test Suite)** | | | |
-| `tests/gi_loader.js` | 157 | Universal | Mock `gi://` environment loader enabling GJS extension testing in standard Node.js |
-| `tests/golden_anchor_test.js` | 152 | Universal | Mathematical parity tests between JS anchor math and Rust core geometry vectors |
-| `tests/extension_test.js` | 232 | Modern | Metadata and manifest validation tests |
-| `tests/cloak_test.js` | 148 | Modern | Cloak/uncloak watchdog and timeout tests |
-| `tests/dispatcher_test.js` | 1531 | Modern | Full modern extension contract test suite (protocol 5, trace logging, batch execution) |
-| `tests/legacy_dispatcher_test.js` | 1259 | Legacy | Full legacy extension contract test suite (protocol 5, backward compatibility) |
-
----
-
-### 2.4. Cross-File Movement Constraints & Facts
-
-Any refactoring must rigorously account for the following hard-coded paths and cross-crate dependencies:
-
-#### 1. `include_str!` & Embedded Extension Mappings
-- **Location:** `src/platform/linux/gnome/mod.rs` (lines 149–221 and 1300–1301)
-- **Embedded Paths:**
-  - `../../../../assets/gnome/modern/*.js`
-  - `../../../../assets/gnome/legacy/*.js`
-- **Integrity Test:** `src/platform/linux/gnome/mod.rs::tests::test_embedded_extension_files_match_disk` asserts that the compiled binary embeds byte-identical copies of every file in `assets/gnome/{modern,legacy}/`.
-- **Constraint:** If files under `src/platform/linux/gnome/` move into deeper subdirectories, the relative `../` offsets must be updated identically, or transitioned to `concat!(env!("CARGO_MANIFEST_DIR"), "/assets/gnome/...")`.
-
-#### 2. Cargo Targets & Feature Gates
-- `crates/spawn-at-verify/Cargo.toml`:
-  - `[[bin]] name = "spawn-at-verify", path = "src/main.rs"`
-  - `[[bin]] name = "fixture", path = "src/bin/fixture.rs", required-features = ["fixture"]`
-  - `[[test]] name = "fixture_test", path = "tests/fixture_test.rs", required-features = ["fixture"]`
-  - `[[test]] name = "oracle_cross_check", path = "tests/oracle_cross_check.rs"`
-  - `[[test]] name = "trace_analyser_test", path = "tests/trace_analyser_test.rs"`
-  - `[[test]] name = "tui_test", path = "tests/tui_test.rs", required-features = ["tui"]`
-- **Constraint:** Cargo targets must remain registered under their existing names so commands like `cargo test -p spawn-at-verify --test tui_test` continue functioning seamlessly.
-
-#### 3. Installer & Scripts
-- `install.sh`: Downloads release tarballs containing binary `spawn-at`, then invokes `spawn-at install`.
-- `scripts/smoke-live.sh`: Hard-codes binary path `$PROJECT_ROOT/target/debug/spawn-at`.
-- `.github/workflows/release.yml`: Builds release binaries from repo root (`target/release/spawn-at`).
-
-#### 4. Fixtures & Golden Files
-- `crates/spawn-at-verify/tests/fixtures/real_placement_run.json`: Used by golden and invariant tests.
-- `crates/spawn-at-verify/tests/golden/drawer_{60,70,80,100,140}.txt`: Five responsive golden files matching byte-for-byte in `test_real_placement_drawer_golden_files`.
-- `verify/golden/placement.json`: Shared oracle test vectors cross-checked across Core, Oracle, and JavaScript test suites.
-
-#### 5. Public Library API Surfaces
-- **`spawn-at-core` (`src/lib.rs`):**
-  - Re-exports `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` from `driver`.
-  - Re-exports `apply_anchor`, `apply_pivot`, `calculate_rect_from_placement`, `check_geometry_diagnostics`, `clamp_to_bounds`, `compute_screen_anchor`, `resolve_workarea`, `Anchor`, `Area`, `GeometryDiagnostic`, `Pivot`, `PlacementParams`, `Rect` from `geometry`.
-- **`spawn-at-verify` (`src/lib.rs`):**
-  - Re-exports modules `loader`, `log_source`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, and `tui`.
-
----
-
-## 3. Step 2: Target Architecture Layout
-
-### 3.1. General Sizing & Responsibility Rules
-1. **Target Range:** 150 – 400 lines per file.
-2. **Hard Cap:** 600 lines for any file (code or test).
-3. **Module Files (`mod.rs`, `lib.rs`):** Contain only documentation, module declarations, and re-exports (target < 50 lines).
-4. **Directory Per Concept:** When a single concept expands beyond 400 lines, it converts into a directory containing focused sub-modules.
-5. **No Dumping Grounds:** Disallow `utils.rs`, `helpers.rs`, `common.rs`. Names must reflect exact purpose (e.g. `wrapping.rs`, `sanitizer.rs`, `formatters.rs`).
-
----
-
-### 3.2. Target Layout: `crates/spawn-at-verify`
-
-Layout of `crates/spawn-at-verify` after Stage 1 and Stage 1b (line counts are current as of commit `e963f52`; the original plan split `tui/views.rs`, `tests/tui_test.rs`, `runner.rs`, `oracle.rs`, `tracker.rs` and `app.rs`, and Stage 1b split the rest):
-
-```text
-crates/spawn-at-verify/
-├── Cargo.toml
-├── THIRD_PARTY_NOTICES.md
-├── src/
-│   ├── lib.rs                               # Module declarations and feature gates (20 lines)
-│   ├── main.rs                              # Thin entry point calling cli (10 lines)
-│   ├── log_source.rs                        # Journal and session log reader (162 lines)
-│   ├── ext_logging.rs                       # Extension timing-log control (SetLogging over gdbus, LoggingControl, FakeExtension) (216 lines)
-│   ├── preflight.rs                         # Host preflight checks (228 lines)
-│   ├── probe.rs                             # Compositor and monitor probe (264 lines)
-│   ├── process.rs                           # Subprocess execution and timeout (166 lines)
-│   ├── bin/
-│   │   ├── fixture.rs                       # Entry point for GUI test fixture (255 lines)
-│   │   └── fixture/                         # Fixture implementation modules
-│   │       ├── mod.rs                       # Fixture wiring (5 lines)
-│   │       ├── window.rs                    # Window creation and event loop (winit) (252 lines)
-│   │       ├── renderer.rs                  # Softbuffer frame drawing (134 lines)
-│   │       └── font.rs                      # Bitmap font data table (404 lines) [Justified: data table]
-│   ├── cli/                                 # [SPLIT from main.rs, e963f52]
-│   │   ├── mod.rs                           # CLI argument models and subcommand handlers (29 lines)
-│   │   ├── args.rs                          # CLI argument parser schemas and subcommand definitions (192 lines)
-│   │   ├── run.rs                           # Handler for the `run` subcommand (155 lines)
-│   │   ├── list.rs                          # Handler for the `list` subcommand (49 lines)
-│   │   ├── check.rs                         # Handler for the `check` subcommand (97 lines)
-│   │   ├── report.rs                        # Handler for the `report` subcommand (91 lines)
-│   │   ├── tui.rs                           # Handler for the `tui` subcommand (30 lines)
-│   │   └── smoke_eval.rs                    # smoke-live.sh JSON evaluation helpers (moved unchanged) (214 lines)
-│   ├── loader/                              # [SPLIT from loader.rs, e963f52]
-│   │   ├── mod.rs                           # Loader exports (12 lines)
-│   │   ├── registry.rs                      # Test registry discovery, loading, and collection management (232 lines)
-│   │   ├── filter.rs                        # Test filter criteria and pattern matching (42 lines)
-│   │   ├── tree.rs                          # Hierarchical formatting and summaries of test definitions (76 lines)
-│   │   └── tests.rs                         # Loader unit tests (115 lines)
-│   ├── report/                              # [SPLIT from report.rs, e963f52]
-│   │   ├── mod.rs                           # Report exports (14 lines)
-│   │   ├── models.rs                        # Session report and qualification summary data structures (64 lines)
-│   │   ├── builder.rs                       # Session report builder, qualification evaluator, artifact writer (153 lines)
-│   │   ├── markdown.rs                      # Markdown session report rendering (103 lines)
-│   │   ├── redaction.rs                     # Title redaction, privacy filtering, timestamp formatting (117 lines)
-│   │   └── tests.rs                         # Report unit tests (152 lines)
-│   ├── schema/                              # [SPLIT from schema.rs, e963f52]
-│   │   ├── mod.rs                           # Schema exports (12 lines)
-│   │   ├── types.rs                         # Core declarative TOML schema data models (219 lines)
-│   │   ├── matrix.rs                        # Matrix expansion and categorization helpers (150 lines)
-│   │   ├── suite.rs                         # Test suite definition schema models (65 lines)
-│   │   └── tests.rs                         # Schema unit tests (234 lines)
-│   ├── trace/                               # [SPLIT from trace.rs, e963f52]
-│   │   ├── mod.rs                           # Trace exports (10 lines)
-│   │   ├── models.rs                        # Trace data models, events, and violation structures (112 lines)
-│   │   ├── parser.rs                        # Trace log parsing and event extraction (231 lines)
-│   │   ├── state.rs                         # TraceState and assess_trace: analysed vs "no trace captured" with a reason (70 lines)
-│   │   ├── analyser.rs                      # Trace invariant analysis, lifecycle verification, timing budget checks (246 lines)
-│   │   └── report.rs                        # Trace analysis summary and outcome models (72 lines)
-│   ├── runner/                              # [SPLIT from runner.rs]
-│   │   ├── mod.rs                           # Runner exports and wiring (19 lines)
-│   │   ├── models.rs                        # TestResult, FinalStatus, AutoStatus models (228 lines)
-│   │   ├── engine.rs                        # Test runner engine, repeat loops, process orchestration (113 lines)
-│   │   ├── executor.rs                      # Single-test execution, process invocation, log capture, attribution (361 lines)
-│   │   ├── trace_capture_tests.rs           # Executor tests: logging enabled before each run, missing trace recorded (245 lines)
-│   │   ├── validation.rs                    # Expectation verification, output matching, action argument building (175 lines)
-│   │   └── tests.rs                         # Runner unit tests (242 lines)
-│   ├── oracle/                              # [SPLIT from oracle.rs]
-│   │   ├── mod.rs                           # Oracle exports (8 lines)
-│   │   ├── calculator.rs                    # Mathematical placement calculations (231 lines)
-│   │   └── tests/                           # [SPLIT from tests.rs, e963f52]
-│   │       ├── mod.rs                       # Test wiring (4 lines)
-│   │       ├── golden.rs                    # Hand-computed golden placement calculations and tolerance checks (516 lines)
-│   │       └── vectors.rs                   # Shared golden placement vector file cross-validation (99 lines)
-│   ├── tracker/                             # [SPLIT from tracker.rs]
-│   │   ├── mod.rs                           # Tracker exports (11 lines)
-│   │   ├── state.rs                         # WindowTracker state, attribution, cap rules (300 lines)
-│   │   └── tests.rs                         # Window tracker unit tests (458 lines)
-│   └── tui/
-│       ├── mod.rs                           # TUI runner and terminal setup (163 lines)
-│       ├── logging.rs                       # Extension logging RAII guard (152 lines)
-│       ├── app/                             # [SPLIT from tui/app.rs]
-│       │   ├── mod.rs                       # App module wiring (9 lines)
-│       │   ├── state.rs                     # TuiApp struct, navigation, selection clamping (393 lines)
-│       │   ├── input.rs                     # Key event dispatcher and mode switches (262 lines)
-│       │   ├── queue.rs                     # Execution queue runner, human verdict state (180 lines)
-│       │   └── clipboard.rs                 # Clipboard provider integration (157 lines)
-│       └── views/                           # [SPLIT from tui/views.rs]
-│           ├── mod.rs                       # Top-level draw_ui router (171 lines)
-│           ├── constants.rs                 # Layout constants and breakpoints (18 lines)
-│           ├── theme.rs                     # Colors, styles, bullets, status symbols (107 lines)
-│           ├── wrapping.rs                  # Text tokenizer, word-wrapping (143 lines)
-│           ├── builder.rs                   # DrawerBuilder struct and push helpers (144 lines)
-│           ├── panels/                      # Main screen panels
-│           │   ├── mod.rs                   # Panel wiring (11 lines)
-│           │   ├── header.rs                # Banner and fixture warning widget (117 lines)
-│           │   ├── tests_list.rs            # Tests category list widget (262 lines)
-│           │   ├── description.rs           # Test description panel widget (361 lines)
-│           │   └── result_box.rs            # Result box and status widget (132 lines)
-│           ├── drawer/                      # Detail drawer sections
-│           │   ├── mod.rs                   # Drawer assembly (96 lines)
-│           │   ├── header_section.rs        # Title, ID, Mode, Description section (78 lines)
-│           │   ├── result_section.rs        # Verdict, Cloak duration, provisional budget (349 lines)
-│           │   ├── geometry_section.rs      # Aligned geometry table and inputs (239 lines)
-│           │   ├── timeline_section.rs      # Drawer TIMELINE section rendering (194 lines)
-│           │   ├── timeline_format.rs       # Formatting, parsing, and key humanisation of timeline events (304 lines)
-│           │   └── info_sections.rs         # Watch, Spec, and Output sections (267 lines)
-│           ├── footer.rs                    # Keys bar, responsive key grids, chips (331 lines)
-│           └── modals/                      # [SPLIT from modals.rs, e963f52]
-│               ├── mod.rs                   # Modal wiring (30 lines)
-│               ├── help.rs                  # Keyboard shortcuts and navigation help overlay (361 lines)
-│               └── verdict.rs               # Human review verdict input dialog (94 lines)
-└── tests/
-    ├── category_library_test.rs             # Category validation tests (296 lines)
-    ├── fixture_test.rs                      # Fixture binary tests (254 lines)
-    ├── oracle_cross_check.rs                # Oracle cross checks (577 lines) [Justified: matrix assertions]
-    ├── trace_analyser_test.rs               # Trace analyzer tests (535 lines) [Justified: scenario data]
-    ├── trace_state_test.rs                  # assess_trace: empty / missing / foreign-window / normal slices (81 lines)
-    ├── tui_test.rs                          # Root test crate wiring submodules (4 lines)
-    └── tui/                                 # [SPLIT from tests/tui_test.rs (2,970 lines)]
-        ├── mod.rs                           # Submodule definitions and common helpers (312 lines)
-        ├── app_flow.rs                      # Initialization, navigation, filter, verdict tests (304 lines)
-        ├── layout_responsive.rs             # Breakpoints and terminal resizing tests (456 lines)
-        ├── polish.rs                        # Polish tests (444 lines)
-        ├── drawer_content.rs                # Drawer sections, budget warning, failure box (566 lines)
-        ├── drawer_keys_clipboard.rs         # Keys chips, clipboard copy/save, help overlay (389 lines)
-        └── golden_invariants.rs             # Responsive golden comparisons & grid invariants (571 lines)
-```
-
----
-
-### 3.3. Target Layout: `crates/spawn-at-core`
-
-Split the ~1,680-line `src/geometry.rs` into focused modules under `src/geometry/`:
-
-```text
-crates/spawn-at-core/
-├── Cargo.toml
-├── src/
-│   ├── lib.rs                               # Root exports (unchanged public API) (< 30 lines)
-│   ├── driver.rs                            # Declarative scheduling types (135 lines)
-│   └── geometry/                            # [SPLIT from geometry.rs (1,680 lines)]
-│       ├── mod.rs                           # Geometry module re-exports (< 40 lines)
-│       ├── types.rs                         # Anchor, Pivot, Area, Rect, PlacementParams (~180 lines)
-│       ├── placement.rs                     # apply_anchor, apply_pivot, compute_screen_anchor (~260 lines)
-│       ├── clamp.rs                         # clamp_to_bounds, boundary adjustments (~190 lines)
-│       ├── workarea.rs                      # resolve_workarea, monitor layout insets (~240 lines)
-│       ├── diagnostics.rs                   # check_geometry_diagnostics (~160 lines)
-│       └── tests.rs                         # Core geometry unit tests (~520 lines)
-└── tests/
-    └── golden_placement.rs                  # Oracle golden cross-checks (292 lines)
-```
-
----
-
-### 3.4. Target Layout: Main `spawn-at` CLI (`src/`)
-
-Split oversized command, diagnostic, update, and platform modules:
-
-```text
-src/
-├── main.rs                                  # CLI argument routing and double-dash handling (~280 lines)
-├── config.rs                                # Configuration loader and autostart (~279 lines)
-├── cli/
-│   ├── mod.rs                               # Cli, Commands enum definitions (< 60 lines)
-│   ├── args.rs                              # Command argument structs (~380 lines)
-│   ├── suggest.rs                           # [NEW] Levenshtein option suggestion engine (~160 lines)
-│   └── tests/                               # [SPLIT from src/cli/tests.rs (1,247 lines)]
-│       ├── mod.rs                           # Test module wiring
-│       ├── spawn_args.rs                    # Spawn parsing and validation tests (~450 lines)
-│       ├── transform_args.rs                # Transform parsing and conflict tests (~380 lines)
-│       └── geometry_args.rs                 # Area, anchor, margin parsing tests (~410 lines)
-├── commands/
-│   ├── mod.rs                               # Command router and shared types (< 90 lines)
-│   ├── matching.rs                          # [NEW] Window target matching & app ID resolution (~280 lines)
-│   ├── waiter.rs                            # [NEW] Window claim waiter and state poller (~260 lines)
-│   ├── focus.rs                             # Focus and defocus execution (122 lines)
-│   ├── lifecycle.rs                         # Close, maximize, minimize, restore (204 lines)
-│   ├── query.rs                             # Layout, window, pointer query handlers (~390 lines)
-│   ├── spawn.rs                             # Process spawning and Wayland claim setup (~380 lines)
-│   ├── transform.rs                         # Runtime window repositioning and resizing (372 lines)
-│   └── tests.rs                             # [NEW] Mock backends and command characterization tests (~480 lines)
-├── diagnostics/                             # [SPLIT from src/diagnostics.rs (1,468 lines)]
-│   ├── mod.rs                               # Diagnostics exports (< 50 lines)
-│   ├── types.rs                             # DiagnosticLevel, ColorCapability, sink (~180 lines)
-│   ├── color.rs                             # Stream color capability detection (~160 lines)
-│   ├── format.rs                            # Message formatters and label renderers (~320 lines)
-│   └── tests.rs                             # Diagnostic snapshot and escape-code tests (~520 lines)
-├── target/                                  # [SPLIT from src/target.rs (592 lines)]
-│   ├── mod.rs                               # Target exports (< 40 lines)
-│   ├── selector.rs                          # WindowSelector, WindowMetadata models (~180 lines)
-│   ├── resolver.rs                          # Target window resolution logic (~220 lines)
-│   └── tests.rs                             # Target resolution unit tests (~190 lines)
-├── update/                                  # [SPLIT from src/update.rs (1,310 lines)]
-│   ├── mod.rs                               # Update exports (< 40 lines)
-│   ├── types.rs                             # GitHubRelease, UpdateArgs models (~140 lines)
-│   ├── version.rs                           # Semver parsing and channel normalization (~220 lines)
-│   ├── fetcher.rs                           # GitHub API client and release candidate logic (~280 lines)
-│   ├── banner.rs                            # Boxed notices and update banner rendering (~290 lines)
-│   ├── apply.rs                             # Binary download and in-place replacement (~190 lines)
-│   └── tests.rs                             # Update unit tests (~420 lines)
-└── platform/
-    ├── mod.rs                               # CompositorBackend trait and router (< 220 lines)
-    ├── escalate.rs                          # Privilege escalation helpers (93 lines)
-    ├── installer.rs                         # Binary install and desktop file generation (230 lines)
-    └── linux/
-        ├── mod.rs                           # LinuxBackend router (< 260 lines)
-        ├── process.rs                       # Process tree hierarchy inspection (~180 lines)
-        ├── xdg.rs                           # XDG desktop file resolution (198 lines)
-        ├── gnome/                           # [SPLIT from src/platform/linux/gnome/mod.rs (1,721 lines)]
-        │   ├── mod.rs                       # GnomeBackend definition (< 60 lines)
-        │   ├── dbus.rs                      # zbus proxy trait definition (39 lines)
-        │   ├── embedded.rs                  # [NEW] Embedded extension file assets & include_str! (~180 lines)
-        │   ├── extension_manager.rs         # [NEW] Installation, uninstallation, restart checks (~380 lines)
-        │   ├── client.rs                    # [NEW] D-Bus client calls for layout, windows, close (~360 lines)
-        │   ├── mechanics.rs                 # Instruction batch building (531 lines) [Justified: complex payload]
-        │   └── tests.rs                     # [NEW] GNOME backend characterization tests (~480 lines)
-        └── x11/
-            ├── mod.rs                       # X11Driver router (< 220 lines)
-            ├── atoms.rs                     # EWMH/ICCCM atom definitions (38 lines)
-            ├── interception.rs              # Spawn interception (294 lines)
-            ├── process.rs                   # X11 process helpers (30 lines)
-            ├── session.rs                   # Low-level x11rb session queries (~420 lines)
-            └── tests.rs                     # X11 unit tests (264 lines)
-```
-
----
-
-### 3.5. Target Layout: JavaScript Extension Trees & Tests
-
-The JavaScript extension files under `assets/gnome/` are constrained by GNOME Shell's extension architecture (which requires `extension.js` as the direct entry point) and by installer embedding.
-- **Maintain Current Asset Structure:** `assets/gnome/modern/` and `assets/gnome/legacy/` maintain their exact file names and entry points.
-- **Node Test Split:** Split monolithic dispatcher tests:
-  - `tests/dispatcher_test.js` (1,531 lines) -> Split into focused scenario suites under `tests/modern/` while keeping `tests/dispatcher_test.js` as a lightweight runner.
-  - `tests/legacy_dispatcher_test.js` (1,259 lines) -> Split similarly under `tests/legacy/`.
-
----
-
-### 3.6. Target Layout: Repository Root & Clean-ups
-
-1. **Stray & Scratch Cleanup:**
-   - Add `.agent_notes/` and `AI_DEV/` to `.gitignore` (or consolidate permanent architectural documentation under `docs/architecture/`).
-   - Clean up temporary scratch scripts in conversation directories.
-2. **Docs Organization:**
-   - `docs/CODE_LAYOUT.md` (this architecture specification)
-   - `docs/TEST_PLAN.md` (test plan & calibration data)
-   - `docs/behavior-notes.md` (behavioral specifications)
-   - `docs/legacy-gnome.md` (GNOME 42-44 quirks)
-
----
-
-## 4. Step 3: Comprehensive Move Map
-
-| Status | Current Location & Items | Target Location | Target Lines | Rationale / Constraints |
-| :---: | :--- | :--- | :---: | :--- |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(DRAWER_INDENT, VALUE_X, RIGHT_PAD, breakpoints)` | `crates/spawn-at-verify/src/tui/views/constants.rs` | ~90 | Isolates single grid constants and breakpoints |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(status_symbol_and_color, theme colors)` | `crates/spawn-at-verify/src/tui/views/theme.rs` | ~160 | Concentrates styling and symbols |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(tokenize_text, hard_break_token, wrap_value_tokens)` | `crates/spawn-at-verify/src/tui/views/wrapping.rs` | ~280 | Dedicated string and token wrapping engine |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(DrawerBuilder)` | `crates/spawn-at-verify/src/tui/views/builder.rs` | ~220 | Drawer line assembly builder |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(draw_header, banner)` | `crates/spawn-at-verify/src/tui/views/panels/header.rs` | ~150 | Top banner and missing fixture warning |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(draw_test_list, compute_list_items_count)` | `crates/spawn-at-verify/src/tui/views/panels/tests_list.rs` | ~260 | Tests category list and folding counts |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(draw_details_pane, count_wrapped_lines)` | `crates/spawn-at-verify/src/tui/views/panels/description.rs` | ~180 | Middle description panel |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(draw_result_box, get_result_content)` | `crates/spawn-at-verify/src/tui/views/panels/result_box.rs` | ~220 | Bottom result status box |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(Header section in build_drawer_content)` | `crates/spawn-at-verify/src/tui/views/drawer/header_section.rs` | ~160 | Drawer Title, ID, Mode, Description section |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(RESULT section in build_drawer_content)` | `crates/spawn-at-verify/src/tui/views/drawer/result_section.rs` | ~180 | Verdict, Cloak duration, provisional budget |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(GEOMETRY section in build_drawer_content)` | `crates/spawn-at-verify/src/tui/views/drawer/geometry_section.rs` | ~240 | Geometry table, Expected/Actual/Result |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(TIMELINE section, parse_compact_timeline)` | `crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs` | ~360 | Compact timeline, humanised keys, stacked rows |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(WHAT TO LOOK FOR, SPEC, OUTPUT sections)` | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs` | ~250 | Spec, watch question, stderr/stdout |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(render_key_grid, draw_footer)` | `crates/spawn-at-verify/src/tui/views/footer.rs` | ~260 | Bottom keys bar and responsive key grids |
-| **SAFE** | `crates/spawn-at-verify/src/tui/views.rs`<br>`(draw_help_modal, draw_verdict_modal)` | `crates/spawn-at-verify/src/tui/views/modals.rs` | ~320 | Help overlay and verdict input modals |
-| **SAFE** | `crates/spawn-at-verify/src/tui/app.rs`<br>`(TuiApp, FilterMode, ActivePane, navigation)` | `crates/spawn-at-verify/src/tui/app/state.rs` | ~280 | State models, selection clamping |
-| **SAFE** | `crates/spawn-at-verify/src/tui/app.rs`<br>`(handle_key)` | `crates/spawn-at-verify/src/tui/app/input.rs` | ~260 | Keyboard input event dispatcher |
-| **SAFE** | `crates/spawn-at-verify/src/tui/app.rs`<br>`(process_queue_step, record_verdict, run_all)` | `crates/spawn-at-verify/src/tui/app/queue.rs` | ~220 | Execution queue runner & human review state |
-| **SAFE** | `crates/spawn-at-verify/src/tui/app.rs`<br>`(system_copy_to_clipboard, copy_drawer_text)` | `crates/spawn-at-verify/src/tui/app/clipboard.rs` | ~180 | Clipboard integration & drawer text saving |
-| **SAFE** | `crates/spawn-at-verify/src/runner.rs`<br>`(TestResult, FinalStatus, AutoStatus)` | `crates/spawn-at-verify/src/runner/models.rs` | ~180 | Test outcome and result status models |
-| **SAFE** | `crates/spawn-at-verify/src/runner.rs`<br>`(TestRunner, execute_single_test)` | `crates/spawn-at-verify/src/runner/engine.rs` | ~360 | Runner execution engine & flakiness repeat |
-| **SAFE** | `crates/spawn-at-verify/src/runner.rs`<br>`(tests)` | `crates/spawn-at-verify/src/runner/tests.rs` | ~350 | Runner unit tests |
-| **SAFE** | `crates/spawn-at-verify/src/oracle.rs`<br>`(calculate_oracle_rect, PlacementOracle)` | `crates/spawn-at-verify/src/oracle/calculator.rs` | ~380 | Mathematical placement oracle calculations |
-| **SAFE** | `crates/spawn-at-verify/src/oracle.rs`<br>`(tests)` | `crates/spawn-at-verify/src/oracle/tests.rs` | ~390 | Oracle unit tests |
-| **SAFE** | `crates/spawn-at-verify/src/tracker.rs`<br>`(WindowTracker, WindowRecord)` | `crates/spawn-at-verify/src/tracker/state.rs` | ~340 | Window tracking and window leak cleanup |
-| **SAFE** | `crates/spawn-at-verify/src/tracker.rs`<br>`(tests)` | `crates/spawn-at-verify/src/tracker/tests.rs` | ~350 | Window tracker unit tests |
-| **SAFE** | `crates/spawn-at-verify/tests/tui_test.rs`<br>`(38 tests split by topic)` | `crates/spawn-at-verify/tests/tui/*.rs` | ~380 ea | Test functions keep identical names |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(Anchor, Pivot, Area, Rect, PlacementParams)` | `crates/spawn-at-core/src/geometry/types.rs` | ~180 | Core geometric types |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(apply_anchor, apply_pivot, compute_screen_anchor)` | `crates/spawn-at-core/src/geometry/placement.rs` | ~260 | Mathematical placement algorithms |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(clamp_to_bounds)` | `crates/spawn-at-core/src/geometry/clamp.rs` | ~190 | Boundary clamping logic |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(resolve_workarea)` | `crates/spawn-at-core/src/geometry/workarea.rs` | ~240 | Multi-monitor workarea and insets |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(check_geometry_diagnostics)` | `crates/spawn-at-core/src/geometry/diagnostics.rs` | ~160 | Geometric diagnostic checking |
-| **SAFE** | `crates/spawn-at-core/src/geometry.rs`<br>`(tests)` | `crates/spawn-at-core/src/geometry/tests.rs` | ~520 | Core geometry unit test matrix |
-| **SAFE** | `src/commands/mod.rs`<br>`(matches_target, match_window_app_hint)` | `src/commands/matching.rs` | ~280 | Target window matching algorithms |
-| **SAFE** | `src/commands/mod.rs`<br>`(wait_for_spawn, wait_for_state_change)` | `src/commands/waiter.rs` | ~260 | Window state polling and claim waiter |
-| **SAFE** | `src/commands/mod.rs`<br>`(tests, MockPollBackend)` | `src/commands/tests.rs` | ~480 | Command polling and characterization tests |
-| **SAFE** | `src/diagnostics.rs`<br>`(DiagnosticLevel, ColorCapability, sink)` | `src/diagnostics/types.rs` | ~180 | Diagnostic levels and capture sink |
-| **SAFE** | `src/diagnostics.rs`<br>`(detect_color_capability)` | `src/diagnostics/color.rs` | ~160 | ANSI color capability detection |
-| **SAFE** | `src/diagnostics.rs`<br>`(render_diagnostic_message, format_label)` | `src/diagnostics/format.rs` | ~320 | Message formatting and label styling |
-| **SAFE** | `src/diagnostics.rs`<br>`(tests)` | `src/diagnostics/tests.rs` | ~520 | Diagnostic tests and escape-code snapshots |
-| **SAFE** | `src/update.rs`<br>`(UpdateArgs, GitHubRelease, GitHubAsset)` | `src/update/types.rs` | ~140 | Update release and asset models |
-| **SAFE** | `src/update.rs`<br>`(parse_semver, normalize_channel)` | `src/update/version.rs` | ~220 | Semver parser and channel normalization |
-| **SAFE** | `src/update.rs`<br>`(find_update_candidate, fetch_releases)` | `src/update/fetcher.rs` | ~280 | GitHub releases API fetcher |
-| **SAFE** | `src/update.rs`<br>`(render_update_banner, render_boxed_notice)` | `src/update/banner.rs` | ~290 | Terminal update notice banner renderer |
-| **SAFE** | `src/update.rs`<br>`(apply_update)` | `src/update/apply.rs` | ~190 | In-place binary self-updater |
-| **SAFE** | `src/update.rs`<br>`(tests)` | `src/update/tests.rs` | ~420 | Update unit tests |
-| **RISKY** | `src/platform/linux/gnome/mod.rs`<br>`(EMBEDDED_EXTENSION_FILES_*, include_str!)` | `src/platform/linux/gnome/embedded.rs` | ~180 | **RISKY:** Touches `include_str!` paths and `test_embedded_extension_files_match_disk`. Must adjust relative `../` offsets accurately! |
-| **SAFE** | `src/platform/linux/gnome/mod.rs`<br>`(install, uninstall, restart)` | `src/platform/linux/gnome/extension_manager.rs` | ~380 | Extension installation and uninstallation |
-| **SAFE** | `src/platform/linux/gnome/mod.rs`<br>`(get_layout, get_windows, close_window)` | `src/platform/linux/gnome/client.rs` | ~360 | GNOME Shell D-Bus client calls |
-| **SAFE** | `src/platform/linux/gnome/mod.rs`<br>`(tests)` | `src/platform/linux/gnome/tests.rs` | ~480 | GNOME backend unit tests |
-
----
-
-### 3.5. Staged Execution Plan
-
-To guarantee zero regressions and continuous green builds, the execution must proceed in 5 strictly ordered stages. Each stage ends with a full test suite validation before committing:
-
-```mermaid
-graph TD
-    Stage1["Stage 1: spawn-at-verify (Dev Tool)"] --> Stage2["Stage 2: spawn-at-core (Geometry Engine)"]
-    Stage2 --> Stage3["Stage 3: spawn-at (Main CLI)"]
-    Stage3 --> Stage4["Stage 4: Extension Trees & Node Tests"]
-    Stage4 --> Stage5["Stage 5: Repo Root & Documentation"]
-```
-
-#### Stage 1: `spawn-at-verify` Modularization [DONE]
-1. Split `tui/views.rs` into `tui/views/` modules (17 files: `constants.rs`, `theme.rs`, `wrapping.rs`, `builder.rs`, `panels/`, `drawer/`, `footer.rs`, `modals.rs`, `mod.rs`). [COMPLETED in commit `444a2c1`]
-2. Split `tui/app.rs` into `tui/app/` modules (`state.rs`, `input.rs`, `queue.rs`, `clipboard.rs`, `mod.rs`). [COMPLETED in commit `bf40dc9`]
-3. Split `runner.rs` (`models.rs`, `engine.rs`, `validation.rs`, `tests.rs`, `mod.rs`), `oracle.rs` (`calculator.rs`, `tests.rs`, `mod.rs`), and `tracker.rs` (`state.rs`, `tests.rs`, `mod.rs`). [COMPLETED in commits `2f18905`, `f25a05e`, `f88744b`]
-4. Split `src/bin/fixture.rs` & `font/mod.rs` into `src/bin/fixture/` (`renderer.rs`, `window.rs`, `font.rs`, `mod.rs`) + thin `src/bin/fixture.rs`. [COMPLETED in commit `b945322`]
-5. Split `tests/tui_test.rs` into `tests/tui/` submodules (`app_flow.rs`, `layout_responsive.rs`, `polish.rs`, `drawer_content.rs`, `drawer_keys_clipboard.rs`, `golden_invariants.rs`, `mod.rs`). [COMPLETED in commit `7dd2066`]
-6. Enabled `#![warn(missing_docs)]` on library crate and applied dense comments to `src/` and light comments to `tests/`. **Correction:** this item originally recorded "ZERO misses" from `scripts/check-doc-coverage.sh`, which was not accurate. The check was a text scan that recognises only `fn` and `pub struct/enum/...` lines, so it could not see struct fields, and `cargo check -p spawn-at-verify --features tui` reported 34 `missing_docs` warnings (`tui/app/state.rs`, `tui/logging.rs`, `tui/views/builder.rs`); the default scan of `src/` plus `tests/` also failed with 72 misses (1 in `src/`, 71 undocumented test functions in `tests/`). The commit "fix(verify): document every public field and make check-doc-coverage run the compiler lint" documents the 34 fields and the method it found, and makes `cargo xtask check-doc-coverage` additionally run `RUSTFLAGS="-W missing_docs" cargo check -p spawn-at-verify --features tui,fixture --all-targets` (in `target/xtask-doc-check`) and merge those findings. **Current state:** `src/` has zero misses under both the text scan and the compiler lint, and over `src/` the two agree exactly (checked by restoring the 35 misses and comparing the lists). **Scope (updated):** `cargo xtask check-doc-coverage` with no arguments now gates `crates/spawn-at-verify/src` only (text scan plus the compiler lint) and exits non-zero only for misses there; `tests/` is no longer part of the gate. It prints a separate informational line for `tests/` (currently `69 items without a /// doc across 8 of 20 files`, text scan only), because test functions are commented lightly by design and test crates carry no `#![warn(missing_docs)]`. Passing a path explicitly (for example `crates/spawn-at-verify/tests`) still gates that path, and then also reports the 4 struct fields in `category_library_test.rs` that only the `RUSTFLAGS="-W missing_docs"` form sees. The text scan is stricter than the compiler (private functions, test functions, file headers), so the two differ outside `src/` by design.
-7. **Gate Check:** `cargo test -p spawn-at-verify --features tui` (All 124 tests pass: 59 lib + 0 main + 4 cat + 5 oracle + 18 trace + 38 tui; SHA256 of goldens and fixtures identical; clippy clean; fmt clean). [VERIFIED]
-
-##### Stage 1b: Split of Remaining Over-Cap Files [DONE, commit `e963f52`]
-Commit `e963f52` ("complete modularization of all files exceeding line cap") modularized every remaining `spawn-at-verify` file over the cap that Stage 1 had left whole:
-1. `main.rs` (550 lines) became a 10-line entry point plus `src/cli/` (`args.rs`, `check.rs`, `list.rs`, `report.rs`, `run.rs`, `tui.rs`, `mod.rs`); `smoke_eval.rs` moved into `src/cli/` unchanged.
-2. `loader.rs` became `src/loader/` (`registry.rs`, `filter.rs`, `tree.rs`, `tests.rs`, `mod.rs`).
-3. `report.rs` (575 lines) became `src/report/` (`models.rs`, `builder.rs`, `markdown.rs`, `redaction.rs`, `tests.rs`, `mod.rs`).
-4. `schema.rs` (663 lines) became `src/schema/` (`mod.rs`, `types.rs`, `matrix.rs`, `suite.rs`, `tests.rs`).
-5. `trace.rs` (654 lines) became `src/trace/` (`models.rs`, `parser.rs`, `analyser.rs`, `report.rs`, `mod.rs`).
-6. `runner/engine.rs` was split into `engine.rs` and `executor.rs`; `tui/views/drawer/timeline_section.rs` into `timeline_section.rs` and `timeline_format.rs`; `tui/views/modals.rs` into `tui/views/modals/` (`help.rs`, `verdict.rs`, `mod.rs`); `oracle/tests.rs` into `oracle/tests/` (`golden.rs`, `vectors.rs`, `mod.rs`).
-
-##### Stage 1 Actual File List & Architecture Map
-- `src/bin/fixture/font.rs` (404 lines) [Justified exception: bitmap font data table, 4 lines over the 400 cap]
-- `src/bin/fixture/mod.rs` (5 lines)
-- `src/bin/fixture/renderer.rs` (134 lines)
-- `src/bin/fixture.rs` (255 lines)
-- `src/bin/fixture/window.rs` (252 lines)
-- `src/cli/args.rs` (192 lines)
-- `src/cli/check.rs` (97 lines)
-- `src/cli/list.rs` (49 lines)
-- `src/cli/mod.rs` (29 lines)
-- `src/cli/report.rs` (91 lines)
-- `src/cli/run.rs` (155 lines)
-- `src/cli/smoke_eval.rs` (214 lines)
-- `src/cli/tui.rs` (30 lines)
-- `src/lib.rs` (20 lines)
-- `src/loader/filter.rs` (42 lines)
-- `src/loader/mod.rs` (12 lines)
-- `src/loader/registry.rs` (232 lines)
-- `src/loader/tests.rs` (115 lines)
-- `src/loader/tree.rs` (76 lines)
-- `src/log_source.rs` (162 lines)
-- `src/main.rs` (10 lines)
-- `src/oracle/calculator.rs` (231 lines)
-- `src/oracle/mod.rs` (8 lines)
-- `src/oracle/tests/golden.rs` (516 lines)
-- `src/oracle/tests/mod.rs` (4 lines)
-- `src/oracle/tests/vectors.rs` (99 lines)
-- `src/preflight.rs` (228 lines)
-- `src/probe.rs` (264 lines)
-- `src/process.rs` (166 lines)
-- `src/report/builder.rs` (153 lines)
-- `src/report/markdown.rs` (103 lines)
-- `src/report/models.rs` (64 lines)
-- `src/report/mod.rs` (14 lines)
-- `src/report/redaction.rs` (117 lines)
-- `src/report/tests.rs` (152 lines)
-- `src/runner/engine.rs` (113 lines)
-- `src/runner/executor.rs` (361 lines)
-- `src/runner/models.rs` (228 lines)
-- `src/runner/mod.rs` (19 lines)
-- `src/runner/tests.rs` (242 lines)
-- `src/runner/validation.rs` (175 lines)
-- `src/schema/matrix.rs` (150 lines)
-- `src/schema/mod.rs` (12 lines)
-- `src/schema/suite.rs` (65 lines)
-- `src/schema/tests.rs` (234 lines)
-- `src/schema/types.rs` (219 lines)
-- `src/trace/analyser.rs` (246 lines)
-- `src/trace/models.rs` (112 lines)
-- `src/trace/mod.rs` (10 lines)
-- `src/trace/parser.rs` (231 lines)
-- `src/trace/report.rs` (72 lines)
-- `src/tracker/mod.rs` (11 lines)
-- `src/tracker/state.rs` (300 lines)
-- `src/tracker/tests.rs` (458 lines)
-- `src/tui/app/clipboard.rs` (157 lines)
-- `src/tui/app/input.rs` (262 lines)
-- `src/tui/app/mod.rs` (9 lines)
-- `src/tui/app/queue.rs` (180 lines)
-- `src/tui/app/state.rs` (393 lines)
-- `src/tui/logging.rs` (152 lines)
-- `src/tui/mod.rs` (163 lines)
-- `src/tui/views/builder.rs` (144 lines)
-- `src/tui/views/constants.rs` (18 lines)
-- `src/tui/views/drawer/geometry_section.rs` (239 lines)
-- `src/tui/views/drawer/header_section.rs` (78 lines)
-- `src/tui/views/drawer/info_sections.rs` (267 lines)
-- `src/tui/views/drawer/mod.rs` (96 lines)
-- `src/tui/views/drawer/result_section.rs` (349 lines)
-- `src/tui/views/drawer/timeline_format.rs` (304 lines)
-- `src/tui/views/drawer/timeline_section.rs` (194 lines)
-- `src/tui/views/footer.rs` (331 lines)
-- `src/tui/views/modals/help.rs` (361 lines)
-- `src/tui/views/modals/mod.rs` (30 lines)
-- `src/tui/views/modals/verdict.rs` (94 lines)
-- `src/tui/views/mod.rs` (171 lines)
-- `src/tui/views/panels/description.rs` (361 lines)
-- `src/tui/views/panels/header.rs` (117 lines)
-- `src/tui/views/panels/mod.rs` (11 lines)
-- `src/tui/views/panels/result_box.rs` (132 lines)
-- `src/tui/views/panels/tests_list.rs` (262 lines)
-- `src/tui/views/theme.rs` (107 lines)
-- `src/tui/views/wrapping.rs` (143 lines)
-- `tests/category_library_test.rs` (296 lines)
-- `tests/fixture_test.rs` (254 lines)
-- `tests/oracle_cross_check.rs` (577 lines)
-- `tests/trace_analyser_test.rs` (535 lines)
-- `tests/tui/app_flow.rs` (304 lines)
-- `tests/tui/drawer_content.rs` (566 lines)
-- `tests/tui/drawer_keys_clipboard.rs` (389 lines)
-- `tests/tui/golden_invariants.rs` (571 lines)
-- `tests/tui/layout_responsive.rs` (456 lines)
-- `tests/tui/mod.rs` (312 lines)
-- `tests/tui/polish.rs` (444 lines)
-- `tests/tui_test.rs` (4 lines)
-
-##### Stage 1 Deviations & Exceptions
-1. **`tests/tui/polish.rs` Split:** The initial proposal suggested putting responsive and polish tests into `layout_responsive.rs`. Combining them would have produced an ~890-line test file exceeding the 600-line hard cap. `tests/tui/polish.rs` was split out into its own submodule, keeping both files comfortably under the 600-line limit (456 and 444 lines respectively).
-2. **`src/trace.rs` Split (Stage 1b):** `src/trace.rs` (654 lines at split time) was originally planned to remain a single file as a justified exception. Commit `e963f52` split it into `src/trace/` (`mod.rs`, `models.rs`, `parser.rs`, `analyser.rs`, `report.rs`; largest file 246 lines), so the exception no longer applies.
-3. **Remaining Files Over 400 Lines (production):** After Stage 1b, the only production file in `spawn-at-verify` over the 400-line source cap is `src/bin/fixture/font.rs` (404 lines, a bitmap font data table). Outside the crate, `crates/xtask/src/main.rs` was 475 lines (498 after the compiler-lint merge) and also exceeded the cap; it has since been split by a pure move into `main.rs` (dispatch, 61 lines), `comment_only.rs` (205), `doc_coverage.rs` (278) and `compiler_docs.rs` (117), all under 400. No test file exceeds the 600-line test cap (largest: `tests/oracle_cross_check.rs`, 577 lines).
-
-##### Stage 1 Observations (Bugs Spotted but NOT Fixed)
-1. **Footer Responsive Chips Incomplete Between 100-104 Columns:** In `crates/spawn-at-verify/src/tui/views/footer.rs`, `draw_normal_footer` tests `area.width >= 105` for the wide chips layout and falls back to narrower representations, but at terminal widths between 100 and 104 columns some shortcut actions are not rendered. (Observed during split; behavior preserved without alteration).
-2. **`wl-copy` Subprocess Non-Blocking Pipe Handling in Clipboard Helper:** In `crates/spawn-at-verify/src/tui/app/clipboard.rs`, `system_copy_to_clipboard` spawns `wl-copy` with piped stdin and writes immediately without awaiting process exit status. If `wl-copy` exits prematurely or is missing, errors are silently ignored before fallback to OSC 52. (Observed during split; behavior preserved without alteration).
-3. **Default Desktop Probe Assumption in Single Test Execution:** In `crates/spawn-at-verify/src/runner/engine.rs`, `TestRunner::new` checks `XDG_CURRENT_DESKTOP` for "gnome" to attach `GnomeJournalSource`, but during ad-hoc single test runs in headless or containerized environments where the variable is unset, it defaults to `NoOpLogSource` rather than detecting running systemd services. (Observed during split; behavior preserved without alteration).
-
-
-#### Stage 2: `spawn-at-core` Modularization
-1. Split `src/geometry.rs` into `src/geometry/` sub-modules (types, placement, clamp, workarea, diagnostics, tests).
-2. Keep `src/lib.rs` re-exports 100% identical.
-3. **Gate Check:** `cargo test -p spawn-at-core` (All 21+2 tests pass). Commit stage 2.
-
-#### Stage 3: `spawn-at` CLI Modularization
-1. Split `src/diagnostics.rs` and `src/update.rs` into sub-modules.
-2. Split `src/commands/mod.rs` (matching, waiter, tests).
-3. Modularize `src/platform/linux/gnome/mod.rs` (carefully preserving `include_str!` relative offsets).
-4. **Gate Check:** `cargo test -p spawn-at` (All 158 tests pass). Commit stage 3.
-
-#### Stage 4: Extension Asset & Node.js Test Alignment
-1. Verify `assets/gnome/modern/` and `assets/gnome/legacy/` parity.
-2. Verify `test_embedded_extension_files_match_disk` in Rust passes.
-3. **Gate Check:** `node --test tests/*.js` (All 65 tests pass). Commit stage 4.
-
-#### Stage 5: Repository Root & Documentation Clean-up
-1. Update `.gitignore` for scratch notes and verify artifacts.
-2. Verify formatting across entire workspace (`cargo fmt --check`, `cargo clippy --all-targets --all-features -- -D warnings`).
-3. Commit stage 5.
-
----
-
-## 5. Step 4: Engineering Standards & Acceptance Criteria
-
-### 5.1. Dense Commenting Standard
-
-Every file in the codebase must strictly adhere to the **Dense Commenting Standard** (`COMMENT_DENSITY = "dense"`):
-
-1. **File-Level Header (`//!` in Rust, `/** ... */` in JS):**
-   Every file begins with a top-level doc comment explaining:
-   - What the file does.
-   - Why it exists in isolation.
-   - How it connects to its immediate neighbors and callers.
-2. **Item-Level Doc Comments (`///`):**
-   Every `fn`, `struct`, `enum`, `variant`, `field`, `trait`, `const`, and `static` must have a doc comment:
-   - Clear description of purpose.
-   - For functions: inputs, outputs, error conditions (`# Errors`), and panics (`# Panics`).
-3. **Block-Level Rationale:**
-   Every non-trivial logical block inside a function must be preceded by a comment explaining what the block accomplishes and the architectural rationale behind it.
-4. **Non-Self-Evident Line Comments:**
-   Math formulas, coordinate shifts, protocol offsets, Mutter/Wayland race workarounds, and magic numbers must be preceded or followed by an explanatory comment. Magic numbers must become named constants with doc comments.
-5. **Quality Rules:**
-   - Do NOT restate trivial code line-by-line (e.g. `// increment i by 1`).
-   - Do NOT leave commented-out dead code.
-   - Do NOT leave stale or speculative `TODO` comments.
-
----
-
-### 5.2. Refactor Safety Rules
-
-1. **Pure Moves Only:** No logic edits, algorithm changes, or bug fixes in the same commit as a refactoring move.
-2. **`git mv` Tracking:** Use `git mv` so Git history and blame remain intact across renames.
-3. **Byte-Identical Golden Files:** Golden files in `crates/spawn-at-verify/tests/golden/` must remain byte-identical without regeneration.
-4. **Visibility Confinement:** Module visibility must be kept as narrow as possible (`pub(crate)` or `pub(super)` preferred over `pub`).
-5. **Lint Integrity:** `cargo fmt --check` and `cargo clippy --all-targets --all-features -- -D warnings` must pass cleanly at every stage.
-
----
-
-### 5.3. Acceptance Verification Suite
-
-Before accepting the execution of this reorganization plan, the following verification suite must pass:
-
-#### 1. File Size Audit (`wc -l`)
-No code or test file may exceed 600 lines. The only permitted exceptions are:
-- `assets/gnome/modern/extension.js` and `legacy/extension.js` (constrained by GNOME Shell extension loader).
-- Justified test suites with extensive tabular data matrices (`oracle_cross_check.rs`, `trace_analyser_test.rs`).
-
-#### 2. Exact Test Count Parity Table
-
-| Test Suite | Pre-Refactor Count | Post-Refactor Target | Status |
-| :--- | :---: | :---: | :---: |
-| `spawn-at` CLI unit & integration tests | **158** | **158** | Exact match |
-| `spawn-at-core` unit tests | **21** | **21** | Exact match |
-| `spawn-at-core` golden placement tests | **2** | **2** | Exact match |
-| `spawn-at-verify` unit tests | **59** | **59** | Exact match |
-| `spawn-at-verify` category library tests | **4** | **4** | Exact match |
-| `spawn-at-verify` oracle cross-check tests | **5** | **5** | Exact match |
-| `spawn-at-verify` trace analyzer tests | **18** | **18** | Exact match |
-| `spawn-at-verify` TUI integration tests | **38** | **38** | Exact match |
-| `node --test tests/*.js` extension contract tests | **65** | **65** | Exact match |
-| **Total Test Assertions** | **370** | **370** | **Zero deviation** |
-
-#### 3. Git Diff Reorganization Check
-`git diff -M --stat` must show renames (`similarity index > 95%`) rather than code deletion and re-creation.
+# Code layout
+
+What is in the repository now. The file list below is generated from the tracked files: line counts are `wc -l`, and the last column is the first `//!` line of the file itself (blank when the file has none). Where the tables and the code disagree, the code wins. Build and test commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+An earlier version of this file was a reorganization proposal (target layout, move map, stages 1 to 5). Only stage 1, the modularization of `spawn-at-verify`, was carried out; the rest was never built, and its paths no longer matched the tree, so it was removed. It is in git history (`git log -- docs/CODE_LAYOUT.md`).
+
+## Workspace
+
+| Member | Role | Notes |
+| :--- | :--- | :--- |
+| `.` (package `spawn-at`) | The CLI and the installer. Binary `spawn-at`. | The only default member (`default-members = ["."]` in `Cargo.toml`), so plain `cargo build` / `cargo test` cover only this package. |
+| `crates/spawn-at-core` | Pure logic with no I/O: geometry, driver trait and batch types, ready-wait state machine, settings, wait override, resize report. | Modules in `src/lib.rs`: `driver`, `geometry`, `ready_wait`, `resize_report`, `settings`, `wait_override`. |
+| `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
+| `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`. | |
+
+Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `scripts/` (`smoke-live.sh`, and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
+
+## Facts that constrain moving files
+
+- **Embedded extension files.** `src/platform/linux/gnome/mod.rs` embeds `assets/gnome/modern/*` and `assets/gnome/legacy/*` with `include_str!("../../../../assets/gnome/...")`. Moving that file changes the relative path. The test `test_embedded_extension_files_match_disk` in the same file asserts that the embedded lists match the directories exactly.
+- **Cargo targets of `spawn-at-verify`** are declared in its `Cargo.toml`: `[[bin]]` `spawn-at-verify` (`src/main.rs`) and `fixture` (`src/bin/fixture.rs`, `required-features = ["fixture"]`), and `[[test]]` entries `fixture_test` (needs `fixture`), `oracle_cross_check`, `trace_analyser_test`, `trace_state_test`, `tui_test` (needs `tui`) and `render_test` (needs `tui`). Other files under `tests/` are found by Cargo's default discovery.
+- **Release packaging.** `install.sh` downloads the release tarball and needs `spawn-at` in it; `.github/workflows/release.yml` builds `target/release/spawn-at` from the repository root. `scripts/smoke-live.sh` hard-codes `target/debug/spawn-at` and `target/debug/spawn-at-verify`.
+- **Shared golden data.** `verify/golden/placement.json` is read by `crates/spawn-at-core/tests/golden_placement.rs`, `crates/spawn-at-verify/src/oracle/tests/vectors.rs` and `tests/golden_anchor_test.js`. `crates/spawn-at-verify/tests/fixtures/` holds recorded runs with a `SHA256SUMS`, and `crates/spawn-at-verify/tests/golden/` holds five `drawer_*.txt` terminal snapshots.
+- **Library surface.** `spawn-at-core` re-exports `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` and a list of geometry items (see `src/lib.rs`). `spawn-at-verify`'s `src/lib.rs` declares `cli`, `display`, `ext_logging`, `loadavg`, `loader`, `log_source`, `no_config`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, and `tui` (only with the `tui` feature).
+
+## Files
+
+### spawn-at (the CLI, `src/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `src/cli/args.rs` | 673 | CLI Argument Structs and Definitions |
+| `src/cli/mod.rs` | 84 | Command Line Interface Definitions |
+| `src/cli/tests.rs` | 1338 |  |
+| `src/commands/config.rs` | 40 | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
+| `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
+| `src/commands/lifecycle.rs` | 204 | Window Lifecycle State Command Handlers |
+| `src/commands/mod.rs` | 1496 | Command Handlers |
+| `src/commands/query.rs` | 817 | Compositor State Query Command Handlers |
+| `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
+| `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
+| `src/config.rs` | 430 | Configuration Manager |
+| `src/diagnostics.rs` | 1468 | Centralized Diagnostics Layer |
+| `src/main.rs` | 371 | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
+| `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
+| `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
+| `src/platform/linux/config_store.rs` | 140 | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/gnome/dbus.rs` | 51 |  |
+| `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
+| `src/platform/linux/gnome/mod.rs` | 1940 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/mod.rs` | 675 |  |
+| `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
+| `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
+| `src/platform/linux/x11/mod.rs` | 395 | Native X11 Compositor Driver |
+| `src/platform/linux/x11/process.rs` | 30 | Process Tree Introspection Helpers |
+| `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
+| `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
+| `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
+| `src/platform/mod.rs` | 303 | Platform & Compositor Driver Abstraction Layer |
+| `src/target.rs` | 592 | Window Target Resolution Engine |
+| `src/update.rs` | 1461 | Update Manager & Release Checker |
+
+### spawn-at-core (`crates/spawn-at-core/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `crates/spawn-at-core/src/driver.rs` | 140 | Declarative Compositor Driver Abstraction |
+| `crates/spawn-at-core/src/geometry.rs` | 1680 | Pure Mathematical Geometry Engine |
+| `crates/spawn-at-core/src/lib.rs` | 17 | spawn-at-core |
+| `crates/spawn-at-core/src/ready_wait.rs` | 535 | Ready-wait state machine |
+| `crates/spawn-at-core/src/resize_report.rs` | 147 | Resize report |
+| `crates/spawn-at-core/src/settings.rs` | 584 | User settings: schema, validation, defaults, precedence and the `config` commands |
+| `crates/spawn-at-core/src/settings/tests.rs` | 365 |  |
+| `crates/spawn-at-core/src/wait_override.rs` | 203 | Per-spawn override of the resize wait |
+| `crates/spawn-at-core/tests/golden_placement.rs` | 292 |  |
+| `crates/spawn-at-core/tests/ready_wait_vectors.rs` | 100 | Runs every golden script in `tests/ready_wait_vectors/scripts/` through the Rust ready-wait |
+
+### xtask (`crates/xtask/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `crates/xtask/src/burn_cpu.rs` | 242 | `burn-cpu`: keeps N threads of this process spinning for S seconds, to put the machine under |
+| `crates/xtask/src/comment_only.rs` | 205 | `check-comment-only`: verifies a commit changes only comments relative to a base revision. |
+| `crates/xtask/src/compiler_docs.rs` | 117 | Compiler-backed documentation check: collects rustc's `missing_docs` warnings. |
+| `crates/xtask/src/doc_coverage.rs` | 276 | `check-doc-coverage`: text scan for undocumented items, merged with the compiler lint. |
+| `crates/xtask/src/main.rs` | 67 | xtask: Internal developer and CI tooling for spawn-at. |
+| `crates/xtask/tests/burn_cpu_test.rs` | 38 | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
+
+### spawn-at-verify, library and binaries (`crates/spawn-at-verify/src/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `crates/spawn-at-verify/src/bin/fixture.rs` | 393 | Standalone GUI test fixture window application (`winit` + `softbuffer`). |
+| `crates/spawn-at-verify/src/bin/fixture/behaviour.rs` | 298 | Hostile-app behaviours of the fixture, as pure decisions (harness only; never in the product). |
+| `crates/spawn-at-verify/src/bin/fixture/font.rs` | 404 | Bitmap font table (10x16) generated from DejaVu Sans Mono Bold. |
+| `crates/spawn-at-verify/src/bin/fixture/mod.rs` | 7 | Fixture window, renderer, and bitmap font modules. |
+| `crates/spawn-at-verify/src/bin/fixture/renderer.rs` | 151 | Softbuffer frame drawing and bitmap text rendering. |
+| `crates/spawn-at-verify/src/bin/fixture/trace.rs` | 144 | Event files of the fixture: a developer trace and the client-side events the harness reads. |
+| `crates/spawn-at-verify/src/bin/fixture/window.rs` | 383 | Window creation, winit event loop, and signal handling. |
+| `crates/spawn-at-verify/src/cli/args.rs` | 310 | CLI argument parser schemas and subcommand definitions. |
+| `crates/spawn-at-verify/src/cli/calibrate.rs` | 403 | Handler for `spawn-at-verify calibrate`: repeated measurement of one case's cloak duration. |
+| `crates/spawn-at-verify/src/cli/check.rs` | 97 | Handler for `spawn-at-verify check` subcommand. |
+| `crates/spawn-at-verify/src/cli/list.rs` | 49 | Handler for `spawn-at-verify list` subcommand. |
+| `crates/spawn-at-verify/src/cli/mod.rs` | 37 | CLI argument models and subcommand handlers. |
+| `crates/spawn-at-verify/src/cli/render.rs` | 54 | Handler for `spawn-at-verify render`: prints the TUI drawer for a recorded real case. |
+| `crates/spawn-at-verify/src/cli/report.rs` | 91 | Handler for `spawn-at-verify report` subcommand. |
+| `crates/spawn-at-verify/src/cli/run.rs` | 300 | Handler for `spawn-at-verify run` subcommand. |
+| `crates/spawn-at-verify/src/cli/run_summary.rs` | 346 | Counting, summary text and process exit code for `spawn-at-verify run`. |
+| `crates/spawn-at-verify/src/cli/smoke_eval.rs` | 214 | Helper CLI utilities for smoke-live.sh JSON evaluation and placement verification. |
+| `crates/spawn-at-verify/src/cli/tui.rs` | 30 | Handler for `spawn-at-verify tui` subcommand. |
+| `crates/spawn-at-verify/src/display.rs` | 180 | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
+| `crates/spawn-at-verify/src/ext_logging.rs` | 605 | Control of the GNOME extension's timing log over session D-Bus. |
+| `crates/spawn-at-verify/src/lib.rs` | 24 | spawn-at-verify |
+| `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
+| `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
+| `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
+| `crates/spawn-at-verify/src/loader/registry.rs` | 248 | Test registry discovery, loading, and collection management. |
+| `crates/spawn-at-verify/src/loader/tests.rs` | 231 | Unit tests for test loader, filtering, and tree visualization. |
+| `crates/spawn-at-verify/src/loader/tree.rs` | 76 | Hierarchical formatting and summary generation for test definitions. |
+| `crates/spawn-at-verify/src/log_source.rs` | 192 | Log Capture Abstraction (`LogSource` trait). |
+| `crates/spawn-at-verify/src/main.rs` | 10 | CLI binary entrypoint for spawn-at-verify. |
+| `crates/spawn-at-verify/src/no_config.rs` | 50 | Keeps the user's `spawn-at` config file out of harness runs. |
+| `crates/spawn-at-verify/src/oracle/calculator.rs` | 244 | Mathematical placement calculations, anchor formulas, and pivot offsets. |
+| `crates/spawn-at-verify/src/oracle/check.rs` | 730 | Comparison of an observed placement against the oracle's expected rectangle. |
+| `crates/spawn-at-verify/src/oracle/mod.rs` | 15 | Mathematical placement oracle and golden vector cross-validation. |
+| `crates/spawn-at-verify/src/oracle/tests/golden.rs` | 516 | Hand-computed golden placement calculations and tolerance checks. |
+| `crates/spawn-at-verify/src/oracle/tests/min_size.rs` | 168 | Oracle with a fixture minimum: expected size is `max(requested, minimum)` per axis, the |
+| `crates/spawn-at-verify/src/oracle/tests/mod.rs` | 5 | Oracle test suite organizing hand-computed golden vectors and file-based checks. |
+| `crates/spawn-at-verify/src/oracle/tests/vectors.rs` | 99 | Shared golden placement vector file cross-validation. |
+| `crates/spawn-at-verify/src/preflight.rs` | 318 | Preflight Gate: binary freshness & git status inspection. |
+| `crates/spawn-at-verify/src/probe.rs` | 380 | Environment probe: checks desktop environment, session type, and app availability. |
+| `crates/spawn-at-verify/src/process.rs` | 166 | Safe Process Execution Pipeline |
+| `crates/spawn-at-verify/src/report/builder.rs` | 226 | Session report builder, qualification evaluator, and artifact writer. |
+| `crates/spawn-at-verify/src/report/markdown.rs` | 225 | Markdown session report rendering. |
+| `crates/spawn-at-verify/src/report/mod.rs` | 14 | Verification session report models, redaction, and JSON/Markdown export. |
+| `crates/spawn-at-verify/src/report/models.rs` | 119 | Session report and qualification summary data structures. |
+| `crates/spawn-at-verify/src/report/redaction.rs` | 117 | Title redaction, privacy filtering, and timestamp formatting utilities. |
+| `crates/spawn-at-verify/src/report/tests.rs` | 668 | Unit tests for report structures, redaction, and formatting. |
+| `crates/spawn-at-verify/src/runner/engine.rs` | 175 | Test runner execution engine, repeat loops, and process orchestration. |
+| `crates/spawn-at-verify/src/runner/executor.rs` | 536 | Single-test execution, process invocation, log capture, and attribution. |
+| `crates/spawn-at-verify/src/runner/flash.rs` | 342 | Flash check of one run: where the fixture writes its events, how long the run watches after the |
+| `crates/spawn-at-verify/src/runner/flash_tests.rs` | 306 | Wiring of the flash check: the journal slice, the fixture's event text and the anchor brackets |
+| `crates/spawn-at-verify/src/runner/mod.rs` | 29 | Test execution engine, results aggregation, and validation checks. |
+| `crates/spawn-at-verify/src/runner/models.rs` | 375 | Outcome models, execution options, and verdict resolution rules for test runs. |
+| `crates/spawn-at-verify/src/runner/resize_expect_tests.rs` | 135 | `[expect.resize]`: the ready-wait outcome a spec declares, read from the CLI's `--json`. |
+| `crates/spawn-at-verify/src/runner/tests.rs` | 751 | Unit tests for test runner execution, parsing, and verdict resolution. |
+| `crates/spawn-at-verify/src/runner/trace_capture_tests.rs` | 492 | Runs `execute_single_test` against `/bin/echo` and a fake extension to check that logging is |
+| `crates/spawn-at-verify/src/runner/validation.rs` | 407 | Expectation verification, output matching, and action argument building. |
+| `crates/spawn-at-verify/src/runner/wire_paint_tests.rs` | 263 | Wire paint times in the flash check: the client's commit read from the fixture's protocol dump |
+| `crates/spawn-at-verify/src/schema/matrix.rs` | 171 | Test definition matrix expansion and categorization helpers. |
+| `crates/spawn-at-verify/src/schema/mod.rs` | 12 | Declarative TOML test definition schemas, matrix expansion, and validation rules. |
+| `crates/spawn-at-verify/src/schema/suite.rs` | 65 | Test suite definition schema models. |
+| `crates/spawn-at-verify/src/schema/tests.rs` | 234 | Unit tests for schema models and matrix expansion rules. |
+| `crates/spawn-at-verify/src/schema/types.rs` | 258 | Core declarative TOML schema data models. |
+| `crates/spawn-at-verify/src/trace/analyser.rs` | 266 | Trace invariant analysis, lifecycle verification, and timing budget checks. |
+| `crates/spawn-at-verify/src/trace/flash.rs` | 765 | Flash detection: was the window shown before it was ready, or did it change after the reveal? |
+| `crates/spawn-at-verify/src/trace/mod.rs` | 16 | Trace log event parser, lifecycle state machine, and budget checks. |
+| `crates/spawn-at-verify/src/trace/models.rs` | 112 | Trace data models, events, and violation structures. |
+| `crates/spawn-at-verify/src/trace/parser.rs` | 263 | Trace log parsing, event extraction, and regex tokenization. |
+| `crates/spawn-at-verify/src/trace/phases.rs` | 105 | Phase gaps inside one window's placement trace, for diagnosing where cloak time goes. |
+| `crates/spawn-at-verify/src/trace/report.rs` | 72 | Trace analysis summary and outcome reporting models. |
+| `crates/spawn-at-verify/src/trace/state.rs` | 70 | Whether a log slice holds an analysable trace for a window, and if not, why not. |
+| `crates/spawn-at-verify/src/trace/wait.rs` | 320 | The wait rule each run used, for A/B runs inside one login (`docs/DESIGN_READY_WAIT.md` |
+| `crates/spawn-at-verify/src/trace/wire.rs` | 264 | Paint times read from the fixture's Wayland protocol dump. |
+| `crates/spawn-at-verify/src/tracker/mod.rs` | 11 | Window tracking and window leak cleanup prevention across test sessions. |
+| `crates/spawn-at-verify/src/tracker/state.rs` | 349 | Window tracker state, attribution algorithms, and window leak cleanup. |
+| `crates/spawn-at-verify/src/tracker/tests.rs` | 458 | Unit tests for window tracker attribution, cap limits, and cleanup rules. |
+| `crates/spawn-at-verify/src/tui/app/clipboard.rs` | 250 | Clipboard provider integrations (OSC 52, wl-copy, xclip) and drawer export. |
+| `crates/spawn-at-verify/src/tui/app/input.rs` | 262 | Keyboard event handling and navigation dispatch. |
+| `crates/spawn-at-verify/src/tui/app/mod.rs` | 9 | Interactive TUI application architecture (state, input, execution queue, clipboard). |
+| `crates/spawn-at-verify/src/tui/app/queue.rs` | 191 | Execution queue processing, test running, and human review verdict recording. |
+| `crates/spawn-at-verify/src/tui/app/state.rs` | 447 | TUI state models, interactive app state, and selection navigation. |
+| `crates/spawn-at-verify/src/tui/logging.rs` | 128 | Extension Logging State Detection & Restoration Guard. |
+| `crates/spawn-at-verify/src/tui/mod.rs` | 164 | Terminal User Interface (TUI) Module for spawn-at-verify. |
+| `crates/spawn-at-verify/src/tui/render.rs` | 216 | Headless rendering of the detail drawer for recorded real runs. |
+| `crates/spawn-at-verify/src/tui/views/builder.rs` | 198 | Drawer content line assembly builder. |
+| `crates/spawn-at-verify/src/tui/views/constants.rs` | 12 | Drawer layout sizing constants and column offsets. |
+| `crates/spawn-at-verify/src/tui/views/drawer/geometry_section.rs` | 267 | Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict. |
+| `crates/spawn-at-verify/src/tui/views/drawer/header_section.rs` | 81 | Drawer header section rendering (Title, ID, Mode, Description). |
+| `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs` | 293 | Drawer informational sections: WHAT TO LOOK FOR, SPEC and OUTPUT (each a separate function so the drawer can order them). |
+| `crates/spawn-at-verify/src/tui/views/drawer/mod.rs` | 138 | Drawer widget rendering and content assembly. |
+| `crates/spawn-at-verify/src/tui/views/drawer/result_section.rs` | 644 | Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget). |
+| `crates/spawn-at-verify/src/tui/views/drawer/timeline_format.rs` | 313 | Formatting, parsing, and key humanisation for drawer timeline events. |
+| `crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs` | 186 | Drawer TIMELINE section rendering. |
+| `crates/spawn-at-verify/src/tui/views/footer.rs` | 352 | TUI bottom footer bars and responsive keybinding grids. |
+| `crates/spawn-at-verify/src/tui/views/mod.rs` | 161 | TUI views module organizing layout, widgets, drawer, and modals. |
+| `crates/spawn-at-verify/src/tui/views/modals/help.rs` | 361 | Keyboard shortcuts and navigation help overlay modal. |
+| `crates/spawn-at-verify/src/tui/views/modals/mod.rs` | 30 | Modal overlays: keyboard shortcuts help and human review verdict dialog. |
+| `crates/spawn-at-verify/src/tui/views/modals/verdict.rs` | 94 | Human review verdict input dialog modal. |
+| `crates/spawn-at-verify/src/tui/views/panels/description.rs` | 386 | Test description pane and line wrapping count helpers. |
+| `crates/spawn-at-verify/src/tui/views/panels/header.rs` | 117 | Top header banner and missing fixture warning panel. |
+| `crates/spawn-at-verify/src/tui/views/panels/mod.rs` | 11 | Main dashboard panel widgets and calculations. |
+| `crates/spawn-at-verify/src/tui/views/panels/result_box.rs` | 180 | Test result status display box and height calculation. |
+| `crates/spawn-at-verify/src/tui/views/panels/tests_list.rs` | 318 | Test category tree and list widget panel. |
+| `crates/spawn-at-verify/src/tui/views/theme.rs` | 131 | Theme styling, color mapping, and status indicators. |
+| `crates/spawn-at-verify/src/tui/views/wrapping.rs` | 143 | Text tokenization, word wrapping, and dimension string normalisation. |
+
+### spawn-at-verify, integration tests (`crates/spawn-at-verify/tests/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `crates/spawn-at-verify/tests/category_library_test.rs` | 359 | Headless test verifying category schema, loader validation, and library coverage. |
+| `crates/spawn-at-verify/tests/cli_exit_codes_test.rs` | 137 | The `run` exit codes are documented in `run --help` and match the summary policy. |
+| `crates/spawn-at-verify/tests/fixture_test.rs` | 254 |  |
+| `crates/spawn-at-verify/tests/flash_test.rs` | 664 | Flash detection on synthetic traces: the extension's log lines and the fixture's event file |
+| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | 577 | Cross-check test comparing spawn-at-verify independent geometric oracle |
+| `crates/spawn-at-verify/tests/preflight_tools_test.rs` | 28 | `run` prints an install hint on stderr when the optional X11 tools are not on PATH. |
+| `crates/spawn-at-verify/tests/render_test.rs` | 363 | `spawn-at-verify render`: recorded real cases only, correct case selected, nothing wider than |
+| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | 630 | Comprehensive test suite for the trace event parser and lifecycle verification engine. |
+| `crates/spawn-at-verify/tests/trace_state_test.rs` | 81 | `assess_trace` must tell "analysed" from "no trace captured": an empty or foreign log slice |
+| `crates/spawn-at-verify/tests/trace_window_scope_test.rs` | 209 | Regression tests: the analyser and `TestResult` must measure the window the fixture named in |
+| `crates/spawn-at-verify/tests/tui/app_flow.rs` | 312 | App workflow integration tests (initialization, navigation, filtering, verdicts). |
+| `crates/spawn-at-verify/tests/tui/category_counts.rs` | 150 | Category heading counts in the tests list: only a final Pass counts as passed; tests that |
+| `crates/spawn-at-verify/tests/tui/drawer_content.rs` | 590 | Drawer content ordering, formatting, geometry table, and timeline tests. |
+| `crates/spawn-at-verify/tests/tui/drawer_geometry.rs` | 212 | GEOMETRY table and RESULT "Geometry" row: Expected comes from the oracle, the mark comes from |
+| `crates/spawn-at-verify/tests/tui/drawer_keys_clipboard.rs` | 427 | Drawer keybindings, shortcuts help modal, and clipboard copy/save tests. |
+| `crates/spawn-at-verify/tests/tui/drawer_labels.rs` | 258 | Drawer-wide shared label column: width rule, cap, truncation and wrapped continuation. |
+| `crates/spawn-at-verify/tests/tui/drawer_order.rs` | 120 | Drawer section order, anchor/margin de-duplication and the auto-test verdict row. |
+| `crates/spawn-at-verify/tests/tui/drawer_trace.rs` | 333 | RESULT section when the log slice holds no trace for the window: "not analysed", never a |
+| `crates/spawn-at-verify/tests/tui/drawer_workarea.rs` | 182 | Which workarea the geometry check trusts: the probe is primary, the extension's logged bounds |
+| `crates/spawn-at-verify/tests/tui/flash.rs` | 219 | "PASS (flash)" in the TUI: its own symbol and colour in the list, its own verdict and rows in |
+| `crates/spawn-at-verify/tests/tui/footer_widths.rs` | 160 | Keys bar completeness at every width: no shortcut action may silently disappear. |
+| `crates/spawn-at-verify/tests/tui/golden_invariants.rs` | 471 | Responsive golden file assertions and drawer grid invariant tests. |
+| `crates/spawn-at-verify/tests/tui/layout_responsive.rs` | 470 | Responsive layout and breakpoint rendering integration tests. |
+| `crates/spawn-at-verify/tests/tui/mod.rs` | 337 | Common test harness helpers and submodule declarations for TUI test suite. |
+| `crates/spawn-at-verify/tests/tui/polish.rs` | 455 | UI polish, padding, spacing, and characterization specification tests. |
+| `crates/spawn-at-verify/tests/tui_test.rs` | 4 | Integration test suite for the spawn-at-verify TUI interface. |
+
+### GNOME extension (`assets/gnome/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `assets/gnome/legacy/anchor.js` | 53 | spawn-at — pure anchor and bounding box calculation (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/cloak.js` | 159 | spawn-at — actor opacity cloaking and snapshot management (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/commit.js` | 152 | spawn-at — Mutter commit & frame presentation detection (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/dbus.js` | 113 | spawn-at — D-Bus interface definition and session export (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/extension.js` | 1622 | spawn-at — precise window spawning, sizing, positioning and orchestration |
+| `assets/gnome/legacy/logger.js` | 321 | spawn-at — persistent session logging and enriched telemetry (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/pulse.js` | 205 | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/validator.js` | 158 |  |
+| `assets/gnome/modern/anchor.js` | 60 | spawn-at — pure anchor and bounding box calculation. |
+| `assets/gnome/modern/cloak.js` | 180 | spawn-at — actor opacity cloaking and snapshot management. |
+| `assets/gnome/modern/commit.js` | 321 | spawn-at — Mutter commit & frame presentation detection. |
+| `assets/gnome/modern/dbus.js` | 115 | spawn-at — D-Bus interface definition and session export. |
+| `assets/gnome/modern/extension.js` | 1799 | spawn-at — precise window spawning, sizing, positioning and orchestration |
+| `assets/gnome/modern/logger.js` | 324 | spawn-at — persistent session logging and enriched telemetry. |
+| `assets/gnome/modern/pulse.js` | 224 | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking. |
+| `assets/gnome/modern/ready_wait.js` | 164 | spawn-at — ready-wait state machine (JS port of crates/spawn-at-core/src/ready_wait.rs). |
+| `assets/gnome/modern/validator.js` | 204 |  |
+| `assets/gnome/modern/x11_observe.js` | 259 | spawn-at — observe-only logging of the paint signals of X11 and XWayland windows. |
+
+### Node tests (`tests/`)
+
+| File | Lines | Module doc (first `//!` line of the file) |
+| :--- | ---: | :--- |
+| `tests/cloak_test.js` | 148 |  |
+| `tests/dispatcher_test.js` | 1531 |  |
+| `tests/extension_test.js` | 232 |  |
+| `tests/gi_loader.js` | 157 |  |
+| `tests/golden_anchor_test.js` | 152 |  |
+| `tests/late_resize_test.js` | 195 |  |
+| `tests/legacy_dispatcher_test.js` | 1265 |  |
+| `tests/ready_wait_test.js` | 120 |  |
+| `tests/ready_wait_wiring_test.js` | 713 |  |
+| `tests/wait_override_test.js` | 71 |  |
+| `tests/x11_observe_test.js` | 320 |  |
+
+## Specs read by `spawn-at-verify`
+
+`verify/<category>/*.toml` are the test specs, `verify/suites/*.toml` the suite definitions and `verify/golden/` the shared golden data. `spawn-at-verify list` shows what is loaded; see [verify/README.md](../verify/README.md).
+
+## Historical evidence
+
+`docs/evidence/stage1/` holds raw command outputs (fmt, clippy, `--help`, test lists) captured when stage 1 of the earlier reorganization was proven to be a pure move. It is kept as a record only.
