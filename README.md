@@ -10,7 +10,7 @@
 
 Want to open an app at an exact spot and size? On X11 you can move anything, but you'll watch it jump. On Wayland, apps can't place themselves and there's no standard way for anyone else to do it. Each compositor has its own answer, and macOS and Windows are their own worlds.
 
-`spawn-at` is one command and one placement model, with a driver per desktop underneath. The finished driver today is GNOME Shell, on both Wayland and X11. On GNOME Shell the window is kept invisible until it has been placed and (on Wayland) the app has had time to draw at the new size. That removes most flashes but not all of them: see [How well it works](#how-well-it-works).
+`spawn-at` is one command and one placement model, with a driver per desktop underneath. The only driver with cloaking today is GNOME Shell, and only GNOME 46 on Wayland has been tested in earnest. X11 and XWayland windows go through the same driver but keep the older, shorter wait, can still flash, and have been tried with the test window only. On GNOME Shell the window is kept invisible until it has been placed and (on Wayland) the app has had time to draw at the new size. That removes most flashes but not all of them: see [How well it works](#how-well-it-works).
 
 <!-- TODO: demo gif: split screen. Left: sleep + xdotool script, window flashes at the default spot, then jumps. Right: spawn-at, window just appears in place. Same app, same target. -->
 
