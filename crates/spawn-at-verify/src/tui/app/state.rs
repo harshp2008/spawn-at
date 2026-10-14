@@ -276,57 +276,6 @@ impl TuiApp {
         list
     }
 
-    /// Advances list selection to the first test in the succeeding category.
-    pub fn jump_next_category(&mut self) {
-        let list = self.filtered_tests();
-        if list.is_empty() {
-            return;
-        }
-        let current_cat = list[self.selected_index.min(list.len() - 1)].category();
-        if let Some(next_pos) = list
-            .iter()
-            .enumerate()
-            .skip(self.selected_index + 1)
-            .find(|(_, t)| t.category() != current_cat)
-            .map(|(i, _)| i)
-        {
-            self.selected_index = next_pos;
-            self.detail_scroll = 0;
-        } else if let Some(first_pos) = list.iter().position(|t| t.category() != current_cat) {
-            self.selected_index = first_pos;
-            self.detail_scroll = 0;
-        }
-    }
-
-    /// Jumps list selection to the first test in the preceding category.
-    pub fn jump_prev_category(&mut self) {
-        let list = self.filtered_tests();
-        if list.is_empty() {
-            return;
-        }
-        let current_cat = list[self.selected_index.min(list.len() - 1)].category();
-        let mut prev_cat = None;
-        for t in list[..self.selected_index].iter().rev() {
-            if t.category() != current_cat {
-                prev_cat = Some(t.category());
-                break;
-            }
-        }
-        if let Some(target_cat) = prev_cat {
-            if let Some(pos) = list.iter().position(|t| t.category() == target_cat) {
-                self.selected_index = pos;
-                self.detail_scroll = 0;
-            }
-        } else if let Some(last_cat) = list.last().map(|t| t.category()) {
-            if last_cat != current_cat {
-                if let Some(pos) = list.iter().position(|t| t.category() == last_cat) {
-                    self.selected_index = pos;
-                    self.detail_scroll = 0;
-                }
-            }
-        }
-    }
-
     // Navigation and state methods
     /// Toggles folding expansion/collapse for the currently selected test category.
     pub fn toggle_collapse_selected_category(&mut self) {

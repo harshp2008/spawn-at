@@ -68,17 +68,6 @@ fn sanitize_result(r: &TestResult, include_titles: bool) -> TestResult {
     clone
 }
 
-/// Builds the SessionReport data structure (no repeat runs).
-pub fn build_session_report(
-    bin_path: &Path,
-    preflight: &PreflightReport,
-    env_info: &EnvironmentInfo,
-    results: &[TestResult],
-    include_titles: bool,
-) -> SessionReport {
-    build_session_report_with_runs(bin_path, preflight, env_info, results, &[], include_titles)
-}
-
 /// Builds the SessionReport and also stores every repetition of tests run with `--repeat N`.
 ///
 /// `all_runs` holds, per selected test and in the same order, the result of every repetition

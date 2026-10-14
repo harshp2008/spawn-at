@@ -198,22 +198,6 @@ impl TestRegistry {
 
         Ok(filtered)
     }
-
-    /// Selects tests matching a specific suite name.
-    pub fn filter_by_suite(&self, suite_name: &str) -> Result<Vec<TestDefinition>, String> {
-        self.filter(&TestFilter {
-            suite: Some(suite_name.to_string()),
-            ..Default::default()
-        })
-    }
-
-    /// Selects tests by ID query, title query, or regex.
-    pub fn filter_by_query(&self, query: &str) -> Result<Vec<TestDefinition>, String> {
-        self.filter(&TestFilter {
-            id_glob: Some(query.to_string()),
-            ..Default::default()
-        })
-    }
 }
 
 /// Helper to recursively discover test TOMLs, excluding suites and README files.

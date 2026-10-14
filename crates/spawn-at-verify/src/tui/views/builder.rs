@@ -84,11 +84,6 @@ impl DrawerBuilder {
         text
     }
 
-    /// Computes the usable content width inside the drawer excluding borders.
-    pub fn content_width(&self) -> usize {
-        self.val_col_width
-    }
-
     /// Appends a raw Line and plain text to the drawer buffer.
     pub fn push(&mut self, line: Line<'static>, text: String) {
         self.lines.push(line);

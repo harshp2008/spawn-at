@@ -6,30 +6,6 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::exit;
 
-/// Resolves results directory path.
-pub fn resolve_results_dir(explicit: Option<PathBuf>) -> Result<PathBuf, String> {
-    if let Some(p) = explicit {
-        if p.is_dir() {
-            return Ok(p);
-        }
-        return Err(format!(
-            "Specified results directory '{}' not found",
-            p.display()
-        ));
-    }
-    let candidates = [
-        PathBuf::from("verify-results"),
-        PathBuf::from("../verify-results"),
-        PathBuf::from("../../verify-results"),
-    ];
-    for c in &candidates {
-        if c.is_dir() {
-            return Ok(c.clone());
-        }
-    }
-    Err("Could not find 'verify-results/' directory. Use --dir <PATH>.".into())
-}
-
 /// Displays or re-renders previous session reports.
 pub fn handle_report(args: ReportArgs) {
     let target_path = if let Some(p) = args.path {
