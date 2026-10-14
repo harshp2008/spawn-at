@@ -22,37 +22,15 @@ pub enum WaitStrategy {
     /// The ready-wait machine where it applies (native Wayland, size request). Any other window
     /// keeps the original rule, as under `Auto`.
     ReadyWait,
-    /// Experimental, XWayland and X11 windows only (`docs/DESIGN_READY_WAIT.md` section 13): keep
-    /// the window cloaked, ignore the first `damaged` after the size request, reveal on the next
-    /// one or at the cap. A native Wayland window behaves as under `Auto`. Selectable only by the
-    /// hidden `--wait-strategy` flag, never by the config file, never the default.
-    X11HoldDamage,
-    /// Experimental, XWayland and X11 windows only: resize at `window-created`, before the map, and
-    /// reveal on the first `first-frame` (`docs/DESIGN_READY_WAIT.md` section 14). Hidden flag only.
-    X11Premap,
-    /// Experimental, observe-only, XWayland and X11 windows only: sample a few pixels of the window
-    /// texture at each `damaged` and `first-frame` while logging is on. The wait is the usual one.
-    X11PixelProbe,
 }
 
 impl WaitStrategy {
-    /// True for a value that exists for experiments: the config file does not accept it.
-    pub fn is_experimental(self) -> bool {
-        matches!(
-            self,
-            WaitStrategy::X11HoldDamage | WaitStrategy::X11Premap | WaitStrategy::X11PixelProbe
-        )
-    }
-
     /// The spelling used on the command line, in the instruction JSON and in the logs.
     pub fn as_str(self) -> &'static str {
         match self {
             WaitStrategy::Auto => "auto",
             WaitStrategy::Legacy => "legacy",
             WaitStrategy::ReadyWait => "ready-wait",
-            WaitStrategy::X11HoldDamage => "x11-hold-damage",
-            WaitStrategy::X11Premap => "x11-premap",
-            WaitStrategy::X11PixelProbe => "x11-pixel-probe",
         }
     }
 
@@ -62,9 +40,6 @@ impl WaitStrategy {
             "auto" => Some(WaitStrategy::Auto),
             "legacy" => Some(WaitStrategy::Legacy),
             "ready-wait" => Some(WaitStrategy::ReadyWait),
-            "x11-hold-damage" => Some(WaitStrategy::X11HoldDamage),
-            "x11-premap" => Some(WaitStrategy::X11Premap),
-            "x11-pixel-probe" => Some(WaitStrategy::X11PixelProbe),
             _ => None,
         }
     }
@@ -205,57 +180,12 @@ mod tests {
             WaitStrategy::Auto,
             WaitStrategy::Legacy,
             WaitStrategy::ReadyWait,
-            WaitStrategy::X11HoldDamage,
-            WaitStrategy::X11Premap,
-            WaitStrategy::X11PixelProbe,
         ] {
             assert_eq!(WaitStrategy::parse(s.as_str()), Some(s));
             assert_eq!(
                 serde_json::to_string(&s).unwrap(),
                 format!("\"{}\"", s.as_str())
             );
-        }
-    }
-
-    /// The experimental value is taken from the flag, is not the default, and is the only
-    /// experimental one; the three public values are not.
-    #[test]
-    fn test_x11_hold_damage_is_an_opt_in_flag_value() {
-        let (o, problems) = WaitOverride::from_raw(Some("x11-hold-damage"), Some("400"));
-        assert!(problems.is_empty(), "{problems:?}");
-        assert_eq!(o.strategy, WaitStrategy::X11HoldDamage);
-        assert_eq!(o.cap_ms, Some(400));
-        assert!(!o.is_default());
-        assert!(WaitStrategy::X11HoldDamage.is_experimental());
-        for s in [
-            WaitStrategy::Auto,
-            WaitStrategy::Legacy,
-            WaitStrategy::ReadyWait,
-        ] {
-            assert!(!s.is_experimental());
-        }
-        assert_eq!(WaitOverride::default().strategy, WaitStrategy::Auto);
-    }
-
-    /// `x11-premap` and `x11-pixel-probe` are flag-only experiments like `x11-hold-damage`:
-    /// accepted by the flag reader, marked experimental (the config file refuses them), never the default.
-    #[test]
-    fn test_x11_premap_and_pixel_probe_are_opt_in_flag_values() {
-        for (text, want) in [
-            ("x11-premap", WaitStrategy::X11Premap),
-            ("x11-pixel-probe", WaitStrategy::X11PixelProbe),
-        ] {
-            let (o, problems) = WaitOverride::from_raw(Some(text), None);
-            assert!(problems.is_empty(), "{problems:?}");
-            assert_eq!(o.strategy, want);
-            assert!(want.is_experimental());
-            assert_eq!(want.as_str(), text);
-            assert!(!o.is_default());
-        }
-        for bad in ["x11-premap ", "X11-premap", "x11_premap", "x11-pixelprobe"] {
-            let (o, problems) = WaitOverride::from_raw(Some(bad), None);
-            assert!(o.is_default(), "'{bad}'");
-            assert_eq!(problems.len(), 1, "'{bad}'");
         }
     }
 

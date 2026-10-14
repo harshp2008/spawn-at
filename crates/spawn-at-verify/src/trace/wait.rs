@@ -44,13 +44,7 @@ impl WaitRequest {
     /// True when the extension, if it honours the override, must have written a
     /// `READY_WAIT_OVERRIDE` line: `auto` alone sends nothing.
     fn expects_override_line(&self) -> bool {
-        self.cap_ms.is_some()
-            || matches!(
-                self.strategy.as_deref(),
-                Some(
-                    "legacy" | "ready-wait" | "x11-hold-damage" | "x11-premap" | "x11-pixel-probe"
-                )
-            )
+        self.cap_ms.is_some() || matches!(self.strategy.as_deref(), Some("legacy" | "ready-wait"))
     }
 }
 
@@ -59,7 +53,7 @@ impl WaitRequest {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct WaitInfo {
-    /// The rule that waited, from the window's `READY_WAIT_START`: `ready-wait`, `legacy` or the experimental `x11-hold-damage`.
+    /// The rule that waited, from the window's `READY_WAIT_START`: `ready-wait` or `legacy`.
     /// Absent when the slice holds no such line (no trace, or an extension without ready-wait).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub wait_strategy: Option<String>,
@@ -107,10 +101,7 @@ impl WaitInfo {
 
         if let Some(start) = events.iter().find(|e| e.tag == "READY_WAIT_START") {
             info.wait_strategy = field(&start.extra, "strategy").map(str::to_string);
-            if matches!(
-                info.wait_strategy.as_deref(),
-                Some("ready-wait" | "x11-hold-damage" | "x11-premap")
-            ) {
+            if info.wait_strategy.as_deref() == Some("ready-wait") {
                 info.wait_cap_ms = field(&start.extra, "cap").and_then(|v| v.parse().ok());
             }
         }
@@ -325,83 +316,5 @@ mod tests {
         let mut none = vec!["spawn".to_string()];
         WaitRequest::default().append_to(&mut none);
         assert_eq!(none, ["spawn"]);
-    }
-
-    /// A run of the experimental `x11-hold-damage` wait: the strategy and its cap are recorded, the
-    /// new `X11_HOLD_DAMAGED` and `x11-*` reason lines do not disturb the reading, and a requested
-    /// override whose line is missing is noted like it is for `legacy` and `ready-wait`.
-    #[test]
-    fn test_x11_hold_damage_run_is_recorded_and_tolerated() {
-        let slice = format!(
-            "{}{}{}{}{}",
-            line(
-                9.0,
-                "READY_WAIT_OVERRIDE",
-                "strategy=x11-hold-damage cap_ms=none unused=none ignored=none"
-            ),
-            line(
-                10.0,
-                "READY_WAIT_START",
-                "strategy=x11-hold-damage kind=XWayland target=(800x600) cap=250 hard=1500 reveal_on_damaged=2"
-            ),
-            line(14.0, "X11_HOLD_DAMAGED", "n=1 ignored=true since_start_ms=4.0"),
-            line(40.0, "X11_HOLD_DAMAGED", "n=2 ignored=false since_start_ms=30.0"),
-            line(
-                40.1,
-                "READY_WAIT_RESOLVED",
-                "strategy=x11-hold-damage outcome=reached elapsed_ms=30.1 waited_ms=30 reason=x11-second-damaged damaged_seen=2 finalFrame=(800x600) target=(800x600)"
-            ),
-        );
-        let req = requested(Some("x11-hold-damage"), None);
-        let info = WaitInfo::from_slice(Some(&slice), Some(7), &req);
-        assert_eq!(info.wait_strategy.as_deref(), Some("x11-hold-damage"));
-        assert_eq!(info.wait_cap_ms, Some(250));
-        assert!(info.wait_notes.is_empty(), "{:?}", info.wait_notes);
-
-        let without_override = line(
-            10.0,
-            "READY_WAIT_START",
-            "strategy=legacy kind=XWayland why=not-native-wayland timeoutMs=300",
-        );
-        let info = WaitInfo::from_slice(Some(&without_override), Some(7), &req);
-        assert_eq!(info.wait_notes.len(), 1, "{:?}", info.wait_notes);
-    }
-
-    /// A run of the experimental `x11-premap` wait records its strategy and cap like the other
-    /// experiments, and a missing override line is noted for it and for the observe-only probe.
-    #[test]
-    fn test_x11_premap_run_is_recorded_and_tolerated() {
-        let slice = format!(
-            "{}{}{}",
-            line(
-                9.0,
-                "READY_WAIT_OVERRIDE",
-                "strategy=x11-premap cap_ms=none unused=none ignored=none"
-            ),
-            line(
-                10.0,
-                "READY_WAIT_START",
-                "strategy=x11-premap kind=XWayland target=(800x600) cap=250 hard=1500 resized_ms_before_wait=21.0 first_frame_already=false"
-            ),
-            line(
-                30.0,
-                "READY_WAIT_RESOLVED",
-                "strategy=x11-premap outcome=reached elapsed_ms=31.0 waited_ms=30 reason=x11-premap-first-frame first_frames=1 finalFrame=(800x600) target=(800x600)"
-            ),
-        );
-        let req = requested(Some("x11-premap"), None);
-        let info = WaitInfo::from_slice(Some(&slice), Some(7), &req);
-        assert_eq!(info.wait_strategy.as_deref(), Some("x11-premap"));
-        assert_eq!(info.wait_cap_ms, Some(250));
-        assert!(info.wait_notes.is_empty(), "{:?}", info.wait_notes);
-        let legacy = line(
-            10.0,
-            "READY_WAIT_START",
-            "strategy=legacy kind=XWayland why=not-native-wayland timeoutMs=300",
-        );
-        for name in ["x11-premap", "x11-pixel-probe"] {
-            let info = WaitInfo::from_slice(Some(&legacy), Some(7), &requested(Some(name), None));
-            assert_eq!(info.wait_notes.len(), 1, "{name}: {:?}", info.wait_notes);
-        }
     }
 }

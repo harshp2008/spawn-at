@@ -109,26 +109,6 @@ mod tests {
         }
     }
 
-    /// The labels of the experimental x11-hold-damage wait (`x11-second-damaged`, `x11-cap`,
-    /// `x11-hard`, `x11-unmanaged`, `x11-no-damaged-signal`) are free text in `reason`: the kind
-    /// stays one of the four known ones and the label reaches the JSON unchanged.
-    #[test]
-    fn x11_hold_labels_pass_through_the_report() {
-        for (kind, label, want) in [
-            ("reached", "x11-second-damaged", ResizeKind::Reached),
-            ("timed-out", "x11-cap", ResizeKind::TimedOut),
-            ("timed-out", "x11-hard", ResizeKind::TimedOut),
-            ("skipped", "x11-unmanaged", ResizeKind::Skipped),
-            ("skipped", "x11-no-damaged-signal", ResizeKind::Skipped),
-        ] {
-            let r = ResizeReport::from_wire(kind, 800, 600, 30, label).with_requested(800, 600);
-            assert_eq!(r.outcome, want);
-            assert_eq!(r.reason, label);
-            let v = serde_json::to_value(&r).unwrap();
-            assert_eq!(v["reason"], label);
-        }
-    }
-
     /// A kind from a newer extension is kept as `unknown`, not an error.
     #[test]
     fn unknown_kind_is_tolerated() {

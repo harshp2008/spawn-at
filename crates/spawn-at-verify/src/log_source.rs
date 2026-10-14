@@ -181,29 +181,6 @@ mod tests {
         }
     }
 
-    /// The lines of the experimental x11-hold-damage wait (`X11_HOLD_DAMAGED` and the existing wait
-    /// tags with `strategy=x11-hold-damage`) carry the `[spawn-at-time]` prefix, so they reach a
-    /// run's `log_slice` unchanged.
-    #[test]
-    fn test_x11_hold_lines_pass_the_journal_filter() {
-        let win = "win=[id=301 pid=7301 class=\"verify.x\" app=\"\" type=NORMAL proto=XWayland]";
-        let lines = [
-            format!("[spawn-at-time] +10.00ms | READY_WAIT_START {win} strategy=x11-hold-damage kind=XWayland target=(800x600) cap=250 hard=1500 reveal_on_damaged=2"),
-            format!("[spawn-at-time] +14.00ms | X11_HOLD_DAMAGED {win} n=1 ignored=true since_start_ms=4.0"),
-            format!("[spawn-at-time] +40.00ms | COMMIT_RESOLVED {win} reason=X11_HOLD_SECOND_DAMAGED finalFrame=(800x600) target=(800x600) safe=(800x600)"),
-            format!("[spawn-at-time] +40.10ms | READY_WAIT_RESOLVED {win} strategy=x11-hold-damage outcome=reached elapsed_ms=30.1 waited_ms=30 reason=x11-second-damaged damaged_seen=2 finalFrame=(800x600) target=(800x600)"),
-        ];
-        let source = FakeLogSource::new();
-        for l in &lines {
-            assert!(is_relevant_line(l), "{l}");
-            source.record(100, l);
-        }
-        let slice = source.capture_slice(100, 100).unwrap();
-        for l in &lines {
-            assert!(slice.contains(l.as_str()), "{l}");
-        }
-    }
-
     /// Tests that no-op log source returns an empty string.
     #[test]
     fn test_noop_log_source_returns_empty() {
