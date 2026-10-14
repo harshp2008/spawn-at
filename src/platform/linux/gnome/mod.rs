@@ -343,6 +343,31 @@ pub fn is_wayland_session() -> bool {
 // 3. Execution & Reload Helpers
 // ============================================================================
 
+/// Logs the user out of the Wayland session (`gnome-session-quit --logout --no-prompt`) in a
+/// new session group, so it survives this process. The only place that runs it; called by
+/// `session::finish()`, which is the last thing a run does.
+pub fn log_out_wayland() {
+    let mut quit_cmd = Command::new("gnome-session-quit");
+    quit_cmd
+        .args(["--logout", "--no-prompt"])
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        unsafe {
+            quit_cmd.pre_exec(|| {
+                if libc::setsid() < 0 {
+                    libc::setpgid(0, 0);
+                }
+                Ok(())
+            });
+        }
+    }
+    let _ = quit_cmd.spawn();
+}
+
 /// Restarts GNOME Shell on X11 using synthetic keypresses via xdotool:
 /// Alt+F2, ~0.5s wait, type "r", press Return.
 ///
@@ -809,44 +834,14 @@ impl CompositorBackend for GnomeWaylandDriver {
             println!("Extension files deployed. Skipping automatic enablement (--gnome-auto-enable=false).");
         }
 
-        if should_restart {
-            if is_wayland {
-                println!("Logging out to complete GNOME Shell extension initialization...");
-                let mut quit_cmd = Command::new("gnome-session-quit");
-                quit_cmd
-                    .args(["--logout", "--no-prompt"])
-                    .stdin(std::process::Stdio::null())
-                    .stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::null());
-                #[cfg(unix)]
-                {
-                    use std::os::unix::process::CommandExt;
-                    unsafe {
-                        quit_cmd.pre_exec(|| {
-                            if libc::setsid() < 0 {
-                                libc::setpgid(0, 0);
-                            }
-                            Ok(())
-                        });
-                    }
-                }
-                let _ = quit_cmd.spawn();
-            } else {
-                restart_gnome_shell_x11();
-            }
-        } else {
-            if is_wayland && logout_not_needed {
-                crate::ui::println_success(
-                    "No log-out needed: the extension files are unchanged and the running GNOME Shell has already loaded them.",
-                );
-            } else if is_wayland {
-                println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
-                crate::ui::println_warning("If the extension is not immediately active, log out and back in to complete loading.");
-            } else {
-                println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
-                println!("You can reload the shell anytime on X11 by pressing Alt+F2, typing 'r', and pressing Enter.");
-            }
-        }
+        // Nothing is logged out or reloaded here: the outcome is recorded and carried out by
+        // session::finish(), the last statement of the run (see session.rs).
+        crate::session::record(crate::session::install_outcome(
+            is_wayland,
+            should_restart,
+            logout_not_needed,
+            args.headless,
+        ));
 
         Ok(())
     }
@@ -926,38 +921,13 @@ impl CompositorBackend for GnomeWaylandDriver {
 
         println!("Spawn-At extension successfully uninstalled.");
 
-        if should_restart {
-            if is_wayland {
-                println!("Logging out to complete uninstallation...");
-                let mut quit_cmd = Command::new("gnome-session-quit");
-                quit_cmd
-                    .args(["--logout", "--no-prompt"])
-                    .stdin(std::process::Stdio::null())
-                    .stdout(std::process::Stdio::null())
-                    .stderr(std::process::Stdio::null());
-                #[cfg(unix)]
-                {
-                    use std::os::unix::process::CommandExt;
-                    unsafe {
-                        quit_cmd.pre_exec(|| {
-                            if libc::setsid() < 0 {
-                                libc::setpgid(0, 0);
-                            }
-                            Ok(())
-                        });
-                    }
-                }
-                let _ = quit_cmd.spawn();
-            } else {
-                restart_gnome_shell_x11();
-            }
-        } else {
-            if is_wayland {
-                println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
-            } else {
-                println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
-            }
-        }
+        // Recorded, not performed: session::finish() ends the run (see session.rs). The removal
+        // phase of a clean install passes no_action, so it records nothing at all.
+        crate::session::record(crate::session::uninstall_outcome(
+            is_wayland,
+            should_restart,
+            args.gnome.no_action,
+        ));
 
         Ok(())
     }

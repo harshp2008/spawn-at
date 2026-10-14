@@ -20,6 +20,7 @@ mod commands;
 mod config;
 mod diagnostics;
 mod platform;
+mod session;
 mod target;
 mod ui;
 mod update;
@@ -341,6 +342,9 @@ async fn main() {
                     e
                 ));
             }
+
+            // Last statement of the run: advice, then any log-out or reload (see session.rs).
+            crate::session::finish();
         }
         Commands::Uninstall(mut args) => {
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
@@ -388,6 +392,7 @@ async fn main() {
             }
 
             crate::config::uninstall_login_autostart_entry();
+            crate::session::finish();
         }
         Commands::Spawn(spawn_args) => {
             if let Err(e) = commands::run_spawn(driver.as_ref(), spawn_args, cli.no_wait).await {

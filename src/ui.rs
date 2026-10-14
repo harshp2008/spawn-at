@@ -223,14 +223,10 @@ mod tests {
         assert_eq!(s, format!("\x1b[1;33m{LOGOUT_WARNING}\x1b[0m"));
     }
 
-    /// The text the install prints is exactly the documented sentence (no colour decoration in it).
+    /// The sentence the session end prints is exactly the documented one (no decoration in it).
     #[test]
     fn test_warning_text_is_unchanged() {
-        let src = include_str!("platform/linux/gnome/mod.rs");
-        assert!(
-            src.contains(&format!("ui::println_warning(\"{LOGOUT_WARNING}\")")),
-            "the install must print the exact sentence through ui::println_warning"
-        );
+        assert_eq!(crate::session::LOGOUT_WARNING, LOGOUT_WARNING);
     }
 
     /// Every `=== ... ===` heading in the program goes through `Layout::section`: no source file
