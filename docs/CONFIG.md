@@ -56,6 +56,13 @@ instruction is byte-for-byte the one sent before (`{"WaitForCommit":{"timeout_ms
   value or an unknown key is a warning for that key only.
 - **Shared file**: the update checker now replaces only its `[update]` table when it saves, and
   both use the same location.
+- **Autostart entry follows the same directory**: the login update-check entry is
+  `$XDG_CONFIG_HOME/autostart/spawn-at-update-check.desktop` for an absolute `XDG_CONFIG_HOME`,
+  else `~/.config/autostart/spawn-at-update-check.desktop` (unchanged when the variable is unset).
+  Before this fix it was always under `~/.config`, so with `XDG_CONFIG_HOME` set the desktop
+  session did not find it. `SPAWN_AT_CONFIG` names the config file only and does not move it.
+  An entry written by an earlier version under `~/.config/autostart` is not moved or removed;
+  re-run `spawn-at install` to write the new one.
 - **Comments are not kept** when `set`, `unset` or `reset` rewrites the file (the file is parsed
   and written again); unknown keys and tables are. A malformed file is never overwritten by `set`.
 - **Isolation**: `spawn-at-verify` sets `SPAWN_AT_CONFIG` to a path that does not exist on every
