@@ -90,6 +90,7 @@ pub struct LinuxBackend {
 }
 
 impl LinuxBackend {
+    #[cfg(test)]
     pub fn new(driver: Box<dyn CompositorBackend>) -> Self {
         Self { driver }
     }

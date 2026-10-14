@@ -406,6 +406,7 @@ impl GnomeWaylandDriver {
     }
 
     /// Constructs a `GnomeWaylandDriver` with a custom proxy (useful for testing against stubs).
+    #[cfg(test)]
     pub fn from_proxy(proxy: dbus::SpawnAtProxy<'static>) -> Self {
         Self { proxy }
     }

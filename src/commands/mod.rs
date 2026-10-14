@@ -12,9 +12,13 @@ pub mod transform;
 
 pub use config::run_config;
 pub use focus::{run_defocus, run_focus};
-pub use lifecycle::{run_close, run_close_with_timeout, run_maximize, run_minimize, run_restore};
+#[cfg(test)]
+pub use lifecycle::run_close_with_timeout;
+pub use lifecycle::{run_close, run_maximize, run_minimize, run_restore};
 pub use query::run_query;
-pub use spawn::{run_spawn, run_spawn_with};
+pub use spawn::run_spawn;
+#[cfg(test)]
+pub use spawn::run_spawn_with;
 pub use transform::run_transform;
 
 use crate::platform::{CompositorBackend, DriverError, WindowMetadata};

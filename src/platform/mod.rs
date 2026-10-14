@@ -20,10 +20,12 @@ pub use linux::LinuxBackend as NativeBackend;
 
 pub use crate::target::WindowMetadata;
 use clap::Args;
-pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, FocusIntent, Reveal, Urgency};
-pub use spawn_at_core::geometry::{
-    LayoutInsets, LayoutRect, MonitorInfo, MonitorLayout, PlacementParams, Rect,
-};
+pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError};
+#[cfg(test)]
+pub use spawn_at_core::driver::{FocusIntent, Reveal, Urgency};
+#[cfg(test)]
+pub use spawn_at_core::geometry::LayoutInsets;
+pub use spawn_at_core::geometry::{LayoutRect, MonitorInfo, MonitorLayout, PlacementParams, Rect};
 use std::time::Duration;
 
 /// The result reported when a compositor claims and finishes placement of an armed window.
