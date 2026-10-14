@@ -1,4 +1,4 @@
-# spawn-at 0.2.0-beta.1: release notes (draft, not published)
+# spawn-at 0.2.0-beta.1: release notes
 
 This is a beta. It has been run on one machine: GNOME 46, Wayland, one monitor. Read "What is untested" before you rely on it.
 
