@@ -168,8 +168,17 @@ Add unit tests for IPC payload formatting, geometry translation, or socket commu
 # Check code for compilation errors
 cargo check
 
-# Run unit tests
+# Run unit tests (root package `spawn-at` only; the workspace default is just the product)
 cargo test
+
+# Run every suite CI runs (spawn-at-verify must be named, with its features)
+cargo test -p spawn-at -p spawn-at-core -p xtask
+cargo test -p spawn-at-verify --features tui,fixture
+node --test tests/*.js
+
+# Lint everything, including the dev harness
+cargo fmt --check
+cargo clippy --workspace --all-targets --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
 
 # Build debug binary
 cargo build
