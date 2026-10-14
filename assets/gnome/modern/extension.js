@@ -30,6 +30,8 @@ import { SessionLogger } from './logger.js';
 import { validateInstructions } from './validator.js';
 import { X11Observer, readTextureSize } from './x11_observe.js';
 import { HOLD_STRATEGY, isHoldTarget, holdForSecondDamage } from './x11_hold.js';
+import { PREMAP_STRATEGY, PremapWatch, findPremapPlan, waitForPremapFirstFrame } from './x11_premap.js';
+import { PROBE_STRATEGY, X11PixelProbe } from './x11_probe.js';
 
 const ARM_EXPIRY_MS = 15000;
 const WILDCARD_EXPIRY_MS = 1200;
@@ -77,6 +79,7 @@ export default class SpawnAtExtension extends Extension {
         // Initialize commit and pulse managers
         this._commitLatch = new CommitLatch(this);
         this._x11Observer = new X11Observer(this._x11ObserveHost());
+        this._x11Probe = new X11PixelProbe(this._x11ProbeHost());
         this._focusPulse = new FocusPulse(this, this._commitLatch);
 
         // Dummy focus actor
@@ -118,6 +121,10 @@ export default class SpawnAtExtension extends Extension {
 
         // End the observe-only X11 watches (disconnects their signal handlers)
         this._x11Observer?.stopAll();
+        // Experiments (off unless asked for by name): end their watches too.
+        this._x11Probe?.stopAll();
+        for (const st of this._windowStates.values())
+            st.premap?.watch?.stop();
 
         // Disarm reactive anchors
         for (const window of [...this._anchors.keys()])
@@ -450,12 +457,53 @@ export default class SpawnAtExtension extends Extension {
         const actor = this._getActor(window);
         if (actor)
             this._cloak(actor);
+        // EXPERIMENT x11-premap: resize before the map. Does nothing unless the instructions ask for it.
+        if (!state.mapped)
+            this._premapStart(window, state, instructions);
 
         this._releaseHeldIfIdle();
 
         if (state.mapped)
             this._dispatch(window);
         return true;
+    }
+
+    // EXPERIMENT (x11_premap.js), only for an XWayland/X11 window claimed before its map whose
+    // instructions carry strategy "x11-premap" and a size request. Resizes the still-cloaked window at
+    // once and watches its first-frame; the batch later waits for it. Every failure is swallowed:
+    // the spawn then simply takes the original rule.
+    _premapStart(window, state, instructions) {
+        try {
+            if (!Array.isArray(instructions))
+                return;
+            const plan = findPremapPlan(instructions.map(inst => this._normalizeInstruction(inst)).filter(Boolean));
+            if (!plan)
+                return;
+            const kind = this._windowKind(window);
+            const actor = this._getActor(window);
+            if (!isHoldTarget(kind) || !actor || state.premap)
+                return;
+            const [minW, minH] = this._getMinSize(window);
+            const safeW = Math.max(plan.w, Math.max(GEOMETRY_FLOOR_W, minW));
+            const safeH = Math.max(plan.h, Math.max(GEOMETRY_FLOOR_H, minH));
+            const host = this._x11PremapHost();
+            const watch = new PremapWatch(host, window, actor, plan);
+            watch.start();
+            const pre = window.get_frame_rect();
+            if (window.move_resize_frame)
+                window.move_resize_frame(true, pre.x, pre.y, safeW, safeH);
+            else
+                window.resize(true, safeW, safeH);
+            watch.resizeIssued();
+            state.premap = { watch, plan, safeW, safeH };
+            this.logTime('PREMAP_RESIZE',
+                `requested=(${plan.w}x${plan.h}) safe=(${safeW}x${safeH}) kind=${kind} ` +
+                `preFrame=(${pre.x},${pre.y},${pre.width}x${pre.height}) mono_ms=${watch.resizeAtMs.toFixed(3)} ` +
+                `first_frame_signal=${watch.hasSignal}`,
+                window);
+        } catch (e) {
+            console.error(`[SpawnAt] x11-premap resize failed (the original rule is used): ${e}`);
+        }
     }
 
     _dispatch(window) {
@@ -678,6 +726,15 @@ export default class SpawnAtExtension extends Extension {
             .map(inst => this._normalizeInstruction(inst))
             .filter(Boolean);
 
+        // EXPERIMENT x11-pixel-probe (x11_probe.js): observe-only, XWayland/X11 only, logging on only.
+        try {
+            const wait = ops.find(op => op.name === 'WaitForCommit');
+            if (wait?.args?.strategy === PROBE_STRATEGY && isHoldTarget(this._windowKind(window)))
+                this._x11Probe?.start(window, actor);
+        } catch (e) {
+            console.error(`[SpawnAt] x11-pixel-probe start failed (ignored): ${e}`);
+        }
+
         const wasMinimized = Boolean(window.minimized || (typeof window.is_hidden === 'function' && window.is_hidden()));
         const wasCovered = this._isWindowFullyCovered(window);
 
@@ -791,6 +848,16 @@ export default class SpawnAtExtension extends Extension {
             `bufferRect=(${preBuf.x},${preBuf.y},${preBuf.width}x${preBuf.height})`,
             window);
 
+        // EXPERIMENT x11-premap: the resize was already issued at window-created with this size;
+        // it is not issued again (the wait counts from that earlier moment).
+        const premap = this._windowStates.get(window)?.premap;
+        if (premap && !premap.watch.stopped && premap.safeW === safeW && premap.safeH === safeH) {
+            this.logTime('SET_SIZE_PREMAPPED', `size=(${safeW}x${safeH}) issued_ms_before=${(this.nowMs() - premap.watch.resizeAtMs).toFixed(1)}`, window);
+            ctx.setSizeAtMs = premap.watch.resizeAtMs;
+            this._logActorTrace('AFTER_SET_SIZE', ctx.actor, window);
+            return;
+        }
+
         if (window.move_resize_frame)
             window.move_resize_frame(true, preFrame.x, preFrame.y, safeW, safeH);
         else
@@ -821,7 +888,22 @@ export default class SpawnAtExtension extends Extension {
         // request. Every other spawn skips this line's branch, so nothing else changes.
         const holdDamage = args.strategy === HOLD_STRATEGY && isHoldTarget(kind) && hasRequest;
 
-        this._logWaitOverride(window, args, useMachine, hasRequest, holdDamage);
+        // EXPERIMENT (x11_premap.js): only when the window was resized before its map for this spawn.
+        const premapState = args.strategy === PREMAP_STRATEGY ? this._windowStates.get(window)?.premap : null;
+        const premap = Boolean(premapState && !premapState.watch.stopped && isHoldTarget(kind) && hasRequest);
+
+        this._logWaitOverride(window, args, useMachine, hasRequest, holdDamage, premap, kind);
+
+        if (premap) {
+            const result = await waitForPremapFirstFrame(this._x11PremapHost(), window, premapState.watch, {
+                kind,
+                target: [ctx.safeW, ctx.safeH],
+                capMs: args.cap_ms,
+            });
+            ctx.resize = result;
+            this._x11Observer?.mark(window, 'commit_resolved');
+            return;
+        }
 
         if (holdDamage) {
             const result = await holdForSecondDamage(this._x11HoldHost(), window, ctx.actor, {
@@ -875,7 +957,7 @@ export default class SpawnAtExtension extends Extension {
     // effective strategy and cap). Silent when the instruction carries no override field, so a
     // default spawn logs exactly what it did before. `unused` names valid fields that had no
     // effect on this window; `ignored` (last, free text) names fields the validator dropped.
-    _logWaitOverride(window, args, useMachine, hasRequest, holdDamage = false) {
+    _logWaitOverride(window, args, useMachine, hasRequest, holdDamage = false, premap = false, kind = 'unknown') {
         const ignored = args.ignored ?? [];
         if (args.strategy === undefined && args.cap_ms === undefined && ignored.length === 0)
             return;
@@ -885,7 +967,13 @@ export default class SpawnAtExtension extends Extension {
             unused.push(`strategy(ready-wait:${hasRequest ? 'not-native-wayland' : 'no-size-request'})`);
         if (args.strategy === HOLD_STRATEGY && !holdDamage)
             unused.push(`strategy(${HOLD_STRATEGY}:${hasRequest ? 'not-x11' : 'no-size-request'})`);
-        if (args.cap_ms !== undefined && !useMachine && !holdDamage)
+        if (args.strategy === PREMAP_STRATEGY && !premap) {
+            const why = !hasRequest ? 'no-size-request' : (isHoldTarget(kind) ? 'not-premapped' : 'not-x11');
+            unused.push(`strategy(${PREMAP_STRATEGY}:${why})`);
+        }
+        if (args.strategy === PROBE_STRATEGY && !isHoldTarget(kind))
+            unused.push(`strategy(${PROBE_STRATEGY}:not-x11)`);
+        if (args.cap_ms !== undefined && !useMachine && !holdDamage && !premap)
             unused.push('cap_ms(legacy-has-no-cap)');
 
         this.logTime('READY_WAIT_OVERRIDE',
@@ -893,6 +981,86 @@ export default class SpawnAtExtension extends Extension {
             `unused=${unused.length > 0 ? unused.join(';') : 'none'} ` +
             `ignored=${ignored.length > 0 ? ignored.join(';') : 'none'}`,
             window);
+    }
+
+    // What the experimental x11-premap wait (x11_premap.js) needs from the shell.
+    _x11PremapHost() {
+        return {
+            nowMs: () => this.nowMs(),
+            logTime: (tag, extra, window) => this.logTime(tag, extra, window),
+            tryConnect: (t, s, cb) => this._tryConnect(t, s, cb),
+            safeDisconnect: (t, id) => this._safeDisconnect(t, id),
+            addTimer: (ms, cb) => this._addTimer(ms, cb),
+            removeTimer: id => this._removeTimer(id),
+            signalExists: (actor, name) => this._try(() => {
+                const gtype = actor.constructor?.$gtype ?? Meta.WindowActor?.$gtype;
+                return GObject.signal_lookup(name, gtype) !== 0;
+            }, false),
+            frameSize: w => this._try(() => {
+                const r = w.get_frame_rect();
+                return [r.width, r.height];
+            }, [NaN, NaN]),
+            textureSize: a => readTextureSize(a),
+        };
+    }
+
+    // What the experimental x11-pixel-probe (x11_probe.js) needs from the shell. The readback is
+    // Meta.WindowActor.get_image(clip) (a cairo surface, Meta-14 typelib, TEST_PLAN 6.27): GJS cairo has
+    // no pixel getter, so the surface goes through a small PNG in the runtime directory and
+    // GdkPixbuf (imported lazily, only here, so the extension loads without it). Each step throws a
+    // readable error that the probe logs; nothing here runs unless the probe was asked for by name.
+    _x11ProbeHost() {
+        const base = this._x11ObserveHost();
+        const state = { pixbuf: null, tried: false, error: null, path: null };
+        const load = () => {
+            if (state.tried)
+                return;
+            state.tried = true;
+            import('gi://GdkPixbuf').then(m => {
+                state.pixbuf = m.default;
+                state.path = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'spawn-at-probe.png']);
+            }).catch(e => {
+                state.error = `GdkPixbuf import failed: ${e?.message ?? e}`;
+            });
+        };
+        return {
+            isLoggingEnabled: () => this.isLoggingEnabled(),
+            logTime: (tag, extra, window) => this.logTime(tag, extra, window),
+            nowMs: () => this.nowMs(),
+            tryConnect: (t, s, cb) => this._tryConnect(t, s, cb),
+            safeDisconnect: (t, id) => this._safeDisconnect(t, id),
+            addTimer: (ms, cb) => this._addTimer(ms, cb),
+            removeTimer: id => this._removeTimer(id),
+            signalExists: base.signalExists,
+            textureSize: base.textureSize,
+            readbackReady: () => {
+                load();
+                if (typeof Meta.WindowActor?.prototype?.get_image !== 'function')
+                    return { ok: false, why: 'no-get_image' };
+                return state.error ? { ok: false, why: state.error } : { ok: true };
+            },
+            readPixels: (actor, clip) => {
+                if (state.error)
+                    throw new Error(state.error);
+                if (!state.pixbuf)
+                    throw new Error('GdkPixbuf not loaded yet');
+                const surface = actor.get_image(clip);
+                if (!surface)
+                    throw new Error('get_image returned null');
+                surface.flush?.();
+                surface.writeToPNG(state.path);
+                const pb = state.pixbuf.Pixbuf.new_from_file(state.path);
+                const px = pb.get_pixels();
+                const channels = pb.get_n_channels();
+                if (channels === 4)
+                    return px;
+                const out = new Uint8Array((px.length / channels) * 4);
+                for (let i = 0, j = 0; i + 2 < px.length; i += channels, j += 4) {
+                    out[j] = px[i]; out[j + 1] = px[i + 1]; out[j + 2] = px[i + 2]; out[j + 3] = 255;
+                }
+                return out;
+            },
+        };
     }
 
     // What the experimental x11-hold-damage wait (x11_hold.js) needs from the shell.
@@ -1175,6 +1343,7 @@ export default class SpawnAtExtension extends Extension {
             window);
 
         this._x11Observer?.reveal(window);
+        this._x11Probe?.reveal(window);
 
         if (ctx.anchorPayload)
             this._armAnchor(window, ctx.anchorPayload);

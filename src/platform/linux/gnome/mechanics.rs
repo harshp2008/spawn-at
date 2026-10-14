@@ -620,6 +620,21 @@ mod tests {
         );
     }
 
+    /// The two newer experimental strategies reach the extension only when asked for by name, as bytes.
+    #[test]
+    fn test_x11_premap_and_pixel_probe_are_sent_only_when_selected() {
+        for name in ["x11-premap", "x11-pixel-probe"] {
+            let (o, _) = WaitOverride::from_raw(Some(name), Some("300"));
+            let json = serde_json::to_string(&Instruction::wait_for_commit(300, &o)).unwrap();
+            assert_eq!(
+                json,
+                format!(
+                    r#"{{"WaitForCommit":{{"timeout_ms":300,"strategy":"{name}","cap_ms":300}}}}"#
+                )
+            );
+        }
+    }
+
     /// The experimental strategy reaches the extension only when it was asked for by name.
     #[test]
     fn test_x11_hold_damage_is_sent_only_when_selected() {

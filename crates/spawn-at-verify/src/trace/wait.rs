@@ -47,7 +47,9 @@ impl WaitRequest {
         self.cap_ms.is_some()
             || matches!(
                 self.strategy.as_deref(),
-                Some("legacy" | "ready-wait" | "x11-hold-damage")
+                Some(
+                    "legacy" | "ready-wait" | "x11-hold-damage" | "x11-premap" | "x11-pixel-probe"
+                )
             )
     }
 }
@@ -107,7 +109,7 @@ impl WaitInfo {
             info.wait_strategy = field(&start.extra, "strategy").map(str::to_string);
             if matches!(
                 info.wait_strategy.as_deref(),
-                Some("ready-wait" | "x11-hold-damage")
+                Some("ready-wait" | "x11-hold-damage" | "x11-premap")
             ) {
                 info.wait_cap_ms = field(&start.extra, "cap").and_then(|v| v.parse().ok());
             }
@@ -363,5 +365,43 @@ mod tests {
         );
         let info = WaitInfo::from_slice(Some(&without_override), Some(7), &req);
         assert_eq!(info.wait_notes.len(), 1, "{:?}", info.wait_notes);
+    }
+
+    /// A run of the experimental `x11-premap` wait records its strategy and cap like the other
+    /// experiments, and a missing override line is noted for it and for the observe-only probe.
+    #[test]
+    fn test_x11_premap_run_is_recorded_and_tolerated() {
+        let slice = format!(
+            "{}{}{}",
+            line(
+                9.0,
+                "READY_WAIT_OVERRIDE",
+                "strategy=x11-premap cap_ms=none unused=none ignored=none"
+            ),
+            line(
+                10.0,
+                "READY_WAIT_START",
+                "strategy=x11-premap kind=XWayland target=(800x600) cap=250 hard=1500 resized_ms_before_wait=21.0 first_frame_already=false"
+            ),
+            line(
+                30.0,
+                "READY_WAIT_RESOLVED",
+                "strategy=x11-premap outcome=reached elapsed_ms=31.0 waited_ms=30 reason=x11-premap-first-frame first_frames=1 finalFrame=(800x600) target=(800x600)"
+            ),
+        );
+        let req = requested(Some("x11-premap"), None);
+        let info = WaitInfo::from_slice(Some(&slice), Some(7), &req);
+        assert_eq!(info.wait_strategy.as_deref(), Some("x11-premap"));
+        assert_eq!(info.wait_cap_ms, Some(250));
+        assert!(info.wait_notes.is_empty(), "{:?}", info.wait_notes);
+        let legacy = line(
+            10.0,
+            "READY_WAIT_START",
+            "strategy=legacy kind=XWayland why=not-native-wayland timeoutMs=300",
+        );
+        for name in ["x11-premap", "x11-pixel-probe"] {
+            let info = WaitInfo::from_slice(Some(&legacy), Some(7), &requested(Some(name), None));
+            assert_eq!(info.wait_notes.len(), 1, "{name}: {:?}", info.wait_notes);
+        }
     }
 }

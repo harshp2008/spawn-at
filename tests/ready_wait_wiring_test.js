@@ -756,3 +756,151 @@ test('x11-hold-damage without a size request, and a default X11 spawn: the origi
     assert.equal(dflt.logs.some(l => l.tag.startsWith('X11_HOLD')), false);
     assert.deepEqual(dflt.names, ['SpawnClaimed']);
 });
+
+// ---------------------------------------------------------------------------------------------
+// 6. EXPERIMENTS x11-premap (x11_premap.js) and x11-pixel-probe (x11_probe.js): XWayland/X11 only,
+//    only when asked for by name; a native Wayland window and every other spawn are unchanged.
+// ---------------------------------------------------------------------------------------------
+
+for (const name of ['x11-premap', 'x11-pixel-probe']) {
+    test(`${name} on a native Wayland window: completely unaffected (same lines as no override, plus the override note)`, async () => {
+        const script = (sim, w) => sim.at(20, () => w.respond(800, 600));
+        const plain = await runBatch({}, script);
+        const held = await runBatch({}, script, withWait({ strategy: name }));
+        assert.deepEqual(logTrace(held).filter(l => !l.startsWith('READY_WAIT_OVERRIDE')), logTrace(plain));
+        assert.match(held.line('READY_WAIT_OVERRIDE'), new RegExp(`^strategy=${name} cap_ms=none unused=strategy\\(${name}:not-x11\\) ignored=none$`));
+        assert.deepEqual(held.names, plain.names);
+        assert.deepEqual(held.outcome.value, plain.outcome.value);
+        assert.equal(held.logs.some(l => /^X11_(PREMAP|PROBE)/.test(l.tag) || l.tag === 'PREMAP_RESIZE'), false);
+    });
+}
+
+test('x11-pixel-probe on an X11 window is observe-only: the wait, the outcome and the frame are those of a default X11 spawn', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const plainRig = makeRig();
+        plainRig.ext.SetLogging(true);
+        const plain = await runHold(plainRig, WITH_SIZE, { script: (sim, _w, actor) => sim.at(5, () => actor.emit('damaged')) });
+        const rig = makeRig();
+        rig.ext.SetLogging(true);
+        const probed = await runHold(rig, withWait({ strategy: 'x11-pixel-probe' }), { script: (sim, _w, actor) => { sim.at(5, () => actor.emit('damaged')); sim.at(6, () => actor.emit('first-frame')); } });
+        assert.deepEqual(probed.frame, plain.frame);
+        assert.match(probed.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland /);
+        const strip = logs => logs.filter(l => !/^X11_(OBS|PROBE)/.test(l.tag) && l.tag !== 'READY_WAIT_OVERRIDE' && l.tag !== 'SET_LOGGING')
+            .map(l => `${l.tag} ${l.extra}`.replace(/elapsed_ms=[0-9.]+/g, '').replace(/timeoutMs=\d+/, ''));
+        assert.deepEqual(strip(probed.logs), strip(plain.logs));
+        assert.equal(probed.logs.find(l => l.tag === 'X11_PROBE_START') !== undefined, true);
+        assert.match(probed.line('READY_WAIT_OVERRIDE'), /^strategy=x11-pixel-probe cap_ms=none unused=none ignored=none$/);
+        await rig.sim.run(new Promise(resolve => rig.ext._addTimer(700, resolve)));
+        assert.equal(rig.ext._x11Probe.activeCount, 0, 'the watch ended after the tail');
+        assert.equal(rig.ext._x11Probe.handlerCount, 0);
+        assert.equal(probed.actor.handlerCount(), 0);
+        rig.ext.disable();
+        plainRig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11-pixel-probe with logging off does nothing at all', async () => {
+    const rig = makeRig();
+    const r = await runHold(rig, withWait({ strategy: 'x11-pixel-probe' }));
+    assert.equal(r.logs.some(l => l.tag.startsWith('X11_PROBE')), false);
+    assert.equal(rig.ext._x11Probe.activeCount, 0);
+    rig.ext.disable();
+});
+
+/** Drives discovery on a fresh rig: arm, window-created, optional first-frame, map, then the batch. */
+async function runPremap(rig, batch, { firstFrameAt = null, mapAt = 20, armAfterMap = false, windowOptions = { kind: 'x11' } } = {}) {
+    const { sim, ext } = rig;
+    const logFrom = rig.logs.length;
+    const emitFrom = rig.emitted.length;
+    const window = createWindow(windowOptions);
+    const actor = createActor();
+    actor.meta_window = window;
+    window.get_compositor_private = () => actor;
+    const resizeCalls = [];
+    const orig = window.move_resize_frame;
+    window.move_resize_frame = (...a) => { resizeCalls.push({ at: sim.now(), w: a[3], h: a[4] }); return orig(...a); };
+    if (!armAfterMap)
+        ext.ArmSpawn('verify.ready.wiring', batch);
+    const start = sim.now();
+    ext._handleWindowCreated(window);
+    const frameAfterCreated = window.get_frame_rect();
+    if (firstFrameAt !== null)
+        sim.at(firstFrameAt, () => actor.emit('first-frame'));
+    sim.at(mapAt, () => {
+        if (armAfterMap)
+            ext.ArmSpawn('verify.ready.wiring', batch);
+        ext._handleActorMap(actor);
+    });
+    await sim.run(new Promise(resolve => ext._addTimer(700, resolve)));
+    const logs = rig.logs.slice(logFrom);
+    return {
+        window, actor, logs, resizeCalls, frameAfterCreated, start,
+        emitted: rig.emitted.slice(emitFrom),
+        line: tag => logs.find(l => l.tag === tag)?.extra,
+        outcome: rig.emitted.slice(emitFrom).find(e => e.name === 'ResizeOutcome')?.params,
+        frame: window.get_frame_rect(),
+    };
+}
+
+test('x11-premap: resized at window-created (before the map), first-frame during that window ends the wait at once', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const rig = makeRig();
+        const r = await runPremap(rig, withWait({ strategy: 'x11-premap' }), { firstFrameAt: 10, mapAt: 20 });
+        assert.deepEqual([r.frameAfterCreated.width, r.frameAfterCreated.height], [800, 600], 'resized before any map');
+        assert.match(r.line('PREMAP_RESIZE'), /^requested=\(800x600\) safe=\(800x600\) kind=X11 preFrame=\(50,90,400x300\) mono_ms=\d+\.\d{3} first_frame_signal=true$/);
+        assert.equal(r.resizeCalls.filter(c => c.w === 800 && c.h === 600).length, 1, 'the batch did not resize a second time');
+        assert.match(r.line('SET_SIZE_PREMAPPED'), /^size=\(800x600\) issued_ms_before=\d+\.\d$/);
+        assert.match(r.line('READY_WAIT_START'), /^strategy=x11-premap kind=X11 target=\(800x600\) cap=250 hard=1500 resized_ms_before_wait=20\.0 first_frame_already=true$/);
+        assert.match(r.line('READY_WAIT_RESOLVED'), /^strategy=x11-premap outcome=reached elapsed_ms=20\.0 waited_ms=10 reason=x11-premap-first-frame first_frames=1 /);
+        assert.deepEqual(r.outcome.value, ['verify.ready.wiring', 'reached', 800, 600, 10, 'x11-premap-first-frame']);
+        assert.equal(r.actor.handlerCount(), 0, 'first-frame handler gone');
+        assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
+        rig.ext.disable();
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11-premap: a first-frame after the map is waited for; none at all ends at the cap counted from the resize', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const late = await runPremap(makeRig(), withWait({ strategy: 'x11-premap' }), { firstFrameAt: 45, mapAt: 20 });
+        assert.match(late.line('READY_WAIT_START'), / first_frame_already=false$/);
+        assert.deepEqual(late.outcome.value, ['verify.ready.wiring', 'reached', 800, 600, 45, 'x11-premap-first-frame']);
+        const none = await runPremap(makeRig(), withWait({ strategy: 'x11-premap' }), { firstFrameAt: null, mapAt: 20 });
+        assert.deepEqual(none.outcome.value, ['verify.ready.wiring', 'timed-out', 800, 600, 250, 'x11-premap-cap']);
+        assert.match(none.line('COMMIT_RESOLVED'), /^reason=X11_PREMAP_CAP /);
+        const cap90 = await runPremap(makeRig(), withWait({ strategy: 'x11-premap', cap_ms: 90 }), { firstFrameAt: null, mapAt: 20 });
+        assert.deepEqual(cap90.outcome.value, ['verify.ready.wiring', 'timed-out', 800, 600, 90, 'x11-premap-cap']);
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('x11-premap claimed only after the map: no early resize, the original rule, reported as unused', async () => {
+    const r = await runPremap(makeRig(), withWait({ strategy: 'x11-premap' }), { armAfterMap: true, mapAt: 20 });
+    assert.equal(r.line('PREMAP_RESIZE'), undefined);
+    assert.equal(r.line('SET_SIZE_PREMAPPED'), undefined);
+    assert.match(r.line('READY_WAIT_OVERRIDE'), /unused=strategy\(x11-premap:not-premapped\)/);
+    assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland /);
+    assert.equal(r.resizeCalls.filter(c => c.w === 800 && c.h === 600).length, 1, 'the batch resized once, as before');
+});
+
+test('x11-premap does nothing for a native Wayland window or an instruction without it, even through discovery', async () => {
+    const native = await runPremap(makeRig(), withWait({ strategy: 'x11-premap' }), { windowOptions: {}, mapAt: 20 });
+    assert.equal(native.line('PREMAP_RESIZE'), undefined);
+    assert.equal(native.frameAfterCreated.width, 400, 'not resized at window-created');
+    assert.match(native.line('READY_WAIT_START'), /^strategy=ready-wait kind=NativeWayland /);
+    const plain = await runPremap(makeRig(), WITH_SIZE, { mapAt: 20 });
+    assert.equal(plain.line('PREMAP_RESIZE'), undefined);
+    assert.equal(plain.frameAfterCreated.width, 400);
+    assert.equal(plain.line('READY_WAIT_OVERRIDE'), undefined);
+    assert.match(plain.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland /);
+});

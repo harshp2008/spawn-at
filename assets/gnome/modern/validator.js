@@ -27,7 +27,7 @@ function isFiniteNumber(val, min, max) {
 }
 
 /** The spellings of `WaitStrategy` in spawn-at-core (`wait_override.rs`). */
-const WAIT_STRATEGIES = new Set(['auto', 'legacy', 'ready-wait', 'x11-hold-damage']);
+const WAIT_STRATEGIES = new Set(['auto', 'legacy', 'ready-wait', 'x11-hold-damage', 'x11-premap', 'x11-pixel-probe']);
 
 /** Longest value text kept in an `ignored` entry, so a hostile value cannot flood the log. */
 const MAX_IGNORED_VALUE_LEN = 32;

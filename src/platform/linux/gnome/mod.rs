@@ -186,6 +186,16 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
         "x11_hold.js",
         include_str!("../../../../assets/gnome/modern/x11_hold.js"),
     ),
+    // Imported by extension.js: the experimental x11-premap wait (off unless asked for by name).
+    (
+        "x11_premap.js",
+        include_str!("../../../../assets/gnome/modern/x11_premap.js"),
+    ),
+    // Imported by extension.js: the experimental, observe-only x11-pixel-probe (off unless asked for by name).
+    (
+        "x11_probe.js",
+        include_str!("../../../../assets/gnome/modern/x11_probe.js"),
+    ),
     // Not imported by extension.js yet: shipped only because the guard test below requires the
     // list to equal the directory. Inert until the ready-wait machine is wired in.
     (
