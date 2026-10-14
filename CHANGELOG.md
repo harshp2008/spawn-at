@@ -6,6 +6,19 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0-beta.3] - 2026-10-15
+
+Pre-release. Window placement, the ready-wait policy and the GNOME extension are the same as in
+0.2.0-beta.2: no file under `assets/gnome/` and no file under `crates/` changed. This release is
+about `spawn-at install`. See
+[docs/RELEASE_NOTES_0.2.0-beta.3.md](docs/RELEASE_NOTES_0.2.0-beta.3.md) for how to use it and
+what is not verified.
+
+**Already live for everyone:** `install.sh` is fetched from `main`, so the two `install.sh` items
+under Fixed (progress bar, visible retries, 404 handling, error layout) work today, before this
+tag. **Ships in the binary with this release:** everything else below (the install flow, the
+prompts, the log-out handling, `--clean-install`).
+
 ### Added
 
 - On GNOME Wayland, `spawn-at install` no longer asks about (or warns about) a log-out when none is needed: the extension about to be deployed is byte-identical to the deployed one (same file set), `gnome-extensions info` reports it ACTIVE, and every deployed file is older than the running gnome-shell process. It prints a green "No log-out needed" line instead. If any of these facts cannot be read, the question and warning stay. Files that are already identical are no longer rewritten, so their modification time keeps meaning "installed before this Shell started". X11 is unchanged (takes effect in the next release).
@@ -23,6 +36,7 @@ All notable changes to this project are recorded here. The format follows
 
 - A log-out (or X11 Shell reload) is now always the last action of a run, in `spawn-at install`, `spawn-at uninstall` and the upgrade offered by `spawn-at update`: the question (or flag) only records the decision, and the advice lines ("No log-out needed", or the yellow warning) are the last thing printed, then the session action is performed. Before, answering Yes logged you out before Update Preferences and the settings were saved. The removal phase of `--clean-install` no longer prints a "logout skipped" line; there is one decision, at the end.
 - `install.sh` shows curl's progress bar for the tarball download when stderr is a terminal, announces each retry of a stalled or failed download ("attempt 1 of 4 timed out or stalled, retrying in 2s..."), and prints the elapsed time when a download took longer than 5 seconds. The bar is not drawn for a failed HTTP status (a pinned version that does not exist no longer shows 100% before the error). Without a terminal (logs, CI, redirects) there is no bar and no retry text.
+- `install.sh` in a terminal first asks for the first byte of the tarball (one extra small request, 2 attempts of at most 15 s) so that a definite HTTP error (404, 403, a persistent 5xx) is reported with no progress bar and no curl line; a timeout or DNS failure there is ignored and the real download reports it with its own retries. Without a terminal nothing changes (already live, see above).
 - `install.sh` errors share one layout on stderr (blank line, red headline, indented causes, "What you can do:" with indented steps, blank line), including the unsupported-platform, `--version` and invalid-tag errors, which now also say what to do; the phases (resolving, downloading, extracting, launching) are separated by single blank lines. Wording and exit codes are otherwise unchanged.
 
 ## [0.2.0-beta.2] - 2026-10-14
@@ -220,6 +234,7 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.2...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.3...HEAD
+[0.2.0-beta.3]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.2...v0.2.0-beta.3
 [0.2.0-beta.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.1...v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/harshp2008/spawn-at/releases/tag/v0.2.0-beta.1
