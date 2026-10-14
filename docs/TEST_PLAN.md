@@ -50,15 +50,15 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ## 2. 59-Case Test Catalog across 8 Categories
 
-The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Planned** (no spec yet). The last 18 Covered rows are the placement resize specs of section 6.10. Since 6.22 `spawn-at-verify list` shows 45 tests: these 36 plus the nine `hostile/` cells, which are not rows of the 59.
+The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Not written** (the spec file named in the last column does not exist; checked for all 23). Nothing here was dropped by a decision; the rows are simply not written. The last 18 Covered rows are the placement resize specs of section 6.10. Since 6.22 `spawn-at-verify list` shows 45 tests: these 36 plus the nine `hostile/` cells, which are not rows of the 59.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
 | **Category: basics** | | | | |
 | `preflight/binary-head` | Binary version matches repository HEAD | Auto | **Covered** | `verify/preflight/binary-head.toml` |
-| `basics/version-and-help` | CLI `--help` and `--version` formatted output | Auto | **Planned** | `verify/basics/version-and-help.toml` |
-| `basics/instant-paint` | Instant paint without artificial delay | Auto | **Planned** | `verify/basics/instant-paint.toml` |
-| `basics/shell-extension-active` | Extension IPC handshake and version ping | Auto | **Planned** | `verify/basics/shell-extension-active.toml` |
+| `basics/version-and-help` | CLI `--help` and `--version` formatted output | Auto | **Not written** | `verify/basics/version-and-help.toml` (file does not exist) |
+| `basics/instant-paint` | Instant paint without artificial delay | Auto | **Not written** | `verify/basics/instant-paint.toml` (file does not exist) |
+| `basics/shell-extension-active` | Extension IPC handshake and version ping | Auto | **Not written** | `verify/basics/shell-extension-active.toml` (file does not exist) |
 | **Category: placement** | | | | |
 | `placement/bottom-right` | Window placed in bottom-right corner with margins | Both | **Covered** | `verify/placement/bottom-right.toml` |
 | `placement/top-left` | Window placed at top-left anchor (400x300, margin 16) | Both | **Covered** | `verify/placement/top-left.toml` |
@@ -91,36 +91,36 @@ The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists an
 | `placement/top-left-below-min-both` | control: 200x150 vs minimum 300x200 at top-left (position independent of size) | Auto | **Covered** | `verify/placement/top-left-below-min-both.toml` |
 | `placement/top-left-smaller` | 200x150 at top-left, fixture minimum 100x100 (real shrink; the window's origin does not move) | Auto | **Covered** | `verify/placement/top-left-smaller.toml` |
 | `placement/invalid-size-zero` | expected failure: `--size 0 150` is rejected by the CLI (exit 2, "Invalid size") | Auto | **Covered** | `verify/placement/invalid-size-zero.toml` |
-| `placement/area-screen-vs-workarea` | Boundary bounds: screen vs workarea vs unbounded | Auto | **Planned** | `verify/placement/area-screen-vs-workarea.toml` |
-| `placement/clamp-bounds` | Clamping window when position exceeds area | Auto | **Planned** | `verify/placement/clamp-bounds.toml` |
-| `placement/explicit-pos` | Explicit coordinates `--pos X Y` with custom pivot | Auto | **Planned** | `verify/placement/explicit-pos.toml` |
+| `placement/area-screen-vs-workarea` | Boundary bounds: screen vs workarea vs unbounded | Auto | **Not written** | `verify/placement/area-screen-vs-workarea.toml` (file does not exist) |
+| `placement/clamp-bounds` | Clamping window when position exceeds area | Auto | **Not written** | `verify/placement/clamp-bounds.toml` (file does not exist) |
+| `placement/explicit-pos` | Explicit coordinates `--pos X Y` with custom pivot | Auto | **Not written** | `verify/placement/explicit-pos.toml` (file does not exist) |
 | **Category: transforms** | | | | |
-| `transforms/reposition-by-id` | Reposition existing window by numeric ID | Auto | **Planned** | `verify/transforms/reposition-by-id.toml` |
-| `transforms/maximize-and-restore` | Maximize window and restore original dimensions | Both | **Planned** | `verify/transforms/maximize-and-restore.toml` |
-| `transforms/minimize-and-focus` | Minimize window and unminimize via focus | Both | **Planned** | `verify/transforms/minimize-and-focus.toml` |
-| `transforms/resize-by-id` | Resize existing window dimensions | Auto | **Planned** | `verify/transforms/resize-by-id.toml` |
+| `transforms/reposition-by-id` | Reposition existing window by numeric ID | Auto | **Not written** | `verify/transforms/reposition-by-id.toml` (file does not exist) |
+| `transforms/maximize-and-restore` | Maximize window and restore original dimensions | Both | **Not written** | `verify/transforms/maximize-and-restore.toml` (file does not exist) |
+| `transforms/minimize-and-focus` | Minimize window and unminimize via focus | Both | **Not written** | `verify/transforms/minimize-and-focus.toml` (file does not exist) |
+| `transforms/resize-by-id` | Resize existing window dimensions | Auto | **Not written** | `verify/transforms/resize-by-id.toml` (file does not exist) |
 | **Category: focus** | | | | |
-| `focus/activate-by-title` | Activate window matching title substring | Auto | **Planned** | `verify/focus/activate-by-title.toml` |
-| `focus/defocus-active-window` | Relinquish keyboard focus to previous window | Auto | **Planned** | `verify/focus/defocus-active-window.toml` |
-| `focus/passive-spawn-no-focus` | Spawn window passively without stealing focus (`--no-focus`) | Auto | **Planned** | `verify/focus/passive-spawn-no-focus.toml` |
-| `focus/switch-between-windows` | Alternate focus across two managed test windows | Auto | **Planned** | `verify/focus/switch-between-windows.toml` |
+| `focus/activate-by-title` | Activate window matching title substring | Auto | **Not written** | `verify/focus/activate-by-title.toml` (file does not exist) |
+| `focus/defocus-active-window` | Relinquish keyboard focus to previous window | Auto | **Not written** | `verify/focus/defocus-active-window.toml` (file does not exist) |
+| `focus/passive-spawn-no-focus` | Spawn window passively without stealing focus (`--no-focus`) | Auto | **Not written** | `verify/focus/passive-spawn-no-focus.toml` (file does not exist) |
+| `focus/switch-between-windows` | Alternate focus across two managed test windows | Auto | **Not written** | `verify/focus/switch-between-windows.toml` (file does not exist) |
 | **Category: animation-and-cloak** | | | | |
-| `cloak/delayed-paint/delay-0` | App paints slowly (0 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint/delay-0.toml` |
-| `cloak/delayed-paint/delay-50` | App paints slowly (50 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint/delay-50.toml` |
-| `cloak/delayed-paint/delay-150` | App paints slowly (150 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint/delay-150.toml` |
-| `cloak/delayed-paint/delay-500` | App paints slowly (500 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint/delay-500.toml` |
-| `animation/minimize-animation` | Minimize/unminimize animation flicker regression | Both | **Planned** | `verify/animation/minimize-animation.toml` |
+| `cloak/delayed-paint/delay-0` | App paints slowly (0 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint.toml` (one spec, `[matrix] delay = [0, 50, 150, 500]`; this row is its `delay = 0` expansion) |
+| `cloak/delayed-paint/delay-50` | App paints slowly (50 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint.toml` (one spec, `[matrix] delay = [0, 50, 150, 500]`; this row is its `delay = 50` expansion) |
+| `cloak/delayed-paint/delay-150` | App paints slowly (150 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint.toml` (one spec, `[matrix] delay = [0, 50, 150, 500]`; this row is its `delay = 150` expansion) |
+| `cloak/delayed-paint/delay-500` | App paints slowly (500 ms delay) | Auto | **Covered** | `verify/cloak/delayed-paint.toml` (one spec, `[matrix] delay = [0, 50, 150, 500]`; this row is its `delay = 500` expansion) |
+| `animation/minimize-animation` | Minimize/unminimize animation flicker regression | Both | **Not written** | `verify/animation/minimize-animation.toml` (file does not exist) |
 | **Category: queries** | | | | |
-| `queries/query-layout` | Query display monitor and workarea layout | Auto | **Planned** | `verify/queries/query-layout.toml` |
-| `queries/query-windows` | Query active compositor windows with metadata | Auto | **Planned** | `verify/queries/query-windows.toml` |
-| `queries/query-pointer` | Query current mouse pointer screen coordinates | Auto | **Planned** | `verify/queries/query-pointer.toml` |
+| `queries/query-layout` | Query display monitor and workarea layout | Auto | **Not written** | `verify/queries/query-layout.toml` (file does not exist) |
+| `queries/query-windows` | Query active compositor windows with metadata | Auto | **Not written** | `verify/queries/query-windows.toml` (file does not exist) |
+| `queries/query-pointer` | Query current mouse pointer screen coordinates | Auto | **Not written** | `verify/queries/query-pointer.toml` (file does not exist) |
 | **Category: robustness** | | | | |
-| `robustness/invalid-anchor-arg` | Clean error report on invalid anchor CLI value | Auto | **Planned** | `verify/robustness/invalid-anchor-arg.toml` |
-| `robustness/app-crash-early-exit` | Graceful cleanup when spawned process crashes during cloak | Auto | **Planned** | `verify/robustness/app-crash-early-exit.toml` |
-| `robustness/nonexistent-window-id` | Transform non-existent window ID returns clean error | Auto | **Planned** | `verify/robustness/nonexistent-window-id.toml` |
+| `robustness/invalid-anchor-arg` | Clean error report on invalid anchor CLI value | Auto | **Not written** | `verify/robustness/invalid-anchor-arg.toml` (file does not exist) |
+| `robustness/app-crash-early-exit` | Graceful cleanup when spawned process crashes during cloak | Auto | **Not written** | `verify/robustness/app-crash-early-exit.toml` (file does not exist) |
+| `robustness/nonexistent-window-id` | Transform non-existent window ID returns clean error | Auto | **Not written** | `verify/robustness/nonexistent-window-id.toml` (file does not exist) |
 | **Category: platform** | | | | |
-| `platform/x11-fallback` | Platform guard and fallback under X11 session | Auto | **Planned** | `verify/platform/x11-fallback.toml` |
-| `platform/multi-monitor-secondary` | Target placement to secondary monitor index | Both | **Planned** | `verify/platform/multi-monitor-secondary.toml` |
+| `platform/x11-fallback` | Platform guard and fallback under X11 session | Auto | **Not written** | `verify/platform/x11-fallback.toml` (file does not exist) |
+| `platform/multi-monitor-secondary` | Target placement to secondary monitor index | Both | **Not written** | `verify/platform/multi-monitor-secondary.toml` (file does not exist) |
 
 ---
 
@@ -192,8 +192,8 @@ zenity never reaches the target inside the 30 ms window: all 60 runs resolved `S
 | `update` | Out of scope | — | Network-facing update check. Out of scope for local offline verification. |
 | `spawn` | **Covered** | `verify/placement/bottom-right.toml` | Primary command exercised across verification library. |
 | `spawn --class <CLASS>` | **Covered** | `verify/placement/bottom-right.toml` | Tested via fixture explicit class matching. |
-| `spawn --area <AREA>` | **Covered** | `test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check` | Planned spec: `placement/area-screen-vs-workarea`. |
-| `spawn --monitor <MON>` | **Planned** | Planned: `platform/multi-monitor-secondary` | Requires multi-head display environment. |
+| `spawn --area <AREA>` | **Covered** | `test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check` | Spec not written: `placement/area-screen-vs-workarea`. |
+| `spawn --monitor <MON>` | **Not written** | Spec not written: `platform/multi-monitor-secondary` | Requires multi-head display environment. |
 | `spawn --anchor <ANCHOR>`| **Covered** | `verify/placement/bottom-right.toml` | Tested all 9 anchors in oracle golden test vectors. |
 | `spawn --pivot <PIVOT>` | **Covered** | `test_golden_default_pivot_all_nine_anchors` | Cross-checked across core and oracle matrix. |
 | `spawn -p, --pos <X> <Y>` | **Covered** | `test_golden_clamp_explicit_pos_0_0` | Absolute and offset positioning cross-checked. |
@@ -202,19 +202,19 @@ zenity never reaches the target inside the 30 ms window: all 60 runs resolved `S
 | `spawn -m, --margin <M>` | **Covered** | `verify/placement/bottom-right.toml` | Universal margin tested against oracle math. |
 | `spawn --margin-{t,b,l,r}`| **Covered** | `test_oracle_vs_core_directional_margins_cross_check`| Directional boundary margins verified. |
 | `spawn --focus` | **Covered** | Default mode in `execute_test` | Default behavior. |
-| `spawn --no-focus` | **Planned** | Planned: `focus/passive-spawn-no-focus` | Passive background launch. |
-| `spawn --defocus` | **Planned** | Planned: `focus/defocus-active-window` | Force yield focus back to predecessor. |
+| `spawn --no-focus` | **Not written** | Spec not written: `focus/passive-spawn-no-focus` | Passive background launch. |
+| `spawn --defocus` | **Not written** | Spec not written: `focus/defocus-active-window` | Force yield focus back to predecessor. |
 | `spawn --json` | **Covered** | `verify/placement/bottom-right.toml` | Tested in CLI execution and parsed by TUI/runner. |
-| `spawn --no-wait` | **Planned** | Planned: `basics/no-wait-async` | Asynchronous launch without compositor ack wait. |
-| `transform` | **Planned** | Planned: `transforms/reposition-by-id` | Dynamically moves/resizes live window. |
-| `query` | **Planned** | Planned: `queries/query-layout` | Compositor state inspector. |
-| `focus` | **Planned** | Planned: `focus/activate-by-title` | Brings window to foreground. |
-| `defocus` | **Planned** | Planned: `focus/defocus-active-window` | Unfocuses active window. |
-| `maximize` | **Planned** | Planned: `transforms/maximize-and-restore` | Compositor window maximization. |
-| `minimize` | **Planned** | Planned: `transforms/minimize-and-focus` | Compositor window minimization. |
-| `restore` | **Planned** | Planned: `transforms/maximize-and-restore` | Returns maximized/minimized window to normal floating. |
+| `spawn --no-wait` | **Not written** | Spec not written: `basics/no-wait-async` (not a row of the section 2 catalog) | Asynchronous launch without compositor ack wait. |
+| `transform` | **Not written** | Spec not written: `transforms/reposition-by-id` | Dynamically moves/resizes live window. |
+| `query` | **Not written** | Spec not written: `queries/query-layout` | Compositor state inspector. |
+| `focus` | **Not written** | Spec not written: `focus/activate-by-title` | Brings window to foreground. |
+| `defocus` | **Not written** | Spec not written: `focus/defocus-active-window` | Unfocuses active window. |
+| `maximize` | **Not written** | Spec not written: `transforms/maximize-and-restore` | Compositor window maximization. |
+| `minimize` | **Not written** | Spec not written: `transforms/minimize-and-focus` | Compositor window minimization. |
+| `restore` | **Not written** | Spec not written: `transforms/maximize-and-restore` | Returns maximized/minimized window to normal floating. |
 | `close` | **Covered** | `test_runner_cleanup_only_ever_passes_registered_ids_to_close` | Exercised by window tracker cleanup routines. |
-| `-h, --help` | **Planned** | Planned: `basics/version-and-help` | Standard help synopsis. |
+| `-h, --help` | **Not written** | Spec not written: `basics/version-and-help` | Standard help synopsis. |
 
 ---
 
