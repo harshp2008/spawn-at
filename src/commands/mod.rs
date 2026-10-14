@@ -22,12 +22,6 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedState {
-    /// Window exists and is mapped.
-    Mapped,
-    /// Window position changed to approximately (x, y).
-    Position { x: i32, y: i32 },
-    /// Window dimensions changed to approximately (w, h).
-    Size { w: u32, h: u32 },
     /// Window geometry changed to (x, y, w, h).
     Geometry {
         x: Option<i32>,
@@ -318,13 +312,6 @@ pub async fn wait_for_state_change(
             last_seen_win = Some(win.clone());
 
             let satisfied = match expected_state {
-                ExpectedState::Mapped => win.w > 0 && win.h > 0,
-                ExpectedState::Position { x, y } => {
-                    (win.x - x).abs() <= 4 && (win.y - y).abs() <= 4
-                }
-                ExpectedState::Size { w, h } => {
-                    (win.w - w as i32).abs() <= 4 && (win.h - h as i32).abs() <= 4
-                }
                 ExpectedState::Geometry { x, y, w, h } => {
                     let x_ok = x.is_none_or(|tx| (win.x - tx).abs() <= 4);
                     let y_ok = y.is_none_or(|ty| (win.y - ty).abs() <= 4);
