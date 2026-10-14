@@ -20,9 +20,7 @@ pub use linux::LinuxBackend as NativeBackend;
 
 pub use crate::target::WindowMetadata;
 use clap::Args;
-pub use spawn_at_core::driver::{
-    Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency,
-};
+pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, FocusIntent, Reveal, Urgency};
 pub use spawn_at_core::geometry::{
     LayoutInsets, LayoutRect, MonitorInfo, MonitorLayout, PlacementParams, Rect,
 };
