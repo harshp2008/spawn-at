@@ -856,7 +856,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let is_wayland = is_wayland_session();
 
         let (delete_files, should_restart) = if !args.headless && std::io::stdout().is_terminal() {
-            println!("\x1b[1;36m=== GNOME Shell Extension Uninstallation ===\x1b[0m\n");
+            crate::ui::section("GNOME Shell Extension Uninstallation");
 
             let delete_files = Confirm::new()
                 .with_prompt(
@@ -903,6 +903,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         };
 
         let ext_dir = Self::extension_dir()?;
+        crate::ui::block_start();
         println!("Disabling GNOME extension: {}", EXTENSION_UUID);
 
         let _ = Command::new("gnome-extensions")

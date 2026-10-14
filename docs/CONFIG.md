@@ -63,6 +63,7 @@ instruction is byte-for-byte the one sent before (`{"WaitForCommit":{"timeout_ms
   session did not find it. `SPAWN_AT_CONFIG` names the config file only and does not move it.
   An entry written by an earlier version under `~/.config/autostart` is not moved or removed;
   re-run `spawn-at install` to write the new one.
+- **Uninstall and clean install never delete the config file.** `spawn-at uninstall` removes the binary, the extension directory and the login update-check entry, and nothing else; `spawn-at install --clean-install` runs the same removal first and then installs, so your settings survive it. (`install` itself still writes `[update] channel` and `notify` as before.)
 - **Comments are not kept** when `set`, `unset` or `reset` rewrites the file (the file is parsed
   and written again); unknown keys and tables are. A malformed file is never overwritten by `set`.
 - **Isolation**: `spawn-at-verify` sets `SPAWN_AT_CONFIG` to a path that does not exist on every

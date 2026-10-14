@@ -233,6 +233,65 @@ mod tests {
         );
     }
 
+    /// Every `=== ... ===` heading in the program goes through `Layout::section`: no source file
+    /// other than ui.rs prints a cyan heading by hand (that is how the old double blank lines and
+    /// the uncoloured-when-piped bug crept in).
+    #[test]
+    fn test_no_heading_is_printed_by_hand() {
+        fn walk(dir: &std::path::Path, hits: &mut Vec<String>) {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, hits);
+                } else if p.extension().is_some_and(|x| x == "rs")
+                    && !p.ends_with("ui.rs")
+                    && std::fs::read_to_string(&p)
+                        .unwrap()
+                        .contains("\\x1b[1;36m===")
+                {
+                    hits.push(p.display().to_string());
+                }
+            }
+        }
+        let mut hits = Vec::new();
+        walk(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut hits,
+        );
+        assert!(hits.is_empty(), "headings printed by hand: {hits:?}");
+    }
+
+    /// The order of a clean install (removal sections, then the install sections) has one blank
+    /// line between blocks and none doubled, at the start or at the end.
+    #[test]
+    fn test_clean_install_run_has_single_blank_lines() {
+        let t = text(|l, o| {
+            l.block_start(o).unwrap();
+            writeln!(o, "An existing spawn-at was found:").unwrap();
+            writeln!(o, "--clean-install: removing it first.").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Clean install: removing the existing spawn-at first.").unwrap();
+            l.section(o, "OS-Level Binary Uninstallation", false)
+                .unwrap();
+            writeln!(o, "Successfully removed binary: /x").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Disabling GNOME extension: x").unwrap();
+            writeln!(o, "Spawn-At extension successfully uninstalled.").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Your configuration and settings were kept.").unwrap();
+            l.section(o, "OS-Level Binary Installation", false).unwrap();
+            writeln!(o, "Scope: User").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Deploying embedded GNOME extension to: /y").unwrap();
+        });
+        assert!(!t.contains("\n\n\n"), "{t}");
+        assert!(!t.starts_with('\n') && !t.ends_with("\n\n"), "{t}");
+        assert!(
+            t.contains("first.\n\n=== OS-Level Binary Uninstallation ===\n\nSuccessfully"),
+            "{t}"
+        );
+    }
+
     /// The success line is bold green (ESC[1;32m) with colour, the plain text without.
     #[test]
     fn test_success_line_colour() {

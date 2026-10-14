@@ -9,10 +9,12 @@ All notable changes to this project are recorded here. The format follows
 ### Added
 
 - On GNOME Wayland, `spawn-at install` no longer asks about (or warns about) a log-out when none is needed: the extension about to be deployed is byte-identical to the deployed one (same file set), `gnome-extensions info` reports it ACTIVE, and every deployed file is older than the running gnome-shell process. It prints a green "No log-out needed" line instead. If any of these facts cannot be read, the question and warning stay. Files that are already identical are no longer rewritten, so their modification time keeps meaning "installed before this Shell started". X11 is unchanged (takes effect in the next release).
+- `spawn-at install` detects an existing spawn-at binary (user location, `/usr/local/bin`, or on PATH; never the running binary) and tells you where it is and its version (`<existing> -V`, 2 s timeout, failure tolerated) next to the version being installed. In a terminal it asks: keep and upgrade in place (default), or clean install; for the same version the default changes nothing, for a newer installed version it warns about the downgrade and the default changes nothing. Without a terminal, or when the prompt cannot be shown, nothing is uninstalled and the install behaves as before.
+- `spawn-at install --clean-install` removes the existing install first (binaries, the extension, the login update-check entry; the same removal as `spawn-at uninstall`) and then installs, without asking, with or without a terminal. Your configuration file and settings are never deleted. With no existing install it prints that there is nothing to remove. `install.sh` passes the flag on (`... | bash -s -- --clean-install`) (takes effect in the next release).
 
 ### Changed
 
-- `spawn-at install` output: one blank line before and after each `=== ... ===` section, no double blank lines, none at the start or end (takes effect in the next release). The section headings are plain text when stdout is not a terminal or `NO_COLOR` is set.
+- `spawn-at install` and `spawn-at uninstall` output (and the update manager heading): one blank line before and after each `=== ... ===` section, no double blank lines, none at the start or end (takes effect in the next release). The section headings are plain text when stdout is not a terminal or `NO_COLOR` is set.
 - The Wayland line "If the extension is not immediately active, log out and back in to complete loading." is printed in bold yellow, only on a terminal with `NO_COLOR` unset; the text is unchanged and it stays plain when piped (takes effect in the next release).
 
 ### Fixed

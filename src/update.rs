@@ -829,7 +829,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    println!("\x1b[1;36m=== spawn-at Update Manager ===\x1b[0m\n");
+    crate::ui::section("spawn-at Update Manager");
     println!("Current version: {}", current_tag);
     println!("Checking GitHub for releases (Channel: {})...", channel);
 

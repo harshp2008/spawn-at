@@ -134,3 +134,15 @@ fn test_dry_run_output_has_single_blank_lines() {
         }
     }
 }
+
+/// `install --help` lists --clean-install, and says the configuration is kept.
+#[test]
+fn test_install_help_lists_clean_install() {
+    let o = Command::new(env!("CARGO_BIN_EXE_spawn-at"))
+        .args(["install", "--help"])
+        .output()
+        .unwrap();
+    let t = stdout(&o);
+    assert!(t.contains("--clean-install"), "{t}");
+    assert!(t.contains("configuration and settings are kept"), "{t}");
+}

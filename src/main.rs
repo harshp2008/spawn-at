@@ -119,6 +119,83 @@ async fn main() {
                 );
                 return;
             }
+            if args.skip_bin {
+                if args.clean_install {
+                    crate::ui::block_start();
+                    println!("--clean-install is ignored with --skip-bin: no binary is installed.");
+                }
+            } else {
+                use crate::platform::upgrade;
+                let user_bin = std::env::var_os("HOME")
+                    .map(|h| std::path::PathBuf::from(h).join(".local/bin"));
+                let system_bin = std::path::PathBuf::from("/usr/local/bin");
+                let found = match std::env::current_exe() {
+                    Ok(exe) => upgrade::detect(
+                        user_bin.as_deref(),
+                        &system_bin,
+                        std::env::var_os("PATH").as_deref(),
+                        &exe,
+                    ),
+                    Err(_) => Vec::new(),
+                };
+                let new = upgrade::NewVersion {
+                    display: crate::update::get_current_release_tag(),
+                    semver: crate::update::get_running_semver(),
+                };
+                let mut said_any = false;
+                let mut say = |l: &str| {
+                    if !said_any {
+                        crate::ui::block_start();
+                        said_any = true;
+                    }
+                    println!("{l}");
+                };
+                let mut ask = |q: &upgrade::Question| {
+                    println!();
+                    let labels: Vec<&str> = q.items.iter().map(|i| i.0.as_str()).collect();
+                    dialoguer::Select::new()
+                        .with_prompt(q.prompt.as_str())
+                        .items(&labels)
+                        .default(q.default)
+                        .interact()
+                        .ok()
+                };
+                let interactive = !args.headless && std::io::stdout().is_terminal();
+                match upgrade::plan(
+                    &found,
+                    &new,
+                    args.clean_install,
+                    interactive,
+                    &mut say,
+                    &mut ask,
+                ) {
+                    upgrade::Plan::Proceed => {}
+                    upgrade::Plan::Stop => {
+                        println!("Nothing was changed.");
+                        return;
+                    }
+                    upgrade::Plan::Clean => {
+                        crate::ui::block_start();
+                        println!("Clean install: removing the existing spawn-at first.");
+                        let mut ops = upgrade::RealCleanOps {
+                            driver: driver.as_ref(),
+                            user_bin,
+                            system_bin,
+                        };
+                        let mut say_kept = |l: &str| {
+                            crate::ui::block_start();
+                            println!("{l}");
+                        };
+                        if let Err(e) = upgrade::run_clean(&found, &mut ops, &mut say_kept) {
+                            crate::diagnostics::render_error(&format!(
+                                "Error during the clean install: {}",
+                                e
+                            ));
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
                 crate::ui::section("Binary Installation Setup");
                 let choices = &[
@@ -267,7 +344,7 @@ async fn main() {
         }
         Commands::Uninstall(mut args) => {
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
-                println!("\x1b[1;36m=== Binary Uninstallation Setup ===\x1b[0m\n");
+                crate::ui::section("Binary Uninstallation Setup");
                 let choices = &[
                     "Remove binary from current user directory (~/.local/bin) [Recommended]",
                     "Remove binary from system-wide directory (/usr/local/bin - requires sudo)",
@@ -289,7 +366,6 @@ async fn main() {
                     }
                     _ => {}
                 }
-                println!();
             }
 
             if !args.skip_bin {
@@ -300,7 +376,6 @@ async fn main() {
                     ));
                     std::process::exit(1);
                 }
-                println!();
             }
 
             if let Err(e) = driver.uninstall(&args) {
