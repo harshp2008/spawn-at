@@ -30,11 +30,6 @@ caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for t
 - **Installer notice on untested GNOME versions.** On a GNOME version other than 46 the installer
   prints what is and is not tested and asks for confirmation (`--yes` skips the question; headless
   runs print the notice and continue).
-- **Observe-only X11/XWayland logging** in the extension, active only while logging is switched
-  on. It logs the paint signals of X11 windows and changes no timing, order or outcome.
-- Test harness: a flash check that reads the client's commit time from the Wayland protocol,
-  hostile-app fixture flags (slow, refusing, grid-snapping, flapping, stalled, hung) and nine
-  catalog cells that use them.
 
 ### Changed
 
@@ -54,6 +49,15 @@ caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for t
   installer now writes the absolute path of the binary it installed, quoted as the Desktop Entry
   specification requires. Run `spawn-at install` again to rewrite an existing file.
 - `cargo clippy --workspace --all-targets -- -D warnings` passes (mechanical fixes, no behaviour change).
+
+### Developer notes (not user-facing)
+
+- The extension can log the paint signals of XWayland/X11 windows (`X11_OBS_*` lines, including the
+  surface texture size) while logging is switched on. It changes no timing, order or outcome and was
+  used to study the X11 question described under Known limitations.
+- The test harness reads the client's commit time from the Wayland protocol for its flash check, and
+  the test fixture has hostile-app flags and a test-only `--state-colors` option (solid magenta at the
+  initial size, green at any other).
 
 ### Known limitations
 

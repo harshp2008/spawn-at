@@ -12,8 +12,7 @@ This is a beta. It has been run on one machine: GNOME 46, Wayland, one monitor. 
   - Commands: `show`, `get`, `set`, `unset`, `reset`, `path`. A value on the command line beats the file, and the file beats the default. See [CONFIG.md](CONFIG.md).
 - **A notice on untested GNOME versions.** The installer prints what is and is not tested and asks for confirmation before it installs on a GNOME version other than 46 (`--yes` skips the question; headless runs print the notice and continue).
 - **Autostart fix.** The login update-check entry used a bare `spawn-at`, which is not found at login because `~/.local/bin` is not on `PATH` there. The installer now writes the absolute path of the binary it installed. Re-run `spawn-at install` to rewrite the file.
-- **Observe-only X11/XWayland logging** (only when logging is switched on): the extension can log the paint signals of X11 windows. It changes no timing or outcome. It exists to study X11; see below.
-- **Test harness** (developer-facing): a flash check that reads the client's commit time from the Wayland protocol, hostile-app fixture flags (slow, refusing, grid-snapping, flapping, stalled and hung apps), and nine catalog cells that use them.
+- **Developer-only note (not a user feature):** the test harness has a flash check that reads the client's commit time from the Wayland protocol, hostile-app fixture flags (slow, refusing, grid-snapping, flapping, stalled and hung apps) and nine catalog cells that use them; and the extension can log the paint signals of XWayland/X11 windows while logging is switched on (it changes no timing or outcome; it was used to study the X11 question below).
 
 ## What is measured, and the caveats
 
