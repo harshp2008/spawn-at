@@ -2244,7 +2244,7 @@ In all 4 runs the first change of counter B after the resize comes 2.7 to 5.5 ms
 
 **Not verified:** any client other than this GTK4 one; a Qt, Chromium or Electron counter; the even-v0 case; the delay between the client's counter step and the Shell's texture update; visible flashes (no capture); whether the odd values would add information (they were missed by the poll).
 
-### 6.34 Answering a sync request that we send ourselves: smoke (2026-10-14) DRAFT, stopped after the smoke because counter A never moved
+### 6.34 Answering a sync request that we send ourselves: smoke (2026-10-14) (stopped after the smoke because counter A never moved)
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Research only; our own GTK4 client (`scratch/p33_syncclient.py`) and a throwaway C sender/watcher (`scratch/p35_watch.c`, gitignored, not committed); nothing in the Shell, no extension or binary change, no install. HEAD `a1394ca`. Journal: only the 11:13:32 St/Cogl criticals of 6.33 before and after; no stop-rule line; gnome-shell pid 581106 throughout.
 
