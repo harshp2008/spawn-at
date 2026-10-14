@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `install.sh` shows curl's progress bar for the tarball download when stderr is a terminal, announces each retry of a stalled or failed download ("attempt 1 of 4 timed out or stalled, retrying in 2s..."), and prints the elapsed time when a download took longer than 5 seconds. Output is unchanged when stderr is not a terminal (logs, CI, redirects).
+
 ## [0.2.0-beta.2] - 2026-10-14
 
 Pre-release. Placement behavior, the ready-wait policy and the extension are the same as in

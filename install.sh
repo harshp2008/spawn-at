@@ -81,23 +81,70 @@ FETCH_STATUS=""
 FETCH_REASON=""
 FETCH_FINAL_URL=""
 
+#
+# Progress mode (FETCH_PROGRESS=1, set only by the tarball download and only when
+# stderr is a terminal): curl shows its progress bar on the terminal, so its stderr
+# cannot be captured into $errf (the bar would end up in the file). Instead curl's
+# error text comes from the %{errormsg} write-out variable (curl 7.75+; older curl
+# gets a generic message), and retries are done here, one curl call per attempt
+# with --retry 0, so that each retry can be announced.
+FETCH_PROGRESS=0
+
+# True if the installed curl supports the %{errormsg} write-out variable (7.75+).
+curl_has_errormsg() {
+    local v
+    v="$(curl --version 2>/dev/null | sed -n '1s/^curl \([0-9]*\)\.\([0-9]*\).*/\1 \2/p')"
+    [ -n "$v" ] || return 1
+    set -- $v
+    [ "$1" -gt 7 ] || { [ "$1" -eq 7 ] && [ "$2" -ge 75 ]; }
+}
+
 fetch() {
     local url="$1" body="$2"
     shift 2
-    local hdrs="$TMP_DIR/headers.txt" errf="$TMP_DIR/curl.err" out rc=0
+    local hdrs="$TMP_DIR/headers.txt" errf="$TMP_DIR/curl.err" out rc=0 msg=""
     : > "$hdrs"
     : > "$errf"
-    out="$(curl -sS -L --connect-timeout 10 --retry 3 --retry-delay 2 \
-        -D "$hdrs" -o "$body" -w '%{http_code} %{url_effective}' \
-        "$@" "$url" 2>"$errf")" || rc=$?
+    if [ "$FETCH_PROGRESS" = 1 ]; then
+        local attempt=0 max_attempts=4 wfmt='%{http_code} %{url_effective}' started=$SECONDS
+        curl_has_errormsg && wfmt="${wfmt}"$'\n''%{errormsg}'
+        while :; do
+            attempt=$((attempt + 1))
+            rc=0
+            out="$(curl -S --progress-bar -L --connect-timeout 10 --retry 0 \
+                -D "$hdrs" -o "$body" -w "$wfmt" "$@" "$url")" || rc=$?
+            msg="${out#*$'\n'}"
+            [ "$msg" != "$out" ] || msg=""
+            out="${out%%$'\n'*}"
+            # Same cases curl's own --retry treats as transient.
+            if [ "$attempt" -lt "$max_attempts" ]; then
+                case "$rc:${out%% *}" in
+                    28:*) echo "Download attempt ${attempt} of ${max_attempts} timed out or stalled, retrying in 2s..." >&2 ;;
+                    0:408|0:429|0:500|0:502|0:503|0:504) echo "Download attempt ${attempt} of ${max_attempts} got HTTP ${out%% *}, retrying in 2s..." >&2 ;;
+                    *) break ;;
+                esac
+                sleep 2
+                continue
+            fi
+            break
+        done
+        # Old curl has no %{errormsg}; it printed its own error line on the terminal.
+        [ "$rc" -eq 0 ] || [ -n "$msg" ] || msg="see the curl message above"
+        if [ "$rc" -eq 0 ] && [ $((SECONDS - started)) -gt 5 ]; then
+            echo "Downloaded in $((SECONDS - started))s, slow connection?" >&2
+        fi
+    else
+        out="$(curl -sS -L --connect-timeout 10 --retry 3 --retry-delay 2 \
+            -D "$hdrs" -o "$body" -w '%{http_code} %{url_effective}' \
+            "$@" "$url" 2>"$errf")" || rc=$?
+    fi
     FETCH_STATUS="${out%% *}"
     FETCH_FINAL_URL="${out#* }"
     [ -n "$FETCH_STATUS" ] || FETCH_STATUS="000"
     FETCH_REASON=""
 
     if [ "$rc" -ne 0 ]; then
-        local msg
-        msg="$(tr '\n' ' ' < "$errf")"
+        [ "$FETCH_PROGRESS" = 1 ] || msg="$(tr '\n' ' ' < "$errf")"
         case "$rc" in
             28) FETCH_REASON="timed out talking to ${url} (curl exit 28)" ;;
             6|7) FETCH_REASON="no network or DNS failure reaching ${url} (curl exit ${rc}: ${msg})" ;;
@@ -249,7 +296,11 @@ fi
 # --- Download (plain release URL, never the API) -------------------------------------
 download_tag() {
     local tag="$1" url="https://github.com/${REPO}/releases/download/${1}/${TAR_NAME}"
-    fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000
+    local rc=0
+    [ -t 2 ] && FETCH_PROGRESS=1
+    fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000 || rc=$?
+    FETCH_PROGRESS=0
+    return "$rc"
 }
 
 cyan "Downloading spawn-at binary (${RESOLVED_TAG})..."
