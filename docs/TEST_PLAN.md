@@ -2243,3 +2243,24 @@ In all 4 runs the first change of counter B after the resize comes 2.7 to 5.5 ms
 **Cleanup and counts (CONFIRMED).** No client, watcher, fixture or burn process remains (all 100 runs exited by `--exit-after-ms`, the burn was stopped by its PID), the user's windows are untouched (Claude, kitty, and the Antigravity window that was launched during the work), nothing outside `scratch/` and `docs/` was written. Counts (run): `spawn-at` 205, `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` (`tui,fixture`) 404 passed and 4 ignored, node 183; unchanged.
 
 **Not verified:** any client other than this GTK4 one; a Qt, Chromium or Electron counter; the even-v0 case; the delay between the client's counter step and the Shell's texture update; visible flashes (no capture); whether the odd values would add information (they were missed by the poll).
+
+### 6.34 Answering a sync request that we send ourselves: smoke (2026-10-14) DRAFT, stopped after the smoke because counter A never moved
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Research only; our own GTK4 client (`scratch/p33_syncclient.py`) and a throwaway C sender/watcher (`scratch/p35_watch.c`, gitignored, not committed); nothing in the Shell, no extension or binary change, no install. HEAD `a1394ca`. Journal: only the 11:13:32 St/Cogl criticals of 6.33 before and after; no stop-rule line; gnome-shell pid 581106 throughout.
+
+**Setup (CONFIRMED).** The watcher of 6.33 plus a sender: when it sees the client window's `ConfigureNotify` reach the target size, it sends one `ClientMessage` to that window with `XSendEvent` (event mask `NoEventMask`, propagate false): `message_type = WM_PROTOCOLS`, format 32, `data[0] = _NET_WM_SYNC_REQUEST`, `data[1] = CurrentTime`, `data[2..3]` = N split in low and high 32 bits, `data[4] = 0`, with N = (last value of counter A) + 1 (so N = 1 in every run). It logs the send time (`CLOCK_MONOTONIC`), every change of counter A (index 0) and of counter B (index 1), and the client's event file gives the final `FIRST_PAINT`. Smoke: 2 runs per spec, idle, legacy rule, send delay 0.
+
+**Smoke result (CONFIRMED, 4 runs, no client error): counter A did not move in any of them, before or after our send.** The send happened 0.07 to 1.25 ms after the target-size `ConfigureNotify` and 2.1 to 5.9 ms before the client's final `FIRST_PAINT` stamp; the reveal came between 3.2 ms before and 4.2 ms after the send. Counter B behaved as in 6.33 (steps 2, 4, 6, ... ; the first step after the send +5.8 to +12.2 ms later, i.e. after the final paint). The client wrote nothing but the spawn-at INFO line to stderr (0 error lines in 4 runs), did not crash and did not log the unexpected message; 0 changes of counter A in the whole watch log.
+
+| Run | Target-size configure to send | Send vs final paint | Send vs reveal | Counter A changes | Counter B steps after the send (first, ms after the send) |
+| :-- | :-: | :-: | :-: | :-: | :-: |
+| larger 1 | 0.87 ms | -2.05 ms | +1.37 ms | 0 | 4 (+6.6) |
+| larger 2 | 1.25 ms | -5.87 ms | +4.19 ms | 0 | 4 (+12.2) |
+| smaller 1 | 0.08 ms | -2.85 ms | -3.16 ms | 0 | 2 (+5.8) |
+| smaller 2 | 0.07 ms | -3.19 ms | -2.93 ms | 0 | 2 (+6.5) |
+
+**Under the decision rules fixed in the prompt: BAD for this send timing** ("A never moves"). The big batches (20 per spec idle and loaded, the slow client, the already-painted case, the send-delay comparison) were **not run**, as the prompt asks when A never changes.
+
+**Why, my reading (HYPOTHESIS; not verified against GTK's source, which is not on this machine).** The sync protocol orders the request before the resize: a window manager sends `_NET_WM_SYNC_REQUEST` first and then resizes; a toolkit keeps the value from the message as "pending" and only associates it with the next configure it processes, then sets the basic counter to that value after it has repainted for that configure. Our message arrived after the configure had already been processed and no later configure came, so the value may simply have stayed pending. If that is right, the request has to be sent before the resize (for example as soon as the watcher sees the new window, before Mutter resizes it), which is a different design from the one tested. Not tried here.
+
+**Whether Mutter also sends sync requests: not observed.** Counter A never moving in 6.33 (100 runs, no request from us) and in these 4 runs is consistent with Mutter sending none to these XWayland windows, but it is equally consistent with the client not answering a request outside the pending-then-configure order, so nothing can be concluded. No X protocol trace tool (`xtrace`, `xscope`) is installed, and `strace` cannot attach to Xwayland (not our child). `strace` on our own client could show which `ClientMessage`s it receives; not done.
