@@ -584,44 +584,19 @@ Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS
 
 All of them fire at the shell-side resize, not at the client's paint. The client's own paint produces a `damaged` only 0.2 to 20 ms after the paint, and in the runs where the window was still cloaked it did not arrive before the reveal (0 of 14 idle larger runs). (Section 13 later showed that a cloaked window does get `damaged`; those events are the shell's, not the client's.)
 
-**Ideas tried after this table (2026-10-14).**
-1. Hold the cloak and wait for a second `damaged`: tried (section 13), **not usable** (CONFIRMED, TEST_PLAN 6.26). A cloaked window does get `damaged`, but the second one arrives about 30 ms after `set_size` whatever the client does; it cuts some flashes only by holding the window longer.
-2. Window ping: **no API exposes the reply** (CONFIRMED, 6.25): `Meta.Window.check_alive` has no reply signal.
+**Further attempts (2026-10-14; TEST_PLAN 6.25 to 6.29; code removed, see branch `archive/x11-experiments`).** Labels: CONFIRMED = measured on the fixture.
+- **Hold the cloak and wait for a second `damaged`:** tried, **not usable** (CONFIRMED, 160 runs, 6.26). A cloaked window does get `damaged`, but the second one arrives about 30 ms after `set_size` whatever the client does (before the client's paint in 30 of 39 loaded runs); it cuts some flashes only by holding the window longer (+13 to +38 ms at the median).
+- **Pre-map resize** (resize at `window-created`, reveal on `first-frame`): tried, **not usable** (CONFIRMED, 6.28; the early resize itself works). The app's first paint was at the target size in 6 of 10 idle runs, but `first-frame` is a map event and arrived 205 to 300 ms before a loaded app had painted (loaded `larger`: 5 of 5 flash, as with the legacy rule).
+- **Window ping:** no API exposes the reply (CONFIRMED, 6.25): `Meta.Window.check_alive(timestamp)` is an action with no reply signal; the only observable is the read-only `is-alive` property.
+- **Pixel probe** (sample a few pixels of the window texture through `WindowActor.get_image`): on the fixture it read a blank, fully transparent buffer right after the map and the fixture's green after its paint, at about 2.5 ms per probe (CONFIRMED, 3 smoke runs, 6.29), but in the first batch `get_image` returned a NULL surface, GJS aborts on that with an uncatchable exception, and GNOME Shell crashed (signal 5, 09:59:04, 6.29). It was therefore **removed**; no batch data exists, so whether blank-versus-painted is a usable ready signal is unknown.
+- **Capture rig** (a screen-capture measurement of what is visible): the Mutter ScreenCast stream can be created without a prompt, but no local consumer could attach to its PipeWire node (6.25, 6.26) and the portal needs a user prompt; not built.
 
-**Still untried.** The X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`): client-side, used by GTK and Qt clients, partial toolkit support (HYPOTHESIS that it is usable; the fixture's toolkit, winit, may not implement it). A screen-capture measurement rig: the Mutter ScreenCast stream could not be consumed and the portal needs a user prompt (6.25, 6.26).
+**Conclusion for X11 and XWayland.** The first `damaged`, `first-frame`, the actor size, the buffer rect, the texture size, the second-`damaged` hold and the pre-map resize all fire at the shell-side resize or at the map, not at the client's paint. XWayland and X11 windows keep the legacy rule. **Still untried:** the X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`; client-side, used by GTK and Qt clients, partial toolkit support; the fixture's toolkit, winit, may not implement it) and a screen-capture rig (needs a user prompt or a consumer that can attach to the Mutter node).
 
-## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; result: tried, not usable, TEST_PLAN 6.26)
+## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; removed)
 
-**Result (CONFIRMED, 160 fixture runs, TEST_PLAN 6.26).** The experiment works as built but is not a ready signal. The second `damaged` arrives about 30 ms after `set_size` in both specs, though the client paints at 4 and 21 ms; under load it came before the client's paint in 30 of 39 runs. It reduces flashes (loaded smaller 17 to 6 of 20, loaded larger 20 to 18, idle larger 3 to 0) only by holding the window longer (+13 to +38 ms at the median). The flag stays hidden, off by default, refused by the config file, and not recommended. The sections below are the design as written before the run.
+Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is kept on the local branch `archive/x11-experiments` only.
 
-Labels: CONFIRMED = covered by a node or Rust test in this tree; HYPOTHESIS = needs a real Shell. Details and counts: TEST_PLAN 6.25.
+## 14. Experiments: resize before the map, and a pixel probe (2026-10-14; removed)
 
-**Why.** Section 12 found that the first `damaged` after `set_size` is the shell's own, and that the client's paint produced no `damaged` before the reveal while the window was cloaked, but the cloak was lifted at 17 to 38 ms, before most paints. This asks the question directly: keep the window cloaked and see whether a second `damaged` arrives, and when.
-
-**What.** `strategy = "x11-hold-damage"` (module `assets/gnome/modern/x11_hold.js`), for an XWayland or X11 window with a size request only. After `set_size` the window stays cloaked; the first `damaged` is ignored; the second ends the wait as `reached` (`reason=x11-second-damaged`); otherwise the cap (`cap_ms`, default 250) ends it as `timed-out` (`x11-cap`, or `x11-hard` at 1500). Same log tags as the ready-wait (`READY_WAIT_START`, `COMMIT_RESOLVED`, `READY_WAIT_RESOLVED`), plus `X11_HOLD_DAMAGED`; the label is also the `reason` of `ResizeOutcome`.
-
-**Off by default (CONFIRMED by tests).** Only the hidden `--wait-strategy x11-hold-damage` flag selects it; the config file and `config set` refuse it; the default instruction bytes are unchanged; a native Wayland window or an X11 spawn without the value behaves and logs as before (wiring tests compare the traces line for line).
-
-**How to read the live result (written before the run; the outcome is in the Result paragraph above).** If most runs end `x11-second-damaged` after the client's `FIRST_PAINT` (stamp lag allowed for, 6.23), `damaged` can gate the reveal and the cap is the only cost. If most end `x11-cap`, a cloaked window gets no `damaged` for its repaint and the idea fails. A second `damaged` before the client's paint (a shell-side one) would show up as a flash with `reason=x11-second-damaged`.
-
-**Ping/pong.** Nothing was added: `Meta.Window.check_alive(timestamp)` is an action, the only observable is the read-only `is-alive` property (changes after the 5000 ms check-alive timeout), and no signal carries a reply or its time (TEST_PLAN 6.25, phase 1a).
-
-**Not done.** A screen-capture check of what is visible: the Mutter screencast session is prompt-free but no local consumer could attach to its PipeWire node (6.25, phase 1b).
-
-## 14. Experiments: resize before the map, and a pixel probe (2026-10-14, built, not installed, not run in a Shell)
-
-Labels: CONFIRMED = covered by a node or Rust test in this tree, or read in this tree's data; HYPOTHESIS = needs a real Shell. Data and counts: TEST_PLAN 6.27.
-
-**Why.** The XWayland fixture is resized at `map`, 21 ms (idle) to 41 ms (loaded) after `window-created`, and its first paint is at the old size before that in all 120 idle runs (CONFIRMED, 6.27 phase 1); `first-frame` is always after the map and the resize and is not a paint signal as things are. If the resize were issued at `window-created`, the first paint might already be at the target size. Separately, the early `damaged` and texture size could be Xwayland handing over a blank buffer at the new size; a few pixels might tell blank from painted.
-
-**`x11-premap`.** Hidden `--wait-strategy x11-premap` (refused by the config file). For an XWayland/X11 window claimed at `window-created` with a size request: resize while cloaked, wait for `first-frame` after that, reveal on it, cap and hard limit as usual. Labels `x11-premap-first-frame`, `-cap`, `-hard`, `-unmanaged`, `-no-first-frame-signal`. The instructions and the pid/WM_CLASS used for matching are available at `window-created` for the fixture's X11 windows (CONFIRMED, `_handleWindowCreated` already claims and cloaks there).
-
-**`x11-pixel-probe`.** Hidden value, observe-only, logging on only: four 2x2 clips of the window texture sampled from a timer after each `damaged` and `first-frame`, rate-limited, logged as colour, class, hash and cost. The accessor is `Meta.WindowActor.get_image(clip) -> cairo.Surface` (CONFIRMED in the Meta-14 typelib); GJS cairo has no pixel getter, so the surface goes through a PNG in the runtime directory and `GdkPixbuf`, imported lazily. The fixture's `--state-colors` gives ground truth (magenta at the initial size, green at any other).
-
-**Off by default (CONFIRMED by tests).** Both values are flag-only and refused by `config set`; without them nothing is resized early, connected or read; a native Wayland window gets the same trace line for line.
-
-**Risks (HYPOTHESIS).** An early `move_resize_frame` before the first placement, or `get_image` from a timer, could misbehave in Mutter in a way the JS `try/catch` cannot catch. The first live run is idle, on the fixture, with the user present.
-
-**Result.** Not run yet; the live plan is in TEST_PLAN 6.27, "Live-stage plan".
-
-**Result (2026-10-14, TEST_PLAN 6.28; fixture only).** `x11-premap` works live and the early resize is harmless in these runs, but `first-frame` is a map event: it arrives about 2 ms after the map even when the resize is earlier, so under load the window is revealed 205 to 300 ms before the app has painted (loaded `larger`: 5 of 5 flash, same as legacy); the app's first paint is at the target size in 6 of 10 idle and 7 of 10 loaded runs (legacy: 0 of 10 idle). The full A/B was gated out (first paint at target below 80% and flashes not clearly lower). Not usable as a ready signal. `x11-pixel-probe`: the first live call failed (GJS refused the plain-object clip; a real `Mtk.Rectangle` is needed); the fix is in the tree, not installed, and nothing about blank-versus-painted is known yet.
+Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is kept on the local branch `archive/x11-experiments` only. The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
