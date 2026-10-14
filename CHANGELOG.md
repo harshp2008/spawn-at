@@ -43,7 +43,11 @@ v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms
 
 - The unused `tokio` dependency of `spawn-at-verify`.
 - Unused code: `get_active_driver`, `EMBEDDED_EXTENSION_FILES`, and the unused re-exports
-  `apply_focus_policy`, `run_unminimize`, `Atoms` and `Entry`.
+  `apply_focus_policy`, `run_unminimize`, `Atoms` and `Entry`; the never-constructed
+  `ExpectedState::{Mapped, Position, Size}`; the never-read `GitHubRelease::name` field; ten
+  unreferenced `pub` helpers of `spawn-at-verify`. Test-only helpers are now `#[cfg(test)]` and
+  the `spawn-at` modules are private, so the compiler reports dead code. No behavior change;
+  `spawn-at --help` and every subcommand's help are byte-identical.
 
 ### Documentation
 

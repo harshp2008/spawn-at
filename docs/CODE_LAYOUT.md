@@ -34,22 +34,22 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/cli/tests.rs` | 1338 |  |
 | `src/commands/config.rs` | 40 | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
 | `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
-| `src/commands/lifecycle.rs` | 204 | Window Lifecycle State Command Handlers |
-| `src/commands/mod.rs` | 1496 | Command Handlers |
+| `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
+| `src/commands/mod.rs` | 1487 | Command Handlers |
 | `src/commands/query.rs` | 817 | Compositor State Query Command Handlers |
 | `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
 | `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
 | `src/config.rs` | 430 | Configuration Manager |
-| `src/diagnostics.rs` | 1468 | Centralized Diagnostics Layer |
+| `src/diagnostics.rs` | 1476 | Centralized Diagnostics Layer |
 | `src/main.rs` | 371 | spawn-at: Modular Zero-Flicker Window Placement Engine |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
 | `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
-| `src/platform/linux/config_store.rs` | 140 | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 1940 | GNOME Compositor Backend & Extension Driver |
-| `src/platform/linux/mod.rs` | 675 |  |
+| `src/platform/linux/gnome/mod.rs` | 1941 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/mod.rs` | 676 |  |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
 | `src/platform/linux/x11/mod.rs` | 395 | Native X11 Compositor Driver |
@@ -57,9 +57,9 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 303 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 316 | Platform & Compositor Driver Abstraction Layer |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
-| `src/update.rs` | 1461 | Update Manager & Release Checker |
+| `src/update.rs` | 1459 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 
@@ -104,7 +104,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/cli/list.rs` | 49 | Handler for `spawn-at-verify list` subcommand. |
 | `crates/spawn-at-verify/src/cli/mod.rs` | 37 | CLI argument models and subcommand handlers. |
 | `crates/spawn-at-verify/src/cli/render.rs` | 54 | Handler for `spawn-at-verify render`: prints the TUI drawer for a recorded real case. |
-| `crates/spawn-at-verify/src/cli/report.rs` | 91 | Handler for `spawn-at-verify report` subcommand. |
+| `crates/spawn-at-verify/src/cli/report.rs` | 67 | Handler for `spawn-at-verify report` subcommand. |
 | `crates/spawn-at-verify/src/cli/run.rs` | 300 | Handler for `spawn-at-verify run` subcommand. |
 | `crates/spawn-at-verify/src/cli/run_summary.rs` | 346 | Counting, summary text and process exit code for `spawn-at-verify run`. |
 | `crates/spawn-at-verify/src/cli/smoke_eval.rs` | 214 | Helper CLI utilities for smoke-live.sh JSON evaluation and placement verification. |
@@ -115,7 +115,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
 | `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
 | `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
-| `crates/spawn-at-verify/src/loader/registry.rs` | 248 | Test registry discovery, loading, and collection management. |
+| `crates/spawn-at-verify/src/loader/registry.rs` | 232 | Test registry discovery, loading, and collection management. |
 | `crates/spawn-at-verify/src/loader/tests.rs` | 231 | Unit tests for test loader, filtering, and tree visualization. |
 | `crates/spawn-at-verify/src/loader/tree.rs` | 76 | Hierarchical formatting and summary generation for test definitions. |
 | `crates/spawn-at-verify/src/log_source.rs` | 192 | Log Capture Abstraction (`LogSource` trait). |
@@ -131,7 +131,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/preflight.rs` | 318 | Preflight Gate: binary freshness & git status inspection. |
 | `crates/spawn-at-verify/src/probe.rs` | 380 | Environment probe: checks desktop environment, session type, and app availability. |
 | `crates/spawn-at-verify/src/process.rs` | 166 | Safe Process Execution Pipeline |
-| `crates/spawn-at-verify/src/report/builder.rs` | 226 | Session report builder, qualification evaluator, and artifact writer. |
+| `crates/spawn-at-verify/src/report/builder.rs` | 215 | Session report builder, qualification evaluator, and artifact writer. |
 | `crates/spawn-at-verify/src/report/markdown.rs` | 225 | Markdown session report rendering. |
 | `crates/spawn-at-verify/src/report/mod.rs` | 14 | Verification session report models, redaction, and JSON/Markdown export. |
 | `crates/spawn-at-verify/src/report/models.rs` | 119 | Session report and qualification summary data structures. |
@@ -157,7 +157,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/trace/flash.rs` | 765 | Flash detection: was the window shown before it was ready, or did it change after the reveal? |
 | `crates/spawn-at-verify/src/trace/mod.rs` | 16 | Trace log event parser, lifecycle state machine, and budget checks. |
 | `crates/spawn-at-verify/src/trace/models.rs` | 112 | Trace data models, events, and violation structures. |
-| `crates/spawn-at-verify/src/trace/parser.rs` | 263 | Trace log parsing, event extraction, and regex tokenization. |
+| `crates/spawn-at-verify/src/trace/parser.rs` | 261 | Trace log parsing, event extraction, and regex tokenization. |
 | `crates/spawn-at-verify/src/trace/phases.rs` | 105 | Phase gaps inside one window's placement trace, for diagnosing where cloak time goes. |
 | `crates/spawn-at-verify/src/trace/report.rs` | 72 | Trace analysis summary and outcome reporting models. |
 | `crates/spawn-at-verify/src/trace/state.rs` | 70 | Whether a log slice holds an analysable trace for a window, and if not, why not. |
@@ -170,12 +170,12 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/tui/app/input.rs` | 262 | Keyboard event handling and navigation dispatch. |
 | `crates/spawn-at-verify/src/tui/app/mod.rs` | 9 | Interactive TUI application architecture (state, input, execution queue, clipboard). |
 | `crates/spawn-at-verify/src/tui/app/queue.rs` | 191 | Execution queue processing, test running, and human review verdict recording. |
-| `crates/spawn-at-verify/src/tui/app/state.rs` | 447 | TUI state models, interactive app state, and selection navigation. |
+| `crates/spawn-at-verify/src/tui/app/state.rs` | 396 | TUI state models, interactive app state, and selection navigation. |
 | `crates/spawn-at-verify/src/tui/logging.rs` | 128 | Extension Logging State Detection & Restoration Guard. |
 | `crates/spawn-at-verify/src/tui/mod.rs` | 164 | Terminal User Interface (TUI) Module for spawn-at-verify. |
 | `crates/spawn-at-verify/src/tui/render.rs` | 216 | Headless rendering of the detail drawer for recorded real runs. |
-| `crates/spawn-at-verify/src/tui/views/builder.rs` | 198 | Drawer content line assembly builder. |
-| `crates/spawn-at-verify/src/tui/views/constants.rs` | 12 | Drawer layout sizing constants and column offsets. |
+| `crates/spawn-at-verify/src/tui/views/builder.rs` | 193 | Drawer content line assembly builder. |
+| `crates/spawn-at-verify/src/tui/views/constants.rs` | 10 | Drawer layout sizing constants and column offsets. |
 | `crates/spawn-at-verify/src/tui/views/drawer/geometry_section.rs` | 267 | Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict. |
 | `crates/spawn-at-verify/src/tui/views/drawer/header_section.rs` | 81 | Drawer header section rendering (Title, ID, Mode, Description). |
 | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs` | 293 | Drawer informational sections: WHAT TO LOOK FOR, SPEC and OUTPUT (each a separate function so the drawer can order them). |
@@ -193,7 +193,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/tui/views/panels/mod.rs` | 11 | Main dashboard panel widgets and calculations. |
 | `crates/spawn-at-verify/src/tui/views/panels/result_box.rs` | 180 | Test result status display box and height calculation. |
 | `crates/spawn-at-verify/src/tui/views/panels/tests_list.rs` | 318 | Test category tree and list widget panel. |
-| `crates/spawn-at-verify/src/tui/views/theme.rs` | 131 | Theme styling, color mapping, and status indicators. |
+| `crates/spawn-at-verify/src/tui/views/theme.rs` | 106 | Theme styling, color mapping, and status indicators. |
 | `crates/spawn-at-verify/src/tui/views/wrapping.rs` | 143 | Text tokenization, word wrapping, and dimension string normalisation. |
 
 ### spawn-at-verify, integration tests (`crates/spawn-at-verify/tests/`)
@@ -256,7 +256,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | :--- | ---: | :--- |
 | `tests/cloak_test.js` | 148 |  |
 | `tests/dispatcher_test.js` | 1531 |  |
-| `tests/extension_test.js` | 232 |  |
+| `tests/extension_test.js` | 234 |  |
 | `tests/gi_loader.js` | 157 |  |
 | `tests/golden_anchor_test.js` | 152 |  |
 | `tests/late_resize_test.js` | 195 |  |
