@@ -22,12 +22,10 @@ impl Default for TraceAnalyser {
         Self {
             target_window_id: None,
             target_geometry: None,
-            // PROVISIONAL warning budget: 100.0ms.
-            // Operations without resize measure ~3-10ms (from GNOME 46 Wayland fixture trace).
-            // However, operations with client buffer resize (-s) require configure round-trips
-            // and _waitForCommit frame synchronization, and have NOT yet been measured in a real trace.
-            // This 100ms threshold is therefore PROVISIONAL (guessed, not measured for size changes).
-            // V6 qualification must capture a real trace with -s to calibrate this budget from empirical data.
+            // PROVISIONAL warning budget: 100.0ms. It is a guess, not derived from data:
+            // docs/TEST_PLAN.md section 5 ("Budget Policy") says the threshold is provisional and is
+            // shown only as an advisory 'over provisional budget'; the largest cloak observed there
+            // after the fix was 61.9 ms. Operations without resize measured ~3-10ms.
             warning_budget_ms: 100.0,
             require_pre_reveal_unminimize: false,
         }

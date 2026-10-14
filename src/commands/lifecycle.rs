@@ -142,7 +142,8 @@ pub async fn run_minimize(
     Ok(())
 }
 
-/// Executes the `unminimize` subcommand: unminimizes and restores a minimized window to the screen.
+/// Unminimizes a minimized window (sends `WindowState::Unminimize`). There is no `unminimize`
+/// subcommand: see the note below.
 // No call site: the CLI aliases `unminimize`/`unminimise` to the `restore` subcommand (cli/mod.rs),
 // which runs `run_restore`. Kept because it is the only sender of `WindowState::Unminimize`, i.e.
 // the `unminimize` case of the extension's SetWindowState method (protocol surface, node-tested).
