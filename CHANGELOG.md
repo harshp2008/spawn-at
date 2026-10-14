@@ -8,7 +8,7 @@ All notable changes to this project are recorded here. The format follows
 
 v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms; no dates and no promises.
 
-## [0.2.0-beta.1] - unreleased
+## [0.2.0-beta.1] - 2026-10-14
 
 Pre-release. Tested on one machine only: GNOME 46, Wayland, one monitor, with the project's own
 test window. See [docs/RELEASE_NOTES_0.2.0-beta.1.md](docs/RELEASE_NOTES_0.2.0-beta.1.md) for the

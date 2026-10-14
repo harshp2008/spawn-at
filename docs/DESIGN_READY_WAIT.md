@@ -619,6 +619,7 @@ This is a direction, not a plan or a promise. Nothing here is implemented, and *
 
 **Order after the beta:**
 1. Real-app testing of what already ships, so later steps are judged against real behaviour.
-2. **Launch args per app** (a per-class table of arguments added to the command line). It is ahead of the shim: it changes no process internals and needs no injected code.
-3. The GTK4-on-X11 counter as an experimental, opt-in signal.
-4. The opt-in geometry shim, only if 1 to 3 leave a gap that matters, and with the security and compatibility concerns of TEST_PLAN 6.35 settled first.
+2. **Opt-in native-Wayland launch env vars** (`GDK_BACKEND=wayland`, `QT_QPA_PLATFORM=wayland`, `MOZ_ENABLE_WAYLAND=1`, the Electron Ozone hint), so an app that can run on native Wayland gets the ready-wait instead of the XWayland legacy rule.
+3. **Launch args per app** (a per-class table of arguments added to the command line). It is ahead of the shim: it changes no process internals and needs no injected code.
+4. The GTK4-on-X11 counter as an experimental, opt-in signal.
+5. The opt-in geometry shim, only if 1 to 4 leave a gap that matters, and with the security and compatibility concerns of TEST_PLAN 6.35 settled first.
