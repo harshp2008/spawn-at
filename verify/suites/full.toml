@@ -1,5 +1,5 @@
 name = "full"
 description = "Comprehensive verification suite executing all categories excluding manual setup."
-categories = ["preflight", "placement", "cloak", "launchers", "apps", "transform", "lifecycle", "query", "diagnostics", "resilience", "regression"]
+categories = ["preflight", "placement", "cloak", "launchers", "apps", "transform", "lifecycle", "query", "diagnostics", "resilience", "regression", "hostile"]
 tags = ["!manual-setup"]
 required_only = false
