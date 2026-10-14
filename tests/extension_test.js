@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import { computeAnchoredPosition } from '../assets/gnome/modern/anchor.js';
 
 /**
- * Pure instruction normalization logic extracted from extension.esm.js.
+ * A copy of the instruction normalization of the extensions (`_normalizeInstruction` in
+ * assets/gnome/modern/extension.js and legacy/extension.js, identical to this function). The file
+ * it was first extracted from, extension.esm.js, no longer exists.
  */
 function normalizeInstruction(inst) {
     if (!inst)
