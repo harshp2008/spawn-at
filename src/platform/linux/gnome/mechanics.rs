@@ -4,8 +4,9 @@
 //! for the GNOME Wayland Shell extension.
 
 use serde::{Deserialize, Serialize};
-use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
 use spawn_at_core::driver::Entry;
+use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
+use spawn_at_core::wait_override::{WaitOverride, WaitStrategy};
 
 /// Raw serialization payload expected by the GNOME Shell extension for anchored positioning.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,7 +19,7 @@ pub struct PlacementPayload {
     pub pivot_v: f64,
     pub offset_x: i32,
     pub offset_y: i32,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub area: Option<String>,
     #[serde(default)]
     pub margin_top: i32,
@@ -28,6 +29,12 @@ pub struct PlacementPayload {
     pub margin_left: i32,
     #[serde(default)]
     pub margin_right: i32,
+    #[serde(default = "default_true")]
+    pub clamp: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// Low-level micro-instructions dispatched to the GNOME Shell extension.
@@ -35,15 +42,45 @@ pub struct PlacementPayload {
 pub enum Instruction {
     Snapshot,
     Cloak,
-    SetSize { w: u32, h: u32 },
-    WaitForCommit { timeout_ms: u32 },
+    SetSize {
+        w: u32,
+        h: u32,
+    },
+    WaitForCommit {
+        timeout_ms: u32,
+        /// Developer override of the wait rule (`legacy` or `ready-wait`); left out of the JSON
+        /// when not set, so an unchanged spawn sends the bytes it always sent.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        strategy: Option<WaitStrategy>,
+        /// Developer override of the ready-wait cap in milliseconds; left out when not set.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        cap_ms: Option<u32>,
+    },
     SetPositionAnchored(PlacementPayload),
     Uncloak,
     DestroySnapshot,
 }
 
+impl Instruction {
+    /// A `WaitForCommit` carrying `wait`. `Auto` and an absent cap add nothing to the instruction.
+    pub fn wait_for_commit(timeout_ms: u32, wait: &WaitOverride) -> Self {
+        Instruction::WaitForCommit {
+            timeout_ms,
+            strategy: match wait.strategy {
+                WaitStrategy::Auto => None,
+                other => Some(other),
+            },
+            cap_ms: wait.cap_ms,
+        }
+    }
+}
+
 /// Translates declarative `PlacementParams` into a low-level `PlacementPayload`.
-pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: u32) -> PlacementPayload {
+pub fn calculate_placement(
+    params: &PlacementParams,
+    current_w: u32,
+    current_h: u32,
+) -> PlacementPayload {
     let intended_w = params.size.map(|s| s.0).unwrap_or(current_w);
     let intended_h = params.size.map(|s| s.1).unwrap_or(current_h);
 
@@ -53,8 +90,16 @@ pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: 
     let margin_left = params.margin_left.unwrap_or(params.margin);
     let margin_right = params.margin_right.unwrap_or(params.margin);
 
-    let offset_x = params.offset.map(|o| o.0).unwrap_or(0);
-    let offset_y = params.offset.map(|o| o.1).unwrap_or(0);
+    let offset_x = if params.anchor.is_some() {
+        params.offset.map(|o| o.0).unwrap_or(0)
+    } else {
+        0
+    };
+    let offset_y = if params.anchor.is_some() {
+        params.offset.map(|o| o.1).unwrap_or(0)
+    } else {
+        0
+    };
 
     let (pivot_u, pivot_v) = if let Some(pivot) = params.pivot {
         match pivot {
@@ -81,60 +126,23 @@ pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: 
         (0.0, 0.0)
     };
 
+    let is_unbounded = params.area == Some(Area::Unbounded);
+
     let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
-        match anchor {
-            Anchor::Center => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::TopLeft => (
-                wa.x + margin_left,
-                wa.y + margin_top,
-            ),
-            Anchor::TopRight => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + margin_top,
-            ),
-            Anchor::BottomLeft => (
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::BottomRight => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Top => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + margin_top,
-            ),
-            Anchor::Bottom => (
-                wa.x + (wa.width as i32) / 2,
-                wa.y + (wa.height as i32) - margin_bottom,
-            ),
-            Anchor::Left => (
-                wa.x + margin_left,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Right => (
-                wa.x + (wa.width as i32) - margin_right,
-                wa.y + (wa.height as i32) / 2,
-            ),
-            Anchor::Cursor => {
-                if let Some(cursor) = params.cursor_pos {
-                    (cursor.0, cursor.1)
-                } else {
-                    (wa.x + margin_left, wa.y + margin_top)
-                }
-            }
-        }
+        spawn_at_core::geometry::compute_screen_anchor(
+            wa,
+            anchor,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            params.cursor_pos,
+        )
+    } else if let Some(pos) = params.pos.or(params.offset) {
+        let (ref_x, ref_y) = if is_unbounded { (0, 0) } else { (wa.x, wa.y) };
+        (ref_x + pos.0, ref_y + pos.1)
     } else {
-        if let Some(pos) = params.pos {
-            (pos.0, pos.1)
-        } else if let Some(cursor) = params.cursor_pos {
-            (cursor.0, cursor.1)
-        } else {
-            (wa.x + margin_left, wa.y + margin_top)
-        }
+        (wa.x + margin_left, wa.y + margin_top)
     };
 
     PlacementPayload {
@@ -146,29 +154,487 @@ pub fn calculate_placement(params: &PlacementParams, current_w: u32, current_h: 
         pivot_v,
         offset_x,
         offset_y,
-        area: params.area.map(|a| match a {
-            Area::Workarea => "workarea".to_string(),
-            Area::Screen => "screen".to_string(),
-        }),
-        margin_top,
-        margin_bottom,
-        margin_left,
-        margin_right,
+        area: match params.area {
+            Some(Area::Workarea) => Some("workarea".to_string()),
+            Some(Area::Screen) => Some("screen".to_string()),
+            Some(Area::Unbounded) | None => None,
+        },
+        margin_top: if is_unbounded { 0 } else { margin_top },
+        margin_bottom: if is_unbounded { 0 } else { margin_bottom },
+        margin_left: if is_unbounded { 0 } else { margin_left },
+        margin_right: if is_unbounded { 0 } else { margin_right },
+        clamp: if is_unbounded { false } else { params.clamp },
     }
 }
 
 /// Constructs the cold-start instruction pipeline for a given declarative entry.
 pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
-    let payload = calculate_placement(&entry.placement, 0, 0);
+    let has_move = entry.placement.anchor.is_some() || entry.placement.pos.is_some();
     let mut instructions = vec![Instruction::Cloak];
 
     if let Some(size) = entry.placement.size {
-        instructions.push(Instruction::SetSize { w: size.0, h: size.1 });
+        instructions.push(Instruction::SetSize {
+            w: size.0,
+            h: size.1,
+        });
+        instructions.push(Instruction::wait_for_commit(300, &entry.wait));
     }
 
-    instructions.push(Instruction::WaitForCommit { timeout_ms: 300 });
-    instructions.push(Instruction::SetPositionAnchored(payload));
+    if has_move {
+        let payload = calculate_placement(&entry.placement, 0, 0);
+        instructions.push(Instruction::SetPositionAnchored(payload));
+    }
+
     instructions.push(Instruction::Uncloak);
 
     instructions
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spawn_at_core::geometry::{Anchor, Area, Pivot, Rect};
+
+    #[test]
+    fn test_golden_instruction_batch_resize_only() {
+        let entry = Entry {
+            key: "test-resize-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                size: Some((500, 400)),
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 4);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300}},"Uncloak"]"#
+        );
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_pos_only() {
+        let entry = Entry {
+            key: "test-pos-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                pos: Some((100, 200)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 3);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.len(), 3);
+
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
+            assert_eq!(payload.screen_anchor_x, 100);
+            assert_eq!(payload.screen_anchor_y, 240);
+            assert_eq!(payload.pivot_u, 0.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 1");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_anchor_only() {
+        let entry = Entry {
+            key: "test-anchor-only".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::Center),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 3);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
+            assert_eq!(payload.screen_anchor_x, 1920 / 2);
+            assert_eq!(payload.screen_anchor_y, 40 + 1040 / 2);
+            assert_eq!(payload.pivot_u, 0.5);
+            assert_eq!(payload.pivot_v, 0.5);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 1");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_anchor_and_offset() {
+        let entry = Entry {
+            key: "test-anchor-offset".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::TopRight),
+                offset: Some((15, -10)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 3);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
+            assert_eq!(payload.screen_anchor_x, 1920 - 16);
+            assert_eq!(payload.screen_anchor_y, 40 + 16);
+            assert_eq!(payload.pivot_u, 1.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 15);
+            assert_eq!(payload.offset_y, -10);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 1");
+        }
+    }
+
+    #[test]
+    fn test_golden_instruction_batch_cursor_no_pivot() {
+        let entry = Entry {
+            key: "test-cursor-no-pivot".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                anchor: Some(Anchor::Cursor),
+                cursor_pos: Some((500, 300)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                margin: 16,
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 3);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[1] {
+            assert_eq!(payload.screen_anchor_x, 500);
+            assert_eq!(payload.screen_anchor_y, 300);
+            // Must default to top-left (0.0, 0.0)
+            assert_eq!(payload.pivot_u, 0.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 0);
+            assert_eq!(payload.offset_y, 0);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 1");
+        }
+    }
+
+    #[test]
+    fn test_golden_build_instructions_for_entry() {
+        let entry = Entry {
+            key: "test-token-123".to_string(),
+            app_hint: "org.gnome.TextEditor".to_string(),
+            wait: Default::default(),
+            placement: PlacementParams {
+                size: Some((800, 600)),
+                anchor: Some(Anchor::TopRight),
+                pivot: Some(Pivot::TopRight),
+                margin: 16,
+                margin_top: Some(20),
+                margin_right: Some(25),
+                offset: Some((10, -5)),
+                area: Some(Area::Workarea),
+                workarea: Rect {
+                    x: 0,
+                    y: 40,
+                    width: 1920,
+                    height: 1040,
+                },
+                clamp: true,
+                ..Default::default()
+            },
+        };
+
+        let instructions = build_instructions_for_entry(&entry);
+        assert_eq!(instructions.len(), 5);
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        // Assert exact serialization contract
+        assert!(json.starts_with(r#"["Cloak",{"SetSize":{"w":800,"h":600}},{"WaitForCommit":{"timeout_ms":300}},{"SetPositionAnchored":"#));
+        assert!(json.ends_with(r#"},"Uncloak"]"#));
+
+        // Verify deserialization back to Vec<Instruction>
+        let deserialized: Vec<Instruction> = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.len(), 5);
+
+        // Verify payload values inside SetPositionAnchored
+        if let Instruction::SetPositionAnchored(ref payload) = deserialized[3] {
+            assert_eq!(payload.intended_w, 800);
+            assert_eq!(payload.intended_h, 600);
+            assert_eq!(payload.screen_anchor_x, 1920 - 25); // 1895
+            assert_eq!(payload.screen_anchor_y, 40 + 20); // 60
+            assert_eq!(payload.pivot_u, 1.0);
+            assert_eq!(payload.pivot_v, 0.0);
+            assert_eq!(payload.offset_x, 10);
+            assert_eq!(payload.offset_y, -5);
+            assert_eq!(payload.area.as_deref(), Some("workarea"));
+            assert_eq!(payload.margin_top, 20);
+            assert_eq!(payload.margin_right, 25);
+            assert!(payload.clamp);
+        } else {
+            panic!("Expected SetPositionAnchored at index 3");
+        }
+    }
+
+    #[test]
+    fn test_golden_transform_batch_instructions() {
+        let payload = PlacementPayload {
+            intended_w: 500,
+            intended_h: 400,
+            screen_anchor_x: 960,
+            screen_anchor_y: 540,
+            pivot_u: 0.5,
+            pivot_v: 0.5,
+            offset_x: 0,
+            offset_y: 0,
+            area: Some("screen".to_string()),
+            margin_top: 16,
+            margin_bottom: 16,
+            margin_left: 16,
+            margin_right: 16,
+            clamp: true,
+        };
+
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetSize { w: 500, h: 400 },
+            Instruction::wait_for_commit(500, &WaitOverride::default()),
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 7);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetSize"]["w"], 500);
+        assert_eq!(arr[2]["SetSize"]["h"], 400);
+        assert_eq!(arr[3]["WaitForCommit"]["timeout_ms"], 500);
+        assert_eq!(arr[4]["SetPositionAnchored"]["intended_w"], 500);
+        assert_eq!(arr[4]["SetPositionAnchored"]["area"], "screen");
+        assert_eq!(arr[5], "Uncloak");
+        assert_eq!(arr[6], "DestroySnapshot");
+    }
+
+    #[test]
+    fn test_golden_transform_batch_pos_only_instructions() {
+        let payload = PlacementPayload {
+            intended_w: 500,
+            intended_h: 400,
+            screen_anchor_x: 960,
+            screen_anchor_y: 540,
+            pivot_u: 0.5,
+            pivot_v: 0.5,
+            offset_x: 0,
+            offset_y: 0,
+            area: Some("screen".to_string()),
+            margin_top: 16,
+            margin_bottom: 16,
+            margin_left: 16,
+            margin_right: 16,
+            clamp: true,
+        };
+
+        // Position-only transform skips SetSize and WaitForCommit
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_w"], 500);
+        assert_eq!(arr[3], "Uncloak");
+        assert_eq!(arr[4], "DestroySnapshot");
+    }
+
+    #[test]
+    fn test_golden_transform_batch_unbounded_instructions() {
+        let params = PlacementParams {
+            pos: Some((-50, 100)),
+            area: Some(Area::Unbounded),
+            clamp: false,
+            ..Default::default()
+        };
+        let payload = calculate_placement(&params, 367, 514);
+        assert_eq!(payload.screen_anchor_x, -50);
+        assert_eq!(payload.screen_anchor_y, 100);
+        assert_eq!(payload.area, None);
+        assert!(!payload.clamp);
+
+        let instructions = vec![
+            Instruction::Snapshot,
+            Instruction::Cloak,
+            Instruction::SetPositionAnchored(payload),
+            Instruction::Uncloak,
+            Instruction::DestroySnapshot,
+        ];
+
+        let json = serde_json::to_string(&instructions).unwrap();
+        let val: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(val.is_array());
+        let arr = val.as_array().unwrap();
+        assert_eq!(arr.len(), 5);
+
+        assert_eq!(arr[0], "Snapshot");
+        assert_eq!(arr[1], "Cloak");
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_w"], 367);
+        assert_eq!(arr[2]["SetPositionAnchored"]["intended_h"], 514);
+        assert_eq!(arr[2]["SetPositionAnchored"]["screen_anchor_x"], -50);
+        assert_eq!(arr[2]["SetPositionAnchored"]["screen_anchor_y"], 100);
+        assert!(arr[2]["SetPositionAnchored"].get("area").is_none());
+        assert_eq!(arr[2]["SetPositionAnchored"]["clamp"], false);
+        assert_eq!(arr[3], "Uncloak");
+        assert_eq!(arr[4], "DestroySnapshot");
+    }
+
+    fn resize_entry(wait: WaitOverride) -> Entry {
+        Entry {
+            key: "test-wait".to_string(),
+            app_hint: "org.gnome.Calculator".to_string(),
+            placement: PlacementParams {
+                size: Some((500, 400)),
+                ..Default::default()
+            },
+            wait,
+        }
+    }
+
+    #[test]
+    fn test_default_wait_override_leaves_the_instruction_bytes_unchanged() {
+        // The exact string a build without the override sent: no strategy, no cap_ms, key order
+        // timeout_ms only.
+        let json = serde_json::to_string(&build_instructions_for_entry(&resize_entry(
+            Default::default(),
+        )))
+        .unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300}},"Uncloak"]"#
+        );
+        // `auto` with no cap is the default too.
+        let (auto, _) = WaitOverride::from_raw(Some("auto"), None);
+        assert_eq!(
+            serde_json::to_string(&build_instructions_for_entry(&resize_entry(auto))).unwrap(),
+            json
+        );
+    }
+
+    #[test]
+    fn test_wait_override_is_carried_in_the_wait_instruction_only() {
+        let (wait, problems) = WaitOverride::from_raw(Some("legacy"), Some("200"));
+        assert!(problems.is_empty());
+        let json =
+            serde_json::to_string(&build_instructions_for_entry(&resize_entry(wait))).unwrap();
+        assert_eq!(
+            json,
+            r#"["Cloak",{"SetSize":{"w":500,"h":400}},{"WaitForCommit":{"timeout_ms":300,"strategy":"legacy","cap_ms":200}},"Uncloak"]"#
+        );
+    }
+
+    #[test]
+    fn test_wait_override_strategy_and_cap_are_independent() {
+        let (only_cap, _) = WaitOverride::from_raw(None, Some("90"));
+        let json = serde_json::to_string(&Instruction::wait_for_commit(300, &only_cap)).unwrap();
+        assert_eq!(json, r#"{"WaitForCommit":{"timeout_ms":300,"cap_ms":90}}"#);
+        let (only_strategy, _) = WaitOverride::from_raw(Some("ready-wait"), None);
+        let json =
+            serde_json::to_string(&Instruction::wait_for_commit(300, &only_strategy)).unwrap();
+        assert_eq!(
+            json,
+            r#"{"WaitForCommit":{"timeout_ms":300,"strategy":"ready-wait"}}"#
+        );
+    }
+
+    #[test]
+    fn test_wait_instruction_without_override_fields_still_deserialises() {
+        let parsed: Instruction =
+            serde_json::from_str(r#"{"WaitForCommit":{"timeout_ms":300}}"#).unwrap();
+        match parsed {
+            Instruction::WaitForCommit {
+                timeout_ms,
+                strategy,
+                cap_ms,
+            } => {
+                assert_eq!(timeout_ms, 300);
+                assert_eq!(strategy, None);
+                assert_eq!(cap_ms, None);
+            }
+            other => panic!("expected WaitForCommit, got {other:?}"),
+        }
+    }
 }

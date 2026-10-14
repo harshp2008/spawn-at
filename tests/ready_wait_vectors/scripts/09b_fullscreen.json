@@ -1,0 +1,7 @@
+{
+  "name": "fullscreen window",
+  "description": "A fullscreen window is Skipped.",
+  "request": { "target": [800, 600], "current": [1920, 1080], "fullscreen": true },
+  "events": [],
+  "expect": { "outcome": "skipped", "reason": "fullscreen" }
+}

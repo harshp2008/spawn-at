@@ -1,0 +1,85 @@
+cle# Legacy GNOME (42–44) Differences & Compatibility Analysis
+
+**Author:** Antigravity (Advanced Agentic Coding)  
+**Date:** 2026-10-09  
+**Status:** Implemented and checked with the test harness only. **UNTESTED on a real GNOME 42-44 session**: it may not work. The installer says so before it installs (see the README, "Support").
+
+---
+
+## 1. Executive Summary
+
+Beginning with GNOME Shell 45, the GNOME project migrated its JavaScript runtime from legacy GJS `imports` (SpiderMonkey global object sharing) to standard ECMAScript Modules (ESM). GNOME Shell 42, 43, and 44 (standard on Ubuntu 22.04 LTS and Debian 12) require legacy GJS conventions and specific Mutter/Clutter API calls.
+
+To provide seamless backward compatibility without compromising the clean ESM architecture of modern GNOME (45–48), `spawn-at` maintains two parallel asset trees:
+- `assets/gnome/modern/` (GNOME Shell 45, 46, 47, 48) — Native ESM modules.
+- `assets/gnome/legacy/` (GNOME Shell 42, 43, 44) — Legacy GJS `imports` architecture.
+
+Both implementations adhere to the **identical D-Bus interface specification (`ProtocolVersion = 5`)**, emit the **identical `SpawnClaimed` D-Bus signal**, and enforce the **identical zero-flicker cloaking and unmaximize pipeline**.
+
+---
+
+## 2. Technical API Differences: Modern (45+) vs Legacy (42–44)
+
+| Domain | Modern GNOME (45–48) | Legacy GNOME (42–44) | Adaptation in `spawn-at` |
+| :--- | :--- | :--- | :--- |
+| **Module System** | Standard ESM (`import x from './x.js'`, `export default`) | GJS `imports` (`imports.gi.*`, `Me.imports.x`) | Legacy files use `const Me = imports.misc.extensionUtils.getCurrentExtension()` and access submodules via `Me.imports.*`. |
+| **Extension Lifecycle** | `class Extension extends ExtensionBase` with `export default class` | Top-level functions: `init()`, `enable()`, `disable()` | Legacy `extension.js` exposes `function init()` returning an instance with `enable()` / `disable()`. |
+| **Extension Metadata** | `"shell-version": ["45", "46", "47", "48"]` | `"shell-version": ["42", "43", "44"]` | Maintained in separate `metadata.json` files per asset directory. |
+| **Workspace Manager** | `global.display.get_workspace_manager()` | `global.workspace_manager` (deprecated in 45) | Legacy checks `global.workspace_manager` fallback to `global.display.get_workspace_manager()`. |
+| **Window Actor Retrieval** | `win.get_compositor_private()` / `global.get_window_actors()` | `win.get_compositor_private()` / `global.get_window_actors()` | Identical API surface; safe across 42–48. |
+| **D-Bus Export** | `Gio.DBusExportedObject.wrapJSObject(XML, target)` | `Gio.DBusExportedObject.wrapJSObject(XML, target)` | GJS 1.30+ feature; fully supported across 42–48. Identical XML and signature. |
+| **Window Unmaximization** | `win.unmaximize(Meta.MaximizeFlags.BOTH)` | `win.unmaximize(Meta.MaximizeFlags.BOTH)` | Identical API; supported across all Mutter versions. |
+| **Logging** | `console.log` / `console.error` | `log()` / `logError()` / `console.log` | Legacy uses `log("[spawn-at] ...")` with console fallback. |
+
+---
+
+## 3. Protocol & Signal Parity Guarantee
+
+Both trees implement the exact same D-Bus contract:
+- **Interface:** `org.gnome.Shell.Extensions.SpawnAt`
+- **ProtocolVersion:** `5` (uint32 property; bumped from 2 to 3 for CloseWindow, 3 to 4 for GetLayout, and 4 to 5 for monitor/state/workspace in GetWindows)
+- **Signal:** `SpawnClaimed(target_id: s, success: b, window_id: t, x: i, y: i, w: u, h: u, size_raised: b, error: s)`
+- **Methods:** `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `SetLogging`, `CloseWindow`.
+
+### 3.1 Unverified Meta APIs on GNOME 42–44
+In `GetLayout()`, several monitor introspection APIs differ or are optional across Mutter versions:
+- `global.display.get_monitor_scale(index)`: Marked **UNVERIFIED on GNOME 42–44**. Mutter's monitor scaling introspection API evolved during the GNOME 42 to 45 transition. It is guarded with optional chaining / existence checks and falls back safely to `null`.
+- `global.backend.get_monitor_manager().get_monitors()[i].get_connector()`: Marked **UNVERIFIED on GNOME 42–44**. Connector naming via `MetaMonitorManager` is guarded with `_try` and falls back to `null`.
+- `Main.layoutManager.monitors[i].connector`: Checked first, but may be undefined on certain legacy configurations. Falls back to `null`.
+No guessed values are returned; any unverified or missing introspection data is reported as `null`.
+
+### 3.2 Unverified APIs in Transformation, Snapshot Gating & Animation Suppression
+
+The zero-flicker transformation pipeline introduced gating for snapshot generation and unminimize animation suppression. **Only GNOME Shell 46 was directly inspected on this system; GNOME Shell 42–44, 45, and 47–48 are UNVERIFIED live and rely on defensive checks and graceful degradation.**
+
+| API | Verification Status (GNOME 42–44) | Verification Status (GNOME 45, 47–48) | Inspected Reference (GNOME 46) | Guard & Fallback Behavior |
+| :--- | :--- | :--- | :--- | :--- |
+| `window.is_hidden()` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46 (`Meta.Window.is_hidden`). | Guarded via `typeof window.is_hidden === 'function'`. Fallback evaluates `Boolean(window.minimized)`. If absent, minimized state is still detected via the `minimized` property. |
+| `window.located_on_workspace(ws)` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46. | Guarded via `typeof window.located_on_workspace === 'function'`. If absent or returning false, checks `window.is_on_all_workspaces()`. If the method is missing entirely, workspace filtering safely defaults to passing the window. |
+| `Main.wm.skipNextEffect(actor)` / `_skippedActors` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** (internal Shell implementation details) | Present in GNOME Shell 46 `windowManager.js` (`skipNextEffect(actor)` backed by `_skippedActors` Set). | Guarded with: (1) `typeof Main.wm.skipNextEffect === 'function'`, (2) fallback to `Main.wm._skippedActors?.add(actor)`, (3) duplicate checks on `global.window_manager`, (4) explicit defensive removal via `_clearSkippedEffects`, and (5) an outer `try { ... } catch (_e) {}`. If missing, **only the animation suppression fails**—the window is still placed, sized, and uncloaked correctly. |
+
+An automated contract parity test (`test_legacy_and_modern_dbus_xml_parity`) verifies character-for-character equivalence of the XML interface definition.
+
+---
+
+## 4. Installer Version Detection & Warning
+
+When deploying the extension via `spawn-at install`, the installer:
+1. Inspects `gnome-shell --version`.
+2. Extracts the major version number.
+3. If version is 42, 43, or 44:
+   - Deploys `assets/gnome/legacy/`.
+   - Emits the mandatory experimental notice:
+     ```text
+     [spawn-at] WARNING: Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.
+     ```
+4. If version is >= 45:
+   - Deploys `assets/gnome/modern/`.
+
+---
+
+## 5. Verification Status
+
+- **Node.js Test Suite:** Fully verified with mock Mutter/Clutter/D-Bus environments.
+- **Contract Tests:** Verified interface XML and protocol version parity in `cargo test`.
+- **Live Hardware Status:** Verified on live GNOME Shell 46 (Ubuntu 24.04). GNOME 42–44 compatibility has been verified with static analysis and mock harness, but **has NOT yet been verified on a physical GNOME 42 session or VM**.

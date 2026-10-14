@@ -3,14 +3,20 @@
 //! This module contains platform-agnostic implementations of the CLI commands.
 //! It isolates CLI routing logic from the compositor-specific execution logic.
 
+pub mod config;
 pub mod focus;
 pub mod lifecycle;
 pub mod query;
+pub mod spawn;
 pub mod transform;
 
+pub use config::run_config;
 pub use focus::{apply_focus_policy, run_defocus, run_focus};
-pub use lifecycle::{run_maximize, run_minimize, run_restore, run_unminimize};
+pub use lifecycle::{
+    run_close, run_close_with_timeout, run_maximize, run_minimize, run_restore, run_unminimize,
+};
 pub use query::run_query;
+pub use spawn::{run_spawn, run_spawn_with};
 pub use transform::run_transform;
 
 use crate::platform::{CompositorBackend, DriverError, WindowMetadata};
@@ -78,22 +84,104 @@ pub fn matches_target(win: &WindowMetadata, target_id: &str) -> bool {
         }
     }
 
-    // Class match (case-insensitive exact or reverse-DNS segment match)
-    let win_class_lower = win.class.to_lowercase();
-    let target_lower = target_id.to_lowercase();
-    if win_class_lower == target_lower {
-        return true;
-    }
-    if win_class_lower.split('.').last() == Some(target_lower.as_str()) {
+    // Class / title match using app hint matching logic
+    match_window_app_hint(target_id, &win.class, &win.title)
+}
+
+/// Matches an application hint against a window's class and title.
+///
+/// Designed to support launcher-style applications where the initial launcher process
+/// hands off to a pre-existing daemon/server process (e.g., `gnome-terminal` -> `gnome-terminal-server`,
+/// or reverse-DNS `org.gnome.Terminal` vs WM_CLASS `Gnome-terminal`), while maintaining strict
+/// filtering so non-wildcard queries do not match arbitrary unrelated windows.
+pub fn match_window_app_hint(app_hint: &str, win_class: &str, win_title: &str) -> bool {
+    let hint = app_hint.trim();
+    if hint.is_empty() || hint == "*" {
         return true;
     }
 
-    // Title match
-    if win.title.to_lowercase().contains(&target_lower) {
+    let hint_lower = hint.to_lowercase();
+    let class_lower = win_class.trim().to_lowercase();
+    let title_lower = win_title.trim().to_lowercase();
+
+    // 1. Direct class match
+    if class_lower == hint_lower {
         return true;
+    }
+
+    // 2. Reverse-DNS last segment match (e.g. "org.gnome.Calculator" <-> "calculator")
+    if let Some(last) = class_lower.split('.').next_back() {
+        if !last.is_empty() && last == hint_lower {
+            return true;
+        }
+    }
+    if let Some(last) = hint_lower.split('.').next_back() {
+        if !last.is_empty() && last == class_lower {
+            return true;
+        }
+    }
+
+    // 3. Title substring match
+    if !hint_lower.is_empty() && title_lower.contains(&hint_lower) {
+        return true;
+    }
+
+    // 4. Dot-separated multi-segment match for reverse-DNS vs hyphenated WM_CLASS
+    // (e.g., "org.gnome.Terminal" dot segments ["org", "gnome", "terminal"]
+    // matching last two segments joined as "gnome-terminal" or "gnometerminal")
+    let hint_dots: Vec<&str> = hint_lower.split('.').collect();
+    let class_dots: Vec<&str> = class_lower.split('.').collect();
+
+    if hint_dots.len() > 1 {
+        for start in 1..hint_dots.len() {
+            let trailing_hyphen = hint_dots[start..].join("-");
+            let trailing_concat = hint_dots[start..].join("");
+            if trailing_hyphen == class_lower || trailing_concat == class_lower.replace('-', "") {
+                return true;
+            }
+        }
+    }
+
+    if class_dots.len() > 1 {
+        for start in 1..class_dots.len() {
+            let trailing_hyphen = class_dots[start..].join("-");
+            let trailing_concat = class_dots[start..].join("");
+            if trailing_hyphen == hint_lower || trailing_concat == hint_lower.replace('-', "") {
+                return true;
+            }
+        }
+    }
+
+    // 5. Launcher daemon suffix normalization (e.g., "gnome-terminal-server" vs "gnome-terminal")
+    let base_hint = strip_daemon_suffix(&hint_lower);
+    let base_class = strip_daemon_suffix(&class_lower);
+
+    if base_hint != hint_lower || base_class != class_lower {
+        if base_hint == class_lower || hint_lower == base_class || base_hint == base_class {
+            return true;
+        }
+        if let Some(last) = base_class.split('.').next_back() {
+            if !last.is_empty() && last == base_hint {
+                return true;
+            }
+        }
+        if let Some(last) = base_hint.split('.').next_back() {
+            if !last.is_empty() && last == base_class {
+                return true;
+            }
+        }
     }
 
     false
+}
+
+fn strip_daemon_suffix(s: &str) -> &str {
+    s.strip_suffix("-server")
+        .or_else(|| s.strip_suffix(".server"))
+        .or_else(|| s.strip_suffix("-daemon"))
+        .or_else(|| s.strip_suffix(".daemon"))
+        .or_else(|| s.strip_suffix("-service"))
+        .unwrap_or(s)
 }
 
 /// Blocks by polling `driver.get_windows()` until a window matching the spawned process
@@ -121,7 +209,7 @@ pub async fn wait_for_spawn(
 
         // 1. Look for a newly created window (ID not in pre_existing_ids)
         let new_win = windows.iter().find(|w| {
-            let is_new = w.id.map_or(true, |id| !pre_existing_ids.contains(&id));
+            let is_new = w.id.is_none_or(|id| !pre_existing_ids.contains(&id));
             if !is_new {
                 return false;
             }
@@ -138,27 +226,21 @@ pub async fn wait_for_spawn(
             }
 
             // Startup notification / entry key substring match in title or class
-            if !startup_id_clean.is_empty() {
-                if w.title.contains(startup_id_clean) || w.class.contains(startup_id_clean) {
-                    return true;
-                }
+            if !startup_id_clean.is_empty()
+                && (w.title.contains(startup_id_clean) || w.class.contains(startup_id_clean))
+            {
+                return true;
             }
 
-            // Application hint match (class exact, reverse-DNS suffix, or title substring)
+            // Application hint match (class exact, reverse-DNS suffix, daemon suffix, app_id, or title substring)
             if !app_hint_clean.is_empty() && app_hint_clean != "*" {
-                let win_class_lower = w.class.to_lowercase();
-                let hint_lower = app_hint_clean.to_lowercase();
-                if win_class_lower == hint_lower {
+                if match_window_app_hint(app_hint_clean, &w.class, &w.title) {
                     return true;
                 }
-                if win_class_lower.split('.').last() == Some(hint_lower.as_str()) {
-                    return true;
-                }
-                if hint_lower.split('.').last() == Some(win_class_lower.as_str()) {
-                    return true;
-                }
-                if w.title.to_lowercase().contains(&hint_lower) {
-                    return true;
+                if let Some(ref app_id) = w.app_id {
+                    if match_window_app_hint(app_hint_clean, app_id, &w.title) {
+                        return true;
+                    }
                 }
             }
 
@@ -189,6 +271,27 @@ pub async fn wait_for_spawn(
         }
 
         tokio::time::sleep(poll_interval).await;
+    }
+
+    // Check if an existing window was activated instead of creating a new window
+    let windows = driver.get_windows().await.unwrap_or_default();
+    if let Some(existing) = windows.iter().find(|w| {
+        w.id.is_some_and(|id| pre_existing_ids.contains(&id))
+            && (!app_hint_clean.is_empty()
+                && (match_window_app_hint(app_hint_clean, &w.class, &w.title)
+                    || w.app_id
+                        .as_ref()
+                        .is_some_and(|aid| match_window_app_hint(app_hint_clean, aid, &w.title))))
+    }) {
+        let diag = crate::diagnostics::Diagnostic::ReusedExistingWindow {
+            class: existing.class.clone(),
+            title: existing.title.clone(),
+            pid: existing.pid,
+        };
+        crate::diagnostics::render_diagnostic(&diag);
+        return Err(DriverError::Execution(
+            "Application reused an existing window; not repositioned.".into(),
+        ));
     }
 
     Err(DriverError::TargetNotFound(format!(
@@ -225,10 +328,10 @@ pub async fn wait_for_state_change(
                     (win.w - w as i32).abs() <= 4 && (win.h - h as i32).abs() <= 4
                 }
                 ExpectedState::Geometry { x, y, w, h } => {
-                    let x_ok = x.map_or(true, |tx| (win.x - tx).abs() <= 4);
-                    let y_ok = y.map_or(true, |ty| (win.y - ty).abs() <= 4);
-                    let w_ok = w.map_or(true, |tw| (win.w - tw as i32).abs() <= 4);
-                    let h_ok = h.map_or(true, |th| (win.h - th as i32).abs() <= 4);
+                    let x_ok = x.is_none_or(|tx| (win.x - tx).abs() <= 4);
+                    let y_ok = y.is_none_or(|ty| (win.y - ty).abs() <= 4);
+                    let w_ok = w.is_none_or(|tw| (win.w - tw as i32).abs() <= 4);
+                    let h_ok = h.is_none_or(|th| (win.h - th as i32).abs() <= 4);
                     x_ok && y_ok && w_ok && h_ok
                 }
                 ExpectedState::Focused(exp) => win.focused == exp,
@@ -254,6 +357,83 @@ pub async fn wait_for_state_change(
         "Window matching '{}' did not satisfy state {:?} within {:?}",
         target_id, expected_state, timeout
     )))
+}
+
+/// Polls the compositor driver until the target window's reported geometry equals
+/// the expected target geometry or `timeout` expires, returning the last known geometry.
+pub async fn settle_window_geometry(
+    backend: &dyn CompositorBackend,
+    window_id: Option<u64>,
+    target_id: &str,
+    params: &spawn_at_core::geometry::PlacementParams,
+    timeout: Duration,
+) -> Option<spawn_at_core::geometry::Rect> {
+    let start = Instant::now();
+    let poll_interval = Duration::from_millis(25);
+    let mut last_seen_rect: Option<spawn_at_core::geometry::Rect> = None;
+
+    while start.elapsed() < timeout {
+        let current_rect = if let Some(id) = window_id {
+            match backend.get_window_rect(id).await {
+                Ok(r) => Some(r),
+                Err(_) => backend.get_windows().await.ok().and_then(|wins| {
+                    wins.into_iter()
+                        .find(|w| w.id == Some(id) || matches_target(w, target_id))
+                        .map(|w| spawn_at_core::geometry::Rect {
+                            x: w.x,
+                            y: w.y,
+                            width: w.w as u32,
+                            height: w.h as u32,
+                        })
+                }),
+            }
+        } else {
+            backend.get_windows().await.ok().and_then(|wins| {
+                wins.into_iter()
+                    .find(|w| matches_target(w, target_id))
+                    .map(|w| spawn_at_core::geometry::Rect {
+                        x: w.x,
+                        y: w.y,
+                        width: w.w as u32,
+                        height: w.h as u32,
+                    })
+            })
+        };
+
+        if let Some(rect) = current_rect {
+            last_seen_rect = Some(rect);
+
+            let has_move = params.pos.is_some() || params.anchor.is_some();
+            let mut params_for_actual = params.clone();
+            params_for_actual.size = Some((rect.width, rect.height));
+            let expected_for_actual = spawn_at_core::geometry::calculate_rect_from_placement(
+                &params_for_actual,
+                rect.width,
+                rect.height,
+            );
+
+            let pos_matches = if has_move {
+                (rect.x - expected_for_actual.x).abs() <= 1
+                    && (rect.y - expected_for_actual.y).abs() <= 1
+            } else {
+                true
+            };
+
+            let size_matches = if let Some(req_size) = params.size {
+                rect.width >= req_size.0 && rect.height >= req_size.1
+            } else {
+                true
+            };
+
+            if pos_matches && size_matches {
+                return Some(rect);
+            }
+        }
+
+        tokio::time::sleep(poll_interval).await;
+    }
+
+    last_seen_rect
 }
 
 #[cfg(test)]
@@ -301,6 +481,27 @@ mod tests {
         assert!(!msg.contains("The active compositor does not support this feature"));
     }
 
+    #[tokio::test]
+    async fn test_close_supported_on_x11() {
+        use crate::cli::CloseArgs;
+
+        let driver = X11Driver;
+        assert!(driver.supports_close());
+        let linux_backend = crate::platform::linux::LinuxBackend::new(Box::new(driver));
+        assert!(linux_backend.supports_close());
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                class: Some("alacritty".into()),
+                ..Default::default()
+            },
+        };
+        let err = run_close_with_timeout(&linux_backend, args, false, Duration::from_millis(50))
+            .await
+            .unwrap_err();
+        let msg = err.to_string();
+        assert!(!msg.contains("this backend cannot close windows"));
+    }
+
     #[test]
     fn test_matches_target_criteria() {
         let win = WindowMetadata {
@@ -308,6 +509,7 @@ mod tests {
             pid: Some(5001),
             title: "Terminal - Alacritty".into(),
             class: "Alacritty".into(),
+            app_id: None,
             x: 10,
             y: 20,
             w: 800,
@@ -315,6 +517,7 @@ mod tests {
             focused: true,
             maximized: false,
             minimized: false,
+            ..Default::default()
         };
 
         // Match by numeric window ID
@@ -340,7 +543,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl crate::platform::Driver for MockPollBackend {
-        async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
             Ok(crate::platform::Armed::default())
         }
     }
@@ -362,6 +568,7 @@ mod tests {
                 pid: Some(6000),
                 title: "Mock Window".into(),
                 class: "mock-app".into(),
+                app_id: None,
                 x: if is_max { 0 } else { 100 },
                 y: if is_max { 0 } else { 100 },
                 w: if is_max { 1920 } else { 800 },
@@ -369,6 +576,7 @@ mod tests {
                 focused: true,
                 maximized: is_max,
                 minimized: false,
+                ..Default::default()
             }])
         }
     }
@@ -399,7 +607,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl crate::platform::Driver for MockSpawnBackend {
-        async fn arm(&self, _batch: crate::platform::Batch) -> Result<crate::platform::Armed, DriverError> {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
             Ok(crate::platform::Armed::default())
         }
     }
@@ -421,6 +632,7 @@ mod tests {
                     pid: Some(1000),
                     title: "Pre-existing App".into(),
                     class: "org.gnome.Calculator".into(),
+                    app_id: None,
                     x: 0,
                     y: 0,
                     w: 300,
@@ -428,6 +640,7 @@ mod tests {
                     focused: false,
                     maximized: false,
                     minimized: false,
+                    ..Default::default()
                 },
             ];
 
@@ -438,6 +651,7 @@ mod tests {
                     pid: Some(9999), // Different PID (D-Bus activated)
                     title: "Calculator".into(),
                     class: "org.gnome.Calculator".into(),
+                    app_id: None,
                     x: 100,
                     y: 100,
                     w: 367,
@@ -445,6 +659,7 @@ mod tests {
                     focused: true,
                     maximized: false,
                     minimized: false,
+                    ..Default::default()
                 });
             }
 
@@ -498,5 +713,786 @@ mod tests {
         .await;
 
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_match_window_app_hint_launcher_style_apps() {
+        // gnome-terminal-server override vs Gnome-terminal class
+        assert!(match_window_app_hint(
+            "gnome-terminal-server",
+            "Gnome-terminal",
+            ""
+        ));
+        // org.gnome.Terminal vs Gnome-terminal class
+        assert!(match_window_app_hint(
+            "org.gnome.Terminal",
+            "Gnome-terminal",
+            ""
+        ));
+        // gnome-terminal vs org.gnome.Terminal
+        assert!(match_window_app_hint(
+            "gnome-terminal",
+            "org.gnome.Terminal",
+            ""
+        ));
+        // Calculator reverse-DNS vs hyphenated
+        assert!(match_window_app_hint(
+            "org.gnome.Calculator",
+            "gnome-calculator",
+            ""
+        ));
+        assert!(match_window_app_hint(
+            "calculator",
+            "org.gnome.Calculator",
+            ""
+        ));
+        // Exact matches
+        assert!(match_window_app_hint("Alacritty", "alacritty", ""));
+        // Wildcards
+        assert!(match_window_app_hint("*", "Alacritty", ""));
+        assert!(match_window_app_hint("", "Alacritty", ""));
+        // Negative matches: must not falsely match
+        assert!(!match_window_app_hint(
+            "gnome-terminal-server",
+            "Alacritty",
+            ""
+        ));
+        assert!(!match_window_app_hint("alacritty", "Google-chrome", ""));
+        assert!(!match_window_app_hint("term", "Gnome-terminal", ""));
+    }
+
+    #[tokio::test]
+    async fn test_wait_for_spawn_launcher_daemon_handoff() {
+        struct LauncherMockBackend;
+
+        #[async_trait::async_trait]
+        impl crate::platform::Driver for LauncherMockBackend {
+            async fn arm(
+                &self,
+                _batch: crate::platform::Batch,
+            ) -> Result<crate::platform::Armed, DriverError> {
+                Ok(crate::platform::Armed::default())
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl CompositorBackend for LauncherMockBackend {
+            fn name(&self) -> &'static str {
+                "LauncherMock"
+            }
+            fn resolve_id(&self, _cmd: &[String], _cls: Option<&str>) -> String {
+                "org.gnome.Terminal".into()
+            }
+            async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+                Ok(vec![WindowMetadata {
+                    id: Some(55),
+                    pid: Some(1250560), // Server daemon PID, NOT the launcher PID (1250555)
+                    title: "harsh@harsh: ~".into(),
+                    class: "Gnome-terminal".into(),
+                    app_id: Some("org.gnome.Terminal".into()),
+                    x: 200,
+                    y: 200,
+                    w: 800,
+                    h: 500,
+                    focused: true,
+                    maximized: false,
+                    minimized: false,
+                    ..Default::default()
+                }])
+            }
+        }
+
+        let backend = LauncherMockBackend;
+        let mut pre_existing = std::collections::HashSet::new();
+        pre_existing.insert(10); // Window 55 is new
+
+        // Test with app_hint = "org.gnome.Terminal" (launcher PID 1250555 != server PID 1250560)
+        let res = wait_for_spawn(
+            &backend,
+            1250555,
+            "org.gnome.Terminal",
+            "",
+            &pre_existing,
+            Duration::from_millis(500),
+        )
+        .await;
+
+        assert!(res.is_ok());
+        let win = res.unwrap();
+        assert_eq!(win.id, Some(55));
+        assert_eq!(win.class, "Gnome-terminal");
+    }
+
+    struct MockCloseBackend {
+        windows: std::sync::Mutex<Vec<WindowMetadata>>,
+        close_supported: bool,
+        stale_extension: bool,
+        closed_target: std::sync::Mutex<Option<String>>,
+        remove_on_close: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::platform::Driver for MockCloseBackend {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for MockCloseBackend {
+        fn name(&self) -> &'static str {
+            "MockClose"
+        }
+        fn supports_close(&self) -> bool {
+            self.close_supported
+        }
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "mock".into()
+        }
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            Ok(self.windows.lock().unwrap().clone())
+        }
+        async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+            if self.stale_extension {
+                return Err(DriverError::Execution(
+                    "extension is older than the CLI expects (protocol 2, need 3): run `spawn-at install` and log out and back in".into(),
+                ));
+            }
+            if !self.close_supported {
+                return Err(DriverError::Execution(
+                    "this backend cannot close windows".into(),
+                ));
+            }
+            *self.closed_target.lock().unwrap() = Some(target_id.to_string());
+            if self.remove_on_close {
+                let mut wins = self.windows.lock().unwrap();
+                wins.retain(|w| {
+                    if let Some(id) = w.id {
+                        id.to_string() != target_id
+                    } else {
+                        w.class != target_id
+                    }
+                });
+            }
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_close_by_id() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: Some(42),
+                pid: Some(1234),
+                title: "Editor".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: true,
+            stale_extension: false,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_ok());
+        assert_eq!(backend.closed_target.lock().unwrap().as_deref(), Some("42"));
+        assert!(backend.windows.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_close_unknown_id_errors() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: Some(42),
+                pid: Some(1234),
+                title: "Editor".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: true,
+            stale_extension: false,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(999),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_err());
+        assert_eq!(res.unwrap_err().to_string(), "No window with id 999");
+        assert!(backend.closed_target.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_close_stale_extension_error() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: Some(42),
+                pid: Some(1234),
+                title: "Editor".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: true,
+            stale_extension: true,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert_eq!(
+            err_msg,
+            "extension is older than the CLI expects (protocol 2, need 3): run `spawn-at install` and log out and back in"
+        );
+        // Confirm no fallback occurred
+        assert!(backend.closed_target.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_close_unsupported_backend_error() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: Some(42),
+                pid: Some(1234),
+                title: "Editor".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: false,
+            stale_extension: false,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: true,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(200)).await;
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert_eq!(err_msg, "this backend cannot close windows");
+        assert!(backend.closed_target.lock().unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn test_close_window_refuses_to_close_reports_honestly() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: Some(42),
+                pid: Some(1234),
+                title: "Unsaved Document".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: true,
+            stale_extension: false,
+            closed_target: std::sync::Mutex::new(None),
+            // Window stays in window list (e.g. prompt to save changes keeps it open)
+            remove_on_close: false,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                id: Some(42),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(150)).await;
+        assert!(
+            res.is_err(),
+            "Must report failure truthfully if window remains open"
+        );
+        let err_msg = res.unwrap_err().to_string();
+        assert_eq!(
+            err_msg,
+            "Window 'Unsaved Document' (id: 42) did not close within 150ms; window remains present."
+        );
+    }
+
+    #[tokio::test]
+    async fn test_close_window_refuses_without_id_reports_honestly() {
+        use crate::cli::CloseArgs;
+
+        let backend = MockCloseBackend {
+            windows: std::sync::Mutex::new(vec![WindowMetadata {
+                id: None,
+                pid: Some(1234),
+                title: "Unsaved Document".into(),
+                class: "org.gnome.TextEditor".into(),
+                app_id: None,
+                x: 100,
+                y: 100,
+                w: 800,
+                h: 600,
+                focused: false,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            }]),
+            close_supported: true,
+            stale_extension: false,
+            closed_target: std::sync::Mutex::new(None),
+            remove_on_close: false,
+        };
+
+        let args = CloseArgs {
+            target: WindowTargetArgs {
+                class: Some("org.gnome.TextEditor".into()),
+                ..Default::default()
+            },
+        };
+
+        let res = run_close_with_timeout(&backend, args, false, Duration::from_millis(150)).await;
+        assert!(res.is_err());
+        let err_msg = res.unwrap_err().to_string();
+        assert_eq!(
+            err_msg,
+            "Window 'Unsaved Document' did not close within 150ms; window remains present."
+        );
+    }
+
+    struct SimulatedDriver {
+        initial_rect: spawn_at_core::geometry::Rect,
+        target_rect: spawn_at_core::geometry::Rect,
+        stale_duration: Option<Duration>,
+        start_time: std::sync::Mutex<Option<Instant>>,
+        windows: std::sync::Mutex<Vec<WindowMetadata>>,
+        is_spawn: bool,
+    }
+
+    impl SimulatedDriver {
+        fn new_for_transform(
+            initial_rect: spawn_at_core::geometry::Rect,
+            target_rect: spawn_at_core::geometry::Rect,
+            stale_duration: Option<Duration>,
+        ) -> Self {
+            let win = WindowMetadata {
+                id: Some(42),
+                pid: Some(std::process::id()),
+                title: "Simulated App".into(),
+                class: "true".into(),
+                app_id: Some("true".into()),
+                x: initial_rect.x,
+                y: initial_rect.y,
+                w: initial_rect.width as i32,
+                h: initial_rect.height as i32,
+                focused: true,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            };
+            Self {
+                initial_rect,
+                target_rect,
+                stale_duration,
+                start_time: std::sync::Mutex::new(None),
+                windows: std::sync::Mutex::new(vec![win]),
+                is_spawn: false,
+            }
+        }
+
+        fn new_for_spawn(
+            initial_rect: spawn_at_core::geometry::Rect,
+            target_rect: spawn_at_core::geometry::Rect,
+            stale_duration: Option<Duration>,
+        ) -> Self {
+            let win = WindowMetadata {
+                id: Some(42),
+                pid: Some(999999),
+                title: "Simulated App".into(),
+                class: "true".into(),
+                app_id: Some("true".into()),
+                x: initial_rect.x,
+                y: initial_rect.y,
+                w: initial_rect.width as i32,
+                h: initial_rect.height as i32,
+                focused: true,
+                maximized: false,
+                minimized: false,
+                ..Default::default()
+            };
+            Self {
+                initial_rect,
+                target_rect,
+                stale_duration,
+                start_time: std::sync::Mutex::new(None),
+                windows: std::sync::Mutex::new(vec![win]),
+                is_spawn: true,
+            }
+        }
+
+        fn current_rect(&self) -> spawn_at_core::geometry::Rect {
+            if let Some(dur) = self.stale_duration {
+                let lock = self.start_time.lock().unwrap();
+                if let Some(st) = *lock {
+                    if st.elapsed() >= dur {
+                        return self.target_rect;
+                    }
+                }
+            }
+            self.initial_rect
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl crate::platform::Driver for SimulatedDriver {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
+            let mut lock = self.start_time.lock().unwrap();
+            *lock = Some(Instant::now());
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for SimulatedDriver {
+        fn name(&self) -> &'static str {
+            "SimulatedDriver"
+        }
+
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            "true".into()
+        }
+
+        fn supports_runtime_transform(&self) -> bool {
+            true
+        }
+
+        async fn protocol_version(&self) -> Option<u32> {
+            Some(4)
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<spawn_at_core::geometry::Rect>, DriverError> {
+            Ok(vec![spawn_at_core::geometry::Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            }])
+        }
+
+        async fn get_monitors(&self) -> Result<Vec<spawn_at_core::geometry::Rect>, DriverError> {
+            Ok(vec![spawn_at_core::geometry::Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }])
+        }
+
+        async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
+            Ok((786, 414))
+        }
+
+        async fn focus_window(&self, _id: &str) -> Result<(), DriverError> {
+            Ok(())
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            if self.is_spawn && self.start_time.lock().unwrap().is_none() {
+                return Ok(Vec::new());
+            }
+            let r = self.current_rect();
+            let mut wins = self.windows.lock().unwrap().clone();
+            if let Some(w) = wins.first_mut() {
+                w.x = r.x;
+                w.y = r.y;
+                w.w = r.width as i32;
+                w.h = r.height as i32;
+            }
+            Ok(wins)
+        }
+
+        async fn get_window_rect(
+            &self,
+            id: u64,
+        ) -> Result<spawn_at_core::geometry::Rect, DriverError> {
+            if id == 42 {
+                Ok(self.current_rect())
+            } else {
+                Err(DriverError::TargetNotFound(format!(
+                    "Window {} not found",
+                    id
+                )))
+            }
+        }
+
+        async fn transform_window(
+            &self,
+            _target_id: &str,
+            _params: spawn_at_core::geometry::PlacementParams,
+            _current_w: u32,
+            _current_h: u32,
+        ) -> Result<(), DriverError> {
+            let mut lock = self.start_time.lock().unwrap();
+            *lock = Some(Instant::now());
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stale_geometry_settles_without_warning_transform() {
+        let driver = SimulatedDriver::new_for_transform(
+            spawn_at_core::geometry::Rect {
+                x: 125,
+                y: 175,
+                width: 600,
+                height: 600,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 836,
+                y: 464,
+                width: 600,
+                height: 600,
+            },
+            Some(Duration::from_millis(50)),
+        );
+        let args = TransformArgs {
+            id: Some(42),
+            geometry: crate::cli::args::GeometryArgs {
+                anchor: Some(spawn_at_core::geometry::Anchor::Cursor),
+                offset: Some(vec![50, 50]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_transform(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert!(
+            warnings.is_empty(),
+            "Expected no warnings when stale geometry settles, got: {:?}",
+            warnings
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stationary_window_warns_after_timeout_transform() {
+        let driver = SimulatedDriver::new_for_transform(
+            spawn_at_core::geometry::Rect {
+                x: 125,
+                y: 175,
+                width: 600,
+                height: 600,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 836,
+                y: 464,
+                width: 600,
+                height: 600,
+            },
+            None, // Window never moves
+        );
+        let args = TransformArgs {
+            id: Some(42),
+            geometry: crate::cli::args::GeometryArgs {
+                anchor: Some(spawn_at_core::geometry::Anchor::Cursor),
+                offset: Some(vec![50, 50]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_transform(&driver, args, false).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "Expected 1 warning when window never moves, got: {:?}",
+            warnings
+        );
+        assert!(
+            warnings[0].1.contains("Window at (125, 175) [600x600] but expected position was (836, 464). Window was not positioned at target.")
+        );
+        assert!(
+            !warnings[0].1.contains("mapped"),
+            "Transform diagnostic must never say 'mapped'"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stale_geometry_settles_without_warning_spawn() {
+        let driver = SimulatedDriver::new_for_spawn(
+            spawn_at_core::geometry::Rect {
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 300,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 200,
+                y: 240,
+                width: 400,
+                height: 300,
+            },
+            Some(Duration::from_millis(50)),
+        );
+        let args = crate::cli::SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                pos: Some(vec![200, 200]),
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_spawn_with(&driver, args, false, Default::default()).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert!(
+            warnings.is_empty(),
+            "Expected no warnings when stale geometry settles on spawn, got: {:?}",
+            warnings
+        );
+    }
+
+    #[tokio::test]
+    async fn test_simulated_driver_stationary_window_warns_after_timeout_spawn() {
+        let driver = SimulatedDriver::new_for_spawn(
+            spawn_at_core::geometry::Rect {
+                x: 100,
+                y: 100,
+                width: 400,
+                height: 300,
+            },
+            spawn_at_core::geometry::Rect {
+                x: 200,
+                y: 200,
+                width: 400,
+                height: 300,
+            },
+            None, // Window never moves
+        );
+        let args = crate::cli::SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                pos: Some(vec![200, 200]),
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+
+        crate::diagnostics::start_capturing_diagnostics();
+        let res = run_spawn_with(&driver, args, false, Default::default()).await;
+        assert!(res.is_ok());
+
+        let diags = crate::diagnostics::take_captured_diagnostics().unwrap_or_default();
+        let warnings: Vec<_> = diags
+            .iter()
+            .filter(|(lvl, _)| *lvl == crate::diagnostics::DiagnosticLevel::Warning)
+            .collect();
+        assert_eq!(
+            warnings.len(),
+            1,
+            "Expected 1 warning when window never moves on spawn, got: {:?}",
+            warnings
+        );
+        assert!(warnings[0].1.contains(
+            "Window mapped at (100, 100) [400x300] but expected position was (200, 240)"
+        ));
     }
 }

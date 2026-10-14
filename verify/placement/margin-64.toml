@@ -1,0 +1,50 @@
+id = "placement/margin-64"
+category = "placement"
+title = "Window in bottom-right corner with 64px margin"
+description = "Spawns a test window anchored to the bottom-right corner of the work area with a 64px boundary margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Margin64",
+    "--app-id", "verify.placement.margin64",
+    "--expect", "Should appear 64px from bottom-right corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.margin64",
+    "--anchor", "bottom-right",
+    "--size", "400", "300",
+    "--margin", "64"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 64
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once in the bottom-right corner with a clearly larger gap from the screen edges than the 16px case, without flickering or jumping?"

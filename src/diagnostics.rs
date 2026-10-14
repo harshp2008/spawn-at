@@ -1,0 +1,1468 @@
+//! # Centralized Diagnostics Layer
+//!
+//! Provides typed diagnostic messages and a unified reporting pipeline for both
+//! `spawn` and `transform` commands across all platforms.
+
+use spawn_at_core::geometry::{calculate_rect_from_placement, Area, PlacementParams, Rect};
+use std::io::IsTerminal;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DiagnosticLevel {
+    Info,
+    Warning,
+    Error,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColorCapability {
+    Disabled,
+    Basic,
+    Color256,
+    TrueColor,
+}
+
+/// Detects terminal color capabilities with support for truecolor, 256color, ANSI fallback,
+/// NO_COLOR, TERM=dumb, and TTY checks.
+pub fn detect_color_capability_for_stream(is_terminal: bool) -> ColorCapability {
+    if !is_terminal {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var_os("NO_COLOR").is_some_and(|v| !v.is_empty()) {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var("TERM").is_ok_and(|t| t == "dumb") {
+        return ColorCapability::Disabled;
+    }
+    if std::env::var("COLORTERM").is_ok_and(|ct| ct == "truecolor" || ct == "24bit") {
+        return ColorCapability::TrueColor;
+    }
+    if std::env::var("TERM").is_ok_and(|t| t.contains("256color")) {
+        return ColorCapability::Color256;
+    }
+    ColorCapability::Basic
+}
+
+/// Detects color capability on stderr.
+pub fn detect_color_capability() -> ColorCapability {
+    detect_color_capability_for_stream(std::io::stderr().is_terminal())
+}
+
+/// Formats the diagnostic prefix label according to the color capability.
+pub fn format_label(level: DiagnosticLevel, cap: ColorCapability) -> String {
+    match cap {
+        ColorCapability::Disabled => match level {
+            DiagnosticLevel::Info => "[spawn-at] INFO:".to_string(),
+            DiagnosticLevel::Warning => "[spawn-at] WARNING:".to_string(),
+            DiagnosticLevel::Error => "[spawn-at] ERROR:".to_string(),
+        },
+        ColorCapability::Basic => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => "\x1b[1;33m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+        ColorCapability::Color256 => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => "\x1b[1;38;5;208m[spawn-at] WARNING:\x1b[0m".to_string(),
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+        ColorCapability::TrueColor => match level {
+            DiagnosticLevel::Info => "\x1b[1;34m[spawn-at] INFO:\x1b[0m".to_string(),
+            DiagnosticLevel::Warning => {
+                "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m".to_string()
+            }
+            DiagnosticLevel::Error => "\x1b[1;31m[spawn-at] ERROR:\x1b[0m".to_string(),
+        },
+    }
+}
+
+/// Formats a complete labeled message given a level, message body, and color capability.
+pub fn format_message_with_capability(
+    level: DiagnosticLevel,
+    msg: &str,
+    cap: ColorCapability,
+) -> String {
+    format!("{} {}", format_label(level, cap), msg)
+}
+
+thread_local! {
+    static DIAGNOSTIC_SINK: std::cell::RefCell<Option<Vec<(DiagnosticLevel, String)>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+pub fn start_capturing_diagnostics() {
+    DIAGNOSTIC_SINK.with(|sink| {
+        *sink.borrow_mut() = Some(Vec::new());
+    });
+}
+
+pub fn take_captured_diagnostics() -> Option<Vec<(DiagnosticLevel, String)>> {
+    DIAGNOSTIC_SINK.with(|sink| sink.borrow_mut().take())
+}
+
+/// Renders a diagnostic message directly to stderr with color detection.
+pub fn render_diagnostic_message(level: DiagnosticLevel, msg: &str) {
+    let captured = DIAGNOSTIC_SINK.with(|sink| {
+        if let Some(ref mut vec) = *sink.borrow_mut() {
+            vec.push((level, msg.to_string()));
+            true
+        } else {
+            false
+        }
+    });
+    if captured {
+        return;
+    }
+    eprintln!(
+        "{}",
+        format_message_with_capability(level, msg, detect_color_capability())
+    );
+}
+
+/// Centralized renderer for user-facing INFO diagnostics.
+pub fn render_info(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Info, msg);
+}
+
+/// Centralized renderer for user-facing WARNING diagnostics.
+pub fn render_warning(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Warning, msg);
+}
+
+/// Centralized renderer for user-facing ERROR diagnostics.
+pub fn render_error(msg: &str) {
+    render_diagnostic_message(DiagnosticLevel::Error, msg);
+}
+
+/// Centralized renderer for debug messages.
+pub fn render_debug(msg: &str) {
+    eprintln!("[spawn-at] DEBUG: {}", msg);
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Diagnostic {
+    /// Window mapped/transformed successfully at target position and size.
+    PlacedSuccess {
+        pos: (i32, i32),
+        size: (u32, u32),
+        is_transform: bool,
+    },
+    /// The requested size was below toolkit minimums and was expanded.
+    SizeRaisedToMinimum {
+        requested: (u32, u32),
+        minimum: Option<(u32, u32)>,
+        actual: (u32, u32),
+        placed_pos: (i32, i32),
+    },
+    /// Final size differs from requested size without a known toolkit minimum.
+    FinalSizeDiffers {
+        requested: (u32, u32),
+        actual: (u32, u32),
+        placed_pos: (i32, i32),
+    },
+    /// Window was not positioned at target, with cause if known.
+    PositionNotReached {
+        actual_pos: (i32, i32),
+        actual_size: (u32, u32),
+        expected_pos: (i32, i32),
+        requested_size: Option<(u32, u32)>,
+        clamped_to_workarea: bool,
+        area: Option<Area>,
+        is_transform: bool,
+        workarea: Rect,
+    },
+    /// Window placed off-screen because clamping was disabled (`--clamp false`).
+    OffScreenUnclamped {
+        actual_pos: (i32, i32),
+        actual_size: (u32, u32),
+    },
+    /// Window never mapped within the timeout duration.
+    WindowNeverMapped {
+        app_hint: String,
+        pid: u32,
+        timeout_ms: u64,
+    },
+    /// The app reused a pre-existing window rather than creating a new one.
+    ReusedExistingWindow {
+        class: String,
+        title: String,
+        pid: Option<u32>,
+    },
+}
+
+impl Diagnostic {
+    pub fn level(&self) -> DiagnosticLevel {
+        match self {
+            Diagnostic::PlacedSuccess { .. } => DiagnosticLevel::Info,
+            Diagnostic::SizeRaisedToMinimum { .. } => DiagnosticLevel::Info,
+            Diagnostic::FinalSizeDiffers { .. } => DiagnosticLevel::Info,
+            Diagnostic::PositionNotReached {
+                clamped_to_workarea,
+                area,
+                ..
+            } => {
+                if *clamped_to_workarea || *area == Some(Area::Unbounded) {
+                    DiagnosticLevel::Info
+                } else {
+                    DiagnosticLevel::Warning
+                }
+            }
+            Diagnostic::OffScreenUnclamped { .. } => DiagnosticLevel::Warning,
+            Diagnostic::WindowNeverMapped { .. } => DiagnosticLevel::Warning,
+            Diagnostic::ReusedExistingWindow { .. } => DiagnosticLevel::Warning,
+        }
+    }
+
+    pub fn message_body(&self) -> String {
+        match self {
+            Diagnostic::PlacedSuccess {
+                pos,
+                size,
+                is_transform,
+            } => {
+                if *is_transform {
+                    format!(
+                        "Window transformed at final size ({}x{}) and positioned at ({}, {}).",
+                        size.0, size.1, pos.0, pos.1
+                    )
+                } else {
+                    format!(
+                        "Window mapped at final size ({}x{}) and positioned at ({}, {}).",
+                        size.0, size.1, pos.0, pos.1
+                    )
+                }
+            }
+            Diagnostic::SizeRaisedToMinimum {
+                requested,
+                minimum: _,
+                actual,
+                placed_pos,
+            } => {
+                let raised_w = actual.0 > requested.0;
+                let raised_h = actual.1 > requested.1;
+                if raised_w && !raised_h {
+                    format!(
+                        "Requested size ({}x{}); window minimum width is {}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.0, placed_pos.0, placed_pos.1, actual.0, actual.1
+                    )
+                } else if !raised_w && raised_h {
+                    format!(
+                        "Requested size ({}x{}); window minimum height is {}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
+                    )
+                } else {
+                    format!(
+                        "Requested size ({}x{}); window minimum is {}x{}, placed at ({}, {}) [{}x{}].",
+                        requested.0, requested.1, actual.0, actual.1, placed_pos.0, placed_pos.1, actual.0, actual.1
+                    )
+                }
+            }
+            Diagnostic::FinalSizeDiffers {
+                requested,
+                actual,
+                placed_pos,
+            } => {
+                format!(
+                    "Requested size ({}x{}), final size is {}x{}; placed at ({}, {}) [{}x{}].",
+                    requested.0,
+                    requested.1,
+                    actual.0,
+                    actual.1,
+                    placed_pos.0,
+                    placed_pos.1,
+                    actual.0,
+                    actual.1
+                )
+            }
+            Diagnostic::PositionNotReached {
+                actual_pos,
+                actual_size,
+                expected_pos,
+                requested_size,
+                clamped_to_workarea,
+                area,
+                is_transform,
+                workarea,
+            } => {
+                let area_kind = area.unwrap_or(Area::Workarea);
+                if *clamped_to_workarea {
+                    let (ref_x, ref_y) = match area_kind {
+                        Area::Unbounded => (0, 0),
+                        Area::Screen | Area::Workarea => (workarea.x, workarea.y),
+                    };
+                    let req_rel = (expected_pos.0 - ref_x, expected_pos.1 - ref_y);
+                    let clamped_rel = (actual_pos.0 - ref_x, actual_pos.1 - ref_y);
+                    let show_screen = actual_pos != &clamped_rel;
+                    let screen_suffix = if show_screen {
+                        format!(" [screen ({}, {})]", actual_pos.0, actual_pos.1)
+                    } else {
+                        String::new()
+                    };
+
+                    match area_kind {
+                        Area::Workarea => {
+                            format!(
+                                "Requested ({}, {}) in the work area; clamped to ({}, {}){}.",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1, screen_suffix
+                            )
+                        }
+                        Area::Screen => {
+                            format!(
+                                "Requested ({}, {}) on the screen; clamped to ({}, {}){}.",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1, screen_suffix
+                            )
+                        }
+                        Area::Unbounded => {
+                            format!(
+                                "Requested ({}, {}) on the desktop; clamped to ({}, {}).",
+                                req_rel.0, req_rel.1, clamped_rel.0, clamped_rel.1
+                            )
+                        }
+                    }
+                } else {
+                    let prefix = if *is_transform {
+                        "Window at"
+                    } else {
+                        "Window mapped at"
+                    };
+                    if area_kind == Area::Unbounded {
+                        return format!(
+                            "{} ({}, {}) [{}x{}]; compositor adjusted position from requested ({}, {}) to maintain visibility.",
+                            prefix,
+                            actual_pos.0,
+                            actual_pos.1,
+                            actual_size.0,
+                            actual_size.1,
+                            expected_pos.0,
+                            expected_pos.1
+                        );
+                    }
+                    let mut msg = format!(
+                        "{} ({}, {}) [{}x{}] but expected position was ({}, {}).",
+                        prefix,
+                        actual_pos.0,
+                        actual_pos.1,
+                        actual_size.0,
+                        actual_size.1,
+                        expected_pos.0,
+                        expected_pos.1
+                    );
+                    if let Some(req) = requested_size {
+                        if req.0 != actual_size.0 || req.1 != actual_size.1 {
+                            msg.push_str(&format!(
+                                " Final size differs from the requested size ({}x{}); window was not positioned at target.",
+                                req.0, req.1
+                            ));
+                            return msg;
+                        }
+                    }
+                    msg.push_str(" Window was not positioned at target.");
+                    msg
+                }
+            }
+            Diagnostic::OffScreenUnclamped {
+                actual_pos,
+                actual_size,
+            } => {
+                format!(
+                    "Window positioned off-screen at ({}, {}) [{}x{}] (--clamp false).",
+                    actual_pos.0, actual_pos.1, actual_size.0, actual_size.1
+                )
+            }
+            Diagnostic::WindowNeverMapped {
+                app_hint,
+                pid,
+                timeout_ms,
+            } => {
+                format!(
+                    "Timed out waiting for window to map: Window matching app hint '{}' (PID: {}) did not appear within {}ms.",
+                    app_hint, pid, timeout_ms
+                )
+            }
+            Diagnostic::ReusedExistingWindow { class, title, pid } => {
+                let pid_str = pid.map(|p| format!(" (PID: {})", p)).unwrap_or_default();
+                format!(
+                    "Application reused an existing window{}: class '{}', title '{}'. Spawn-at does not reposition pre-existing windows on spawn.",
+                    pid_str, class, title
+                )
+            }
+        }
+    }
+
+    pub fn format_message_with_capability(&self, cap: ColorCapability) -> String {
+        format_message_with_capability(self.level(), &self.message_body(), cap)
+    }
+
+    pub fn format_message(&self) -> String {
+        self.format_message_with_capability(detect_color_capability())
+    }
+}
+
+pub fn render_diagnostic(diag: &Diagnostic) {
+    render_diagnostic_message(diag.level(), &diag.message_body());
+}
+
+/// Evaluates a window's final placed geometry against the desired placement parameters,
+/// returning the appropriate diagnostics.
+pub fn evaluate_placement_diagnostics_for_action(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+    is_transform: bool,
+) -> Vec<Diagnostic> {
+    let mut diags = Vec::new();
+
+    let has_move = params.pos.is_some() || params.anchor.is_some();
+    if !has_move {
+        let size_differs = params
+            .size
+            .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
+
+        if size_differs {
+            let requested = params.size.unwrap();
+            let is_raised = size_raised
+                || min_size.is_some()
+                || actual_rect.width > requested.0
+                || actual_rect.height > requested.1;
+            if is_raised {
+                diags.push(Diagnostic::SizeRaisedToMinimum {
+                    requested,
+                    minimum: min_size.or(Some((actual_rect.width, actual_rect.height))),
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            } else {
+                diags.push(Diagnostic::FinalSizeDiffers {
+                    requested,
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            }
+        } else {
+            diags.push(Diagnostic::PlacedSuccess {
+                pos: (actual_rect.x, actual_rect.y),
+                size: (actual_rect.width, actual_rect.height),
+                is_transform,
+            });
+        }
+        return diags;
+    }
+
+    // The expected position must be computed with the ACTUAL final size and the same clamp/anchor/area
+    let mut params_for_actual = params.clone();
+    params_for_actual.size = Some((actual_rect.width, actual_rect.height));
+    let expected_for_actual =
+        calculate_rect_from_placement(&params_for_actual, actual_rect.width, actual_rect.height);
+
+    let is_maximized_like = params.area != Some(Area::Unbounded)
+        && params.workarea.width > 0
+        && params.workarea.height > 0
+        && actual_rect.width >= params.workarea.width
+        && actual_rect.height >= params.workarea.height;
+    let requested_is_maximized = params.area != Some(Area::Unbounded)
+        && params.workarea.width > 0
+        && params.workarea.height > 0
+        && params
+            .size
+            .is_some_and(|(w, h)| w >= params.workarea.width && h >= params.workarea.height);
+
+    let pos_reached = (!is_maximized_like || requested_is_maximized)
+        && (actual_rect.x - expected_for_actual.x).abs() <= 1
+        && (actual_rect.y - expected_for_actual.y).abs() <= 1;
+
+    if pos_reached {
+        // When explicit `--pos` or `--anchor` was requested and clamp altered the coordinates:
+        if params.clamp {
+            let mut params_unclamped = params_for_actual.clone();
+            params_unclamped.clamp = false;
+            let unclamped_for_actual = calculate_rect_from_placement(
+                &params_unclamped,
+                actual_rect.width,
+                actual_rect.height,
+            );
+            if unclamped_for_actual.x != expected_for_actual.x
+                || unclamped_for_actual.y != expected_for_actual.y
+            {
+                diags.push(Diagnostic::PositionNotReached {
+                    actual_pos: (actual_rect.x, actual_rect.y),
+                    actual_size: (actual_rect.width, actual_rect.height),
+                    expected_pos: (unclamped_for_actual.x, unclamped_for_actual.y),
+                    requested_size: params.size,
+                    clamped_to_workarea: true,
+                    area: params.area,
+                    is_transform,
+                    workarea: params.workarea,
+                });
+                return diags;
+            }
+        }
+
+        let size_differs = params
+            .size
+            .is_some_and(|req| req.0 != actual_rect.width || req.1 != actual_rect.height);
+
+        if size_differs {
+            let requested = params.size.unwrap();
+            let is_raised = size_raised
+                || min_size.is_some()
+                || actual_rect.width > requested.0
+                || actual_rect.height > requested.1;
+            if is_raised {
+                diags.push(Diagnostic::SizeRaisedToMinimum {
+                    requested,
+                    minimum: min_size.or(Some((actual_rect.width, actual_rect.height))),
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            } else {
+                diags.push(Diagnostic::FinalSizeDiffers {
+                    requested,
+                    actual: (actual_rect.width, actual_rect.height),
+                    placed_pos: (actual_rect.x, actual_rect.y),
+                });
+            }
+        } else {
+            diags.push(Diagnostic::PlacedSuccess {
+                pos: (actual_rect.x, actual_rect.y),
+                size: (actual_rect.width, actual_rect.height),
+                is_transform,
+            });
+        }
+    } else {
+        // Position was not reached (real mismatch)
+        let is_off_screen = !params.clamp
+            && params.area != Some(Area::Unbounded)
+            && (actual_rect.x < params.workarea.x || actual_rect.y < params.workarea.y);
+        if is_off_screen {
+            diags.push(Diagnostic::OffScreenUnclamped {
+                actual_pos: (actual_rect.x, actual_rect.y),
+                actual_size: (actual_rect.width, actual_rect.height),
+            });
+        } else {
+            let expected_pos = (expected_for_actual.x, expected_for_actual.y);
+            diags.push(Diagnostic::PositionNotReached {
+                actual_pos: (actual_rect.x, actual_rect.y),
+                actual_size: (actual_rect.width, actual_rect.height),
+                expected_pos,
+                requested_size: params.size,
+                clamped_to_workarea: false,
+                area: params.area,
+                is_transform,
+                workarea: params.workarea,
+            });
+        }
+    }
+
+    diags
+}
+
+/// Evaluates a window's final placed geometry against the desired placement parameters.
+pub fn evaluate_placement_diagnostics(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+) -> Vec<Diagnostic> {
+    evaluate_placement_diagnostics_for_action(params, actual_rect, min_size, size_raised, false)
+}
+
+/// Unified entrypoint called by `spawn` after applying placement.
+pub fn verify_and_report_placement(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+) {
+    let diags = evaluate_placement_diagnostics_for_action(
+        params,
+        actual_rect,
+        min_size,
+        size_raised,
+        false,
+    );
+    for diag in diags {
+        render_diagnostic(&diag);
+    }
+}
+
+/// Unified entrypoint called by `transform` after applying placement.
+pub fn verify_and_report_transform(
+    params: &PlacementParams,
+    actual_rect: Rect,
+    min_size: Option<(u32, u32)>,
+    size_raised: bool,
+) {
+    let diags =
+        evaluate_placement_diagnostics_for_action(params, actual_rect, min_size, size_raised, true);
+    for diag in diags {
+        render_diagnostic(&diag);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use spawn_at_core::geometry::Anchor;
+
+    fn sample_workarea() -> Rect {
+        Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        }
+    }
+
+    #[test]
+    fn test_diagnostic_size_below_minimum() {
+        let params = PlacementParams {
+            anchor: Some(Anchor::BottomRight),
+            size: Some((30, 20)),
+            margin: 16,
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+
+        // Window placed at bottom right (1542, 934) expanded to minimum 362x130
+        let actual = Rect {
+            x: 1542,
+            y: 934,
+            width: 362,
+            height: 130,
+        };
+
+        let diags = evaluate_placement_diagnostics(&params, actual, Some((362, 130)), true);
+        assert_eq!(diags.len(), 1);
+        match &diags[0] {
+            Diagnostic::SizeRaisedToMinimum {
+                requested,
+                minimum,
+                actual,
+                placed_pos,
+            } => {
+                assert_eq!(*requested, (30, 20));
+                assert_eq!(*minimum, Some((362, 130)));
+                assert_eq!(*actual, (362, 130));
+                assert_eq!(*placed_pos, (1542, 934));
+            }
+            other => panic!("Expected SizeRaisedToMinimum, got {:?}", other),
+        }
+
+        let msg = diags[0].format_message();
+        assert!(msg.contains(
+            "Requested size (30x20); window minimum is 362x130, placed at (1542, 934) [362x130]."
+        ));
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_height_only() {
+        let params = PlacementParams {
+            size: Some((500, 400)),
+            pos: Some((50, 50)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 500,
+            height: 514,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (500x400); window minimum height is 514, placed at (50, 90) [500x514]."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_width_only() {
+        let params = PlacementParams {
+            size: Some((400, 500)),
+            pos: Some((50, 50)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 514,
+            height: 500,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (400x500); window minimum width is 514, placed at (50, 90) [514x500]."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_size_raised_both() {
+        let params = PlacementParams {
+            size: Some((400, 400)),
+            pos: Some((50, 50)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 50,
+            y: 90,
+            width: 500,
+            height: 514,
+        };
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        let msg = diags[0].message_body();
+        assert_eq!(
+            msg,
+            "Requested size (400x400); window minimum is 500x514, placed at (50, 90) [500x514]."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_position_mismatch_clamped() {
+        let params = PlacementParams {
+            pos: Some((100, 1000)),
+            size: Some((30, 30)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+
+        // Window clamped to (0, 40) at 1920x1040 (maximized)
+        let actual = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        match &diags[0] {
+            Diagnostic::PositionNotReached {
+                actual_pos,
+                actual_size,
+                expected_pos,
+                requested_size,
+                clamped_to_workarea,
+                ..
+            } => {
+                assert_eq!(*actual_pos, (0, 40));
+                assert_eq!(*actual_size, (1920, 1040));
+                assert_eq!(*expected_pos, (0, 40));
+                assert_eq!(*requested_size, Some((30, 30)));
+                assert!(!*clamped_to_workarea);
+            }
+            other => panic!("Expected PositionNotReached, got {:?}", other),
+        }
+
+        assert_eq!(diags[0].level(), DiagnosticLevel::Warning);
+        let msg = diags[0].format_message_with_capability(ColorCapability::Disabled);
+        assert_eq!(
+            msg,
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (0, 40). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
+    }
+
+    #[test]
+    fn test_raised_size_clamped_pos_info_exact_text() {
+        let params = PlacementParams {
+            pos: Some((0, 0)),
+            size: Some((20, 30)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 16,
+            y: 16,
+            width: 338,
+            height: 93,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags[0].message_body(),
+            "Requested (0, 0) on the screen; clamped to (16, 16)."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0) on the screen; clamped to (16, 16)."
+        );
+    }
+
+    #[test]
+    fn test_workarea_clamped_pos_info_exact_text() {
+        let params = PlacementParams {
+            pos: Some((0, 0)),
+            size: Some((20, 30)),
+            area: Some(Area::Workarea),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual = Rect {
+            x: 16,
+            y: 56,
+            width: 338,
+            height: 93,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags[0].message_body(),
+            "Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
+        );
+    }
+
+    #[test]
+    fn test_raised_size_real_mismatch_warning_exact_text() {
+        let params = PlacementParams {
+            pos: Some((100, 1000)),
+            size: Some((30, 30)),
+            workarea: sample_workarea(),
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        // Maximized text editor mapped at (0, 40) [1920x1040] instead of clamped target
+        let actual = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+        let diags = evaluate_placement_diagnostics_for_action(&params, actual, None, true, false);
+        assert_eq!(diags.len(), 1);
+        assert_eq!(diags[0].level(), DiagnosticLevel::Warning);
+        assert_eq!(
+            diags[0].message_body(),
+            "Window mapped at (0, 40) [1920x1040] but expected position was (16, 56). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
+        assert_eq!(
+            diags[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] WARNING: Window mapped at (0, 40) [1920x1040] but expected position was (16, 56). Final size differs from the requested size (30x30); window was not positioned at target."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_screen_area_clamped() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (16, 16),
+            actual_size: (367, 514),
+            expected_pos: (100, 0),
+            requested_size: Some((367, 514)),
+            clamped_to_workarea: true,
+            area: Some(Area::Screen),
+            is_transform: false,
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        };
+        let msg = diag.format_message();
+        assert!(msg.contains("Requested (100, 0) on the screen; clamped to (16, 16)."));
+    }
+
+    #[test]
+    fn test_diagnostic_transform_position_not_reached_uses_window_at() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (125, 175),
+            actual_size: (600, 600),
+            expected_pos: (836, 464),
+            requested_size: None,
+            clamped_to_workarea: false,
+            area: Some(Area::Workarea),
+            is_transform: true,
+            workarea: sample_workarea(),
+        };
+        let msg = diag.message_body();
+        assert_eq!(
+            msg,
+            "Window at (125, 175) [600x600] but expected position was (836, 464). Window was not positioned at target."
+        );
+        assert!(!msg.contains("mapped"));
+    }
+
+    #[test]
+    fn test_diagnostic_unbounded_compositor_adjustment() {
+        let diag = Diagnostic::PositionNotReached {
+            actual_pos: (-292, 100),
+            actual_size: (367, 514),
+            expected_pos: (-320, 100),
+            requested_size: None,
+            clamped_to_workarea: false,
+            area: Some(Area::Unbounded),
+            is_transform: true,
+            workarea: Rect::default(),
+        };
+        assert_eq!(diag.level(), DiagnosticLevel::Info);
+        let msg = diag.message_body();
+        assert_eq!(
+            msg,
+            "Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility."
+        );
+    }
+
+    #[test]
+    fn test_diagnostic_true_timeout() {
+        let diag = Diagnostic::WindowNeverMapped {
+            app_hint: "org.gnome.Terminal".into(),
+            pid: 1234,
+            timeout_ms: 2000,
+        };
+        let msg = diag.format_message();
+        assert!(msg.contains("Timed out waiting for window to map"));
+        assert!(msg.contains("org.gnome.Terminal"));
+        assert!(msg.contains("PID: 1234"));
+    }
+
+    #[test]
+    fn test_diagnostic_reused_existing_window() {
+        let diag = Diagnostic::ReusedExistingWindow {
+            class: "gnome-text-editor".into(),
+            title: "Text Editor".into(),
+            pid: Some(5555),
+        };
+        let msg = diag.format_message();
+        assert!(msg.contains("Application reused an existing window (PID: 5555)"));
+    }
+
+    #[test]
+    fn test_diagnostic_offscreen_unclamped() {
+        let params = PlacementParams {
+            pos: Some((-500, -200)),
+            size: Some((800, 600)),
+            workarea: sample_workarea(),
+            clamp: false,
+            ..Default::default()
+        };
+
+        let actual = Rect {
+            x: -500,
+            y: -160,
+            width: 800,
+            height: 600,
+        };
+
+        // When clamp is false and expected is (-500, -160)
+        let expected = calculate_rect_from_placement(&params, actual.width, actual.height);
+        assert_eq!(expected.x, -500);
+        assert_eq!(expected.y, -160);
+
+        // Position was reached at requested offscreen coordinates
+        let diags = evaluate_placement_diagnostics(&params, actual, None, false);
+        assert_eq!(diags.len(), 1);
+        assert!(matches!(diags[0], Diagnostic::PlacedSuccess { .. }));
+    }
+
+    #[test]
+    fn test_spawn_and_transform_diagnostics_wording() {
+        // Test exact wording for spawn (mapped) vs transform (transformed)
+        let params = PlacementParams {
+            anchor: Some(Anchor::Center),
+            size: Some((800, 600)),
+            workarea: sample_workarea(),
+            clamp: true,
+            ..Default::default()
+        };
+
+        let actual = Rect {
+            x: 560,
+            y: 260,
+            width: 800,
+            height: 600,
+        };
+
+        let diags_spawn =
+            evaluate_placement_diagnostics_for_action(&params, actual, None, false, false);
+        let diags_transform =
+            evaluate_placement_diagnostics_for_action(&params, actual, None, false, true);
+
+        assert_eq!(diags_spawn.len(), 1);
+        assert_eq!(diags_transform.len(), 1);
+        assert_eq!(diags_spawn[0].level(), DiagnosticLevel::Info);
+        assert_eq!(diags_transform[0].level(), DiagnosticLevel::Info);
+
+        // Spawn keeps original wording: "Window mapped..."
+        assert_eq!(
+            diags_spawn[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Window mapped at final size (800x600) and positioned at (560, 260)."
+        );
+        // Transform uses transform-fitting wording: "Window transformed..."
+        assert_eq!(
+            diags_transform[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Window transformed at final size (800x600) and positioned at (560, 260)."
+        );
+    }
+
+    #[test]
+    fn test_clamped_explicit_pos_diagnostic_exact_text() {
+        // Live-confirmed cases on host machine:
+        // Window 367x514 on 1920x1040 at (0, 40) with margin 16.
+        // 1. `transform --pos 0 0` lands at (16, 56)
+        let params_0_0 = PlacementParams {
+            pos: Some((0, 0)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_0_0 = Rect {
+            x: 16,
+            y: 56,
+            width: 367,
+            height: 514,
+        };
+        let diags_0_0 =
+            evaluate_placement_diagnostics_for_action(&params_0_0, actual_0_0, None, false, true);
+        assert_eq!(diags_0_0.len(), 1);
+        assert_eq!(diags_0_0[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_0_0[0].message_body(),
+            "Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
+        );
+        assert_eq!(
+            diags_0_0[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]."
+        );
+
+        // 2. `transform --pos 5000 5000` lands at (1537, 550)
+        let params_5000 = PlacementParams {
+            pos: Some((5000, 5000)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_5000 = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        let diags_5000 =
+            evaluate_placement_diagnostics_for_action(&params_5000, actual_5000, None, false, true);
+        assert_eq!(diags_5000.len(), 1);
+        assert_eq!(diags_5000[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_5000[0].message_body(),
+            "Requested (5000, 5000) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
+        );
+        assert_eq!(
+            diags_5000[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (5000, 5000) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
+        );
+    }
+
+    #[test]
+    fn test_anchor_placement_clamped_bounds_exact_text() {
+        use spawn_at_core::geometry::Anchor;
+
+        // 1. Cursor anchor with offset on work area (transform & spawn)
+        let params_cursor_work = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            offset: Some((50, 50)),
+            cursor_pos: Some((1568, 747)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_cursor_work = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        // Transform
+        let diags_cursor_transform = evaluate_placement_diagnostics_for_action(
+            &params_cursor_work,
+            actual_cursor_work,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_cursor_transform.len(), 1);
+        assert_eq!(diags_cursor_transform[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_transform[0].message_body(),
+            "Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
+        );
+        assert_eq!(
+            diags_cursor_transform[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
+        );
+        // Spawn
+        let diags_cursor_spawn = evaluate_placement_diagnostics_for_action(
+            &params_cursor_work,
+            actual_cursor_work,
+            None,
+            false,
+            false,
+        );
+        assert_eq!(diags_cursor_spawn.len(), 1);
+        assert_eq!(diags_cursor_spawn[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_spawn[0].message_body(),
+            "Requested (1618, 757) in the work area; clamped to (1537, 510) [screen (1537, 550)]."
+        );
+
+        // 2. Cursor anchor with offset on screen area
+        let params_cursor_screen = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            offset: Some((50, 50)),
+            cursor_pos: Some((1568, 747)),
+            size: Some((367, 514)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_cursor_screen = Rect {
+            x: 1537,
+            y: 550,
+            width: 367,
+            height: 514,
+        };
+        let diags_cursor_screen = evaluate_placement_diagnostics_for_action(
+            &params_cursor_screen,
+            actual_cursor_screen,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_cursor_screen.len(), 1);
+        assert_eq!(diags_cursor_screen[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_cursor_screen[0].message_body(),
+            "Requested (1618, 797) on the screen; clamped to (1537, 550)."
+        );
+        assert_eq!(
+            diags_cursor_screen[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1618, 797) on the screen; clamped to (1537, 550)."
+        );
+
+        // 3. Screen anchor (TopRight) with offset on work area
+        let params_topright = PlacementParams {
+            anchor: Some(Anchor::TopRight),
+            offset: Some((100, 0)),
+            size: Some((367, 514)),
+            workarea: Rect {
+                x: 0,
+                y: 40,
+                width: 1920,
+                height: 1040,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_topright = Rect {
+            x: 1537,
+            y: 56,
+            width: 367,
+            height: 514,
+        };
+        let diags_topright = evaluate_placement_diagnostics_for_action(
+            &params_topright,
+            actual_topright,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_topright.len(), 1);
+        assert_eq!(diags_topright[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_topright[0].message_body(),
+            "Requested (1637, 16) in the work area; clamped to (1537, 16) [screen (1537, 56)]."
+        );
+        assert_eq!(
+            diags_topright[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (1637, 16) in the work area; clamped to (1537, 16) [screen (1537, 56)]."
+        );
+
+        // 4. Screen anchor (TopLeft) with negative offset on screen area
+        let params_topleft = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            offset: Some((-50, -50)),
+            size: Some((367, 514)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            margin: 16,
+            clamp: true,
+            ..Default::default()
+        };
+        let actual_topleft = Rect {
+            x: 16,
+            y: 16,
+            width: 367,
+            height: 514,
+        };
+        let diags_topleft = evaluate_placement_diagnostics_for_action(
+            &params_topleft,
+            actual_topleft,
+            None,
+            false,
+            true,
+        );
+        assert_eq!(diags_topleft.len(), 1);
+        assert_eq!(diags_topleft[0].level(), DiagnosticLevel::Info);
+        assert_eq!(
+            diags_topleft[0].message_body(),
+            "Requested (-34, -34) on the screen; clamped to (16, 16)."
+        );
+        assert_eq!(
+            diags_topleft[0].format_message_with_capability(ColorCapability::Disabled),
+            "[spawn-at] INFO: Requested (-34, -34) on the screen; clamped to (16, 16)."
+        );
+    }
+
+    #[test]
+    fn test_renderer_snapshot_color_on_exact_escapes() {
+        // INFO: bold blue \x1b[1;34m
+        let info_msg = format_message_with_capability(
+            DiagnosticLevel::Info,
+            "Requested size (30x20) is below toolkit minimums; window will expand.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            info_msg,
+            "\x1b[1;34m[spawn-at] INFO:\x1b[0m Requested size (30x20) is below toolkit minimums; window will expand."
+        );
+
+        // WARNING (TrueColor): 24-bit orange \x1b[1;38;2;255;140;0m
+        let warn_truecolor = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            warn_truecolor,
+            "\x1b[1;38;2;255;140;0m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // WARNING (256-color): 208 orange \x1b[1;38;5;208m
+        let warn_256 = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Color256,
+        );
+        assert_eq!(
+            warn_256,
+            "\x1b[1;38;5;208m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // WARNING (Basic 16-color fallback): ANSI yellow \x1b[1;33m
+        let warn_basic = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Basic,
+        );
+        assert_eq!(
+            warn_basic,
+            "\x1b[1;33m[spawn-at] WARNING:\x1b[0m Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        // ERROR: bold red \x1b[1;31m
+        let error_msg = format_message_with_capability(
+            DiagnosticLevel::Error,
+            "No active window matched criteria.",
+            ColorCapability::TrueColor,
+        );
+        assert_eq!(
+            error_msg,
+            "\x1b[1;31m[spawn-at] ERROR:\x1b[0m No active window matched criteria."
+        );
+    }
+
+    #[test]
+    fn test_renderer_snapshot_color_off() {
+        let info_msg = format_message_with_capability(
+            DiagnosticLevel::Info,
+            "Requested size (30x20) is below toolkit minimums; window will expand.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            info_msg,
+            "[spawn-at] INFO: Requested size (30x20) is below toolkit minimums; window will expand."
+        );
+
+        let warn_msg = format_message_with_capability(
+            DiagnosticLevel::Warning,
+            "Window is oversized (2000x1200); bottom and right margins ignored.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            warn_msg,
+            "[spawn-at] WARNING: Window is oversized (2000x1200); bottom and right margins ignored."
+        );
+
+        let error_msg = format_message_with_capability(
+            DiagnosticLevel::Error,
+            "No active window matched criteria.",
+            ColorCapability::Disabled,
+        );
+        assert_eq!(
+            error_msg,
+            "[spawn-at] ERROR: No active window matched criteria."
+        );
+    }
+
+    #[test]
+    fn test_not_a_tty_disables_color() {
+        assert_eq!(
+            detect_color_capability_for_stream(false),
+            ColorCapability::Disabled
+        );
+    }
+
+    #[test]
+    fn test_no_color_environment_variable() {
+        // Test helper using custom stream capability logic
+        let orig_no_color = std::env::var("NO_COLOR").ok();
+        let orig_term = std::env::var("TERM").ok();
+
+        std::env::set_var("NO_COLOR", "1");
+        assert_eq!(
+            detect_color_capability_for_stream(true),
+            ColorCapability::Disabled
+        );
+
+        std::env::remove_var("NO_COLOR");
+        std::env::set_var("TERM", "dumb");
+        assert_eq!(
+            detect_color_capability_for_stream(true),
+            ColorCapability::Disabled
+        );
+
+        // Restore environment
+        match orig_no_color {
+            Some(v) => std::env::set_var("NO_COLOR", v),
+            None => std::env::remove_var("NO_COLOR"),
+        }
+        match orig_term {
+            Some(v) => std::env::set_var("TERM", v),
+            None => std::env::remove_var("TERM"),
+        }
+    }
+
+    #[test]
+    fn test_no_raw_spawn_at_prints_outside_renderer() {
+        let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let src_dir = manifest_dir.join("src");
+        let mut violations = Vec::new();
+
+        fn check_dir(dir: &std::path::Path, violations: &mut Vec<String>) {
+            let entries = match std::fs::read_dir(dir) {
+                Ok(e) => e,
+                Err(_) => return,
+            };
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.is_dir() {
+                    check_dir(&path, violations);
+                } else if path.extension().is_some_and(|ext| ext == "rs") {
+                    if path
+                        .file_name()
+                        .is_some_and(|name| name == "diagnostics.rs")
+                    {
+                        continue;
+                    }
+                    let content = std::fs::read_to_string(&path).unwrap_or_default();
+                    for (line_idx, line) in content.lines().enumerate() {
+                        let trimmed = line.trim();
+                        // Ignore SPAWN_AT_DEBUG macro calls and definitions
+                        if trimmed.starts_with("//")
+                            || trimmed.contains("x11_debug!")
+                            || trimmed.contains("SPAWN_AT_DEBUG")
+                        {
+                            continue;
+                        }
+                        if (trimmed.contains("eprintln!")
+                            || trimmed.contains("println!")
+                            || trimmed.contains("eprint!")
+                            || trimmed.contains("print!"))
+                            && trimmed.contains("[spawn-at]")
+                        {
+                            violations.push(format!(
+                                "{}:{}: {}",
+                                path.strip_prefix(std::path::Path::new(env!("CARGO_MANIFEST_DIR")))
+                                    .unwrap_or(&path)
+                                    .display(),
+                                line_idx + 1,
+                                trimmed
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        check_dir(&src_dir, &mut violations);
+        assert!(
+            violations.is_empty(),
+            "Found raw '[spawn-at]' print calls outside src/diagnostics.rs:\n{}",
+            violations.join("\n")
+        );
+    }
+}

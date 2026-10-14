@@ -1,0 +1,50 @@
+id = "placement/center-200x150"
+category = "placement"
+title = "Small 200x150 window centered in the work area"
+description = "Spawns a 200x150 test window centered in the work area."
+kind = "both"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Center200x150",
+    "--app-id", "verify.placement.center200x150",
+    "--expect", "Should appear small and centered"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.center200x150",
+    "--anchor", "center",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "center"
+size = [200, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did a small window appear once in the middle of the screen at the requested size, without flickering or jumping?"

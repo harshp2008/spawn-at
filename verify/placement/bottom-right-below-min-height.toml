@@ -1,0 +1,52 @@
+id = "placement/bottom-right-below-min-height"
+category = "placement"
+title = "Request below the minimum height (400x150 vs min 300x200), bottom-right"
+description = "The fixture enforces a 300x200 minimum and is asked for 400x150: the height is raised to 200, the final size is 400x200, and the window must sit in the bottom-right corner for that size."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture", "resize"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+min_width = 300
+min_height = 200
+args = [
+    "--title", "Verify-Placement-BottomRightBelowMinHeight",
+    "--app-id", "verify.placement.bottomrightbelowminheight",
+    "--expect", "Should be 400x200 in the bottom-right corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.bottomrightbelowminheight",
+    "--anchor", "bottom-right",
+    "--size", "400", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once, 200 high, in the bottom-right corner?"

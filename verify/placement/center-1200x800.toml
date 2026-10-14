@@ -1,0 +1,50 @@
+id = "placement/center-1200x800"
+category = "placement"
+title = "Large 1200x800 window centered in the work area"
+description = "Spawns a 1200x800 test window centered in the work area."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Center1200x800",
+    "--app-id", "verify.placement.center1200x800",
+    "--expect", "Should appear large and centered"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.center1200x800",
+    "--anchor", "center",
+    "--size", "1200", "800",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "center"
+size = [1200, 800]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did a large window appear once in the middle of the screen at the requested size, without flickering or jumping?"

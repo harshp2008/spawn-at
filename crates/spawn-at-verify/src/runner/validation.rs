@@ -1,0 +1,407 @@
+//! Expectation verification, output matching, and action argument building.
+
+use super::models::AutoStatus;
+use crate::oracle::check::expected_rect;
+use crate::oracle::{check_geometry_final, settle_needed, GeometryCheck, GeometryStatus, Rect};
+use crate::probe::EnvironmentInfo;
+use crate::schema::{ExpectRect, TestDefinition, TestKind};
+use crate::trace::wait::WaitRequest;
+use regex::Regex;
+use std::path::Path;
+
+/// Assembles command-line arguments for executing a test action or spawning a fixture.
+///
+/// `wait` is the developer override of `run --wait-strategy / --wait-cap-ms`; it is added to a
+/// `spawn` action only (before the `--` that starts the spawned command) and an empty request
+/// adds nothing, so the argument list is the one built without it.
+pub fn build_action_command_args(
+    test: &TestDefinition,
+    fixture_bin: &Path,
+    wait: &WaitRequest,
+) -> Vec<String> {
+    let mut args = Vec::new();
+    args.push(test.action.command.clone());
+    for arg in &test.action.args {
+        args.push(arg.clone());
+    }
+    if test.action.command == "spawn" {
+        wait.append_to(&mut args);
+    }
+
+    if test.action.command == "spawn" {
+        if let Some(sub) = &test.subject {
+            if sub.app == "fixture" {
+                if !args.contains(&"--json".to_string()) {
+                    args.push("--json".to_string());
+                }
+                // If action.args does not already contain --class / -c, forward --app-id from subject.args
+                if !args.contains(&"--class".to_string()) && !args.contains(&"-c".to_string()) {
+                    for pair in sub.args.windows(2) {
+                        if pair[0] == "--app-id" {
+                            args.push("--class".to_string());
+                            args.push(pair[1].clone());
+                            break;
+                        }
+                    }
+                }
+                args.push("--".to_string());
+                args.push(fixture_bin.to_string_lossy().to_string());
+                let mut has_exit_after = false;
+                for sarg in &sub.args {
+                    if sarg == "--exit-after-ms" {
+                        has_exit_after = true;
+                    }
+                    args.push(sarg.clone());
+                }
+                // The declared fixture minimums become `--min-width` / `--min-height` unless the
+                // spec already spells the flag out in `subject.args`.
+                if let Some(mw) = sub.min_width {
+                    if !sub.args.iter().any(|a| a == "--min-width") {
+                        args.push("--min-width".to_string());
+                        args.push(mw.to_string());
+                    }
+                }
+                if let Some(mh) = sub.min_height {
+                    if !sub.args.iter().any(|a| a == "--min-height") {
+                        args.push("--min-height".to_string());
+                        args.push(mh.to_string());
+                    }
+                }
+                // Bounded crash/kill-9 backstop: ensure fixture process self-terminates
+                // if test harness crashes or receives SIGKILL mid-execution.
+                // For human visual review (Human/Both), allow 5 minutes (300,000ms) for observation;
+                // for automated runs, 10,000ms comfortably outlasts the 5s test step timeout.
+                if !has_exit_after {
+                    args.push("--exit-after-ms".to_string());
+                    let timeout = match test.kind {
+                        TestKind::Human | TestKind::Both => "300000",
+                        TestKind::Auto => "10000",
+                    };
+                    args.push(timeout.to_string());
+                }
+            } else if let Some(sys_app) = sub.app.strip_prefix("system:") {
+                if !args.contains(&"--json".to_string()) {
+                    args.push("--json".to_string());
+                }
+                args.push("--".to_string());
+                args.push(sys_app.to_string());
+                for sarg in &sub.args {
+                    args.push(sarg.clone());
+                }
+            }
+        }
+    }
+
+    args
+}
+
+/// Validates automated expectations: exit code, stderr tokens/regexes, and geometric oracle rect.
+pub fn validate_expectations(
+    test: &TestDefinition,
+    actual_exit_code: i32,
+    actual_stderr: &str,
+    env_info: &EnvironmentInfo,
+) -> Result<(), String> {
+    // 1. Exit code check
+    if actual_exit_code != test.expect.exit_code {
+        return Err(format!(
+            "Exit code mismatch: expected {}, got {}",
+            test.expect.exit_code, actual_exit_code
+        ));
+    }
+
+    // 2. stderr_absent assertions
+    for pattern in &test.expect.stderr_absent {
+        if check_pattern_match(pattern, actual_stderr)? {
+            return Err(format!(
+                "Forbidden token or pattern '{}' found in stderr:\n{}",
+                pattern, actual_stderr
+            ));
+        }
+    }
+
+    // 3. stderr_present assertions
+    for pattern in &test.expect.stderr_present {
+        if !check_pattern_match(pattern, actual_stderr)? {
+            return Err(format!(
+                "Required token or pattern '{}' missing from stderr:\n{}",
+                pattern, actual_stderr
+            ));
+        }
+    }
+
+    // 4. Geometric oracle check
+    if let Some(expect_rect) = &test.expect.rect {
+        if let Some(workarea) = env_info.primary_workarea {
+            verify_oracle_rect(expect_rect, workarea)?;
+        }
+    }
+
+    Ok(())
+}
+
+/// The `resize` object of the CLI's `--json` output (`spawn_at_core::resize_report`), read from
+/// the printed JSON. This crate depends on the core only for tests, so it keeps its own shape.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+pub struct PrintedResize {
+    /// `reached`, `adjusted`, `timed-out` or `skipped`.
+    pub outcome: String,
+    /// The frame size when the wait ended.
+    #[serde(rename = "final")]
+    pub final_size: PrintedDim,
+    /// Milliseconds the wait reports.
+    pub waited_ms: u32,
+    /// Why the wait ended.
+    pub reason: String,
+}
+
+/// A width and height as printed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize)]
+pub struct PrintedDim {
+    /// Width in pixels.
+    pub w: u32,
+    /// Height in pixels.
+    pub h: u32,
+}
+
+/// The `resize` object in the first JSON object of `stdout` that has one (`None`: no JSON, or
+/// `"resize": null` / absent, as the legacy rule and an old extension print).
+pub fn printed_resize(stdout: &str) -> Option<PrintedResize> {
+    stdout.lines().find_map(|line| {
+        let v: serde_json::Value = serde_json::from_str(line.trim()).ok()?;
+        serde_json::from_value(v.get("resize")?.clone()).ok()
+    })
+}
+
+/// Checks `[expect.resize]` against the printed `resize` object. `legacy_run` says the run used
+/// the original quiet rule, which reports no outcome: the expectation is then not judged (`Ok`).
+/// A ready-wait run that printed no outcome fails, naming what is missing.
+pub fn validate_resize(
+    test: &TestDefinition,
+    stdout: &str,
+    legacy_run: bool,
+) -> Result<(), String> {
+    let Some(want) = &test.expect.resize else {
+        return Ok(());
+    };
+    if legacy_run {
+        return Ok(());
+    }
+    let Some(got) = printed_resize(stdout) else {
+        return Err(format!(
+            "Expected resize outcome '{}' but the CLI printed none (no ready-wait outcome in the JSON)",
+            want.outcome
+        ));
+    };
+    let mut problems = Vec::new();
+    if got.outcome != want.outcome {
+        problems.push(format!(
+            "outcome {} (expected {})",
+            got.outcome, want.outcome
+        ));
+    }
+    if let Some(reason) = &want.reason {
+        if &got.reason != reason {
+            problems.push(format!("reason {} (expected {})", got.reason, reason));
+        }
+    }
+    if let Some(min) = want.waited_ms_min {
+        if got.waited_ms < min {
+            problems.push(format!(
+                "waited_ms {} (expected at least {})",
+                got.waited_ms, min
+            ));
+        }
+    }
+    if let Some(max) = want.waited_ms_max {
+        if got.waited_ms > max {
+            problems.push(format!(
+                "waited_ms {} (expected at most {})",
+                got.waited_ms, max
+            ));
+        }
+    }
+    if let Some(size) = &want.final_size {
+        if let [w, h] = size[..] {
+            let tol = want.tolerance_px;
+            if got.final_size.w.abs_diff(w) > tol || got.final_size.h.abs_diff(h) > tol {
+                problems.push(format!(
+                    "final size {}x{} (expected {}x{} within {} px)",
+                    got.final_size.w, got.final_size.h, w, h, tol
+                ));
+            }
+        } else {
+            problems.push("final_size in the spec must be [w, h]".to_string());
+        }
+    }
+    if problems.is_empty() {
+        Ok(())
+    } else {
+        Err(format!("Resize outcome mismatch: {}", problems.join("; ")))
+    }
+}
+
+/// Checks if pattern matches text. Supports literal string matching or `re:` prefix for regex.
+pub fn check_pattern_match(pattern: &str, text: &str) -> Result<bool, String> {
+    if let Some(regex_str) = pattern.strip_prefix("re:") {
+        let regex =
+            Regex::new(regex_str).map_err(|e| format!("Invalid regex '{}': {}", regex_str, e))?;
+        Ok(regex.is_match(text))
+    } else {
+        Ok(text.contains(pattern))
+    }
+}
+
+/// Checks that the oracle can compute an expected rectangle for the spec's anchor, pivot and
+/// margins (an unknown anchor name is an error in the test definition). It does not compare
+/// anything with an observed window: that is [`validate_geometry`].
+fn verify_oracle_rect(expect_rect: &ExpectRect, workarea: Rect) -> Result<(), String> {
+    let size = match &expect_rect.size {
+        Some(s) if s.len() >= 2 => (s[0], s[1]),
+        _ => (400, 300),
+    };
+    expected_rect(expect_rect, workarea, size).map(|_| ())
+}
+
+/// Compares the window observed in `stdout` with the oracle's expected rectangle within the
+/// spec's tolerance. This is the same comparison the drawer shows
+/// ([`crate::oracle::GeometryCheck`]), so the verdict and the table cannot disagree.
+///
+/// The workarea is the independent one (`env_info.independent_workarea`, read from the window
+/// system);
+/// the extension's own values (`query layout`, logged bounds) are cross-checks and a fallback when nothing was
+/// probed.
+///
+/// Returns `Ok(None)` when the test has no rectangle expectation, `Ok(Some(check))` otherwise,
+/// and `Err` only for a measured mismatch. The caller must look at
+/// [`GeometryCheck::status`](crate::oracle::GeometryCheck::status): `Unchecked` (no workarea)
+/// and `NotMeasured` (no observed rectangle) are not passes.
+pub fn validate_geometry(
+    test: &TestDefinition,
+    stdout: &str,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+) -> Result<Option<crate::oracle::GeometryCheck>, String> {
+    validate_geometry_final(test, stdout, None, log_slice, env_info)
+}
+
+/// [`validate_geometry`] judged on `final_rect` (the window re-read after the settle) when it
+/// is `Some`; the printed rectangle is then only reported, as a warning on the check.
+pub fn validate_geometry_final(
+    test: &TestDefinition,
+    stdout: &str,
+    final_rect: Option<Rect>,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+) -> Result<Option<crate::oracle::GeometryCheck>, String> {
+    match &test.effective_expect_rect() {
+        Some(expect) => {
+            let check = check_geometry_final(
+                expect,
+                stdout,
+                final_rect,
+                log_slice,
+                env_info.workarea_probe(),
+            );
+            check.verdict().map(|()| Some(check))
+        }
+        None => Ok(None),
+    }
+}
+
+/// What the settle step found for one run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Settle {
+    /// The printed rectangle already matched (or could not be judged): `read` was not called
+    /// and nothing was waited for.
+    NotNeeded,
+    /// The window was waited for and re-read; this is its rectangle.
+    Read(Rect),
+    /// The window was waited for but its rectangle could not be read (gone, or no id).
+    Unreadable,
+}
+
+/// Decides whether to settle and, only if so, calls `wait_and_read` once. The runner passes a
+/// closure that sleeps [`crate::oracle::SETTLE_MS`] and then reads the window's rectangle, so
+/// a run whose printed rectangle already matches takes no extra time.
+pub fn settle_final_rect(
+    test: &TestDefinition,
+    stdout: &str,
+    log_slice: Option<&str>,
+    env_info: &EnvironmentInfo,
+    wait_and_read: impl FnOnce() -> Option<Rect>,
+) -> Settle {
+    let Some(expect) = test.effective_expect_rect() else {
+        return Settle::NotNeeded;
+    };
+    if !settle_needed(&expect, stdout, log_slice, env_info.workarea_probe()) {
+        return Settle::NotNeeded;
+    }
+    match wait_and_read() {
+        Some(r) => Settle::Read(r),
+        None => Settle::Unreadable,
+    }
+}
+
+/// Automated status and result message for a test whose validation did not fail, given its
+/// geometry check (`None` when the test states no rectangle expectation).
+///
+/// - no check, or a measured pass on an independent workarea: `AutoPass`, "Assertions passed";
+/// - no workarea at all: `AutoPassUnchecked`, with the message saying geometry was not verified;
+/// - otherwise `AutoPass` with a note for each caveat: no rectangle in stdout, a probe/extension
+///   workarea conflict, or a workarea supplied by the extension itself.
+pub fn pass_assessment(check: Option<&GeometryCheck>) -> (AutoStatus, String) {
+    let mut message = String::from("Assertions passed");
+    let Some(c) = check else {
+        return (AutoStatus::AutoPass, message);
+    };
+    if c.status() == GeometryStatus::Unchecked {
+        message = "Assertions passed, but geometry was not verified: no workarea available from the window system or the extension".into();
+        return (AutoStatus::AutoPassUnchecked, message);
+    }
+    if c.status() == GeometryStatus::NotMeasured {
+        message.push_str(" (geometry not measured: no rectangle in stdout)");
+    }
+    for w in c.warnings() {
+        message.push_str(&format!(" (warning: {})", w));
+    }
+    if c.workarea_source.is_extension_derived() {
+        message.push_str(" (workarea taken from the extension, not independently probed)");
+    }
+    (AutoStatus::AutoPass, message)
+}
+
+/// Whether the action was expected to fail with a non-zero exit code and did fail with exactly
+/// that code (for example `spawn --size 0 150`, which the CLI rejects with exit 2 before any
+/// window exists). No window can be attributed to such a run, so attribution is skipped.
+pub fn expects_no_window(test: &TestDefinition, exit_code: i32) -> bool {
+    test.expect.exit_code != 0 && exit_code == test.expect.exit_code
+}
+
+/// Whether a passing result for `test` depends on the extension's trace: it asserts that the
+/// window is never visible off target, or it is a cloak test (id under `cloak/`).
+pub fn needs_trace(test: &TestDefinition) -> bool {
+    test.expect.never_visible_off_target || test.id.starts_with("cloak/")
+}
+
+/// Extracts claimed window ID from command output (e.g. from `spawn-at spawn --json` or SpawnClaimed signal).
+pub fn extract_claimed_window_id(stdout: &str, stderr: &str) -> Option<u64> {
+    // 1. Try parsing structured JSON output from `spawn-at spawn --json`
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(stdout.trim()) {
+        if let Some(id) = val.get("window_id").and_then(|v| v.as_u64()) {
+            return Some(id);
+        }
+        if val.get("window_id").is_some() {
+            // Explicit JSON was produced with null window_id (e.g. reused window or timeout);
+            // do not fallback to accidental regex matches
+            return None;
+        }
+    }
+
+    let re = Regex::new(r#"(?i)(?:window_id|window id|claimed window)\s*[:=]?\s*(\d+)"#).ok()?;
+    if let Some(caps) = re.captures(stdout).or_else(|| re.captures(stderr)) {
+        caps.get(1)?.as_str().parse().ok()
+    } else {
+        None
+    }
+}

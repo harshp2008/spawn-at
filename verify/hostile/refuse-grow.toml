@@ -1,0 +1,53 @@
+id = "hostile/refuse-grow"
+category = "hostile"
+title = "App refuses to grow past 500x400"
+description = "Fixture sets a maximum of 500x400 and the request is 800x600. The compositor clamps the request to the maximum, the app answers 500x400: Adjusted(500x400) after the quiet window (no cap timeout)."
+kind = "auto"
+required = false
+tags = ["hostile", "needs-fixture", "ready-wait"]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "46-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "hostile"
+args = [
+    "--title", "Verify-Hostile-RefuseGrow",
+    "--app-id", "verify.hostile.refuse-grow",
+    "--width", "400",
+    "--height", "300",
+    "--max-size", "500x400",
+    "--expect", "App refuses to grow past 500x400"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.hostile.refuse-grow",
+    "--anchor", "bottom-right",
+    "--size", "800", "600",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.resize]
+outcome = "adjusted"
+reason = "quiet"
+waited_ms_max = 249
+final_size = [500, 400]
+
+[human]
+watch = "Did the window appear once and end at a sensible size?"

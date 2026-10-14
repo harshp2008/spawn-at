@@ -40,8 +40,8 @@ Welcome to the `spawn-at` developer and contributor guide! This document details
   - `linux/x11.rs`: Fallback driver for legacy X11 sessions.
   - `linux/xdg.rs`: FreeDesktop desktop entry parsing, Flatpak/Snap application ID resolution, and `$XDG_DATA_DIRS` lookup.
 - **`assets/`**: Embedded asset payloads:
-  - `gnome/extension.esm.js`: GNOME Shell extension code (`spawn-at@harsh.local`).
-  - `gnome/metadata.json`: GNOME Shell extension manifest.
+  - `gnome/modern/`: GNOME Shell extension for GNOME 45 and later (`spawn-at@harsh.local`): `extension.js` plus its modules and `metadata.json`.
+  - `gnome/legacy/`: the GNOME 42-44 extension, with its own `metadata.json`.
 
 ---
 
@@ -60,7 +60,7 @@ All compositor-specific IPC mechanisms (D-Bus, UNIX domain sockets, X11 atom man
 
 ## 3. GNOME Wayland "Opacity Cloaking" Lifecycle
 
-Under Wayland, client applications are sandboxed and cannot position their own windows. `spawn-at` uses an embedded GNOME Shell extension ([`assets/gnome/extension.esm.js`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/assets/gnome/extension.esm.js)) to achieve zero-flicker cold-starts:
+Under Wayland, client applications are sandboxed and cannot position their own windows. `spawn-at` uses an embedded GNOME Shell extension ([`assets/gnome/modern/extension.js`](assets/gnome/modern/extension.js)) to place windows with few flashes (see the README, "How well it works"):
 
 ```text
 [spawn-at CLI] ───1. D-Bus Arm(app_id, x, y, w, h)───► [GNOME Shell Extension]

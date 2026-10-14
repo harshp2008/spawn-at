@@ -4,9 +4,14 @@
 
 pub mod driver;
 pub mod geometry;
+pub mod ready_wait;
+pub mod resize_report;
+pub mod settings;
+pub mod wait_override;
 
 pub use driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
 pub use geometry::{
-    apply_anchor, apply_pivot, calculate, clamp_to_bounds, resolve_workarea, Anchor, Area,
-    GeometryParams, Pivot, PlacementParams, Rect, TargetGeometry,
+    apply_anchor, apply_pivot, calculate_rect_from_placement, check_geometry_diagnostics,
+    clamp_to_bounds, compute_screen_anchor, resolve_workarea, Anchor, Area, GeometryDiagnostic,
+    Pivot, PlacementParams, Rect,
 };

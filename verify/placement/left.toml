@@ -1,0 +1,50 @@
+id = "placement/left"
+category = "placement"
+title = "Window placed at left edge"
+description = "Spawns a test window anchored to the left edge of the work area with a 16px boundary margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Left",
+    "--app-id", "verify.placement.left",
+    "--expect", "Should appear at left edge"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.left",
+    "--anchor", "left",
+    "--size", "400", "300",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "left"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at the left edge with a small gap from the screen edge, without flickering or jumping?"

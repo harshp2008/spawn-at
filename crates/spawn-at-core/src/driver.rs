@@ -2,9 +2,10 @@
 //!
 //! Defines the high-level declarative `Batch` intent and the asynchronous `Driver` trait.
 
-use std::time::Duration;
-use serde::{Deserialize, Serialize};
 use crate::geometry::PlacementParams;
+use crate::wait_override::WaitOverride;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 /// Defines the visual presentation strategy for batched window reveals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,6 +45,10 @@ pub struct Entry {
     pub app_hint: String,
     /// Declarative spatial geometry and alignment constraints.
     pub placement: PlacementParams,
+    /// Developer override of the resize wait for this entry only; the default changes nothing and
+    /// is not serialised.
+    #[serde(default, skip_serializing_if = "WaitOverride::is_default")]
+    pub wait: WaitOverride,
 }
 
 /// A declarative batch of windows to be orchestrated and placed by the compositor driver.
@@ -69,6 +74,8 @@ pub struct Armed {
     /// Key-value environment variables to inject into spawned child processes
     /// (e.g. `XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`).
     pub launch_env: Vec<(String, String)>,
+    /// Optional identifier or token corresponding to this armed registration.
+    pub token: Option<String>,
 }
 
 /// Error type produced by driver arming and execution.
@@ -89,10 +96,18 @@ impl std::fmt::Display for DriverError {
         match self {
             DriverError::IpcError(err) => write!(f, "IPC Error: {}", err),
             DriverError::UnsupportedCapability(feature) => {
-                write!(f, "The active compositor does not support this feature: {}", feature)
+                if *feature == "close_window" || feature.starts_with("this backend") {
+                    write!(f, "this backend cannot close windows")
+                } else {
+                    write!(
+                        f,
+                        "The active compositor does not support this feature: {}",
+                        feature
+                    )
+                }
             }
             DriverError::TargetNotFound(target) => write!(f, "Target window not found: {}", target),
-            DriverError::Execution(err) => write!(f, "Driver execution error: {}", err),
+            DriverError::Execution(err) => write!(f, "{}", err),
         }
     }
 }
@@ -117,4 +132,9 @@ impl From<String> for DriverError {
 pub trait Driver: Send + Sync {
     /// Arms the compositor with the declarative batch intent before processes are launched.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError>;
+
+    /// Disarms a previously armed token (best-effort, idempotent).
+    async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
+        Ok(false)
+    }
 }

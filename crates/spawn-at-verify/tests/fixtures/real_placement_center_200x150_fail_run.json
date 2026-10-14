@@ -1,0 +1,53 @@
+{
+  "environment": {
+    "hostname": "redacted",
+    "session_type": "wayland",
+    "desktop": "ubuntu:gnome",
+    "gnome_version": 46,
+    "monitors_count": 1,
+    "primary_workarea": {
+      "x": 0,
+      "y": 40,
+      "w": 1920,
+      "h": 1040
+    },
+    "independent_workarea": {
+      "x": 0,
+      "y": 40,
+      "w": 1920,
+      "h": 1040
+    },
+    "binary_path": "target/debug/spawn-at",
+    "binary_commit": "e59619b",
+    "is_dirty_build": false,
+    "generated_at": 1791775031
+  },
+  "qualification": {
+    "supported": false,
+    "total_required": 1,
+    "passed_required": 0,
+    "failed_required": 1,
+    "skipped_required": []
+  },
+  "results": [
+    {
+      "id": "placement/center-200x150",
+      "title": "Small 200x150 window centered in the work area",
+      "kind": "both",
+      "required": true,
+      "auto_status": "auto-fail",
+      "human_verdict": {
+        "verdict": "unset",
+        "note": null
+      },
+      "final_status": "fail",
+      "disagreement": false,
+      "duration_ms": 442,
+      "exit_code": 0,
+      "stdout": "{\"window_id\":710053678,\"x\":760,\"y\":410,\"w\":200,\"h\":150,\"rel_x\":760,\"rel_y\":370,\"area\":\"workarea\",\"size_raised\":false,\"raised_w\":false,\"raised_h\":false,\"reused_existing_window\":false,\"source\":\"claim\"}\n",
+      "stderr": "[spawn-at] WARNING: Window mapped at (760, 410) [200x150] but expected position was (860, 485). Window was not positioned at target.\n",
+      "message": "Forbidden token or pattern '[spawn-at] WARNING:' found in stderr:\n[spawn-at] WARNING: Window mapped at (760, 410) [200x150] but expected position was (860, 485). Window was not positioned at target.\n",
+      "log_slice": "[spawn-at-time] +1261044.60ms | SET_LOGGING enabled=true\n[spawn-at-time] +1261080.52ms | ARM_SPAWN target=\"verify.placement.center200x150\"\n[spawn-at-time] +1261088.75ms | WINDOW_CREATED win=[id=710053678 pid=1906993 class=\"\" app=\"\" type=NORMAL proto=Wayland] actorFound=true\n[spawn-at-time] +1261132.02ms | ACTOR_MAP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland]\n[spawn-at-time] +1261132.08ms | DISPATCH win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] instructionsCount=5\n[spawn-at-time] +1261132.24ms | BATCH_STEP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] inst=Cloak\n[spawn-at-time] +1261132.27ms | CLOAK win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,400x300)\n[spawn-at-time] +1261132.28ms | BATCH_STEP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] inst=SetSize\n[spawn-at-time] +1261132.35ms | SET_SIZE_REQUEST win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] requestedSize=(200x150) clampedSafeSize=(200x150) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)\n[spawn-at-time] +1261132.41ms | AFTER_SET_SIZE win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,400x300)\n[spawn-at-time] +1261132.43ms | BATCH_STEP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] inst=WaitForCommit\n[spawn-at-time] +1261132.52ms | COMMIT_SAMPLE win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] source=initial frame=(400x300) last=(400x300)\n[spawn-at-time] +1261134.15ms | COMMIT_SAMPLE win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] source=allocation frame=(400x300) last=(400x300)\n[spawn-at-time] +1261165.61ms | COMMIT_RESOLVED win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(400x300) target=(200x150) safe=(200x150)\n[spawn-at-time] +1261165.72ms | BATCH_STEP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] inst=SetPositionAnchored\n[spawn-at-time] +1261165.97ms | FALLBACK_USED win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] reason=\"min size unreported\" usingFrame=(400x300)\n[spawn-at-time] +1261165.99ms | APPLY_ANCHOR win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] eff=(400x300) bounds=(0,40,1920x1040) final=(760,410)\n[spawn-at-time] +1261166.04ms | POSITION_SET win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] preFrame=(50,90,400x300) postFrame=(760,410,400x300) bufferRect=(760,410,400x300) actor=(760,410) delta=(710,320)\n[spawn-at-time] +1261166.06ms | AFTER_SET_POSITION_ANCHORED win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(760,410,400x300)\n[spawn-at-time] +1261166.07ms | BATCH_STEP win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] inst=Uncloak\n[spawn-at-time] +1261166.11ms | UNCLOAK_4A win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] delay=0ms (skipped)\n[spawn-at-time] +1261166.43ms | UNCLOAK_4B win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false\n[spawn-at-time] +1261166.44ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] reason=\"non-VTE toolkit; bypassing synthetic defocus\"\n[spawn-at-time] +1261166.47ms | UNCLOAK_4C win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] positioned=(400x300) actual=(400x300) needsReanchor=false\n[spawn-at-time] +1261170.19ms | UNCLOAK win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] opacity=255 frame=(760,410,200x150)\n[spawn-at-time] +1261170.23ms | UNCLOAK_4D_REVEAL win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland] requestedSize=(200x150) postFrame=(760,410,200x150) bufferRect=(760,410,200x150)\n[spawn-at-time] +1261170.26ms | ANCHOR_ARMED win=[id=710053678 pid=1906993 class=\"verify.placement.center200x150\" app=\"\" type=NORMAL proto=Wayland]"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+id = "placement/top-right-smaller"
+category = "placement"
+title = "Smaller 200x150 window at the top-right corner"
+description = "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the top-right anchor with a 16px margin: a real shrink that is legal for the app."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture", "resize"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+min_width = 100
+min_height = 100
+args = [
+    "--title", "Verify-Placement-TopRightSmaller",
+    "--app-id", "verify.placement.toprightsmaller",
+    "--expect", "Should shrink to 200x150 at the top-right corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.toprightsmaller",
+    "--anchor", "top-right",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "top-right"
+size = [200, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at the small size at the top-right corner, 16px from the edge?"

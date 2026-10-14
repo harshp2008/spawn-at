@@ -4,31 +4,12 @@
 //! notification settings, and cached version metadata.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
-
-#[derive(Debug, Deserialize, Serialize, Clone, PartialEq)]
-#[serde(rename_all = "kebab-case")]
-pub enum WindowMode {
-    SpawnOnly,
-    ClampOnChange,
-    PinnedBounds,
-}
-
-#[derive(Debug, Deserialize, Serialize, Clone)]
-pub struct AppRule {
-    pub mode: WindowMode,
-    pub margin: Option<u32>,
-    pub avoid_panels: Option<bool>,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
-    #[serde(default)]
-    pub apps: HashMap<String, AppRule>,
-
     #[serde(default)]
     pub update: UpdateConfig,
 }
@@ -38,7 +19,7 @@ pub struct UpdateConfig {
     #[serde(default = "default_true")]
     pub auto_check: bool,
 
-    /// Release channel: "stable" (official releases only) or "all" (includes beta/pre-releases)
+    /// Release channel: "stable" (official releases only) or "beta"
     #[serde(default = "default_channel")]
     pub channel: String,
 
@@ -50,9 +31,17 @@ pub struct UpdateConfig {
     #[serde(default)]
     pub last_check_time: u64,
 
-    /// Latest release version tag cached from GitHub
-    #[serde(default)]
-    pub latest_cached_version: String,
+    /// Cached newest stable release tag from GitHub
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_stable_version: Option<String>,
+
+    /// Cached newest beta/prerelease release tag from GitHub
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cached_beta_version: Option<String>,
+
+    /// Legacy v0.1 cached version field retained for backward-compatible deserialization
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latest_cached_version: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -70,16 +59,56 @@ impl Default for UpdateConfig {
             channel: "stable".to_string(),
             notify: true,
             last_check_time: 0,
-            latest_cached_version: String::new(),
+            cached_stable_version: None,
+            cached_beta_version: None,
+            latest_cached_version: None,
+        }
+    }
+}
+
+impl UpdateConfig {
+    /// Returns the cached version tag for the specified channel ("stable" or "beta").
+    pub fn cached_version_for_channel(&self, channel: &str) -> Option<&str> {
+        if channel == "beta" {
+            // For beta channel, take whichever cached version is higher
+            match (&self.cached_beta_version, &self.cached_stable_version) {
+                (Some(b), Some(s)) => {
+                    let b_ver = crate::update::parse_semver(b);
+                    let s_ver = crate::update::parse_semver(s);
+                    match (b_ver, s_ver) {
+                        (Some(bv), Some(sv)) => {
+                            if bv >= sv {
+                                Some(b.as_str())
+                            } else {
+                                Some(s.as_str())
+                            }
+                        }
+                        (Some(_), None) => Some(b.as_str()),
+                        (None, Some(_)) => Some(s.as_str()),
+                        (None, None) => None,
+                    }
+                }
+                (Some(b), None) => Some(b.as_str()),
+                (None, Some(s)) => Some(s.as_str()),
+                (None, None) => self.latest_cached_version.as_deref(),
+            }
+        } else {
+            self.cached_stable_version
+                .as_deref()
+                .or(self.latest_cached_version.as_deref())
         }
     }
 }
 
 impl Config {
-    /// Returns path to `~/.config/spawn-at/config.toml`.
+    /// Returns the path of the config file: `$SPAWN_AT_CONFIG`, else
+    /// `$XDG_CONFIG_HOME/spawn-at/config.toml`, else `~/.config/spawn-at/config.toml` (the same
+    /// file `spawn-at config` edits).
     pub fn config_path() -> Result<PathBuf, String> {
-        let home = std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
-        Ok(PathBuf::from(home).join(".config/spawn-at/config.toml"))
+        crate::platform::linux::config_store::LinuxConfigStore::from_env()
+            .path()
+            .cloned()
+            .map_err(|_| "Failed to determine HOME directory".to_string())
     }
 
     /// Loads the configuration from disk, returning None if absent or corrupt.
@@ -87,7 +116,21 @@ impl Config {
         let path = Self::config_path().ok()?;
         if path.exists() {
             if let Ok(content) = fs::read_to_string(&path) {
-                if let Ok(cfg) = toml::from_str::<Config>(&content) {
+                if let Ok(mut cfg) = toml::from_str::<Config>(&content) {
+                    // Migrate legacy latest_cached_version if new fields are not populated
+                    if cfg.update.cached_stable_version.is_none()
+                        && cfg.update.cached_beta_version.is_none()
+                    {
+                        if let Some(ref legacy) = cfg.update.latest_cached_version {
+                            if let Some(v) = crate::update::parse_semver(legacy) {
+                                if v.pre.is_empty() {
+                                    cfg.update.cached_stable_version = Some(legacy.clone());
+                                } else {
+                                    cfg.update.cached_beta_version = Some(legacy.clone());
+                                }
+                            }
+                        }
+                    }
                     return Some(cfg);
                 }
             }
@@ -100,18 +143,33 @@ impl Config {
         Self::load().unwrap_or_default()
     }
 
-    /// Persists the configuration to `~/.config/spawn-at/config.toml`.
+    /// Persists the update preferences to the config file. Only the `[update]` table is
+    /// replaced: the settings written by `spawn-at config` and any other key already in the file
+    /// are kept, and the file is replaced atomically. A file that is not valid TOML is
+    /// overwritten, as before (the update checker owns what it can read back).
     pub fn save(&self) -> Result<(), String> {
-        let path = Self::config_path()?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create config dir '{}': {}", parent.display(), e))?;
-        }
-        let serialized = toml::to_string_pretty(self)
+        let store = crate::platform::linux::config_store::LinuxConfigStore::from_env();
+        store.path()?;
+        self.save_to(&store)
+    }
+
+    /// [`Config::save`] into `store`.
+    pub fn save_to(
+        &self,
+        store: &dyn spawn_at_core::settings::SettingsStore,
+    ) -> Result<(), String> {
+        let mut table = store
+            .read()?
+            .and_then(|t| t.parse::<toml::Table>().ok())
+            .unwrap_or_default();
+        let mine = toml::Value::try_from(self)
             .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?;
-        fs::write(&path, serialized)
-            .map_err(|e| format!("Failed to write config file '{}': {}", path.display(), e))?;
-        Ok(())
+        if let Some(update) = mine.get("update") {
+            table.insert("update".to_string(), update.clone());
+        }
+        let serialized = toml::to_string_pretty(&table)
+            .map_err(|e| format!("Failed to serialize config to TOML: {}", e))?;
+        store.write(&serialized)
     }
 }
 
@@ -125,27 +183,64 @@ pub fn current_timestamp_secs() -> u64 {
 
 /// Path to XDG autostart entry: `~/.config/autostart/spawn-at-update-check.desktop`
 pub fn autostart_desktop_path() -> Result<PathBuf, String> {
-    let home = std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
+    let home =
+        std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
     Ok(PathBuf::from(home).join(".config/autostart/spawn-at-update-check.desktop"))
 }
 
 /// Deploys an XDG autostart desktop entry so spawn-at performs a silent update check on user login.
-pub fn install_login_autostart_entry() -> Result<(), String> {
+///
+/// `exe` is the absolute path of the binary to run: the session that reads the entry at login
+/// does not have `~/.local/bin` on its `PATH`, so a bare `spawn-at` is never found.
+pub fn install_login_autostart_entry(exe: &Path) -> Result<(), String> {
+    if !exe.is_absolute() {
+        return Err(format!(
+            "autostart needs an absolute binary path, got '{}'",
+            exe.display()
+        ));
+    }
     let path = autostart_desktop_path()?;
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
-    let content = r#"[Desktop Entry]
-Type=Application
-Name=spawn-at Update Check
-Exec=spawn-at update --check --headless
-Hidden=false
-NoDisplay=true
-X-GNOME-Autostart-enabled=true
-Comment=Check for spawn-at updates silently on login
-"#;
-    fs::write(&path, content).map_err(|e| e.to_string())?;
+    fs::write(&path, autostart_entry_content(exe)).map_err(|e| e.to_string())?;
     Ok(())
+}
+
+/// Quotes one word of an `Exec=` line as the Desktop Entry specification asks: a word with a
+/// space or a reserved character goes in double quotes, and `"`, `` ` ``, `$` and `\` inside
+/// are escaped with a backslash. A literal `%` is written `%%`.
+fn exec_word(word: &str) -> String {
+    let plain = !word.is_empty()
+        && word
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "/._-+,:@=".contains(c));
+    if plain {
+        return word.to_string();
+    }
+    let mut out = String::from("\"");
+    for c in word.chars() {
+        match c {
+            '"' | '`' | '$' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            }
+            '%' => out.push_str("%%"),
+            _ => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
+/// Text of the autostart entry for the binary at `exe`.
+pub fn autostart_entry_content(exe: &Path) -> String {
+    format!(
+        "[Desktop Entry]\nType=Application\nName=spawn-at Update Check\n\
+         Exec={} update --check --headless\nHidden=false\nNoDisplay=true\n\
+         X-GNOME-Autostart-enabled=true\nComment=Check for spawn-at updates silently on login\n",
+        exec_word(&exe.to_string_lossy())
+    )
 }
 
 /// Removes the XDG autostart desktop entry during uninstallation.
@@ -161,6 +256,59 @@ pub fn uninstall_login_autostart_entry() {
 mod tests {
     use super::*;
 
+    /// The Exec= line starts with the absolute path, never a bare `spawn-at`, and keeps the
+    /// arguments after it.
+    #[test]
+    fn test_autostart_exec_is_absolute_path() {
+        let text = autostart_entry_content(Path::new("/home/u/.local/bin/spawn-at"));
+        assert!(
+            text.contains("\nExec=/home/u/.local/bin/spawn-at update --check --headless\n"),
+            "{text}"
+        );
+        assert!(!text.contains("Exec=spawn-at"));
+    }
+
+    /// A home directory with a space (as in this repo's own path) is quoted so the desktop
+    /// session reads it as one word; `$` and `"` are escaped.
+    #[test]
+    fn test_autostart_exec_quotes_special_paths() {
+        let text = autostart_entry_content(Path::new("/home/a b/$x\"y/spawn-at"));
+        assert!(
+            text.contains("Exec=\"/home/a b/\\$x\\\"y/spawn-at\" update --check --headless\n"),
+            "{text}"
+        );
+    }
+
+    /// A relative path is refused rather than written: the entry would fail at login again.
+    #[test]
+    fn test_autostart_refuses_relative_path() {
+        assert!(install_login_autostart_entry(Path::new("spawn-at")).is_err());
+    }
+
+    /// The update checker saves its table into a file that also holds `spawn-at config`
+    /// settings and unknown keys: they all survive, and the update table is replaced.
+    #[test]
+    fn test_save_keeps_settings_and_unknown_keys() {
+        use crate::platform::linux::config_store::LinuxConfigStore;
+        use spawn_at_core::settings::SettingsStore;
+        let dir = std::env::temp_dir().join(format!("spawn-at-save-{}", std::process::id()));
+        let store = LinuxConfigStore::at(dir.join("config.toml"));
+        store
+            .write(
+                "[wait]\ncap_ms = 120\nodd = 3\n\n[update]\nchannel = \"stable\"\n\n[zzz]\nk = 1\n",
+            )
+            .unwrap();
+        let mut cfg = Config::default();
+        cfg.update.channel = "beta".into();
+        cfg.save_to(&store).unwrap();
+        let text = store.read().unwrap().unwrap();
+        for kept in ["cap_ms = 120", "odd = 3", "[zzz]", "channel = \"beta\""] {
+            assert!(text.contains(kept), "{kept} lost in:\n{text}");
+        }
+        assert!(!text.contains("stable"), "{text}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     #[test]
     fn test_config_defaults() {
         let cfg = Config::default();
@@ -168,21 +316,70 @@ mod tests {
         assert_eq!(cfg.update.channel, "stable");
         assert!(cfg.update.notify);
         assert_eq!(cfg.update.last_check_time, 0);
-        assert!(cfg.update.latest_cached_version.is_empty());
+        assert!(cfg.update.cached_stable_version.is_none());
+        assert!(cfg.update.cached_beta_version.is_none());
+        assert!(cfg.update.latest_cached_version.is_none());
     }
 
     #[test]
     fn test_config_serialization() {
         let mut cfg = Config::default();
-        cfg.update.channel = "all".to_string();
-        cfg.update.latest_cached_version = "v0.2.0".to_string();
+        cfg.update.channel = "beta".to_string();
+        cfg.update.cached_stable_version = Some("v0.2.0".to_string());
+        cfg.update.cached_beta_version = Some("v0.2.0-beta.2".to_string());
 
         let toml_str = toml::to_string_pretty(&cfg).unwrap();
-        assert!(toml_str.contains("channel = \"all\""));
-        assert!(toml_str.contains("latest_cached_version = \"v0.2.0\""));
+        assert!(toml_str.contains("channel = \"beta\""));
+        assert!(toml_str.contains("cached_stable_version = \"v0.2.0\""));
+        assert!(toml_str.contains("cached_beta_version = \"v0.2.0-beta.2\""));
 
         let deserialized: Config = toml::from_str(&toml_str).unwrap();
-        assert_eq!(deserialized.update.channel, "all");
-        assert_eq!(deserialized.update.latest_cached_version, "v0.2.0");
+        assert_eq!(deserialized.update.channel, "beta");
+        assert_eq!(
+            deserialized.update.cached_stable_version.as_deref(),
+            Some("v0.2.0")
+        );
+        assert_eq!(
+            deserialized.update.cached_beta_version.as_deref(),
+            Some("v0.2.0-beta.2")
+        );
+    }
+
+    #[test]
+    fn test_old_config_with_latest_cached_version_loads_without_error() {
+        let old_toml = r#"
+            [update]
+            auto_check = true
+            channel = "stable"
+            notify = true
+            last_check_time = 1791541272
+            latest_cached_version = "v0.1.0"
+        "#;
+        let cfg: Config = toml::from_str(old_toml)
+            .expect("Old config with latest_cached_version must load without errors");
+        assert_eq!(cfg.update.channel, "stable");
+        assert_eq!(cfg.update.latest_cached_version.as_deref(), Some("v0.1.0"));
+        assert_eq!(
+            cfg.update.cached_version_for_channel("stable"),
+            Some("v0.1.0")
+        );
+    }
+
+    #[test]
+    fn test_legacy_config_with_apps_table_loads_cleanly() {
+        let legacy_toml = r#"
+            [update]
+            channel = "stable"
+            auto_check = false
+
+            [apps.alacritty]
+            mode = "clamp-on-change"
+            margin = 16
+            avoid_panels = true
+        "#;
+        let cfg: Config = toml::from_str(legacy_toml)
+            .expect("Old config with legacy [apps] section must load without errors");
+        assert_eq!(cfg.update.channel, "stable");
+        assert!(!cfg.update.auto_check);
     }
 }

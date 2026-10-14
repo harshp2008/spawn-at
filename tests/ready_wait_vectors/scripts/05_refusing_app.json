@@ -1,0 +1,7 @@
+{
+  "name": "refusing app",
+  "description": "An app at its minimum never changes size for a smaller request; it only reports its unchanged size. Cap fires at 250 ms.",
+  "request": { "target": [200, 150], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [400, 300] }, { "at": 60, "size": [400, 300] } ],
+  "expect": { "outcome": "timed-out", "last_size": [400, 300], "waited_ms": 250, "phase": "cap" }
+}

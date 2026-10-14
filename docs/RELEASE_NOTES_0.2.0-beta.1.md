@@ -1,0 +1,73 @@
+# spawn-at 0.2.0-beta.1: release notes
+
+This is a beta. It has been run on one machine: GNOME 46, Wayland, one monitor. Read "What is untested" before you rely on it.
+
+## What is new
+
+- **A wait for the app on GNOME Wayland (the "ready-wait").** Before 0.2 the extension revealed a window after a 30 ms quiet period, which reveals too early when an app is slow to redraw after a resize. On GNOME 46 Wayland the extension now keeps the window hidden until the app has answered the size request, or until a cap runs out. The cap defaults to **250 ms** (it was 150 ms in development builds). The hard limit is 1500 ms. XWayland and X11 windows, and the legacy GNOME 42-44 extension, still use the old rule.
+- **`spawn-at config`.** Show and change settings without editing files:
+  - `wait.cap_ms` (1 to 1500): how long the extension waits for an app to answer a size request.
+  - `wait.strategy` (`auto`, `legacy`, `ready-wait`): which rule waits. `legacy` is the pre-0.2 behaviour.
+  - `spawn.window_timeout_ms` (200 to 60000, default 2000): how long `spawn` waits for the window to appear.
+  - Commands: `show`, `get`, `set`, `unset`, `reset`, `path`. A value on the command line beats the file, and the file beats the default. See [CONFIG.md](CONFIG.md).
+- **Update channels are `stable` and `beta`.** `all` (the beta channel's name in 0.2.0-alpha) still works as a deprecated alias of `beta` in the config file and on the command line (`install --update-channel`, `update --channel`).
+- **Placement and CLI changes.** `--area unbounded` (global desktop coordinates), `--offset/-o`, `close`, the `--id` selector, `spawn --json`, `install --yes` / `--dry-run`; `query windows` reports `GEOMETRY` in global coordinates and `query layout --json` has a `schema_version`. The config file honours `XDG_CONFIG_HOME`.
+- **Extension protocol 6 (GNOME 45 to 48) and 5 (legacy tree for GNOME 42 to 44).** New D-Bus members: `ProtocolVersion`, `DisarmSpawn`, `GetLayout`, `CloseWindow`, the `SpawnClaimed` and `ResizeOutcome` signals. The legacy tree has never been run on a real GNOME 42 to 44.
+- **A notice on untested GNOME versions.** The installer prints what is and is not tested and asks for confirmation before it installs on a GNOME version other than 46 (`--yes` skips the question; headless runs print the notice and continue).
+- **Autostart fix.** The login update-check entry used a bare `spawn-at`, which is not found at login because `~/.local/bin` is not on `PATH` there. The installer now writes the absolute path of the binary it installed. Re-run `spawn-at install` to rewrite the file.
+- **Developer-only note (not a user feature):** the test harness has a flash check that reads the client's commit time from the Wayland protocol, hostile-app fixture flags (slow, refusing, grid-snapping, flapping, stalled and hung apps) and nine catalog cells that use them; and the extension can log the paint signals of XWayland/X11 windows while logging is switched on (it changes no timing or outcome; it was used to study the X11 question below).
+
+## Breaking changes and upgrade notes
+
+Checked against a build of the previous code (`pre-cleanup-beta`) for argument parsing, `--help`, config loading and the update check only; no real application was launched.
+
+- `-a` is no longer a short form of `--anchor` (old: accepted; new: usage error, exit 2). Use `--anchor`.
+- A word starting with `-` before the command is a usage error (old: tried to run it as a program, exit 1; new: exit 2). After `--` it is passed through.
+- `transform` with a target but nothing to change is an error (exit 2). What the old build did to a real window was not tested.
+- Update channels are `stable` and `beta`; `all` is a deprecated alias of `beta` (config file, `update --channel`, `install --update-channel`).
+- An old config file with an `[apps]` table still loads (`spawn-at config` warns that `apps` is ignored).
+- Re-run `spawn-at install` after upgrading (autostart entry and extension files) and, on Wayland, log out and back in.
+- A build that is not at an exact release tag reports `dev` and the update check says it is up to date (the old build offered "pre-cleanup-beta to v0.1.0").
+- `spawn gnome-terminal` without `--class` now looks for class `org.gnome.Terminal` (was `gnome-terminal-server`).
+- Install locations are unchanged.
+
+## What is measured, and the caveats
+
+All numbers are from the project's own test window, not from real apps, on **one machine** (GNOME 46, Wayland, one monitor, 60 Hz, 22 CPUs). Methods and raw counts: [TEST_PLAN.md](TEST_PLAN.md), sections 6.22 to 6.24.
+
+| Measurement (native Wayland, test window) | Old rule (legacy) | Ready-wait (new default) |
+| :-- | :-: | :-: |
+| Flashes, idle (20 runs each) | 0 | 0 |
+| Flashes, under heavy CPU load (22 busy threads, 40 runs each) | 26 | **0** |
+| Window hidden for, under load (median, ms; two measurements) | 45.3 and 48.9 | 66.8 and 56.2 |
+| Window hidden for, idle (median, ms) | 19.6 | 19.5 |
+
+- **Wire time is the optimistic bound.** A "flash" here means the window was revealed before the app's first commit at its final size, read from the Wayland protocol dump. A commit is not a frame on the screen, so this can only undercount what you would see.
+- **No screen capture was done.** Nobody measured pixels. "Far fewer flashes in our measurements" is the claim; "no flashes" is not.
+- **It costs time under load, and the cost varies between runs:** the median hidden time was 66.8 against 45.3 ms in one measurement and 56.2 against 48.9 ms in a second (95th percentile 105 against 53 ms, then 116 against 71 ms). In the second measurement 1 of 40 idle runs with the new rule hit the 250 ms cap; the cause is unknown.
+- **An app that is already at its minimum size, or one that never answers, costs the full cap** on every spawn (about +230 ms in our test, with the cap at 250 ms).
+- **XWayland/X11: investigated, no reliable signal.** Tried and not usable, all measured on the test window only (TEST_PLAN 6.23 to 6.29): the first `damaged` event, `first-frame`, the actor size, the buffer rect, the surface texture size, holding the cloak and waiting for a second `damaged`, resizing before the map, and a window ping (no reply API). A pixel probe could tell a blank buffer from a painted one, but it crashed GNOME Shell in testing and was removed. Then the X sync counter (6.31 to 6.33), tested with our own GTK4 client: a GTK4-style client's extended counter steps a few milliseconds after the client's final paint in 100 of 100 runs, so it is usable as an experimental signal for GTK4-style clients only. Chromium and Electron use the basic counter, which never moved, so it likely gives nothing for them. In an earlier survey 6 of 9 measured windows advertised some sync counter and about 3 of 9 (the GTK4 ones) would benefit. Sending the client a `_NET_WM_SYNC_REQUEST` ourselves (6.34) was negative at the timing tried, and the extension that causes the resize cannot send X messages. Last, an `LD_PRELOAD` shim that rewrites the geometry of an app's top-level windows (6.35) made the test GTK4 client's windows map at the target size in 80 of 80 runs, and under load it flashed 0 of 40 against 36 of 40 without it. That is one toolkit (GTK4 through Xlib) on one machine: it does not cover xcb-based clients, it did not exempt override-redirect windows, popups were not tested, the reveal came later, 10 of 40 idle runs had a 30 to 44 ms stall whose cause is unverified, and injecting a library into other programs has security and compatibility costs. No screen-capture measurement of what is visible has been made (the Mutter screencast stream could not be consumed; the portal needs a user prompt). **None of this ships in 0.2.0-beta.1:** XWayland and X11 windows keep the old 30 ms rule and can still flash. See [DESIGN_READY_WAIT.md](DESIGN_READY_WAIT.md), sections 12 and 15, and TEST_PLAN 6.23 to 6.35.
+- **Known gap:** on GNOME 46 the extension cannot read an app's reported minimum size (it reads 0x0), so it learns a minimum only by waiting.
+
+## What is untested
+
+- Real X11 and XWayland applications (only the fixture was used), and native X11 sessions beyond the fixture.
+- GNOME 42, 43, 44 (the legacy extension has never run on a real GNOME of those versions) and GNOME 45, 47, 48 (the metadata lists 45 to 48, but only 46 has been run).
+- Qt and Electron apps. Real apps were tried only a few times each, on Wayland: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 but did not check. Chrome was never matched.
+- Multi-monitor setups and fractional scaling.
+- Release builds of the test fixture, and any screen-capture check of what is visible.
+- Other desktops: Hyprland, Sway, KDE, macOS and Windows are not implemented.
+
+## How to report a problem
+
+Open an issue: <https://github.com/harshp2008/spawn-at/issues>. Please include:
+
+1. Your GNOME Shell version and session type (`gnome-shell --version`, `echo $XDG_SESSION_TYPE`), and the output of `spawn-at config show`.
+2. The exact `spawn-at spawn ...` command and the app, and whether it is a native Wayland, XWayland or X11 window.
+3. What you saw (flash, wrong size, wrong position, window never appeared) and whether it happens every time or only under load.
+4. Whether `spawn-at config set wait.strategy legacy` makes it better or worse. That one comparison tells us whether the new wait is involved.
+5. If you can, the extension log of one failing spawn: switch logging on with
+   `gdbus call --session --dest org.gnome.Shell --object-path /org/gnome/Shell/Extensions/SpawnAt --method org.gnome.Shell.Extensions.SpawnAt.SetLogging true`,
+   repeat the spawn, then run `journalctl --user --since "5 minutes ago" | grep spawn-at-time`, and switch logging off again with `false`. This is an in-memory flag; it is off after a log-out.
+
+To go back to the pre-0.2 behaviour at any time: `spawn-at config set wait.strategy legacy`.

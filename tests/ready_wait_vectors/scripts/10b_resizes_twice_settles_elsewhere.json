@@ -1,0 +1,7 @@
+{
+  "name": "resizes twice, neither is the target",
+  "description": "300x200 at 20 ms, then 320x220 at 40 ms. The second change restarts the quiet clock: AdjustedTo(320x220) at 40 + 30 = 70 ms.",
+  "request": { "target": [200, 150], "current": [400, 300] },
+  "events": [ { "at": 20, "size": [300, 200] }, { "at": 40, "size": [320, 220] } ],
+  "expect": { "outcome": "adjusted", "size": [320, 220], "waited_ms": 70 }
+}

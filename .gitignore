@@ -2,3 +2,7 @@
 *.tar.gz
 staging/
 .agent-notes/
+.agent_notes/
+verify-results/
+scratch/
+scratch/

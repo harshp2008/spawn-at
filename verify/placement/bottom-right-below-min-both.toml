@@ -1,0 +1,52 @@
+id = "placement/bottom-right-below-min-both"
+category = "placement"
+title = "Request below the minimum on both axes (200x150 vs min 300x200), bottom-right"
+description = "The fixture enforces a 300x200 minimum and is asked for 200x150: it settles at 300x200 and must sit in the bottom-right corner for that size, 16px from the edges."
+kind = "both"
+required = true
+tags = ["visual", "needs-fixture", "resize"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+min_width = 300
+min_height = 200
+args = [
+    "--title", "Verify-Placement-BottomRightBelowMinBoth",
+    "--app-id", "verify.placement.bottomrightbelowminboth",
+    "--expect", "Should be 300x200 in the bottom-right corner"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.bottomrightbelowminboth",
+    "--anchor", "bottom-right",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom-right"
+size = [200, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at its minimum size in the bottom-right corner, 16px from the edges, without flickering or jumping?"

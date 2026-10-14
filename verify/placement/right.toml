@@ -1,0 +1,50 @@
+id = "placement/right"
+category = "placement"
+title = "Window placed at right edge"
+description = "Spawns a test window anchored to the right edge of the work area with a 16px boundary margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Right",
+    "--app-id", "verify.placement.right",
+    "--expect", "Should appear at right edge"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.right",
+    "--anchor", "right",
+    "--size", "400", "300",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "right"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at the right edge with a small gap from the screen edge, without flickering or jumping?"

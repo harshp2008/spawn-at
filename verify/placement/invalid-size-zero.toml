@@ -1,0 +1,44 @@
+id = "placement/invalid-size-zero"
+category = "placement"
+title = "Zero-width size is rejected by the CLI"
+description = "Asks spawn-at for --size 0 150. The CLI must refuse before spawning anything: exit code 2 and the message 'Invalid size: width and height must be strictly positive integers'."
+kind = "auto"
+required = true
+tags = ["needs-fixture", "expected-failure"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-InvalidSize",
+    "--app-id", "verify.placement.invalidsize",
+    "--expect", "Should never open: the CLI rejects the size"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.invalidsize",
+    "--anchor", "center",
+    "--size", "0", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 2
+stderr_absent = []
+stderr_present = ["[spawn-at] ERROR: Invalid size: width and height must be strictly positive integers"]
+diagnostics = []
+never_visible_off_target = false
+
+[human]
+watch = "No window should appear at all."

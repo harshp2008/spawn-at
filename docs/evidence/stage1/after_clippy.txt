@@ -1,0 +1,2 @@
+   Compiling spawn-at v0.1.0 (/home/harsh/Documents/GITHUB PROJECTS/spawn-at)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s

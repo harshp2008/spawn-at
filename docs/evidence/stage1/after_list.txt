@@ -1,0 +1,15 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.06s
+     Running `target/debug/spawn-at-verify list`
+Verify Test Library (6 tests across 3 categories)
+├── animation-and-cloak/ (4 tests)
+│   ├── cloak/delayed-paint/delay-0 [Auto] [REQUIRED]
+│   ├── cloak/delayed-paint/delay-50 [Auto] [REQUIRED]
+│   ├── cloak/delayed-paint/delay-150 [Auto] [REQUIRED]
+│   └── cloak/delayed-paint/delay-500 [Auto] [REQUIRED]
+├── basics/ (1 test)
+│   └── preflight/binary-head [Auto] [REQUIRED]
+└── placement/ (1 test)
+    └── placement/bottom-right [Both] [REQUIRED]
+
+Summary: 6 tests (5 auto, 0 human, 1 both, 6 required)
+

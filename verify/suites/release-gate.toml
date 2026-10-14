@@ -1,0 +1,5 @@
+name = "release-gate"
+description = "Strict qualification suite requiring 100% pass rate on all required tests to validate platform support."
+categories = ["preflight", "placement", "cloak", "launchers", "apps", "transform", "lifecycle", "query", "diagnostics", "resilience", "regression"]
+tags = ["!manual-setup"]
+required_only = true

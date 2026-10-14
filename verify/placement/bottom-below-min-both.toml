@@ -1,0 +1,52 @@
+id = "placement/bottom-below-min-both"
+category = "placement"
+title = "Request below the minimum on both axes (200x150 vs min 300x200), bottom"
+description = "The fixture enforces a 300x200 minimum and is asked for 200x150 at the bottom anchor: it settles at 300x200 and must be placed for that size with a 16px margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture", "resize"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+min_width = 300
+min_height = 200
+args = [
+    "--title", "Verify-Placement-BottomBelowMinBoth",
+    "--app-id", "verify.placement.bottombelowminboth",
+    "--expect", "Should be 300x200 at the bottom edge"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.bottombelowminboth",
+    "--anchor", "bottom",
+    "--size", "200", "150",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "bottom"
+size = [200, 150]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once at its minimum size at the bottom edge?"

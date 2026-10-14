@@ -9,6 +9,7 @@
 //! optimal driver without leaking display-server-specific IPC details to high-level commands.
 
 pub mod escalate;
+pub mod install_notice;
 pub mod installer;
 
 #[cfg(target_os = "linux")]
@@ -17,10 +18,39 @@ pub mod linux;
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
 
-use clap::Args;
-pub use spawn_at_core::driver::{Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency};
-pub use spawn_at_core::geometry::{PlacementParams, Rect, TargetGeometry};
 pub use crate::target::WindowMetadata;
+use clap::Args;
+pub use spawn_at_core::driver::{
+    Armed, Batch, Driver, DriverError, Entry, FocusIntent, Reveal, Urgency,
+};
+pub use spawn_at_core::geometry::{
+    LayoutInsets, LayoutRect, MonitorInfo, MonitorLayout, PlacementParams, Rect,
+};
+use std::time::Duration;
+
+/// The result reported when a compositor claims and finishes placement of an armed window.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClaimResult {
+    pub target_id: String,
+    pub success: bool,
+    pub window_id: u64,
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+    pub size_raised: bool,
+    pub error: String,
+    /// How the size request ended, from the `ResizeOutcome` signal of extension protocol 6.
+    /// `None` for an older extension and for windows the extension waits for with the legacy rule.
+    pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
+}
+
+/// A subscription to window claim notifications issued by the compositor backend.
+#[async_trait::async_trait]
+pub trait ClaimSubscription: Send + Sync {
+    /// Awaits the next claim signal matching the armed target or times out.
+    async fn wait_claim(&mut self, timeout: Duration) -> Result<ClaimResult, DriverError>;
+}
 
 /// The desired window state for transformations.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -46,8 +76,14 @@ pub struct InstallArgs {
     pub skip_bin: bool,
     #[arg(long)]
     pub headless: bool,
-    /// Update release channel: 'stable' (official) or 'all' (beta/pre-releases)
-    #[arg(long, value_parser = ["stable", "all"])]
+    /// Go on without asking after the notice for an untested platform (the notice is still printed)
+    #[arg(short = 'y', long)]
+    pub yes: bool,
+    /// Print the notice and what would be installed, then stop without changing anything
+    #[arg(long)]
+    pub dry_run: bool,
+    /// Update release channel: 'stable' (official) or 'beta' (includes pre-releases); 'all' is a deprecated alias of 'beta'
+    #[arg(long, value_parser = ["stable", "beta", "all"])]
     pub update_channel: Option<String>,
     /// Enable visual update notifications in interactive sessions
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
@@ -77,7 +113,13 @@ pub trait CompositorBackend: Driver + Send + Sync {
     fn name(&self) -> &'static str;
 
     // --- Setup & Teardown ---
-    
+
+    /// A short notice to print (and confirm) before installing when this environment has not been
+    /// tested; `None` when it has, or when the driver has nothing to say.
+    fn install_notice(&self) -> Option<String> {
+        None
+    }
+
     /// Installs any necessary system hooks or extensions required by this driver.
     fn install(&self, _args: &InstallArgs) -> Result<(), DriverError> {
         println!("No installation required for {}.", self.name());
@@ -91,10 +133,43 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     // --- Capability Checking ---
-    
+
     /// True if the compositor supports moving/resizing mapped windows via IPC.
     fn supports_runtime_transform(&self) -> bool {
         false
+    }
+
+    /// True if the compositor supports asynchronous event/signal notification for claimed windows.
+    fn supports_claim_wait(&self) -> bool {
+        false
+    }
+
+    /// True if the compositor backend supports closing windows.
+    fn supports_close(&self) -> bool {
+        false
+    }
+
+    /// Prepares a subscription to wait for window claim notifications before arming.
+    async fn prepare_claim_wait(
+        &self,
+        _target_id: &str,
+    ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+        Ok(None)
+    }
+
+    /// Queries the current geometry of a window by its unique ID.
+    async fn get_window_rect(&self, id: u64) -> Result<Rect, DriverError> {
+        let windows = self.get_windows().await?;
+        windows
+            .into_iter()
+            .find(|w| w.id == Some(id))
+            .map(|w| Rect {
+                x: w.x,
+                y: w.y,
+                width: w.w as u32,
+                height: w.h as u32,
+            })
+            .ok_or_else(|| DriverError::TargetNotFound(format!("Window ID {} not found", id)))
     }
 
     // --- Environment Queries ---
@@ -123,6 +198,34 @@ pub trait CompositorBackend: Driver + Send + Sync {
         Err(DriverError::UnsupportedCapability("get_windows"))
     }
 
+    /// Query monitor layout (screens, workareas, scales, and insets).
+    async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
+        let workareas = self.get_workareas().await?;
+        let monitors = workareas
+            .into_iter()
+            .enumerate()
+            .map(|(i, wa)| MonitorInfo {
+                index: i,
+                name: None,
+                primary: i == 0,
+                scale: None,
+                screen: None,
+                workarea: Some(wa.into()),
+                insets: None,
+            })
+            .collect();
+        Ok(MonitorLayout {
+            schema_version: 1,
+            monitors,
+            note: None,
+        })
+    }
+
+    /// Query compositor extension protocol version if supported (None for X11 / unversioned backends).
+    async fn protocol_version(&self) -> Option<u32> {
+        None
+    }
+
     // --- Core Actions ---
 
     /// Performs an animated or atomic transform on an existing window.
@@ -142,12 +245,23 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Moves and resizes a target window to the specified geometry.
-    async fn move_resize_window(&self, _target_id: &str, _x: i32, _y: i32, _w: u32, _h: u32) -> Result<(), DriverError> {
+    async fn move_resize_window(
+        &self,
+        _target_id: &str,
+        _x: i32,
+        _y: i32,
+        _w: u32,
+        _h: u32,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("move_resize_window"))
     }
 
     /// Modifies the window state (maximize, minimize, unminimize, restore).
-    async fn set_window_state(&self, _target_id: &str, _state: WindowState) -> Result<(), DriverError> {
+    async fn set_window_state(
+        &self,
+        _target_id: &str,
+        _state: WindowState,
+    ) -> Result<(), DriverError> {
         Err(DriverError::UnsupportedCapability("set_window_state"))
     }
 
@@ -166,14 +280,16 @@ pub trait CompositorBackend: Driver + Send + Sync {
         Err(DriverError::UnsupportedCapability("defocus_window"))
     }
 
+    /// Requests graceful closure of the specified target window.
+    async fn close_window(&self, _target_id: &str) -> Result<(), DriverError> {
+        Err(DriverError::Execution(
+            "this backend cannot close windows".into(),
+        ))
+    }
+
     /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
     async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
         Ok(())
-    }
-
-    /// Runs background daemon event loop monitoring compositor state changes.
-    async fn run_daemon(&self) -> Result<(), DriverError> {
-        Err(DriverError::UnsupportedCapability("run_daemon"))
     }
 }
 
@@ -183,7 +299,9 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
     return NativeBackend::bootstrap().await;
 
     #[cfg(not(target_os = "linux"))]
-    Err(DriverError::UnsupportedCapability("Unsupported operating system"))
+    Err(DriverError::UnsupportedCapability(
+        "Unsupported operating system",
+    ))
 }
 
 /// Alias for `init_backend` to preserve backwards compatibility.

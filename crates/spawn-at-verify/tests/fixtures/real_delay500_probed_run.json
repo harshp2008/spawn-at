@@ -1,0 +1,53 @@
+{
+  "environment": {
+    "hostname": "redacted",
+    "session_type": "wayland",
+    "desktop": "ubuntu:gnome",
+    "gnome_version": 46,
+    "monitors_count": 1,
+    "primary_workarea": {
+      "x": 0,
+      "y": 40,
+      "w": 1920,
+      "h": 1040
+    },
+    "independent_workarea": {
+      "x": 0,
+      "y": 40,
+      "w": 1920,
+      "h": 1040
+    },
+    "binary_path": "target/debug/spawn-at",
+    "binary_commit": "7664d14",
+    "is_dirty_build": false,
+    "generated_at": 1791747513
+  },
+  "qualification": {
+    "supported": true,
+    "total_required": 1,
+    "passed_required": 1,
+    "failed_required": 0,
+    "skipped_required": []
+  },
+  "results": [
+    {
+      "id": "cloak/delayed-paint/delay-500",
+      "title": "App paints slowly (500 ms)",
+      "kind": "auto",
+      "required": true,
+      "auto_status": "auto-pass",
+      "human_verdict": {
+        "verdict": "unset",
+        "note": null
+      },
+      "final_status": "pass",
+      "disagreement": false,
+      "duration_ms": 644,
+      "exit_code": 0,
+      "stdout": "{\"window_id\":870906506,\"x\":710,\"y\":385,\"w\":500,\"h\":350,\"rel_x\":710,\"rel_y\":345,\"area\":\"workarea\",\"size_raised\":false,\"raised_w\":false,\"raised_h\":false,\"reused_existing_window\":false,\"source\":\"claim\"}\n",
+      "stderr": "[spawn-at] INFO: Window mapped at final size (500x350) and positioned at (710, 385).\n",
+      "message": "Assertions passed",
+      "log_slice": "[spawn-at-time] +45482172.63ms | ARM_SPAWN target=\"verify.cloak.delayedpaint\"\n[spawn-at-time] +45482181.53ms | WINDOW_CREATED win=[id=870906506 pid=1568035 class=\"\" app=\"\" type=NORMAL proto=Wayland] actorFound=true\n[spawn-at-time] +45482723.66ms | ACTOR_MAP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland]\n[spawn-at-time] +45482723.71ms | DISPATCH win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] instructionsCount=5\n[spawn-at-time] +45482724.09ms | BATCH_STEP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] inst=Cloak\n[spawn-at-time] +45482724.17ms | CLOAK win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,500x350)\n[spawn-at-time] +45482724.18ms | BATCH_STEP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] inst=SetSize\n[spawn-at-time] +45482724.22ms | SET_SIZE_REQUEST win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] requestedSize=(500x350) clampedSafeSize=(500x350) reportedMinSize=(0x0) preFrame=(50,90,500x350) bufferRect=(50,90,500x350)\n[spawn-at-time] +45482724.25ms | AFTER_SET_SIZE win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(50,90,500x350)\n[spawn-at-time] +45482724.26ms | BATCH_STEP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] inst=WaitForCommit\n[spawn-at-time] +45482724.32ms | COMMIT_SAMPLE win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] source=initial frame=(500x350) last=(500x350)\n[spawn-at-time] +45482724.38ms | COMMIT_RESOLVED win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(500x350) target=(500x350) safe=(500x350)\n[spawn-at-time] +45482754.70ms | BATCH_STEP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] inst=SetPositionAnchored\n[spawn-at-time] +45482754.88ms | FALLBACK_USED win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] reason=\"min size unreported\" usingFrame=(500x350)\n[spawn-at-time] +45482754.89ms | APPLY_ANCHOR win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] eff=(500x350) bounds=(0,40,1920x1040) final=(710,385)\n[spawn-at-time] +45482754.93ms | POSITION_SET win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] preFrame=(50,90,500x350) postFrame=(710,385,500x350) bufferRect=(710,385,500x350) actor=(710,385) delta=(660,295)\n[spawn-at-time] +45482754.94ms | AFTER_SET_POSITION_ANCHORED win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] opacity=0 frame=(710,385,500x350)\n[spawn-at-time] +45482754.95ms | BATCH_STEP win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] inst=Uncloak\n[spawn-at-time] +45482754.96ms | UNCLOAK_4A win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] delay=0ms (skipped)\n[spawn-at-time] +45482755.18ms | UNCLOAK_4B win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false\n[spawn-at-time] +45482755.20ms | UNCLOAK_4C win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] positioned=(500x350) actual=(500x350) needsReanchor=false\n[spawn-at-time] +45482759.42ms | UNCLOAK win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] opacity=255 frame=(710,385,500x350)\n[spawn-at-time] +45482759.45ms | UNCLOAK_4D_REVEAL win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland] requestedSize=(500x350) postFrame=(710,385,500x350) bufferRect=(710,385,500x350)\n[spawn-at-time] +45482759.48ms | ANCHOR_ARMED win=[id=870906506 pid=1568035 class=\"verify.cloak.delayedpaint\" app=\"\" type=NORMAL proto=Wayland]"
+    }
+  ]
+}

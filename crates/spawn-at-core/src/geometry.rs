@@ -26,6 +26,87 @@ pub struct Rect {
     pub height: u32,
 }
 
+/// A rectangle representation specifically formatted for layout introspection ({ x, y, w, h }).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutRect {
+    pub x: i32,
+    pub y: i32,
+    pub w: u32,
+    pub h: u32,
+}
+
+impl From<Rect> for LayoutRect {
+    fn from(r: Rect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            w: r.width,
+            h: r.height,
+        }
+    }
+}
+
+impl From<LayoutRect> for Rect {
+    fn from(r: LayoutRect) -> Self {
+        Self {
+            x: r.x,
+            y: r.y,
+            width: r.w,
+            height: r.h,
+        }
+    }
+}
+
+/// Derived insets (screen boundary minus usable workarea) in logical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LayoutInsets {
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
+    pub left: i32,
+}
+
+/// Introspection metadata for an individual display monitor.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MonitorInfo {
+    pub index: usize,
+    pub name: Option<String>,
+    pub primary: bool,
+    pub scale: Option<f64>,
+    pub screen: Option<LayoutRect>,
+    pub workarea: Option<LayoutRect>,
+    pub insets: Option<LayoutInsets>,
+}
+
+impl MonitorInfo {
+    /// Computes derived insets from screen and workarea rectangles if both are available.
+    pub fn compute_insets(
+        screen: Option<LayoutRect>,
+        workarea: Option<LayoutRect>,
+    ) -> Option<LayoutInsets> {
+        let (s, w) = (screen?, workarea?);
+        let top = w.y - s.y;
+        let left = w.x - s.x;
+        let right = (s.x + s.w as i32) - (w.x + w.w as i32);
+        let bottom = (s.y + s.h as i32) - (w.y + w.h as i32);
+        Some(LayoutInsets {
+            top,
+            right,
+            bottom,
+            left,
+        })
+    }
+}
+
+/// Comprehensive compositor monitor layout schema (version 1).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct MonitorLayout {
+    pub schema_version: u32,
+    pub monitors: Vec<MonitorInfo>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
+}
+
 /// Defines the origin point for window placement relative to a bounding workarea.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
@@ -59,6 +140,17 @@ pub enum Area {
     #[default]
     Workarea,
     Screen,
+    Unbounded,
+}
+
+impl std::fmt::Display for Area {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Area::Workarea => write!(f, "workarea"),
+            Area::Screen => write!(f, "screen"),
+            Area::Unbounded => write!(f, "unbounded"),
+        }
+    }
 }
 
 /// Defines which corner of the window aligns with the target coordinate.
@@ -78,42 +170,12 @@ pub enum Pivot {
     Center,
 }
 
-/// Input parameters for calculating final target window geometry.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct GeometryParams {
-    /// Explicit absolute screen coordinates (X, Y)
-    pub pos: Option<(i32, i32)>,
-    /// Relative offset from mouse cursor (X, Y)
-    pub offset: Option<(i32, i32)>,
-    /// Target window dimensions (Width, Height)
-    pub size: Option<(u32, u32)>,
-    /// Boundary distance from the top edge
-    pub bound_top: Option<i32>,
-    /// Boundary distance from the bottom edge
-    pub bound_bottom: Option<i32>,
-    /// Boundary distance from the left edge
-    pub bound_left: Option<i32>,
-    /// Boundary distance from the right edge
-    pub bound_right: Option<i32>,
-    /// Universal margin applied to all bounded edges
-    pub margin: Option<i32>,
-}
-
-/// Target geometry for the window to be spawned.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
-pub struct TargetGeometry {
-    pub x: i32,
-    pub y: i32,
-    pub w: u32,
-    pub h: u32,
-    pub min_x: Option<i32>,
-    pub max_x: Option<i32>,
-    pub min_y: Option<i32>,
-    pub max_y: Option<i32>,
+fn default_true() -> bool {
+    true
 }
 
 /// Declarative parameters describing spatial positioning, alignment, and bounding box constraints.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlacementParams {
     pub pos: Option<(i32, i32)>,
     pub offset: Option<(i32, i32)>,
@@ -128,6 +190,29 @@ pub struct PlacementParams {
     pub area: Option<Area>,
     pub cursor_pos: Option<(i32, i32)>,
     pub workarea: Rect,
+    #[serde(default = "default_true")]
+    pub clamp: bool,
+}
+
+impl Default for PlacementParams {
+    fn default() -> Self {
+        Self {
+            pos: None,
+            offset: None,
+            anchor: None,
+            pivot: None,
+            size: None,
+            margin: 0,
+            margin_top: None,
+            margin_bottom: None,
+            margin_left: None,
+            margin_right: None,
+            area: None,
+            cursor_pos: None,
+            workarea: Rect::default(),
+            clamp: true,
+        }
+    }
 }
 
 /// Resolves the target workarea rectangle from a list of workareas, pointer coordinates,
@@ -165,6 +250,119 @@ pub fn resolve_workarea(
 
     // Default to primary monitor
     Ok(workareas[0])
+}
+
+/// Resolves a target monitor from a layout schema, pointer coordinates, and an optional monitor selector.
+/// Returns the chosen `MonitorInfo` and a boolean indicating if it fell back to index 0 because no monitor was flagged primary.
+pub fn resolve_monitor_from_layout<'a>(
+    layout: &'a MonitorLayout,
+    pointer: (i32, i32),
+    monitor_selector: Option<&str>,
+) -> (Option<&'a MonitorInfo>, bool) {
+    if layout.monitors.is_empty() {
+        return (None, false);
+    }
+
+    if let Some(sel) = monitor_selector {
+        let sel_lower = sel.trim().to_lowercase();
+        if sel_lower == "cursor" {
+            let (px, py) = pointer;
+            for m in &layout.monitors {
+                let rect = m.screen.or(m.workarea).map(Rect::from).unwrap_or_default();
+                let right = rect.x.saturating_add(rect.width as i32);
+                let bottom = rect.y.saturating_add(rect.height as i32);
+                if px >= rect.x && px < right && py >= rect.y && py < bottom {
+                    return (Some(m), false);
+                }
+            }
+            // Fallback to primary if cursor is outside all monitors
+            if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+                return (Some(primary), false);
+            }
+            return (layout.monitors.first(), true);
+        }
+
+        if let Ok(idx) = sel_lower.parse::<usize>() {
+            if let Some(m) = layout.monitors.iter().find(|m| m.index == idx) {
+                return (Some(m), false);
+            }
+            return (layout.monitors.first(), false);
+        }
+
+        if sel_lower == "primary" {
+            if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+                return (Some(primary), false);
+            }
+            return (layout.monitors.first(), true);
+        }
+
+        // Match by connector name (case-insensitive)
+        if let Some(m) = layout.monitors.iter().find(|m| {
+            m.name
+                .as_deref()
+                .is_some_and(|n| n.eq_ignore_ascii_case(sel))
+        }) {
+            return (Some(m), false);
+        }
+
+        // Fallback to primary or first
+        if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+            return (Some(primary), false);
+        }
+        return (layout.monitors.first(), true);
+    }
+
+    // When monitor selector is None, spawn defaults to true primary monitor
+    if let Some(primary) = layout.monitors.iter().find(|m| m.primary) {
+        (Some(primary), false)
+    } else {
+        (layout.monitors.first(), true)
+    }
+}
+
+/// Finds the monitor in the layout that has the largest pixel overlap with the given window rectangle.
+pub fn find_monitor_with_largest_overlap(
+    layout: &MonitorLayout,
+    window_rect: Rect,
+) -> Option<&MonitorInfo> {
+    let mut best_m = None;
+    let mut best_overlap_area = 0i64;
+
+    for m in &layout.monitors {
+        let geom = m.screen.or(m.workarea).map(Rect::from).unwrap_or_default();
+        let overlap_w = (window_rect.x + window_rect.width as i32).min(geom.x + geom.width as i32)
+            - window_rect.x.max(geom.x);
+        let overlap_h = (window_rect.y + window_rect.height as i32)
+            .min(geom.y + geom.height as i32)
+            - window_rect.y.max(geom.y);
+        if overlap_w > 0 && overlap_h > 0 {
+            let area = (overlap_w as i64) * (overlap_h as i64);
+            if area > best_overlap_area {
+                best_overlap_area = area;
+                best_m = Some(m);
+            }
+        }
+    }
+
+    best_m
+}
+
+/// Returns true if the window geometry intersects more than one monitor rectangle in the layout.
+pub fn window_straddles_monitors(win_rect: Rect, monitors: &[Rect]) -> bool {
+    let mut count = 0;
+    for m in monitors {
+        let overlap_w =
+            (win_rect.x + win_rect.width as i32).min(m.x + m.width as i32) - win_rect.x.max(m.x);
+        let overlap_h =
+            (win_rect.y + win_rect.height as i32).min(m.y + m.height as i32) - win_rect.y.max(m.y);
+        if overlap_w > 0 && overlap_h > 0 {
+            count += 1;
+            if count > 1 {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Computes the top-left origin coordinates `(x, y)` for a window of size `(win_w, win_h)`
@@ -229,6 +427,141 @@ pub fn apply_anchor(
     }
 }
 
+/// Resolves screen anchor point `(x, y)` on the given workarea with directional margins.
+pub fn compute_screen_anchor(
+    workarea: Rect,
+    anchor: Anchor,
+    margin_top: i32,
+    margin_bottom: i32,
+    margin_left: i32,
+    margin_right: i32,
+    cursor_pos: Option<(i32, i32)>,
+) -> (i32, i32) {
+    match anchor {
+        Anchor::Center => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::TopLeft => (workarea.x + margin_left, workarea.y + margin_top),
+        Anchor::TopRight => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + margin_top,
+        ),
+        Anchor::BottomLeft => (
+            workarea.x + margin_left,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::BottomRight => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::Top => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + margin_top,
+        ),
+        Anchor::Bottom => (
+            workarea.x + (workarea.width as i32) / 2,
+            workarea.y + (workarea.height as i32) - margin_bottom,
+        ),
+        Anchor::Left => (
+            workarea.x + margin_left,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::Right => (
+            workarea.x + (workarea.width as i32) - margin_right,
+            workarea.y + (workarea.height as i32) / 2,
+        ),
+        Anchor::Cursor => cursor_pos.unwrap_or((workarea.x + margin_left, workarea.y + margin_top)),
+    }
+}
+
+/// Computes the final target window geometry rectangle from declarative placement parameters.
+pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h: u32) -> Rect {
+    let w = params.size.map(|s| s.0).unwrap_or(win_w);
+    let h = params.size.map(|s| s.1).unwrap_or(win_h);
+
+    let wa = params.workarea;
+    let margin_top = params.margin_top.unwrap_or(params.margin);
+    let margin_bottom = params.margin_bottom.unwrap_or(params.margin);
+    let margin_left = params.margin_left.unwrap_or(params.margin);
+    let margin_right = params.margin_right.unwrap_or(params.margin);
+
+    let is_unbounded = params.area == Some(Area::Unbounded);
+
+    let (anchor_x, anchor_y) = if let Some(anchor) = params.anchor {
+        compute_screen_anchor(
+            wa,
+            anchor,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            params.cursor_pos,
+        )
+    } else if let Some(pos) = params.pos.or(params.offset) {
+        let (ref_x, ref_y) = if is_unbounded { (0, 0) } else { (wa.x, wa.y) };
+        (ref_x + pos.0, ref_y + pos.1)
+    } else {
+        (wa.x + margin_left, wa.y + margin_top)
+    };
+
+    let (ox, oy) = if params.anchor.is_some() {
+        params.offset.unwrap_or((0, 0))
+    } else {
+        (0, 0)
+    };
+    let target_x = anchor_x + ox;
+    let target_y = anchor_y + oy;
+
+    let (x, y) = if let Some(pivot) = params.pivot {
+        apply_pivot(target_x, target_y, w, h, pivot)
+    } else if let Some(anchor) = params.anchor {
+        match anchor {
+            Anchor::Top => (wa.x + (wa.width as i32 - w as i32) / 2 + ox, target_y),
+            Anchor::Bottom => (
+                wa.x + (wa.width as i32 - w as i32) / 2 + ox,
+                target_y - (h as i32),
+            ),
+            Anchor::Left => (target_x, wa.y + (wa.height as i32 - h as i32) / 2 + oy),
+            Anchor::Right => (
+                target_x - (w as i32),
+                wa.y + (wa.height as i32 - h as i32) / 2 + oy,
+            ),
+            Anchor::Center => (
+                wa.x + (wa.width as i32 - w as i32) / 2 + ox,
+                wa.y + (wa.height as i32 - h as i32) / 2 + oy,
+            ),
+            Anchor::TopLeft => (target_x, target_y),
+            Anchor::TopRight => (target_x - (w as i32), target_y),
+            Anchor::BottomLeft => (target_x, target_y - (h as i32)),
+            Anchor::BottomRight => (target_x - (w as i32), target_y - (h as i32)),
+            Anchor::Cursor => (target_x, target_y),
+        }
+    } else {
+        (target_x, target_y)
+    };
+
+    let raw_rect = Rect {
+        x,
+        y,
+        width: w,
+        height: h,
+    };
+    if !is_unbounded && params.clamp {
+        clamp_to_bounds(
+            raw_rect,
+            wa,
+            margin_top,
+            margin_bottom,
+            margin_left,
+            margin_right,
+            0,
+        )
+    } else {
+        raw_rect
+    }
+}
+
 /// Computes the top-left origin coordinates `(x, y)` when placing a window of size
 /// `(win_w, win_h)` such that the specified `pivot` point aligns with `(target_x, target_y)`.
 pub fn apply_pivot(
@@ -244,7 +577,7 @@ pub fn apply_pivot(
         Pivot::TopRight => (target_x - w, target_y),
         Pivot::BottomLeft => (target_x, target_y - h),
         Pivot::BottomRight => (target_x - w, target_y - h),
-        Pivot::Center => (target_x - w / 2, target_y - h / 2),
+        Pivot::Center => (target_x - (w + 1) / 2, target_y - (h + 1) / 2),
     }
 }
 
@@ -284,77 +617,6 @@ pub fn clamp_to_bounds(
         y: clamped_y,
         width: rect.width,
         height: rect.height,
-    }
-}
-
-/// Pure mathematical calculation of target window geometry.
-pub fn calculate(
-    params: &GeometryParams,
-    cursor: Option<(i32, i32)>,
-    monitors: &[Rect],
-) -> TargetGeometry {
-    let (mut target_x, mut target_y) = if let Some((px, py)) = params.pos {
-        (px, py)
-    } else {
-        let (cx, cy) = cursor.unwrap_or((0, 0));
-        let (ox, oy) = params.offset.unwrap_or((0, 0));
-        (cx + ox, cy + oy)
-    };
-
-    let (w, h) = params.size.unwrap_or((0, 0));
-
-    let has_bounds = params.margin.is_some()
-        || params.bound_top.is_some()
-        || params.bound_bottom.is_some()
-        || params.bound_left.is_some()
-        || params.bound_right.is_some();
-
-    let mut min_x = None;
-    let mut max_x = None;
-    let mut min_y = None;
-    let mut max_y = None;
-
-    if has_bounds && !monitors.is_empty() {
-        let active_monitor = resolve_workarea(monitors, (target_x, target_y), "cursor").unwrap_or(monitors[0]);
-
-        let bound_top = params.bound_top.unwrap_or(0);
-        let bound_bottom = params.bound_bottom.unwrap_or(0);
-        let bound_left = params.bound_left.unwrap_or(0);
-        let bound_right = params.bound_right.unwrap_or(0);
-        let margin = params.margin.unwrap_or(0);
-
-        let top = bound_top + margin;
-        let bottom = bound_bottom + margin;
-        let left = bound_left + margin;
-        let right = bound_right + margin;
-
-        min_x = Some(active_monitor.x + left);
-        max_x = Some(active_monitor.x + (active_monitor.width as i32) - right);
-        min_y = Some(active_monitor.y + top);
-        max_y = Some(active_monitor.y + (active_monitor.height as i32) - bottom);
-
-        let clamped = clamp_to_bounds(
-            Rect { x: target_x, y: target_y, width: w, height: h },
-            active_monitor,
-            bound_top,
-            bound_bottom,
-            bound_left,
-            bound_right,
-            margin,
-        );
-        target_x = clamped.x;
-        target_y = clamped.y;
-    }
-
-    TargetGeometry {
-        x: target_x,
-        y: target_y,
-        w,
-        h,
-        min_x,
-        max_x,
-        min_y,
-        max_y,
     }
 }
 
@@ -423,42 +685,20 @@ pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagn
 
             let (screen_anchor_x, screen_anchor_y) = if let Some(anchor) = params.anchor {
                 match anchor {
-                    Anchor::Center => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
-                    Anchor::TopLeft => (
-                        wa.x + ml,
-                        wa.y + mt,
-                    ),
-                    Anchor::TopRight => (
-                        wa.x + (wa.width as i32) - mr,
-                        wa.y + mt,
-                    ),
-                    Anchor::BottomLeft => (
-                        wa.x + ml,
-                        wa.y + (wa.height as i32) - mb,
-                    ),
+                    Anchor::Center => (wa.x + (wa.width as i32) / 2, wa.y + (wa.height as i32) / 2),
+                    Anchor::TopLeft => (wa.x + ml, wa.y + mt),
+                    Anchor::TopRight => (wa.x + (wa.width as i32) - mr, wa.y + mt),
+                    Anchor::BottomLeft => (wa.x + ml, wa.y + (wa.height as i32) - mb),
                     Anchor::BottomRight => (
                         wa.x + (wa.width as i32) - mr,
                         wa.y + (wa.height as i32) - mb,
                     ),
-                    Anchor::Top => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + mt,
-                    ),
-                    Anchor::Bottom => (
-                        wa.x + (wa.width as i32) / 2,
-                        wa.y + (wa.height as i32) - mb,
-                    ),
-                    Anchor::Left => (
-                        wa.x + ml,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
-                    Anchor::Right => (
-                        wa.x + (wa.width as i32) - mr,
-                        wa.y + (wa.height as i32) / 2,
-                    ),
+                    Anchor::Top => (wa.x + (wa.width as i32) / 2, wa.y + mt),
+                    Anchor::Bottom => {
+                        (wa.x + (wa.width as i32) / 2, wa.y + (wa.height as i32) - mb)
+                    }
+                    Anchor::Left => (wa.x + ml, wa.y + (wa.height as i32) / 2),
+                    Anchor::Right => (wa.x + (wa.width as i32) - mr, wa.y + (wa.height as i32) / 2),
                     Anchor::Cursor => {
                         if let Some(cursor) = params.cursor_pos {
                             (cursor.0, cursor.1)
@@ -469,8 +709,6 @@ pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagn
                 }
             } else if let Some(pos) = params.pos {
                 (pos.0, pos.1)
-            } else if let Some(cursor) = params.cursor_pos {
-                (cursor.0, cursor.1)
             } else {
                 (wa.x + ml, wa.y + mt)
             };
@@ -517,7 +755,12 @@ mod tests {
 
     #[test]
     fn test_apply_anchor_center() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let (x, y) = apply_anchor(wa, 800, 600, Anchor::Center, 16);
         assert_eq!(x, (1920 - 800) / 2);
         assert_eq!(y, (1080 - 600) / 2);
@@ -525,19 +768,48 @@ mod tests {
 
     #[test]
     fn test_apply_anchor_corners() {
-        let wa = Rect { x: 100, y: 50, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 100,
+            y: 50,
+            width: 1920,
+            height: 1080,
+        };
         let margin = 20;
         let win_w = 400;
         let win_h = 300;
 
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin), (120, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin), (100 + 1920 - 400 - 20, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin), (120, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin), (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Top, margin), (100 + (1920 - 400) / 2, 70));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin), (100 + (1920 - 400) / 2, 50 + 1080 - 300 - 20));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Left, margin), (120, 50 + (1080 - 300) / 2));
-        assert_eq!(apply_anchor(wa, win_w, win_h, Anchor::Right, margin), (100 + 1920 - 400 - 20, 50 + (1080 - 300) / 2));
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin),
+            (120, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin),
+            (100 + 1920 - 400 - 20, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin),
+            (120, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin),
+            (100 + 1920 - 400 - 20, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Top, margin),
+            (100 + (1920 - 400) / 2, 70)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin),
+            (100 + (1920 - 400) / 2, 50 + 1080 - 300 - 20)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Left, margin),
+            (120, 50 + (1080 - 300) / 2)
+        );
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Right, margin),
+            (100 + 1920 - 400 - 20, 50 + (1080 - 300) / 2)
+        );
     }
 
     #[test]
@@ -547,94 +819,143 @@ mod tests {
         let win_w = 200;
         let win_h = 100;
 
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft), (500, 400));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight), (300, 400));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft), (500, 300));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight), (300, 300));
-        assert_eq!(apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center), (400, 350));
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft),
+            (500, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight),
+            (300, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft),
+            (500, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight),
+            (300, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center),
+            (400, 350)
+        );
     }
 
     #[test]
     fn test_clamp_to_bounds_within() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let r = Rect { x: 100, y: 100, width: 500, height: 400 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let r = Rect {
+            x: 100,
+            y: 100,
+            width: 500,
+            height: 400,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
         assert_eq!(clamped, r);
     }
 
     #[test]
     fn test_clamp_to_bounds_outside() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let r = Rect { x: 2000, y: -50, width: 500, height: 400 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let r = Rect {
+            x: 2000,
+            y: -50,
+            width: 500,
+            height: 400,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
-        assert_eq!(clamped, Rect { x: 1920 - 500 - 16, y: 16, width: 500, height: 400 });
+        assert_eq!(
+            clamped,
+            Rect {
+                x: 1920 - 500 - 16,
+                y: 16,
+                width: 500,
+                height: 400
+            }
+        );
     }
 
     #[test]
     fn test_clamp_to_bounds_oversized() {
-        let wa = Rect { x: 0, y: 0, width: 1000, height: 800 };
-        let r = Rect { x: 500, y: 500, width: 1200, height: 900 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1000,
+            height: 800,
+        };
+        let r = Rect {
+            x: 500,
+            y: 500,
+            width: 1200,
+            height: 900,
+        };
         let clamped = clamp_to_bounds(r, wa, 0, 0, 0, 0, 16);
-        assert_eq!(clamped, Rect { x: 16, y: 16, width: 1200, height: 900 });
+        assert_eq!(
+            clamped,
+            Rect {
+                x: 16,
+                y: 16,
+                width: 1200,
+                height: 900
+            }
+        );
     }
 
     #[test]
     fn test_resolve_workarea() {
-        let wa1 = Rect { x: 0, y: 0, width: 1920, height: 1080 };
-        let wa2 = Rect { x: 1920, y: 0, width: 2560, height: 1440 };
+        let wa1 = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let wa2 = Rect {
+            x: 1920,
+            y: 0,
+            width: 2560,
+            height: 1440,
+        };
         let workareas = vec![wa1, wa2];
 
         assert_eq!(resolve_workarea(&workareas, (0, 0), "0").unwrap(), wa1);
         assert_eq!(resolve_workarea(&workareas, (0, 0), "1").unwrap(), wa2);
         assert_eq!(resolve_workarea(&workareas, (0, 0), "99").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (0, 0), "primary").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (500, 300), "cursor").unwrap(), wa1);
-        assert_eq!(resolve_workarea(&workareas, (2200, 500), "cursor").unwrap(), wa2);
-        assert_eq!(resolve_workarea(&workareas, (9999, 9999), "cursor").unwrap(), wa1);
-    }
-    
-    #[test]
-    fn test_calculate_with_explicit_pos() {
-        let params = GeometryParams {
-            pos: Some((500, 300)),
-            size: Some((800, 600)),
-            ..Default::default()
-        };
-        let geom = calculate(&params, None, &[]);
-        assert_eq!(geom, TargetGeometry { x: 500, y: 300, w: 800, h: 600, ..Default::default() });
-    }
-
-    #[test]
-    fn test_calculate_with_cursor_and_offset() {
-        let params = GeometryParams {
-            offset: Some((50, -20)),
-            size: Some((400, 300)),
-            ..Default::default()
-        };
-        let geom = calculate(&params, Some((1000, 500)), &[]);
-        assert_eq!(geom, TargetGeometry { x: 1050, y: 480, w: 400, h: 300, ..Default::default() });
-    }
-
-    #[test]
-    fn test_calculate_with_boundary_limits() {
-        let wa = Rect { x: 100, y: 50, width: 1920, height: 1080 };
-        let params = GeometryParams {
-            pos: Some((200, 200)),
-            size: Some((800, 600)),
-            margin: Some(40),
-            bound_top: Some(10),
-            ..Default::default()
-        };
-        let geom = calculate(&params, None, &[wa]);
-        assert_eq!(geom.min_x, Some(100 + 40));
-        assert_eq!(geom.max_x, Some(100 + 1920 - 40));
-        assert_eq!(geom.min_y, Some(50 + 40 + 10));
-        assert_eq!(geom.max_y, Some(50 + 1080 - 40));
+        assert_eq!(
+            resolve_workarea(&workareas, (0, 0), "primary").unwrap(),
+            wa1
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (500, 300), "cursor").unwrap(),
+            wa1
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (2200, 500), "cursor").unwrap(),
+            wa2
+        );
+        assert_eq!(
+            resolve_workarea(&workareas, (9999, 9999), "cursor").unwrap(),
+            wa1
+        );
     }
 
     #[test]
     fn test_diagnostics_oversized() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((3000, 2000)),
             anchor: Some(Anchor::BottomRight),
@@ -644,12 +965,20 @@ mod tests {
             ..Default::default()
         };
         let diags = check_geometry_diagnostics(&params);
-        assert_eq!(diags, vec![GeometryDiagnostic::Oversized { w: 3000, h: 2000 }]);
+        assert_eq!(
+            diags,
+            vec![GeometryDiagnostic::Oversized { w: 3000, h: 2000 }]
+        );
     }
 
     #[test]
     fn test_diagnostics_sub_minimum() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((30, 20)),
             anchor: Some(Anchor::BottomRight),
@@ -659,12 +988,20 @@ mod tests {
             ..Default::default()
         };
         let diags = check_geometry_diagnostics(&params);
-        assert_eq!(diags, vec![GeometryDiagnostic::SubMinimumSize { w: 30, h: 20 }]);
+        assert_eq!(
+            diags,
+            vec![GeometryDiagnostic::SubMinimumSize { w: 30, h: 20 }]
+        );
     }
 
     #[test]
     fn test_diagnostics_repositioned() {
-        let wa = Rect { x: 0, y: 0, width: 1920, height: 1080 };
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
         let params = PlacementParams {
             size: Some((800, 600)),
             anchor: Some(Anchor::BottomRight),
@@ -683,5 +1020,661 @@ mod tests {
                 clamped_y: 460
             }]
         );
+    }
+
+    // ========================================================================
+    // Characterization Tests: Comprehensive Pure Geometry Engine Verification
+    // ========================================================================
+
+    #[test]
+    fn test_apply_anchor_all_variants_exhaustive() {
+        let wa = Rect {
+            x: 100,
+            y: 200,
+            width: 1920,
+            height: 1080,
+        };
+        let (win_w, win_h) = (800, 600);
+        let margin = 24;
+
+        // Center
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Center, margin),
+            (100 + (1920 - 800) / 2, 200 + (1080 - 600) / 2) // (660, 440)
+        );
+
+        // TopLeft
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopLeft, margin),
+            (100 + 24, 200 + 24) // (124, 224)
+        );
+
+        // TopRight
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::TopRight, margin),
+            (100 + 1920 - 800 - 24, 200 + 24) // (1196, 224)
+        );
+
+        // BottomLeft
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomLeft, margin),
+            (100 + 24, 200 + 1080 - 600 - 24) // (124, 656)
+        );
+
+        // BottomRight
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::BottomRight, margin),
+            (100 + 1920 - 800 - 24, 200 + 1080 - 600 - 24) // (1196, 656)
+        );
+
+        // Top
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Top, margin),
+            (100 + (1920 - 800) / 2, 200 + 24) // (660, 224)
+        );
+
+        // Bottom
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Bottom, margin),
+            (100 + (1920 - 800) / 2, 200 + 1080 - 600 - 24) // (660, 656)
+        );
+
+        // Left
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Left, margin),
+            (100 + 24, 200 + (1080 - 600) / 2) // (124, 440)
+        );
+
+        // Right
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Right, margin),
+            (100 + 1920 - 800 - 24, 200 + (1080 - 600) / 2) // (1196, 440)
+        );
+
+        // Cursor fallback returns workarea origin without margin
+        assert_eq!(
+            apply_anchor(wa, win_w, win_h, Anchor::Cursor, margin),
+            (100, 200)
+        );
+    }
+
+    #[test]
+    fn test_apply_pivot_all_variants_exhaustive() {
+        let (target_x, target_y) = (500, 400);
+        let (win_w, win_h) = (200, 100);
+
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopLeft),
+            (500, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::TopRight),
+            (300, 400)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomLeft),
+            (500, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::BottomRight),
+            (300, 300)
+        );
+        assert_eq!(
+            apply_pivot(target_x, target_y, win_w, win_h, Pivot::Center),
+            (400, 350)
+        );
+    }
+
+    #[test]
+    fn test_clamp_to_bounds_negative_and_oversized() {
+        let bounds = Rect {
+            x: -1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }; // Left monitor
+        let normal_rect = Rect {
+            x: -1000,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
+
+        // Inside bounds: untouched
+        let clamped = clamp_to_bounds(normal_rect, bounds, 0, 0, 0, 0, 0);
+        assert_eq!(clamped, normal_rect);
+
+        // Overflow left: clamped to bounds.x (-1920)
+        let overflow_left = Rect {
+            x: -2500,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
+        let clamped_left = clamp_to_bounds(overflow_left, bounds, 0, 0, 0, 0, 10);
+        assert_eq!(clamped_left.x, -1920 + 10);
+
+        // Overflow right: clamped to bounds.x + width - win_w
+        let overflow_right = Rect {
+            x: 500,
+            y: 200,
+            width: 500,
+            height: 400,
+        };
+        let clamped_right = clamp_to_bounds(overflow_right, bounds, 0, 0, 0, 0, 10);
+        assert_eq!(clamped_right.x, -1920 + 1920 - 10 - 500); // -510
+
+        // Window larger than workarea (2500px wide in 1920px monitor)
+        let huge_rect = Rect {
+            x: 0,
+            y: 0,
+            width: 2500,
+            height: 1500,
+        };
+        let clamped_huge = clamp_to_bounds(huge_rect, bounds, 0, 0, 0, 0, 16);
+        // max_x < min_x -> pins to min_x
+        assert_eq!(clamped_huge.x, -1920 + 16);
+        assert_eq!(clamped_huge.y, 16);
+    }
+
+    #[test]
+    fn test_resolve_workarea_multi_monitor_and_errors() {
+        let monitors = vec![
+            Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }, // Monitor 0: Primary
+            Rect {
+                x: 1920,
+                y: 0,
+                width: 2560,
+                height: 1440,
+            }, // Monitor 1: Right
+            Rect {
+                x: -1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }, // Monitor 2: Left
+        ];
+
+        // Cursor resolution
+        assert_eq!(
+            resolve_workarea(&monitors, (100, 100), "cursor").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (2500, 500), "cursor").unwrap(),
+            monitors[1]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (-500, 300), "cursor").unwrap(),
+            monitors[2]
+        );
+
+        // Primary / Index resolution
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "primary").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "0").unwrap(),
+            monitors[0]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "1").unwrap(),
+            monitors[1]
+        );
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "2").unwrap(),
+            monitors[2]
+        );
+
+        // Out-of-bounds index falls back to primary monitor (monitors[0])
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "99").unwrap(),
+            monitors[0]
+        );
+        // Unrecognized string falls back to primary monitor
+        assert_eq!(
+            resolve_workarea(&monitors, (0, 0), "invalid_spec").unwrap(),
+            monitors[0]
+        );
+        // Empty monitor list returns Err
+        assert!(resolve_workarea(&[], (0, 0), "primary").is_err());
+    }
+
+    #[test]
+    fn test_50_permutations_anchor_cross_pivot_matrix() {
+        let wa = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let anchors = [
+            Anchor::Center,
+            Anchor::TopLeft,
+            Anchor::TopRight,
+            Anchor::BottomLeft,
+            Anchor::BottomRight,
+            Anchor::Top,
+            Anchor::Bottom,
+            Anchor::Left,
+            Anchor::Right,
+            Anchor::Cursor,
+        ];
+        let pivots = [
+            Pivot::TopLeft,
+            Pivot::TopRight,
+            Pivot::BottomLeft,
+            Pivot::BottomRight,
+            Pivot::Center,
+        ];
+
+        let mut count = 0;
+        for anchor in &anchors {
+            for pivot in &pivots {
+                let (ax, ay) = apply_anchor(wa, 800, 600, *anchor, 20);
+                let (px, py) = apply_pivot(ax, ay, 800, 600, *pivot);
+                assert!((-10000..=10000).contains(&px));
+                assert!((-10000..=10000).contains(&py));
+                count += 1;
+            }
+        }
+        assert_eq!(count, 50);
+    }
+
+    #[test]
+    fn test_monitor_layout_compute_insets_and_schema() {
+        let screen = LayoutRect {
+            x: 0,
+            y: 0,
+            w: 1920,
+            h: 1080,
+        };
+        let workarea = LayoutRect {
+            x: 0,
+            y: 40,
+            w: 1920,
+            h: 1040,
+        };
+        let insets = MonitorInfo::compute_insets(Some(screen), Some(workarea)).unwrap();
+        assert_eq!(
+            insets,
+            LayoutInsets {
+                top: 40,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
+        );
+
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![MonitorInfo {
+                index: 0,
+                name: Some("DP-1".to_string()),
+                primary: true,
+                scale: Some(1.0),
+                screen: Some(screen),
+                workarea: Some(workarea),
+                insets: Some(insets),
+            }],
+            note: None,
+        };
+
+        let json = serde_json::to_string(&layout).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["schema_version"], 1);
+        assert_eq!(parsed["monitors"][0]["index"], 0);
+        assert_eq!(parsed["monitors"][0]["name"], "DP-1");
+        assert_eq!(parsed["monitors"][0]["primary"], true);
+        assert_eq!(parsed["monitors"][0]["scale"], 1.0);
+        assert_eq!(parsed["monitors"][0]["screen"]["w"], 1920);
+        assert_eq!(parsed["monitors"][0]["workarea"]["h"], 1040);
+        assert_eq!(parsed["monitors"][0]["insets"]["top"], 40);
+        assert!(parsed.get("note").is_none());
+    }
+
+    #[test]
+    fn test_new_matrix_and_cursor_default_pivot() {
+        let wa = Rect {
+            x: 0,
+            y: 40,
+            width: 1920,
+            height: 1040,
+        };
+        let screen = Rect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+
+        // 1. -p without --anchor defaults to TopLeft pivot relative to workarea top-left (wa.x=0, wa.y=40)
+        let params_pos = PlacementParams {
+            pos: Some((200, 300)),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_pos, 400, 300);
+        assert_eq!(rect.x, 200);
+        assert_eq!(rect.y, 340);
+
+        // 2. -p with --pivot relative to workarea top-left
+        let params_pos_pivot = PlacementParams {
+            pos: Some((200, 300)),
+            pivot: Some(Pivot::Center),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_pos_pivot, 400, 300);
+        assert_eq!(rect.x, 200 - 200); // 0
+        assert_eq!(rect.y, 340 - 150); // 190
+
+        // 3. --anchor without --pivot defaults to matching anchor
+        let params_anchor_center = PlacementParams {
+            anchor: Some(Anchor::Center),
+            size: Some((400, 300)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_anchor_center, 400, 300);
+        assert_eq!(rect.x, (1920 - 400) / 2);
+        assert_eq!(rect.y, 40 + (1040 - 300) / 2);
+
+        // 4. --anchor cursor without --pivot defaults to TopLeft
+        let params_cursor = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            cursor_pos: Some((500, 400)),
+            size: Some((300, 200)),
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_cursor, 300, 200);
+        assert_eq!(rect.x, 500);
+        assert_eq!(rect.y, 400);
+
+        // 5. --anchor with offset
+        let params_anchor_offset = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            offset: Some((25, 35)),
+            size: Some((300, 200)),
+            margin: 10,
+            workarea: wa,
+            clamp: false,
+            ..Default::default()
+        };
+        let rect = calculate_rect_from_placement(&params_anchor_offset, 300, 200);
+        assert_eq!(rect.x, wa.x + 10 + 25);
+        assert_eq!(rect.y, wa.y + 10 + 35);
+
+        // 6. Area::Screen vs Area::Workarea vs Area::Unbounded
+        let params_screen = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Screen),
+            workarea: screen,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_screen = calculate_rect_from_placement(&params_screen, 300, 200);
+        assert_eq!(rect_screen.x, 16);
+        assert_eq!(rect_screen.y, 16);
+
+        let params_wa = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Workarea),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_wa = calculate_rect_from_placement(&params_wa, 300, 200);
+        assert_eq!(rect_wa.x, 16);
+        assert_eq!(rect_wa.y, 40 + 16);
+
+        // Unbounded area: global coordinates, no margin, no clamp
+        let params_unbounded = PlacementParams {
+            pos: Some((700, 300)),
+            size: Some((300, 200)),
+            margin: 16,
+            area: Some(Area::Unbounded),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_unbounded = calculate_rect_from_placement(&params_unbounded, 300, 200);
+        assert_eq!(rect_unbounded.x, 700);
+        assert_eq!(rect_unbounded.y, 300);
+
+        // 7. Odd sizes (e.g. 501x333) with Center anchor
+        let params_odd = PlacementParams {
+            anchor: Some(Anchor::Center),
+            size: Some((501, 333)),
+            workarea: wa,
+            clamp: true,
+            ..Default::default()
+        };
+        let rect_odd = calculate_rect_from_placement(&params_odd, 501, 333);
+        assert_eq!(rect_odd.x, (1920 - 501) / 2);
+        assert_eq!(rect_odd.y, 40 + (1040 - 333) / 2);
+    }
+
+    #[test]
+    fn test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("HDMI-1".into()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // When --monitor is omitted (None), must pick monitor 1 (HDMI-1) because it is primary
+        let (chosen, fallback) = resolve_monitor_from_layout(&layout, (0, 0), None);
+        assert_eq!(chosen.unwrap().index, 1);
+        assert!(!fallback);
+
+        // When --monitor is explicitly "0", picks index 0
+        let (chosen_0, _) = resolve_monitor_from_layout(&layout, (0, 0), Some("0"));
+        assert_eq!(chosen_0.unwrap().index, 0);
+
+        // When --monitor is explicitly "primary", picks index 1
+        let (chosen_prim, _) = resolve_monitor_from_layout(&layout, (0, 0), Some("primary"));
+        assert_eq!(chosen_prim.unwrap().index, 1);
+    }
+
+    #[test]
+    fn test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("VGA-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("VGA-2".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1024,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1024,
+                        y: 0,
+                        w: 1024,
+                        h: 768,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // Neither monitor is flagged primary; falls back to index 0 with fallback flag true
+        let (chosen, fallback) = resolve_monitor_from_layout(&layout, (0, 0), None);
+        assert_eq!(chosen.unwrap().index, 0);
+        assert!(fallback);
+    }
+
+    #[test]
+    fn test_find_monitor_with_largest_overlap() {
+        let layout = MonitorLayout {
+            schema_version: 1,
+            monitors: vec![
+                MonitorInfo {
+                    index: 0,
+                    name: Some("DP-1".into()),
+                    primary: true,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 0,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 0,
+                        y: 40,
+                        w: 1920,
+                        h: 1040,
+                    }),
+                    insets: None,
+                },
+                MonitorInfo {
+                    index: 1,
+                    name: Some("HDMI-1".into()),
+                    primary: false,
+                    scale: Some(1.0),
+                    screen: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    workarea: Some(LayoutRect {
+                        x: 1920,
+                        y: 0,
+                        w: 1920,
+                        h: 1080,
+                    }),
+                    insets: None,
+                },
+            ],
+            note: None,
+        };
+
+        // Window mostly on monitor 1 (x: 1800, width: 400 -> 120px on mon 0, 280px on mon 1)
+        let win = Rect {
+            x: 1800,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        let best = find_monitor_with_largest_overlap(&layout, win).unwrap();
+        assert_eq!(best.index, 1);
+    }
+
+    #[test]
+    fn test_window_straddles_monitors_helper() {
+        let monitors = [
+            Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            Rect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        ];
+
+        let straddling = Rect {
+            x: 1800,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        assert!(window_straddles_monitors(straddling, &monitors));
+
+        let single = Rect {
+            x: 100,
+            y: 100,
+            width: 400,
+            height: 300,
+        };
+        assert!(!window_straddles_monitors(single, &monitors));
     }
 }

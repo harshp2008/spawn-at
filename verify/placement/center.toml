@@ -1,0 +1,50 @@
+id = "placement/center"
+category = "placement"
+title = "Window centered in the work area"
+description = "Spawns a test window centered in the work area at 400x300 with a 16px boundary margin."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[requires]
+session = ["any"]
+backend = ["any"]
+gnome = "any"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "plain"
+args = [
+    "--title", "Verify-Placement-Center",
+    "--app-id", "verify.placement.center",
+    "--expect", "Should appear centered"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.placement.center",
+    "--anchor", "center",
+    "--size", "400", "300",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = false
+
+[expect.rect]
+anchor = "center"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once in the middle of the screen, without flickering or jumping?"

@@ -1,0 +1,48 @@
+{
+  "environment": {
+    "hostname": "redacted",
+    "session_type": "wayland",
+    "desktop": "ubuntu:gnome",
+    "gnome_version": 46,
+    "monitors_count": 1,
+    "primary_workarea": {
+      "x": 0,
+      "y": 40,
+      "w": 1920,
+      "h": 1040
+    },
+    "binary_path": "target/debug/spawn-at",
+    "binary_commit": "b2540f2",
+    "is_dirty_build": false,
+    "generated_at": 1791772252
+  },
+  "qualification": {
+    "supported": false,
+    "total_required": 1,
+    "passed_required": 0,
+    "failed_required": 1,
+    "skipped_required": []
+  },
+  "results": [
+    {
+      "id": "cloak/delayed-paint/delay-0",
+      "title": "App paints slowly (0 ms)",
+      "kind": "auto",
+      "required": true,
+      "auto_status": "auto-pass-trace-unchecked",
+      "human_verdict": {
+        "verdict": "unset",
+        "note": null
+      },
+      "final_status": "pass-trace-unchecked",
+      "disagreement": false,
+      "duration_ms": 122,
+      "exit_code": 0,
+      "stdout": "{\"window_id\":870906703,\"x\":710,\"y\":385,\"w\":500,\"h\":350,\"rel_x\":710,\"rel_y\":345,\"area\":\"workarea\",\"size_raised\":false,\"raised_w\":false,\"raised_h\":false,\"reused_existing_window\":false,\"source\":\"claim\"}\n",
+      "stderr": "[spawn-at] INFO: Window mapped at final size (500x350) and positioned at (710, 385).\n",
+      "message": "Assertions passed (workarea taken from the extension, not independently probed), but the trace was not analysed: log slice is empty (the extension's timing log was off, or nothing was logged in the run's time window); extension timing log could not be enabled: Failed to execute gdbus: No such file or directory (os error 2)",
+      "log_slice": "",
+      "trace_note": "extension timing log could not be enabled: Failed to execute gdbus: No such file or directory (os error 2)"
+    }
+  ]
+}

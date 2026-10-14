@@ -1,0 +1,7 @@
+{
+  "name": "tiled window",
+  "description": "A tiled window is Skipped.",
+  "request": { "target": [800, 600], "current": [960, 1040], "tiled": true },
+  "events": [],
+  "expect": { "outcome": "skipped", "reason": "tiled" }
+}

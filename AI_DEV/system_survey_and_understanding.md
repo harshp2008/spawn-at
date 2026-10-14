@@ -1,5 +1,7 @@
 # System Survey & Architectural Understanding: `spawn-at`
 
+> Historical notes; paths and file names may be out of date.
+
 **Document Status:** Comprehensive Technical Survey & Codebase Audit (Current State)  
 **Target Architecture Blueprint:** [`AI_DEV/spawn-at_master_architecture_blueprint.md`](file:///home/harsh/Documents/GITHUB%20PROJECTS/spawn-at/AI_DEV/spawn-at_master_architecture_blueprint.md)  
 **Author:** Antigravity (DeepMind AAC)  

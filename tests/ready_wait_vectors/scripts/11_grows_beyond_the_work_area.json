@@ -1,0 +1,7 @@
+{
+  "name": "grows beyond the work area",
+  "description": "A 3000x2000 request is clamped by the compositor to the 1920x1040 work area at 25 ms: AdjustedTo at 55 ms.",
+  "request": { "target": [3000, 2000], "current": [400, 300] },
+  "events": [ { "at": 25, "size": [1920, 1040] } ],
+  "expect": { "outcome": "adjusted", "size": [1920, 1040], "waited_ms": 55 }
+}

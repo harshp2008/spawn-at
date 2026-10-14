@@ -1,0 +1,57 @@
+id = "cloak/delayed-paint"
+category = "animation-and-cloak"
+subcategory = "delayed-paint"
+title = "App paints slowly ({delay} ms)"
+description = "Masks window cold-start while the app takes {delay} ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace."
+kind = "auto"
+required = true
+tags = ["visual", "needs-fixture"]
+
+[matrix]
+delay = [0, 50, 150, 500]
+
+[requires]
+session = ["wayland"]
+backend = ["gnome"]
+gnome = "42-48"
+monitors_min = 1
+scale = "any"
+apps = []
+
+[subject]
+app = "fixture"
+profile = "delayed-paint"
+args = [
+    "--title", "Verify-Cloak-DelayedPaint",
+    "--app-id", "verify.cloak.delayedpaint",
+    "--paint-delay-ms", "{delay}",
+    "--width", "500",
+    "--height", "350",
+    "--expect", "Should appear once, centred"
+]
+
+[action]
+command = "spawn"
+repeatable = false
+args = [
+    "--class", "verify.cloak.delayedpaint",
+    "--anchor", "center",
+    "--size", "500", "350",
+    "--margin", "16"
+]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:", "[spawn-at] WARNING:"]
+stderr_present = []
+diagnostics = []
+never_visible_off_target = true
+
+[expect.rect]
+anchor = "center"
+size = [500, 350]
+margin = 16
+tolerance_px = 1
+
+[human]
+watch = "Did the window appear once, already in place, with no flash or jump?"
