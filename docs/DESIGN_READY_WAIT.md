@@ -607,3 +607,19 @@ Labels: CONFIRMED = covered by a node or Rust test in this tree; HYPOTHESIS = ne
 **Ping/pong.** Nothing was added: `Meta.Window.check_alive(timestamp)` is an action, the only observable is the read-only `is-alive` property (changes after the 5000 ms check-alive timeout), and no signal carries a reply or its time (TEST_PLAN 6.25, phase 1a).
 
 **Not done.** A screen-capture check of what is visible: the Mutter screencast session is prompt-free but no local consumer could attach to its PipeWire node (6.25, phase 1b).
+
+## 14. Experiments: resize before the map, and a pixel probe (2026-10-14, built, not installed, not run in a Shell)
+
+Labels: CONFIRMED = covered by a node or Rust test in this tree, or read in this tree's data; HYPOTHESIS = needs a real Shell. Data and counts: TEST_PLAN 6.27.
+
+**Why.** The XWayland fixture is resized at `map`, 21 ms (idle) to 41 ms (loaded) after `window-created`, and its first paint is at the old size before that in all 120 idle runs (CONFIRMED, 6.27 phase 1); `first-frame` is always after the map and the resize and is not a paint signal as things are. If the resize were issued at `window-created`, the first paint might already be at the target size. Separately, the early `damaged` and texture size could be Xwayland handing over a blank buffer at the new size; a few pixels might tell blank from painted.
+
+**`x11-premap`.** Hidden `--wait-strategy x11-premap` (refused by the config file). For an XWayland/X11 window claimed at `window-created` with a size request: resize while cloaked, wait for `first-frame` after that, reveal on it, cap and hard limit as usual. Labels `x11-premap-first-frame`, `-cap`, `-hard`, `-unmanaged`, `-no-first-frame-signal`. The instructions and the pid/WM_CLASS used for matching are available at `window-created` for the fixture's X11 windows (CONFIRMED, `_handleWindowCreated` already claims and cloaks there).
+
+**`x11-pixel-probe`.** Hidden value, observe-only, logging on only: four 2x2 clips of the window texture sampled from a timer after each `damaged` and `first-frame`, rate-limited, logged as colour, class, hash and cost. The accessor is `Meta.WindowActor.get_image(clip) -> cairo.Surface` (CONFIRMED in the Meta-14 typelib); GJS cairo has no pixel getter, so the surface goes through a PNG in the runtime directory and `GdkPixbuf`, imported lazily. The fixture's `--state-colors` gives ground truth (magenta at the initial size, green at any other).
+
+**Off by default (CONFIRMED by tests).** Both values are flag-only and refused by `config set`; without them nothing is resized early, connected or read; a native Wayland window gets the same trace line for line.
+
+**Risks (HYPOTHESIS).** An early `move_resize_frame` before the first placement, or `get_image` from a timer, could misbehave in Mutter in a way the JS `try/catch` cannot catch. The first live run is idle, on the fixture, with the user present.
+
+**Result.** Not run yet; the live plan is in TEST_PLAN 6.27, "Live-stage plan".
