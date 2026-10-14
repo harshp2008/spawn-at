@@ -8,6 +8,51 @@ All notable changes to this project are recorded here. The format follows
 
 v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms; no dates and no promises.
 
+### Changed
+
+- **The login update-check autostart entry now honours `XDG_CONFIG_HOME`**, the same way the
+  config file does: with an absolute `XDG_CONFIG_HOME` it is written to
+  `$XDG_CONFIG_HOME/autostart/spawn-at-update-check.desktop`; with it unset the path is
+  unchanged (`~/.config/autostart/...`). Before, it was always under `~/.config`, so a desktop
+  session using `XDG_CONFIG_HOME` did not see it. An entry an earlier version wrote under
+  `~/.config/autostart` is not moved: re-run `spawn-at install` to write the new one.
+- `install.sh` sends the unsupported-platform error and the "package does not contain
+  `spawn-at`" error to stderr. Nothing else in the script changed.
+- Plain `cargo build` / `cargo test` at the repository root are now explicitly limited to the
+  `spawn-at` package (`default-members = ["."]`); this was already their behavior. Name
+  `spawn-at-verify` explicitly (`-p spawn-at-verify --features tui,fixture`).
+
+### Added
+
+- **CI** (`.github/workflows/ci.yml`) on pull requests and pushes to `main`: `cargo fmt --check`,
+  clippy with `-D warnings` on the whole workspace, the tests of `spawn-at`, `spawn-at-core`,
+  `xtask` and `spawn-at-verify` (`--features tui,fixture`), and the Node tests. Linux x86_64
+  only; the 4 tests that need a live display stay ignored. It has not run on GitHub yet.
+- The `hostile` category (9 specs) is part of the `full` and `release-gate` verification suites.
+  All 9 are `required = false`, so the gate's required set is unchanged.
+
+### Fixed
+
+- The release workflow now fails if a file it packages (`README.md`, `LICENSE`) is missing,
+  instead of silently publishing a tarball without it, and checks that the tarball lists
+  `./spawn-at`. Not yet run on a real tag.
+- `scripts/smoke-live.sh` no longer fails on its build step (`no bin target named
+  spawn-at-verify`).
+
+### Removed
+
+- The unused `tokio` dependency of `spawn-at-verify`.
+- Unused code: `get_active_driver`, `EMBEDDED_EXTENSION_FILES`, and the unused re-exports
+  `apply_focus_policy`, `run_unminimize`, `Atoms` and `Entry`.
+
+### Documentation
+
+- Broken paths fixed in `CONTRIBUTING.md`; its "adding a driver" guide now points at the real
+  traits. `docs/CODE_LAYOUT.md` now describes the current tree (the never-built reorganization
+  plan was removed), `AI_DEV/` was removed, the README's X11/XWayland paragraph is a short summary.
+- `docs/TEST_PLAN.md`: the 23 catalog rows without a spec file are marked "Not written", and the
+  dated log (sections 6.10 to 6.35) moved to `docs/TEST_LOG.md` with a stub at each old heading.
+
 ## [0.2.0-beta.1] - 2026-10-14
 
 Pre-release. Tested on one machine only: GNOME 46, Wayland, one monitor, with the project's own
