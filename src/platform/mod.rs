@@ -82,8 +82,8 @@ pub struct InstallArgs {
     /// Print the notice and what would be installed, then stop without changing anything
     #[arg(long)]
     pub dry_run: bool,
-    /// Update release channel: 'stable' (official) or 'all' (beta/pre-releases)
-    #[arg(long, value_parser = ["stable", "all"])]
+    /// Update release channel: 'stable' (official) or 'beta' (includes pre-releases); 'all' is a deprecated alias of 'beta'
+    #[arg(long, value_parser = ["stable", "beta", "all"])]
     pub update_channel: Option<String>,
     /// Enable visual update notifications in interactive sessions
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]

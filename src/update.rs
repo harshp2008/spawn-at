@@ -97,10 +97,14 @@ pub fn get_running_semver() -> Option<semver::Version> {
 }
 
 /// Normalizes and validates the configured release channel.
+///
+/// `stable` and `beta` are the two channels. `all` is the name 0.2.0-alpha used for `beta`: it is
+/// read as `beta`, so a config file written by the alpha keeps offering pre-releases. Any other
+/// value (including an empty one) falls back to `stable`, as before.
 pub fn normalize_channel(ch: &str) -> &'static str {
     match ch.trim().to_ascii_lowercase().as_str() {
         "stable" => "stable",
-        "beta" => "beta",
+        "beta" | "all" => "beta",
         other => {
             update_debug!(
                 "[spawn-at-debug] Unrecognized or missing channel '{}', defaulting to 'stable'",
@@ -109,6 +113,20 @@ pub fn normalize_channel(ch: &str) -> &'static str {
             "stable"
         }
     }
+}
+
+/// The line printed when the deprecated channel name `all` is given on the command line.
+pub const CHANNEL_ALL_NOTICE: &str = "'all' is deprecated and now means 'beta'.";
+
+/// True when `ch` is the deprecated spelling `all` (any case, surrounding spaces ignored).
+pub fn is_deprecated_channel_alias(ch: &str) -> bool {
+    ch.trim().eq_ignore_ascii_case("all")
+}
+
+/// The channel name `install` writes to the config file for `--update-channel <arg>`: always
+/// `stable` or `beta` (`all` becomes `beta`; no argument or an unknown value becomes `stable`).
+pub fn channel_to_write(arg: Option<&str>) -> &'static str {
+    arg.map(normalize_channel).unwrap_or("stable")
 }
 
 /// Checks whether an upgrade from `current` to `target` traverses v0.1.x to v0.2.x+.
@@ -770,6 +788,13 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     let current_tag = get_current_release_tag();
     let running_semver = get_running_semver();
     let raw_channel = args.channel.as_deref().unwrap_or(&config.update.channel);
+    if args
+        .channel
+        .as_deref()
+        .is_some_and(is_deprecated_channel_alias)
+    {
+        println!("{}", CHANNEL_ALL_NOTICE);
+    }
     let channel = normalize_channel(raw_channel);
 
     if args.headless && args.check {
@@ -1380,5 +1405,57 @@ pub mod tests {
             &parse_semver("0.2.0").unwrap()
         ));
         assert!(is_v01_to_v02_upgrade(&parse_semver("0.1.0").unwrap(), &cur));
+    }
+
+    fn channel_releases() -> Vec<GitHubRelease> {
+        vec![
+            mock_release("v0.3.0-beta.1", true, false),
+            mock_release("v0.2.0", false, false),
+        ]
+    }
+
+    /// A config file written by 0.2.0-alpha (`channel = "all"`) is read as beta: the newest
+    /// pre-release is offered, not the older stable one.
+    #[test]
+    fn test_all_in_a_config_file_offers_prereleases() {
+        let cfg: crate::config::Config = toml::from_str("[update]\nchannel = \"all\"\n").unwrap();
+        assert_eq!(cfg.update.channel, "all");
+        assert_eq!(normalize_channel(&cfg.update.channel), "beta");
+        let releases = channel_releases();
+        let cand = find_update_candidate(&releases, &cfg.update.channel, Some("0.1.0"));
+        assert_eq!(cand.unwrap().0.tag_name, "v0.3.0-beta.1");
+    }
+
+    #[test]
+    fn test_beta_offers_prereleases_and_stable_does_not() {
+        let releases = channel_releases();
+        let beta = find_update_candidate(&releases, "beta", Some("0.1.0"));
+        assert_eq!(beta.unwrap().0.tag_name, "v0.3.0-beta.1");
+        let all = find_update_candidate(&releases, "all", Some("0.1.0"));
+        assert_eq!(all.unwrap().0.tag_name, "v0.3.0-beta.1");
+        let stable = find_update_candidate(&releases, "stable", Some("0.1.0"));
+        assert_eq!(stable.unwrap().0.tag_name, "v0.2.0");
+    }
+
+    /// `install --update-channel all` writes `beta`; `beta` and `stable` are written as given;
+    /// no argument writes `stable`; an unknown value falls back to `stable` here (the install
+    /// command line rejects unknown values before this is reached, see the cli tests).
+    #[test]
+    fn test_install_writes_only_stable_or_beta() {
+        assert_eq!(channel_to_write(Some("all")), "beta");
+        assert_eq!(channel_to_write(Some("ALL")), "beta");
+        assert_eq!(channel_to_write(Some("beta")), "beta");
+        assert_eq!(channel_to_write(Some("stable")), "stable");
+        assert_eq!(channel_to_write(None), "stable");
+        assert_eq!(channel_to_write(Some("nightly")), "stable");
+    }
+
+    #[test]
+    fn test_only_all_is_a_deprecated_alias() {
+        assert!(is_deprecated_channel_alias("all"));
+        assert!(is_deprecated_channel_alias(" All "));
+        assert!(!is_deprecated_channel_alias("beta"));
+        assert!(!is_deprecated_channel_alias("stable"));
+        assert!(!is_deprecated_channel_alias("nightly"));
     }
 }

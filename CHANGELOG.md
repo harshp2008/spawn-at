@@ -49,6 +49,7 @@ caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for t
 
 ### Fixed
 
+- **Update channel name.** The update channels are `stable` and `beta`. `all` (the beta channel's name in 0.2.0-alpha) is a deprecated alias that is read as `beta` in the config file, in `update --channel` and in `install --update-channel`; it prints one line saying so. `install` and its prompt write only `stable` or `beta`. Before this fix, `install` could write `all` while the update check treated it as `stable`, so pre-releases were never offered.
 - **Login autostart entry.** `~/.config/autostart/spawn-at-update-check.desktop` had
   `Exec=spawn-at`, which is not found at login because `~/.local/bin` is not on `PATH` there. The
   installer now writes the absolute path of the binary it installed, quoted as the Desktop Entry

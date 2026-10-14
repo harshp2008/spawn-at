@@ -883,6 +883,16 @@ fn test_characterization_all_subcommands_parsing() {
         }
     ));
 
+    // 2b. install --update-channel accepts stable, beta and the deprecated alias all, nothing else
+    for ok in ["stable", "beta", "all"] {
+        let cli = Cli::try_parse_from(["spawn-at", "install", "--update-channel", ok]).unwrap();
+        match cli.command {
+            Commands::Install(i) => assert_eq!(i.update_channel.as_deref(), Some(ok)),
+            _ => panic!("Expected Install variant"),
+        }
+    }
+    assert!(Cli::try_parse_from(["spawn-at", "install", "--update-channel", "nightly"]).is_err());
+
     // 3. Update args
     let cli = Cli::try_parse_from([
         "spawn-at",

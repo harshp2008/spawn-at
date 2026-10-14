@@ -186,12 +186,15 @@ async fn main() {
             // Configure update settings
             let (channel, notify) = if !args.headless && std::io::stdout().is_terminal() {
                 let ch = if let Some(ref c) = args.update_channel {
-                    c.clone()
+                    if crate::update::is_deprecated_channel_alias(c) {
+                        println!("{}", crate::update::CHANNEL_ALL_NOTICE);
+                    }
+                    crate::update::channel_to_write(Some(c)).to_string()
                 } else {
                     println!("\x1b[1;36m=== Update Preferences ===\x1b[0m\n");
                     let channel_options = &[
                         "Official releases only (stable) [Recommended]",
-                        "Include beta/pre-releases (all)",
+                        "Include beta/pre-releases (beta)",
                     ];
                     let ch_sel = dialoguer::Select::new()
                         .with_prompt("Select update channel:")
@@ -199,7 +202,7 @@ async fn main() {
                         .default(0)
                         .interact();
                     match ch_sel {
-                        Ok(1) => "all".to_string(),
+                        Ok(1) => "beta".to_string(),
                         _ => "stable".to_string(),
                     }
                 };
@@ -215,8 +218,15 @@ async fn main() {
                 };
                 (ch, notif)
             } else {
+                if args
+                    .update_channel
+                    .as_deref()
+                    .is_some_and(crate::update::is_deprecated_channel_alias)
+                {
+                    println!("{}", crate::update::CHANNEL_ALL_NOTICE);
+                }
                 (
-                    args.update_channel.unwrap_or_else(|| "stable".to_string()),
+                    crate::update::channel_to_write(args.update_channel.as_deref()).to_string(),
                     args.update_notify.unwrap_or(false),
                 )
             };

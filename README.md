@@ -243,7 +243,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | `close` | Request graceful closure of a target window. |
 | `query layout\|pointer\|windows` | Print monitors, cursor position, or open windows (`query windows` reports `GEOMETRY` in global screen coordinates, and a maximized window sits at the work area's origin). `--json` on layout and windows. |
 | `install` / `uninstall` | Manage the binary and the GNOME Shell extension. |
-| `update` | Check for or apply releases (`--check`, `--channel`, `--force`). |
+| `update` | Check for or apply releases (`--check`, `--channel stable\|beta`, `--force`). `beta` also offers pre-releases; `all` is a deprecated alias of `beta`. |
 
 | Group | Flag | Description |
 | :--- | :--- | :--- |

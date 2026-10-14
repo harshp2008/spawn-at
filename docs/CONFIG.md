@@ -26,7 +26,7 @@ so any other table in the file would have been lost on the next update check (fi
 | Backend choice | env `SPAWN_AT_BACKEND=x11` | auto | env only |
 | Colour | `NO_COLOR`, `TERM`, `COLORTERM` | by terminal | env only |
 | Extension timing log | `SetLogging` D-Bus call (in memory, per Shell session) | off | harness / developer |
-| Update preferences | `[update]` in the same file | stable, check on, notify on | `spawn-at update --channel`, install prompt |
+| Update preferences | `[update]` in the same file | stable, check on, notify on | `spawn-at update --channel`, `spawn-at install --update-channel`, install prompt |
 
 ## First slice (this change)
 
@@ -85,3 +85,5 @@ A config file with `[wait] cap_ms = 7, strategy = "ready-wait"` in a temporary `
 - Not run: the installed extension was not reinstalled; `spawn.window_timeout_ms` was not
   exercised live (covered by the default being the old literal; HYPOTHESIS that a larger value
   behaves as read: the same `Duration` feeds both waits).
+
+**Update channel.** `[update] channel` is `stable` (official releases only, the default) or `beta` (also offers pre-releases). `all` was the name of the beta channel in 0.2.0-alpha; it is a deprecated alias that is read as `beta` everywhere, so a config file that says `channel = "all"` keeps offering pre-releases. `install --update-channel all` and `update --channel all` still work and print one line saying `all` now means `beta`; `install` writes only `stable` or `beta`. `install --update-channel` rejects any other value; `update --channel` and a config file with an unknown value fall back to `stable`.
