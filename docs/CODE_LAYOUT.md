@@ -49,7 +49,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 1940 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/mod.rs` | 1887 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/mod.rs` | 676 |  |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
@@ -60,10 +60,10 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
 | `src/platform/mod.rs` | 320 | Platform & Compositor Driver Abstraction Layer |
 | `src/platform/upgrade.rs` | 754 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
-| `src/session.rs` | 518 | The end of a run: the log-out (or the X11 Shell reload) and the advice about it. |
+| `src/session.rs` | 830 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
 | `src/ui.rs` | 308 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
-| `src/update.rs` | 1443 | Update Manager & Release Checker |
+| `src/update.rs` | 1411 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 

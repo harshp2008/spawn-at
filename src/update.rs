@@ -716,53 +716,21 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         "\x1b[1;32mSuccessfully upgraded spawn-at to {}!\x1b[0m",
         release.tag_name
     );
-    // Last of all: ask whether to reload the Shell / log out and carry it out (session.rs).
-    ask_session_action_after_upgrade();
+    // Last of all: record what is known and let session::finish() ask whether to log out or
+    // reload the Shell (only on GNOME, in a terminal), then do it (see session.rs).
+    let on_gnome = std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .to_uppercase()
+        .contains("GNOME");
+    if on_gnome && std::io::stdout().is_terminal() {
+        crate::session::record(crate::session::Pending {
+            flow: crate::session::Flow::Update,
+            is_wayland: crate::platform::linux::gnome::is_wayland_session(),
+            decision: crate::session::Decision::Ask,
+        });
+    }
     crate::session::finish();
     Ok(())
-}
-
-/// After an upgrade on GNOME, in a terminal: asks whether to log out (Wayland) or reload the
-/// Shell (X11) and records the answer. Nothing is performed here; `session::finish()` does it
-/// when everything else is done.
-fn ask_session_action_after_upgrade() {
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-        .unwrap_or_default()
-        .to_uppercase();
-    if !desktop.contains("GNOME") || !std::io::stdout().is_terminal() {
-        return;
-    }
-    let is_wayland = crate::platform::linux::gnome::is_wayland_session();
-    crate::ui::block_start();
-    if is_wayland {
-        let choices = &[
-            "No - Keep session running (I'll log out later if needed) [Default]",
-            "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
-        ];
-        let choice = Select::new()
-            .with_prompt("Do you want to log out of your session now to complete the reload?")
-            .items(choices)
-            .default(0)
-            .interact();
-        if matches!(choice, Ok(1)) {
-            crate::session::request(crate::session::Action::LogOut {
-                announce: "Logging out to complete GNOME Shell extension upgrade...",
-            });
-        }
-    } else {
-        let choices = &[
-            "Yes - Reload GNOME Shell in-place now (Non-destructive: apps stay open) [Default]",
-            "No - Keep session running",
-        ];
-        let choice = Select::new()
-            .with_prompt("Do you want to reload GNOME Shell now? (Non-destructive on X11)")
-            .items(choices)
-            .default(0)
-            .interact();
-        if matches!(choice, Ok(0)) {
-            crate::session::request(crate::session::Action::ReloadShellX11);
-        }
-    }
 }
 
 /// Executes the `spawn-at update` command with interactive TUI or headless automation.
