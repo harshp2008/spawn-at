@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+
+      - name: Format
+        run: cargo fmt --check
+
+      # spawn-at-verify is not a default member; its features are named so its
+      # tui and fixture code is linted too.
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
+
+      - name: Test spawn-at, spawn-at-core, xtask
+        run: cargo test --locked -p spawn-at -p spawn-at-core -p xtask
+
+      # The 4 ignored fixture_test cases need a live display and stay ignored.
+      - name: Test spawn-at-verify
+        run: cargo test --locked -p spawn-at-verify --features tui,fixture
+
+      - name: Test GNOME extension (node)
+        run: node --test tests/*.js

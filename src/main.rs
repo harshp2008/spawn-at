@@ -7,21 +7,21 @@
 //! support for GNOME Wayland.
 //!
 //! ### Core Components:
-//! - **CLI Router ([`cli`]):** Parses subcommands (`install`, `uninstall`, `spawn`, `transform`) using `clap`.
+//! - **CLI Router ([`cli`]):** Parses subcommands (`install`, `uninstall`, `config`, `update`, `spawn`, `transform`, `query`, `focus`, `defocus`, `maximize`, `minimize`, `restore`, `close`) using `clap`.
 //! - **Commands ([`commands`]):** Platform-agnostic execution handlers for subcommands.
 //! - **Compositor Platform ([`platform`]):** Trait-based abstraction (`CompositorBackend`) allowing
 //!   environment-specific mechanics.
 //! - **Platform Resolver ([`platform`]):** Maps binary command invocations to canonical FreeDesktop / Wayland App IDs.
-//! - **Geometry Engine ([`core::geometry`]):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
+//! - **Geometry Engine (`spawn_at_core::geometry`, in the `spawn-at-core` crate):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
 //! - **Target Resolver ([`target`]):** Resolves deterministic window targets by PID, class, title, or focus.
 
-pub mod cli;
-pub mod commands;
-pub mod config;
-pub mod diagnostics;
-pub mod platform;
-pub mod target;
-pub mod update;
+mod cli;
+mod commands;
+mod config;
+mod diagnostics;
+mod platform;
+mod target;
+mod update;
 
 use clap::Parser;
 use cli::{Cli, Commands};

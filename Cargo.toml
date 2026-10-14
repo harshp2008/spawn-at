@@ -1,6 +1,6 @@
 [package]
 name = "spawn-at"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 edition = "2021"
 
 [dependencies]
@@ -26,3 +26,6 @@ members = [
     "crates/spawn-at-verify",
     "crates/xtask",
 ]
+# Plain `cargo build` / `cargo test` at the root cover only the product package.
+# spawn-at-verify (dev harness) is named explicitly: `-p spawn-at-verify --features tui,fixture`.
+default-members = ["."]

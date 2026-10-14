@@ -89,12 +89,14 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+#[cfg(test)]
 pub fn start_capturing_diagnostics() {
     DIAGNOSTIC_SINK.with(|sink| {
         *sink.borrow_mut() = Some(Vec::new());
     });
 }
 
+#[cfg(test)]
 pub fn take_captured_diagnostics() -> Option<Vec<(DiagnosticLevel, String)>> {
     DIAGNOSTIC_SINK.with(|sink| sink.borrow_mut().take())
 }
@@ -176,6 +178,9 @@ pub enum Diagnostic {
         actual_size: (u32, u32),
     },
     /// Window never mapped within the timeout duration.
+    // Nothing outside tests constructs this yet; its level, message and tests exist, so it is
+    // kept as the message to use once a caller reports a window that never appeared.
+    #[allow(dead_code)]
     WindowNeverMapped {
         app_hint: String,
         pid: u32,
@@ -388,10 +393,12 @@ impl Diagnostic {
         }
     }
 
+    #[cfg(test)]
     pub fn format_message_with_capability(&self, cap: ColorCapability) -> String {
         format_message_with_capability(self.level(), &self.message_body(), cap)
     }
 
+    #[cfg(test)]
     pub fn format_message(&self) -> String {
         self.format_message_with_capability(detect_color_capability())
     }
@@ -557,6 +564,7 @@ pub fn evaluate_placement_diagnostics_for_action(
 }
 
 /// Evaluates a window's final placed geometry against the desired placement parameters.
+#[cfg(test)]
 pub fn evaluate_placement_diagnostics(
     params: &PlacementParams,
     actual_rect: Rect,

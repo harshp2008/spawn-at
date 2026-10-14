@@ -6,7 +6,5 @@ pub const DRAWER_INDENT: usize = 2;
 pub const DRAWER_LABEL_W: usize = 14;
 /// Maximum width the shared label column may grow to for long flag labels.
 pub const DRAWER_LABEL_W_MAX: usize = 24;
-/// Default horizontal column offset where drawer values begin (indent + minimum label width).
-pub const DRAWER_VALUE_X: usize = DRAWER_INDENT + DRAWER_LABEL_W; // 16
 /// Padding columns reserved on the right margin of the drawer.
 pub const DRAWER_RIGHT_PAD: usize = 2;

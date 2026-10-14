@@ -270,5 +270,5 @@ Test outputs are recorded under `verify-results/<timestamp>-<host>/` (`<timestam
 - **Privacy**: Window titles are redacted by default; opted into with `--include-titles`.
 
 ### Platform Support Qualification
-A platform or desktop environment may only be documented as **Supported** in `SUPPORT.md` if **100% of required tests pass** (`auto-pass` and human `pass` where `kind = "both"`). `spawn-at-verify report --support-row` formats verified candidate rows.
+A platform or desktop environment may only be documented as **Supported** in `SUPPORT.md` (that file does not exist in the repository yet) if **100% of required tests pass** (`auto-pass` and human `pass` where `kind = "both"`). `spawn-at-verify report --support-row` formats verified candidate rows.
 

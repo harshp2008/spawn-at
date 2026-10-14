@@ -14,7 +14,6 @@ pub mod session;
 #[cfg(test)]
 mod tests;
 
-pub use atoms::Atoms;
 pub use session::X11Session;
 
 use crate::platform::{

@@ -181,11 +181,27 @@ pub fn current_timestamp_secs() -> u64 {
         .unwrap_or(0)
 }
 
-/// Path to XDG autostart entry: `~/.config/autostart/spawn-at-update-check.desktop`
+/// Path to XDG autostart entry: `$XDG_CONFIG_HOME/autostart/spawn-at-update-check.desktop` for an
+/// absolute `XDG_CONFIG_HOME`, else `~/.config/autostart/spawn-at-update-check.desktop`.
 pub fn autostart_desktop_path() -> Result<PathBuf, String> {
-    let home =
-        std::env::var("HOME").map_err(|_| "Failed to determine HOME directory".to_string())?;
-    Ok(PathBuf::from(home).join(".config/autostart/spawn-at-update-check.desktop"))
+    let get = |k: &str| std::env::var(k).ok();
+    autostart_path_from(get("XDG_CONFIG_HOME").as_deref(), get("HOME").as_deref())
+}
+
+/// The pure part of [`autostart_desktop_path`]. The config directory comes from the same rule as
+/// the config file (`config_location`, ignoring `SPAWN_AT_CONFIG`, which names one file).
+fn autostart_path_from(
+    xdg_config_home: Option<&str>,
+    home: Option<&str>,
+) -> Result<PathBuf, String> {
+    let file = spawn_at_core::settings::config_location(None, xdg_config_home, home)
+        .ok_or_else(|| "Failed to determine HOME directory".to_string())?;
+    // `<config dir>/spawn-at/config.toml` -> `<config dir>`
+    let dir = file
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| "Failed to determine the config directory".to_string())?;
+    Ok(dir.join("autostart/spawn-at-update-check.desktop"))
 }
 
 /// Deploys an XDG autostart desktop entry so spawn-at performs a silent update check on user login.
@@ -276,6 +292,35 @@ mod tests {
         assert!(
             text.contains("Exec=\"/home/a b/\\$x\\\"y/spawn-at\" update --check --headless\n"),
             "{text}"
+        );
+    }
+
+    /// With `XDG_CONFIG_HOME` unset (or empty, or relative, as for the config file) the entry stays
+    /// under `$HOME/.config`: the pre-fix path, unchanged. Pure function, no real home touched.
+    #[test]
+    fn test_autostart_path_unset_xdg_uses_home_dot_config() {
+        let want = PathBuf::from("/tmp/h/.config/autostart/spawn-at-update-check.desktop");
+        assert_eq!(autostart_path_from(None, Some("/tmp/h")).unwrap(), want);
+        assert_eq!(autostart_path_from(Some(""), Some("/tmp/h")).unwrap(), want);
+        assert_eq!(
+            autostart_path_from(Some("rel"), Some("/tmp/h")).unwrap(),
+            want
+        );
+        assert!(autostart_path_from(None, None).is_err());
+    }
+
+    /// An absolute `XDG_CONFIG_HOME` moves the entry there, the same directory the config file uses.
+    #[test]
+    fn test_autostart_path_honours_xdg_config_home() {
+        let dir = std::env::temp_dir().join(format!("spawn-at-xdg-{}", std::process::id()));
+        let xdg = dir.to_str().unwrap();
+        let got = autostart_path_from(Some(xdg), Some("/tmp/h")).unwrap();
+        assert_eq!(got, dir.join("autostart/spawn-at-update-check.desktop"));
+        let cfg =
+            spawn_at_core::settings::config_location(None, Some(xdg), Some("/tmp/h")).unwrap();
+        assert_eq!(
+            got.parent().unwrap().parent(),
+            cfg.parent().unwrap().parent()
         );
     }
 

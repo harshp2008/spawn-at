@@ -41,31 +41,6 @@ pub fn get_test_category(cat_or_id: &str) -> &'static str {
     }
 }
 
-/// Pads string with trailing spaces to match requested width.
-pub fn pad_str(s: &str, width: usize) -> String {
-    let count = s.chars().count();
-    if count >= width {
-        s.to_string()
-    } else {
-        format!("{}{}", s, " ".repeat(width - count))
-    }
-}
-
-/// Truncates test ID to fit within maximum available column width.
-pub fn truncate_id_suffix(id: &str, max_len: usize) -> String {
-    let count = id.chars().count();
-    if count <= max_len {
-        id.to_string()
-    } else if max_len <= 1 {
-        "…".to_string()
-    } else {
-        let take = max_len - 1;
-        let suffix: String = id.chars().rev().take(take).collect();
-        let suffix: String = suffix.chars().rev().collect();
-        format!("…{}", suffix)
-    }
-}
-
 /// Maps test status to corresponding display symbol and color styling.
 pub fn status_symbol_and_color(
     test: &TestDefinition,

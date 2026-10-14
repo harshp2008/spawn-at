@@ -11,12 +11,14 @@ pub mod spawn;
 pub mod transform;
 
 pub use config::run_config;
-pub use focus::{apply_focus_policy, run_defocus, run_focus};
-pub use lifecycle::{
-    run_close, run_close_with_timeout, run_maximize, run_minimize, run_restore, run_unminimize,
-};
+pub use focus::{run_defocus, run_focus};
+#[cfg(test)]
+pub use lifecycle::run_close_with_timeout;
+pub use lifecycle::{run_close, run_maximize, run_minimize, run_restore};
 pub use query::run_query;
-pub use spawn::{run_spawn, run_spawn_with};
+pub use spawn::run_spawn;
+#[cfg(test)]
+pub use spawn::run_spawn_with;
 pub use transform::run_transform;
 
 use crate::platform::{CompositorBackend, DriverError, WindowMetadata};
@@ -24,12 +26,6 @@ use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedState {
-    /// Window exists and is mapped.
-    Mapped,
-    /// Window position changed to approximately (x, y).
-    Position { x: i32, y: i32 },
-    /// Window dimensions changed to approximately (w, h).
-    Size { w: u32, h: u32 },
     /// Window geometry changed to (x, y, w, h).
     Geometry {
         x: Option<i32>,
@@ -320,13 +316,6 @@ pub async fn wait_for_state_change(
             last_seen_win = Some(win.clone());
 
             let satisfied = match expected_state {
-                ExpectedState::Mapped => win.w > 0 && win.h > 0,
-                ExpectedState::Position { x, y } => {
-                    (win.x - x).abs() <= 4 && (win.y - y).abs() <= 4
-                }
-                ExpectedState::Size { w, h } => {
-                    (win.w - w as i32).abs() <= 4 && (win.h - h as i32).abs() <= 4
-                }
                 ExpectedState::Geometry { x, y, w, h } => {
                     let x_ok = x.is_none_or(|tx| (win.x - tx).abs() <= 4);
                     let y_ok = y.is_none_or(|ty| (win.y - ty).abs() <= 4);

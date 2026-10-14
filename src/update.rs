@@ -44,7 +44,6 @@ pub struct UpdateArgs {
 #[derive(Deserialize, Debug, Clone)]
 pub struct GitHubRelease {
     pub tag_name: String,
-    pub name: Option<String>,
     pub prerelease: bool,
     pub draft: bool,
     pub assets: Vec<GitHubAsset>,
@@ -983,7 +982,6 @@ pub mod tests {
     pub fn mock_release(tag: &str, prerelease: bool, draft: bool) -> GitHubRelease {
         GitHubRelease {
             tag_name: tag.to_string(),
-            name: Some(tag.to_string()),
             prerelease,
             draft,
             assets: vec![],

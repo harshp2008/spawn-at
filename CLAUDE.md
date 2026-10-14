@@ -24,3 +24,12 @@
 
 ## Tests
 - Report counts per binary using `cargo test -p spawn-at-verify --features tui,fixture`, plus the workspace total. Never use a bare `cargo test --workspace` number for spawn-at-verify.
+
+## Build and test commands (what CI runs, see `.github/workflows/ci.yml`)
+- Plain `cargo build` / `cargo test` at the root cover only the `spawn-at` package (`default-members = ["."]`). Name the other crates.
+- `cargo fmt --check`
+- `cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings`
+- `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`
+- `cargo test --locked -p spawn-at-verify --features tui,fixture` (4 tests stay ignored: they need a live display)
+- `node --test tests/*.js`
+- Release binary: `cargo build --release --locked` (produces `target/release/spawn-at`).

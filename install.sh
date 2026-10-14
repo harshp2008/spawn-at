@@ -33,7 +33,7 @@ OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 if [ "$OS" != "Linux" ] || [ "$ARCH" != "x86_64" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)."
+    echo -e "\x1b[1;31mError\x1b[0m: spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)." >&2
     echo "To build from source on your platform, run:"
     echo "  git clone https://github.com/${REPO}.git && cd spawn-at && cargo build --release"
     exit 1
@@ -278,7 +278,7 @@ if ! tar -xzf "$TMP_DIR/$TAR_NAME" -C "$TMP_DIR"; then
 fi
 
 if [ ! -f "$TMP_DIR/spawn-at" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: Extracted package does not contain 'spawn-at' executable."
+    echo -e "\x1b[1;31mError\x1b[0m: Extracted package does not contain 'spawn-at' executable." >&2
     exit 1
 fi
 

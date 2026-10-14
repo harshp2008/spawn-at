@@ -28,6 +28,7 @@ impl LinuxConfigStore {
     }
 
     /// A store at `path` (tests).
+    #[cfg(test)]
     pub fn at(path: PathBuf) -> Self {
         Self { path: Some(path) }
     }

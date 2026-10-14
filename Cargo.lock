@@ -2065,7 +2065,7 @@ dependencies = [
 
 [[package]]
 name = "spawn-at"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -2085,7 +2085,7 @@ dependencies = [
 
 [[package]]
 name = "spawn-at-core"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 dependencies = [
  "async-trait",
  "clap",
@@ -2096,7 +2096,7 @@ dependencies = [
 
 [[package]]
 name = "spawn-at-verify"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 dependencies = [
  "clap",
  "crossterm",
@@ -2108,7 +2108,6 @@ dependencies = [
  "signal-hook",
  "softbuffer",
  "spawn-at-core",
- "tokio",
  "toml",
  "unicode-width 0.2.0",
  "winit",
@@ -3046,7 +3045,7 @@ checksum = "b9cc00251562a284751c9973bace760d86c0276c471b4be569fe6b068ee97a56"
 
 [[package]]
 name = "xtask"
-version = "0.2.0-beta.1"
+version = "0.2.0-beta.2"
 
 [[package]]
 name = "zbus"

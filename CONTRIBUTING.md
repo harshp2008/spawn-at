@@ -17,27 +17,27 @@ Welcome to the `spawn-at` developer and contributor guide! This document details
          ┌─────────────────────────────────┼─────────────────────────────────┐
          ▼                                 ▼                                 ▼
 ┌──────────────────┐             ┌──────────────────┐             ┌──────────────────┐
-│   geometry.rs    │             │   platform/      │             │   drivers/       │
-│  (Pure Geometry) │             │ (OS & Installer) │             │ (WindowManager)  │
+│ spawn-at-core:   │             │   platform/      │             │ platform/linux/  │
+│ geometry.rs      │             │ (OS & Installer) │             │ (WindowManager)  │
 └──────────────────┘             └────────┬─────────┘             └────────┬─────────┘
                                           │                                │
                            ┌──────────────┴──────────────┐   ┌─────────────┴─────────────┐
                            ▼                             ▼   ▼                           ▼
-                   installer.rs /               linux/xdg.rs gnome.rs                  x11.rs
+                   installer.rs /               linux/xdg.rs gnome/                    x11/
                    escalate.rs                  (App ID)     (D-Bus IPC)            (X11 Fallback)
 ```
 
 ### Core Components & Directory Structure
 
 - **`src/main.rs`**: Entry point. Parses subcommands (`spawn`, `install`, `uninstall`) using `clap`, renders interactive TUI menus via `dialoguer`, and coordinates target geometry calculation and platform backend execution. Contains no OS- or compositor-specific IPC logic.
-- **`src/core/geometry.rs`**: Pure mathematical engine. Computes absolute coordinates, applies mouse offsets, calculates monitor bounding boxes, and handles edge clamping and margin offsets. Independent of any display server or OS APIs.
+- **`crates/spawn-at-core/src/geometry.rs`**: Pure mathematical engine. Computes absolute coordinates, applies mouse offsets, calculates monitor bounding boxes, and handles edge clamping and margin offsets. Independent of any display server or OS APIs.
 - **`src/platform/`**: OS-level utilities, compositor abstraction, and system integration:
   - `mod.rs`: Defines the `CompositorBackend` trait and platform bootstrap logic (`init_backend()`).
   - `installer.rs`: Manages user-space (`~/.local/bin`) vs system-wide (`/usr/local/bin`) binary deployment, canonical path resolution, and `$PATH` environment verification.
   - `escalate.rs`: Reactive privilege escalation (`sudo` on Linux/macOS, UAC on Windows) triggered automatically when filesystem operations encounter `PermissionDenied`.
   - `linux/mod.rs`: Unified `LinuxBackend` adapter routing to GNOME Wayland or X11 drivers.
   - `linux/gnome/`: Drivers for GNOME Shell Wayland, communicating with Mutter via session D-Bus IPC (`org.gnome.Shell.Extensions.SpawnAt`).
-  - `linux/x11.rs`: Fallback driver for legacy X11 sessions.
+  - `linux/x11/`: Fallback driver for legacy X11 sessions.
   - `linux/xdg.rs`: FreeDesktop desktop entry parsing, Flatpak/Snap application ID resolution, and `$XDG_DATA_DIRS` lookup.
 - **`assets/`**: Embedded asset payloads:
   - `gnome/modern/`: GNOME Shell extension for GNOME 45 and later (`spawn-at@harsh.local`): `extension.js` plus its modules and `metadata.json`.
@@ -48,7 +48,7 @@ Welcome to the `spawn-at` developer and contributor guide! This document details
 ## 2. Decoupled Architecture Principles
 
 ### 1. Pure Geometry is Window-Manager Agnostic
-All coordinate math, cursor offsets, monitor boundary calculations, and margin clamping are handled by `core::geometry`. Drivers receive a resolved `TargetGeometry` struct containing final target pixel coordinates `(x, y)` and dimensions `(w, h)`.
+All coordinate math, cursor offsets, monitor boundary calculations, and margin clamping are handled by `spawn_at_core::geometry`. Drivers receive the already-resolved final pixel position and size.
 
 ### 2. Reactive Privilege Escalation Model
 Standard CLI and installation workflows run under unprivileged user rights. When an operation requires root privileges (such as writing to `/usr/local/bin`), the installer catches `PermissionDenied` and reactively invokes administrative elevation (`sudo` via `platform::escalate`), presenting a clear explanation to the user.
@@ -93,68 +93,16 @@ Under Wayland, client applications are sandboxed and cannot position their own w
 To add support for a new window manager or compositor (e.g., Hyprland, Sway, or KDE Plasma):
 
 ### Step 1: Create the Driver Module
-Create a new file under `src/platform/linux/<driver_name>.rs` and implement the `CompositorBackend` trait:
+Create a new module under `src/platform/linux/` (a file `<driver_name>.rs`, or a directory like `gnome/` and `x11/` when it has several files). A driver has two layers, both defined in the repository:
 
-```rust
-use crate::platform::{CompositorBackend, DriverError, TargetGeometry};
-use crate::core::geometry::Rect;
+- **`Driver`** (`crates/spawn-at-core/src/driver.rs`): the compositor-facing operations. `arm(batch)` is the required one; the rest have defaults. Read the trait for the current method list.
+- **`CompositorBackend`** (`src/platform/mod.rs`): extends `Driver` with `name()`, install and uninstall hooks, and capability flags such as `supports_runtime_transform` and `supports_close`.
 
-pub struct HyprlandDriver;
-
-#[async_trait::async_trait]
-impl CompositorBackend for HyprlandDriver {
-    fn name(&self) -> &'static str {
-        "Hyprland"
-    }
-
-    fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
-        let bin = command.first().map(|s| s.as_str()).unwrap_or("");
-        crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
-    }
-
-    async fn spawn_at(
-        &self,
-        app_id: &str,
-        command: &[String],
-        geom: &TargetGeometry,
-    ) -> Result<(), DriverError> {
-        // Implement Hyprland IPC positioning logic via UNIX socket
-        Ok(())
-    }
-
-    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
-        // Query pointer position via Hyprland IPC
-        Ok((0, 0))
-    }
-
-    async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
-        // Query monitor bounds via Hyprland IPC
-        Ok(Vec::new())
-    }
-}
-```
+`src/platform/linux/x11/mod.rs` (`X11Driver`) is an example to copy; `src/platform/linux/gnome/mod.rs` (`GnomeWaylandDriver`) is the D-Bus one. Application-ID resolution for a command lives in `src/platform/linux/xdg.rs`.
 
 ### Step 2: Register in `src/platform/linux/mod.rs`
 1. Add `pub mod <driver_name>;` in `src/platform/linux/mod.rs`.
-2. Update `LinuxBackend::bootstrap()` to detect the environment:
-
-```rust
-if std::env::var("HYPRLAND_INSTANCE_SIGNATURE").is_ok() {
-    Ok(Box::new(LinuxBackend {
-        driver: Box::new(hyprland::HyprlandDriver),
-    }))
-} else if session_type == "wayland" && desktop.contains("GNOME") {
-    let driver = gnome::GnomeWaylandDriver::new().await?;
-    Ok(Box::new(LinuxBackend {
-        driver: Box::new(driver),
-    }))
-} else {
-    Ok(Box::new(LinuxBackend {
-        driver: Box::new(x11::X11Driver),
-    }))
-}
-```
-```
+2. Add a branch to `LinuxBackend::bootstrap()`. Today it returns the X11 driver when `SPAWN_AT_BACKEND=x11`, the GNOME driver when `XDG_CURRENT_DESKTOP` contains `GNOME` and `GnomeWaylandDriver::new()` succeeds, and the X11 driver otherwise. Each result is wrapped as `LinuxBackend { driver: Box::new(...) }`.
 
 ### Step 3: Add Unit Tests
 Add unit tests for IPC payload formatting, geometry translation, or socket communication.
@@ -168,8 +116,17 @@ Add unit tests for IPC payload formatting, geometry translation, or socket commu
 # Check code for compilation errors
 cargo check
 
-# Run unit tests
+# Run unit tests (root package `spawn-at` only; the workspace default is just the product)
 cargo test
+
+# Run every suite CI runs (spawn-at-verify must be named, with its features)
+cargo test -p spawn-at -p spawn-at-core -p xtask
+cargo test -p spawn-at-verify --features tui,fixture
+node --test tests/*.js
+
+# Lint everything, including the dev harness
+cargo fmt --check
+cargo clippy --workspace --all-targets --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
 
 # Build debug binary
 cargo build

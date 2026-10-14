@@ -13,7 +13,7 @@ VERIFY_BIN="$PROJECT_ROOT/target/debug/spawn-at-verify"
 # 1. Ensure binaries are built
 if [ ! -f "$BIN" ] || [ ! -f "$VERIFY_BIN" ]; then
     echo "==> Building spawn-at and spawn-at-verify binaries..."
-    cargo build --manifest-path "$PROJECT_ROOT/Cargo.toml" --bin spawn-at --bin spawn-at-verify
+    cargo build --manifest-path "$PROJECT_ROOT/Cargo.toml" -p spawn-at -p spawn-at-verify
 fi
 
 echo "========================================================"
