@@ -21,6 +21,23 @@
 /// A width and a height in pixels.
 pub type Size = (u32, u32);
 
+/// Colour (`0xAARRGGBB`) of a buffer at the initial size under `--state-colors`: loud magenta,
+/// "painted before the resize".
+pub const STATE_COLOR_INITIAL: u32 = 0xFFFF00FF;
+
+/// Colour of a buffer at any other size under `--state-colors`: loud green, "painted at the new size".
+pub const STATE_COLOR_RESIZED: u32 = 0xFF00FF00;
+
+/// The solid colour a `--state-colors` fixture paints a buffer of `size` with, given the size the
+/// window started at.
+pub fn state_color(size: Size, initial: Size) -> u32 {
+    if size == initial {
+        STATE_COLOR_INITIAL
+    } else {
+        STATE_COLOR_RESIZED
+    }
+}
+
 /// The GNOME "not responding" dialog appears after about 5 s; a stall must stay under this.
 pub const STALL_LIMIT_MS: u64 = 4000;
 
@@ -259,5 +276,23 @@ mod tests {
             .flap_ticks(),
             Some(1)
         );
+    }
+
+    /// The state colour is a pure function of the buffer size: magenta at the initial size, green
+    /// at every other size (a shrink, a grow, a one-axis change); the two are opaque and differ.
+    #[test]
+    fn test_state_color_names_the_state() {
+        let initial = (400, 300);
+        assert_eq!(state_color((400, 300), initial), STATE_COLOR_INITIAL);
+        for other in [(800, 600), (200, 150), (400, 301), (399, 300)] {
+            assert_eq!(
+                state_color(other, initial),
+                STATE_COLOR_RESIZED,
+                "{other:?}"
+            );
+        }
+        assert_ne!(STATE_COLOR_INITIAL, STATE_COLOR_RESIZED);
+        assert_eq!(STATE_COLOR_INITIAL >> 24, 0xFF, "opaque");
+        assert_eq!(STATE_COLOR_RESIZED >> 24, 0xFF, "opaque");
     }
 }

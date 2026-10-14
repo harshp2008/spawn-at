@@ -109,6 +109,11 @@ pub struct FixtureArgs {
     /// Hostile app: after the first resize, alternate between two buffer sizes every 20 ms for this many ms
     #[arg(long, value_name = "MS")]
     pub flap_ms: Option<u64>,
+
+    /// Test-only: paint every buffer as one solid loud colour that names its state (magenta at the
+    /// initial size, green at any other size) so a pixel probe has ground truth. Off by default.
+    #[arg(long, default_value_t = false)]
+    pub state_colors: bool,
 }
 
 impl FixtureArgs {
@@ -170,6 +175,9 @@ pub fn resolve_backend(
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = FixtureArgs::parse();
     fixture::trace::init();
+    if args.state_colors {
+        fixture::renderer::enable_state_colors((args.width, args.height));
+    }
 
     let wayland_display = std::env::var("WAYLAND_DISPLAY").ok();
     let display = std::env::var("DISPLAY").ok();
@@ -353,6 +361,15 @@ mod hostile_flag_tests {
         assert_eq!(a.effective_min(), Some((400, 300)));
         assert_eq!(a.max_size, Some((600, 450)));
         assert!(a.fixed_size);
+    }
+
+    /// `--state-colors` is off by default and a plain switch.
+    #[test]
+    fn test_state_colors_flag() {
+        let off = FixtureArgs::try_parse_from(["fixture"]).unwrap();
+        assert!(!off.state_colors);
+        let on = FixtureArgs::try_parse_from(["fixture", "--state-colors"]).unwrap();
+        assert!(on.state_colors);
     }
 
     /// `--min-size` beats the single-axis flags; a malformed size or a stall of 4000 ms or more is refused.

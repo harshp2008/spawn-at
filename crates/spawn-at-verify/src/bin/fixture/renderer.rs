@@ -47,6 +47,16 @@ impl<'a> Surface<'a> {
     }
 }
 
+/// The initial window size when `--state-colors` is on; unset otherwise (the default), in which
+/// case `draw_frame` paints exactly what it always did.
+static STATE_COLORS: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
+
+/// Switches `--state-colors` on for the whole run: every buffer becomes one solid colour chosen by
+/// [`super::behaviour::state_color`] from its size and `initial`.
+pub fn enable_state_colors(initial: (u32, u32)) {
+    let _ = STATE_COLORS.set(initial);
+}
+
 /// Paints the window frame with title, timing status, and test assertions.
 pub(crate) fn draw_frame(
     surface: &mut softbuffer::Surface<
@@ -62,6 +72,13 @@ pub(crate) fn draw_frame(
     if let (Some(nz_w), Some(nz_h)) = (NonZeroU32::new(width), NonZeroU32::new(height)) {
         surface.resize(nz_w, nz_h)?;
         let mut buffer = surface.buffer_mut()?;
+
+        if let Some(&initial) = STATE_COLORS.get() {
+            let color = super::behaviour::state_color((width, height), initial);
+            buffer.fill(color);
+            buffer.present()?;
+            return Ok(());
+        }
 
         // Background: #1e2238 (slate dark blue)
         let bg_color = 0xFF1E2238u32;
