@@ -47,8 +47,9 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
 | `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
+| `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 1942 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/mod.rs` | 1969 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/mod.rs` | 676 |  |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
@@ -59,7 +60,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
 | `src/platform/mod.rs` | 316 | Platform & Compositor Driver Abstraction Layer |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
-| `src/ui.rs` | 225 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
+| `src/ui.rs` | 253 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
 | `src/update.rs` | 1459 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)

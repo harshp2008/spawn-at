@@ -68,6 +68,23 @@ pub fn println_warning(text: &str) {
     println!("{}", highlight_warning(text, cap));
 }
 
+/// The text of a success line: bold green when `cap` allows colour, otherwise the plain text.
+pub fn highlight_success(text: &str, cap: crate::diagnostics::ColorCapability) -> String {
+    if cap == crate::diagnostics::ColorCapability::Disabled {
+        text.to_string()
+    } else {
+        format!("\x1b[1;32m{text}\x1b[0m")
+    }
+}
+
+/// Prints `text` on stdout as a green success line, with the same colour rules as
+/// [`println_warning`].
+pub fn println_success(text: &str) {
+    let cap =
+        crate::diagnostics::detect_color_capability_for_stream(std::io::stdout().is_terminal());
+    println!("{}", highlight_success(text, cap));
+}
+
 static LAYOUT: Mutex<Layout> = Mutex::new(Layout::new());
 
 fn stdout_color() -> bool {
@@ -213,6 +230,17 @@ mod tests {
         assert!(
             src.contains(&format!("ui::println_warning(\"{LOGOUT_WARNING}\")")),
             "the install must print the exact sentence through ui::println_warning"
+        );
+    }
+
+    /// The success line is bold green (ESC[1;32m) with colour, the plain text without.
+    #[test]
+    fn test_success_line_colour() {
+        use crate::diagnostics::ColorCapability;
+        assert_eq!(highlight_success("ok", ColorCapability::Disabled), "ok");
+        assert_eq!(
+            highlight_success("ok", ColorCapability::Basic),
+            "\x1b[1;32mok\x1b[0m"
         );
     }
 

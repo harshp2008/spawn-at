@@ -21,7 +21,7 @@ Want to open an app at an exact spot and size? On X11 you can move anything, but
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
 ```
 
-Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayland, log out and back in once so GNOME loads the extension. On X11 the installer reloads the Shell in place and your apps stay open. On any other GNOME version the installer prints a notice first and asks before it installs (`--yes` skips the question). See [more install options](#more-install-options).
+Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayland, log out and back in once so GNOME loads the extension (the installer skips this advice when the extension is unchanged and already running). On X11 the installer reloads the Shell in place and your apps stay open. On any other GNOME version the installer prints a notice first and asks before it installs (`--yes` skips the question). See [more install options](#more-install-options).
 
 ## The problem
 

@@ -52,6 +52,7 @@
 //!   - Test suite verifying argument defaults, `--no-action` overrides, flag toggles, and session queries.
 
 pub mod dbus;
+pub mod logout;
 pub mod mechanics;
 
 use crate::platform::{
@@ -679,6 +680,26 @@ impl CompositorBackend for GnomeWaylandDriver {
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
+        let ext_dir = Self::extension_dir()?;
+        let major_version = detect_gnome_shell_major_version();
+        let is_legacy = major_version.is_some_and(|v| v < 45);
+        let files = if is_legacy {
+            EMBEDDED_EXTENSION_FILES_LEGACY
+        } else {
+            EMBEDDED_EXTENSION_FILES_MODERN
+        };
+
+        // Read before anything is written. Only on Wayland (X11 reloads the Shell in place);
+        // any fact that cannot be read keeps the log-out advice (see logout.rs).
+        let logout_not_needed = is_wayland
+            && logout::decide(
+                &logout::RealFacts {
+                    ext_dir: ext_dir.clone(),
+                    uuid: EXTENSION_UUID,
+                },
+                files,
+            ) == logout::LogoutNeed::NotNeeded;
+
         let (auto_enable, should_restart) = if !args.headless && std::io::stdout().is_terminal() {
             crate::ui::section("GNOME Shell Extension Setup");
 
@@ -691,7 +712,10 @@ impl CompositorBackend for GnomeWaylandDriver {
             // Session-tailored TUI prompt:
             // - X11 reload is non-destructive (apps stay open) -> Default: Yes (choice 0)
             // - Wayland logout is destructive (closes all apps) -> Default: No (choice 0)
-            let restart_choice = if is_wayland {
+            let restart_choice = if is_wayland && logout_not_needed {
+                // No question: the running Shell already loaded exactly these files.
+                false
+            } else if is_wayland {
                 let restart_choices = &[
                     "No - Keep session running (I'll log out later if needed) [Default]",
                     "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
@@ -727,25 +751,19 @@ impl CompositorBackend for GnomeWaylandDriver {
             )
         };
 
-        let ext_dir = Self::extension_dir()?;
-        let major_version = detect_gnome_shell_major_version();
-        let is_legacy = major_version.is_some_and(|v| v < 45);
-
         crate::ui::block_start();
-        let files = if is_legacy {
+        if is_legacy {
             // The untested-platform notice was printed (and confirmed) before the install began.
             println!(
                 "Deploying legacy GNOME (42-44) extension to: {}",
                 ext_dir.display()
             );
-            EMBEDDED_EXTENSION_FILES_LEGACY
         } else {
             println!(
                 "Deploying embedded GNOME extension to: {}",
                 ext_dir.display()
             );
-            EMBEDDED_EXTENSION_FILES_MODERN
-        };
+        }
 
         fs::create_dir_all(&ext_dir).map_err(|e| {
             DriverError::Execution(
@@ -760,6 +778,11 @@ impl CompositorBackend for GnomeWaylandDriver {
 
         for (filename, content) in files {
             let file_path = ext_dir.join(filename);
+            // An identical file is left alone, so its modification time keeps saying when the
+            // running Shell could have loaded it (logout.rs compares it with the Shell's start).
+            if fs::read(&file_path).is_ok_and(|old| old == content.as_bytes()) {
+                continue;
+            }
             fs::write(&file_path, content).map_err(|e| {
                 DriverError::Execution(format!("Failed to write {}: {}", filename, e).into())
             })?;
@@ -812,7 +835,11 @@ impl CompositorBackend for GnomeWaylandDriver {
                 restart_gnome_shell_x11();
             }
         } else {
-            if is_wayland {
+            if is_wayland && logout_not_needed {
+                crate::ui::println_success(
+                    "No log-out needed: the extension files are unchanged and the running GNOME Shell has already loaded them.",
+                );
+            } else if is_wayland {
                 println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
                 crate::ui::println_warning("If the extension is not immediately active, log out and back in to complete loading.");
             } else {

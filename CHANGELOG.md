@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- On GNOME Wayland, `spawn-at install` no longer asks about (or warns about) a log-out when none is needed: the extension about to be deployed is byte-identical to the deployed one (same file set), `gnome-extensions info` reports it ACTIVE, and every deployed file is older than the running gnome-shell process. It prints a green "No log-out needed" line instead. If any of these facts cannot be read, the question and warning stay. Files that are already identical are no longer rewritten, so their modification time keeps meaning "installed before this Shell started". X11 is unchanged (takes effect in the next release).
+
 ### Changed
 
 - `spawn-at install` output: one blank line before and after each `=== ... ===` section, no double blank lines, none at the start or end (takes effect in the next release). The section headings are plain text when stdout is not a terminal or `NO_COLOR` is set.
