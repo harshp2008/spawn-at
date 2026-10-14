@@ -107,7 +107,7 @@ pub fn query_version(path: &Path, timeout: Duration) -> Option<String> {
 pub fn parse_version_output(out: &str) -> (String, Option<Version>) {
     let first = out.lines().next().unwrap_or("").trim();
     if first.starts_with("DEV BUILD") {
-        return ("a development build".to_string(), None);
+        return ("dev build".to_string(), None);
     }
     let ver = first.strip_prefix("spawn-at ").unwrap_or(first).trim();
     (ver.to_string(), crate::update::parse_semver(ver))
@@ -181,19 +181,23 @@ fn relation(found: &Found, new: &NewVersion) -> Relation {
 }
 
 fn describe(found: &[Found], new: &NewVersion) -> Vec<String> {
-    let mut lines = vec![if found.len() == 1 {
-        "An existing spawn-at was found:".to_string()
-    } else {
-        "Existing spawn-at binaries were found:".to_string()
-    }];
-    for f in found {
-        lines.push(format!(
-            "  {} ({})",
+    let shown = |f: &Found| {
+        format!(
+            "{} ({})",
             f.path.display(),
             f.version.as_deref().unwrap_or("version unknown")
-        ));
+        )
+    };
+    if let [only] = found {
+        return vec![format!(
+            "Existing: {}. Installing: {}.",
+            shown(only),
+            new.display
+        )];
     }
-    lines.push(format!("This install is {}.", new.display));
+    let mut lines = vec!["Existing:".to_string()];
+    lines.extend(found.iter().map(|f| format!("  {}", shown(f))));
+    lines.push(format!("Installing: {}.", new.display));
     lines
 }
 
@@ -233,7 +237,7 @@ pub fn plan(
         say(&l);
     }
     let clean_item = (
-        "Clean install - remove the old binary, extension and autostart entry first (your configuration is kept)".to_string(),
+        "Clean install (remove the old one first, keep config)".to_string(),
         Choice::Clean,
     );
     let question = match relation(&found[0], new) {
@@ -242,10 +246,7 @@ pub fn plan(
             Question {
                 prompt: "What do you want to do?".into(),
                 items: vec![
-                    (
-                        "Keep it as it is, change nothing [Default]".into(),
-                        Choice::NoChange,
-                    ),
+                    ("Keep it, change nothing [Default]".into(), Choice::NoChange),
                     ("Reinstall in place".into(), Choice::Upgrade),
                     clean_item,
                 ],
@@ -258,7 +259,7 @@ pub fn plan(
                 prompt: "What do you want to do?".into(),
                 items: vec![
                     (
-                        "Keep the newer version, change nothing [Default]".into(),
+                        "Keep the newer one, change nothing [Default]".into(),
                         Choice::NoChange,
                     ),
                     ("Downgrade in place".into(), Choice::Upgrade),
@@ -270,10 +271,7 @@ pub fn plan(
         Relation::Older | Relation::Unknown => Question {
             prompt: "What do you want to do?".into(),
             items: vec![
-                (
-                    "Keep it and upgrade in place [Default]".into(),
-                    Choice::Upgrade,
-                ),
+                ("Upgrade in place [Default]".into(), Choice::Upgrade),
                 clean_item,
             ],
             default: 0,
@@ -523,7 +521,7 @@ mod tests {
             ("v0.2.0-beta.2".to_string(), v("0.2.0-beta.2"))
         );
         let (shown, ver) = parse_version_output("DEV BUILD\nlast release was v0.2.0-beta.2\n---");
-        assert_eq!(shown, "a development build");
+        assert_eq!(shown, "dev build");
         assert_eq!(ver, None);
         assert_eq!(parse_version_output("weird").1, None);
     }
@@ -580,7 +578,7 @@ mod tests {
         assert_eq!(q.items[1].1, Choice::Clean);
         assert!(said
             .iter()
-            .any(|l| l.contains("This install is v0.2.0-beta.2")));
+            .any(|l| l.contains("Installing: v0.2.0-beta.2.")));
         let (p, _, _) = run(&[found(Some("0.1.0"))], false, true, Some(1));
         assert_eq!(p, Plan::Clean);
     }
@@ -632,6 +630,43 @@ mod tests {
         let (_, said, _) = run(&[found(None)], false, true, Some(0));
         assert!(said.iter().any(|l| l.contains("version unknown")));
         assert!(!said.iter().any(|l| l.contains("downgrade")));
+    }
+
+    /// The interactive question is one short line per item: a long item wraps on an 80-column
+    /// terminal and dialoguer, which counts unwrapped lines when it redraws, then leaves a copy
+    /// of the prompt behind (the "What do you want to do?" printed twice).
+    #[test]
+    fn test_question_lines_fit_an_80_column_terminal() {
+        for ver in [Some("0.1.0"), Some("0.2.0-beta.2"), Some("9.0.0"), None] {
+            let (_, _, asked) = run(&[found(ver)], false, true, None);
+            let q = asked.unwrap();
+            assert!(q.prompt.len() <= 60, "{}", q.prompt);
+            for (label, _) in &q.items {
+                assert!(label.len() <= 60, "{label}: {}", label.len());
+            }
+        }
+    }
+
+    /// One clear line for a single existing binary, including a development build; the old
+    /// "(a development build)" / "This install is dev." wording is gone.
+    #[test]
+    fn test_describe_is_one_clear_line() {
+        let dev = NewVersion {
+            display: "dev build".into(),
+            semver: None,
+        };
+        let existing = Found {
+            path: PathBuf::from("/p/spawn-at"),
+            version: Some("dev build".into()),
+            semver: None,
+        };
+        assert_eq!(
+            describe(std::slice::from_ref(&existing), &dev),
+            vec!["Existing: /p/spawn-at (dev build). Installing: dev build."]
+        );
+        let two = describe(&[existing.clone(), found(Some("0.1.0"))], &new_ver());
+        assert_eq!(two[0], "Existing:");
+        assert_eq!(two.last().unwrap(), "Installing: v0.2.0-beta.2.");
     }
 
     // --- the removal ---

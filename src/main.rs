@@ -140,7 +140,10 @@ async fn main() {
                     Err(_) => Vec::new(),
                 };
                 let new = upgrade::NewVersion {
-                    display: crate::update::get_current_release_tag(),
+                    display: match crate::update::get_current_release_tag().as_str() {
+                        "dev" => "dev build".to_string(),
+                        tag => tag.to_string(),
+                    },
                     semver: crate::update::get_running_semver(),
                 };
                 let mut said_any = false;
