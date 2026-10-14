@@ -2120,3 +2120,20 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. N
 **Phase 6, cleanup and counts (CONFIRMED).** No `xtask` or fixture process remains, no probe file in the runtime directory, `spawn-at query windows` lists only the user's two windows (Claude, kitty); gnome-shell pid 581106, unchanged since the login, and no assertion, crash, signal, "uncatchable", critical, JS or `[SpawnAt]` line in the journal at any check (start, after each batch, end). Counts (run): `spawn-at` 205, `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` (`tui,fixture`) 404 passed and 4 ignored, node 176; unchanged from the removal step.
 
 **Result in one place.** Nothing regressed: the loaded A against D result of 6.23 reproduces (A 27 of 40 flash, D 0 of 40), the idle numbers match apart from one D run that hit the 250 ms cap (cause not found), the XWayland path and its observe-only lines are clean, the removed strategy value is ignored with a warning (and refused by `config set`), and the journal stayed clean. **Not verified:** the cause of the single idle cap run; the spread of repeated identical batches; real X11 apps; anything on GNOME versions other than 46; the release workflow was read, not run.
+
+### 6.31 X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`) as a client-side ready signal: feasibility (2026-10-14) DRAFT, finalized at the end
+
+Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Nothing in the Shell, no code or extension change, no install; read-only property queries and one fixture spawn only. Raw output in `scratch/p32r/` (gitignored). HEAD `a950022`, tree clean; gnome-shell pid 581106 since 10:22:56, no assertion, crash, signal, "uncatchable" or critical line in the journal at the start. The live Xwayland authority (`.2BNMW3`) was exported for the queries.
+
+**Phase 1, survey of the X11 windows that are open (CONFIRMED, `xwininfo`, `xprop`, read-only).** No real X11 or XWayland application window is open: the user's windows (Claude, kitty, terminals) are native Wayland. The only X clients are desktop helpers, none of which advertises sync:
+
+| Window | `WM_CLASS` | `_NET_WM_SYNC_REQUEST` in `WM_PROTOCOLS` | `_NET_WM_SYNC_REQUEST_COUNTER` |
+| :-- | :-- | :-: | :-: |
+| `gsd-xsettings` | `gsd-xsettings` | no | not set |
+| `ibus-x11` | `ibus-x11` | no | not set |
+| `mutter-x11-frames` | `mutter-x11-frames` | no | not set |
+| `GNOME Shell`, `ibus-xim`, `mutter guard window` | none | no | not set |
+
+So none of the user's open apps advertises it, because none of them is an X11 client at the moment (which says nothing about whether the same apps would advertise it under X11: see the earlier measurement below).
+
+**Phase 2, the fixture (CONFIRMED).** One `--protocol x11` fixture window (id 16777220, class `verify.p32`) kept open for 7 s and queried: `WM_PROTOCOLS = WM_DELETE_WINDOW, _NET_WM_PING`, **no `_NET_WM_SYNC_REQUEST`, and `_NET_WM_SYNC_REQUEST_COUNTER` is not set**; the X server does have the SYNC extension (`xdpyinfo` lists it). This agrees with the earlier measurement (DESIGN_READY_WAIT section 3.2: the fixture does not advertise it, and winit 0.29.15 contains no sync-request code, found by grepping the vendored crate). **The fixture is therefore not a client the idea can be tested with, and phase 3 (counter log, 20 idle and 20 loaded runs per spec) was not run**, as the task said to stop here.
