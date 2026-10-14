@@ -11,6 +11,7 @@
 pub mod escalate;
 pub mod install_notice;
 pub mod installer;
+pub mod upgrade;
 
 #[cfg(target_os = "linux")]
 pub mod linux;
@@ -85,6 +86,9 @@ pub struct InstallArgs {
     /// Print the notice and what would be installed, then stop without changing anything
     #[arg(long)]
     pub dry_run: bool,
+    /// If spawn-at is already installed, remove it first (binary, extension, login update entry) without asking; your configuration and settings are kept
+    #[arg(long)]
+    pub clean_install: bool,
     /// Update release channel: 'stable' (official) or 'beta' (includes pre-releases); 'all' is a deprecated alias of 'beta'
     #[arg(long, value_parser = ["stable", "beta", "all"])]
     pub update_channel: Option<String>,

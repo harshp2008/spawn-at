@@ -699,68 +699,6 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         let _ = fs::set_permissions(&current_exe, fs::Permissions::from_mode(0o755));
     }
 
-    // Check session type for reload prompt
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-        .unwrap_or_default()
-        .to_uppercase();
-    if desktop.contains("GNOME") {
-        let is_wayland = crate::platform::linux::gnome::is_wayland_session();
-        if std::io::stdout().is_terminal() {
-            let prompt_choice = if is_wayland {
-                let choices = &[
-                    "No - Keep session running (I'll log out later if needed) [Default]",
-                    "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
-                ];
-                let choice = Select::new()
-                    .with_prompt(
-                        "Do you want to log out of your session now to complete the reload?",
-                    )
-                    .items(choices)
-                    .default(0)
-                    .interact();
-                matches!(choice, Ok(1))
-            } else {
-                let choices = &[
-                    "Yes - Reload GNOME Shell in-place now (Non-destructive: apps stay open) [Default]",
-                    "No - Keep session running",
-                ];
-                let choice = Select::new()
-                    .with_prompt("Do you want to reload GNOME Shell now? (Non-destructive on X11)")
-                    .items(choices)
-                    .default(0)
-                    .interact();
-                matches!(choice, Ok(0))
-            };
-
-            if prompt_choice {
-                if is_wayland {
-                    println!("Logging out to complete GNOME Shell extension upgrade...");
-                    let mut quit_cmd = Command::new("gnome-session-quit");
-                    quit_cmd
-                        .args(["--logout", "--no-prompt"])
-                        .stdin(std::process::Stdio::null())
-                        .stdout(std::process::Stdio::null())
-                        .stderr(std::process::Stdio::null());
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::process::CommandExt;
-                        unsafe {
-                            quit_cmd.pre_exec(|| {
-                                if libc::setsid() < 0 {
-                                    libc::setpgid(0, 0);
-                                }
-                                Ok(())
-                            });
-                        }
-                    }
-                    let _ = quit_cmd.spawn();
-                } else {
-                    crate::platform::linux::gnome::restart_gnome_shell_x11();
-                }
-            }
-        }
-    }
-
     // Clean up temporary directory
     let _ = fs::remove_dir_all(&tmp_dir);
 
@@ -778,7 +716,35 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         "\x1b[1;32mSuccessfully upgraded spawn-at to {}!\x1b[0m",
         release.tag_name
     );
+    // Last of all: record what is known and let session::finish() ask whether to log out or
+    // reload the Shell (only on GNOME, in a terminal), then do it (see session.rs).
+    let on_gnome = std::env::var("XDG_CURRENT_DESKTOP")
+        .unwrap_or_default()
+        .to_uppercase()
+        .contains("GNOME");
+    if on_gnome && std::io::stdout().is_terminal() {
+        crate::session::record(crate::session::Pending {
+            flow: crate::session::Flow::Update,
+            is_wayland: crate::platform::linux::gnome::is_wayland_session(),
+            decision: crate::session::Decision::Ask,
+        });
+    }
+    crate::session::finish();
     Ok(())
+}
+
+/// The items of the `spawn-at update` menu.
+fn update_menu_options(upgrade: bool, tag: &str, channel: &str) -> Vec<String> {
+    vec![
+        if upgrade {
+            format!("Upgrade to {tag} now [Recommended]")
+        } else {
+            format!("Reinstall {tag} (Force download)")
+        },
+        format!("Change update channel (Currently: {channel})"),
+        "Re-check GitHub for updates".to_string(),
+        "Cancel".to_string(),
+    ]
 }
 
 /// Executes the `spawn-at update` command with interactive TUI or headless automation.
@@ -829,7 +795,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    println!("\x1b[1;36m=== spawn-at Update Manager ===\x1b[0m\n");
+    crate::ui::section("spawn-at Update Manager");
     println!("Current version: {}", current_tag);
     println!("Checking GitHub for releases (Channel: {})...", channel);
 
@@ -916,18 +882,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     // Interactive TUI Menu
     if !args.headless && std::io::stdout().is_terminal() {
-        let mut options = Vec::new();
-        if has_update || args.force {
-            options.push(format!("Upgrade to {} now [Recommended]", release.tag_name));
-        } else {
-            options.push(format!("Reinstall {} (Force download)", release.tag_name));
-        }
-        options.push(format!("Change update channel (Currently: {})", channel));
-        options.push("Re-check GitHub for updates".to_string());
-        options.push("Cancel".to_string());
+        let options = update_menu_options(has_update || args.force, &release.tag_name, channel);
 
         let selection = Select::new()
-            .with_prompt("What would you like to do?")
+            .with_prompt(crate::prompts::PROMPT_UPDATE_MENU)
             .items(&options)
             .default(0)
             .interact()?;
@@ -937,13 +895,9 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
                 perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
             }
             1 => {
-                let channels = &[
-                    "Official releases only (stable) [Recommended]",
-                    "Include beta/pre-releases (beta)",
-                ];
                 let ch_sel = Select::new()
-                    .with_prompt("Select release channel:")
-                    .items(channels)
+                    .with_prompt(crate::prompts::PROMPT_RELEASE_CHANNEL)
+                    .items(crate::prompts::ITEMS_CHANNEL)
                     .default(if channel == "beta" { 1 } else { 0 })
                     .interact()?;
                 let new_ch = if ch_sel == 1 { "beta" } else { "stable" };
@@ -978,6 +932,17 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
+    /// The update menu and its prompt fit on one 70-column line even with a long pre-release tag
+    /// and channel name, and no item ends with ':'.
+    #[test]
+    fn test_update_menu_items_fit_the_prompt_limits() {
+        for upgrade in [true, false] {
+            let options = update_menu_options(upgrade, "v10.20.30-beta.40", "stable");
+            let items: Vec<&str> = options.iter().map(String::as_str).collect();
+            crate::prompts::check(crate::prompts::PROMPT_UPDATE_MENU, &items).unwrap();
+        }
+    }
 
     pub fn mock_release(tag: &str, prerelease: bool, draft: bool) -> GitHubRelease {
         GitHubRelease {

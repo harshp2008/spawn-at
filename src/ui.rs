@@ -68,6 +68,23 @@ pub fn println_warning(text: &str) {
     println!("{}", highlight_warning(text, cap));
 }
 
+/// The text of a success line: bold green when `cap` allows colour, otherwise the plain text.
+pub fn highlight_success(text: &str, cap: crate::diagnostics::ColorCapability) -> String {
+    if cap == crate::diagnostics::ColorCapability::Disabled {
+        text.to_string()
+    } else {
+        format!("\x1b[1;32m{text}\x1b[0m")
+    }
+}
+
+/// Prints `text` on stdout as a green success line, with the same colour rules as
+/// [`println_warning`].
+pub fn println_success(text: &str) {
+    let cap =
+        crate::diagnostics::detect_color_capability_for_stream(std::io::stdout().is_terminal());
+    println!("{}", highlight_success(text, cap));
+}
+
 static LAYOUT: Mutex<Layout> = Mutex::new(Layout::new());
 
 fn stdout_color() -> bool {
@@ -206,13 +223,79 @@ mod tests {
         assert_eq!(s, format!("\x1b[1;33m{LOGOUT_WARNING}\x1b[0m"));
     }
 
-    /// The text the install prints is exactly the documented sentence (no colour decoration in it).
+    /// The sentence the session end prints is exactly the documented one (no decoration in it).
     #[test]
     fn test_warning_text_is_unchanged() {
-        let src = include_str!("platform/linux/gnome/mod.rs");
+        assert_eq!(crate::session::LOGOUT_WARNING, LOGOUT_WARNING);
+    }
+
+    /// Every `=== ... ===` heading in the program goes through `Layout::section`: no source file
+    /// other than ui.rs prints a cyan heading by hand (that is how the old double blank lines and
+    /// the uncoloured-when-piped bug crept in).
+    #[test]
+    fn test_no_heading_is_printed_by_hand() {
+        fn walk(dir: &std::path::Path, hits: &mut Vec<String>) {
+            for e in std::fs::read_dir(dir).unwrap().flatten() {
+                let p = e.path();
+                if p.is_dir() {
+                    walk(&p, hits);
+                } else if p.extension().is_some_and(|x| x == "rs")
+                    && !p.ends_with("ui.rs")
+                    && std::fs::read_to_string(&p)
+                        .unwrap()
+                        .contains("\\x1b[1;36m===")
+                {
+                    hits.push(p.display().to_string());
+                }
+            }
+        }
+        let mut hits = Vec::new();
+        walk(
+            &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+            &mut hits,
+        );
+        assert!(hits.is_empty(), "headings printed by hand: {hits:?}");
+    }
+
+    /// The order of a clean install (removal sections, then the install sections) has one blank
+    /// line between blocks and none doubled, at the start or at the end.
+    #[test]
+    fn test_clean_install_run_has_single_blank_lines() {
+        let t = text(|l, o| {
+            l.block_start(o).unwrap();
+            writeln!(o, "An existing spawn-at was found:").unwrap();
+            writeln!(o, "--clean-install: removing it first.").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Clean install: removing the existing spawn-at first.").unwrap();
+            l.section(o, "OS-Level Binary Uninstallation", false)
+                .unwrap();
+            writeln!(o, "Successfully removed binary: /x").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Disabling GNOME extension: x").unwrap();
+            writeln!(o, "Spawn-At extension successfully uninstalled.").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Your configuration and settings were kept.").unwrap();
+            l.section(o, "OS-Level Binary Installation", false).unwrap();
+            writeln!(o, "Scope: User").unwrap();
+            l.block_start(o).unwrap();
+            writeln!(o, "Deploying embedded GNOME extension to: /y").unwrap();
+        });
+        assert!(!t.contains("\n\n\n"), "{t}");
+        assert!(!t.starts_with('\n') && !t.ends_with("\n\n"), "{t}");
         assert!(
-            src.contains(&format!("ui::println_warning(\"{LOGOUT_WARNING}\")")),
-            "the install must print the exact sentence through ui::println_warning"
+            t.contains("first.\n\n=== OS-Level Binary Uninstallation ===\n\nSuccessfully"),
+            "{t}"
+        );
+    }
+
+    /// The success line is bold green (ESC[1;32m) with colour, the plain text without.
+    #[test]
+    fn test_success_line_colour() {
+        use crate::diagnostics::ColorCapability;
+        assert_eq!(highlight_success("ok", ColorCapability::Disabled), "ok");
+        assert_eq!(
+            highlight_success("ok", ColorCapability::Basic),
+            "\x1b[1;32mok\x1b[0m"
         );
     }
 

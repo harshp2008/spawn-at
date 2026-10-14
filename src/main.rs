@@ -20,6 +20,8 @@ mod commands;
 mod config;
 mod diagnostics;
 mod platform;
+mod prompts;
+mod session;
 mod target;
 mod ui;
 mod update;
@@ -99,7 +101,7 @@ async fn main() {
                 }
                 let go = crate::platform::install_notice::gate(args.yes, interactive, || {
                     Confirm::new()
-                        .with_prompt("Install anyway?")
+                        .with_prompt(crate::prompts::PROMPT_INSTALL_ANYWAY)
                         .default(false)
                         .interact()
                         .unwrap_or(false)
@@ -119,16 +121,91 @@ async fn main() {
                 );
                 return;
             }
+            if args.skip_bin {
+                if args.clean_install {
+                    crate::ui::block_start();
+                    println!("--clean-install is ignored with --skip-bin: no binary is installed.");
+                }
+            } else {
+                use crate::platform::upgrade;
+                let user_bin = std::env::var_os("HOME")
+                    .map(|h| std::path::PathBuf::from(h).join(".local/bin"));
+                let system_bin = std::path::PathBuf::from("/usr/local/bin");
+                let found = match std::env::current_exe() {
+                    Ok(exe) => upgrade::detect(
+                        user_bin.as_deref(),
+                        &system_bin,
+                        std::env::var_os("PATH").as_deref(),
+                        &exe,
+                    ),
+                    Err(_) => Vec::new(),
+                };
+                let new = upgrade::NewVersion {
+                    display: match crate::update::get_current_release_tag().as_str() {
+                        "dev" => "dev build".to_string(),
+                        tag => tag.to_string(),
+                    },
+                    semver: crate::update::get_running_semver(),
+                };
+                let mut said_any = false;
+                let mut say = |l: &str| {
+                    if !said_any {
+                        crate::ui::block_start();
+                        said_any = true;
+                    }
+                    println!("{l}");
+                };
+                let mut ask = |q: &upgrade::Question| {
+                    println!();
+                    let labels: Vec<&str> = q.items.iter().map(|i| i.0.as_str()).collect();
+                    dialoguer::Select::new()
+                        .with_prompt(q.prompt.as_str())
+                        .items(&labels)
+                        .default(q.default)
+                        .interact()
+                        .ok()
+                };
+                let interactive = !args.headless && std::io::stdout().is_terminal();
+                match upgrade::plan(
+                    &found,
+                    &new,
+                    args.clean_install,
+                    interactive,
+                    &mut say,
+                    &mut ask,
+                ) {
+                    upgrade::Plan::Proceed => {}
+                    upgrade::Plan::Stop => {
+                        println!("Nothing was changed.");
+                        return;
+                    }
+                    upgrade::Plan::Clean => {
+                        crate::ui::block_start();
+                        println!("Clean install: removing the existing spawn-at first.");
+                        let mut ops = upgrade::RealCleanOps {
+                            driver: driver.as_ref(),
+                            user_bin,
+                            system_bin,
+                        };
+                        let mut say_kept = |l: &str| {
+                            crate::ui::block_start();
+                            println!("{l}");
+                        };
+                        if let Err(e) = upgrade::run_clean(&found, &mut ops, &mut say_kept) {
+                            crate::diagnostics::render_error(&format!(
+                                "Error during the clean install: {}",
+                                e
+                            ));
+                            std::process::exit(1);
+                        }
+                    }
+                }
+            }
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
                 crate::ui::section("Binary Installation Setup");
-                let choices = &[
-                    "Current user only (~/.local/bin) [Recommended]",
-                    "System-wide for all users (/usr/local/bin - requires sudo)",
-                    "Skip binary installation (compositor setup only)",
-                ];
                 let selection = dialoguer::Select::new()
-                    .with_prompt("Where would you like to install the 'spawn-at' executable?")
-                    .items(choices)
+                    .with_prompt(crate::prompts::PROMPT_SCOPE)
+                    .items(crate::prompts::ITEMS_SCOPE)
                     .default(0)
                     .interact();
 
@@ -155,8 +232,9 @@ async fn main() {
                             "System installation failed: {}",
                             e
                         ));
+                        // The reason is printed by render_error just above.
                         let fallback = Confirm::new()
-                            .with_prompt("System installation failed. Would you like to install to your user directory (~/.local/bin) instead?")
+                            .with_prompt(crate::prompts::PROMPT_FALLBACK_USER)
                             .default(true)
                             .interact();
 
@@ -199,13 +277,9 @@ async fn main() {
                     crate::update::channel_to_write(Some(c)).to_string()
                 } else {
                     crate::ui::section("Update Preferences");
-                    let channel_options = &[
-                        "Official releases only (stable) [Recommended]",
-                        "Include beta/pre-releases (beta)",
-                    ];
                     let ch_sel = dialoguer::Select::new()
-                        .with_prompt("Select update channel:")
-                        .items(channel_options)
+                        .with_prompt(crate::prompts::PROMPT_UPDATE_CHANNEL)
+                        .items(crate::prompts::ITEMS_CHANNEL)
                         .default(0)
                         .interact();
                     match ch_sel {
@@ -217,8 +291,10 @@ async fn main() {
                 let notif = if let Some(n) = args.update_notify {
                     n
                 } else {
+                    crate::ui::block_start();
+                    println!("{}", crate::prompts::NOTE_UPDATE_NOTIFY);
                     let n_sel = dialoguer::Confirm::new()
-                        .with_prompt("Enable visual update notifications in terminal when a newer version is available?")
+                        .with_prompt(crate::prompts::PROMPT_UPDATE_NOTIFY)
                         .default(true)
                         .interact();
                     n_sel.unwrap_or(true)
@@ -264,18 +340,16 @@ async fn main() {
                     e
                 ));
             }
+
+            // Last statement of the run: advice, then any log-out or reload (see session.rs).
+            crate::session::finish();
         }
         Commands::Uninstall(mut args) => {
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
-                println!("\x1b[1;36m=== Binary Uninstallation Setup ===\x1b[0m\n");
-                let choices = &[
-                    "Remove binary from current user directory (~/.local/bin) [Recommended]",
-                    "Remove binary from system-wide directory (/usr/local/bin - requires sudo)",
-                    "Skip binary removal (compositor cleanup only)",
-                ];
+                crate::ui::section("Binary Uninstallation Setup");
                 let selection = dialoguer::Select::new()
-                    .with_prompt("Do you want to remove the global 'spawn-at' executable?")
-                    .items(choices)
+                    .with_prompt(crate::prompts::PROMPT_REMOVE_BINARY)
+                    .items(crate::prompts::ITEMS_REMOVE_BINARY)
                     .default(0)
                     .interact();
 
@@ -289,7 +363,6 @@ async fn main() {
                     }
                     _ => {}
                 }
-                println!();
             }
 
             if !args.skip_bin {
@@ -300,7 +373,6 @@ async fn main() {
                     ));
                     std::process::exit(1);
                 }
-                println!();
             }
 
             if let Err(e) = driver.uninstall(&args) {
@@ -313,6 +385,7 @@ async fn main() {
             }
 
             crate::config::uninstall_login_autostart_entry();
+            crate::session::finish();
         }
         Commands::Spawn(spawn_args) => {
             if let Err(e) = commands::run_spawn(driver.as_ref(), spawn_args, cli.no_wait).await {

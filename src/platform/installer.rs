@@ -173,7 +173,7 @@ pub fn uninstall_binary(scope: InstallScope) -> Result<(), String> {
     let target_dir = get_target_dir(scope)?;
     let dest_file = target_dir.join("spawn-at");
 
-    println!("\x1b[1;36m=== OS-Level Binary Uninstallation ===\x1b[0m");
+    crate::ui::section("OS-Level Binary Uninstallation");
     println!("Scope: {:?}", scope);
     println!("Target path: {}", dest_file.display());
 
