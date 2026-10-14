@@ -1,6 +1,6 @@
 # spawn-at Test Log (TEST_PLAN sections 6.10 to 6.35)
 
-This is the dated experiment and measurement log that used to be the second half of [TEST_PLAN.md](TEST_PLAN.md). The text of each section is unchanged; the sections moved here as they were. Each old section still has its heading in TEST_PLAN.md with a link to the same section here, so citations of the form "TEST_PLAN 6.x" still resolve. Raw results cited in these sections were kept outside the repository (see each section); the repository holds the text only.
+This is the dated experiment and measurement log that used to be the second half of [TEST_PLAN.md](TEST_PLAN.md). The text of each section is unchanged; the sections moved here as they were. Each old section still has its heading in TEST_PLAN.md with a link to the same section here, so citations of the form "TEST_PLAN 6.x" still resolve. **Raw results and scripts are not in the repository.** Paths such as `scratch/p23r/`, `scratch/p33_syncclient.py`, `scratch/ab_batch.sh` or `verify-results/...` name gitignored working files of the author's machine (the result directories `scratch/p23r` to `scratch/p36r` are now archived outside the repository). A reader of the repository cannot open them or re-run those scripts; the numbers in the text are what is kept.
 
 ### 6.10 Placement resize specs: set, loader rule and live results (2026-10-12)
 

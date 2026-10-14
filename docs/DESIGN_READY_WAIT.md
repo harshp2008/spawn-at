@@ -399,7 +399,7 @@ Read-only commands only; nothing was written to settings, `/sys`, `/proc`, or dc
 - `gjs` introspection of `/usr/lib/x86_64-linux-gnu/mutter-14/Meta-14.typelib` (a throwaway script in `scratch/`, gitignored, run with `GI_TYPELIB_PATH` and `LD_LIBRARY_PATH` set for that one process): `WindowActor` signals `first-frame, effects-completed, damaged, thawed`; `Window` has `get_client_type, allows_resize, allows_move, get_buffer_rect, get_frame_rect, get_frame_type, is_client_decorated, get_pid, get_sandboxed_app_id, get_gtk_application_id, move_resize_frame`; no `get_min_size`, `get_max_size`, `get_client_pid`; `WindowClientType {WAYLAND:0, X11:1}`; `ShapedTexture` signal `size-changed`.
 - `strings`/`nm -D` on `libmutter-14.so.0` (46.2): sync-request, freeze/thaw and XWayland-thaw symbols listed in 3.2.
 - Vendored sources: `x11rb 0.14.0` has `damage` and `sync` features; `winit 0.29.15` contains neither `_NET_WM_SYNC_REQUEST` handling nor `WINIT_UNIX_BACKEND`.
-- Repository reads: the files and lines in section 1; `verify-results/` protocol census (`proto=Wayland` 230 732, `proto=X11` 5 132, no `XWayland`).
+- Repository reads: the files and lines in section 1; `verify-results/` protocol census (local, gitignored, not in the repository) (`proto=Wayland` 230 732, `proto=X11` 5 132, no `XWayland`).
 - Unverified leads, summarised by a small model and therefore not relied on: mutter NEWS on the X11 backend (49.alpha.0, 50.alpha) and the 6.14 summaries for GNOME 50 APIs.
 
 ## 8. Status: core machine, golden scripts and JS port (2026-10-13)
