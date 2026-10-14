@@ -29,13 +29,20 @@ TAR_NAME="spawn-at-x86_64-unknown-linux-gnu.tar.gz"
 red() { echo -e "\x1b[1;31m$1\x1b[0m"; }
 cyan() { echo -e "\x1b[1;36m$1\x1b[0m"; }
 
+# Error layout (all on stderr): a blank line, the red "Error:" headline, optional
+# "  - cause" bullets, then error_help_heading and "  - advice" bullets, then error_end.
+error_headline() { { echo; echo -e "\x1b[1;31mError\x1b[0m: $1"; } >&2; }
+error_help_heading() { { echo; echo "What you can do:"; } >&2; }
+error_end() { echo >&2; }
+
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 if [ "$OS" != "Linux" ] || [ "$ARCH" != "x86_64" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)." >&2
-    echo "To build from source on your platform, run:"
-    echo "  git clone https://github.com/${REPO}.git && cd spawn-at && cargo build --release"
+    error_headline "spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)."
+    error_help_heading
+    echo "  - Build from source: git clone https://github.com/${REPO}.git && cd spawn-at && cargo build --release" >&2
+    error_end
     exit 1
 fi
 
@@ -50,7 +57,11 @@ while [[ $# -gt 0 ]]; do
                 TARGET_VERSION="$2"
                 shift 2
             else
-                echo -e "\x1b[1;31mError\x1b[0m: Flag --version / -v requires a release tag (e.g., v0.1.0 or v0.2.0-alpha)."
+                error_headline "Flag --version / -v requires a release tag (e.g., v0.1.0 or v0.2.0-alpha)."
+                error_help_heading
+                echo "  - Add the tag after the flag, e.g.: bash install.sh --version v0.2.0-beta.2" >&2
+                echo "  - The available tags are listed at https://github.com/${REPO}/releases" >&2
+                error_end
                 exit 1
             fi
             ;;
@@ -81,23 +92,70 @@ FETCH_STATUS=""
 FETCH_REASON=""
 FETCH_FINAL_URL=""
 
+#
+# Progress mode (FETCH_PROGRESS=1, set only by the tarball download and only when
+# stderr is a terminal): curl shows its progress bar on the terminal, so its stderr
+# cannot be captured into $errf (the bar would end up in the file). Instead curl's
+# error text comes from the %{errormsg} write-out variable (curl 7.75+; older curl
+# gets a generic message), and retries are done here, one curl call per attempt
+# with --retry 0, so that each retry can be announced.
+FETCH_PROGRESS=0
+
+# True if the installed curl supports the %{errormsg} write-out variable (7.75+).
+curl_has_errormsg() {
+    local v
+    v="$(curl --version 2>/dev/null | sed -n '1s/^curl \([0-9]*\)\.\([0-9]*\).*/\1 \2/p')"
+    [ -n "$v" ] || return 1
+    set -- $v
+    [ "$1" -gt 7 ] || { [ "$1" -eq 7 ] && [ "$2" -ge 75 ]; }
+}
+
 fetch() {
     local url="$1" body="$2"
     shift 2
-    local hdrs="$TMP_DIR/headers.txt" errf="$TMP_DIR/curl.err" out rc=0
+    local hdrs="$TMP_DIR/headers.txt" errf="$TMP_DIR/curl.err" out rc=0 msg=""
     : > "$hdrs"
     : > "$errf"
-    out="$(curl -sS -L --connect-timeout 10 --retry 3 --retry-delay 2 \
-        -D "$hdrs" -o "$body" -w '%{http_code} %{url_effective}' \
-        "$@" "$url" 2>"$errf")" || rc=$?
+    if [ "$FETCH_PROGRESS" = 1 ]; then
+        local attempt=0 max_attempts=4 wfmt='%{http_code} %{url_effective}' started=$SECONDS
+        curl_has_errormsg && wfmt="${wfmt}"$'\n''%{errormsg}'
+        while :; do
+            attempt=$((attempt + 1))
+            rc=0
+            out="$(curl -S --progress-bar -L --connect-timeout 10 --retry 0 \
+                -D "$hdrs" -o "$body" -w "$wfmt" "$@" "$url")" || rc=$?
+            msg="${out#*$'\n'}"
+            [ "$msg" != "$out" ] || msg=""
+            out="${out%%$'\n'*}"
+            # Same cases curl's own --retry treats as transient.
+            if [ "$attempt" -lt "$max_attempts" ]; then
+                case "$rc:${out%% *}" in
+                    28:*) echo "Download attempt ${attempt} of ${max_attempts} timed out or stalled, retrying in 2s..." >&2 ;;
+                    0:408|0:429|0:500|0:502|0:503|0:504) echo "Download attempt ${attempt} of ${max_attempts} got HTTP ${out%% *}, retrying in 2s..." >&2 ;;
+                    *) break ;;
+                esac
+                sleep 2
+                continue
+            fi
+            break
+        done
+        # Old curl has no %{errormsg}; it printed its own error line on the terminal.
+        [ "$rc" -eq 0 ] || [ -n "$msg" ] || msg="see the curl message above"
+        if [ "$rc" -eq 0 ] && [ $((SECONDS - started)) -gt 5 ]; then
+            echo "Downloaded in $((SECONDS - started))s, slow connection?" >&2
+        fi
+    else
+        out="$(curl -sS -L --connect-timeout 10 --retry 3 --retry-delay 2 \
+            -D "$hdrs" -o "$body" -w '%{http_code} %{url_effective}' \
+            "$@" "$url" 2>"$errf")" || rc=$?
+    fi
     FETCH_STATUS="${out%% *}"
     FETCH_FINAL_URL="${out#* }"
     [ -n "$FETCH_STATUS" ] || FETCH_STATUS="000"
     FETCH_REASON=""
 
     if [ "$rc" -ne 0 ]; then
-        local msg
-        msg="$(tr '\n' ' ' < "$errf")"
+        [ "$FETCH_PROGRESS" = 1 ] || msg="$(tr '\n' ' ' < "$errf")"
         case "$rc" in
             28) FETCH_REASON="timed out talking to ${url} (curl exit 28)" ;;
             6|7) FETCH_REASON="no network or DNS failure reaching ${url} (curl exit ${rc}: ${msg})" ;;
@@ -203,16 +261,17 @@ resolve_via_redirect() {
 
 fail_resolution() {
     local f
-    echo -e "\x1b[1;31mError\x1b[0m: Could not determine which spawn-at release to install." >&2
+    error_headline "Could not determine which spawn-at release to install."
     for f in "${FAILURES[@]}"; do
         echo "  - ${f}" >&2
     done
-    echo "What you can do:" >&2
+    error_help_heading
     echo "  - Retry in a few minutes (rate limits and slow networks are usually temporary)." >&2
     echo "  - Set GITHUB_TOKEN to a GitHub token to raise the API rate limit, then run this script again." >&2
     echo "  - Pin a release: bash install.sh --version <tag>" >&2
     echo "  - Or download ${TAR_NAME} by hand from https://github.com/${REPO}/releases," >&2
     echo "    extract it and run: ./spawn-at install" >&2
+    error_end
     exit 1
 }
 
@@ -224,7 +283,10 @@ if [ -n "$TARGET_VERSION" ]; then
     RESOLVED_TAG="$TARGET_VERSION"
     PINNED=true
     if ! valid_tag "$RESOLVED_TAG"; then
-        echo -e "\x1b[1;31mError\x1b[0m: '${RESOLVED_TAG}' is not a valid release tag." >&2
+        error_headline "'${RESOLVED_TAG}' is not a valid release tag."
+        error_help_heading
+        echo "  - Use a tag as listed at https://github.com/${REPO}/releases, e.g.: bash install.sh --version v0.2.0-beta.2" >&2
+        error_end
         exit 1
     fi
 elif [ "$USE_PRERELEASE" = true ]; then
@@ -249,9 +311,28 @@ fi
 # --- Download (plain release URL, never the API) -------------------------------------
 download_tag() {
     local tag="$1" url="https://github.com/${REPO}/releases/download/${1}/${TAR_NAME}"
-    fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000
+    local rc=0
+    if [ -t 2 ]; then
+        # Preflight (terminal only): ask for the first byte with the silent fetch()
+        # path. A definite HTTP error status (404, 403, a 5xx that survived the retry)
+        # is reported with no progress bar and no curl message. Anything else that
+        # fails (timeout, DNS, connection) is ignored here: the real download below
+        # has its own retries and error report. (Erasing curl's own "curl: (22)" line
+        # with cursor codes was not reliable: curl prints it followed by an extra
+        # blank line.) At most 2 attempts of 15 s each; later options override fetch()'s.
+        if ! fetch "$url" "$TMP_DIR/preflight" -r 0-0 --max-time 15 --retry 1; then
+            case "$FETCH_REASON" in
+                "HTTP "*|"rate limit"*) return 1 ;;
+            esac
+        fi
+        FETCH_PROGRESS=1
+    fi
+    fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000 || rc=$?
+    FETCH_PROGRESS=0
+    return "$rc"
 }
 
+echo
 cyan "Downloading spawn-at binary (${RESOLVED_TAG})..."
 if ! download_tag "$RESOLVED_TAG"; then
     first_reason="$FETCH_REASON"
@@ -259,31 +340,42 @@ if ! download_tag "$RESOLVED_TAG"; then
     if [ "$PINNED" = true ] && [[ ! "$RESOLVED_TAG" =~ ^v ]] && download_tag "v${RESOLVED_TAG}"; then
         RESOLVED_TAG="v${RESOLVED_TAG}"
     else
-        echo -e "\x1b[1;31mError\x1b[0m: Failed to download the release package." >&2
+        error_headline "Failed to download the release package."
         echo "  - ${first_reason}" >&2
         case "$first_reason" in
             "HTTP 404"*) echo "  - Check that release '${RESOLVED_TAG}' exists and has ${TAR_NAME}: https://github.com/${REPO}/releases" >&2 ;;
         esac
-        echo "What you can do: retry later, or download ${TAR_NAME} by hand from" >&2
-        echo "  https://github.com/${REPO}/releases/download/${RESOLVED_TAG}/${TAR_NAME}" >&2
-        echo "then extract it and run: ./spawn-at install" >&2
+        error_help_heading
+        echo "  - Retry later." >&2
+        echo "  - Or download ${TAR_NAME} by hand from" >&2
+        echo "    https://github.com/${REPO}/releases/download/${RESOLVED_TAG}/${TAR_NAME}" >&2
+        echo "    then extract it and run: ./spawn-at install" >&2
+        error_end
         exit 1
     fi
 fi
 
+echo
 cyan "Extracting package..."
 if ! tar -xzf "$TMP_DIR/$TAR_NAME" -C "$TMP_DIR"; then
-    echo -e "\x1b[1;31mError\x1b[0m: The downloaded package is not a valid tar.gz archive; nothing was installed." >&2
+    error_headline "The downloaded package is not a valid tar.gz archive; nothing was installed."
+    error_help_heading
+    echo "  - Run this script again; if it keeps failing, download ${TAR_NAME} by hand from https://github.com/${REPO}/releases" >&2
+    error_end
     exit 1
 fi
 
 if [ ! -f "$TMP_DIR/spawn-at" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: Extracted package does not contain 'spawn-at' executable." >&2
+    error_headline "Extracted package does not contain 'spawn-at' executable."
+    error_help_heading
+    echo "  - Check that ${TAR_NAME} on https://github.com/${REPO}/releases contains a 'spawn-at' file, or report it as an issue." >&2
+    error_end
     exit 1
 fi
 
 chmod +x "$TMP_DIR/spawn-at"
 
+echo
 echo -e "\x1b[1;32mLaunching installer...\x1b[0m\n"
 # Not exec: the EXIT trap must remove the temp dir. The installed binary is only
 # written by 'spawn-at install' itself, after everything above succeeded.
