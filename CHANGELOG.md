@@ -8,7 +8,8 @@ All notable changes to this project are recorded here. The format follows
 
 ### Fixed
 
-- `install.sh` shows curl's progress bar for the tarball download when stderr is a terminal, announces each retry of a stalled or failed download ("attempt 1 of 4 timed out or stalled, retrying in 2s..."), and prints the elapsed time when a download took longer than 5 seconds. Output is unchanged when stderr is not a terminal (logs, CI, redirects).
+- `install.sh` shows curl's progress bar for the tarball download when stderr is a terminal, announces each retry of a stalled or failed download ("attempt 1 of 4 timed out or stalled, retrying in 2s..."), and prints the elapsed time when a download took longer than 5 seconds. The bar is not drawn for a failed HTTP status (a pinned version that does not exist no longer shows 100% before the error). Without a terminal (logs, CI, redirects) there is no bar and no retry text.
+- `install.sh` errors share one layout on stderr (blank line, red headline, indented causes, "What you can do:" with indented steps, blank line), including the unsupported-platform, `--version` and invalid-tag errors, which now also say what to do; the phases (resolving, downloading, extracting, launching) are separated by single blank lines. Wording and exit codes are otherwise unchanged.
 
 ## [0.2.0-beta.2] - 2026-10-14
 

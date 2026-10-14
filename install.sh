@@ -29,13 +29,20 @@ TAR_NAME="spawn-at-x86_64-unknown-linux-gnu.tar.gz"
 red() { echo -e "\x1b[1;31m$1\x1b[0m"; }
 cyan() { echo -e "\x1b[1;36m$1\x1b[0m"; }
 
+# Error layout (all on stderr): a blank line, the red "Error:" headline, optional
+# "  - cause" bullets, then error_help_heading and "  - advice" bullets, then error_end.
+error_headline() { { echo; echo -e "\x1b[1;31mError\x1b[0m: $1"; } >&2; }
+error_help_heading() { { echo; echo "What you can do:"; } >&2; }
+error_end() { echo >&2; }
+
 OS="$(uname -s)"
 ARCH="$(uname -m)"
 
 if [ "$OS" != "Linux" ] || [ "$ARCH" != "x86_64" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)." >&2
-    echo "To build from source on your platform, run:"
-    echo "  git clone https://github.com/${REPO}.git && cd spawn-at && cargo build --release"
+    error_headline "spawn-at pre-built binaries are currently only provided for Linux x86_64 (Detected: $OS $ARCH)."
+    error_help_heading
+    echo "  - Build from source: git clone https://github.com/${REPO}.git && cd spawn-at && cargo build --release" >&2
+    error_end
     exit 1
 fi
 
@@ -50,7 +57,11 @@ while [[ $# -gt 0 ]]; do
                 TARGET_VERSION="$2"
                 shift 2
             else
-                echo -e "\x1b[1;31mError\x1b[0m: Flag --version / -v requires a release tag (e.g., v0.1.0 or v0.2.0-alpha)."
+                error_headline "Flag --version / -v requires a release tag (e.g., v0.1.0 or v0.2.0-alpha)."
+                error_help_heading
+                echo "  - Add the tag after the flag, e.g.: bash install.sh --version v0.2.0-beta.2" >&2
+                echo "  - The available tags are listed at https://github.com/${REPO}/releases" >&2
+                error_end
                 exit 1
             fi
             ;;
@@ -111,8 +122,16 @@ fetch() {
         while :; do
             attempt=$((attempt + 1))
             rc=0
-            out="$(curl -S --progress-bar -L --connect-timeout 10 --retry 0 \
+            # --fail: an HTTP error page is not downloaded, so no bar reaches 100%
+            # for it. The status still arrives through -w; exit 22 is mapped below.
+            out="$(curl -S --progress-bar --fail -L --connect-timeout 10 --retry 0 \
                 -D "$hdrs" -o "$body" -w "$wfmt" "$@" "$url")" || rc=$?
+            if [ "$rc" -eq 22 ]; then
+                # Erase the "curl: (22) ..." line curl just printed; the reason is
+                # reported below as "HTTP <status> from <url>", as without --fail.
+                printf '\x1b[1A\x1b[2K' >&2
+                rc=0
+            fi
             msg="${out#*$'\n'}"
             [ "$msg" != "$out" ] || msg=""
             out="${out%%$'\n'*}"
@@ -250,16 +269,17 @@ resolve_via_redirect() {
 
 fail_resolution() {
     local f
-    echo -e "\x1b[1;31mError\x1b[0m: Could not determine which spawn-at release to install." >&2
+    error_headline "Could not determine which spawn-at release to install."
     for f in "${FAILURES[@]}"; do
         echo "  - ${f}" >&2
     done
-    echo "What you can do:" >&2
+    error_help_heading
     echo "  - Retry in a few minutes (rate limits and slow networks are usually temporary)." >&2
     echo "  - Set GITHUB_TOKEN to a GitHub token to raise the API rate limit, then run this script again." >&2
     echo "  - Pin a release: bash install.sh --version <tag>" >&2
     echo "  - Or download ${TAR_NAME} by hand from https://github.com/${REPO}/releases," >&2
     echo "    extract it and run: ./spawn-at install" >&2
+    error_end
     exit 1
 }
 
@@ -271,7 +291,10 @@ if [ -n "$TARGET_VERSION" ]; then
     RESOLVED_TAG="$TARGET_VERSION"
     PINNED=true
     if ! valid_tag "$RESOLVED_TAG"; then
-        echo -e "\x1b[1;31mError\x1b[0m: '${RESOLVED_TAG}' is not a valid release tag." >&2
+        error_headline "'${RESOLVED_TAG}' is not a valid release tag."
+        error_help_heading
+        echo "  - Use a tag as listed at https://github.com/${REPO}/releases, e.g.: bash install.sh --version v0.2.0-beta.2" >&2
+        error_end
         exit 1
     fi
 elif [ "$USE_PRERELEASE" = true ]; then
@@ -303,6 +326,7 @@ download_tag() {
     return "$rc"
 }
 
+echo
 cyan "Downloading spawn-at binary (${RESOLVED_TAG})..."
 if ! download_tag "$RESOLVED_TAG"; then
     first_reason="$FETCH_REASON"
@@ -310,31 +334,42 @@ if ! download_tag "$RESOLVED_TAG"; then
     if [ "$PINNED" = true ] && [[ ! "$RESOLVED_TAG" =~ ^v ]] && download_tag "v${RESOLVED_TAG}"; then
         RESOLVED_TAG="v${RESOLVED_TAG}"
     else
-        echo -e "\x1b[1;31mError\x1b[0m: Failed to download the release package." >&2
+        error_headline "Failed to download the release package."
         echo "  - ${first_reason}" >&2
         case "$first_reason" in
             "HTTP 404"*) echo "  - Check that release '${RESOLVED_TAG}' exists and has ${TAR_NAME}: https://github.com/${REPO}/releases" >&2 ;;
         esac
-        echo "What you can do: retry later, or download ${TAR_NAME} by hand from" >&2
-        echo "  https://github.com/${REPO}/releases/download/${RESOLVED_TAG}/${TAR_NAME}" >&2
-        echo "then extract it and run: ./spawn-at install" >&2
+        error_help_heading
+        echo "  - Retry later." >&2
+        echo "  - Or download ${TAR_NAME} by hand from" >&2
+        echo "    https://github.com/${REPO}/releases/download/${RESOLVED_TAG}/${TAR_NAME}" >&2
+        echo "    then extract it and run: ./spawn-at install" >&2
+        error_end
         exit 1
     fi
 fi
 
+echo
 cyan "Extracting package..."
 if ! tar -xzf "$TMP_DIR/$TAR_NAME" -C "$TMP_DIR"; then
-    echo -e "\x1b[1;31mError\x1b[0m: The downloaded package is not a valid tar.gz archive; nothing was installed." >&2
+    error_headline "The downloaded package is not a valid tar.gz archive; nothing was installed."
+    error_help_heading
+    echo "  - Run this script again; if it keeps failing, download ${TAR_NAME} by hand from https://github.com/${REPO}/releases" >&2
+    error_end
     exit 1
 fi
 
 if [ ! -f "$TMP_DIR/spawn-at" ]; then
-    echo -e "\x1b[1;31mError\x1b[0m: Extracted package does not contain 'spawn-at' executable." >&2
+    error_headline "Extracted package does not contain 'spawn-at' executable."
+    error_help_heading
+    echo "  - Check that ${TAR_NAME} on https://github.com/${REPO}/releases contains a 'spawn-at' file, or report it as an issue." >&2
+    error_end
     exit 1
 fi
 
 chmod +x "$TMP_DIR/spawn-at"
 
+echo
 echo -e "\x1b[1;32mLaunching installer...\x1b[0m\n"
 # Not exec: the EXIT trap must remove the temp dir. The installed binary is only
 # written by 'spawn-at install' itself, after everything above succeeded.
