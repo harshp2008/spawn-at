@@ -21,6 +21,7 @@ mod config;
 mod diagnostics;
 mod platform;
 mod target;
+mod ui;
 mod update;
 
 use clap::Parser;
@@ -90,7 +91,12 @@ async fn main() {
             // (unless --yes, --headless or there is no terminal; then it only prints).
             let interactive = !args.headless && std::io::stdout().is_terminal();
             if let Some(notice) = driver.install_notice() {
-                println!("\x1b[1;33m{notice}\x1b[0m\n");
+                crate::ui::block_start();
+                println!("\x1b[1;33m{notice}\x1b[0m");
+                if interactive && !args.yes {
+                    // The "Install anyway?" prompt follows.
+                    println!();
+                }
                 let go = crate::platform::install_notice::gate(args.yes, interactive, || {
                     Confirm::new()
                         .with_prompt("Install anyway?")
@@ -104,6 +110,7 @@ async fn main() {
                 }
             }
             if args.dry_run {
+                crate::ui::block_start();
                 println!(
                     "Dry run: would install the binary ({:?} scope{}) and the {} extension; nothing was changed.",
                     args.scope,
@@ -113,7 +120,7 @@ async fn main() {
                 return;
             }
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
-                println!("\x1b[1;36m=== Binary Installation Setup ===\x1b[0m\n");
+                crate::ui::section("Binary Installation Setup");
                 let choices = &[
                     "Current user only (~/.local/bin) [Recommended]",
                     "System-wide for all users (/usr/local/bin - requires sudo)",
@@ -135,7 +142,6 @@ async fn main() {
                     }
                     _ => {}
                 }
-                println!();
             }
 
             if !args.skip_bin {
@@ -155,7 +161,8 @@ async fn main() {
                             .interact();
 
                         if let Ok(true) = fallback {
-                            println!("\nFalling back to User scope installation...");
+                            crate::ui::block_start();
+                            println!("Falling back to User scope installation...");
                             args.scope = InstallScope::User;
                             if crate::platform::installer::install_binary(args.scope).is_ok() {
                                 recovered = true;
@@ -171,7 +178,6 @@ async fn main() {
                         std::process::exit(1);
                     }
                 }
-                println!();
             }
 
             if let Err(e) = driver.install(&args) {
@@ -187,11 +193,12 @@ async fn main() {
             let (channel, notify) = if !args.headless && std::io::stdout().is_terminal() {
                 let ch = if let Some(ref c) = args.update_channel {
                     if crate::update::is_deprecated_channel_alias(c) {
+                        crate::ui::block_start();
                         println!("{}", crate::update::CHANNEL_ALL_NOTICE);
                     }
                     crate::update::channel_to_write(Some(c)).to_string()
                 } else {
-                    println!("\x1b[1;36m=== Update Preferences ===\x1b[0m\n");
+                    crate::ui::section("Update Preferences");
                     let channel_options = &[
                         "Official releases only (stable) [Recommended]",
                         "Include beta/pre-releases (beta)",
@@ -223,6 +230,7 @@ async fn main() {
                     .as_deref()
                     .is_some_and(crate::update::is_deprecated_channel_alias)
                 {
+                    crate::ui::block_start();
                     println!("{}", crate::update::CHANNEL_ALL_NOTICE);
                 }
                 (

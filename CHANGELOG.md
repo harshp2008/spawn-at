@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- `spawn-at install` output: one blank line before and after each `=== ... ===` section, no double blank lines, none at the start or end (takes effect in the next release). The section headings are plain text when stdout is not a terminal or `NO_COLOR` is set.
+
 ### Fixed
 
 - `install.sh` shows curl's progress bar for the tarball download when stderr is a terminal, announces each retry of a stalled or failed download ("attempt 1 of 4 timed out or stalled, retrying in 2s..."), and prints the elapsed time when a download took longer than 5 seconds. The bar is not drawn for a failed HTTP status (a pinned version that does not exist no longer shows 100% before the error). Without a terminal (logs, CI, redirects) there is no bar and no retry text.
