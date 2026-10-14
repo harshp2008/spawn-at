@@ -814,7 +814,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         } else {
             if is_wayland {
                 println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
-                println!("If the extension is not immediately active, log out and back in to complete loading.");
+                crate::ui::println_warning("If the extension is not immediately active, log out and back in to complete loading.");
             } else {
                 println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
                 println!("You can reload the shell anytime on X11 by pressing Alt+F2, typing 'r', and pressing Enter.");

@@ -9,6 +9,7 @@ All notable changes to this project are recorded here. The format follows
 ### Changed
 
 - `spawn-at install` output: one blank line before and after each `=== ... ===` section, no double blank lines, none at the start or end (takes effect in the next release). The section headings are plain text when stdout is not a terminal or `NO_COLOR` is set.
+- The Wayland line "If the extension is not immediately active, log out and back in to complete loading." is printed in bold yellow, only on a terminal with `NO_COLOR` unset; the text is unchanged and it stays plain when piped (takes effect in the next release).
 
 ### Fixed
 

@@ -40,7 +40,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
 | `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
 | `src/config.rs` | 430 | Configuration Manager |
-| `src/diagnostics.rs` | 1476 | Centralized Diagnostics Layer |
+| `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
 | `src/main.rs` | 379 | spawn-at: Modular Zero-Flicker Window Placement Engine |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
@@ -59,7 +59,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
 | `src/platform/mod.rs` | 316 | Platform & Compositor Driver Abstraction Layer |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
-| `src/ui.rs` | 141 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
+| `src/ui.rs` | 225 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
 | `src/update.rs` | 1459 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)

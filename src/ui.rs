@@ -51,6 +51,23 @@ pub fn heading(title: &str, color: bool) -> String {
     }
 }
 
+/// The text of a warning line: bold yellow when `cap` allows colour, otherwise the plain text.
+pub fn highlight_warning(text: &str, cap: crate::diagnostics::ColorCapability) -> String {
+    if cap == crate::diagnostics::ColorCapability::Disabled {
+        text.to_string()
+    } else {
+        format!("\x1b[1;33m{text}\x1b[0m")
+    }
+}
+
+/// Prints `text` on stdout as a highlighted warning (see [`highlight_warning`]); the colour
+/// follows the same rules as the diagnostics labels: stdout is a terminal and NO_COLOR is unset.
+pub fn println_warning(text: &str) {
+    let cap =
+        crate::diagnostics::detect_color_capability_for_stream(std::io::stdout().is_terminal());
+    println!("{}", highlight_warning(text, cap));
+}
+
 static LAYOUT: Mutex<Layout> = Mutex::new(Layout::new());
 
 fn stdout_color() -> bool {
@@ -130,6 +147,73 @@ mod tests {
                 "mask {mask}: {t:?}"
             );
         }
+    }
+
+    const LOGOUT_WARNING: &str =
+        "If the extension is not immediately active, log out and back in to complete loading.";
+
+    fn escape_free(s: &str) -> bool {
+        !s.contains('\x1b')
+    }
+
+    /// Not a terminal (piped): no escape codes, whatever NO_COLOR and TERM say.
+    #[test]
+    fn test_warning_has_no_escape_codes_when_piped() {
+        let _env = crate::diagnostics::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let cap = crate::diagnostics::detect_color_capability_for_stream(false);
+        assert_eq!(highlight_warning(LOGOUT_WARNING, cap), LOGOUT_WARNING);
+    }
+
+    /// A terminal with NO_COLOR set: no escape codes.
+    #[test]
+    fn test_warning_has_no_escape_codes_with_no_color() {
+        let _env = crate::diagnostics::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let old = std::env::var_os("NO_COLOR");
+        std::env::set_var("NO_COLOR", "1");
+        let cap = crate::diagnostics::detect_color_capability_for_stream(true);
+        match old {
+            Some(v) => std::env::set_var("NO_COLOR", v),
+            None => std::env::remove_var("NO_COLOR"),
+        }
+        let s = highlight_warning(LOGOUT_WARNING, cap);
+        assert!(escape_free(&s), "{s:?}");
+        assert_eq!(s, LOGOUT_WARNING);
+    }
+
+    /// A terminal without NO_COLOR: bold yellow (ESC[1;33m) around the unchanged text, reset after.
+    #[test]
+    fn test_warning_is_bold_yellow_when_colour_is_enabled() {
+        let _env = crate::diagnostics::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let old = std::env::var_os("NO_COLOR");
+        std::env::remove_var("NO_COLOR");
+        let old_term = std::env::var_os("TERM");
+        std::env::set_var("TERM", "xterm");
+        let cap = crate::diagnostics::detect_color_capability_for_stream(true);
+        if let Some(v) = old {
+            std::env::set_var("NO_COLOR", v);
+        }
+        match old_term {
+            Some(v) => std::env::set_var("TERM", v),
+            None => std::env::remove_var("TERM"),
+        }
+        let s = highlight_warning(LOGOUT_WARNING, cap);
+        assert_eq!(s, format!("\x1b[1;33m{LOGOUT_WARNING}\x1b[0m"));
+    }
+
+    /// The text the install prints is exactly the documented sentence (no colour decoration in it).
+    #[test]
+    fn test_warning_text_is_unchanged() {
+        let src = include_str!("platform/linux/gnome/mod.rs");
+        assert!(
+            src.contains(&format!("ui::println_warning(\"{LOGOUT_WARNING}\")")),
+            "the install must print the exact sentence through ui::println_warning"
+        );
     }
 
     /// Colour only changes the escape codes around the heading, not its text.
