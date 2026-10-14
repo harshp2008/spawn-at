@@ -291,7 +291,7 @@ The verify tool already measures the thing, on the client side: the fixture writ
 
 ### 5.2 Numeric acceptance criteria (proposed; HYPOTHESIS that they are achievable)
 
-Baselines from stored data (CONFIRMED (docs/measured), 6.12-6.13): 22-thread load, corrected after the reveal in 134 of 320 g3 runs (42%) and 10 of 40 fixture-trace runs (25%); idle about 1% (3 of 320). Cells are 100 isolated runs (regime (a) of 6.10); the pass rule uses the Wilson 95% upper bound (computed here: 0/100 -> 3.7%, 1/100 -> 5.4%, 5/100 -> 11.2%, 10/100 -> 17.4%; 40 runs would not separate 25% from 10%: 4/40 -> 23.1%).
+Baselines from stored data (CONFIRMED (stored data; raw results are not kept in the repository), 6.12-6.13): 22-thread load, corrected after the reveal in 134 of 320 g3 runs (42%) and 10 of 40 fixture-trace runs (25%); idle about 1% (3 of 320). Cells are 100 isolated runs (regime (a) of 6.10); the pass rule uses the Wilson 95% upper bound (computed here: 0/100 -> 3.7%, 1/100 -> 5.4%, 5/100 -> 11.2%, 10/100 -> 17.4%; 40 runs would not separate 25% from 10%: 4/40 -> 23.1%).
 
 | # | Condition (release-build fixture, native Wayland, GNOME 46) | Criterion |
 | :---: | :--- | :--- |
