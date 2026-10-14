@@ -10,7 +10,7 @@ import {
 // so this is the whole of the testable part; what a real Shell emits is not shown here.
 
 /** A host that records every call and has a manual clock and timer list. */
-function makeHost({ logging = true, signals = { damaged: true, 'first-frame': true } } = {}) {
+function makeHost({ logging = true, signals = { damaged: true, 'first-frame': true, thawed: true } } = {}) {
     let now = 1000;
     let nextId = 1;
     const calls = [];
@@ -110,9 +110,9 @@ test('a watch logs start, marks, each signal with sizes, and ends 500 ms after t
     const obs = new X11Observer(host);
     assert.equal(obs.start(WIN, ACTOR, 'XWayland'), true);
     assert.equal(obs.activeCount, 1);
-    // damaged, first-frame and the window's unmanaged
-    assert.deepEqual([...host.connected.values()].map(c => c.signal), ['damaged', 'first-frame', 'unmanaged']);
-    assert.equal(obs.handlerCount, 2);
+    // damaged, first-frame, thawed and the window's unmanaged
+    assert.deepEqual([...host.connected.values()].map(c => c.signal), ['damaged', 'first-frame', 'thawed', 'unmanaged']);
+    assert.equal(obs.handlerCount, 3);
 
     host.now = 1005; obs.mark(WIN, 'set_size');
     host.now = 1012; host.fire('damaged');
@@ -172,7 +172,7 @@ test('disabling the extension ends every watch', () => {
 });
 
 test('damaged missing: noted once, first-frame is still watched; the check is by signal lookup, not version', () => {
-    const host = makeHost({ signals: { damaged: false, 'first-frame': true } });
+    const host = makeHost({ signals: { damaged: false, 'first-frame': true, thawed: true } });
     const obs = new X11Observer(host);
     obs.start(WIN, ACTOR, 'XWayland');
     obs.start({ name: 'w2' }, ACTOR, 'XWayland');
@@ -181,7 +181,7 @@ test('damaged missing: noted once, first-frame is still watched; the check is by
     assert.equal(notes[0].extra, DAMAGED_UNAVAILABLE);
     assert.match(host.logs[0].extra, /damaged=unavailable first_frame=available/);
     assert.deepEqual([...host.connected.values()].filter(c => c.signal !== 'unmanaged').map(c => c.signal),
-        ['first-frame', 'first-frame']);
+        ['first-frame', 'thawed', 'first-frame', 'thawed']);
 });
 
 test('logging switched off mid-watch: emissions are silent, the end still disconnects', () => {
@@ -253,4 +253,68 @@ test('texture reader: the log line names the accessor or the error, and stays on
     assert.match(ok, /texture=\(800x600\) texture_via=shaped>multi actor=\(na\)/);
     const bad = formatSignal({ signal: 'damaged', id: 1, monoMs: 1, seq: 1, texture: { error: 'shaped>multi:x|shaped>multi>plane0:y' }, actor: null, frame: null, buffer: null });
     assert.match(bad, /texture=\(na\) texture_err=shaped>multi:x\|shaped>multi>plane0:y actor=\(na\)/);
+});
+
+// `thawed` (TEST_PLAN 6.32): the actor's end of a frozen state, logged like the other two signals.
+
+import { THAWED_UNAVAILABLE } from '../assets/gnome/modern/x11_observe.js';
+
+test('thawed is connected and logged as a signal line with the clock and the sizes, and counted in the end line', () => {
+    const host = makeHost();
+    const obs = new X11Observer(host);
+    obs.start(WIN, ACTOR, 'XWayland');
+    host.now = 1020; host.fire('thawed');
+    host.now = 1030; host.fire('thawed');
+    const lines = host.logs.filter(l => l.tag === 'X11_OBS_SIGNAL').map(l => l.extra);
+    assert.equal(lines.length, 2);
+    assert.match(lines[0], /^signal=thawed id=301 mono_ms=1020\.000 seq=1 texture=\(400x300\) actor=\(800x600\) frame=\(10,20,800x600\) buffer=\(9,19,802x602\)$/);
+    assert.match(lines[1], /^signal=thawed .* mono_ms=1030\.000 seq=2 /);
+    obs.stopAll();
+    assert.match(host.logs.at(-1).extra, /^id=301 reason=disabled mono_ms=1030\.000 damaged=0 first_frame=0 thawed=2$/);
+});
+
+test('without a thaw the end line is exactly what it was before (no thawed field)', () => {
+    const host = makeHost();
+    const obs = new X11Observer(host);
+    obs.start(WIN, ACTOR, 'XWayland');
+    host.fire('damaged');
+    obs.stopAll();
+    assert.match(host.logs.at(-1).extra, /^id=301 reason=disabled mono_ms=\d+\.\d{3} damaged=1 first_frame=0$/);
+});
+
+test('thawed missing: noted once, the other signals are still watched', () => {
+    const host = makeHost({ signals: { damaged: true, 'first-frame': true } });
+    const obs = new X11Observer(host);
+    obs.start(WIN, ACTOR, 'XWayland');
+    obs.start({ name: 'w2' }, ACTOR, 'XWayland');
+    const notes = host.logs.filter(l => l.tag === 'X11_OBS_NOTE');
+    assert.equal(notes.length, 1);
+    assert.equal(notes[0].extra, THAWED_UNAVAILABLE);
+    assert.deepEqual([...host.connected.values()].filter(c => c.signal !== 'unmanaged').map(c => c.signal),
+        ['damaged', 'first-frame', 'damaged', 'first-frame']);
+});
+
+test('a host that throws never throws into the thawed emission; a native Wayland window connects nothing', () => {
+    const host = makeHost();
+    const obs = new X11Observer(host);
+    obs.start(WIN, ACTOR, 'XWayland');
+    host.frameRect = () => { throw new Error('no frame'); };
+    assert.doesNotThrow(() => host.fire('thawed'));
+    obs.stopAll();
+    assert.equal(host.connected.size, 0);
+
+    const native = makeHost();
+    const o2 = new X11Observer(native);
+    assert.equal(o2.start(WIN, ACTOR, 'NativeWayland'), false);
+    assert.equal(native.connected.size, 0);
+    assert.equal(native.logs.length, 0);
+});
+
+test('logging off: thawed adds no handler and no line', () => {
+    const host = makeHost({ logging: false });
+    const obs = new X11Observer(host);
+    assert.equal(obs.start(WIN, ACTOR, 'XWayland'), false);
+    host.fire('thawed');
+    assert.equal(host.connected.size, 0);
+    assert.equal(host.logs.length, 0);
 });

@@ -667,3 +667,47 @@ test('x11 observation: disabling the extension ends a running watch and disconne
         GObject.signal_lookup = saved;
     }
 });
+
+// ---------------------------------------------------------------------------------------------
+// 5. `thawed` of the window actor is logged for XWayland/X11 windows only, and changes nothing.
+// ---------------------------------------------------------------------------------------------
+
+test('thawed: an X11 batch logs it as a signal line; the frame and the wait lines are those of a batch without it', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const withThaw = await runX11(makeRig(), {
+            logging: true,
+            script: (sim, _w, actor) => { sim.at(5, () => actor.emit('damaged')); sim.at(8, () => actor.emit('thawed')); },
+        });
+        const without = await runX11(makeRig(), {
+            logging: true,
+            script: (sim, _w, actor) => sim.at(5, () => actor.emit('damaged')),
+        });
+        assert.deepEqual(withThaw.frame, without.frame);
+        assert.equal(withThaw.logs.filter(l => l.tag === 'X11_OBS_SIGNAL' && /^signal=thawed /.test(l.extra)).length, 1);
+        assert.match(withThaw.logs.find(l => l.tag === 'X11_OBS_END').extra, / damaged=1 first_frame=0 thawed=1$/);
+        const strip = logs => logs.filter(l => !l.tag.startsWith('X11_OBS') && l.tag !== 'SET_LOGGING')
+            .map(l => `${l.tag} ${l.extra}`.replace(/elapsed_ms=[0-9.]+/g, ''));
+        assert.deepEqual(strip(withThaw.logs), strip(without.logs));
+        assert.equal(withThaw.actor.handlerCount(), 0, 'no handler left after the tail');
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});
+
+test('thawed: a native Wayland window is never watched, even if its actor emits it', async () => {
+    const saved = GObject.signal_lookup;
+    GObject.signal_lookup = () => 7;
+    try {
+        const r = await runX11(makeRig(), {
+            logging: true,
+            windowOptions: {},
+            script: (sim, _w, actor) => sim.at(5, () => actor.emit('thawed')),
+        });
+        assert.equal(r.logs.some(l => l.tag.startsWith('X11_OBS')), false);
+        assert.equal(r.actor.signals.includes('thawed'), false);
+    } finally {
+        GObject.signal_lookup = saved;
+    }
+});

@@ -16,8 +16,13 @@
 /** How long after the reveal the signals are still logged. */
 export const OBSERVE_TAIL_MS = 500;
 
-/** The two signals that are connected, in the order they are looked up and logged. */
-export const SIGNALS = ['damaged', 'first-frame'];
+/**
+ * The signals that are connected, in the order they are looked up and logged. `thawed` is the
+ * actor's end of a frozen state (Mutter freezes a window actor while it waits for an X11 client
+ * that took part in `_NET_WM_SYNC_REQUEST` to finish redrawing; TEST_PLAN 6.32): it is only logged,
+ * with the same fields as the others, to see whether and when it fires for XWayland windows.
+ */
+export const SIGNALS = ['damaged', 'first-frame', 'thawed'];
 
 /** True for the window kinds this module watches (see `_windowKind` in extension.js). */
 export function isX11Kind(kind) {
@@ -105,9 +110,14 @@ export function formatSignal(s) {
 
 /** `X11_OBS_END` extra: why the watch ended and how much it saw. */
 export function formatEnd(id, reason, monoMs, counts) {
+    // ` thawed=N` is appended only when the actor was thawed, so a line without one is unchanged.
+    const thawed = counts.thawed ? ` thawed=${counts.thawed}` : '';
     return `id=${id} reason=${reason} mono_ms=${msStr(monoMs)} ` +
-        `damaged=${counts.damaged ?? 0} first_frame=${counts['first-frame'] ?? 0}`;
+        `damaged=${counts.damaged ?? 0} first_frame=${counts['first-frame'] ?? 0}${thawed}`;
 }
+
+/** The note written once when `thawed` does not exist on the actor class. */
+export const THAWED_UNAVAILABLE = 'thawed unavailable';
 
 /** The note written once when `damaged` does not exist on the actor class. */
 export const DAMAGED_UNAVAILABLE = 'damaged unavailable';
@@ -129,6 +139,7 @@ export class X11Observer {
         this._tailMs = tailMs;
         this._watches = new Map();
         this._unavailableNoted = false;
+        this._thawedNoted = false;
     }
 
     /** Number of windows being watched; 0 when nothing is connected. */
@@ -169,6 +180,10 @@ export class X11Observer {
             if (!signals.damaged && !this._unavailableNoted) {
                 this._unavailableNoted = true;
                 h.logTime('X11_OBS_NOTE', DAMAGED_UNAVAILABLE, window);
+            }
+            if (!signals.thawed && !this._thawedNoted) {
+                this._thawedNoted = true;
+                h.logTime('X11_OBS_NOTE', THAWED_UNAVAILABLE, window);
             }
             for (const name of SIGNALS) {
                 if (!signals[name])
