@@ -42,6 +42,10 @@ pub fn detect_color_capability_for_stream(is_terminal: bool) -> ColorCapability 
     ColorCapability::Basic
 }
 
+/// Serialises the tests that change NO_COLOR or TERM (the environment is shared by all test threads).
+#[cfg(test)]
+pub static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Detects color capability on stderr.
 pub fn detect_color_capability() -> ColorCapability {
     detect_color_capability_for_stream(std::io::stderr().is_terminal())
@@ -1386,6 +1390,7 @@ mod tests {
 
     #[test]
     fn test_no_color_environment_variable() {
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // Test helper using custom stream capability logic
         let orig_no_color = std::env::var("NO_COLOR").ok();
         let orig_term = std::env::var("TERM").ok();

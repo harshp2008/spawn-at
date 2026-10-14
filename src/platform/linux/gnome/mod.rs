@@ -680,7 +680,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let is_wayland = is_wayland_session();
 
         let (auto_enable, should_restart) = if !args.headless && std::io::stdout().is_terminal() {
-            println!("\x1b[1;36m=== GNOME Shell Extension Setup ===\x1b[0m\n");
+            crate::ui::section("GNOME Shell Extension Setup");
 
             let auto_enable = Confirm::new()
                 .with_prompt("Automatically enable the spawn-at GNOME Shell extension?")
@@ -731,6 +731,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let major_version = detect_gnome_shell_major_version();
         let is_legacy = major_version.is_some_and(|v| v < 45);
 
+        crate::ui::block_start();
         let files = if is_legacy {
             // The untested-platform notice was printed (and confirmed) before the install began.
             println!(
@@ -813,7 +814,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         } else {
             if is_wayland {
                 println!("Wayland session logout skipped (--gnome-wayland-logout=false).");
-                println!("If the extension is not immediately active, log out and back in to complete loading.");
+                crate::ui::println_warning("If the extension is not immediately active, log out and back in to complete loading.");
             } else {
                 println!("GNOME Shell reload skipped (--gnome-x11-reload=false).");
                 println!("You can reload the shell anytime on X11 by pressing Alt+F2, typing 'r', and pressing Enter.");

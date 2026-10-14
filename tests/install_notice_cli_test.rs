@@ -114,3 +114,23 @@ fn test_install_help_lists_yes_and_dry_run() {
     let t = stdout(&o);
     assert!(t.contains("--yes") && t.contains("--dry-run"), "{t}");
 }
+
+/// The dry-run output (notice, then the dry-run line) has no blank line at the start or the end
+/// and never two blank lines in a row; the notice and the dry-run line are one blank line apart.
+#[test]
+fn test_dry_run_output_has_single_blank_lines() {
+    if !gnome_driver_available() {
+        return;
+    }
+    for v in ["43.0", "46.0"] {
+        let t = stdout(&install_dry_run(v, &[]));
+        assert!(!t.starts_with('\n'), "{v}: {t:?}");
+        assert!(t.ends_with('\n') && !t.ends_with("\n\n"), "{v}: {t:?}");
+        assert!(!t.contains("\n\n\n"), "{v}: {t:?}");
+        if v == "43.0" {
+            let (notice, rest) = t.split_once("\n\n").expect("blank line between blocks");
+            assert!(notice.contains("UNTESTED"), "{t:?}");
+            assert!(rest.starts_with("Dry run:"), "{t:?}");
+        }
+    }
+}
