@@ -6,7 +6,12 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
-v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms; no dates and no promises.
+## [0.2.0-beta.2] - 2026-10-14
+
+Pre-release. Placement behavior, the ready-wait policy and the extension are the same as in
+0.2.0-beta.1: no file under `assets/gnome/` changed. See
+[docs/RELEASE_NOTES_0.2.0-beta.2.md](docs/RELEASE_NOTES_0.2.0-beta.2.md) for upgrade notes and
+what is not verified.
 
 ### Changed
 
@@ -16,46 +21,66 @@ v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms
   unchanged (`~/.config/autostart/...`). Before, it was always under `~/.config`, so a desktop
   session using `XDG_CONFIG_HOME` did not see it. An entry an earlier version wrote under
   `~/.config/autostart` is not moved: re-run `spawn-at install` to write the new one.
+- The README no longer calls the X11 driver "finished": the intro now says what the rest of the
+  README already said (X11 and XWayland keep the old 30 ms rule, can flash, and were tried with
+  the test window only), and the long X11/XWayland paragraph is a short summary that links to
+  [docs/TEST_PLAN.md](docs/TEST_PLAN.md) and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md).
+
+### Fixed
+
+- **`install.sh` resolves releases reliably.** "Could not resolve latest release via GitHub API"
+  appeared intermittently because every API call hid its error and had no retry. Now: API calls
+  use `--connect-timeout 10 --max-time 60 --retry 3 --retry-delay 2` and send
+  `Authorization: Bearer $GITHUB_TOKEN` when it is set; if the API fails, `--prerelease` reads the
+  first entry of `releases.atom` and the stable channel follows the redirect of `releases/latest`;
+  the tarball always comes from `releases/download/<tag>/<asset>`, never the API; a pinned tag
+  without a leading `v` is retried with one; tags are validated before they reach a URL; the
+  tarball is extracted in a temporary directory that is removed afterwards. Failures print the
+  cause (HTTP status, rate limit, timeout, no network) and what to do. The two `python3 -c`
+  fallbacks were removed (`jq` is still used when present, otherwise `grep` and `sed`).
+  `SPAWN_AT_RESOLVE_ONLY=1` prints the resolved tag and exits. All flags are unchanged. This
+  landed on `main` after the beta.1 tag, so it is part of a tagged release for the first time here.
 - `install.sh` sends the unsupported-platform error and the "package does not contain
-  `spawn-at`" error to stderr. Nothing else in the script changed.
-- Plain `cargo build` / `cargo test` at the repository root are now explicitly limited to the
-  `spawn-at` package (`default-members = ["."]`); this was already their behavior. Name
-  `spawn-at-verify` explicitly (`-p spawn-at-verify --features tui,fixture`).
+  `spawn-at`" error to stderr.
+- The release workflow now fails if a file it packages (`README.md`, `LICENSE`) is missing,
+  instead of silently publishing a tarball without it, and checks that the tarball lists
+  `./spawn-at`. It had not run on a real tag when this was written.
 
 ### Added
 
 - **CI** (`.github/workflows/ci.yml`) on pull requests and pushes to `main`: `cargo fmt --check`,
   clippy with `-D warnings` on the whole workspace, the tests of `spawn-at`, `spawn-at-core`,
   `xtask` and `spawn-at-verify` (`--features tui,fixture`), and the Node tests. Linux x86_64
-  only; the 4 tests that need a live display stay ignored. It has not run on GitHub yet.
+  only; the 4 tests that need a live display stay ignored. It had not run on GitHub when this
+  was written.
 - The `hostile` category (9 specs) is part of the `full` and `release-gate` verification suites.
   All 9 are `required = false`, so the gate's required set is unchanged.
 
-### Fixed
+### Internal (no user-visible change)
 
-- The release workflow now fails if a file it packages (`README.md`, `LICENSE`) is missing,
-  instead of silently publishing a tarball without it, and checks that the tarball lists
-  `./spawn-at`. Not yet run on a real tag.
+- Plain `cargo build` / `cargo test` at the repository root are explicitly limited to the
+  `spawn-at` package (`default-members = ["."]`); this was already their behavior. Name
+  `spawn-at-verify` explicitly (`-p spawn-at-verify --features tui,fixture`).
 - `scripts/smoke-live.sh` no longer fails on its build step (`no bin target named
   spawn-at-verify`).
-
-### Removed
-
-- The unused `tokio` dependency of `spawn-at-verify`.
-- Unused code: `get_active_driver`, `EMBEDDED_EXTENSION_FILES`, and the unused re-exports
-  `apply_focus_policy`, `run_unminimize`, `Atoms` and `Entry`; the never-constructed
-  `ExpectedState::{Mapped, Position, Size}`; the never-read `GitHubRelease::name` field; ten
-  unreferenced `pub` helpers of `spawn-at-verify`. Test-only helpers are now `#[cfg(test)]` and
-  the `spawn-at` modules are private, so the compiler reports dead code. No behavior change;
-  `spawn-at --help` and every subcommand's help are byte-identical.
+- Removed the unused `tokio` dependency of `spawn-at-verify`, the unused `get_active_driver`,
+  `EMBEDDED_EXTENSION_FILES` and the re-exports `apply_focus_policy`, `run_unminimize`, `Atoms`
+  and `Entry`, the never-constructed `ExpectedState::{Mapped, Position, Size}`, the never-read
+  `GitHubRelease::name` field, and ten unreferenced `pub` helpers of `spawn-at-verify`.
+  Test-only helpers are now `#[cfg(test)]` and the `spawn-at` modules are private, so the compiler
+  reports dead code; six remaining dead-code warnings carry an explained `#[allow(dead_code)]`.
+  `spawn-at --help` and every subcommand's help are byte-identical to before.
+- Comments the code contradicted were corrected (`src/main.rs`, `lifecycle.rs`, the verify trace
+  parser, one node test, `verify/hostile/README.md`).
 
 ### Documentation
 
 - Broken paths fixed in `CONTRIBUTING.md`; its "adding a driver" guide now points at the real
   traits. `docs/CODE_LAYOUT.md` now describes the current tree (the never-built reorganization
-  plan was removed), `AI_DEV/` was removed, the README's X11/XWayland paragraph is a short summary.
+  plan was removed), `AI_DEV/` was removed, and `CLAUDE.md` lists the real build and test commands.
 - `docs/TEST_PLAN.md`: the 23 catalog rows without a spec file are marked "Not written", and the
   dated log (sections 6.10 to 6.35) moved to `docs/TEST_LOG.md` with a stub at each old heading.
+  Docs now say that cited `scratch/` and `verify-results/` files are not in the repository.
 
 ## [0.2.0-beta.1] - 2026-10-14
 
@@ -176,5 +201,6 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.1...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.2...HEAD
+[0.2.0-beta.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.1...v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/harshp2008/spawn-at/releases/tag/v0.2.0-beta.1
