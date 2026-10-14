@@ -729,7 +729,7 @@ impl CompositorBackend for GnomeWaylandDriver {
         let auto_enable = if interactive {
             crate::ui::section("GNOME Shell Extension Setup");
             Confirm::new()
-                .with_prompt("Automatically enable the spawn-at GNOME Shell extension?")
+                .with_prompt(crate::prompts::PROMPT_ENABLE_EXTENSION)
                 .default(true)
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?
@@ -825,10 +825,9 @@ impl CompositorBackend for GnomeWaylandDriver {
         let interactive = !args.headless && std::io::stdout().is_terminal();
         let delete_files = if interactive {
             crate::ui::section("GNOME Shell Extension Uninstallation");
+            println!("{}", crate::prompts::NOTE_DELETE_EXTENSION_FILES);
             Confirm::new()
-                .with_prompt(
-                    "Completely delete extension files from ~/.local/share/gnome-shell/extensions?",
-                )
+                .with_prompt(crate::prompts::PROMPT_DELETE_EXTENSION_FILES)
                 .default(true)
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?

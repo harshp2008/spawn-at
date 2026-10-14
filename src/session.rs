@@ -75,41 +75,32 @@ pub struct Pending {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Question {
     pub prompt: &'static str,
+    /// Plain text printed above the question (the explanation that does not fit in it).
+    pub note: &'static str,
     pub items: [(&'static str, bool); 2],
     pub default: usize,
 }
 
 /// The question for a flow and session type. Wayland: default No (a log-out closes every app).
-/// X11: default Yes (the reload keeps the apps open).
+/// X11: default Yes (the reload keeps the apps open). The texts are in `prompts.rs`.
 pub fn question(flow: Flow, is_wayland: bool) -> Question {
+    use crate::prompts::*;
     if is_wayland {
         Question {
-            prompt: match flow {
-                Flow::Update => "Do you want to log out of your session now to complete the reload?",
-                _ => "Do you want to log out of your session now? (Destructive on Wayland)",
+            prompt: PROMPT_LOGOUT,
+            note: if flow == Flow::Update {
+                NOTE_LOGOUT_UPDATE
+            } else {
+                NOTE_LOGOUT
             },
-            items: [
-                (
-                    "No - Keep session running (I'll log out later if needed) [Default]",
-                    false,
-                ),
-                (
-                    "Yes - Log out now to ensure extension is cleanly loaded (Destructive: closes apps)",
-                    true,
-                ),
-            ],
+            items: [(ITEMS_LOGOUT[0], false), (ITEMS_LOGOUT[1], true)],
             default: 0,
         }
     } else {
         Question {
-            prompt: "Do you want to reload GNOME Shell now? (Non-destructive on X11)",
-            items: [
-                (
-                    "Yes - Reload GNOME Shell in-place now (Non-destructive: apps stay open) [Default]",
-                    true,
-                ),
-                ("No - Keep session running", false),
-            ],
+            prompt: PROMPT_RELOAD,
+            note: NOTE_RELOAD,
+            items: [(ITEMS_RELOAD[0], true), (ITEMS_RELOAD[1], false)],
             default: 0,
         }
     }
@@ -264,7 +255,9 @@ impl Session {
             Decision::Ask if not_needed => false,
             Decision::Ask => {
                 ops.block_start();
-                ops.ask(&question(p.flow, p.is_wayland)).unwrap_or(false)
+                let q = question(p.flow, p.is_wayland);
+                ops.say(q.note);
+                ops.ask(&q).unwrap_or(false)
             }
         };
         let (action, advice) = match p.flow {
@@ -741,6 +734,27 @@ mod tests {
         assert!(!rec.text().contains("log out"));
     }
 
+    /// The end-of-run question fits (prompt, items, note-free) in every flow and session type,
+    /// has no trailing colon, and carries the explanation as a note above it.
+    #[test]
+    fn test_end_question_fits_the_prompt_limits() {
+        for flow in [
+            Flow::Uninstall,
+            Flow::Update,
+            Flow::Install {
+                not_needed: false,
+                headless: false,
+            },
+        ] {
+            for is_wayland in [true, false] {
+                let q = question(flow, is_wayland);
+                let items: Vec<&str> = q.items.iter().map(|i| i.0).collect();
+                crate::prompts::check(q.prompt, &items).unwrap();
+                assert!(!q.note.is_empty());
+            }
+        }
+    }
+
     /// finish() forgets what it did: a second call asks and does nothing.
     #[test]
     fn test_finish_runs_once() {
@@ -784,13 +798,13 @@ mod tests {
         let mut quits = 0;
         for (p, s) in &files {
             let s = non_test(s);
-            if p.ends_with("session.rs") {
+            if p.ends_with("session.rs") || p.ends_with("prompts.rs") {
                 continue;
             }
             quits += s.matches("\"gnome-session-quit\"").count();
             for forbidden in [
-                "log out of your session now",
-                "reload GNOME Shell now",
+                "Log out of your session now",
+                "Reload GNOME Shell now",
                 "Wayland session logout skipped",
                 "GNOME Shell reload skipped",
                 "restart_gnome_shell_x11();",
@@ -810,7 +824,19 @@ mod tests {
             .find(|(p, _)| p.ends_with("src/session.rs"))
             .unwrap();
         let session = non_test(&session.1);
-        assert_eq!(session.matches("log out of your session now").count(), 2);
+        assert!(!session.contains("Log out of your session now"));
+        let prompts = files
+            .iter()
+            .find(|(p, _)| p.ends_with("src/prompts.rs"))
+            .unwrap();
+        assert_eq!(
+            prompts
+                .1
+                .clone()
+                .matches("Log out of your session now")
+                .count(),
+            1
+        );
         let main = files
             .iter()
             .find(|(p, _)| p.ends_with("src/main.rs"))

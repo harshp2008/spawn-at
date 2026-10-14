@@ -244,7 +244,7 @@ pub fn plan(
         Relation::Same => {
             say("The same version is already installed.");
             Question {
-                prompt: "What do you want to do?".into(),
+                prompt: crate::prompts::PROMPT_EXISTING.into(),
                 items: vec![
                     ("Keep it, change nothing [Default]".into(), Choice::NoChange),
                     ("Reinstall in place".into(), Choice::Upgrade),
@@ -256,7 +256,7 @@ pub fn plan(
         Relation::Newer => {
             say("Warning: the installed version is NEWER than this one; installing would be a downgrade.");
             Question {
-                prompt: "What do you want to do?".into(),
+                prompt: crate::prompts::PROMPT_EXISTING.into(),
                 items: vec![
                     (
                         "Keep the newer one, change nothing [Default]".into(),
@@ -269,7 +269,7 @@ pub fn plan(
             }
         }
         Relation::Older | Relation::Unknown => Question {
-            prompt: "What do you want to do?".into(),
+            prompt: crate::prompts::PROMPT_EXISTING.into(),
             items: vec![
                 ("Upgrade in place [Default]".into(), Choice::Upgrade),
                 clean_item,
@@ -640,10 +640,8 @@ mod tests {
         for ver in [Some("0.1.0"), Some("0.2.0-beta.2"), Some("9.0.0"), None] {
             let (_, _, asked) = run(&[found(ver)], false, true, None);
             let q = asked.unwrap();
-            assert!(q.prompt.len() <= 60, "{}", q.prompt);
-            for (label, _) in &q.items {
-                assert!(label.len() <= 60, "{label}: {}", label.len());
-            }
+            let items: Vec<&str> = q.items.iter().map(|i| i.0.as_str()).collect();
+            crate::prompts::check(&q.prompt, &items).unwrap();
         }
     }
 
