@@ -303,8 +303,3 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
         "Unsupported operating system",
     ))
 }
-
-/// Alias for `init_backend` to preserve backwards compatibility.
-pub async fn get_active_driver() -> Result<Box<dyn CompositorBackend>, DriverError> {
-    init_backend().await
-}

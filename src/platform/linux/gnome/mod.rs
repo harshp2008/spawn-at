@@ -233,9 +233,6 @@ pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
     ),
 ];
 
-/// Default embedded extension files (modern).
-pub const EMBEDDED_EXTENSION_FILES: &[(&str, &str)] = EMBEDDED_EXTENSION_FILES_MODERN;
-
 /// Detects the GNOME Shell major version (e.g. 42, 43, 44, 45, 46, etc.).
 pub fn detect_gnome_shell_major_version() -> Option<u32> {
     let output = Command::new("gnome-shell").arg("--version").output().ok()?;
