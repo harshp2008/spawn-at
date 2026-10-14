@@ -1890,7 +1890,7 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. N
 
 ### 6.25 X11 investigation, stage 1: capture rig, hold-the-cloak experiment, ping (2026-10-14)
 
-> Experiment code removed; see branch `archive/x11-experiments`.
+> Experiment code removed; it is not part of this repository.
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture only; nothing installed; no default changed. Raw results in `scratch/p26/` (gitignored). Baseline: branch `refactor/v0.2.0-beta.1`, HEAD `b09e27f`, tree clean, extension ACTIVE, installed files identical to `assets/gnome/modern`; counts at the start (from the previous run, code unchanged since): `spawn-at` 205, `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` (`tui,fixture`) 402 + 4 ignored, node 176.
 
@@ -1930,7 +1930,7 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. F
 
 ### 6.26 x11-hold-damage, live A/B on the XWayland fixture (2026-10-14)
 
-> Experiment code removed; see branch `archive/x11-experiments`.
+> Experiment code removed; it is not part of this repository.
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture only (`--protocol x11`); no real X11 or XWayland application. Defaults unchanged. Raw results in `scratch/p27r/` (gitignored).
 
@@ -1990,7 +1990,7 @@ No H run ended on `x11-hard`, `x11-unmanaged` or `x11-no-damaged-signal` (the `d
 
 ### 6.27 X11 pre-map resize and pixel probe, stage 1 (2026-10-14)
 
-> Experiment code removed; see branch `archive/x11-experiments`.
+> Experiment code removed; it is not part of this repository.
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture only (`--protocol x11`); nothing installed; no default changed. Raw results in `scratch/p28r/` (gitignored). Phase 0: branch `refactor/v0.2.0-beta.1`, HEAD `2916599`, tree clean, extension ACTIVE, installed files identical to `assets/gnome/modern`; baseline counts from the last run: `spawn-at` 206, `spawn-at-core` 66, `xtask` 10, `spawn-at-verify` (`tui,fixture`) 404 + 4 ignored, node 188.
 
@@ -2029,7 +2029,7 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. F
 
 ### 6.28 x11-pixel-probe and x11-premap, live on the XWayland fixture (2026-10-14)
 
-> Experiment code removed; see branch `archive/x11-experiments`.
+> Experiment code removed; it is not part of this repository.
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture only (`--protocol x11`, `--state-colors` for the probe); no real X11 or XWayland application. Defaults unchanged. Raw results in `scratch/p29r/` (gitignored).
 
@@ -2062,7 +2062,7 @@ Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. F
 
 ### 6.29 x11-pixel-probe, live retry with the Mtk.Rectangle fix (2026-10-14): stopped after phase 1, the Shell crashed in the batch
 
-> Experiment code removed; see branch `archive/x11-experiments`.
+> Experiment code removed; it is not part of this repository.
 
 Labels: CONFIRMED = measured or read in this section; HYPOTHESIS = not tested. Fixture only (`--protocol x11 --state-colors`). Raw files in `scratch/p30r/` (gitignored).
 

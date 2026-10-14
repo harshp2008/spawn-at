@@ -194,7 +194,7 @@ On an untested GNOME version the installer prints this before it installs anythi
 
 ## Roadmap
 
-Next up: `<pick one: Hyprland / Sway / KDE>`. After that: the rest of the planned drivers. Support only gets claimed for an environment once its live test suite passes there.
+v0.2.0-beta.2 is planned for codebase cleanup and groundwork for other platforms. No dates and no promises: other compositors (Hyprland, Sway, KDE) are not implemented, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
 
 ## Contributing a backend
 
@@ -216,7 +216,7 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.1
 
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes

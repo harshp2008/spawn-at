@@ -584,7 +584,7 @@ Labels: CONFIRMED = covered by a test in this tree (node, fake host); HYPOTHESIS
 
 All of them fire at the shell-side resize, not at the client's paint. The client's own paint produces a `damaged` only 0.2 to 20 ms after the paint, and in the runs where the window was still cloaked it did not arrive before the reveal (0 of 14 idle larger runs). (Section 13 later showed that a cloaked window does get `damaged`; those events are the shell's, not the client's.)
 
-**Further attempts (2026-10-14; TEST_PLAN 6.25 to 6.29; code removed, see branch `archive/x11-experiments`).** Labels: CONFIRMED = measured on the fixture.
+**Further attempts (2026-10-14; TEST_PLAN 6.25 to 6.29; code removed, not in this repository).** Labels: CONFIRMED = measured on the fixture.
 - **Hold the cloak and wait for a second `damaged`:** tried, **not usable** (CONFIRMED, 160 runs, 6.26). A cloaked window does get `damaged`, but the second one arrives about 30 ms after `set_size` whatever the client does (before the client's paint in 30 of 39 loaded runs); it cuts some flashes only by holding the window longer (+13 to +38 ms at the median).
 - **Pre-map resize** (resize at `window-created`, reveal on `first-frame`): tried, **not usable** (CONFIRMED, 6.28; the early resize itself works). The app's first paint was at the target size in 6 of 10 idle runs, but `first-frame` is a map event and arrived 205 to 300 ms before a loaded app had painted (loaded `larger`: 5 of 5 flash, as with the legacy rule).
 - **Window ping:** no API exposes the reply (CONFIRMED, 6.25): `Meta.Window.check_alive(timestamp)` is an action with no reply signal; the only observable is the read-only `is-alive` property.
@@ -595,8 +595,30 @@ All of them fire at the shell-side resize, not at the client's paint. The client
 
 ## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; removed)
 
-Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is kept on the local branch `archive/x11-experiments` only.
+Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is not part of this repository (it lives only in the author's local archive).
 
 ## 14. Experiments: resize before the map, and a pixel probe (2026-10-14; removed)
 
-Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is kept on the local branch `archive/x11-experiments` only. The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
+Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is not part of this repository (it lives only in the author's local archive). The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
+
+## 15. Future direction (post-beta)
+
+This is a direction, not a plan or a promise. Nothing here is implemented, and **none of it has been tested on real apps**: every measurement behind it used the project's own test window or our own GTK4 test client on one machine (TEST_PLAN 6.22 to 6.35). It needs real-app testing before any of it is relied on.
+
+**Idea: pick the method per app type, with the legacy rule as the fallback.**
+
+| App type | Method | Evidence so far |
+| :-- | :-- | :-- |
+| Native Wayland | the ready-wait (shipped in 0.2.0-beta.1) | TEST_PLAN 6.22 to 6.24 |
+| GTK4 on X11 | read the extended sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`) and reveal when it steps | 6.33: usable as an experimental signal for GTK4-style clients only |
+| Apps with a launch option for size or position (`-geometry`, `--window-size`, ...) | pass the target at launch so there is nothing to resize | not tested |
+| Apps that need it and accept the risks | an opt-in `LD_PRELOAD` geometry shim | 6.35: works for GTK4 through Xlib on one machine; real security and compatibility costs; not recommended to ship |
+| Anything else | the legacy rule | shipped |
+
+**Detecting the type** would use what is observable without running the app's code: the libraries it has loaded (for example `libgtk-4`, `libQt6Core`, an Electron or Chromium marker), the window class, and whether the window advertises `_NET_WM_SYNC_REQUEST_COUNTER` (and how many counters). **Per-app config overrides** would let the user force a method or turn one off for a class.
+
+**Order after the beta:**
+1. Real-app testing of what already ships, so later steps are judged against real behaviour.
+2. **Launch args per app** (a per-class table of arguments added to the command line). It is ahead of the shim: it changes no process internals and needs no injected code.
+3. The GTK4-on-X11 counter as an experimental, opt-in signal.
+4. The opt-in geometry shim, only if 1 to 3 leave a gap that matters, and with the security and compatibility concerns of TEST_PLAN 6.35 settled first.
