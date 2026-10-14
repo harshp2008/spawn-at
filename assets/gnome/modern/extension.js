@@ -1011,16 +1011,19 @@ export default class SpawnAtExtension extends Extension {
     // readable error that the probe logs; nothing here runs unless the probe was asked for by name.
     _x11ProbeHost() {
         const base = this._x11ObserveHost();
-        const state = { pixbuf: null, tried: false, error: null, path: null };
+        const state = { pixbuf: null, Mtk: null, tried: false, error: null, path: null };
         const load = () => {
             if (state.tried)
                 return;
             state.tried = true;
-            import('gi://GdkPixbuf').then(m => {
-                state.pixbuf = m.default;
+            // The clip of get_image must be a real Mtk.Rectangle (boxed): a plain {x, y, width, height}
+            // object is refused by GJS (TEST_PLAN 6.28, phase 1a). Both imports are lazy.
+            Promise.all([import('gi://GdkPixbuf'), import('gi://Mtk')]).then(([pb, mtk]) => {
+                state.pixbuf = pb.default;
+                state.Mtk = mtk.default;
                 state.path = GLib.build_filenamev([GLib.get_user_runtime_dir(), 'spawn-at-probe.png']);
             }).catch(e => {
-                state.error = `GdkPixbuf import failed: ${e?.message ?? e}`;
+                state.error = `GdkPixbuf/Mtk import failed: ${e?.message ?? e}`;
             });
         };
         return {
@@ -1042,9 +1045,10 @@ export default class SpawnAtExtension extends Extension {
             readPixels: (actor, clip) => {
                 if (state.error)
                     throw new Error(state.error);
-                if (!state.pixbuf)
-                    throw new Error('GdkPixbuf not loaded yet');
-                const surface = actor.get_image(clip);
+                if (!state.pixbuf || !state.Mtk)
+                    throw new Error('GdkPixbuf/Mtk not loaded yet');
+                const rect = new state.Mtk.Rectangle({ x: clip.x, y: clip.y, width: clip.width, height: clip.height });
+                const surface = actor.get_image(rect);
                 if (!surface)
                     throw new Error('get_image returned null');
                 surface.flush?.();
