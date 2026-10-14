@@ -122,16 +122,8 @@ fetch() {
         while :; do
             attempt=$((attempt + 1))
             rc=0
-            # --fail: an HTTP error page is not downloaded, so no bar reaches 100%
-            # for it. The status still arrives through -w; exit 22 is mapped below.
-            out="$(curl -S --progress-bar --fail -L --connect-timeout 10 --retry 0 \
+            out="$(curl -S --progress-bar -L --connect-timeout 10 --retry 0 \
                 -D "$hdrs" -o "$body" -w "$wfmt" "$@" "$url")" || rc=$?
-            if [ "$rc" -eq 22 ]; then
-                # Erase the "curl: (22) ..." line curl just printed; the reason is
-                # reported below as "HTTP <status> from <url>", as without --fail.
-                printf '\x1b[1A\x1b[2K' >&2
-                rc=0
-            fi
             msg="${out#*$'\n'}"
             [ "$msg" != "$out" ] || msg=""
             out="${out%%$'\n'*}"
@@ -320,7 +312,15 @@ fi
 download_tag() {
     local tag="$1" url="https://github.com/${REPO}/releases/download/${1}/${TAR_NAME}"
     local rc=0
-    [ -t 2 ] && FETCH_PROGRESS=1
+    if [ -t 2 ]; then
+        # Preflight (terminal only): ask for the first byte with the silent fetch()
+        # path. A 404 or other HTTP/network error is then reported with no progress
+        # bar and no curl message, because the bar only starts for a URL that answers.
+        # (Erasing curl's own "curl: (22)" line with cursor codes was not reliable:
+        # curl prints it followed by an extra blank line.) Costs one extra request.
+        fetch "$url" "$TMP_DIR/preflight" -r 0-0 --max-time 20 || return 1
+        FETCH_PROGRESS=1
+    fi
     fetch "$url" "$TMP_DIR/$TAR_NAME" --speed-time 30 --speed-limit 1000 || rc=$?
     FETCH_PROGRESS=0
     return "$rc"
