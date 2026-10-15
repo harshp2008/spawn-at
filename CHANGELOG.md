@@ -6,6 +6,15 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0-beta.4] - 2026-10-15
+
+Pre-release. The GNOME extension (`assets/gnome/`) and `install.sh` are byte-identical to 0.2.0-beta.3, and GNOME Wayland placement behaves as before. The release restructures the code so other platforms can be added, and adds an experimental, off-by-default Sway backend. See
+[docs/RELEASE_NOTES_0.2.0-beta.4.md](docs/RELEASE_NOTES_0.2.0-beta.4.md) for what to expect and what is not verified.
+
+### Changed
+
+- Internal restructuring (no change to commands, flags, config keys or output): the backend is split into narrow capability traits, backend selection moved to a registry, host services (binary directories, autostart path, process detach) and the log-out/update hooks sit behind interfaces, and Linux-only dependencies are only built on Linux. `spawn-at update` now asks for the release asset of its own platform (named after the target triple); on Linux x86-64 this is the same file as before. CI also checks the crate on Windows and macOS targets (those systems are still not supported).
+
 ### Added
 
 - **EXPERIMENTAL Sway backend**, opt-in only: `SPAWN_AT_BACKEND=sway` places windows through Sway's IPC socket (`$SWAYSOCK`) with the same anchors, margins, sizes and monitor selection as on GNOME, and supports `query layout`, `query windows`, `transform`, `close` and `focus`. No helper or installation is needed. It is **never selected automatically**: every other environment, including a Sway session without the variable, gets exactly the backend it got before. With the variable set and `$SWAYSOCK` missing, empty or not a Sway socket, spawn-at exits with an error that names `$SWAYSOCK`; it does not fall back to X11. Limits: a window can show for one frame at its tiled position before it is placed (Sway cannot hold a window invisible), `--anchor cursor`, maximize, minimize and defocus are not supported, i3 is not supported. Tested only against a private headless Sway 1.9 with the repo's test window ([docs/DESIGN_SWAY.md](docs/DESIGN_SWAY.md), `scripts/sway-live.sh`); a real Sway session, real apps, XWayland windows and other Sway versions have not been tried.
