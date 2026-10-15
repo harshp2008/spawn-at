@@ -1,0 +1,244 @@
+# Command and flicker test coverage audit
+
+Audit only: no Rust, JS, shell or workflow code was changed. Date 2026-10-15, `main` at `ff1eb6a`. Claims marked **(read)** come from reading code or tests; **(ran)** means a command was run for this audit (`spawn-at --help` and every subcommand's `--help`, `spawn-at-verify list`, `spawn-at-verify tui --help`, a build, the test suites); **(unverified)** means neither. Nothing live was run: no GNOME test, no `smoke-live.sh`, no `spawn-at install`, no Sway.
+
+## Table of contents
+
+1. [Method and limits](#1-method-and-limits)
+2. [Command inventory](#2-command-inventory)
+3. [Coverage matrix](#3-coverage-matrix)
+4. [Flicker](#4-flicker)
+5. [The TUI test interface](#5-the-tui-test-interface)
+6. [Proposed new tests](#6-proposed-new-tests)
+7. [Gaps](#7-gaps)
+8. [Citations](#8-citations)
+
+## 1. Method and limits
+
+- The command list is from `spawn-at --help` and each subcommand's `--help` **(ran)**, then checked against `src/cli/args.rs`, `src/cli/mod.rs` and the dispatch in `src/main.rs:400-443`.
+- Backend support is from the three `capabilities()` functions and the default trait methods that return `UnsupportedCapability` (`src/platform/mod.rs:179`, `src/platform/mod.rs:327`, `src/platform/mod.rs:336`, `src/platform/mod.rs:341`), then the method bodies in each driver.
+- Test tiers (used in the matrix):
+  - **(a)** unit tests, including tests against a mock or simulated backend inside the crate;
+  - **(b)** CLI integration tests that run the built `spawn-at` binary (`tests/*.rs`);
+  - **(c)** fake-server, D-Bus-stub or fixture tests: the scripted Sway socket (`src/platform/linux/sway/fake.rs`), the GNOME D-Bus stubs (`src/platform/linux/gnome/tests.rs`), and the node tests that load the extension with mocked GNOME objects (`tests/dispatcher_test.js`, `tests/legacy_dispatcher_test.js`);
+  - **(d)** the headless Sway live script `scripts/sway-live.sh`;
+  - **(e)** live GNOME: `scripts/smoke-live.sh` and the `spawn-at-verify` suites (quick, full, release-gate, visual, regression) including the Both-mode tests that wait for a human;
+  - **(f)** nothing.
+- Test names were not trusted: the tests named in the matrix were opened and their bodies read. Where a name overstates what the test does, section 7 says so.
+- Not possible here: running any live suite (forbidden for this task and needs a GNOME session), running the TUI (needs a terminal), measuring flicker. Section 4 is therefore a reading of the code and of the recorded measurements in `docs/TEST_LOG.md`, not a new measurement.
+
+## 2. Command inventory
+
+Global option on every subcommand: `--no-wait` ("Do not wait for compositor to apply changes before exiting"). Hidden flags exist on `spawn` and `config`: `--wait-strategy auto|legacy|ready-wait` and a cap in milliseconds (`src/cli/args.rs:243`, `src/cli/args.rs:248`, `src/cli/args.rs:667`, `src/cli/args.rs:671`); they are covered by `cli::tests::test_wait_flags_*` and `commands::spawn::tests::test_*wait*`.
+
+Window selection (every command that targets an existing window): `--id`, `-c/--class`, `-t/--title`, `--pid`, `--focused` (`WindowTargetArgs`, resolved by `src/target.rs`; tests such as `target::tests::test_match_by_focused` at `src/target.rs:344`). `--focus`, `--no-focus`, `--defocus` ("focus modifiers", `src/cli/args.rs:415`) exist on `spawn`, `transform`, `maximize` and `restore`.
+
+| Command | What it does | Main flags | Changes window state? | GNOME | X11 | Sway (experimental) |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| `spawn` | Launches an app and places its window | `-c`, `--area`, `--monitor`, `--anchor`, `--pivot`, `-p/-o`, `-s`, `--clamp`, `-m` and per-side margins, `--focus/--no-focus/--defocus`, `--json`, hidden wait flags | Yes (creates and places) | Yes, cloaked until placed (`src/platform/linux/gnome/driver.rs:225`) | Yes, no cloak (`src/platform/linux/x11/mod.rs:71`) | Yes, in `post_spawn`, can flash once (`src/platform/linux/sway/mod.rs:140`) |
+| `transform` | Moves/resizes an existing window | target selectors, same geometry flags as `spawn`, focus modifiers | Yes | Yes (`src/platform/linux/gnome/driver.rs:289`) | Yes (`src/platform/linux/x11/mod.rs:147`) | Yes (`src/platform/linux/sway/mod.rs:185`) |
+| `query layout` | Prints monitors, work areas, insets | `--json` | No (read) | Yes (`src/platform/linux/gnome/driver.rs:356`) | Yes | Yes |
+| `query windows` | Lists windows with metadata | `--json`, `--area` | No (read) | Yes (`src/platform/linux/gnome/driver.rs:412`) | Yes | Yes |
+| `query pointer` | Prints pointer coordinates | none | No (read) | Yes (`src/platform/linux/gnome/driver.rs:329`) | Yes (`src/platform/linux/x11/mod.rs:87`) | **Unsupported** (Sway cannot read the pointer; `tests::test_cursor_position_is_unsupported`) |
+| `focus` | Activates a window (unhides a minimized one) | selectors | Yes (focus, stacking) | Yes (`src/platform/linux/gnome/driver.rs:455`) | Yes (`src/platform/linux/x11/mod.rs:291`) | Yes, `[con_id=N] focus` (`src/platform/linux/sway/mod.rs:200`) |
+| `defocus` | Takes keyboard focus away | selectors, `--to-desktop`, `--to-window` | Yes (focus) | Yes (`src/platform/linux/gnome/driver.rs:471`) | Yes (`src/platform/linux/x11/mod.rs:303`) | **Unsupported** (default `UnsupportedCapability`, `src/platform/mod.rs:341`) |
+| `maximize` | Maximizes | selectors, focus modifiers | Yes | Yes (`src/platform/linux/gnome/driver.rs:429`) | Yes (`src/platform/linux/x11/mod.rs:197`) | **Unsupported** (`src/platform/mod.rs:327`) |
+| `minimize` | Minimizes | selectors | Yes | Yes | Yes | **Unsupported** |
+| `restore` (aliases `unmaximize`, `unmaximise`, `unminimize`, `unminimise`; `src/cli/mod.rs:79-80`) | Unmaximizes and unminimizes | selectors, focus modifiers | Yes | Yes (extension `restore` case) | Yes | **Unsupported** |
+| `close` | Asks the window to close gracefully | selectors | Yes (destroys) | Yes, needs extension protocol 3 (`src/platform/linux/gnome/driver.rs:492`) | Yes (`src/platform/linux/x11/mod.rs:363`) | Yes, `[con_id=N] kill` (`src/platform/linux/sway/mod.rs:210`) |
+| `install`, `uninstall` | Install/remove the binary and, on GNOME, the extension | `--scope`, `--skip-bin`, `--headless`, `-y`, `--dry-run`, `--clean-install`, update options, `--gnome-*` | Changes the system, not windows | GNOME only does real work | "No installation required" | "No installation required" |
+| `update` | Checks for or installs a release | `--check`, `--channel`, `--force`, `--headless` | No windows | backend-independent (`src/main.rs:58` returns before `init_backend()` at `src/main.rs:85`) | same | same |
+| `config` | Shows/sets settings (`show`, `get`, `set`, `unset`, `path`, `reset`) | hidden wait flags | No windows | backend-independent | same | same |
+
+Declared support in code (`Capabilities`): GNOME `runtime_transform, claim_wait, close, reveal_control, needs_helper` all true; X11 `runtime_transform, close` true; Sway `runtime_transform, close` true (`src/platform/linux/gnome/driver.rs:225`, `src/platform/linux/x11/mod.rs:71`, `src/platform/linux/sway/mod.rs:140`). The capability struct has no flag for focus, defocus, maximize, minimize, restore or pointer: those are refused only by the default method bodies returning `UnsupportedCapability` **(read)**.
+
+`unminimize`: only an alias of `restore`. `run_unminimize` (`src/commands/lifecycle.rs:151`) is `#[allow(dead_code)]` and no CLI path reaches it.
+
+## 3. Coverage matrix
+
+One row per command and backend. Letters are the tiers of section 1 that exist for that cell; the text says what they actually assert. **Weak** = only a happy path, or no failure path, or no multi-window/multi-monitor case, or no check that nothing is left behind.
+
+### 3.1 spawn
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | a, c, e | `commands::spawn::tests::*` (JSON shapes, wait flags, golden instruction bytes, subscribe-before-arm); `gnome::mechanics::tests::test_golden_*`; the same instruction goldens replayed by `tests/dispatcher_test.js:88` (entry), `:144` (resize only), `:237`; ready-wait scripts (`tests/ready_wait_test.js`, `tests/ready_wait_wiring_test.js`); 45 specs in `verify/` (31 placement, 9 hostile, 4 `cloak/delayed-paint`, 1 preflight) via `spawn-at-verify list` **(ran)**; `scripts/smoke-live.sh:233-254` (also real apps, see Gaps). | Single window, single monitor. No multi-monitor spec (`platform/multi-monitor-secondary` is "Not written", `docs/TEST_PLAN.md:127`). `--no-focus` and `--defocus` are untested and unread (section 7, gap 5). |
+| X11 | a | `x11::tests` (8): token generation, rectangle math, clamp. | No test touches an X server; `post_spawn`/`interception.rs` untested. |
+| Sway | a, c, d | `sway::tests_write::*` (arm + `post_spawn`, one chained command, raised-window re-anchor, no resize without `--size`, old windows never moved); live `sway-live.sh` A1-A5 (`scripts/sway-live.sh:263` etc.) and session B (scale 2, bar, second output). | One tool-built fixture window at a time; no failure path for "app never opens a window" in the live script (the fake-server test `test_an_old_window_is_never_moved_and_the_wait_reports_it` covers the error text). |
+
+### 3.2 transform
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | a, c | `gnome::mechanics::tests::test_golden_transform_batch_*` (3); node goldens `tests/dispatcher_test.js:180`, `:288`, `:341` (Cloak, SetSize, WaitForCommit, SetPositionAnchored, Uncloak in that order); `src/commands/mod.rs:1307` and `:1350` run `run_transform` on a simulated driver (stale geometry settles; stationary window warns). | No D-Bus stub test of `GnomeWaylandDriver::transform_window`; no verify spec (`verify/transform/` holds only a README); nothing live. |
+| X11 | a (weak) | `src/commands/mod.rs:437` `test_transform_supported_on_x11`. | See gap 3: it only checks an error message does not contain "does not support". |
+| Sway | a, c, d | `src/platform/linux/sway/tests_write.rs:470` (`test_transform_by_class`, command text asserted); `scripts/sway-live.sh:278` (A6: moved and resized to `[1195,555,700,500]`). | One window, one output; the unknown-target path is tested for `close` (`src/platform/linux/sway/tests_write.rs:459`), not for `transform`. |
+
+### 3.3 query layout, query windows, query pointer
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | a, c, e | `commands/query.rs` tests (table and JSON, schema characterization, round trip over `--area` modes, stale-protocol warning); D-Bus stubs `src/platform/linux/gnome/tests.rs:570` (windows, protocol 5) and the layout stubs; node `tests/dispatcher_test.js:506`, `:521`; `smoke-live.sh` parses both JSONs on a live session. | `query pointer`: only a mock-backend test (`src/commands/query.rs:350`); the GNOME `get_cursor_position` has no stub test. |
+| X11 | none | no test of `X11Driver::get_layout/get_windows/get_cursor_position` | f |
+| Sway | a, b, c, d | `tests/sway_backend_cli_test.rs:199` and `:218` (built binary against a stand-in socket), `sway::tests::test_layout_over_the_socket`, `test_windows_over_the_socket`; `sway-live.sh` compares both with `swaymsg`. `query pointer`: declared unsupported and tested as such. | Windows list only tested with the headless output names `HEADLESS-*`. |
+
+### 3.4 focus
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | c (extension side only) | node tests of the extension's `FocusWindow`: deferred to the batch reveal giving exactly one RAISE/ACTIVATE pair (`tests/dispatcher_test.js:993`), failed batch still focuses (`:1046`), immediate focus without a pending batch (`:1093`). | No Rust test of `GnomeWaylandDriver::focus_window` (`src/platform/linux/gnome/driver.rs:455`); `run_focus` (`src/commands/focus.rs:48`) is called by one test only, and that one asserts an error text (gap 3). Nothing live asserts focus. `_findWindow` looks only at the active workspace **(read)**, untested. |
+| X11 | a (weak) | `src/commands/mod.rs:449` `test_focus_supported_on_x11`. | Same as above. |
+| Sway | a, c | `src/platform/linux/sway/tests_write.rs:449` (one `[con_id=5] focus`), `:251` (`FocusIntent::Exclusive` on spawn adds `focus`). | `sway-live.sh` has no focus case; focus is judged only by the command text sent to a fake. |
+
+### 3.5 defocus
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | a (parse only) | `cli::tests::test_transform_focus_defocus_conflict`, `test_lifecycle_and_focus_subcommands_parsing`. | `run_defocus` (`src/commands/focus.rs:76`) is not called by any test. No node test names `DefocusWindow` (searched **(ran)**: no match in `tests/*.js`). `_defocusWindowObject` (`assets/gnome/modern/extension.js:1478`) is untested: modes `desktop`, `window` and the most-recently-used fallback. |
+| X11 | none | | f |
+| Sway | a | `src/platform/linux/sway/tests_write.rs:527` asserts `defocus_window` returns `UnsupportedCapability` and sends nothing. | Declared unsupported, which is the documented state. |
+
+### 3.6 maximize, minimize, restore
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | c (minimize/unminimize only) | node tests call `SetWindowState('101', 'minimize')` then `'unminimize'` (`tests/dispatcher_test.js:657-658`, legacy `tests/legacy_dispatcher_test.js:346`), plus placement-time unmaximize (`tests/dispatcher_test.js:549`) and transform-of-minimized (`tests/dispatcher_test.js:716`, `tests/dispatcher_test.js:1395`). | `SetWindowState` `maximize`, `unmaximize`, `restore` are never called directly; `run_maximize` (`src/commands/lifecycle.rs:85`) only by `src/commands/mod.rs:461`; `run_minimize` (`src/commands/lifecycle.rs:116`) and `run_restore` (`src/commands/lifecycle.rs:181`) by no test. Nothing live. |
+| X11 | a (weak, maximize only) | `src/commands/mod.rs:461`. | gap 3. |
+| Sway | a | `src/platform/linux/sway/tests_write.rs:527`: Maximize, Minimize and Restore return `UnsupportedCapability`. | `WindowState::Unminimize` is not in that loop. |
+
+### 3.7 close
+
+| Backend | Tiers | What exists | Weak because |
+| :-- | :-- | :-- | :-- |
+| GNOME | a, c, (e cleanup) | mock-backend tests with failure paths: by id (`src/commands/mod.rs:876`), unknown id, stale extension, window refuses, unsupported backend, timeouts (`:915-1116`); D-Bus stubs for protocol 2, protocol 3 and a missing method (`src/platform/linux/gnome/tests.rs:353`); node `tests/dispatcher_test.js:535`. `smoke-live.sh` closes its window by recorded id (`scripts/smoke-live.sh:100`) and the TUI cleanup path closes tracked windows. | The live use is cleanup, not an assertion that the window is gone and its process ended. |
+| X11 | a (weak) | `src/commands/mod.rs:476` (asserts only that the message lacks "this backend cannot close windows"). | |
+| Sway | a, c, d | `src/platform/linux/sway/tests_write.rs:449`, `:459` (unknown target sends nothing); `scripts/sway-live.sh:178` `close_and_check` asserts the window leaves the tree and the fixture process is gone, `:289` (A7) closes by class. | The only backend with a cleanup-after check. |
+
+### 3.8 install, uninstall, update, config (not window commands)
+
+`config`: `tests/config_cli_test.rs` (10, built binary, temp `XDG_CONFIG_HOME`) plus `config.rs` unit tests. `install`: `tests/install_notice_cli_test.rs` (6, built binary with a stand-in `gnome-shell`, dry run), `tests/install_unsupported_test.js` (3, `install.sh`), `src/platform/upgrade.rs` plan tests, `session.rs` ordering tests. `update`: 33 tests with `update` in their names (mostly `src/update.rs`) and `tests/unsupported_desktop_cli_test.rs` (the login check runs without a backend). Not part of the window-command question; no live test installs anything (rule).
+
+### 3.9 Summary: best tier per cell
+
+33 cells = 11 window commands x 3 backends (`query` counted as layout, windows, pointer). Best tier that really exercises the driver or a stand-in of it:
+
+| Best tier | Cells | Which |
+| :-- | :-- | :-- |
+| (d) or (e): live | 8 | GNOME spawn, query layout, query windows; Sway spawn, transform, layout, windows, close |
+| (c) only: stub/fake/node, no live | 5 | GNOME transform, focus, minimize, close; Sway focus |
+| (a) only: unit/mock, includes "declared unsupported" and the weak X11 cells | 11 | GNOME query pointer; X11 spawn, transform, focus, maximize, close; Sway pointer, defocus, maximize, minimize, restore |
+| (f): nothing that runs the behavior | 9 | GNOME defocus, maximize, restore; X11 layout, windows, pointer, defocus, minimize, restore |
+
+Cells with a built-binary test (b): 2 (Sway layout, windows). Cells with a headless Sway live check (d): 5. Cells with a live GNOME check (e): 3 (plus `close` used as cleanup). Multi-window cases: none outside the second output of `sway-live.sh`. Cleanup-after assertion: `sway-live.sh` only.
+
+## 4. Flicker
+
+### 4.1 What "flicker" means per command
+
+A flicker, flash or visible in-between state is any frame the user sees that is neither the state before the command nor the state the command promised. Per command:
+
+- **spawn**: the new window is shown at its default size or position, or empty/unpainted, before it reaches the requested place and size; or it is shown and then moves or resizes again (late client resize, an `ANCHOR_CORRECTION`). The GNOME extension hides the window (cloak) until placed and (native Wayland) until the app has answered the size request.
+- **transform / size / move**: the window is shown at the old place with the new size, or at an intermediate geometry, or reveals content the client has not repainted. On GNOME the extension runs the same Cloak, SetSize, WaitForCommit, SetPositionAnchored, Uncloak pipeline (`tests/dispatcher_test.js:180`), so the same definition applies; on Sway and X11 nothing hides the change.
+- **focus**: the stacking/activation change shows the window or its decoration in a wrong state for a frame (raise before activate, a focus ring flash, a switch of workspace or of the previously active window's decoration). Not defined by the repo; this is the definition this audit proposes.
+- **defocus**: the previously focused window or the next window flashes active (RAISE then ACTIVATE of the next window in `assets/gnome/modern/extension.js:1478`), or the focus ring of the old window lingers.
+- **maximize / minimize / restore**: the compositor's own animation is by design not a flicker. A flicker is an extra frame that is neither: the window drawn at the old geometry after the state change (the documented `minimize-animation` problem, `docs/TEST_PLAN.md:225-243`), or a jump mid-animation when a placement lands during it.
+- **close**: the window reappears or leaves a ghost after it was removed; or content is blanked before the frame disappears.
+- **query**, **update**, **config**, **install**: no window changes, no flicker.
+
+### 4.2 How the verify suite measures flicker today
+
+Nothing captures the screen. "Flash" is computed from two clocks and the compositor extension's log **(read)**:
+
+- **What is compared.** The fixture window logs `FIRST_PAINT WxH`, `RESIZED` and `MOVED` in `CLOCK_MONOTONIC` to its own event file; with the wire dump (default) the paint time is the client's `wl_surface.commit` (`crates/spawn-at-verify/src/trace/flash.rs:1-30`). The GNOME extension logs `CLOAK` and `UNCLOAK` with its own millisecond clock, tied to the monotonic clock by `ClockAnchor` from `ANCHOR_SAMPLES = 4` bracketed `SetLogging(true)` calls (`crates/spawn-at-verify/src/trace/flash.rs:40`, uncertainty 1.5-3.0 ms measured, `docs/TEST_LOG.md` 6.16).
+- **What counts as a flash** (`detect_flash`, `crates/spawn-at-verify/src/trace/flash.rs:466`): the reveal (`UNCLOAK`) comes before the client's first paint at the final size; or the size or position changes after the reveal by more than `GEOMETRY_TOLERANCE_PX = 2` within `POST_REVEAL_WATCH_MS = 1500` (`crates/spawn-at-verify/src/trace/flash.rs:34`, `:37`). Kinds: `paint-after-reveal`, `size-change-after-reveal`, `position-change-after-reveal` (`:266`). Evidence level: `client`, `extension-only`, `none` (`:322`).
+- **Numeric vs label.** A *numeric* flash is a lead strictly above `max(clock uncertainty, --flash-threshold-ms)`; smaller leads are listed but not counted. The *label* is per screen (`label_visibility`, `crates/spawn-at-verify/src/trace/flash.rs:613`): `certain` when the lead is at least one frame period (16.7 ms at 60 Hz), `possible` below it, with `visible_probability = min(1, lead/frame)`, which the code itself calls a HYPOTHESIS (the reveal is assumed to land at a random point of the frame).
+- **Sampling.** There is no fixed sample rate. The extension logs `COMMIT_SAMPLE` on `notify::allocation` and `size-changed` signals plus one `initial` sample (`assets/gnome/modern/commit.js:135-141`); the cloak check (`OffTargetVisibility`, `crates/spawn-at-verify/src/trace/analyser.rs:178`) fails a run only if a sample between `CLOAK` and `UNCLOAK` has opacity above 0 and the spec sets `never_visible_off_target = true`. The CLI's own `wait_for_state_change` polls `query windows` every 50 ms for up to 2 s (`src/commands/mod.rs:303`), a readiness wait, not a flicker measurement.
+- **Noise in the "possible" bucket** (recorded, not re-measured; `docs/TEST_LOG.md` 6.16, 6.17): idle native Wayland, 80 runs: 0 numeric flashes. X11 with the delayed-paint control: 19 of 20 runs flashed, all "possible" (leads 3.1-15.1 ms, mean visible probability 0.575), because X11 reveals before the client paints by construction. XWayland: 1 of 10. In `docs/TEST_LOG.md` 6.19, arm A (legacy 30 ms rule): 47 of 50 runs in one batch flashed, 69 of 80 events "certain". So "possible" is not a noise floor; on X11 it is the normal state, and its probability is an assumption.
+- **What it cannot see.** Pixels on screen (no capture rig: README `No screen capture was done`, and the ScreenCast attempt in `docs/DESIGN_READY_WAIT.md:592` (section 12) found no consumer); whether a frame between `UNCLOAK` and the paint was actually drawn; X11 where the frame rectangle lies (`docs/TEST_LOG.md` 6.15, audit table); a client that paints late for reasons the fixture cannot model (real apps were not measured); anything on a backend without the GNOME extension, because the clock anchor and the `UNCLOAK` time come from it. Hostile-app cells (`verify/hostile/*.toml`) check the resize outcome (`reached`, `adjusted`, `timed-out`, `skipped`), not flicker.
+- **Where it is wired.** Only `spawn` runs get the capture (`crates/spawn-at-verify/src/runner/flash.rs:126-127`); the fixture is launched inside the `spawn` action, so the event directory can be set for it (`EVENT_DIR_ENV` in `crates/spawn-at-verify/src/runner/flash.rs`). No other action command has a fixture started by the harness.
+
+### 4.3 Per command: can the measurement be reused?
+
+| Command | Backend | Verdict | Why / what is needed |
+| :-- | :-- | :-- | :-- |
+| spawn | GNOME | **Reusable as is** | This is what exists. Limits above apply. |
+| spawn | X11 | Reusable, weak | Runs, but every run reports flash by construction; the signal is the lead time only. Not a pass/fail gate. |
+| spawn | Sway | **Cannot work as is** | No extension, so no `UNCLOAK`, no clock anchor. Needs another observer (see 6, P8). The "one-frame flash" in `docs/DESIGN_SWAY.md` section 5 is unmeasured. |
+| transform (size/move) | GNOME | **Small extension** | The extension already cloaks and uncloaks transforms. Needed: the harness must start the fixture with the event directory set (today only `spawn` does), take the clock anchor, run `transform --id`, and feed `detect_flash` the transform's own `UNCLOAK`. Fixture paints at the new size are logged (`FIRST_PAINT`), so the comparison holds. Position-only transforms have no paint, so only the `position-change-after-reveal` kind applies. |
+| transform | X11, Sway | Cannot work | No reveal event. |
+| focus, defocus | any | **Cannot work with this method** | No geometry or paint changes, so the client clock has nothing to compare. A focus flash is a compositor-side redraw. Only trace ordering can be asserted (RAISE then ACTIVATE once, as `tests/dispatcher_test.js:993` does); whether a frame was drawn in between needs screen capture. |
+| maximize, minimize, restore | GNOME | Cannot work for the animation; partly for the end state | The animation belongs to Mutter. What can be checked is order in the trace (`PRE_REVEAL_UNMINIMIZE` before `UNCLOAK`, `docs/TEST_PLAN.md:225-243`, `trace_analyser_test.rs`) and the final geometry. A direct `minimize` or `maximize` has no cloak, so `detect_flash` returns `basis none`. |
+| close | any | Cannot work | Nothing is revealed; ghost windows would need capture. The checkable part is that the window leaves `query windows` and the process ends (Sway has it). |
+
+Honest summary: the suite measures lateness of a reveal against a client paint, with a stated uncertainty of 1.5-3 ms, on GNOME and on spawns only. It does not and cannot prove that no frame was visible; a "no flash" result means no late paint was found in the tested runs, not a guarantee.
+
+## 5. The TUI test interface
+
+How it works today **(read; the TUI was not run: it needs a terminal)**:
+
+- **Defining a test.** A TOML file under `verify/<dir>/<name>.toml` is a `TestDefinition` (`crates/spawn-at-verify/src/schema/types.rs:218`). Fields: `id`, `category`, `title`, `description`, `kind` (`auto`, `human`, `both`, `crates/spawn-at-verify/src/schema/types.rs:9`), `required`, `tags`, optional `matrix`, `[requires]` (`session`, `backend`, `gnome`, `monitors_min`, `scale`, `apps`, `crates/spawn-at-verify/src/schema/types.rs:20`), `[subject]` (`app`, `profile`, `args`, `min_width`, `min_height`), `[action]` (`command`, `repeatable`, `args`, `crates/spawn-at-verify/src/schema/types.rs:97`), `[expect]` (`exit_code`, `stderr_absent`, `stderr_present`, `diagnostics`, `never_visible_off_target`, `[expect.rect]`, `[expect.resize]`), `[human]` with one `watch` question (`crates/spawn-at-verify/src/schema/types.rs:202`), optional `[regression]`.
+- **Registering.** There is no code registration. `TestRegistry::load_from_dir` scans `verify/` (`crates/spawn-at-verify/src/loader/registry.rs:20`). The id must equal the path relative to `verify/` without extension (`crates/spawn-at-verify/src/loader/registry.rs:52`), the category must be in `VALID_CATEGORIES` (`crates/spawn-at-verify/src/schema/matrix.rs:156`: basics, placement, transforms, focus, animation-and-cloak, queries, robustness, platform, hostile), and an `[expect.rect]` must state its margin explicitly. `spawn-at-verify check` validates them.
+- **Grouping.** Suites are TOML files in `verify/suites/` (`quick`, `full`, `visual`, `release-gate`, `regression`): `categories`, `tags` (with `!tag` exclusions) and `required_only` (`crates/spawn-at-verify/src/schema/suite.rs:26`). `spawn-at-verify list --suite quick` selects 32 tests, `full` 45, `release-gate` 36 **(ran)**. Category names in suites are mapped to the real categories by a hard-coded alias list (`crates/spawn-at-verify/src/schema/suite.rs:36-41`): preflight to basics, cloak to animation-and-cloak, transform to transforms, query to queries, resilience to robustness. The TUI orders categories with `category_rank` (`crates/spawn-at-verify/src/tui/app/state.rs:71`) and filters with `f` (All, Human only, Auto only, Failed only).
+- **Modes.** `auto`: the runner checks exit code, stderr, geometry (oracle) and trace and the TUI closes the test windows after the run (`crates/spawn-at-verify/src/tui/app/queue.rs:67-69`). `both`/`human`: the queue stops with `waiting_for_human` (`crates/spawn-at-verify/src/tui/app/queue.rs:71`) and shows the `watch` question; `p` pass, `x` fail, `s` skip, `k` flaky (`crates/spawn-at-verify/src/tui/app/queue.rs:134`). The final status of a `both` test stays **Pending** until the verdict (`crates/spawn-at-verify/src/runner/models.rs:251` `resolve_final_status`), and an auto/human contradiction sets `disagreement`. Today 37 specs are auto, 8 both, 0 human **(ran)**.
+- **Running.** The runner starts one `spawn-at` process per test with a timeout (`crates/spawn-at-verify/src/runner/executor.rs:228`). It supports exactly one action per test. Window attribution is only done for `spawn` (`crates/spawn-at-verify/src/runner/executor.rs:274`); for `transform` it reads a literal `--id` from the args (`crates/spawn-at-verify/src/runner/executor.rs:327`), which no spec can know in advance. The fixture is only launched by `spawn` (`crates/spawn-at-verify/src/runner/executor.rs:164`). Window cleanup is `tracker.cleanup_test_windows` (`crates/spawn-at-verify/src/tracker/state.rs:226`); the TUI then refocuses the user's terminal with `spawn-at focus --id <terminal> --no-wait` (`crates/spawn-at-verify/src/tui/app/state.rs:372`).
+- **What reaches the screen.** The result lands in the TUI's `results` map (`queue.rs` `execute_test`). The list shows the status symbol and, for numeric flashes, `✱` and a count; the result box and the drawer (`tui/views/drawer/`) show failure reason, geometry expected vs actual, timeline, stdout/stderr and a Flash row `flash (C certain, P possible)` with each event's lead (`docs/TEST_LOG.md` 6.16). Warnings such as "placement corrected after reveal" are in the same drawer.
+- **What reaches `report.md`.** Only `spawn-at-verify run` (`crates/spawn-at-verify/src/cli/run.rs:126`) and `calibrate` (`crates/spawn-at-verify/src/cli/calibrate.rs:376`) call `write_report_artifacts` (`crates/spawn-at-verify/src/report/builder.rs:143`), which writes `report.json`, `report.md` and `slices/` into `verify-results/<timestamp>-<host>/`. The TUI does not write a report: its only file output is `w`, which saves the open drawer's text (`crates/spawn-at-verify/src/tui/app/clipboard.rs:36`) into `verify-results/` (`crates/spawn-at-verify/src/tui/app/state.rs:241`). Pending Both rows therefore appear in `report.md` only for results produced through `run`. Flash numbers go to section "6. Flash" of `report.md` (`crates/spawn-at-verify/src/report/markdown.rs:214`) and "Pass (flash)" in the category table. Report categories are derived from the id prefix with a second mapping (`crates/spawn-at-verify/src/runner/models.rs:227`, `crates/spawn-at-verify/src/report/markdown.rs:96`).
+- **What a new test needs to appear:** a TOML file with the fields above, id = path, a valid category, a `kind`, a `[human] watch` text if `both`, tags that put it in the right suite (`!manual-setup` is the exclusion used by `full` and `release-gate`), and `requires` that match the session. It also needs an action the runner can execute: today that means `spawn` (or the special `preflight-binary-check`).
+- **What the TUI cannot show today:**
+  - frame-by-frame or any pixel evidence (none is captured);
+  - tests with a setup step, a second window or a sequence of commands (`subject` is a single optional `TestSubject`, `crates/spawn-at-verify/src/schema/types.rs:246`; one action per test);
+  - a per-step human question (one `watch` text per test);
+  - a Sway or X11 flicker row, because the flash fields need the GNOME extension;
+  - a warning that a test moves the user's focus (no such tag or flag exists; the quick suite would run it);
+  - a categories gap: the suite lists `lifecycle`, `launchers`, `apps`, `diagnostics`, `regression` match nothing (section 7, gap 7).
+
+## 6. Proposed new tests
+
+Sizes: small = under a day; medium = a few days; large = needs harness changes. "Unattended-safe" means safe to run on the developer laptop without a person watching and without touching the user's windows: it only creates fixture windows and cleans them by recorded id. Anything that moves focus on the live desktop is marked attended even for the fixture.
+
+For each proposal "TUI" says how it shows up. Tests that are Rust or node tests do not appear in the TUI at all.
+
+| # | Test | Backend, tier | Asserts | Cleanup | Human? | Safe unattended? | Size | TUI |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| P1 | Unit tests for `run_focus`, `run_defocus` (including the "already not focused" no-op, `--to-desktop`, `--to-window`), `run_maximize`, `run_minimize`, `run_restore`, `apply_focus_policy` with a recording mock backend | any, (a) | Right driver call and arguments; `TargetNotFound`, unsupported-capability and driver errors reach the user; the 2 s state wait does not turn a timeout into a failure (document the current `let _ =` behavior, `src/commands/focus.rs:21`) | none needed (no windows) | no | yes | small | None (cargo test). |
+| P2 | D-Bus stub tests for `GnomeWaylandDriver::focus_window`, `defocus_window`, `set_window_state` (all four states), `transform_window`, `move_window`, like the existing close stub at `src/platform/linux/gnome/tests.rs:353` | GNOME, (c) | Method name, arguments, `false` reply becomes `TargetNotFound`, stale protocol errors | stub service dropped | no | yes | small-medium | None. |
+| P3 | Node tests for `DefocusWindow` (modes `desktop`, `window`, most-recently-used fallback, missing destination, minimized windows skipped) and `SetWindowState` `maximize`, `unmaximize`, `restore`, plus `_findWindow` on a window of another workspace | GNOME extension, (c) | Order of RAISE/ACTIVATE, `unset_input_focus` when no next window, return values | none | no | yes | small | None. |
+| P4 | Add `focus` and a failure path to `sway-live.sh`: two fixture windows, `focus --id A` then `--id B`, compare the focused flag in `swaymsg -t get_tree` and in `query windows`; `close` and `transform` with an unknown id exit non-zero and leave the tree unchanged; `transform` onto the second output | Sway headless, (d) | Real focus moves; multi-window and multi-monitor; error paths | `close_and_check` by recorded id plus the script's existing process and directory check | no | Only on the private headless Sway (`scripts/sway-headless.sh`) | medium | None (shell script output). |
+| P5 | CLI tests that run the built binary against the stand-in Sway socket for `focus`, `close`, `transform`, `defocus` (unsupported), `maximize` (unsupported) | Sway, (b) | Exit codes, stdout/stderr text, exactly the expected IPC commands, no X11 fallback | stand-in socket removed (existing pattern in `tests/sway_backend_cli_test.rs`) | no | yes | small | None. |
+| P6 | Catalog specs for the planned rows that are "Not written" (`docs/TEST_PLAN.md:98-127`): `transforms/reposition-by-id`, `transforms/resize-by-id`, `focus/activate-by-title`, `focus/defocus-active-window`, `focus/switch-between-windows`, `transforms/maximize-and-restore` (Both), `transforms/minimize-and-focus` (Both), `queries/query-layout|windows|pointer`, `robustness/nonexistent-window-id` | GNOME live, (e) | Final geometry within 1 px (oracle), `query windows` state flags, clean error text for a missing id | Tracker closes the fixture by id (`crates/spawn-at-verify/src/tracker/state.rs:226`); the TUI refocuses the terminal | Both rows ask the `watch` question; Auto rows need none | Query and error-path rows: yes. Focus, defocus, maximize, minimize rows move the real desktop's focus and animate: attended, run when idle | large (needs the runner changes in section 7 gap 8 first) | Ids `transforms/...`, `focus/...`, `queries/...`, `robustness/...` in the groups of the same name (they must be under `verify/transforms/` etc., not the existing empty `verify/transform/`). Auto rows show PASS/FAIL and, for transforms, the geometry table. Both rows show Pending until `p`/`x`, with the `watch` text, e.g. "Did the window move to the corner once, without jumping?". `report.md` rows only via `run`. Needs TUI/runner change: multi-step tests (setup spawn, then action with the new window's id). |
+| P7 | Flash measurement for `transform` on GNOME: fixture started with the event directory, clock anchor taken, `transform --id <id> --size ...`, `detect_flash` on the transform's own reveal | GNOME live, (e) | Numeric flash count and lead for a runtime resize, as spawn has | as P6 | no (numbers) plus an optional Both question | attended (real session, fixture window only) | medium-large (extends `crates/spawn-at-verify/src/runner/flash.rs:126`) | New id `transforms/resize-flash` (Auto). The drawer's Flash row and the list `✱` already render events; the report's "6. Flash" section would list it. Needs a runner change: allow flash capture for non-`spawn` actions with a pre-started fixture. |
+| P8 | Sway flicker experiment: record `window::new` IPC events and `get_tree` at tight intervals around `spawn`, to see whether a window is ever in the tiled layout before it floats; if a screencopy tool works in the headless session, capture frames | Sway headless | Whether and for how long the one-frame flash exists (`docs/DESIGN_SWAY.md` section 5 says unmeasured) | harness stops Sway; windows closed by id | no | headless only | medium-large; feasibility of screencopy on the headless backend is **(unverified)** | None today: no flash row for non-GNOME backends. Would need a new flash basis (`FlashBasis`, `crates/spawn-at-verify/src/trace/flash.rs:322`). |
+| P9 | Suite consistency test: every category named in `verify/suites/*.toml` resolves to a valid category with at least one spec, or the test fails loudly; every `verify/<dir>` with specs has a valid category | verify crate, (a) | Prevents an empty `release-gate` category being read as coverage | none | no | yes | small | None. |
+| P10 | `spawn --no-focus` / `--defocus` / `--focus` wiring test, after the owner decides what they should do (they are parsed but nothing reads them) | all, (a) | `Batch.focus` follows the flags | none | no | yes | small, blocked on a code decision | None. |
+| P11 | Xvfb job for the X11 driver: private `Xvfb`, the fixture window, `query windows`, `transform`, `focus`, `maximize`, `minimize`, `restore`, `close` through the built binary | X11, (b) with a private X server | The X11 cells that are currently (f) | fixture killed by pid it owns, Xvfb stopped | no | headless only (never the user's `DISPLAY`) | medium-large; whether the winit fixture runs under Xvfb in CI is **(unverified)** | None. |
+| P12 | Cleanup-after assertions in verify: after each Auto spawn spec, `query windows` no longer lists the id and the fixture pid is gone | GNOME live, (e) | No leftover windows or processes | the assertion is the cleanup check | no | yes (fixture only) | small | A new line in the drawer result section; `report.md` failure text. Needs a small TUI/report change to show "left behind". |
+| P13 | TUI headless test that a non-`spawn` spec (for example a transform spec) renders SUBJECT/ACTION/EXPECTATIONS in the drawer without panicking | verify crate, (a) | Rendering of future specs | none | no | yes | small | Part of `tests/tui/`. |
+
+Top ten in priority order, by value for effort: P1, P2, P3, P9, P5, P4, P10, P6, P7, P11. P8 is research and should come after P4.
+
+## 7. Gaps
+
+Plain list, no ranking beyond the order found. Each was verified by reading the code or by running the command named.
+
+1. **`defocus` has no behavior test anywhere.** `run_defocus` (`src/commands/focus.rs:76`) is never called by a test; no node test mentions `DefocusWindow`; `_defocusWindowObject` (`assets/gnome/modern/extension.js:1478`) is untested. Only argument parsing is tested.
+2. **`restore` and `minimize` handlers have no Rust test; `maximize` and `focus` have one weak test each.** `run_unminimize` is dead code (`src/commands/lifecycle.rs:151`), and `unminimize` is an alias of `restore` (`src/cli/mod.rs:79-80`).
+3. **The "supported on X11" tests do not test X11.** `test_transform_supported_on_x11`, `test_focus_supported_on_x11`, `test_lifecycle_supported_on_x11`, `test_close_supported_on_x11` (`src/commands/mod.rs:437`, `:449`, `:461`, `:476`) call the real `X11Driver` and assert only that the error message does not contain a phrase. Without an X server they pass on a connection error. If a developer runs the suite inside an X11 session they query that session's real windows (read-only, but not hermetic). The X11 layout, windows, pointer, defocus, minimize and restore cells have no test at all.
+4. **GNOME driver wrappers for focus, defocus, set state, transform and move have no D-Bus stub tests**, while `close`, `get_windows`, `get_layout` and the claim have (`src/platform/linux/gnome/tests.rs:353`, `:570`).
+5. **`spawn --focus`, `--no-focus` and `--defocus` appear in `--help` and are parsed, but I found no code that reads them in `spawn`.** `run_spawn` builds the batch with `FocusIntent::Exclusive` unconditionally (`src/commands/spawn.rs:267`), and the only readers of `focus_modifiers` are `focus.rs`, `lifecycle.rs` and `transform.rs`. `docs/TEST_PLAN.md:209-210` lists the two flags as "Not written". Not tested live; if confirmed, the help text promises behavior the command does not have.
+6. **State commands report success even when the state never changes.** Every `wait_for_state_change` result is dropped with `let _ =` (`src/commands/focus.rs:21`, `:35`, `:63`, `:102`; `src/commands/lifecycle.rs:103`, `:133`, `:168`, `:199`; `src/commands/transform.rs:327`); the helper waits up to 2 s polling every 50 ms (`src/commands/mod.rs:303`) and the command then exits 0.
+7. **The verify catalog covers only `spawn` plus the preflight check.** `spawn-at-verify list` shows 45 tests, all `spawn` or `preflight-binary-check` **(ran)**. `verify/lifecycle`, `verify/transform`, `verify/query`, `verify/regression`, `verify/resilience`, `verify/apps`, `verify/launchers`, `verify/diagnostics` hold only a README. The suites `full` and `release-gate` name categories with no tests, so "100% of required tests pass" (`verify/suites/release-gate.toml`) says nothing about focus, transform, query or the lifecycle commands. Also: the suite alias list has no entry for `lifecycle` to `focus` (`crates/spawn-at-verify/src/schema/suite.rs:36-41`), and `regression`, `launchers`, `apps`, `diagnostics` are not in `VALID_CATEGORIES` (`crates/spawn-at-verify/src/schema/matrix.rs:156`), so a spec in the `regression` category would be rejected by the loader (`loader/registry.rs`, "Invalid category") and a `focus/*` spec would not be selected by `full` or `release-gate`. The existing empty directory names (`transform`, `query`) differ from the ids planned in `docs/TEST_PLAN.md` (`transforms/...`, `queries/...`), which the loader requires to equal the path (`crates/spawn-at-verify/src/loader/registry.rs:52`).
+8. **The runner cannot express a test of an existing window.** One action per test, a single optional subject, fixtures launched only by `spawn`, window attribution only for `spawn`, and a `transform` id taken from a literal in the args (`crates/spawn-at-verify/src/runner/executor.rs:164`, `:274`, `:327`; `crates/spawn-at-verify/src/schema/types.rs:246`). Every planned focus/transform/lifecycle/query row needs a setup step first.
+9. **Flicker is measured only for GNOME `spawn`.** `wants_flash_capture` is `action.command == "spawn"` (`crates/spawn-at-verify/src/runner/flash.rs:127`). No flash measurement exists for `transform`, focus, state changes, close, or for Sway and X11 (the latter reports a flash on nearly every run). The Sway "one-frame flash" is stated in the docs and not measured. No pixels are captured anywhere.
+10. **The `possible` bucket is not a noise floor and its probability is a hypothesis.** On X11 19 of 20 recorded runs were `possible` (`docs/TEST_LOG.md` 6.16); `visible_probability` assumes the reveal lands at a random point of the frame and the code labels that a HYPOTHESIS (`crates/spawn-at-verify/src/trace/flash.rs:300-304`).
+11. **The TUI does not write a session report.** `report.json` and `report.md` come from `run` and `calibrate` only (`crates/spawn-at-verify/src/cli/run.rs:126`, `crates/spawn-at-verify/src/cli/calibrate.rs:376`); the TUI saves drawer text on `w`. `verify/README.md` section 10 describes `verify-results/<timestamp>-<host>/` without saying the TUI does not produce it. I read the code and did not run the TUI.
+12. **`verify/README.md` section 9 documents a Web UI that does not exist.** `serve --bind` and `tui --web` are described (`verify/README.md:50`, `verify/README.md:254`); `spawn-at-verify serve` is "unrecognized subcommand" and `tui --help` has no `--web` option **(ran)**.
+13. **`scripts/smoke-live.sh` launches real applications** (`gnome-calculator` at `scripts/smoke-live.sh:233`, `gnome-text-editor` at `:254`), while `CLAUDE.md` says to test only with the fixture and own scratch clients. The script closes only the window it recorded, but the rule and the script disagree.
+14. **GNOME focus/close/state look only at the active workspace.** `_findWindow` uses the most-recently-used windows of the active workspace (`assets/gnome/modern/extension.js:1446`) **(read)**; for a window elsewhere the D-Bus call returns false and the CLI reports "Compositor failed to ...". Untested.
+15. **Sway `focus` is never run against a real Sway**, only against a fake that checks the command text (`src/platform/linux/sway/tests_write.rs:449`); `Unminimize` is missing from the unsupported-operation loop (`src/platform/linux/sway/tests_write.rs:527`).
+16. **Multi-window and multi-monitor are covered only by `sway-live.sh` session B (placement on a second output).** None for GNOME, X11, focus order, or `transform` across monitors.
+17. **Cleanup-after assertions exist only in `sway-live.sh`** (`close_and_check`, `scripts/sway-live.sh:178`). The verify harness relies on the tracker and has tracker unit tests, but no live check that windows and processes are gone after a run.
+18. **No tag or flag marks tests that move the user's focus**, so such tests could be selected into `quick` by accident.
+
+## 8. Citations
+
+All `path:line` references in this file are checked by `scratch/cite_coverage.sh` (not committed; it resolves each path, checks the line exists, and for the anchored claims checks the cited line contains the named text). The output of that check is in the pull request description. Line numbers are for `main` at `ff1eb6a` plus this file; documents cited without a line (`docs/TEST_LOG.md` sections, README sentences) are cited by section or quote because those files are edited often.
