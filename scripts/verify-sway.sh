@@ -89,11 +89,22 @@ case "$SWAYSOCK" in
 esac
 echo "==> private sway in $DIR"
 
-# The runner, aimed at the private session only. Not exec: the trap must still stop sway.
+# The runner, aimed at the private session only. It runs in the background and is waited for, so a
+# signal sent to this script alone is forwarded to it at once (bash holds a trap back while a
+# foreground command runs). Only the process started here is ever signalled.
 env -u DISPLAY -u XDG_CURRENT_DESKTOP -u DBUS_SESSION_BUS_ADDRESS \
     SPAWN_AT_BACKEND=sway SWAYSOCK="$SWAYSOCK" WAYLAND_DISPLAY="$WAYLAND_DISPLAY" \
     XDG_SESSION_TYPE=wayland \
-    "$VERIFY" run --bin "$BIN" "${RUN_ARGS[@]}"
-code=$?
+    "$VERIFY" run --bin "$BIN" "${RUN_ARGS[@]}" &
+child=$!
+forward() { kill -TERM "$child" 2>/dev/null; }
+trap forward INT TERM HUP
+# A forwarded signal interrupts `wait`; wait again until the runner has finished its own
+# teardown, and take its exit code.
+while :; do
+    wait "$child"
+    code=$?
+    kill -0 "$child" 2>/dev/null || break
+done
 echo "==> spawn-at-verify exited with $code"
 exit "$code"
