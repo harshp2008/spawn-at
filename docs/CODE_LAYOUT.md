@@ -68,10 +68,10 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
 | `src/platform/mod.rs` | 395 | Platform & Compositor Driver Abstraction Layer |
-| `src/platform/null_backend.rs` | 70 | The backend of an operating system spawn-at does not support. |
+| `src/platform/null_backend.rs` | 71 | The backend of an operating system spawn-at does not support. |
 | `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
 | `src/platform/session_actions.rs` | 36 | What ends a run: logging out, or reloading the shell. |
-| `src/platform/update_hooks.rs` | 60 | What `spawn-at update` needs to know about the desktop. |
+| `src/platform/update_hooks.rs` | 66 | What `spawn-at update` needs to know about the desktop. |
 | `src/platform/non_linux.rs` | 81 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
 | `src/platform/upgrade.rs` | 750 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
 | `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
@@ -130,7 +130,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/cli/tui.rs` | 30 | Handler for `spawn-at-verify tui` subcommand. |
 | `crates/spawn-at-verify/src/display.rs` | 180 | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
 | `crates/spawn-at-verify/src/ext_logging.rs` | 605 | Control of the GNOME extension's timing log over session D-Bus. |
-| `crates/spawn-at-verify/src/lib.rs` | 24 | spawn-at-verify |
+| `crates/spawn-at-verify/src/lib.rs` | 27 | spawn-at-verify |
 | `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
 | `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
 | `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
@@ -138,7 +138,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/loader/tests.rs` | 231 | Unit tests for test loader, filtering, and tree visualization. |
 | `crates/spawn-at-verify/src/loader/tree.rs` | 76 | Hierarchical formatting and summary generation for test definitions. |
 | `crates/spawn-at-verify/src/log_source.rs` | 192 | Log Capture Abstraction (`LogSource` trait). |
-| `crates/spawn-at-verify/src/main.rs` | 10 | CLI binary entrypoint for spawn-at-verify. |
+| `crates/spawn-at-verify/src/main.rs` | 20 | CLI binary entrypoint for spawn-at-verify. |
 | `crates/spawn-at-verify/src/no_config.rs` | 50 | Keeps the user's `spawn-at` config file out of harness runs. |
 | `crates/spawn-at-verify/src/oracle/calculator.rs` | 244 | Mathematical placement calculations, anchor formulas, and pivot offsets. |
 | `crates/spawn-at-verify/src/oracle/check.rs` | 730 | Comparison of an observed placement against the oracle's expected rectangle. |
