@@ -143,6 +143,21 @@ impl TestDefinition {
                 hum.watch = substitute_str(&hum.watch);
             }
 
+            // Version 2 fields. A version 1 spec has none, so nothing changes for it.
+            for setup in &mut clone.v2.setup {
+                setup.args = setup.args.iter().map(|a| substitute_str(a)).collect();
+            }
+            for action in &mut clone.v2.then {
+                action.command = substitute_str(&action.command);
+                action.args = action.args.iter().map(|a| substitute_str(a)).collect();
+            }
+            clone.expect.stdout_present = clone
+                .expect
+                .stdout_present
+                .iter()
+                .map(|a| substitute_str(a))
+                .collect();
+
             // Remove matrix definition on expanded instances so they are treated as concrete tests
             clone.matrix = None;
             expanded.push(clone);

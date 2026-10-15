@@ -399,3 +399,44 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
     }
     Ok(())
 }
+
+/// What `${...}` placeholders stand for while one test runs: only values the runner recorded.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Bindings {
+    /// Recorded window id per setup name.
+    pub ids: std::collections::HashMap<String, u64>,
+    /// Unique title per setup name.
+    pub titles: std::collections::HashMap<String, String>,
+    /// An id the runner has just proved is not a window, once it has chosen one.
+    pub nonexistent: Option<u64>,
+}
+
+/// Replaces every placeholder in `text` from `b`. A placeholder with no binding is an error: a
+/// literal `${w}` must never reach a command line, where `spawn-at` would at best refuse it.
+pub fn substitute(text: &str, b: &Bindings) -> Result<String, String> {
+    let mut out = String::with_capacity(text.len());
+    let mut rest = text;
+    let re = placeholder_regex();
+    // `placeholders` rejects a stray `${` first, so the scan below sees only well-formed ones.
+    placeholders(text)?;
+    while let Some(m) = re.find(rest) {
+        out.push_str(&rest[..m.start()]);
+        let c = re.captures(&rest[m.start()..]).expect("matched above");
+        let name = &c[1];
+        let want_title = c.get(2).is_some();
+        let value = if want_title {
+            b.titles.get(name).cloned()
+        } else if name == NONEXISTENT {
+            b.nonexistent.map(|n| n.to_string())
+        } else {
+            b.ids.get(name).map(|n| n.to_string())
+        };
+        match value {
+            Some(v) => out.push_str(&v),
+            None => return Err(format!("placeholder {} has no recorded value", m.as_str())),
+        }
+        rest = &rest[m.end()..];
+    }
+    out.push_str(rest);
+    Ok(out)
+}

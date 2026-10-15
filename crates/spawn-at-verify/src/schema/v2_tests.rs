@@ -483,3 +483,102 @@ fn test_whole_placeholder_parses_only_a_complete_one() {
     assert_eq!(whole_placeholder("${w}x"), None);
     assert_eq!(whole_placeholder("5"), None);
 }
+
+// ---- run-time substitution ----
+
+use super::v2::{substitute, Bindings};
+
+fn bindings() -> Bindings {
+    let mut b = Bindings::default();
+    b.ids.insert("w".into(), 42);
+    b.ids.insert("v".into(), 7);
+    b.titles.insert("w".into(), "verify-1-0-w".into());
+    b
+}
+
+#[test]
+fn test_substitute_replaces_ids_titles_and_nonexistent() {
+    let mut b = bindings();
+    b.nonexistent = Some(1_000_042);
+    assert_eq!(substitute("${w}", &b).unwrap(), "42");
+    assert_eq!(
+        substitute("id ${v} then ${w}!", &b).unwrap(),
+        "id 7 then 42!"
+    );
+    assert_eq!(substitute("${w.title}", &b).unwrap(), "verify-1-0-w");
+    assert_eq!(substitute("${nonexistent}", &b).unwrap(), "1000042");
+    assert_eq!(
+        substitute("no placeholder {w} $w", &b).unwrap(),
+        "no placeholder {w} $w"
+    );
+}
+
+#[test]
+fn test_substitute_refuses_anything_not_recorded() {
+    let b = bindings();
+    assert!(substitute("${zzz}", &b)
+        .unwrap_err()
+        .contains("no recorded value"));
+    assert!(substitute("${v.title}", &b)
+        .unwrap_err()
+        .contains("no recorded value"));
+    // Until the runner has chosen a provably absent id, `${nonexistent}` has no value.
+    assert!(substitute("${nonexistent}", &b).is_err());
+    assert!(substitute("${w", &b).unwrap_err().contains("malformed"));
+}
+
+#[test]
+fn test_substituted_text_is_not_scanned_again() {
+    // A title that itself looks like a placeholder must not be expanded a second time.
+    let mut b = bindings();
+    b.titles.insert("w".into(), "${v}".into());
+    assert_eq!(substitute("${w.title}", &b).unwrap(), "${v}");
+}
+
+// ---- matrix expansion reaches the version 2 fields ----
+
+#[test]
+fn test_matrix_substitutes_version_2_fields_and_keeps_placeholders() {
+    let body = r#"
+[matrix]
+anchor = ["top-left", "center"]
+
+[[setup]]
+name = "w"
+args = ["--expect", "move to {anchor}"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--anchor", "{anchor}", "--no-focus"]
+
+[[then]]
+command = "transform"
+args = ["--id", "${w}", "--anchor", "{anchor}"]
+
+[expect]
+stdout_present = ["{anchor}"]
+"#;
+    let def = v2(body).unwrap();
+    let expanded = def.expand_matrix().unwrap();
+    assert_eq!(expanded.len(), 2);
+    let ids: Vec<&str> = expanded.iter().map(|t| t.id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "transforms/example/anchor-top-left",
+            "transforms/example/anchor-center"
+        ]
+    );
+    let first = &expanded[1];
+    assert_eq!(
+        first.action.args,
+        ["--id", "${w}", "--anchor", "center", "--no-focus"]
+    );
+    assert_eq!(first.v2.then[0].args[3], "center");
+    assert_eq!(first.v2.setup[0].args[1], "move to center");
+    assert_eq!(first.expect.stdout_present, ["center"]);
+    // The expanded copies still pass the load rules.
+    for t in &expanded {
+        validate(t).unwrap();
+    }
+}
