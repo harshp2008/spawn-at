@@ -114,6 +114,12 @@ impl TestRunner {
             };
         }
 
+        // Version 2: the test launches its own windows and acts on them
+        // (`docs/DESIGN_RUNNER_SETUP.md`). Version 1 continues below, unchanged.
+        if test.v2.schema_version >= crate::schema::SCHEMA_VERSION_EXISTING_WINDOW {
+            return self.execute_v2_test(test, env_info, tracker, start);
+        }
+
         // Handle preflight-binary-check command directly
         if test.action.command == "preflight-binary-check" {
             let duration_ms = start.elapsed().as_millis() as u64;

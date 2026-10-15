@@ -1,8 +1,10 @@
 //! Window tracker state, attribution algorithms, and window leak cleanup.
 
+use crate::runner::owned::{SetupSession, TeardownReport};
 use std::collections::HashSet;
 use std::path::Path;
 use std::process::Command;
+use std::sync::{Arc, Mutex};
 
 /// Maximum number of concurrent test windows tracked to prevent runaway leakage.
 pub const MAX_CONCURRENT_WINDOWS: usize = 20;
@@ -22,6 +24,46 @@ pub struct WindowRecord {
     pub title: Option<String>,
 }
 
+/// Version 2 setup sessions that outlive their test (a Both or Human test keeps its window until
+/// the verdict). Held by the tracker so every cleanup path (end of `run`, the TUI's Ctrl-C, quit
+/// and signals, `close_test_windows`) reaches them. Clones share the same sessions.
+#[derive(Clone, Default)]
+pub struct OwnedSessions(Arc<Mutex<Vec<SetupSession>>>);
+
+impl std::fmt::Debug for OwnedSessions {
+    /// Prints how many sessions are held.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "OwnedSessions({})", self.len())
+    }
+}
+
+impl OwnedSessions {
+    /// Takes over a session whose test is not finished (its windows stay open).
+    pub fn push(&self, session: SetupSession) {
+        self.0.lock().unwrap().push(session);
+    }
+
+    /// Number of sessions held.
+    pub fn len(&self) -> usize {
+        self.0.lock().unwrap().len()
+    }
+
+    /// True when no session is held.
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    /// Tears down every held session, newest first, and forgets them.
+    pub fn teardown_all(&self) -> Vec<TeardownReport> {
+        let mut sessions = std::mem::take(&mut *self.0.lock().unwrap());
+        let mut reports = Vec::new();
+        while let Some(mut s) = sessions.pop() {
+            reports.push(s.teardown());
+        }
+        reports
+    }
+}
+
 /// Tracks windows launched during verification runs to isolate test windows and clean up leaks.
 #[derive(Debug, Clone)]
 pub struct WindowTracker {
@@ -29,6 +71,8 @@ pub struct WindowTracker {
     pub known_preexisting: HashSet<u64>,
     /// IDs of windows launched by and attributed to active test runs.
     pub tracked_test_windows: Vec<u64>,
+    /// Version 2 setup sessions still open (closed by id and stopped through their `Child`).
+    pub owned: OwnedSessions,
 }
 
 /// Result of window attribution matching an action launch with candidate windows.
@@ -48,6 +92,7 @@ impl WindowTracker {
         Self {
             known_preexisting: preexisting.iter().copied().collect(),
             tracked_test_windows: Vec::new(),
+            owned: OwnedSessions::default(),
         }
     }
 
@@ -59,6 +104,7 @@ impl WindowTracker {
         Ok(Self {
             known_preexisting,
             tracked_test_windows: Vec::new(),
+            owned: OwnedSessions::default(),
         })
     }
 
@@ -224,6 +270,9 @@ impl WindowTracker {
     /// Closes all test-spawned windows using `spawn-at close --id <ID>`.
     /// Never touches any pre-existing window.
     pub fn cleanup_test_windows(&mut self, bin_path: &Path) -> Result<Vec<u64>, String> {
+        // Version 2 sessions first: each closes its own recorded windows by id and stops its own
+        // fixture processes through their `Child` handles.
+        self.owned.teardown_all();
         let failed = self.cleanup_with_closer(|id| {
             let mut cmd = Command::new(bin_path);
             cmd.args(["close", "--id", &id.to_string()]);

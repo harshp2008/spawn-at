@@ -8,8 +8,14 @@ use crate::loader::{TestFilter, TestRegistry};
 use crate::preflight::{missing_optional_tools, optional_tools_hint};
 use crate::report::{build_session_report_with_runs, write_report_artifacts};
 use crate::runner::{FinalStatus, RunOptions, TestResult, TestRunner};
+use signal_hook::consts::{SIGHUP, SIGINT, SIGTERM};
 use std::path::PathBuf;
 use std::process::exit;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+
+/// Exit code of a `run` that a signal ended early (128 + SIGINT, the shell convention).
+pub const INTERRUPTED_EXIT_CODE: i32 = 130;
 
 /// Stands in for the echo-timeout note on a repeat, so the long sentence is printed once.
 const REPEAT_ECHO_NOTE: &str = "timing log not confirmed (echo timeout, see the first note)";
@@ -83,9 +89,20 @@ pub fn handle_run(args: RunArgs) {
         id_glob: glob_or_filter,
     };
 
+    // Ctrl-C, SIGTERM and SIGHUP set this flag. The runner then starts no new test, a version 2
+    // setup stops waiting, and everything the run opened is closed by the usual cleanup before
+    // the report is written and the process exits with 130.
+    let interrupted = Arc::new(AtomicBool::new(false));
+    for sig in [SIGINT, SIGTERM, SIGHUP] {
+        if let Err(e) = signal_hook::flag::register(sig, Arc::clone(&interrupted)) {
+            eprintln!("Warning: could not install a handler for signal {sig}: {e}");
+        }
+    }
+
     let runner = TestRunner::new(
         reg,
         RunOptions {
+            interrupted: Arc::clone(&interrupted),
             bin_path: bin_path.clone(),
             allow_dirty: args.allow_dirty,
             dry_run: args.dry_run,
@@ -219,6 +236,14 @@ pub fn handle_run(args: RunArgs) {
         if let Some(dir) = session_dir {
             println!("\nSession artifacts written to: {}", dir.display());
         }
+    }
+
+    if interrupted.load(Ordering::SeqCst) {
+        eprintln!(
+            "Interrupted: {} of the selected tests ran; windows this run opened were closed.",
+            results.len()
+        );
+        exit(INTERRUPTED_EXIT_CODE);
     }
 
     // Same exit code in text and JSON mode (JSON mode used to always exit 0).

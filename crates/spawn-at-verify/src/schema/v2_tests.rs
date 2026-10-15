@@ -582,3 +582,29 @@ stdout_present = ["{anchor}"]
         validate(t).unwrap();
     }
 }
+
+// ---- expectations a version 2 spec cannot have ----
+
+#[test]
+fn test_spawn_only_expectations_are_refused_in_version_2() {
+    assert_err(
+        &format!("{GOOD}\n[expect]\nnever_visible_off_target = true\n"),
+        "never_visible_off_target",
+    );
+    assert_err(
+        &format!("{GOOD}\n[expect]\ndiagnostics = [\"x\"]\n"),
+        "diagnostics",
+    );
+    assert_err(
+        &format!("{GOOD}\n[expect.resize]\noutcome = \"reached\"\n"),
+        "[expect.resize]",
+    );
+}
+
+#[test]
+fn test_expect_rect_needs_a_recorded_window() {
+    let rect = "[expect.rect]\nanchor = \"center\"\nsize = [10, 10]\nmargin = 0\n";
+    let without_setup = format!("[action]\ncommand = \"query\"\nargs = [\"layout\"]\n{rect}");
+    assert_err(&without_setup, "needs a [[setup]]");
+    assert!(v2(&format!("{GOOD}\n{rect}")).is_ok());
+}

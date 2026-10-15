@@ -103,6 +103,38 @@ pub trait Control: Send + Sync {
     fn windows(&self) -> Result<Vec<WindowInfo>, String>;
     /// Asks the window with this id to close; true when the command succeeded.
     fn close(&self, id: u64) -> bool;
+    /// Gives the window with this id keyboard focus; true when the command succeeded. Used only
+    /// to put focus back on the window that had it before the test (design 3.6).
+    fn focus(&self, id: u64) -> bool;
+}
+
+/// Runs one `spawn-at` action of a test. A trait so tests can answer without a binary.
+pub trait ActionRunner: Send + Sync {
+    /// Runs `spawn-at <args>` and returns its output; an error means it could not be run or timed out.
+    fn run(
+        &self,
+        args: &[String],
+        timeout: Duration,
+    ) -> Result<crate::process::ProcessOutput, String>;
+}
+
+/// [`ActionRunner`] over the `spawn-at` binary under test, with the user's config file kept out.
+pub struct CliActions {
+    /// Path of the `spawn-at` binary.
+    pub bin: PathBuf,
+}
+
+impl ActionRunner for CliActions {
+    fn run(
+        &self,
+        args: &[String],
+        timeout: Duration,
+    ) -> Result<crate::process::ProcessOutput, String> {
+        let mut cmd = Command::new(&self.bin);
+        cmd.args(args);
+        crate::no_config::isolate(&mut cmd);
+        crate::process::execute_with_timeout(cmd, timeout)
+    }
 }
 
 /// [`Control`] over the `spawn-at` binary under test.
@@ -137,6 +169,16 @@ impl Control for CliControl {
             Ok(out) if out.exit_code == Some(0)
         )
     }
+
+    fn focus(&self, id: u64) -> bool {
+        let mut cmd = Command::new(&self.bin);
+        cmd.args(["focus", "--id", &id.to_string(), "--no-wait"]);
+        crate::no_config::isolate(&mut cmd);
+        matches!(
+            crate::process::execute_with_timeout(cmd, Duration::from_millis(1500)),
+            Ok(out) if out.exit_code == Some(0)
+        )
+    }
 }
 
 /// Waits and grace periods of a session. The defaults are the design's; tests shorten them.
@@ -150,16 +192,25 @@ pub struct Timings {
     pub exit_grace: Duration,
     /// How long teardown waits after SIGTERM before SIGKILL.
     pub term_grace: Duration,
+    /// How long a `[[check]]` keeps looking for the state it expects (a compositor applies a
+    /// state change a little after the command returns).
+    pub check_wait: Duration,
+    /// How long `[expect.rect]` keeps looking for the window to reach its rectangle (the harness's
+    /// `SETTLE_MS`).
+    pub settle: Duration,
 }
 
 impl Default for Timings {
-    /// 5 s setup wait, 100 ms poll, 1 s after the close, 1 s after SIGTERM.
+    /// 5 s setup wait, 100 ms poll, 1 s after the close, 1 s after SIGTERM, 2 s per check,
+    /// 1300 ms settle.
     fn default() -> Self {
         Self {
             setup_default: Duration::from_secs(5),
             poll: Duration::from_millis(100),
             exit_grace: Duration::from_secs(1),
             term_grace: Duration::from_secs(1),
+            check_wait: Duration::from_secs(2),
+            settle: Duration::from_millis(crate::oracle::SETTLE_MS),
         }
     }
 }
@@ -277,6 +328,9 @@ pub struct SetupSession {
     fixtures: Vec<OwnedFixture>,
     torn_down: bool,
     report: TeardownReport,
+    /// The window that had focus before the first fixture started; focus goes back to it after
+    /// teardown if it still exists and lost focus (design 3.6). Never one of our own windows.
+    refocus: Option<u64>,
 }
 
 /// True once `child` has exited, waiting at most `limit`. A status read by `try_wait` reaps the
@@ -341,7 +395,18 @@ impl SetupSession {
             fixtures: Vec::new(),
             torn_down: false,
             report: TeardownReport::default(),
+            refocus: None,
         })
+    }
+
+    /// Records the id of the window that has focus now, for [`SetupSession::teardown`] to give
+    /// focus back to. Call it before the first launch.
+    pub fn remember_focus(&mut self) {
+        self.refocus = self
+            .control
+            .windows()
+            .ok()
+            .and_then(|list| list.iter().find(|w| w.focused).map(|w| w.id));
     }
 
     /// Adds an environment variable for the fixtures launched from now on.
@@ -657,6 +722,18 @@ impl SetupSession {
                 Err(e) => report
                     .warnings
                     .push(format!("could not check for leftover windows: {e}")),
+            }
+        }
+        // Best effort: put focus back where it was, but only on a window that is still listed,
+        // lost focus, and is not one of ours.
+        if let Some(id) = self.refocus {
+            let ours = self.fixtures.iter().any(|f| f.window_id == Some(id));
+            if !ours {
+                if let Ok(list) = control.windows() {
+                    if list.iter().any(|w| w.id == id && !w.focused) {
+                        let _ = control.focus(id);
+                    }
+                }
             }
         }
         let _ = std::fs::remove_dir_all(&self.dir);

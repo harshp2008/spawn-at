@@ -2,17 +2,22 @@
 
 pub mod engine;
 pub mod executor;
+mod executor_v2;
 pub mod flash;
 pub mod models;
 pub mod owned;
 pub mod validation;
 
 #[cfg(test)]
+mod executor_v2_tests;
+#[cfg(test)]
 mod flash_tests;
 #[cfg(test)]
 mod owned_tests;
 #[cfg(test)]
 mod resize_expect_tests;
+#[cfg(test)]
+mod test_support;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

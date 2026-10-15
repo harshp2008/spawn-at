@@ -374,6 +374,29 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
         }
     }
 
+    // Expectations that only a `spawn` run can judge are not available here.
+    if t.expect.never_visible_off_target {
+        return Err(e(
+            "never_visible_off_target needs the extension's trace of a spawn; not supported in version 2"
+                .into(),
+        ));
+    }
+    if t.expect.resize.is_some() {
+        return Err(e(
+            "[expect.resize] describes a spawn's ready-wait; not supported in version 2".into(),
+        ));
+    }
+    if !t.expect.diagnostics.is_empty() {
+        return Err(e(
+            "diagnostics are read from the extension's log; not supported in version 2".into(),
+        ));
+    }
+    if t.expect.rect.is_some() && t.v2.setup.is_empty() {
+        return Err(e(
+            "[expect.rect] judges a recorded window and needs a [[setup]]".into(),
+        ));
+    }
+
     // Placeholders in expectations may name any declared setup.
     let mut strings: Vec<&str> = Vec::new();
     strings.extend(t.expect.stdout_present.iter().map(String::as_str));

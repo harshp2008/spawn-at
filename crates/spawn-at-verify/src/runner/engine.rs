@@ -1,12 +1,14 @@
 //! Test runner execution engine, repeat loops, and process orchestration.
 
 use super::models::{FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
+use super::owned::{ActionRunner, Control};
 use crate::ext_logging::{GdbusLogging, LoggingControl, NoLogging};
 use crate::loader::TestRegistry;
 use crate::log_source::{GnomeJournalSource, LogSource, NoOpLogSource};
 use crate::preflight::{inspect_binary, PreflightReport};
 use crate::probe::EnvironmentInfo;
 use crate::tracker::WindowTracker;
+use std::sync::Arc;
 
 /// Orchestrates test suite execution, preflight checks, and window lifecycle attribution.
 pub struct TestRunner {
@@ -18,6 +20,13 @@ pub struct TestRunner {
     pub log_source: Box<dyn LogSource>,
     /// Switch that turns the extension's timing log on before each run that needs a trace.
     pub logging: Box<dyn LoggingControl>,
+    /// How version 2 tests list, close and refocus windows; `None` means the `spawn-at` binary
+    /// of the options. Tests inject a fake.
+    pub(crate) control: Option<Arc<dyn Control>>,
+    /// How version 2 tests run their actions; `None` means the `spawn-at` binary of the options.
+    pub(crate) actions: Option<Arc<dyn ActionRunner>>,
+    /// Waits and grace periods of version 2 tests (shortened by tests).
+    pub(crate) v2_timings: super::owned::Timings,
 }
 
 /// Why the no-op log source is in use: names `XDG_CURRENT_DESKTOP` and what it holds.
@@ -62,7 +71,29 @@ impl TestRunner {
             options,
             log_source,
             logging,
+            control: None,
+            actions: None,
+            v2_timings: Default::default(),
         }
+    }
+
+    /// Shortens the waits and grace periods of version 2 tests (for tests with fakes).
+    pub fn with_v2_timings(mut self, timings: super::owned::Timings) -> Self {
+        self.v2_timings = timings;
+        self
+    }
+
+    /// Makes version 2 tests list, close and refocus windows through `control` instead of the
+    /// `spawn-at` binary (for tests with a fake compositor).
+    pub fn with_control(mut self, control: Arc<dyn Control>) -> Self {
+        self.control = Some(control);
+        self
+    }
+
+    /// Makes version 2 tests run their actions through `actions` instead of the `spawn-at` binary.
+    pub fn with_actions(mut self, actions: Arc<dyn ActionRunner>) -> Self {
+        self.actions = Some(actions);
+        self
     }
 
     /// Attaches an explicit log source provider to the test runner, with the logging control
@@ -130,6 +161,7 @@ impl TestRunner {
         let mut tracker = WindowTracker::snapshot_startup(bin).unwrap_or_else(|_| WindowTracker {
             known_preexisting: Default::default(),
             tracked_test_windows: Default::default(),
+            owned: Default::default(),
         });
 
         let repeat_count = self.options.repeat.clamp(1, MAX_REPEAT_CAP);
@@ -137,6 +169,15 @@ impl TestRunner {
         let mut all_runs: Vec<Vec<TestResult>> = Vec::new();
 
         for test in &tests_to_run {
+            // Ctrl-C / SIGTERM / SIGHUP in `run`: start nothing new; the tracker cleanup below
+            // closes whatever is still open.
+            if self
+                .options
+                .interrupted
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                break;
+            }
             if repeat_count == 1 {
                 let res = self.execute_single_test(test, &preflight, &env_info, &mut tracker);
                 all_runs.push(vec![res.clone()]);
