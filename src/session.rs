@@ -351,12 +351,10 @@ impl SessionOps for RealOps {
         Some(q.items[picked].1)
     }
     fn log_out(&mut self) {
-        #[cfg(target_os = "linux")]
-        crate::platform::linux::gnome::log_out_wayland();
+        crate::platform::session_actions().log_out();
     }
     fn reload_shell_x11(&mut self) {
-        #[cfg(target_os = "linux")]
-        crate::platform::linux::gnome::restart_gnome_shell_x11();
+        crate::platform::session_actions().reload_shell();
     }
 }
 

@@ -384,3 +384,17 @@ impl Provisioner for GnomeWaylandDriver {
         Ok(())
     }
 }
+
+/// The GNOME implementation of [`SessionActions`](crate::platform::session_actions::SessionActions):
+/// `gnome-session-quit` on Wayland, an Alt+F2 `r` reload on X11.
+pub struct GnomeSessionActions;
+
+impl crate::platform::session_actions::SessionActions for GnomeSessionActions {
+    fn log_out(&self) {
+        log_out_wayland()
+    }
+
+    fn reload_shell(&self) {
+        restart_gnome_shell_x11()
+    }
+}

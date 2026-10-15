@@ -74,6 +74,6 @@ mod tests;
 
 // The public paths the rest of the crate uses (`platform::linux::gnome::...`) are kept here.
 pub use args::{GnomeInstallArgs, GnomeUninstallArgs};
-pub use deploy::{log_out_wayland, restart_gnome_shell_x11};
+pub use deploy::GnomeSessionActions;
 pub use detect::is_wayland_session;
 pub use driver::GnomeWaylandDriver;

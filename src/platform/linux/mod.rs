@@ -8,6 +8,12 @@ pub mod xdg;
 // The process-ancestry check is shared by the neutral commands and the X11 driver.
 pub use process_tree::is_process_descendant;
 
+/// The Linux session actions: the GNOME ones (log out with `gnome-session-quit`, reload the X11
+/// shell with keystrokes).
+pub fn session_actions() -> &'static dyn crate::platform::session_actions::SessionActions {
+    &gnome::GnomeSessionActions
+}
+
 /// The flags of the install command that belong to the Linux backends: the GNOME ones.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct BackendInstallArgs {

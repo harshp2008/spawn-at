@@ -58,3 +58,15 @@ pub mod host {
         fn detach_child(&self, _cmd: &mut Command) {}
     }
 }
+
+struct NoSessionActions;
+
+impl crate::platform::session_actions::SessionActions for NoSessionActions {
+    fn log_out(&self) {}
+    fn reload_shell(&self) {}
+}
+
+/// Compile-only: off Linux nothing logs out or reloads (spawn-at stops before it could).
+pub fn session_actions() -> &'static dyn crate::platform::session_actions::SessionActions {
+    &NoSessionActions
+}

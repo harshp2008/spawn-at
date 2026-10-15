@@ -14,6 +14,7 @@ pub mod host;
 pub mod install_notice;
 pub mod installer;
 pub mod provisioner;
+pub mod session_actions;
 pub mod upgrade;
 
 #[cfg(target_os = "linux")]
@@ -381,4 +382,9 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
 /// The [`host::Host`] of this operating system.
 pub fn host() -> &'static dyn host::Host {
     &linux::host::NativeHost
+}
+
+/// How this machine logs out or reloads the shell (see [`session_actions::SessionActions`]).
+pub fn session_actions() -> &'static dyn session_actions::SessionActions {
+    linux::session_actions()
 }

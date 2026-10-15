@@ -51,14 +51,14 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/host.rs` | 137 | The Linux Host: the values the installer, the update check and the launcher always used. |
 | `src/platform/linux/gnome/args.rs` | 73 | Command-line flags of the GNOME install and uninstall steps. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
-| `src/platform/linux/gnome/deploy.rs` | 386 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
+| `src/platform/linux/gnome/deploy.rs` | 400 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
 | `src/platform/linux/gnome/detect.rs` | 112 | Detection of the GNOME Shell version and of a Wayland session. |
 | `src/platform/linux/gnome/driver.rs` | 529 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 79 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/gnome/tests.rs` | 780 |  |
-| `src/platform/linux/mod.rs` | 674 |  |
+| `src/platform/linux/mod.rs` | 680 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
@@ -66,12 +66,13 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 384 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 390 | Platform & Compositor Driver Abstraction Layer |
 | `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
-| `src/platform/non_linux.rs` | 60 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
+| `src/platform/session_actions.rs` | 36 | What ends a run: logging out, or reloading the shell. |
+| `src/platform/non_linux.rs` | 72 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
 | `src/platform/upgrade.rs` | 750 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
 | `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
-| `src/session.rs` | 856 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
+| `src/session.rs` | 854 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
 | `src/ui.rs` | 308 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
 | `src/update.rs` | 1413 | Update Manager & Release Checker |
