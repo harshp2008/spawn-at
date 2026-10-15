@@ -1,0 +1,16 @@
+[spawn-at-time] +2579306.86ms | BATCH_STEP win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] inst=Snapshot
+[spawn-at-time] +2579306.86ms | SNAPSHOT_CREATED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] visible=true pos=(100,140) size=(400x300) opacity=255
+[spawn-at-time] +2579307.43ms | CLOAK win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] opacity=0 frame=(100,140,400x300)
+[spawn-at-time] +2579307.43ms | SET_SIZE_REQUEST win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] requestedSize=(300x200)
+[spawn-at-time] +2579307.66ms | READY_WAIT_START win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(300x200) current=(400x300)
+[spawn-at-time] +2579310.68ms | COMMIT_SAMPLE win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] source=size-changed frame=(300x200)
+[spawn-at-time] +2579310.74ms | COMMIT_RESOLVED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] reason=AT_TARGET
+[spawn-at-time] +2579310.76ms | READY_WAIT_RESOLVED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] outcome=reached elapsed_ms=3.2
+[spawn-at-time] +2579310.76ms | APPLY_ANCHOR win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] final=(1604,56)
+[spawn-at-time] +2579310.93ms | POSITION_SET win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] preFrame=(100,140,300x200) postFrame=(1604,56,300x200)
+[spawn-at-time] +2579311.15ms | UNCLOAK_4B win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +2579314.44ms | UNCLOAK win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1604,56,300x200)
+[spawn-at-time] +2579314.46ms | UNCLOAK_4D_REVEAL win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +2579314.46ms | ANCHOR_ARMED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +2579314.66ms | SNAPSHOT_DESTROYED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +2579430.40ms | ANCHOR_RELEASED win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
