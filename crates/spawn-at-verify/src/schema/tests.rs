@@ -95,6 +95,7 @@ fn test_derived_platform_tags() {
         expect: TestExpect::default(),
         human: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let tags = test.effective_tags();
@@ -182,6 +183,7 @@ fn test_suite_filtering() {
         expect: TestExpect::default(),
         human: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let test_slow = TestDefinition {
@@ -204,6 +206,7 @@ fn test_suite_filtering() {
         expect: TestExpect::default(),
         human: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let test_wrong_cat = TestDefinition {
@@ -226,6 +229,7 @@ fn test_suite_filtering() {
         expect: TestExpect::default(),
         human: None,
         regression: None,
+        v2: Default::default(),
     };
 
     assert!(suite.matches(&test_pass));

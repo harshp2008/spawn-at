@@ -126,6 +126,7 @@ fn test_missing_fixture_binary_fails_with_clear_error_message() {
         human: None,
         matrix: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let mut tracker = WindowTracker::new_with_preexisting(&[]);
@@ -192,6 +193,7 @@ fn test_build_action_command_args_fixture_and_class() {
         human: None,
         matrix: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let args = build_action_command_args(&test_explicit, &fixture_bin, &Default::default());
@@ -235,6 +237,7 @@ fn test_build_action_command_args_fixture_and_class() {
         human: None,
         matrix: None,
         regression: None,
+        v2: Default::default(),
     };
 
     let args_inf = build_action_command_args(&test_inferred, &fixture_bin, &Default::default());

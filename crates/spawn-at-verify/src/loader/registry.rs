@@ -81,6 +81,9 @@ impl TestRegistry {
                 ));
             }
 
+            // Version 2 specs (and the refusal of version 2 keys in a version 1 spec).
+            crate::schema::v2::validate(&parsed)?;
+
             // Expand matrix if present
             let expanded_tests = parsed.expand_matrix()?;
 
