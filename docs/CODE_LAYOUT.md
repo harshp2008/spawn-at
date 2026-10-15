@@ -13,7 +13,7 @@ An earlier version of this file was a reorganization proposal (target layout, mo
 | `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
 | `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`. | |
 
-Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `scripts/` (`smoke-live.sh`, and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
+Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
 
 ## Facts that constrain moving files
 
