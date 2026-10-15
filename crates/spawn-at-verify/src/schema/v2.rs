@@ -238,7 +238,7 @@ fn validate_action(
 }
 
 /// Checks the flags of one `[[setup]]` against [`SETUP_FLAGS`].
-fn validate_setup_args(label: &str, args: &[String]) -> Result<(), String> {
+pub fn validate_setup_args(label: &str, args: &[String]) -> Result<(), String> {
     let mut i = 0;
     while i < args.len() {
         let arg = &args[i];
