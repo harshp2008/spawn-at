@@ -9,6 +9,7 @@ set -euo pipefail
 #   - Default: Latest STABLE release
 #   - Pinning: --version <tag> or -v <tag>
 #   - Prerelease: --prerelease (latest release including beta/alphas)
+#   - Unsupported desktop: --allow-unsupported installs without asking (see below)
 #   - Execution: Pass-through of flags to 'spawn-at install "$@"'
 #
 # Release resolution:
@@ -28,6 +29,7 @@ TAR_NAME="spawn-at-x86_64-unknown-linux-gnu.tar.gz"
 
 red() { echo -e "\x1b[1;31m$1\x1b[0m"; }
 cyan() { echo -e "\x1b[1;36m$1\x1b[0m"; }
+yellow() { echo -e "\x1b[1;33m$1\x1b[0m"; }
 
 # Error layout (all on stderr): a blank line, the red "Error:" headline, optional
 # "  - cause" bullets, then error_help_heading and "  - advice" bullets, then error_end.
@@ -48,6 +50,7 @@ fi
 
 TARGET_VERSION=""
 USE_PRERELEASE=false
+ALLOW_UNSUPPORTED=false
 EXTRA_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -73,12 +76,58 @@ while [[ $# -gt 0 ]]; do
             USE_PRERELEASE=true
             shift
             ;;
+        --allow-unsupported)
+            # Consumed here; spawn-at itself has no such flag and never sees it.
+            ALLOW_UNSUPPORTED=true
+            shift
+            ;;
         *)
             EXTRA_ARGS+=("$1")
             shift
             ;;
     esac
 done
+
+# --- Unsupported desktop -------------------------------------------------------------
+# Decided before anything is downloaded or changed. Same rule as the spawn-at binary
+# (src/platform/linux/registry.rs, `unsupported`): supported means SPAWN_AT_BACKEND forcing
+# x11 or sway, a desktop containing GNOME, or an X11 session. Anything else is a non-GNOME
+# Wayland (or unknown) session, where spawn-at only has an X11 fallback that may not work.
+# SPAWN_AT_RESOLVE_ONLY=1 installs nothing, so it is not asked. A supported environment
+# prints nothing here and the script goes on exactly as before.
+DESKTOP_RAW="${XDG_CURRENT_DESKTOP:-}"
+SESSION_RAW="${XDG_SESSION_TYPE:-}"
+FORCED_BACKEND="$(printf '%s' "${SPAWN_AT_BACKEND:-}" | tr '[:upper:]' '[:lower:]')"
+DESKTOP_UP="$(printf '%s' "$DESKTOP_RAW" | tr '[:lower:]' '[:upper:]')"
+SESSION_LOW="$(printf '%s' "$SESSION_RAW" | tr '[:upper:]' '[:lower:]')"
+UNSUPPORTED_ACCEPTED=false
+if [ "$FORCED_BACKEND" != "x11" ] && [ "$FORCED_BACKEND" != "sway" ] \
+    && [[ "$DESKTOP_UP" != *GNOME* ]] && [ "$SESSION_LOW" != "x11" ] \
+    && [ "${SPAWN_AT_RESOLVE_ONLY:-}" != "1" ]; then
+    echo
+    yellow "Your desktop (${DESKTOP_RAW:-unknown}, ${SESSION_RAW:-unknown}) is not supported yet. spawn-at only fully supports GNOME on Wayland. An X11 fallback exists but may or may not work here."
+    if [ "$ALLOW_UNSUPPORTED" = true ]; then
+        UNSUPPORTED_ACCEPTED=true
+        echo
+    elif [ -t 2 ] && { : </dev/tty; } 2>/dev/null; then
+        echo
+        printf 'Install anyway? [y/N] '
+        answer=""
+        read -r answer </dev/tty || answer=""
+        case "$answer" in
+            y|Y|yes|YES|Yes) UNSUPPORTED_ACCEPTED=true ;;
+            *)
+                echo
+                echo "Nothing was installed."
+                exit 1
+                ;;
+        esac
+    else
+        echo
+        echo "Nothing was installed. There is no terminal to ask on: re-run with --allow-unsupported to install anyway."
+        exit 1
+    fi
+fi
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -380,5 +429,15 @@ echo -e "\x1b[1;32mLaunching installer...\x1b[0m\n"
 # Not exec: the EXIT trap must remove the temp dir. The installed binary is only
 # written by 'spawn-at install' itself, after everything above succeeded.
 rc=0
-"$TMP_DIR/spawn-at" install "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}" || rc=$?
+if [ "$UNSUPPORTED_ACCEPTED" = true ]; then
+    # The user chose the X11 fallback: the installer child gets the same opt-in the binary
+    # asks for at run time, on this one process only.
+    SPAWN_AT_BACKEND=x11 "$TMP_DIR/spawn-at" install "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}" || rc=$?
+    if [ "$rc" -eq 0 ]; then
+        echo
+        yellow "Reminder: on this desktop spawn-at only runs with SPAWN_AT_BACKEND=x11 (for example: export SPAWN_AT_BACKEND=x11 in your shell profile). It may or may not work."
+    fi
+else
+    "$TMP_DIR/spawn-at" install "${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"}" || rc=$?
+fi
 exit "$rc"

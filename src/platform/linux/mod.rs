@@ -101,6 +101,9 @@ impl LinuxBackend {
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
         // The order of the choice (forced X11, then GNOME Wayland, else X11) is in `registry`.
         let env = registry::Environment::from_process_env();
+        if let Some(message) = registry::unsupported(&env) {
+            return Err(DriverError::Execution(message.into()));
+        }
         for id in registry::candidates(&env) {
             // Sway was asked for by name: if it cannot be reached this is an error that names
             // $SWAYSOCK, never a quiet switch to X11 (which would place XWayland windows only).
