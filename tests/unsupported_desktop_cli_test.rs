@@ -63,3 +63,35 @@ fn test_x11_session_and_explicit_x11_are_not_refused() {
         assert!(!err(&o).contains("not supported"), "{}", err(&o));
     }
 }
+
+/// What the login autostart entry runs, `update --check --headless`, needs no backend: on a
+/// KDE Wayland desktop with `SPAWN_AT_BACKEND` unset it exits 0 and never prints the
+/// unsupported-desktop error. Offline: `PATH` is an empty directory, so the `curl` it would run
+/// cannot start and the check ends quietly. Temporary `HOME`, config directory untouched.
+#[test]
+fn test_login_update_check_works_on_an_unsupported_desktop() {
+    let home = std::env::temp_dir().join(format!("spawn-at-updcheck-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&home);
+    std::fs::create_dir_all(home.join("emptybin")).unwrap();
+    let o = Command::new(env!("CARGO_BIN_EXE_spawn-at"))
+        .args(["update", "--check", "--headless"])
+        .env_clear()
+        .env("HOME", &home)
+        .env("PATH", home.join("emptybin"))
+        .env("XDG_CURRENT_DESKTOP", "KDE")
+        .env("XDG_SESSION_TYPE", "wayland")
+        .output()
+        .unwrap();
+    let _ = std::fs::remove_dir_all(&home);
+    let e = err(&o);
+    assert_eq!(o.status.code(), Some(0), "{e}");
+    assert!(
+        !e.contains("not supported") && !e.contains("Driver initialization"),
+        "{e}"
+    );
+    assert!(
+        o.stdout.is_empty(),
+        "silent: {}",
+        String::from_utf8_lossy(&o.stdout)
+    );
+}
