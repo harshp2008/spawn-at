@@ -237,3 +237,68 @@ fn test_without_a_signal_both_actions_run_and_the_window_is_closed() {
         .unwrap();
     assert!(!alive(pid));
 }
+
+/// With `--repeat`, a signal ends the repetitions: the cut-short run is dropped, the test is not
+/// reported as flaky, and no further repetition starts a fixture.
+#[test]
+fn test_signal_during_repeat_is_not_reported_as_flaky_and_starts_nothing_more() {
+    let rig = Rig::new("repeat");
+    let child = Command::new(env!("CARGO_BIN_EXE_spawn-at-verify"))
+        .args([
+            "run",
+            "--bin",
+            rig.root.join("bin/spawn-at").to_str().unwrap(),
+            "--dir",
+            rig.root.join("verify").to_str().unwrap(),
+            "--glob",
+            "transforms/*",
+            "--repeat",
+            "3",
+        ])
+        .current_dir(&rig.root)
+        .env_remove("DISPLAY")
+        .env_remove("WAYLAND_DISPLAY")
+        .env_remove("XDG_CURRENT_DESKTOP")
+        .env_remove("DBUS_SESSION_BUS_ADDRESS")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    // The first repetition runs to the end; the signal comes while the second one is in its
+    // first action.
+    let deadline = Instant::now() + Duration::from_secs(30);
+    while rig.lines("events").iter().filter(|l| *l == "focus").count() < 2 {
+        assert!(
+            Instant::now() < deadline,
+            "the run never reached the second repetition"
+        );
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    // SAFETY: signalling the child this test started.
+    unsafe { libc::kill(child.id() as i32, libc::SIGTERM) };
+    let out = child.wait_with_output().unwrap();
+    let text =
+        String::from_utf8_lossy(&out.stdout).to_string() + &String::from_utf8_lossy(&out.stderr);
+    assert_eq!(out.status.code(), Some(130), "{text}");
+    assert!(
+        !text.contains("FLAKY"),
+        "an interrupted repetition is not a different outcome:\n{text}"
+    );
+    assert!(
+        text.contains("Passed: 1"),
+        "the finished repetition counts:\n{text}"
+    );
+    assert_eq!(
+        rig.lines("state").len(),
+        2,
+        "the third repetition must not start a fixture"
+    );
+    let pid: i32 = rig.lines("state")[1]
+        .split(' ')
+        .next()
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(!alive(pid));
+}

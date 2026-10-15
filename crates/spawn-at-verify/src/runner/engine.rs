@@ -1,6 +1,6 @@
 //! Test runner execution engine, repeat loops, and process orchestration.
 
-use super::models::{FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
+use super::models::{AutoStatus, FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
 use super::owned::{ActionRunner, Control};
 use crate::ext_logging::{GdbusLogging, LoggingControl, NoLogging};
 use crate::loader::TestRegistry;
@@ -197,8 +197,36 @@ impl TestRunner {
                 // Multi-run flakiness detection across N repetitions
                 let mut run_results = Vec::new();
                 for _ in 0..repeat_count {
+                    if self
+                        .options
+                        .interrupted
+                        .load(std::sync::atomic::Ordering::SeqCst)
+                    {
+                        break;
+                    }
                     let r = self.execute_single_test(test, &preflight, &env_info, &mut tracker);
                     run_results.push(r);
+                }
+                // A signal ended the repetitions: the run it cut short is not a result, and the
+                // test is not "flaky" for having been interrupted.
+                let interrupted = self
+                    .options
+                    .interrupted
+                    .load(std::sync::atomic::Ordering::SeqCst);
+                if interrupted && run_results.len() > 1 {
+                    if let Some(last) = run_results.last() {
+                        if last.auto_status == AutoStatus::Error
+                            && last
+                                .message
+                                .as_deref()
+                                .is_some_and(|m| m.starts_with("interrupted"))
+                        {
+                            run_results.pop();
+                        }
+                    }
+                }
+                if run_results.is_empty() {
+                    break; // interrupted before this test ran at all
                 }
 
                 // Check for mixed results
