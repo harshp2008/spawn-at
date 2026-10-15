@@ -68,6 +68,16 @@ impl CompositorBackend for X11Driver {
         true
     }
 
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        crate::platform::capability::Capabilities {
+            runtime_transform: true,
+            claim_wait: false,
+            close: true,
+            reveal_control: false,
+            needs_helper: false,
+        }
+    }
+
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
         let bin = command.first().map(|s| s.as_str()).unwrap_or("");
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)

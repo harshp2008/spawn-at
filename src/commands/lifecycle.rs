@@ -31,7 +31,7 @@ pub async fn run_close_with_timeout(
 ) -> Result<(), Box<dyn std::error::Error>> {
     args.validate()?;
 
-    if !backend.supports_close() {
+    if !backend.capabilities().close {
         return Err("this backend cannot close windows".into());
     }
 

@@ -755,3 +755,15 @@ async fn test_claim_against_protocol_5_has_no_resize_outcome() {
     assert_eq!((claim.x, claim.y), (1104, 464));
     assert!(claim.resize.is_none());
 }
+
+/// The GNOME driver reports what its `supports_*` methods say, needs the helper (the extension)
+/// and can hold a new window invisible (cloak).
+#[tokio::test]
+async fn test_gnome_capabilities_equal_its_supports_methods() {
+    let (_server, driver) = claim_driver(6, "/org/gnome/Shell/Extensions/SpawnAtCaps").await;
+    let c = driver.capabilities();
+    assert_eq!(c.runtime_transform, driver.supports_runtime_transform());
+    assert_eq!(c.claim_wait, driver.supports_claim_wait());
+    assert_eq!(c.close, driver.supports_close());
+    assert!(c.reveal_control && c.needs_helper);
+}

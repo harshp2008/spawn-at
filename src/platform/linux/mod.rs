@@ -135,6 +135,10 @@ impl CompositorBackend for LinuxBackend {
         self.driver.supports_close()
     }
 
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        self.driver.capabilities()
+    }
+
     async fn prepare_claim_wait(
         &self,
         target_id: &str,

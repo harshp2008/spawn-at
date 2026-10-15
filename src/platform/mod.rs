@@ -8,6 +8,7 @@
 //! allowing `spawn-at` to inspect the runtime environment and route execution to the
 //! optimal driver without leaking display-server-specific IPC details to high-level commands.
 
+pub mod capability;
 pub mod escalate;
 pub mod install_notice;
 pub mod installer;
@@ -146,6 +147,19 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     // --- Capability Checking ---
+
+    /// What this backend can do. The default is built from the `supports_*` methods, so a
+    /// backend (or a test double) that only has those behaves as before; the GNOME and X11
+    /// drivers return their own values.
+    fn capabilities(&self) -> capability::Capabilities {
+        capability::Capabilities {
+            runtime_transform: self.supports_runtime_transform(),
+            claim_wait: self.supports_claim_wait(),
+            close: self.supports_close(),
+            reveal_control: false,
+            needs_helper: false,
+        }
+    }
 
     /// True if the compositor supports moving/resizing mapped windows via IPC.
     fn supports_runtime_transform(&self) -> bool {

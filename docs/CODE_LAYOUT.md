@@ -35,13 +35,14 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/commands/config.rs` | 40 | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
 | `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
 | `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
-| `src/commands/mod.rs` | 1487 | Command Handlers |
+| `src/commands/mod.rs` | 1489 | Command Handlers |
 | `src/commands/query.rs` | 817 | Compositor State Query Command Handlers |
 | `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
 | `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
 | `src/config.rs` | 430 | Configuration Manager |
 | `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
 | `src/main.rs` | 455 | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/platform/capability.rs` | 256 | What a backend can do, and narrow views of the backend trait. |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
 | `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
@@ -50,20 +51,20 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
 | `src/platform/linux/gnome/deploy.rs` | 372 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
 | `src/platform/linux/gnome/detect.rs` | 112 | Detection of the GNOME Shell version and of a Wayland session. |
-| `src/platform/linux/gnome/driver.rs` | 536 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
+| `src/platform/linux/gnome/driver.rs` | 546 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 79 | GNOME Compositor Backend & Extension Driver |
-| `src/platform/linux/gnome/tests.rs` | 757 |  |
-| `src/platform/linux/mod.rs` | 651 |  |
+| `src/platform/linux/gnome/tests.rs` | 769 |  |
+| `src/platform/linux/mod.rs` | 655 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
-| `src/platform/linux/x11/mod.rs` | 393 | Native X11 Compositor Driver |
+| `src/platform/linux/x11/mod.rs` | 403 | Native X11 Compositor Driver |
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 336 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 350 | Platform & Compositor Driver Abstraction Layer |
 | `src/platform/non_linux.rs` | 22 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
 | `src/platform/upgrade.rs` | 759 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
 | `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |

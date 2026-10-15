@@ -223,6 +223,16 @@ impl CompositorBackend for GnomeWaylandDriver {
         true
     }
 
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        crate::platform::capability::Capabilities {
+            runtime_transform: true,
+            claim_wait: true,
+            close: true,
+            reveal_control: true,
+            needs_helper: true,
+        }
+    }
+
     async fn prepare_claim_wait(
         &self,
         target_id: &str,

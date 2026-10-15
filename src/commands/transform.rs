@@ -15,7 +15,7 @@ pub async fn run_transform(
     args: TransformArgs,
     no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    if !backend.supports_runtime_transform() {
+    if !backend.capabilities().runtime_transform {
         return Err(DriverError::UnsupportedCapability(
             "Runtime window transformation is not supported by the active compositor driver",
         )

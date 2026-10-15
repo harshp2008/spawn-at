@@ -21,7 +21,9 @@ pub use spawn::run_spawn;
 pub use spawn::run_spawn_with;
 pub use transform::run_transform;
 
-use crate::platform::{CompositorBackend, DriverError, WindowMetadata};
+#[cfg(test)]
+use crate::platform::CompositorBackend;
+use crate::platform::{DriverError, WindowMetadata};
 use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -186,8 +188,8 @@ fn strip_daemon_suffix(s: &str) -> &str {
 ///
 /// Disregards pre-existing window IDs to ensure newly spawned instances are captured accurately,
 /// including for D-Bus-activated applications.
-pub async fn wait_for_spawn(
-    driver: &dyn CompositorBackend,
+pub async fn wait_for_spawn<Q: crate::platform::capability::WindowQuery + ?Sized>(
+    driver: &Q,
     child_pid: u32,
     app_hint: &str,
     startup_id: &str,
@@ -298,8 +300,8 @@ pub async fn wait_for_spawn(
 
 /// Blocks by polling `driver.get_windows()` every 50ms until the target window's state
 /// matches `expected_state` or `timeout` expires.
-pub async fn wait_for_state_change(
-    driver: &dyn CompositorBackend,
+pub async fn wait_for_state_change<Q: crate::platform::capability::WindowQuery + ?Sized>(
+    driver: &Q,
     target_id: &str,
     expected_state: ExpectedState,
     timeout: Duration,
@@ -350,8 +352,8 @@ pub async fn wait_for_state_change(
 
 /// Polls the compositor driver until the target window's reported geometry equals
 /// the expected target geometry or `timeout` expires, returning the last known geometry.
-pub async fn settle_window_geometry(
-    backend: &dyn CompositorBackend,
+pub async fn settle_window_geometry<Q: crate::platform::capability::WindowQuery + ?Sized>(
+    backend: &Q,
     window_id: Option<u64>,
     target_id: &str,
     params: &spawn_at_core::geometry::PlacementParams,
