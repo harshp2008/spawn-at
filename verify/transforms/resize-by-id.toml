@@ -1,0 +1,29 @@
+schema_version = 2
+id = "transforms/resize-by-id"
+category = "transforms"
+title = "Resize an existing window by id"
+description = "Launches the runner's fixture at 400x300, resizes that window to 600x450 centred in the work area (`transform --id`), and checks the rectangle it ends at against the oracle within 2 px. Attended on GNOME; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--size", "600", "450", "--anchor", "center", "--margin", "0", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[expect.rect]
+anchor = "center"
+size = [600, 450]
+margin = 0
+tolerance_px = 2

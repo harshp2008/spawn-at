@@ -17,25 +17,14 @@ use std::path::Path;
 /// while it is still empty (`test_known_empty_list_has_no_stale_entries`): the day a spec appears
 /// for it, the entry must be deleted, which is the point of the list.
 ///
-/// All of these are directories under `verify/` that hold only a README (audit gap 7); the
-/// runner can only execute `spawn` actions until audit gap 8 is fixed.
+/// The names `transform`, `query`, `resilience` and `lifecycle` were here until the version 2
+/// catalog specs arrived (`transforms/`, `queries/`, `robustness/` and `focus/`); `lifecycle` also
+/// needed the alias `lifecycle` -> `focus` that `SuiteDefinition::matches` now has. What is left
+/// are directories under `verify/` that hold only a README.
 const KNOWN_EMPTY: &[(&str, &str)] = &[
     ("launchers", "verify/launchers/ holds only a README"),
     ("apps", "verify/apps/ holds only a README"),
-    (
-        "transform",
-        "verify/transform/ holds only a README; aliased to `transforms`, and the ids planned in docs/TEST_PLAN.md live under verify/transforms/",
-    ),
-    (
-        "lifecycle",
-        "verify/lifecycle/ holds only a README. KNOWN GAP: the alias list in suite.rs has no `lifecycle` -> `focus` entry, so a spec in the `focus` category would not be selected by `full` or `release-gate`; add the alias (production change) together with the first focus spec",
-    ),
-    ("query", "verify/query/ holds only a README; aliased to `queries`"),
     ("diagnostics", "verify/diagnostics/ holds only a README"),
-    (
-        "resilience",
-        "verify/resilience/ holds only a README; aliased to `robustness`",
-    ),
     (
         "regression",
         "verify/regression/ holds only a README, and `regression` is not in VALID_CATEGORIES, so the loader would reject a spec in it",
@@ -44,9 +33,9 @@ const KNOWN_EMPTY: &[(&str, &str)] = &[
 
 /// Valid categories that no suite can select, whatever tags a spec has. They have no spec today
 /// (checked below), so nothing is lost yet; a spec in one of them would never run in any suite.
-/// `focus` is the lifecycle -> focus alias gap named in KNOWN_EMPTY; `platform` is named by no
-/// suite at all.
-const UNREACHABLE_CATEGORIES: &[&str] = &["focus", "platform"];
+/// Only `platform` is left: no suite names it and no alias maps to it. (`focus` was here until
+/// the alias `lifecycle` -> `focus` was added together with the first focus specs.)
+const UNREACHABLE_CATEGORIES: &[&str] = &["platform"];
 
 fn registry() -> TestRegistry {
     let verify = Path::new(env!("CARGO_MANIFEST_DIR"))

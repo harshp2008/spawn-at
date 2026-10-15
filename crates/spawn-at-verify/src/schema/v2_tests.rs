@@ -643,3 +643,26 @@ fn test_a_spec_that_launches_a_window_must_carry_the_moves_focus_tag() {
     let def: TestDefinition = toml::from_str(&query_only).unwrap();
     assert!(validate(&def).is_ok());
 }
+
+#[test]
+fn test_matrix_substitutes_the_anchor_the_oracle_expects() {
+    let body = r#"
+[matrix]
+anchor = ["top-left", "center"]
+[[setup]]
+name = "w"
+[action]
+command = "transform"
+args = ["--id", "${w}", "--size", "300", "200", "--anchor", "{anchor}", "--margin", "16"]
+[expect.rect]
+anchor = "{anchor}"
+size = [300, 200]
+margin = 16
+"#;
+    let expanded = v2(body).unwrap().expand_matrix().unwrap();
+    let anchors: Vec<_> = expanded
+        .iter()
+        .map(|t| t.expect.rect.as_ref().unwrap().anchor.clone().unwrap())
+        .collect();
+    assert_eq!(anchors, ["top-left", "center"]);
+}

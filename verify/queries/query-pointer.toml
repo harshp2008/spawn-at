@@ -1,0 +1,19 @@
+schema_version = 2
+id = "queries/query-pointer"
+category = "queries"
+title = "query pointer prints the pointer position"
+description = "Runs `spawn-at query pointer` and checks that it succeeds and prints `x, y`. GNOME only: Sway cannot read the pointer (see robustness/sway-query-pointer-unsupported). Launches no window."
+kind = "auto"
+required = false
+tags = ["existing-window"]
+
+[requires]
+backend = ["gnome"]
+
+[action]
+command = "query"
+args = ["pointer"]
+
+[expect]
+exit_code = 0
+stdout_present = [", "]

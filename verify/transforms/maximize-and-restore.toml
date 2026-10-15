@@ -1,0 +1,45 @@
+schema_version = 2
+id = "transforms/maximize-and-restore"
+category = "transforms"
+title = "Maximize an existing window and restore it"
+description = "Launches the runner's fixture, maximizes that window, then restores it. Automatic checks: it is listed as maximized after the first step, as normal after the second, and back at the rectangle it had before. The human confirms the animation looks right. GNOME only (Sway declares maximize and restore unsupported). Attended."
+kind = "both"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "human-review"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "maximize"
+args = ["--id", "${w}", "--no-focus"]
+
+[[then]]
+command = "restore"
+args = ["--id", "${w}", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+after = 0
+window = "w"
+state = "maximized"
+
+[[check]]
+after = 1
+window = "w"
+state = "normal"
+
+[[check]]
+after = 1
+window = "w"
+same_rect_as = "before"
+
+[human]
+watch = "Did the window maximize and then come back to its old size and place without a jump?"

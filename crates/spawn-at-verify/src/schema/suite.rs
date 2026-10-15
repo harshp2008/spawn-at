@@ -39,6 +39,7 @@ impl SuiteDefinition {
                     || (c == "transform" && test_cat == "transforms")
                     || (c == "query" && test_cat == "queries")
                     || (c == "resilience" && test_cat == "robustness")
+                    || (c == "lifecycle" && test_cat == "focus")
             }) {
                 return false;
             }

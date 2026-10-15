@@ -1,0 +1,19 @@
+schema_version = 2
+id = "queries/query-layout-json"
+category = "queries"
+title = "query layout --json prints the monitors"
+description = "Runs `spawn-at query layout --json` and checks that it succeeds and prints a `monitors` list. Launches no window, moves no focus; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["existing-window", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[action]
+command = "query"
+args = ["layout", "--json"]
+
+[expect]
+exit_code = 0
+stdout_present = ["\"monitors\""]

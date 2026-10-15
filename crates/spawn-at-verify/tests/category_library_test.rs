@@ -296,8 +296,10 @@ fn test_category_filtering_in_registry() {
 }
 
 /// The catalog has the nine hostile-app cells of `verify/hostile/` (each with a declared resize
-/// outcome and exactly one hostile fixture flag), and 45 specs in all: the 36 earlier ones plus
-/// these nine. Fails when a cell is added or removed without this count being updated.
+/// outcome and exactly one hostile fixture flag), and 67 specs in all: the 36 earlier ones, these
+/// nine, and the 22 version 2 specs of `queries/`, `transforms/`, `focus/` and `robustness/` (18
+/// files, the anchor matrix expanding to five). The first 45 are pinned separately by
+/// `catalog_golden_test`. Fails when a cell is added or removed without this count being updated.
 #[test]
 fn test_catalog_count_and_hostile_cells() {
     let verify_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -307,7 +309,7 @@ fn test_catalog_count_and_hostile_cells() {
         .unwrap()
         .join("verify");
     let registry = TestRegistry::load_from_dir(&verify_path).expect("failed to load registry");
-    assert_eq!(registry.tests.len(), 45, "catalog size");
+    assert_eq!(registry.tests.len(), 67, "catalog size");
 
     let hostile: Vec<_> = registry
         .tests

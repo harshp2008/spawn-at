@@ -1,0 +1,27 @@
+schema_version = 2
+id = "queries/query-windows-lists-fixture"
+category = "queries"
+title = "query windows lists a fixture window"
+description = "Launches the runner's own fixture window, runs `spawn-at query windows --json` and checks that the printed list holds that window (its recorded id and unique title). Attended on GNOME (the new window takes focus); unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "query"
+args = ["windows", "--json"]
+
+[expect]
+exit_code = 0
+stdout_lists_window = "w"
+
+[[check]]
+window = "w"
+state = "present"

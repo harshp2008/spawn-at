@@ -1,0 +1,32 @@
+schema_version = 2
+id = "transforms/resize-flash"
+category = "transforms"
+title = "Resize an existing window: does it look right?"
+description = "Launches the runner's fixture at 400x300 and resizes that window to 700x500 centred (`transform --id`). The automatic part only checks the final rectangle. The flicker question is answered by YOUR EYE: this spec does NOT trace, measure or claim anything about flicker (no extension trace, no flash numbers); flash measurement for transform is a later task. Attended, GNOME only."
+kind = "both"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "human-review"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--size", "700", "500", "--anchor", "center", "--margin", "0", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[expect.rect]
+anchor = "center"
+size = [700, 500]
+margin = 0
+tolerance_px = 2
+
+[human]
+watch = "Did the window change size once and settle in the centre, without a blank frame, an old-size frame or a jump? (Your eye is the only measurement here.)"

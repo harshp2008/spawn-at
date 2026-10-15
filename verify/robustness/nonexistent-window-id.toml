@@ -1,0 +1,19 @@
+schema_version = 2
+id = "robustness/nonexistent-window-id"
+category = "robustness"
+title = "transform of a window id that does not exist"
+description = "Runs `transform --id <id>` with an id the runner has just seen is not a window (the highest listed id plus 1,000,000, re-checked absent right before) and checks the clean error: exit code 1 and `No window with id`. Launches no window and touches no real one; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["existing-window", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[action]
+command = "transform"
+args = ["--id", "${nonexistent}", "--size", "400", "300"]
+
+[expect]
+exit_code = 1
+stderr_present = ["No window with id ${nonexistent}"]

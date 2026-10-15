@@ -1,0 +1,32 @@
+schema_version = 2
+id = "transforms/anchor-corners"
+category = "transforms"
+title = "Move an existing window to the {anchor} anchor"
+description = "Launches the runner's fixture at 400x300, resizes it to 300x200 and anchors it at {anchor} with a 16 px margin (`transform --id`), then checks the rectangle within 2 px. One spec, five expansions (the four corners and the centre). Attended on GNOME; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[matrix]
+anchor = ["top-left", "top-right", "bottom-left", "bottom-right", "center"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--size", "300", "200", "--anchor", "{anchor}", "--margin", "16", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[expect.rect]
+anchor = "{anchor}"
+size = [300, 200]
+margin = 16
+tolerance_px = 2

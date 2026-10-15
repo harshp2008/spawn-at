@@ -1,0 +1,40 @@
+schema_version = 2
+id = "transforms/minimize-and-restore"
+category = "transforms"
+title = "Minimize an existing window and restore it"
+description = "Launches the runner's fixture, minimizes that window, then restores it. Automatic checks: it is listed as minimized after the first step and as normal after the second. The human confirms the minimize and restore animations look right. GNOME only (Sway declares minimize and restore unsupported). Attended."
+kind = "both"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "human-review"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "minimize"
+args = ["--id", "${w}"]
+
+[[then]]
+command = "restore"
+args = ["--id", "${w}", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+after = 0
+window = "w"
+state = "minimized"
+
+[[check]]
+after = 1
+window = "w"
+state = "normal"
+
+[human]
+watch = "Did the window minimize smoothly and come back smoothly, without a stray frame at the old size?"

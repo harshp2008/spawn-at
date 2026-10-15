@@ -155,6 +155,7 @@ impl TestRegistry {
                         || (clean_cat == "transform" && test.category() == "transforms")
                         || (clean_cat == "query" && test.category() == "queries")
                         || (clean_cat == "resilience" && test.category() == "robustness")
+                        || (clean_cat == "lifecycle" && test.category() == "focus")
                         || test.id.starts_with(clean_cat);
                     if !cat_matches {
                         return false;
