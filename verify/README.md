@@ -154,6 +154,36 @@ margin = 0
 ### Ctrl-C, SIGTERM and SIGHUP in `run`
 `spawn-at-verify run` stops starting tests on any of these signals, closes the windows it opened (by id) and stops the fixture processes it started, writes the report for what ran, and exits with **130**. An interrupted repetition is dropped, not counted as flaky. The wait inside one `spawn-at` action (up to the 5 s step timeout) is not interrupted.
 
+### The specs for an existing window (22 entries, 18 files)
+All are `schema_version = 2`, `required = false`, launch only the runner's own fixture (`[[setup]]`) and act with `--id ${name}`. Every spec that launches a window has the tag `moves-focus` (so `quick` leaves it out); `existing-window` marks the group; `headless-safe` marks the ones that can run unattended on a private headless Sway (`scripts/verify-sway.sh`). None carries the tag `visual`, so the `visual` suite is unchanged. They are in `full` (the suite aliases `transform`, `query`, `resilience` and `lifecycle` select the new `transforms/`, `queries/`, `robustness/` and `focus/` categories) and not in `release-gate` (nothing is required).
+
+| Id | Kind | Backends | Unattended on headless Sway |
+| :-- | :-- | :-- | :-- |
+| `queries/query-windows-lists-fixture` | Auto | gnome, sway | yes |
+| `queries/query-layout-json` (no window) | Auto | gnome, sway | yes |
+| `queries/query-pointer` | Auto | gnome | n/a (Sway cannot read the pointer) |
+| `transforms/resize-by-id` | Auto | gnome, sway | yes |
+| `transforms/reposition-by-id` (position only) | Auto | gnome | n/a (a fresh tiled Sway window is work-area sized, so "size unchanged" is not 400x300) |
+| `transforms/anchor-corners/anchor-{top-left,top-right,bottom-left,bottom-right,center}` (one file, a matrix) | Auto | gnome, sway | yes |
+| `transforms/resize-flash`, `transforms/move-flash` | **Both** | gnome | n/a. They check the final rectangle and ask you to judge by eye; they do **not** trace or measure flicker (that is a later task) |
+| `transforms/maximize-and-restore`, `transforms/minimize-and-restore` | **Both** | gnome | n/a (Sway declares them unsupported) |
+| `focus/activate-fixture`, `focus/switch-between-windows` (two windows) | Auto | gnome, sway | yes |
+| `focus/defocus-active-window` | Auto | gnome | n/a (Sway: defocus unsupported) |
+| `robustness/close-by-id` (window gone and the fixture process ended) | Auto | gnome, sway | yes |
+| `robustness/nonexistent-window-id` (no window launched) | Auto | gnome, sway | yes |
+| `robustness/sway-defocus-unsupported`, `robustness/sway-maximize-unsupported`, `robustness/sway-query-pointer-unsupported` | Auto | sway | yes |
+
+A spec on a backend it does not list is **Skipped** with `unsupported on this backend (<backend>): spec requires <list>` (shown as `⊘` in the TUI list, `SKIPPED` and the reason in the result box).
+
+**Unattended, private headless Sway only** (starts and stops its own Sway; nothing of your desktop is touched): `scripts/verify-sway.sh` runs every `headless-safe` spec (15 entries). `scripts/verify-sway.sh -- --tag existing-window` runs all 22 and shows the GNOME-only ones as Skipped.
+
+**On GNOME, by hand, attended, when the desktop is idle** (these specs open fixture windows that take focus and move them; never started automatically, and `quick` does not include them):
+1. `cargo build -p spawn-at -p spawn-at-verify --features spawn-at-verify/fixture` on a clean tree, so the binary matches `HEAD` (otherwise every test is Blocked as a stale binary).
+2. The Auto specs: `target/debug/spawn-at-verify run --tag existing-window --kind auto`. You will see small windows titled `verify-<pid>-<time>-<n>-<spec>-<name>` appear, take focus, move, resize, change focus and close, one test after another; focus returns to the window you were in. The three Sway contract specs show as Skipped. The result and a report are written under `verify-results/`.
+3. The Both specs: `target/debug/spawn-at-verify tui --tag human-review` (the `tui` command has `--tag` but no `--kind`). Select a spec, press `r`. The window stays open after the automatic part; answer the question shown with `p` (pass), `x` (fail), `s` (skip) or `k` (flaky); the window closes when you answer. (`run` leaves a Both window open until the end of the run, so use the TUI for them.)
+4. Ctrl-C at any time closes what the run opened.
+GNOME behaviour of these specs has not been run by the author of this change (no live GNOME test was allowed); the first run on GNOME is the first evidence.
+
 ---
 
 ## 3. Directory Structure & Categories

@@ -1,0 +1,19 @@
+schema_version = 2
+id = "robustness/sway-query-pointer-unsupported"
+category = "robustness"
+title = "Sway: query pointer says it is unsupported"
+description = "Contract test of a documented limit: on Sway `query pointer` exits 1 with `does not support this feature: get_cursor_position`. Launches no window. Sway only; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["existing-window", "headless-safe"]
+
+[requires]
+backend = ["sway"]
+
+[action]
+command = "query"
+args = ["pointer"]
+
+[expect]
+exit_code = 1
+stderr_present = ["does not support this feature: get_cursor_position"]

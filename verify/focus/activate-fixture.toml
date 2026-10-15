@@ -1,0 +1,35 @@
+schema_version = 2
+id = "focus/activate-fixture"
+category = "focus"
+title = "Focus one of two fixture windows by id"
+description = "Launches two fixture windows (a, then b, so b has focus), focuses a by its recorded id, and checks that a is focused and b is not. Attended on GNOME; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "a"
+args = ["--width", "400", "--height", "300"]
+
+[[setup]]
+name = "b"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "focus"
+args = ["--id", "${a}"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+window = "a"
+state = "focused"
+
+[[check]]
+window = "b"
+state = "unfocused"

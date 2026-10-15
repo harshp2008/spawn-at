@@ -1,0 +1,29 @@
+schema_version = 2
+id = "transforms/reposition-by-id"
+category = "transforms"
+title = "Reposition an existing window by id"
+description = "Launches the runner's fixture at 400x300 and moves that window to the top-left corner with a 40 px margin without changing its size (`transform --id`, no `--size`), then checks the rectangle within 2 px. GNOME only, attended: on Sway a fresh tiled window is as large as the work area (1920x1080), so \"size unchanged\" is not 400x300 there (found on a private headless Sway; Sway's placement is covered by transforms/resize-by-id and transforms/anchor-corners, which set the size)."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--anchor", "top-left", "--margin", "40", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[expect.rect]
+anchor = "top-left"
+size = [400, 300]
+margin = 40
+tolerance_px = 2

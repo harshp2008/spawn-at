@@ -143,6 +143,13 @@ impl TestDefinition {
                 hum.watch = substitute_str(&hum.watch);
             }
 
+            // The anchor and pivot the oracle expects can follow the matrix too (a spec that walks
+            // the anchors). A spec whose `[expect.rect]` has no `{key}` there is untouched.
+            if let Some(rect) = &mut clone.expect.rect {
+                rect.anchor = rect.anchor.as_deref().map(substitute_str);
+                rect.pivot = rect.pivot.as_deref().map(substitute_str);
+            }
+
             // Version 2 fields. A version 1 spec has none, so nothing changes for it.
             for setup in &mut clone.v2.setup {
                 setup.args = setup.args.iter().map(|a| substitute_str(a)).collect();

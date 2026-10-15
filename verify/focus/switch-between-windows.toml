@@ -1,0 +1,46 @@
+schema_version = 2
+id = "focus/switch-between-windows"
+category = "focus"
+title = "Switch focus between two fixture windows"
+description = "Launches two fixture windows (a, then b), focuses a, then focuses b, by their recorded ids. Checks that a has focus after the first step and b after the second. Attended on GNOME; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "a"
+args = ["--width", "400", "--height", "300"]
+
+[[setup]]
+name = "b"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "focus"
+args = ["--id", "${a}"]
+
+[[then]]
+command = "focus"
+args = ["--id", "${b}"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+after = 0
+window = "a"
+state = "focused"
+
+[[check]]
+after = 1
+window = "b"
+state = "focused"
+
+[[check]]
+after = 1
+window = "a"
+state = "unfocused"

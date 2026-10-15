@@ -1,0 +1,23 @@
+schema_version = 2
+id = "robustness/sway-maximize-unsupported"
+category = "robustness"
+title = "Sway: maximize says it is unsupported"
+description = "Contract test of a documented limit: on Sway `maximize --id` of a fixture window exits 1 with `does not support this feature: set_window_state`. Sway only; unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["sway"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "maximize"
+args = ["--id", "${w}", "--no-focus"]
+
+[expect]
+exit_code = 1
+stderr_present = ["does not support this feature: set_window_state"]

@@ -1,0 +1,35 @@
+schema_version = 2
+id = "focus/defocus-active-window"
+category = "focus"
+title = "Defocus a fixture window and hand focus to another"
+description = "Launches two fixture windows (a, then b, so b has focus), defocuses b by its recorded id and names a as the destination (the runner's unique title of a). Checks that b is no longer focused and a is. On GNOME a destination is looked up by class or application id, so a title finds nothing and the extension falls back to the most recently used window, which is a here. GNOME only (Sway declares defocus unsupported). Attended."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "a"
+args = ["--width", "400", "--height", "300"]
+
+[[setup]]
+name = "b"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "defocus"
+args = ["--id", "${b}", "--to-window", "${a.title}"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+window = "b"
+state = "unfocused"
+
+[[check]]
+window = "a"
+state = "focused"

@@ -1,0 +1,32 @@
+schema_version = 2
+id = "transforms/move-flash"
+category = "transforms"
+title = "Move an existing window: does it look right?"
+description = "Launches the runner's fixture at 400x300 and moves that window to the bottom-right corner with a 16 px margin (`transform --id`, no resize). The automatic part only checks the final rectangle. The flicker question is answered by YOUR EYE: this spec does NOT trace, measure or claim anything about flicker (no extension trace, no flash numbers); flash measurement for transform is a later task. Attended, GNOME only."
+kind = "both"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "human-review"]
+
+[requires]
+backend = ["gnome"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "transform"
+args = ["--id", "${w}", "--anchor", "bottom-right", "--margin", "16", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 16
+tolerance_px = 2
+
+[human]
+watch = "Did the window move to the bottom-right corner in one step, without a jump or a ghost at the old place? (Your eye is the only measurement here.)"

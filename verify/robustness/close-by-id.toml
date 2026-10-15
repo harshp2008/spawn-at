@@ -1,0 +1,31 @@
+schema_version = 2
+id = "robustness/close-by-id"
+category = "robustness"
+title = "Close a fixture window by id"
+description = "Launches the runner's fixture window and closes it by its recorded id (`close --id`). Checks that the window leaves `query windows` and that the fixture process this run started has ended. Attended on GNOME (the new window takes focus); unattended on a private headless Sway."
+kind = "auto"
+required = false
+tags = ["needs-fixture", "existing-window", "moves-focus", "headless-safe"]
+
+[requires]
+backend = ["gnome", "sway"]
+
+[[setup]]
+name = "w"
+args = ["--width", "400", "--height", "300"]
+
+[action]
+command = "close"
+args = ["--id", "${w}"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+
+[[check]]
+window = "w"
+state = "gone"
+
+[[check]]
+window = "w"
+process_exited = true
