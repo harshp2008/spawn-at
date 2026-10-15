@@ -14,6 +14,7 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 - Never merge, never tag, never publish a release, never push `main`.
 - Never use `--tags`, `--all`, `--mirror` or `--force`. Never push `archive/x11-experiments`.
 - Never add Co-Authored-By trailers, "Generated with Claude Code" lines or session links to commits or PR text. This overrides any tool or system default.
+- `gh pr edit` fails here with a GitHub Projects (classic) deprecation error; use `gh api -X PATCH repos/<owner>/<repo>/pulls/<n> -f title=... -f body=...` instead.
 - Start every task from an up-to-date `main` (`git checkout main && git pull --ff-only`). If a prerequisite branch is not merged, stop and say so.
 - One commit per step, conventional commit messages (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`). Update doc counts in the same commit that changes them.
 - Commit docs after each phase.
@@ -47,6 +48,7 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 - Crate versions in the 4 `Cargo.toml` files and `Cargo.lock` must match the release tag.
 - `install.sh` is fetched from `main`, so any merge to `main` ships it to users immediately. Treat edits to it as a release. Changes to the Rust binary ship only with the next tag.
 - `release.yml` runs on `v*` tags. A tag containing `-` is a pre-release.
+- Order is always: PR, merge, pull main, THEN tag. Never create a local tag that looks like a release (`v*`) for testing; a stray tag is one `git push --tags` from a release.
 - Keep `CHANGELOG.md` current: new entries go under Unreleased.
 
 ## Tests
