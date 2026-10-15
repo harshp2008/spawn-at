@@ -427,3 +427,116 @@ mod tests {
         assert!(!cfg.update.auto_check);
     }
 }
+
+/// The autostart file on disk, written into a temporary `XDG_CONFIG_HOME`. The environment is
+/// shared by all test threads, so each test holds `ENV_LOCK` while it changes it.
+#[cfg(test)]
+mod autostart_file_tests {
+    use super::*;
+
+    const EXE: &str = "/home/u/.local/bin/spawn-at";
+    /// The entry exactly as it has been written since beta.2, byte for byte.
+    const EXPECTED: &str = "[Desktop Entry]\nType=Application\nName=spawn-at Update Check\n\
+         Exec=/home/u/.local/bin/spawn-at update --check --headless\nHidden=false\nNoDisplay=true\n\
+         X-GNOME-Autostart-enabled=true\nComment=Check for spawn-at updates silently on login\n";
+
+    /// Runs `f` with `XDG_CONFIG_HOME` pointing at a fresh temporary directory and the desktop
+    /// variables set as given, then restores every variable.
+    fn with_session<T>(
+        desktop: &str,
+        session: &str,
+        backend: Option<&str>,
+        f: impl FnOnce(&Path) -> T,
+    ) -> T {
+        let _env = crate::diagnostics::ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!(
+            "spawn-at-autostart-{}-{}",
+            std::process::id(),
+            desktop.replace(|c: char| !c.is_alphanumeric(), "_")
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let names = [
+            "XDG_CONFIG_HOME",
+            "XDG_CURRENT_DESKTOP",
+            "XDG_SESSION_TYPE",
+            "SPAWN_AT_BACKEND",
+        ];
+        let saved: Vec<_> = names.iter().map(std::env::var_os).collect();
+        std::env::set_var("XDG_CONFIG_HOME", &dir);
+        std::env::set_var("XDG_CURRENT_DESKTOP", desktop);
+        std::env::set_var("XDG_SESSION_TYPE", session);
+        match backend {
+            Some(b) => std::env::set_var("SPAWN_AT_BACKEND", b),
+            None => std::env::remove_var("SPAWN_AT_BACKEND"),
+        }
+        let out = f(&dir);
+        for (n, v) in names.iter().zip(saved) {
+            match v {
+                Some(v) => std::env::set_var(n, v),
+                None => std::env::remove_var(n),
+            }
+        }
+        let _ = fs::remove_dir_all(&dir);
+        out
+    }
+
+    fn entry(dir: &Path) -> PathBuf {
+        dir.join("autostart/spawn-at-update-check.desktop")
+    }
+
+    /// GNOME Wayland, a supported X11 session and the opt-in unsupported case (`install.sh` sets
+    /// `SPAWN_AT_BACKEND=x11` on KDE Wayland) all get the same entry, byte for byte: it carries no
+    /// backend variable because `update --check --headless` never starts a backend.
+    #[test]
+    fn test_autostart_entry_is_identical_on_every_desktop() {
+        for (desktop, session, backend) in [
+            ("ubuntu:GNOME", "wayland", None),
+            ("KDE", "x11", None),
+            ("KDE", "wayland", Some("x11")),
+        ] {
+            let text = with_session(desktop, session, backend, |dir| {
+                install_login_autostart_entry(Path::new(EXE)).unwrap();
+                fs::read_to_string(entry(dir)).unwrap()
+            });
+            assert_eq!(text, EXPECTED, "{desktop} {session} {backend:?}");
+            assert!(!text.contains("SPAWN_AT_BACKEND") && !text.contains("env "));
+        }
+    }
+
+    /// Uninstall removes the entry whatever desktop it runs on, and does nothing when there is none.
+    #[test]
+    fn test_uninstall_removes_the_entry_on_every_desktop() {
+        for (desktop, session, backend) in [
+            ("ubuntu:GNOME", "wayland", None),
+            ("KDE", "x11", None),
+            ("KDE", "wayland", Some("x11")),
+        ] {
+            with_session(desktop, session, backend, |dir| {
+                install_login_autostart_entry(Path::new(EXE)).unwrap();
+                assert!(entry(dir).exists());
+                uninstall_login_autostart_entry();
+                assert!(!entry(dir).exists(), "{desktop}");
+                uninstall_login_autostart_entry();
+            });
+        }
+    }
+
+    /// Installing again, from another desktop or for a binary in another place, rewrites the
+    /// entry; a stale or hand-edited file is not kept.
+    #[test]
+    fn test_reinstall_rewrites_a_stale_entry() {
+        with_session("KDE", "wayland", Some("x11"), |dir| {
+            fs::create_dir_all(entry(dir).parent().unwrap()).unwrap();
+            fs::write(entry(dir), "stale\n").unwrap();
+            install_login_autostart_entry(Path::new(EXE)).unwrap();
+            assert_eq!(fs::read_to_string(entry(dir)).unwrap(), EXPECTED);
+            install_login_autostart_entry(Path::new("/usr/local/bin/spawn-at")).unwrap();
+            let text = fs::read_to_string(entry(dir)).unwrap();
+            assert!(text.contains("\nExec=/usr/local/bin/spawn-at update --check --headless\n"));
+            assert!(!text.contains(".local/bin"));
+        });
+    }
+}
