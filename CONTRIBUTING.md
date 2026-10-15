@@ -98,7 +98,7 @@ Create a new module under `src/platform/linux/` (a file `<driver_name>.rs`, or a
 - **`Driver`** (`crates/spawn-at-core/src/driver.rs`): the compositor-facing operations. `arm(batch)` is the required one; the rest have defaults. Read the trait for the current method list.
 - **`CompositorBackend`** (`src/platform/mod.rs`): extends `Driver` with `name()`, install and uninstall hooks, and capability flags such as `supports_runtime_transform` and `supports_close`.
 
-`src/platform/linux/x11/mod.rs` (`X11Driver`) is an example to copy; `src/platform/linux/gnome/mod.rs` (`GnomeWaylandDriver`) is the D-Bus one. Application-ID resolution for a command lives in `src/platform/linux/xdg.rs`.
+`src/platform/linux/x11/mod.rs` (`X11Driver`) is an example to copy; `src/platform/linux/gnome/` (`GnomeWaylandDriver` in `driver.rs`) is the D-Bus one. Application-ID resolution for a command lives in `src/platform/linux/xdg.rs`.
 
 ### Step 2: Register in `src/platform/linux/mod.rs`
 1. Add `pub mod <driver_name>;` in `src/platform/linux/mod.rs`.

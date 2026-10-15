@@ -2,13 +2,11 @@
 //!
 //! Submodules:
 //! - `atoms`: X11 atom manager and diagnostic logging macros.
-//! - `process`: Process tree introspection via `/proc/{pid}/stat`.
 //! - `session`: Dedicated X11 connection, window queries, and basic EWMH operations.
 //! - `interception`: Spawn interception event loop and geometry negotiation.
 
 pub mod atoms;
 pub mod interception;
-pub mod process;
 pub mod session;
 
 #[cfg(test)]
@@ -68,6 +66,16 @@ impl CompositorBackend for X11Driver {
 
     fn supports_close(&self) -> bool {
         true
+    }
+
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        crate::platform::capability::Capabilities {
+            runtime_transform: true,
+            claim_wait: false,
+            close: true,
+            reveal_control: false,
+            needs_helper: false,
+        }
     }
 
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {

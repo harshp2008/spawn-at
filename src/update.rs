@@ -300,18 +300,7 @@ pub fn trigger_background_check_if_needed(cfg: &mut Config) {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
-            #[cfg(unix)]
-            {
-                use std::os::unix::process::CommandExt;
-                unsafe {
-                    bg_cmd.pre_exec(|| {
-                        if libc::setsid() < 0 {
-                            libc::setpgid(0, 0);
-                        }
-                        Ok(())
-                    });
-                }
-            }
+            crate::platform::host().detach_child(&mut bg_cmd);
             let _ = bg_cmd.spawn();
         }
     }
@@ -585,9 +574,16 @@ pub fn render_update_notice_if_available() {
     }
 }
 
+/// The name of the release asset for a build target: `spawn-at-<target triple>.tar.gz`, for
+/// example `spawn-at-x86_64-unknown-linux-gnu.tar.gz` (the only one released so far).
+pub fn asset_name_for(target: &str) -> String {
+    format!("spawn-at-{target}.tar.gz")
+}
+
 /// Downloads and installs the specified release binary and updates extensions.
 pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
-    let asset_name = "spawn-at-x86_64-unknown-linux-gnu.tar.gz";
+    let asset_name = asset_name_for(env!("SPAWN_AT_TARGET"));
+    let asset_name = asset_name.as_str();
     let asset = release
         .assets
         .iter()
@@ -656,22 +652,8 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         return Err("Extracted 'spawn-at' is not a regular file".to_string());
     }
 
-    // Deploy extensions from the new binary itself
-    let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-        .unwrap_or_default()
-        .to_uppercase();
-    if desktop.contains("GNOME") {
-        println!("Deploying GNOME Shell extension via newly unpacked binary...");
-        let ext_status = Command::new(&new_binary)
-            .args(["install", "--skip-bin", "--headless"])
-            .status();
-        if let Err(e) = ext_status {
-            crate::diagnostics::render_warning(&format!(
-                "Failed to install GNOME extension from new binary: {}",
-                e
-            ));
-        }
-    }
+    // Deploy what the desktop needs from the new binary itself (GNOME: the Shell extension)
+    crate::platform::update_hooks().after_unpack(&new_binary);
 
     // Identify target installation path
     let current_exe =
@@ -717,15 +699,12 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
         release.tag_name
     );
     // Last of all: record what is known and let session::finish() ask whether to log out or
-    // reload the Shell (only on GNOME, in a terminal), then do it (see session.rs).
-    let on_gnome = std::env::var("XDG_CURRENT_DESKTOP")
-        .unwrap_or_default()
-        .to_uppercase()
-        .contains("GNOME");
-    if on_gnome && std::io::stdout().is_terminal() {
+    // reload the Shell (where the desktop offers it, in a terminal), then do it (see session.rs).
+    let hooks = crate::platform::update_hooks();
+    if hooks.offers_session_action() && std::io::stdout().is_terminal() {
         crate::session::record(crate::session::Pending {
             flow: crate::session::Flow::Update,
-            is_wayland: crate::platform::linux::gnome::is_wayland_session(),
+            is_wayland: hooks.session_is_wayland(),
             decision: crate::session::Decision::Ask,
         });
     }

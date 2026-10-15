@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 spawn-at-core = { path = "crates/spawn-at-core" }
 clap = { version = "4.5", features = ["derive"] }
-zbus = { version = "4.4", features = ["blocking", "tokio"] }
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros", "process", "time"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
@@ -14,9 +13,17 @@ dialoguer = { version = "0.11", default-features = false, features = ["editor"] 
 toml = "1.1.6"
 async-trait = "0.1.92"
 strsim = "0.11"
-x11rb = { version = "0.14", features = ["randr"] }
 futures-util = "0.3"
 semver = "1.0.28"
+
+# Linux-only: the GNOME D-Bus driver and the X11 driver (src/platform/linux). Other systems are
+# not supported yet and must not pull these crates in.
+[target.'cfg(target_os = "linux")'.dependencies]
+zbus = { version = "4.4", features = ["blocking", "tokio"] }
+x11rb = { version = "0.14", features = ["randr"] }
+
+# Unix-only: terminal size (update.rs), the child's own session (platform/linux/host.rs), tests.
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"
 
 [workspace]

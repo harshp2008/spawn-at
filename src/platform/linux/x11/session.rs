@@ -1,7 +1,7 @@
 //! # X11 Display Session and Window Operations
 
 use super::atoms::{x11_debug, Atoms};
-use super::process::is_process_descendant;
+use crate::platform::linux::process_tree::is_process_descendant;
 use crate::platform::{DriverError, LayoutRect, MonitorInfo, MonitorLayout, Rect, WindowMetadata};
 use crate::target::{self, WindowSelector};
 use x11rb::connection::Connection;

@@ -1,6 +1,9 @@
 //! # spawn-at-verify
 //! Verification Engine & Test Harness for `spawn-at`.
 
+// The harness drives a GNOME session with unix system calls (libc), so off unix the crate is
+// empty and its binary only says so (see Cargo.toml).
+#![cfg(unix)]
 #![warn(missing_docs)]
 
 pub mod cli;

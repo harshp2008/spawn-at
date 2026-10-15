@@ -45,3 +45,31 @@ jobs:
 
       - name: Test GNOME extension (node)
         run: node --test tests/*.js
+
+  # Other operating systems are not supported yet; this only keeps the whole workspace compiling
+  # there. Linux-only crates (zbus, x11rb) are not in their dependency tree. `cargo check` does not
+  # link, so the Ubuntu runner is enough. Tests are not built off Linux. spawn-at-verify is an
+  # empty crate off unix; with its `fixture` feature it also needs unix, so on Windows it is
+  # checked without features.
+  check-other-os:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: x86_64-pc-windows-gnu,x86_64-apple-darwin,aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Check Windows (compile only, whole workspace)
+        run: cargo check --locked --workspace --target x86_64-pc-windows-gnu
+      - name: Check macOS Intel (compile only, whole workspace)
+        run: cargo check --locked --workspace --target x86_64-apple-darwin --features spawn-at-verify/tui,spawn-at-verify/fixture
+      - name: Check macOS Apple silicon (compile only, whole workspace)
+        run: cargo check --locked --workspace --target aarch64-apple-darwin --features spawn-at-verify/tui,spawn-at-verify/fixture
+      - name: Linux-only crates are not pulled in off Linux
+        run: |
+          for t in x86_64-pc-windows-gnu x86_64-apple-darwin aarch64-apple-darwin; do
+            if cargo tree --locked -p spawn-at --target "$t" -e normal,build | grep -E ' (zbus|x11rb) v'; then
+              echo "zbus or x11rb is in the dependency tree for $t" >&2
+              exit 1
+            fi
+          done

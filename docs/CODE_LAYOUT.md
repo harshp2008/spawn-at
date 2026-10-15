@@ -17,7 +17,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ## Facts that constrain moving files
 
-- **Embedded extension files.** `src/platform/linux/gnome/mod.rs` embeds `assets/gnome/modern/*` and `assets/gnome/legacy/*` with `include_str!("../../../../assets/gnome/...")`. Moving that file changes the relative path. The test `test_embedded_extension_files_match_disk` in the same file asserts that the embedded lists match the directories exactly.
+- **Embedded extension files.** `src/platform/linux/gnome/deploy.rs` embeds `assets/gnome/modern/*` and `assets/gnome/legacy/*` with `include_str!("../../../../assets/gnome/...")`. Moving that file changes the relative path. The test `test_embedded_extension_files_match_disk` in `gnome/tests.rs` asserts that the embedded lists match the directories exactly.
 - **Cargo targets of `spawn-at-verify`** are declared in its `Cargo.toml`: `[[bin]]` `spawn-at-verify` (`src/main.rs`) and `fixture` (`src/bin/fixture.rs`, `required-features = ["fixture"]`), and `[[test]]` entries `fixture_test` (needs `fixture`), `oracle_cross_check`, `trace_analyser_test`, `trace_state_test`, `tui_test` (needs `tui`) and `render_test` (needs `tui`). Other files under `tests/` are found by Cargo's default discovery.
 - **Release packaging.** `install.sh` downloads the release tarball and needs `spawn-at` in it; `.github/workflows/release.yml` builds `target/release/spawn-at` from the repository root. `scripts/smoke-live.sh` hard-codes `target/debug/spawn-at` and `target/debug/spawn-at-verify`.
 - **Shared golden data.** `verify/golden/placement.json` is read by `crates/spawn-at-core/tests/golden_placement.rs`, `crates/spawn-at-verify/src/oracle/tests/vectors.rs` and `tests/golden_anchor_test.js`. `crates/spawn-at-verify/tests/fixtures/` holds recorded runs with a `SHA256SUMS`, and `crates/spawn-at-verify/tests/golden/` holds five `drawer_*.txt` terminal snapshots.
@@ -35,36 +35,50 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/commands/config.rs` | 40 | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
 | `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
 | `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
-| `src/commands/mod.rs` | 1487 | Command Handlers |
-| `src/commands/query.rs` | 817 | Compositor State Query Command Handlers |
-| `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
-| `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
-| `src/config.rs` | 430 | Configuration Manager |
+| `src/commands/mod.rs` | 1489 | Command Handlers |
+| `src/commands/query.rs` | 816 | Compositor State Query Command Handlers |
+| `src/commands/spawn.rs` | 1325 | Spawn Command Handler |
+| `src/commands/transform.rs` | 368 | Window Transformation Command Handler |
+| `src/config.rs` | 429 | Configuration Manager |
 | `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
-| `src/main.rs` | 452 | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/main.rs` | 454 | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/platform/capability.rs` | 422 | What a backend can do, and narrow views of the backend trait. |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
-| `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
+| `src/platform/host.rs` | 35 | What the operating system decides: bin dirs, autostart path, executable test, detaching a child. |
+| `src/platform/installer.rs` | 226 | OS-Level Binary Installer & Uninstaller |
 | `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/host.rs` | 137 | The Linux Host: the values the installer, the update check and the launcher always used. |
+| `src/platform/linux/gnome/args.rs` | 73 | Command-line flags of the GNOME install and uninstall steps. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
+| `src/platform/linux/gnome/deploy.rs` | 438 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
+| `src/platform/linux/gnome/detect.rs` | 112 | Detection of the GNOME Shell version and of a Wayland session. |
+| `src/platform/linux/gnome/driver.rs` | 529 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 1886 | GNOME Compositor Backend & Extension Driver |
-| `src/platform/linux/mod.rs` | 676 |  |
+| `src/platform/linux/gnome/mod.rs` | 78 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/tests.rs` | 780 |  |
+| `src/platform/linux/mod.rs` | 677 |  |
+| `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
+| `src/platform/linux/registry.rs` | 189 | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
-| `src/platform/linux/x11/mod.rs` | 395 | Native X11 Compositor Driver |
-| `src/platform/linux/x11/process.rs` | 30 | Process Tree Introspection Helpers |
+| `src/platform/linux/x11/mod.rs` | 403 | Native X11 Compositor Driver |
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 320 | Platform & Compositor Driver Abstraction Layer |
-| `src/platform/upgrade.rs` | 752 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
+| `src/platform/mod.rs` | 395 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/null_backend.rs` | 71 | The backend of an operating system spawn-at does not support. |
+| `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
+| `src/platform/session_actions.rs` | 36 | What ends a run: logging out, or reloading the shell. |
+| `src/platform/update_hooks.rs` | 66 | What `spawn-at update` needs to know about the desktop. |
+| `src/platform/non_linux.rs` | 81 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
+| `src/platform/upgrade.rs` | 750 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
 | `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
-| `src/session.rs` | 856 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
+| `src/session.rs` | 854 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
 | `src/ui.rs` | 308 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
-| `src/update.rs` | 1424 | Update Manager & Release Checker |
+| `src/update.rs` | 1403 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 
@@ -116,7 +130,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/cli/tui.rs` | 30 | Handler for `spawn-at-verify tui` subcommand. |
 | `crates/spawn-at-verify/src/display.rs` | 180 | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
 | `crates/spawn-at-verify/src/ext_logging.rs` | 605 | Control of the GNOME extension's timing log over session D-Bus. |
-| `crates/spawn-at-verify/src/lib.rs` | 24 | spawn-at-verify |
+| `crates/spawn-at-verify/src/lib.rs` | 27 | spawn-at-verify |
 | `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
 | `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
 | `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
@@ -124,7 +138,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/loader/tests.rs` | 231 | Unit tests for test loader, filtering, and tree visualization. |
 | `crates/spawn-at-verify/src/loader/tree.rs` | 76 | Hierarchical formatting and summary generation for test definitions. |
 | `crates/spawn-at-verify/src/log_source.rs` | 192 | Log Capture Abstraction (`LogSource` trait). |
-| `crates/spawn-at-verify/src/main.rs` | 10 | CLI binary entrypoint for spawn-at-verify. |
+| `crates/spawn-at-verify/src/main.rs` | 20 | CLI binary entrypoint for spawn-at-verify. |
 | `crates/spawn-at-verify/src/no_config.rs` | 50 | Keeps the user's `spawn-at` config file out of harness runs. |
 | `crates/spawn-at-verify/src/oracle/calculator.rs` | 244 | Mathematical placement calculations, anchor formulas, and pivot offsets. |
 | `crates/spawn-at-verify/src/oracle/check.rs` | 730 | Comparison of an observed placement against the oracle's expected rectangle. |

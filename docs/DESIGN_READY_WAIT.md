@@ -58,15 +58,15 @@ Not used anywhere: `Meta.Window.allows_resize` (grep: no use in the repo; CONFIR
 | Declarative intent | `crates/spawn-at-core/src/driver.rs` `Batch`, `Entry`, `Reveal`, `Driver::arm` | what to place; **no readiness concept at all** | neutral |
 | Geometry maths | `crates/spawn-at-core/src/geometry.rs` `calculate_rect_from_placement` (`:479`), `apply_anchor`, `clamp_to_bounds`, `compute_screen_anchor` | anchor/pivot/margin to rect | neutral |
 | Backend trait | `src/platform/mod.rs:101` `CompositorBackend` (`supports_runtime_transform`, `supports_claim_wait`, `prepare_claim_wait`, `get_window_rect`, `transform_window`, ...) | the platform seam today | neutral trait; capability flags are coarse booleans |
-| Instruction synthesis | `src/platform/linux/gnome/mechanics.rs:144` `build_instructions_for_entry` (spawn: `WaitForCommit{timeout_ms:300}`), `src/platform/linux/gnome/mod.rs:869` `transform_window` (`timeout_ms:500`), `Instruction` enum (`mechanics.rs:41-49`) | step list for the extension | GNOME |
-| Claim wait | `src/platform/linux/gnome/mod.rs:433-470, 560-600` `GnomeClaimSubscription` (needs protocol >= 2; a failed claim returns an error, a successful one ignores the `error` string) | receives `SpawnClaimed` | GNOME |
+| Instruction synthesis | `src/platform/linux/gnome/mechanics.rs:171` `build_instructions_for_entry` (spawn: `WaitForCommit{timeout_ms:300}`), `src/platform/linux/gnome/driver.rs:289` `transform_window` (`timeout_ms:500`), `Instruction` enum (`mechanics.rs:41-49`) | step list for the extension | GNOME |
+| Claim wait | `src/platform/linux/gnome/driver.rs:53-138, 235-265` `GnomeClaimSubscription` (needs protocol >= 2; a failed claim returns an error, a successful one ignores the `error` string) | receives `SpawnClaimed` | GNOME |
 | CLI-side settle | `src/commands/mod.rs:362` `settle_window_geometry` (polls `get_window_rect` every 25 ms, 300 ms timeout; "size matches" is `>=` the request), called from `spawn.rs:450` and `transform.rs:339`; `spawn.rs:465-495` re-asserts once if the client re-maximised | second, independent wait on the CLI side, with its own constants | neutral logic, polls the backend |
 | Final report | `src/commands/spawn.rs:21` `SpawnOutputJson {window_id,x,y,w,h,rel_x,rel_y,area,size_raised,raised_w,raised_h,reused_existing_window,source}`; `src/diagnostics.rs:570` `verify_and_report_placement` (`[spawn-at] INFO/WARNING/ERROR:` on stderr; `SizeRaisedToMinimum` is INFO) | what the user sees | neutral |
 | Native X11 driver | `src/platform/linux/x11/interception.rs:23-` `handle_spawn_interception`: `SubstructureNotify`, pre-map `WM_NORMAL_HINTS` `USPosition|PPosition` and `_NET_WM_USER_TIME=0`, poll `MapState`, wait until the geometry is above 50x50 plus 40 ms, `move_resize` via `_NET_MOVERESIZE_WINDOW`. **No hide, no sync, no damage** (grep of `x11/*.rs`: no unmap/opacity/cloak/damage/`_NET_WM_SYNC`) | post-map mover | X11 |
-| Backend selection | `src/platform/linux/mod.rs:96` `bootstrap`: `SPAWN_AT_BACKEND=x11` forces the X11 driver; if `XDG_CURRENT_DESKTOP` contains GNOME the GNOME driver is used (it also runs on a GNOME X11 session), else X11 | **per session** | Linux |
+| Backend selection | `src/platform/linux/mod.rs:100` `bootstrap`: `SPAWN_AT_BACKEND=x11` forces the X11 driver; if `XDG_CURRENT_DESKTOP` contains GNOME the GNOME driver is used (it also runs on a GNOME X11 session), else X11 | **per session** | Linux |
 | x11rb features | `Cargo.toml:17` `x11rb 0.14` with only `randr`. `damage` and `sync` features exist in x11rb 0.14.0 (CONFIRMED (symbols), vendored `Cargo.toml`) | a damage/sync listener needs two feature flags | X11 |
 
-Two constant sources exist today: JS (`commit.js`) and Rust (300/500 ms in `mechanics.rs`/`gnome/mod.rs`, 300 ms in `spawn.rs`/`transform.rs`). The JS idle timeout is `max(timeout_ms, 120)`, so the Rust 300/500 only matters above 120 ms. CONFIRMED (source).
+Two constant sources exist today: JS (`commit.js`) and Rust (300/500 ms in `mechanics.rs`/`gnome/driver.rs`, 300 ms in `spawn.rs`/`transform.rs`). The JS idle timeout is `max(timeout_ms, 120)`, so the Rust 300/500 only matters above 120 ms. CONFIRMED (source).
 
 ### 1.3 What would have to be rewritten per target
 
@@ -353,7 +353,7 @@ Goal: fix the measured defect on GNOME 46 native Wayland (stale `SIZE_SETTLED`, 
 | :---: | :--- | :--- | :--- |
 | S1 | `spawn_at_core::ready_wait`: `Policy` (defaults above), `ResizeOutcome`, `WindowKind`, the pure state machine for EXACT/QUIET/hard (no PROBE yet) with a virtual clock; golden vectors | core, tests | none (unused) |
 | S2 | extension: replace the internals of `waitForCommit` with the JS machine (same module for modern and legacy via injection); EXACT + first-different-answer-then-QUIET, cap 250 ms, hard 1500 ms; `allows_resize()` skip; classify by `get_client_type()` and **route `XWayland`/`X11` windows to the old path explicitly, logged as `READY_WAIT_START strategy=legacy-x11`**; emit `READY_WAIT_*` tags; keep `COMMIT_RESOLVED` | `commit.js`, `extension.js`, `ProtocolVersion` 6 | policy args ignored by old extensions; old reasons still logged |
-| S3 | CLI: read the outcome from the `ResizeOutcome` signal when protocol >= 6 (see 2.3; not `SpawnClaimed.error`); print it in `--json` as `resize`; no exit-code change. *Wired without the `policy` args (the extension uses the JS defaults, which a test keeps equal to the Rust ones) and without the new stderr lines of 2.3* | `gnome/dbus.rs`, `gnome/mod.rs`, `spawn.rs` | additive |
+| S3 | CLI: read the outcome from the `ResizeOutcome` signal when protocol >= 6 (see 2.3; not `SpawnClaimed.error`); print it in `--json` as `resize`; no exit-code change. *Wired without the `policy` args (the extension uses the JS defaults, which a test keeps equal to the Rust ones) and without the new stderr lines of 2.3* | `gnome/dbus.rs`, `gnome/mod.rs` (now `gnome/driver.rs`), `spawn.rs` | additive |
 | S4 | verify: acceptance cells A1-A3, A6-A8 with the existing fixture plus `--resize-delay-ms` and `--stall-after-map-ms`; record `lead_ms` and cloak numbers per commit in TEST_PLAN | harness | none |
 | S0 (parallel, tiny) | observe-only `READY_OBSERVE` logging of `damaged`/`thawed`/`first-frame`/`size-changed` for X11-kind windows | extension | log-only |
 
@@ -411,7 +411,7 @@ Implemented exactly the contract of 2.2 and 4.3 for the native Wayland strategy,
 | Rust machine: `Policy` (250 / 30 / 1500 ms), `Request`, `Outcome`, `Action`, `ReadyWait::{start, on_sample, on_tick}`; no I/O, time passed in as milliseconds | `crates/spawn-at-core/src/ready_wait.rs` (9 unit tests) | `50b0002` |
 | 20 language-neutral golden scripts, the virtual-clock driver (README), shared `policy.json` | `tests/ready_wait_vectors/`; Rust runner `crates/spawn-at-core/tests/ready_wait_vectors.rs` | `e9e2265` |
 | JS port: no imports, no host APIs (a test asserts it) | `assets/gnome/modern/ready_wait.js`; `tests/ready_wait_test.js` runs the same 20 scripts | `9f78a1d` |
-| Installer list entry | `src/platform/linux/gnome/mod.rs` | `902dff3` |
+| Installer list entry | `src/platform/linux/gnome/deploy.rs` (it was `gnome/mod.rs` before the step 3 split) | `902dff3` |
 
 **Differences from the text above, decided while implementing (CONFIRMED (source)):**
 
@@ -446,7 +446,7 @@ Labels: CONFIRMED = read in the code or run in a test listed here; HYPOTHESIS = 
 3. No `policy` object is sent in the `WaitForCommit` args and the extension uses `DEFAULT_POLICY` (250 / 30 / 1500) (section 10 adds an optional `cap_ms` for a developer override, absent by default); the shared `policy.json` test keeps the JS and Rust defaults equal. The `timeout_ms` argument is ignored on the new path (still read by the legacy path).
 4. No new stderr lines (section 2.3 allowed them); only the JSON `resize` object is new. `settle_window_geometry` on the CLI side is unchanged (D7: kept).
 5. A skipped wait reports the frame size at the end of the wait as `final` and `waited_ms` 0.
-6. The legacy extension tree (GNOME 42-44) has no wiring and stays at protocol 5. Because the modern D-Bus XML now has a signal the legacy XML lacks, both XML parity tests (`legacy_dispatcher_test.js`, `gnome/mod.rs`) compare the legacy XML with the modern XML minus `ResizeOutcome`. The legacy tree is byte-identical to before.
+6. The legacy extension tree (GNOME 42-44) has no wiring and stays at protocol 5. Because the modern D-Bus XML now has a signal the legacy XML lacks, both XML parity tests (`legacy_dispatcher_test.js`, `gnome/tests.rs`, before step 3 `gnome/mod.rs`) compare the legacy XML with the modern XML minus `ResizeOutcome`. The legacy tree is byte-identical to before.
 7. `outcome.waited_ms` in the signal is the machine's number (the deadline that fired), not the wall time; `elapsed_ms` in the log is wall time on `nowMs()`.
 
 **Tests (CONFIRMED, run).**

@@ -1,7 +1,38 @@
 pub mod config_store;
 pub mod gnome;
+pub mod host;
+pub mod process_tree;
+pub mod registry;
 pub mod x11;
 pub mod xdg;
+
+// The process-ancestry check is shared by the neutral commands and the X11 driver.
+pub use process_tree::is_process_descendant;
+
+/// The Linux session actions: the GNOME ones (log out with `gnome-session-quit`, reload the X11
+/// shell with keystrokes).
+pub fn session_actions() -> &'static dyn crate::platform::session_actions::SessionActions {
+    &gnome::GnomeSessionActions
+}
+
+/// The Linux update hooks: the GNOME ones.
+pub fn update_hooks() -> &'static dyn crate::platform::update_hooks::UpdateHooks {
+    &gnome::GnomeUpdateHooks
+}
+
+/// The flags of the install command that belong to the Linux backends: the GNOME ones.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendInstallArgs {
+    #[command(flatten)]
+    pub gnome: gnome::GnomeInstallArgs,
+}
+
+/// The flags of the uninstall command that belong to the Linux backends: the GNOME ones.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendUninstallArgs {
+    #[command(flatten)]
+    pub gnome: gnome::GnomeUninstallArgs,
+}
 
 use crate::platform::{
     Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, MonitorLayout,
@@ -55,35 +86,6 @@ pub fn query_x11_cursor() -> Option<(i32, i32)> {
     None
 }
 
-/// Reads `/proc/{pid}/stat` on Linux to extract the Parent Process ID (PPID).
-pub fn get_parent_pid(pid: u32) -> Option<u32> {
-    let stat = std::fs::read_to_string(format!("/proc/{}/stat", pid)).ok()?;
-    let ppid_str = stat.split(')').nth(1)?;
-    let parts: Vec<&str> = ppid_str.split_whitespace().collect();
-    if parts.len() >= 2 {
-        parts[1].parse::<u32>().ok()
-    } else {
-        None
-    }
-}
-
-/// Checks whether `pid` is a descendant of `target_parent` by walking the process tree.
-pub fn is_process_descendant(mut pid: u32, target_parent: u32) -> bool {
-    for _ in 0..10 {
-        if pid == target_parent {
-            return true;
-        }
-        if pid <= 1 {
-            break;
-        }
-        match get_parent_pid(pid) {
-            Some(ppid) if ppid != pid => pid = ppid,
-            _ => break,
-        }
-    }
-    false
-}
-
 /// Unified Linux compositor backend adapter that delegates to either GNOME or X11 driver.
 pub struct LinuxBackend {
     driver: Box<dyn CompositorBackend>,
@@ -96,24 +98,15 @@ impl LinuxBackend {
     }
 
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
-        let forced = std::env::var("SPAWN_AT_BACKEND")
-            .unwrap_or_default()
-            .to_lowercase();
-        if forced == "x11" {
-            return Ok(Box::new(LinuxBackend {
-                driver: Box::new(x11::X11Driver),
-            }));
-        }
-
-        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-            .unwrap_or_default()
-            .to_uppercase();
-
-        if desktop.contains("GNOME") {
-            if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
-                return Ok(Box::new(LinuxBackend {
-                    driver: Box::new(driver),
-                }));
+        // The order of the choice (forced X11, then GNOME Wayland, else X11) is in `registry`.
+        let env = registry::Environment::from_process_env();
+        for id in registry::candidates(&env) {
+            if id == registry::BackendId::GnomeWayland {
+                if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
+                    return Ok(Box::new(LinuxBackend {
+                        driver: Box::new(driver),
+                    }));
+                }
             }
         }
 
@@ -158,6 +151,14 @@ impl CompositorBackend for LinuxBackend {
 
     fn supports_close(&self) -> bool {
         self.driver.supports_close()
+    }
+
+    fn provisioner(&self) -> Option<&dyn crate::platform::provisioner::Provisioner> {
+        self.driver.provisioner()
+    }
+
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        self.driver.capabilities()
     }
 
     async fn prepare_claim_wait(

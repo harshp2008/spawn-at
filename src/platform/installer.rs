@@ -30,19 +30,10 @@ fn windows_destination_info(scope: InstallScope) -> &'static str {
     }
 }
 
-/// Returns target installation directory for Linux:
-/// - User: `$HOME/.local/bin`
-/// - System: `/usr/local/bin`
+/// Returns target installation directory (Linux: `$HOME/.local/bin` or `/usr/local/bin`); the
+/// values belong to the OS, see `platform::host`.
 fn get_target_dir(scope: InstallScope) -> Result<PathBuf, String> {
-    match scope {
-        InstallScope::User => {
-            let home = std::env::var("HOME").map_err(|_| {
-                "Failed to determine $HOME directory for binary installation.".to_string()
-            })?;
-            Ok(PathBuf::from(home).join(".local/bin"))
-        }
-        InstallScope::System => Ok(PathBuf::from("/usr/local/bin")),
-    }
+    crate::platform::host().bin_dir(scope)
 }
 
 /// Absolute path `install_binary(scope)` puts the binary at.

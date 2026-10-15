@@ -65,9 +65,7 @@ pub fn find_existing(
 }
 
 fn is_executable_file(p: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    p.metadata()
-        .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+    crate::platform::host().is_executable_file(p)
 }
 
 /// Runs `<path> -V` and returns its stdout, or `None` when it fails, prints nothing or does not
@@ -347,8 +345,8 @@ impl CleanOps for RealCleanOps<'_> {
         };
         #[cfg(target_os = "linux")]
         {
-            args.gnome.gnome_delete_files = true;
-            args.gnome.no_action = true;
+            args.backend.gnome.gnome_delete_files = true;
+            args.backend.gnome.no_action = true;
         }
         self.driver.uninstall(&args).map_err(|e| e.to_string())
     }
