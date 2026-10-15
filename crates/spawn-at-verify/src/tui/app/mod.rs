@@ -6,4 +6,4 @@ pub mod queue;
 pub mod state;
 
 pub use clipboard::system_copy_to_clipboard;
-pub use state::{category_rank, ActivePane, FilterMode, ModalState, RunLoad, TuiApp};
+pub use state::{category_rank, ActivePane, FilterMode, ModalState, Pending, RunLoad, TuiApp};

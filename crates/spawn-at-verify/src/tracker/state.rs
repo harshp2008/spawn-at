@@ -64,6 +64,46 @@ impl OwnedSessions {
     }
 }
 
+/// Short lines about a test that are neither its verdict nor a failure: that focus could not be
+/// returned to the terminal, that teardown left a window behind. Kept by test id; the TUI shows
+/// them next to the result and never lets them change a verdict. Clones share the same notes.
+#[derive(Clone, Default)]
+pub struct SessionNotes(Arc<Mutex<std::collections::HashMap<String, Vec<String>>>>);
+
+impl std::fmt::Debug for SessionNotes {
+    /// Prints how many tests have notes.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "SessionNotes({})", self.0.lock().unwrap().len())
+    }
+}
+
+impl SessionNotes {
+    /// Adds a line for `test_id`.
+    pub fn add(&self, test_id: &str, line: impl Into<String>) {
+        self.0
+            .lock()
+            .unwrap()
+            .entry(test_id.to_string())
+            .or_default()
+            .push(line.into());
+    }
+
+    /// The lines noted for `test_id`, oldest first.
+    pub fn get(&self, test_id: &str) -> Vec<String> {
+        self.0
+            .lock()
+            .unwrap()
+            .get(test_id)
+            .cloned()
+            .unwrap_or_default()
+    }
+
+    /// Forgets the lines of `test_id` (a re-run starts clean).
+    pub fn clear(&self, test_id: &str) {
+        self.0.lock().unwrap().remove(test_id);
+    }
+}
+
 /// Tracks windows launched during verification runs to isolate test windows and clean up leaks.
 #[derive(Debug, Clone)]
 pub struct WindowTracker {
@@ -73,6 +113,8 @@ pub struct WindowTracker {
     pub tracked_test_windows: Vec<u64>,
     /// Version 2 setup sessions still open (closed by id and stopped through their `Child`).
     pub owned: OwnedSessions,
+    /// Lines about a test that are not its verdict (focus not returned, a window left behind).
+    pub notes: SessionNotes,
 }
 
 /// Result of window attribution matching an action launch with candidate windows.
@@ -93,6 +135,7 @@ impl WindowTracker {
             known_preexisting: preexisting.iter().copied().collect(),
             tracked_test_windows: Vec::new(),
             owned: OwnedSessions::default(),
+            notes: SessionNotes::default(),
         }
     }
 
@@ -105,6 +148,7 @@ impl WindowTracker {
             known_preexisting,
             tracked_test_windows: Vec::new(),
             owned: OwnedSessions::default(),
+            notes: SessionNotes::default(),
         })
     }
 
@@ -270,9 +314,19 @@ impl WindowTracker {
     /// Closes all test-spawned windows using `spawn-at close --id <ID>`.
     /// Never touches any pre-existing window.
     pub fn cleanup_test_windows(&mut self, bin_path: &Path) -> Result<Vec<u64>, String> {
+        self.cleanup_test_windows_reported(bin_path).map(|(f, _)| f)
+    }
+
+    /// [`WindowTracker::cleanup_test_windows`] that also returns what the teardown of the
+    /// version 2 sessions had to say (warnings, windows left behind), for the TUI to show apart
+    /// from any verdict.
+    pub fn cleanup_test_windows_reported(
+        &mut self,
+        bin_path: &Path,
+    ) -> Result<(Vec<u64>, Vec<TeardownReport>), String> {
         // Version 2 sessions first: each closes its own recorded windows by id and stops its own
         // fixture processes through their `Child` handles.
-        self.owned.teardown_all();
+        let reports = self.owned.teardown_all();
         let failed = self.cleanup_with_closer(|id| {
             let mut cmd = Command::new(bin_path);
             cmd.args(["close", "--id", &id.to_string()]);
@@ -281,7 +335,7 @@ impl WindowTracker {
                 Err(_) => false,
             }
         });
-        Ok(failed)
+        Ok((failed, reports))
     }
 
     /// Closes test windows using an injected closure (useful for testing and deterministic mocking).

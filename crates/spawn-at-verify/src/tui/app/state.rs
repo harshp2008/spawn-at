@@ -174,6 +174,26 @@ pub struct TuiApp {
     /// Replaces the system clipboard when set (tests inject a capturing closure); `None` uses
     /// [`system_copy_to_clipboard`](super::clipboard::system_copy_to_clipboard).
     pub clipboard_fn: Option<ClipboardHelper>,
+    /// Work the event loop does after the next redraw, one item per loop turn: a key press only
+    /// records what the person asked for and puts it on screen; the slow part (running a test,
+    /// closing its window) happens after that frame has been drawn.
+    pub pending: VecDeque<Pending>,
+    /// Id of the test whose window is being closed after a verdict, Esc or re-run: the result box
+    /// shows "closing window..." for it until the teardown has run.
+    pub closing_for: Option<String>,
+}
+
+/// A slow step the event loop runs after a redraw (see [`TuiApp::pending`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Pending {
+    /// Close the windows the last human-reviewed test left open (by recorded id, through the
+    /// tracker), note anything the teardown reports, then go on with the queue if asked.
+    Teardown {
+        /// Start the next queued test afterwards.
+        continue_queue: bool,
+    },
+    /// Run the next queued test (its row already shows "running").
+    RunQueueStep,
 }
 
 impl TuiApp {
@@ -243,6 +263,8 @@ impl TuiApp {
             drawer_status: None,
             drawer_raw_view: false,
             clipboard_fn: None,
+            pending: VecDeque::new(),
+            closing_for: None,
         })
     }
 
@@ -370,13 +392,51 @@ impl TuiApp {
 
     /// Closes any tracked test windows and refocuses the original terminal window.
     pub fn close_test_windows(&mut self) {
-        let _ = self.tracker.cleanup_test_windows(&self.bin_path);
-        if let Some(term_id) = self.terminal_window_id {
-            let mut cmd = std::process::Command::new(&self.bin_path);
-            cmd.args(["focus", "--id", &term_id.to_string(), "--no-wait"]);
-            let _ =
-                crate::process::execute_with_timeout(cmd, std::time::Duration::from_millis(500));
+        let _ = self.close_test_windows_noted();
+    }
+
+    /// [`TuiApp::close_test_windows`] that returns what the teardown reported (a close that
+    /// failed, a window left behind, focus not returned), as short lines for the result box.
+    /// None of it is a verdict. Closing goes through the tracker only: by recorded id, through
+    /// the sessions' own process handles. The terminal is refocused only if it lost focus (a
+    /// version 2 session has usually done that already, and a window that has focus needs no
+    /// command).
+    pub fn close_test_windows_noted(&mut self) -> Vec<String> {
+        let mut lines = Vec::new();
+        match self.tracker.cleanup_test_windows_reported(&self.bin_path) {
+            Ok((failed, reports)) => {
+                for r in reports {
+                    lines.extend(r.warnings);
+                    if !r.left_behind.is_empty() {
+                        lines.push(format!(
+                            "a test window is still open after closing (window ids {:?})",
+                            r.left_behind
+                        ));
+                    }
+                }
+                if !failed.is_empty() {
+                    lines.push(format!("could not close window ids {failed:?}"));
+                }
+            }
+            Err(e) => lines.push(e),
         }
+        if let Some(term_id) = self.terminal_window_id {
+            let has_focus =
+                crate::runner::owned::Control::windows(&crate::runner::owned::CliControl {
+                    bin: self.bin_path.clone(),
+                })
+                .map(|w| w.iter().any(|w| w.id == term_id && w.focused))
+                .unwrap_or(false);
+            if !has_focus {
+                let mut cmd = std::process::Command::new(&self.bin_path);
+                cmd.args(["focus", "--id", &term_id.to_string(), "--no-wait"]);
+                let _ = crate::process::execute_with_timeout(
+                    cmd,
+                    std::time::Duration::from_millis(500),
+                );
+            }
+        }
+        lines
     }
 
     /// Dismisses any currently open modal dialog overlay.

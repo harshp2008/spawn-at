@@ -98,6 +98,20 @@ pub fn compute_list_items_count(app: &TuiApp) -> usize {
     count
 }
 
+/// Background of the selected row (see the `highlight_style` of the list below).
+pub const SELECTED_ROW_BG: Color = Color::DarkGray;
+
+/// The colour a status marker is drawn in. The "not run" dot is `DarkGray`, which is also the
+/// colour of the selected row's highlight, so on the selected row it is drawn `White` instead;
+/// every other marker colour already contrasts with the highlight.
+pub fn marker_color(status_color: Color, is_selected: bool) -> Color {
+    if is_selected && status_color == SELECTED_ROW_BG {
+        Color::White
+    } else {
+        status_color
+    }
+}
+
 /// Renders the categorized test list navigation panel with status indicators and folding.
 pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
     let is_focused = app.active_pane == ActivePane::List;
@@ -248,7 +262,7 @@ pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
             Span::styled(
                 status_sym,
                 Style::default()
-                    .fg(status_color)
+                    .fg(marker_color(status_color, is_selected))
                     .add_modifier(Modifier::BOLD),
             ),
             Span::raw("  "),
@@ -307,7 +321,7 @@ pub fn draw_test_list(f: &mut Frame, app: &TuiApp, area: Rect) {
 
     let list_widget = List::new(items).highlight_style(
         Style::default()
-            .bg(Color::DarkGray)
+            .bg(SELECTED_ROW_BG)
             .add_modifier(Modifier::BOLD),
     );
 

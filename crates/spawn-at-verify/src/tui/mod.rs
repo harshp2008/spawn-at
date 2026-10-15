@@ -122,6 +122,15 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
             break;
         }
 
+        // A key press only recorded what the person asked for and the frame above showed it
+        // (a "running" row, a verdict, "closing window..."). Now do the slow step, then loop to
+        // draw its result. Nothing is pending when nothing was asked, so an idle loop still just
+        // draws and waits for a key.
+        if app.has_pending() {
+            app.run_pending();
+            continue;
+        }
+
         if event::poll(Duration::from_millis(50)).map_err(|e| e.to_string())? {
             if let Event::Key(key) = event::read().map_err(|e| e.to_string())? {
                 // Ctrl+C in raw mode is dispatched through handle_key

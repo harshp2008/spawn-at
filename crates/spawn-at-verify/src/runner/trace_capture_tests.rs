@@ -97,6 +97,7 @@ fn run_once(runner: &TestRunner, test: &TestDefinition) -> TestResult {
         known_preexisting: Default::default(),
         tracked_test_windows: Default::default(),
         owned: Default::default(),
+        notes: Default::default(),
     };
     runner.execute_single_test(test, &preflight, &env, &mut tracker)
 }

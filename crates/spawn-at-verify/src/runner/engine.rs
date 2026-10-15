@@ -173,6 +173,7 @@ impl TestRunner {
             known_preexisting: Default::default(),
             tracked_test_windows: Default::default(),
             owned: Default::default(),
+            notes: Default::default(),
         });
 
         let repeat_count = self.options.repeat.clamp(1, MAX_REPEAT_CAP);

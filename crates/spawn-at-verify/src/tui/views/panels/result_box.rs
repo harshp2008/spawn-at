@@ -12,8 +12,33 @@ use ratatui::{
     Frame,
 };
 
-/// Extracts formatted status lines, timings, and diagnostic details for the result box.
+/// The result box text: the status of the selected test, then, apart from it, what is happening
+/// to its window ("closing window...") and any notes (focus not returned, a window left behind).
+/// The notes are warnings: they never change the status shown first.
 pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
+    let (mut plain, line, color) = base_result_content(app);
+    let mut spans = line.spans;
+    if let Some(test) = app.selected_test() {
+        if app.closing_for.as_deref() == Some(&test.id) {
+            plain.push_str("  ·  closing window...");
+            spans.push(Span::styled(
+                "  ·  closing window...",
+                Style::default().fg(Color::Cyan),
+            ));
+        }
+        for note in app.tracker.notes.get(&test.id) {
+            plain.push_str(&format!("  ·  ⚠ {note}"));
+            spans.push(Span::styled(
+                format!("  ·  ⚠ {note}"),
+                Style::default().fg(Color::Yellow),
+            ));
+        }
+    }
+    (plain, Line::from(spans), color)
+}
+
+/// Extracts formatted status lines, timings, and diagnostic details for the result box.
+fn base_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
     let test_opt = app.selected_test();
     let res_opt = test_opt.and_then(|t| app.results.get(&t.id));
 
