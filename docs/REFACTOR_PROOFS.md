@@ -47,3 +47,11 @@ For a pure move also: `git diff -M --stat` (renames are detected, additions equa
 ## What these proofs do not cover
 
 Nothing here runs a live GNOME session. The live suites (`spawn-at-verify` on a real GNOME 46 Wayland session, the 4 ignored tests, the `hostile` specs) must be run by the owner before a release that contains a refactor step.
+
+## The release binary size is not a gate
+
+Moving code between modules changes how rustc splits the crate into codegen units, which changes inlining of generic code (toml, zbus, tokio closures) and so the size, with no change in behavior. Observed: merging the two duplicate `/proc` helpers into one (step 2) grew `.text` by 21,792 bytes (0.36%); a single added comment line moved the binary by 264 bytes. A symbol-by-symbol comparison of the step 2 build showed the same functions, with one `is_process_descendant` (1,207 bytes) replacing two, and re-sized monomorphised generics. So the size is printed for information only; the gates are the test names, the help text, the hashes and the installer matrix.
+
+## Proving a split is a pure move
+
+A mechanical check that complements `git diff -M`: normalise every line of the old file and of the new files (strip leading and trailing blanks, drop empty lines, sort) and compare the two sets with `comm`. After the split of `gnome/mod.rs` the only lines on either side are re-wrapped lines (rustfmt after the tests lost one level of indentation), the imports and `mod` lines, the new file headers, and the two one-line forwards. Commands: `comm -23 old.txt new.txt` and `comm -13 old.txt new.txt`.

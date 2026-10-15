@@ -17,7 +17,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ## Facts that constrain moving files
 
-- **Embedded extension files.** `src/platform/linux/gnome/mod.rs` embeds `assets/gnome/modern/*` and `assets/gnome/legacy/*` with `include_str!("../../../../assets/gnome/...")`. Moving that file changes the relative path. The test `test_embedded_extension_files_match_disk` in the same file asserts that the embedded lists match the directories exactly.
+- **Embedded extension files.** `src/platform/linux/gnome/deploy.rs` embeds `assets/gnome/modern/*` and `assets/gnome/legacy/*` with `include_str!("../../../../assets/gnome/...")`. Moving that file changes the relative path. The test `test_embedded_extension_files_match_disk` in `gnome/tests.rs` asserts that the embedded lists match the directories exactly.
 - **Cargo targets of `spawn-at-verify`** are declared in its `Cargo.toml`: `[[bin]]` `spawn-at-verify` (`src/main.rs`) and `fixture` (`src/bin/fixture.rs`, `required-features = ["fixture"]`), and `[[test]]` entries `fixture_test` (needs `fixture`), `oracle_cross_check`, `trace_analyser_test`, `trace_state_test`, `tui_test` (needs `tui`) and `render_test` (needs `tui`). Other files under `tests/` are found by Cargo's default discovery.
 - **Release packaging.** `install.sh` downloads the release tarball and needs `spawn-at` in it; `.github/workflows/release.yml` builds `target/release/spawn-at` from the repository root. `scripts/smoke-live.sh` hard-codes `target/debug/spawn-at` and `target/debug/spawn-at-verify`.
 - **Shared golden data.** `verify/golden/placement.json` is read by `crates/spawn-at-core/tests/golden_placement.rs`, `crates/spawn-at-verify/src/oracle/tests/vectors.rs` and `tests/golden_anchor_test.js`. `crates/spawn-at-verify/tests/fixtures/` holds recorded runs with a `SHA256SUMS`, and `crates/spawn-at-verify/tests/golden/` holds five `drawer_*.txt` terminal snapshots.
@@ -46,10 +46,15 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
 | `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
 | `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/gnome/args.rs` | 73 | Command-line flags of the GNOME install and uninstall steps. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
+| `src/platform/linux/gnome/deploy.rs` | 372 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
+| `src/platform/linux/gnome/detect.rs` | 112 | Detection of the GNOME Shell version and of a Wayland session. |
+| `src/platform/linux/gnome/driver.rs` | 536 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 1886 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/mod.rs` | 79 | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/tests.rs` | 757 |  |
 | `src/platform/linux/mod.rs` | 651 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
