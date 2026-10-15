@@ -20,3 +20,11 @@ pub mod gnome {
         false
     }
 }
+
+/// No install flags off Linux (there is no backend to configure).
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendInstallArgs {}
+
+/// No uninstall flags off Linux.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendUninstallArgs {}

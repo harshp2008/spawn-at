@@ -4,6 +4,7 @@
 use super::detect::{detect_gnome_shell_major_version, is_wayland_session};
 use super::driver::GnomeWaylandDriver;
 use super::logout;
+use crate::platform::provisioner::Provisioner;
 use crate::platform::{DriverError, InstallArgs, UninstallArgs};
 use dialoguer::Confirm;
 use std::fs;
@@ -191,10 +192,21 @@ impl GnomeWaylandDriver {
             .join(".local/share/gnome-shell/extensions")
             .join(EXTENSION_UUID))
     }
+}
+
+impl Provisioner for GnomeWaylandDriver {
+    /// The notice for the detected GNOME Shell and session: none for GNOME 46 on Wayland, the only
+    /// configuration spawn-at has been run on.
+    fn install_notice(&self) -> Option<String> {
+        crate::platform::install_notice::gnome_notice(
+            detect_gnome_shell_major_version(),
+            is_wayland_session(),
+        )
+    }
 
     /// Installs the embedded GNOME Shell extension into the user's extensions directory
     /// using dual-mode execution (interactive TUI prompt or headless flag automation).
-    pub(super) fn install_impl(&self, args: &InstallArgs) -> Result<(), DriverError> {
+    fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
         let ext_dir = Self::extension_dir()?;
@@ -226,16 +238,16 @@ impl GnomeWaylandDriver {
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?
         } else {
-            args.gnome.gnome_auto_enable
+            args.backend.gnome.gnome_auto_enable
         };
         // The log-out / reload question is NOT asked here: it is the last prompt of the run,
         // asked by session::finish() (see session.rs).
         let session_decision = crate::session::decision(
             interactive,
             is_wayland,
-            args.gnome.no_action,
-            args.gnome.gnome_wayland_logout,
-            args.gnome.should_restart(is_wayland),
+            args.backend.gnome.no_action,
+            args.backend.gnome.gnome_wayland_logout,
+            args.backend.gnome.should_restart(is_wayland),
         );
 
         crate::ui::block_start();
@@ -311,7 +323,7 @@ impl GnomeWaylandDriver {
     }
 
     /// Disables and removes the GNOME Shell extension using dual-mode execution.
-    pub(super) fn uninstall_impl(&self, args: &UninstallArgs) -> Result<(), DriverError> {
+    fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
         let interactive = !args.headless && std::io::stdout().is_terminal();
@@ -324,15 +336,15 @@ impl GnomeWaylandDriver {
                 .interact()
                 .map_err(|e| DriverError::Execution(Box::new(e)))?
         } else {
-            args.gnome.gnome_delete_files
+            args.backend.gnome.gnome_delete_files
         };
         // The log-out / reload question is asked last, by session::finish().
         let session_decision = crate::session::decision(
             interactive,
             is_wayland,
-            args.gnome.no_action,
-            args.gnome.gnome_wayland_logout,
-            args.gnome.should_restart(is_wayland),
+            args.backend.gnome.no_action,
+            args.backend.gnome.gnome_wayland_logout,
+            args.backend.gnome.should_restart(is_wayland),
         );
 
         let ext_dir = Self::extension_dir()?;
@@ -361,9 +373,11 @@ impl GnomeWaylandDriver {
 
         // Recorded, not asked or performed: session::finish() ends the run (see session.rs).
         // The removal phase of a clean install passes no_action, so it records nothing at all.
-        if let Some(p) =
-            crate::session::uninstall_pending(is_wayland, session_decision, args.gnome.no_action)
-        {
+        if let Some(p) = crate::session::uninstall_pending(
+            is_wayland,
+            session_decision,
+            args.backend.gnome.no_action,
+        ) {
             crate::session::record(p);
         }
 

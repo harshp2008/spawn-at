@@ -1,11 +1,10 @@
 //! The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the
 //! window queries and actions of the compositor backend.
 
-use super::detect::{detect_gnome_shell_major_version, is_wayland_session};
 use super::{dbus, mechanics};
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, MonitorInfo, MonitorLayout,
-    PlacementParams, Rect, UninstallArgs, WindowMetadata, WindowState,
+    Armed, Batch, CompositorBackend, Driver, DriverError, MonitorInfo, MonitorLayout,
+    PlacementParams, Rect, WindowMetadata, WindowState,
 };
 
 // ============================================================================
@@ -284,25 +283,9 @@ impl CompositorBackend for GnomeWaylandDriver {
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
     }
 
-    /// The notice for the detected GNOME Shell and session: none for GNOME 46 on Wayland, the only
-    /// configuration spawn-at has been run on.
-    fn install_notice(&self) -> Option<String> {
-        crate::platform::install_notice::gnome_notice(
-            detect_gnome_shell_major_version(),
-            is_wayland_session(),
-        )
+    fn provisioner(&self) -> Option<&dyn crate::platform::provisioner::Provisioner> {
+        Some(self)
     }
-
-    /// Installs the embedded GNOME Shell extension (see `deploy.rs`).
-    fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
-        self.install_impl(args)
-    }
-
-    /// Disables and removes the GNOME Shell extension (see `deploy.rs`).
-    fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
-        self.uninstall_impl(args)
-    }
-
     async fn transform_window(
         &self,
         target_id: &str,

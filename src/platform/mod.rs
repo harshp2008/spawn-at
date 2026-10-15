@@ -12,6 +12,7 @@ pub mod capability;
 pub mod escalate;
 pub mod install_notice;
 pub mod installer;
+pub mod provisioner;
 pub mod upgrade;
 
 #[cfg(target_os = "linux")]
@@ -25,6 +26,10 @@ pub mod linux;
 
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
+
+// The per-OS flags of the install and uninstall commands (see `InstallArgs::backend`); off Linux
+// `linux` is the compile-only stub, which has empty ones.
+pub use linux::{BackendInstallArgs, BackendUninstallArgs};
 
 pub use crate::target::WindowMetadata;
 use clap::Args;
@@ -102,9 +107,9 @@ pub struct InstallArgs {
     /// Enable visual update notifications in interactive sessions
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     pub update_notify: Option<bool>,
-    #[cfg(target_os = "linux")]
+    // Flags of the active backend (the GNOME flags on Linux; none elsewhere).
     #[command(flatten)]
-    pub gnome: crate::platform::linux::gnome::GnomeInstallArgs,
+    pub backend: BackendInstallArgs,
 }
 
 #[derive(Args, Debug, Clone, Default)]
@@ -115,9 +120,9 @@ pub struct UninstallArgs {
     pub skip_bin: bool,
     #[arg(long)]
     pub headless: bool,
-    #[cfg(target_os = "linux")]
+    // Flags of the active backend (the GNOME flags on Linux; none elsewhere).
     #[command(flatten)]
-    pub gnome: crate::platform::linux::gnome::GnomeUninstallArgs,
+    pub backend: BackendUninstallArgs,
 }
 
 /// Core interface representing a window manager or compositor driver.
@@ -128,22 +133,38 @@ pub trait CompositorBackend: Driver + Send + Sync {
 
     // --- Setup & Teardown ---
 
-    /// A short notice to print (and confirm) before installing when this environment has not been
-    /// tested; `None` when it has, or when the driver has nothing to say.
-    fn install_notice(&self) -> Option<String> {
+    /// What this backend needs on the machine and how to set it up and remove it; `None` when it
+    /// needs nothing (see [`provisioner::Provisioner`]).
+    fn provisioner(&self) -> Option<&dyn provisioner::Provisioner> {
         None
     }
 
+    /// A short notice to print (and confirm) before installing when this environment has not been
+    /// tested; `None` when it has, or when the driver has nothing to say.
+    fn install_notice(&self) -> Option<String> {
+        self.provisioner().and_then(|p| p.install_notice())
+    }
+
     /// Installs any necessary system hooks or extensions required by this driver.
-    fn install(&self, _args: &InstallArgs) -> Result<(), DriverError> {
-        println!("No installation required for {}.", self.name());
-        Ok(())
+    fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
+        match self.provisioner() {
+            Some(p) => p.install(args),
+            None => {
+                println!("No installation required for {}.", self.name());
+                Ok(())
+            }
+        }
     }
 
     /// Uninstalls any previously installed system hooks or extensions.
-    fn uninstall(&self, _args: &UninstallArgs) -> Result<(), DriverError> {
-        println!("No uninstallation required for {}.", self.name());
-        Ok(())
+    fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
+        match self.provisioner() {
+            Some(p) => p.uninstall(args),
+            None => {
+                println!("No uninstallation required for {}.", self.name());
+                Ok(())
+            }
+        }
     }
 
     // --- Capability Checking ---

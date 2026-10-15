@@ -22,13 +22,13 @@ fn test_gnome_install_args_defaults() {
     let parsed =
         Cli::try_parse_from(["spawn-at", "install", "--scope", "user", "--headless"]).unwrap();
     if let crate::cli::Commands::Install(args) = parsed.command {
-        assert!(args.gnome.gnome_auto_enable);
-        assert!(args.gnome.gnome_x11_reload);
-        assert!(!args.gnome.gnome_wayland_logout);
-        assert!(!args.gnome.no_action);
+        assert!(args.backend.gnome.gnome_auto_enable);
+        assert!(args.backend.gnome.gnome_x11_reload);
+        assert!(!args.backend.gnome.gnome_wayland_logout);
+        assert!(!args.backend.gnome.no_action);
 
-        assert!(args.gnome.should_restart(false)); // X11 defaults to reload (true)
-        assert!(!args.gnome.should_restart(true)); // Wayland defaults to safe skip (false)
+        assert!(args.backend.gnome.should_restart(false)); // X11 defaults to reload (true)
+        assert!(!args.backend.gnome.should_restart(true)); // Wayland defaults to safe skip (false)
     } else {
         panic!("Expected Install command");
     }
@@ -49,9 +49,9 @@ fn test_gnome_install_args_no_action_precedence() {
     ])
     .unwrap();
     if let crate::cli::Commands::Install(args) = parsed.command {
-        assert!(args.gnome.no_action);
-        assert!(!args.gnome.should_restart(false));
-        assert!(!args.gnome.should_restart(true));
+        assert!(args.backend.gnome.no_action);
+        assert!(!args.backend.gnome.should_restart(false));
+        assert!(!args.backend.gnome.should_restart(true));
     } else {
         panic!("Expected Install command");
     }
@@ -70,8 +70,8 @@ fn test_gnome_install_args_flag_toggles() {
     ])
     .unwrap();
     if let crate::cli::Commands::Install(args) = parsed.command {
-        assert!(!args.gnome.gnome_x11_reload);
-        assert!(!args.gnome.should_restart(false));
+        assert!(!args.backend.gnome.gnome_x11_reload);
+        assert!(!args.backend.gnome.should_restart(false));
     } else {
         panic!("Expected Install command");
     }
@@ -87,8 +87,8 @@ fn test_gnome_install_args_flag_toggles() {
     ])
     .unwrap();
     if let crate::cli::Commands::Install(args) = parsed.command {
-        assert!(args.gnome.gnome_wayland_logout);
-        assert!(args.gnome.should_restart(true));
+        assert!(args.backend.gnome.gnome_wayland_logout);
+        assert!(args.backend.gnome.should_restart(true));
     } else {
         panic!("Expected Install command");
     }
@@ -100,13 +100,13 @@ fn test_gnome_uninstall_args_defaults_and_overrides() {
     let parsed =
         Cli::try_parse_from(["spawn-at", "uninstall", "--scope", "user", "--headless"]).unwrap();
     if let crate::cli::Commands::Uninstall(args) = parsed.command {
-        assert!(args.gnome.gnome_delete_files);
-        assert!(args.gnome.gnome_x11_reload);
-        assert!(!args.gnome.gnome_wayland_logout);
-        assert!(!args.gnome.no_action);
+        assert!(args.backend.gnome.gnome_delete_files);
+        assert!(args.backend.gnome.gnome_x11_reload);
+        assert!(!args.backend.gnome.gnome_wayland_logout);
+        assert!(!args.backend.gnome.no_action);
 
-        assert!(args.gnome.should_restart(false));
-        assert!(!args.gnome.should_restart(true));
+        assert!(args.backend.gnome.should_restart(false));
+        assert!(!args.backend.gnome.should_restart(true));
     } else {
         panic!("Expected Uninstall command");
     }
@@ -122,9 +122,9 @@ fn test_gnome_uninstall_args_defaults_and_overrides() {
     ])
     .unwrap();
     if let crate::cli::Commands::Uninstall(args) = parsed.command {
-        assert!(args.gnome.no_action);
-        assert!(!args.gnome.should_restart(false));
-        assert!(!args.gnome.should_restart(true));
+        assert!(args.backend.gnome.no_action);
+        assert!(!args.backend.gnome.should_restart(false));
+        assert!(!args.backend.gnome.should_restart(true));
     } else {
         panic!("Expected Uninstall command");
     }
@@ -766,4 +766,15 @@ async fn test_gnome_capabilities_equal_its_supports_methods() {
     assert_eq!(c.claim_wait, driver.supports_claim_wait());
     assert_eq!(c.close, driver.supports_close());
     assert!(c.reveal_control && c.needs_helper);
+}
+
+/// The GNOME driver provides the provisioner, and its notice is the one `gnome_notice` gives for
+/// the detected Shell (`CompositorBackend::install_notice` forwards to it).
+#[tokio::test]
+async fn test_gnome_driver_is_its_own_provisioner() {
+    let (_server, driver) = claim_driver(6, "/org/gnome/Shell/Extensions/SpawnAtProv").await;
+    let p = driver
+        .provisioner()
+        .expect("GNOME needs the extension installed");
+    assert_eq!(p.install_notice(), driver.install_notice());
 }

@@ -7,6 +7,20 @@ pub mod xdg;
 // The process-ancestry check is shared by the neutral commands and the X11 driver.
 pub use process_tree::is_process_descendant;
 
+/// The flags of the install command that belong to the Linux backends: the GNOME ones.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendInstallArgs {
+    #[command(flatten)]
+    pub gnome: gnome::GnomeInstallArgs,
+}
+
+/// The flags of the uninstall command that belong to the Linux backends: the GNOME ones.
+#[derive(clap::Args, Debug, Clone, Default)]
+pub struct BackendUninstallArgs {
+    #[command(flatten)]
+    pub gnome: gnome::GnomeUninstallArgs,
+}
+
 use crate::platform::{
     Armed, Batch, CompositorBackend, Driver, DriverError, InstallArgs, MonitorLayout,
     PlacementParams, Rect, UninstallArgs, WindowMetadata, WindowState,
@@ -133,6 +147,10 @@ impl CompositorBackend for LinuxBackend {
 
     fn supports_close(&self) -> bool {
         self.driver.supports_close()
+    }
+
+    fn provisioner(&self) -> Option<&dyn crate::platform::provisioner::Provisioner> {
+        self.driver.provisioner()
     }
 
     fn capabilities(&self) -> crate::platform::capability::Capabilities {
