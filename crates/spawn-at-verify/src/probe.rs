@@ -84,15 +84,13 @@ impl EnvironmentInfo {
 
         // 2. Backend check
         if !req.backend.iter().any(|b| b == "any") {
-            let is_gnome = self.desktop.contains("gnome");
-            let is_x11 = self.session_type == "x11";
-
-            let mut satisfied = false;
-            for b in &req.backend {
-                if (b == "gnome" && is_gnome) || (b == "x11" && is_x11) {
-                    satisfied = true;
-                }
-            }
+            // `gnome` and `x11` mean what they always did when `SPAWN_AT_BACKEND` is unset or
+            // unknown; a forced backend now decides, and `sway` is a value of its own.
+            let satisfied = crate::backend::requirement_met(
+                &req.backend,
+                self.backend(),
+                self.session_type == "x11",
+            );
             if !satisfied {
                 return Err(format!(
                     "Desktop '{}' (session '{}') does not match backend requirement {:?}",

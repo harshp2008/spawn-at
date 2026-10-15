@@ -1,12 +1,14 @@
 //! Test runner execution engine, repeat loops, and process orchestration.
 
-use super::models::{FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
+use super::models::{AutoStatus, FinalStatus, RunOptions, TestResult, MAX_REPEAT_CAP};
+use super::owned::{ActionRunner, Control};
 use crate::ext_logging::{GdbusLogging, LoggingControl, NoLogging};
 use crate::loader::TestRegistry;
 use crate::log_source::{GnomeJournalSource, LogSource, NoOpLogSource};
 use crate::preflight::{inspect_binary, PreflightReport};
 use crate::probe::EnvironmentInfo;
 use crate::tracker::WindowTracker;
+use std::sync::Arc;
 
 /// Orchestrates test suite execution, preflight checks, and window lifecycle attribution.
 pub struct TestRunner {
@@ -18,10 +20,24 @@ pub struct TestRunner {
     pub log_source: Box<dyn LogSource>,
     /// Switch that turns the extension's timing log on before each run that needs a trace.
     pub logging: Box<dyn LoggingControl>,
+    /// How version 2 tests list, close and refocus windows; `None` means the `spawn-at` binary
+    /// of the options. Tests inject a fake.
+    pub(crate) control: Option<Arc<dyn Control>>,
+    /// How version 2 tests run their actions; `None` means the `spawn-at` binary of the options.
+    pub(crate) actions: Option<Arc<dyn ActionRunner>>,
+    /// Waits and grace periods of version 2 tests (shortened by tests).
+    pub(crate) v2_timings: super::owned::Timings,
 }
 
 /// Why the no-op log source is in use: names `XDG_CURRENT_DESKTOP` and what it holds.
 fn no_log_source_reason() -> String {
+    if let Some(b) =
+        crate::backend::forced_backend(&std::env::var("SPAWN_AT_BACKEND").unwrap_or_default())
+    {
+        return format!(
+            "no log source: SPAWN_AT_BACKEND selects the {b} backend, which has no GNOME extension journal"
+        );
+    }
     match std::env::var("XDG_CURRENT_DESKTOP") {
         Ok(d) => format!(
             "no log source: XDG_CURRENT_DESKTOP is '{}', which does not contain 'gnome'",
@@ -46,9 +62,13 @@ fn logging_for(source: &dyn LogSource, noop_reason: Option<String>) -> Box<dyn L
 impl TestRunner {
     /// Constructs a new `TestRunner` with the given test registry and execution options.
     pub fn new(registry: TestRegistry, options: RunOptions) -> Self {
-        let is_gnome = std::env::var("XDG_CURRENT_DESKTOP")
-            .map(|d| d.to_lowercase().contains("gnome"))
-            .unwrap_or(false);
+        // The GNOME journal and the extension's `SetLogging` belong to the GNOME backend: with
+        // another backend forced (`SPAWN_AT_BACKEND=sway`) they are not used, even in a GNOME
+        // user's shell, so a run aimed at Sway never calls the live extension.
+        let is_gnome = crate::backend::gnome_journal_applies(
+            &std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
+            &std::env::var("SPAWN_AT_BACKEND").unwrap_or_default(),
+        );
 
         let log_source: Box<dyn LogSource> = if is_gnome {
             Box::new(GnomeJournalSource)
@@ -62,7 +82,29 @@ impl TestRunner {
             options,
             log_source,
             logging,
+            control: None,
+            actions: None,
+            v2_timings: Default::default(),
         }
+    }
+
+    /// Shortens the waits and grace periods of version 2 tests (for tests with fakes).
+    pub fn with_v2_timings(mut self, timings: super::owned::Timings) -> Self {
+        self.v2_timings = timings;
+        self
+    }
+
+    /// Makes version 2 tests list, close and refocus windows through `control` instead of the
+    /// `spawn-at` binary (for tests with a fake compositor).
+    pub fn with_control(mut self, control: Arc<dyn Control>) -> Self {
+        self.control = Some(control);
+        self
+    }
+
+    /// Makes version 2 tests run their actions through `actions` instead of the `spawn-at` binary.
+    pub fn with_actions(mut self, actions: Arc<dyn ActionRunner>) -> Self {
+        self.actions = Some(actions);
+        self
     }
 
     /// Attaches an explicit log source provider to the test runner, with the logging control
@@ -130,6 +172,7 @@ impl TestRunner {
         let mut tracker = WindowTracker::snapshot_startup(bin).unwrap_or_else(|_| WindowTracker {
             known_preexisting: Default::default(),
             tracked_test_windows: Default::default(),
+            owned: Default::default(),
         });
 
         let repeat_count = self.options.repeat.clamp(1, MAX_REPEAT_CAP);
@@ -137,6 +180,15 @@ impl TestRunner {
         let mut all_runs: Vec<Vec<TestResult>> = Vec::new();
 
         for test in &tests_to_run {
+            // Ctrl-C / SIGTERM / SIGHUP in `run`: start nothing new; the tracker cleanup below
+            // closes whatever is still open.
+            if self
+                .options
+                .interrupted
+                .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                break;
+            }
             if repeat_count == 1 {
                 let res = self.execute_single_test(test, &preflight, &env_info, &mut tracker);
                 all_runs.push(vec![res.clone()]);
@@ -145,8 +197,36 @@ impl TestRunner {
                 // Multi-run flakiness detection across N repetitions
                 let mut run_results = Vec::new();
                 for _ in 0..repeat_count {
+                    if self
+                        .options
+                        .interrupted
+                        .load(std::sync::atomic::Ordering::SeqCst)
+                    {
+                        break;
+                    }
                     let r = self.execute_single_test(test, &preflight, &env_info, &mut tracker);
                     run_results.push(r);
+                }
+                // A signal ended the repetitions: the run it cut short is not a result, and the
+                // test is not "flaky" for having been interrupted.
+                let interrupted = self
+                    .options
+                    .interrupted
+                    .load(std::sync::atomic::Ordering::SeqCst);
+                if interrupted && run_results.len() > 1 {
+                    if let Some(last) = run_results.last() {
+                        if last.auto_status == AutoStatus::Error
+                            && last
+                                .message
+                                .as_deref()
+                                .is_some_and(|m| m.starts_with("interrupted"))
+                        {
+                            run_results.pop();
+                        }
+                    }
+                }
+                if run_results.is_empty() {
+                    break; // interrupted before this test ran at all
                 }
 
                 // Check for mixed results

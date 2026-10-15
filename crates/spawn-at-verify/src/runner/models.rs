@@ -352,6 +352,9 @@ pub struct RunOptions {
     /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
     /// empty by default, which adds nothing to the command line.
     pub wait: crate::trace::wait::WaitRequest,
+    /// Set by a signal handler (Ctrl-C, SIGTERM, SIGHUP in `run`). The runner stops starting
+    /// tests, a version 2 setup stops waiting, and teardown runs as for any other early end.
+    pub interrupted: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 impl Default for RunOptions {
@@ -370,6 +373,7 @@ impl Default for RunOptions {
             flash_threshold_ms: 0.0,
             wire_paint: true,
             wait: Default::default(),
+            interrupted: Default::default(),
         }
     }
 }

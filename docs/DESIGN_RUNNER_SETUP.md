@@ -1,6 +1,6 @@
 # Design: tests of an existing window in the verify runner
 
-Status: **design only, 2026-10-15, for owner approval. Nothing here is implemented.** No Rust, JS, shell or workflow code was changed to write it. `main` was at `6d232c1`. Claims marked **(read)** come from reading the cited code, **(ran)** from running a command for this document (only `--help` and `list` style reads, and the existing test suites; nothing live), **(unverified)** from neither.
+Status: **approved and implemented, 2026-10-15 (see section 11 for what was built, where, and what differs).** Sections 1 to 10 are the design as it was approved, written when `main` was at `6d232c1` and describing the code at `ca11523`; they are kept as written, so their statements about "the current model" are about that code. Claims marked **(read)** come from reading the cited code, **(ran)** from running a command for this document (only `--help` and `list` style reads, and the existing test suites; nothing live), **(unverified)** from neither.
 
 This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE_AUDIT.md` (section 7 item 8, section 6 rows P6 and P7).
 
@@ -16,6 +16,7 @@ This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE
 8. [Test plan, implementation plan, risks, alternatives](#8-test-plan-implementation-plan-risks-alternatives)
 9. [Open questions for the owner](#9-open-questions-for-the-owner)
 10. [Citations](#10-citations)
+11. [Implementation status](#11-implementation-status)
 
 ## 1. Current model
 
@@ -432,4 +433,64 @@ Each with my recommendation.
 
 ## 10. Citations
 
-All `path:line` references in this file are checked by a script (`scratch/cite_design.sh`, not committed): each path must exist, each line must be within the file, and the printed line is compared by eye with the claim. The output is in the pull request description. Line numbers are for `main` at `6d232c1`; documents cited without a line are cited by section.
+All `path:line` references in this file are checked by a script (`scratch/cite_design.sh`, not committed): each path must resolve to one tracked file, each line must be within the file, and the printed line is compared by eye with the claim. Line numbers in sections 1 to 10 are for `main` at `ca11523` (read with `git show ca11523:<path>`); those in section 11 are for the tree of the pull request that implemented it. Documents cited without a line are cited by section.
+
+## 11. Implementation status
+
+Implemented on branch `feat/runner-existing-window-setup`, 2026-10-15, as approved (owner decisions on section 9 below). The line citations of **this section** are checked against the current tree; those of sections 1 to 10 describe `main` at `ca11523`, before the implementation, and are checked against that commit (`git show ca11523:<path>`).
+
+### 11.1 Commits, in order
+
+| Plan item (section 8.2) | Commit | Where |
+| :-- | :-- | :-- |
+| (added) golden of the loaded catalog | `ea4b986` | `crates/spawn-at-verify/tests/catalog_golden_test.rs:51`, `crates/spawn-at-verify/tests/golden/catalog_v1.json` |
+| 1 schema and loader rules | `18c979a` | `crates/spawn-at-verify/src/schema/types.rs:233` (`TestSetup`), `:269` (`TestCheck`), `:290` (`SpecV2`); `crates/spawn-at-verify/src/schema/v2.rs:267` (`validate`), `:137` (`validate_action`), `:50` (`SETUP_FLAGS`) |
+| 2 placeholders, matrix | `3ced4c4` | `crates/spawn-at-verify/src/schema/v2.rs:450` (`substitute`), `crates/spawn-at-verify/src/schema/matrix.rs` (`expand_matrix`) |
+| 3 `SetupSession` | `a2b8312` | `crates/spawn-at-verify/src/runner/owned.rs:319` (`SetupSession`), `:466` (`launch`), `:576` (`verify_target`), `:653` (`teardown`), `:750` (`Drop`) |
+| 4 executor, `run` signals, 5 checks | `c78321f` | `crates/spawn-at-verify/src/runner/executor.rs:138` (the one branch), `crates/spawn-at-verify/src/runner/executor_v2.rs:174` (`execute_v2_test`), `:254` (`run_v2_steps`), `:144` (`eval_check`), `crates/spawn-at-verify/src/cli/run.rs:97` (signal handlers), `crates/spawn-at-verify/src/tracker/state.rs:31` (`OwnedSessions`) |
+| 6 backend, Skipped, Sway guard, journal fix | `77ab5d2` | `crates/spawn-at-verify/src/backend.rs:36`, `:53`, `:114`; `crates/spawn-at-verify/src/runner/executor.rs:125`; `crates/spawn-at-verify/src/runner/engine.rs:68` |
+| 7 TUI, moves-focus | `38d3c46` | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:102`, `verify/suites/quick.toml`, `crates/spawn-at-verify/tests/tui/v2_flow.rs:204` |
+| 9 wrapper | `63b9772`, `4c6c2b0` | `scripts/verify-sway.sh:101` |
+| (added) repeat after a signal | `ee56044` | `crates/spawn-at-verify/src/runner/engine.rs:197` |
+| 8 flash for transform, 10 catalog specs | not done | the next steps; no catalog spec was added |
+
+### 11.2 Deviations from the design, and why
+
+- **Checks landed with the executor** (design commits 4 and 5 are one commit): the executor cannot be tested without them.
+- **`[expect]` judges `[action]`; every `[[then]]` must exit 0** (a nonzero exit is a `Fail`). The design left "the last action" and "the measured action" both readable; the measured action won, as section 2.1 says.
+- **`moves-focus` is enforced**, not just recommended: a spec with a `[[setup]]` and no such tag is a load error (`crates/spawn-at-verify/src/schema/v2.rs:13`, `:267`).
+- **More load errors than listed in 2.3**: `never_visible_off_target`, `[expect.resize]` and `diagnostics` in version 2, `[expect.rect]` without a setup, `--id=...`, `--`, a setup `timeout_ms` outside 1 to 60000. All have a test.
+- **`flash` in `[[setup]]` is absent**: it belongs to the flash commit; `[[setup]]` rejects unknown keys (`deny_unknown_fields`), so adding it later is a visible change.
+- **The Sway guard applies to every test** when the backend is `sway`, not only to version 2 specs, so no version 1 test can reach a real Sway either.
+- **`check_requirements` for version 1 specs is backend-aware** when `SPAWN_AT_BACKEND` forces a backend (`gnome` means the backend is GNOME, not just the desktop). Unforced, the meaning is the old one; the loaded catalog and the `list` output are identical to `main`. The message for a version 1 mismatch is unchanged; the fixed "unsupported on this backend" text is for version 2 specs.
+- **Refocus** uses `spawn-at focus --id <id> --no-wait` on the window that had focus at the start (`crates/spawn-at-verify/src/runner/owned.rs:404`, `:653`); it is the one deliberate action on a window the run did not create, as section 3.6 describes, and has tests for "still focused" and "gone".
+- **`signal-hook` became a normal dependency** (it was optional behind `fixture` and `tui`); `Cargo.lock` is unchanged and the three non-Linux checks pass.
+- **A signal during `--repeat`** drops the cut-short repetition instead of calling the test flaky (found on a live run; `crates/spawn-at-verify/src/runner/engine.rs:197`).
+- **`scripts/verify-sway.sh` runs the runner in the background and forwards a signal** (found on a live run: bash held the trap back while the child ran).
+- **Not changed**: the TUI's `ExtensionLoggingGuard` still talks to the GNOME extension (the TUI is for attended GNOME runs); `run --help` is unchanged and does not mention exit code 130 (it is in `verify/README.md`).
+
+### 11.3 Owner decisions applied (section 9)
+
+1 launch directly, the runner holds the `Child`; 2 the TUI still writes no `report.md` (not part of this work); 3 `Skipped` with the fixed message, no new status; 4 `SPAWN_AT_BACKEND` is mirrored, no `query backend`; 5 version 2 specs stay `required = false` (none exist yet); 6 the tag `moves-focus`, excluded from `quick`; 7 `run` handles Ctrl-C, SIGTERM and SIGHUP; 8 no Sway in CI; 9 a window left after teardown is a warning; 10 up to 3 setups; 11 the journal check for the transform trace is deferred to the flash commit; 12 nothing depends on `spawn --no-focus`.
+
+### 11.4 The safety guarantees and their tests
+
+| Guarantee | Test |
+| :-- | :-- |
+| the runner owns the `Child`; signals only through it | `crates/spawn-at-verify/src/runner/owned_tests.rs`: `test_a_window_with_our_title_but_another_pid_is_not_ours_and_survives`, `test_a_child_that_ignores_sigterm_is_killed` |
+| a window is recorded only for exactly one title match with the child's pid | `test_launch_records_the_window_by_unique_title_and_child_pid`, `test_two_windows_with_the_title_are_ambiguous_and_nothing_is_closed` |
+| the only selector is `--id ${name}`; literal ids, `-c`, `-t`, `--pid`, `--focused`, bare `defocus` refused | `crates/spawn-at-verify/src/schema/v2_tests.rs`: `test_literal_id_is_a_load_error`, `test_other_selectors_are_load_errors`, `test_bare_defocus_is_a_load_error`, `test_window_commands_need_exactly_one_id` |
+| the runner re-validates a spec the loader would refuse | `crates/spawn-at-verify/src/runner/executor_v2_tests.rs`: `test_a_spec_the_loader_would_refuse_is_refused_by_the_runner_too` |
+| the target is re-verified before each action | `test_a_changed_target_stops_the_run_before_the_next_action` |
+| close only by id and only while the id carries our title | `owned_tests.rs`: `test_teardown_skips_the_close_when_the_id_carries_another_title`, `test_teardown_does_not_close_when_the_title_cannot_be_checked` |
+| teardown on a normal end, a setup error, a timeout, a panic | `test_dropping_the_session_tears_down`, `test_a_panic_still_tears_down`, `executor_v2_tests.rs`: `test_a_panic_in_an_action_still_tears_down`, `test_an_action_that_cannot_run_is_an_error_and_tears_down` |
+| teardown on Ctrl-C, SIGTERM, SIGHUP | `crates/spawn-at-verify/tests/run_signal_test.rs`: `test_sigterm_ends_run_with_teardown_and_exit_130` and the SIGINT, SIGHUP and `--repeat` variants |
+| a halfway setup failure is `Error`, never `Fail`, and runs no action | `executor_v2_tests.rs`: `test_halfway_setup_failure_is_an_error_and_runs_no_action`, `test_second_setup_failing_closes_the_first_and_runs_nothing` |
+| an ambiguous match touches nothing | `owned_tests.rs`: `test_two_windows_with_the_title_are_ambiguous_and_nothing_is_closed` |
+| a Both test keeps its window until the verdict; every cleanup path reaches it | `executor_v2_tests.rs`: `test_a_test_a_person_judges_keeps_its_window_until_the_tracker_cleans_up`, `crates/spawn-at-verify/tests/tui/v2_flow.rs`: `test_a_both_test_keeps_its_window_until_the_verdict`, `test_ctrl_c_while_a_both_test_waits_closes_its_window` |
+| no GNOME journal or `SetLogging` when another backend is forced | `crates/spawn-at-verify/src/backend.rs` tests, `crates/spawn-at-verify/tests/run_sway_guard_test.rs`: `test_gnome_journal_is_not_used_when_sway_is_forced` |
+| no run against a Sway that is not the private session | `backend.rs`: `test_guard_refuses_everything_else`, `run_sway_guard_test.rs`: `test_a_sway_that_is_not_the_private_session_blocks_the_test` |
+| `quick` never selects a window-launching spec | `crates/spawn-at-verify/tests/suite_wiring_test.rs`: `test_quick_leaves_out_moves_focus_specs_and_full_keeps_them`, `v2_tests.rs`: `test_a_spec_that_launches_a_window_must_carry_the_moves_focus_tag` |
+| the 45 existing specs and the five suites are unchanged | `crates/spawn-at-verify/tests/catalog_golden_test.rs:51`, and the `list` hashes in the pull request |
+
+Each guard in the table was broken on purpose once (loader rules, `owned.rs`, `executor_v2.rs`, `backend.rs`, the signal handler, the repeat fix, the quick tag), a test failed each time, and the code was restored; the pull request lists them. One guard cannot be broken alone: the `--id` value check in `validate_action` is also caught by the later placeholder check (both layers have tests).

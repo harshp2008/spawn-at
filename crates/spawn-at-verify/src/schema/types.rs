@@ -195,6 +195,13 @@ pub struct TestExpect {
     /// Geometric bounds expectation for independent arithmetic oracle check.
     #[serde(default)]
     pub rect: Option<ExpectRect>,
+    /// Version 2: substrings that must appear in standard output (`${name}` allowed).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stdout_present: Vec<String>,
+    /// Version 2: standard output is a JSON array holding an entry whose `id` and `title` are
+    /// those of this recorded window.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stdout_lists_window: Option<String>,
 }
 
 /// Human visual review watch prompt under `[human]`.
@@ -211,6 +218,115 @@ pub struct TestRegression {
     pub commit: String,
     /// Explanatory notes documenting the bug or historical defect.
     pub note: String,
+}
+
+/// Schema version of a spec that uses `[[setup]]`, `[[then]]`, `[[check]]` or the stdout
+/// expectations. A spec without `schema_version` is version 1, which is every spec written before
+/// `docs/DESIGN_RUNNER_SETUP.md`.
+pub const SCHEMA_VERSION_EXISTING_WINDOW: u32 = 2;
+
+/// `[[setup]]`: one fixture window the runner launches itself before the action. The runner picks
+/// the title, the app id, the crash backstop and the protocol; the spec supplies only whitelisted
+/// fixture flags (`schema::v2::SETUP_FLAGS`).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TestSetup {
+    /// Name of the window: `${name}` in action arguments is its recorded id.
+    pub name: String,
+    /// Fixture flags (for example `["--width", "400", "--height", "300"]`).
+    #[serde(default)]
+    pub args: Vec<String>,
+    /// Longest wait, in milliseconds, for the window to show up in `query windows`; the runner
+    /// default (5000) applies when absent.
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
+}
+
+/// What a `[[check]]` asserts about a recorded window.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum CheckState {
+    /// The window is listed by `query windows`.
+    Present,
+    /// The window is not listed.
+    Gone,
+    /// Listed and maximized.
+    Maximized,
+    /// Listed and minimized.
+    Minimized,
+    /// Listed, neither maximized nor minimized.
+    Normal,
+    /// Listed and focused.
+    Focused,
+    /// Listed and not focused.
+    Unfocused,
+}
+
+/// `[[check]]`: one assertion about a recorded window, evaluated after an action. Exactly one of
+/// `state`, `same_rect_as` and `process_exited` must be given.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(deny_unknown_fields)]
+pub struct TestCheck {
+    /// Evaluate after this action: 0 is `[action]`, 1 the first `[[then]]`, and so on. Absent
+    /// means after the last action.
+    #[serde(default)]
+    pub after: Option<usize>,
+    /// Name of the `[[setup]]` window the check is about.
+    pub window: String,
+    /// The window's state in `query windows`.
+    #[serde(default)]
+    pub state: Option<CheckState>,
+    /// `"before"`: the window's rectangle equals (within 2 px) the one read just before `[action]`.
+    #[serde(default)]
+    pub same_rect_as: Option<String>,
+    /// The fixture process this setup launched has exited (within 2 s).
+    #[serde(default)]
+    pub process_exited: bool,
+}
+
+/// The keys a version 2 spec may add. Flattened into [`TestDefinition`], so a version 1 spec
+/// parses exactly as before and serializes without any of them.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecV2 {
+    /// 1 when absent. 2 allows the other keys of this struct.
+    #[serde(default = "default_schema_version", skip_serializing_if = "is_v1")]
+    pub schema_version: u32,
+    /// Fixture windows to launch before the action.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub setup: Vec<TestSetup>,
+    /// Actions run in order after `[action]`.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub then: Vec<TestAction>,
+    /// Assertions on the recorded windows.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub check: Vec<TestCheck>,
+}
+
+fn default_schema_version() -> u32 {
+    1
+}
+
+fn is_v1(v: &u32) -> bool {
+    *v == 1
+}
+
+impl Default for SpecV2 {
+    /// Version 1 with nothing added.
+    fn default() -> Self {
+        Self {
+            schema_version: 1,
+            setup: Vec::new(),
+            then: Vec::new(),
+            check: Vec::new(),
+        }
+    }
+}
+
+impl SpecV2 {
+    /// True when the spec uses none of the version 2 keys.
+    pub fn is_empty(&self) -> bool {
+        self.setup.is_empty() && self.then.is_empty() && self.check.is_empty()
+    }
 }
 
 /// Test definition deserialized from a `.toml` file.
@@ -255,4 +371,7 @@ pub struct TestDefinition {
     /// Associated regression tracking metadata.
     #[serde(default)]
     pub regression: Option<TestRegression>,
+    /// Version 2 additions (`schema_version`, `[[setup]]`, `[[then]]`, `[[check]]`).
+    #[serde(flatten)]
+    pub v2: SpecV2,
 }

@@ -101,6 +101,7 @@ fn test_format_test_tree() {
             expect: Default::default(),
             human: None,
             regression: None,
+            v2: Default::default(),
         },
         TestDefinition {
             id: "preflight/binary-head".into(),
@@ -122,6 +123,7 @@ fn test_format_test_tree() {
             expect: Default::default(),
             human: None,
             regression: None,
+            v2: Default::default(),
         },
     ];
 

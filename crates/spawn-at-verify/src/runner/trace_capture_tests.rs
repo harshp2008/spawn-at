@@ -96,6 +96,7 @@ fn run_once(runner: &TestRunner, test: &TestDefinition) -> TestResult {
     let mut tracker = WindowTracker {
         known_preexisting: Default::default(),
         tracked_test_windows: Default::default(),
+        owned: Default::default(),
     };
     runner.execute_single_test(test, &preflight, &env, &mut tracker)
 }
