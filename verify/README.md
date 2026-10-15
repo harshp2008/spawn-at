@@ -92,6 +92,68 @@ Tests can define a `[matrix]` block to automatically generate parameterized comb
 - Real anchor and pivot identifiers are read directly from CLI argument definitions.
 - The loader validates that all generated IDs are globally unique, rejecting duplicate expansions or unknown fields with file and line context.
 
+### Version 2 specs: tests of an existing window
+A spec without `schema_version` is version 1 (every spec in the catalog today): one `[action]`, launched through `spawn`. A spec with `schema_version = 2` may launch its **own fixture windows**, act on them **by the id the runner recorded**, assert on them and have them torn down. Design and reasons: `docs/DESIGN_RUNNER_SETUP.md`.
+
+```toml
+schema_version = 2
+id = "transforms/resize-by-id"
+category = "transforms"
+title = "Resize an existing window by id"
+description = "Launches the fixture at 400x300, resizes that window to 600x450 centred, and checks the rectangle."
+kind = "auto"
+tags = ["needs-fixture", "moves-focus"]      # moves-focus is required whenever there is a [[setup]]
+
+[requires]
+backend = ["gnome", "sway"]                  # "sway" is a value of its own
+
+[[setup]]                                    # up to 3; the runner starts the fixture itself
+name = "w"                                   # ${w} is its recorded window id
+args = ["--width", "400", "--height", "300"] # whitelisted fixture flags only
+# timeout_ms = 5000                          # longest wait for the window to appear
+
+[action]                                     # the measured action: its exit code, stderr, stdout, rectangle are judged
+command = "transform"
+args = ["--id", "${w}", "--size", "600", "450", "--anchor", "center", "--margin", "0", "--no-focus"]
+
+[[then]]                                     # optional further actions, each must exit 0
+command = "restore"
+args = ["--id", "${w}", "--no-focus"]
+
+[[check]]                                    # assertions on a recorded window, looked at again for up to 2 s
+after = 0                                    # 0 = after [action], 1 = after the first [[then]]; default = after the last
+window = "w"
+state = "maximized"                          # present | gone | maximized | minimized | normal | focused | unfocused
+# same_rect_as = "before"                    # or: equal (2 px) to the rectangle read before [action]
+# process_exited = true                      # or: the fixture process this setup started has ended
+
+[expect]
+exit_code = 0
+stdout_present = ["\"id\": ${w}"]            # substrings of stdout; ${...} allowed
+stdout_lists_window = "w"                    # stdout is a window list holding w (same id and unique title)
+[expect.rect]                                # the oracle, judged on the recorded window re-read after the action
+anchor = "center"
+size = [600, 450]
+margin = 0
+```
+
+**Rules the loader enforces** (`crates/spawn-at-verify/src/schema/v2.rs`; each has a test):
+- `[[setup]]`, `[[then]]`, `[[check]]`, `stdout_present`, `stdout_lists_window` need `schema_version = 2`; versions other than 1 and 2 are refused; no `[subject]`.
+- Commands are `focus`, `defocus`, `transform`, `maximize`, `minimize`, `restore`, `close`, `query`. Not `spawn`, `install`, `config`.
+- **The only selector is `--id ${name}`** with `name` a declared setup (or `${nonexistent}`, an id the runner has just proved is not a window). A literal id, `-c`, `-t`, `--pid`, `--focused` (also as `--class=x` or `-cx`), `--id=...`, `--`, a bare `defocus`, and `defocus --to-window` with anything but `${name.title}` are load errors.
+- Setup flags are whitelisted (`--width --height --min-width --min-height --decorations --paint-delay-ms --expect --state-colors` and the hostile-app flags). `--title`, `--app-id`, `--exit-after-ms`, `--protocol` belong to the runner.
+- At most 3 setups; names are lower-case, unique, not `nonexistent`, not a `[matrix]` key. A `[[check]]` names a declared window and exactly one of `state`, `same_rect_as`, `process_exited`.
+- Not available in version 2: `never_visible_off_target`, `[expect.resize]`, `diagnostics`; `[expect.rect]` needs a setup.
+- **A spec with a `[[setup]]` must carry the tag `moves-focus`**, because a new fixture window takes focus. The `quick` suite excludes the tag.
+
+**Results.** A setup that fails, a target that changed, a failed query and an interrupt end `Error`, never `Fail`: nothing about the product was judged. A command with the wrong exit code, a check that does not hold and a rectangle that is off are `Fail`. A spec whose `[requires] backend` does not include the selected backend is **Skipped** with the fixed text `unsupported on this backend (<backend>): spec requires <list>`; the backend is read the way the binary reads it, from `SPAWN_AT_BACKEND` (`x11` or `sway`, lower-cased, nothing trimmed) and `XDG_CURRENT_DESKTOP`.
+
+### Running on a private headless Sway
+`scripts/verify-sway.sh [-- <run arguments>]` starts a private headless Sway through `scripts/sway-headless.sh`, runs `spawn-at-verify run` against it (`SPAWN_AT_BACKEND=sway`; `DISPLAY`, `XDG_CURRENT_DESKTOP` and `DBUS_SESSION_BUS_ADDRESS` removed from the runner's environment) and stops that Sway. With no arguments it runs the specs tagged `headless-safe`. The runner also refuses (every test `Blocked`) when `SWAYSOCK` is not inside a `spawn-at-sway.*` directory with the harness marker, owned by you and not the real runtime directory. On a forced non-GNOME backend the runner does not use the GNOME journal or call `SetLogging` on the extension. Flash and trace checks do not exist on Sway.
+
+### Ctrl-C, SIGTERM and SIGHUP in `run`
+`spawn-at-verify run` stops starting tests on any of these signals, closes the windows it opened (by id) and stops the fixture processes it started, writes the report for what ran, and exits with **130**. An interrupted repetition is dropped, not counted as flaky. The wait inside one `spawn-at` action (up to the 5 s step timeout) is not interrupted.
+
 ---
 
 ## 3. Directory Structure & Categories
@@ -187,7 +249,8 @@ The preflight check runs first to prevent testing stale or out-of-sync binaries:
 2. **Ownership Strictness**: The harness **never** closes pre-existing windows. It tracks only windows spawned during test actions.
 3. **No PID or Name Killing**: Host processes (`gnome-terminal-server`, etc.) are never terminated by PID or process name. Closing test windows uses `spawn-at close --id <ID>` only, for windows the harness itself launched (ownership rules unchanged). For fixture processes the harness spawned itself, it may terminate its own child process directly. A close that leaves the window present is reported in the run, and the cap on tracked windows still applies.
 4. **Concurrency Cap**: The harness tracks a maximum of 20 concurrent windows. If the cap is reached, further spawns are refused until windows are cleaned up.
-5. **Execution Variants**:
+5. **Version 2 specs own their windows** (`docs/DESIGN_RUNNER_SETUP.md` section 3): the runner starts the fixture itself and holds its process handle; a window is recorded only when exactly one listed window has the fixture's unique title (`verify-<pid>-<time>-<n>-<test>-<name>`) and the child's pid; every action is preceded by a re-check that the recorded id still has that title and pid; a window is closed by its id only while the id still carries that title; a signal is sent only through the unreaped child handle (SIGTERM, then SIGKILL), never to a pid read from `query windows`; teardown runs on a normal end, a setup error, a timeout, Ctrl-C/SIGTERM/SIGHUP and a panic, and a Both or Human test keeps its window until the verdict (the tracker tears it down). The fixture is always started with `--exit-after-ms` (10 s, or 5 min for Both and Human), so a killed runner leaves a fixture that ends itself. After teardown the focus goes back to the window that had it at the start, if it still exists and lost focus. A window still listed after teardown is a warning in the result message, not a failure.
+6. **Execution Variants**:
    - *Rerun Fresh*: Closes previous windows owned by this test, then spawns anew.
    - *Rerun, Keep Windows*: Spawns another window without closing earlier ones (verifies placement stability under window accumulation, respecting the 20-window cap).
    - *Rerun in Place*: Re-executes repeatable actions (`transform`, `maximize`) on the existing mapped window.

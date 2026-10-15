@@ -24,6 +24,7 @@ Verification engine, automated test harness, and interactive qualification TUI f
 - `src/log_source.rs`: Platform-agnostic log slicing trait and system journal implementations.
 - `src/preflight.rs`: Preflight build freshness verification and git status inspection.
 - `src/probe.rs`: Desktop compositor probe, monitor topology, and display layout detection.
+- `src/backend.rs`: Which `spawn-at` backend a run is aimed at (mirrors `SPAWN_AT_BACKEND` and the desktop), the `sway` requirement, when the GNOME journal applies, and the private-headless-Sway guard.
 - `src/process.rs`: Timeout-bounded child process execution and non-blocking pipe draining.
 - `src/report/`: Verification session report models, redaction, and export.
   - `src/report/mod.rs`: Report exports and public API wiring.
@@ -37,6 +38,7 @@ Verification engine, automated test harness, and interactive qualification TUI f
   - `src/schema/types.rs`: Test definition, action, expectation, and verdict structures.
   - `src/schema/matrix.rs`: Combinatorial test matrix expansion.
   - `src/schema/suite.rs`: Predefined test suite definition models.
+  - `src/schema/v2.rs`: Load-time rules and run-time placeholder substitution for `schema_version = 2` specs (`[[setup]]`, `[[then]]`, `[[check]]`).
   - `src/schema/tests.rs`: Schema unit tests.
 - `src/trace/`: Trace log event parser, lifecycle state machine, and budget checks.
   - `src/trace/mod.rs`: Trace exports and public API wiring.
@@ -61,6 +63,8 @@ Verification engine, automated test harness, and interactive qualification TUI f
   - `src/runner/mod.rs`: Runner exports and public API wiring.
   - `src/runner/engine.rs`: TestRunner orchestrator and test suite run loop.
   - `src/runner/executor.rs`: Single test case execution, process management, and log slicing.
+  - `src/runner/executor_v2.rs`: Execution of a version 2 test: setup, actions, checks, teardown.
+  - `src/runner/owned.rs`: `SetupSession`: the fixture processes and windows a test launched itself, owned through their `Child` handles and torn down on every path; the `Control` and `ActionRunner` seams.
   - `src/runner/models.rs`: Execution status models, human verdicts, and options.
   - `src/runner/validation.rs`: Expectation validation, output matching, and argument building.
   - `src/runner/tests.rs`: Runner unit tests and model resolution checks.
@@ -104,6 +108,10 @@ Verification engine, automated test harness, and interactive qualification TUI f
       - `src/tui/views/drawer/timeline_format.rs`: Timeline event parsing, formatting, and key humanisation.
 - `tests/`: Integration test suites.
   - `tests/category_library_test.rs`: Test suite integrity, category validation, and filtering.
+  - `tests/catalog_golden_test.rs`: The 45 existing specs and the five suites serialize and select exactly as in `tests/golden/catalog_v1.json`.
+  - `tests/suite_wiring_test.rs`: Every suite category has specs or is a commented known-empty; every spec is selected by a suite; `quick` leaves out `moves-focus`.
+  - `tests/run_signal_test.rs`: The real `run` binary against stand-in scripts, signalled mid-run: teardown and exit 130.
+  - `tests/run_sway_guard_test.rs`: `run` aimed at Sway from a GNOME-looking environment: no GNOME journal, blocked outside the private session.
   - `tests/fixture_test.rs`: Fixture binary process lifecycle and protocol behaviors.
   - `tests/oracle_cross_check.rs`: Cross-check matrix between math oracle and CLI core placement.
   - `tests/trace_analyser_test.rs`: Comprehensive trace event lifecycle characterization suite.
@@ -116,6 +124,7 @@ Verification engine, automated test harness, and interactive qualification TUI f
     - `tests/tui/golden_invariants.rs`: Golden file comparisons and text grid invariants.
     - `tests/tui/layout_responsive.rs`: Responsive width breakpoints and small height layouts.
     - `tests/tui/polish.rs`: UI spacing, padding, and outcome symbols polish specifications.
+    - `tests/tui/v2_flow.rs`: Version 2 specs in the TUI (drawer lines, Auto and Both ownership of the window, Ctrl-C), with stand-in scripts.
 
 ## Optional tools
 
