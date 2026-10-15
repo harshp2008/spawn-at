@@ -4,31 +4,48 @@
 //! - `ipc`: the i3-ipc frame format (pure, no sockets).
 //! - `types`: the JSON Sway sends and its conversion to `WindowMetadata` and `MonitorLayout`.
 //! - `client`: a blocking connection to `$SWAYSOCK`, and the errors that name it.
+//! - `command`: the text of the `RUN_COMMAND` strings.
+//! - `matching`: which new window belongs to the launched process.
+//! - `place`: waiting for that window and placing it, over blocking connections.
 //!
 //! The driver is reached only by `SPAWN_AT_BACKEND=sway`; no environment selects it on its own.
+//!
+//! Placement is event driven: `arm` subscribes to `window` events before the application starts,
+//! `post_spawn` waits for the window and sends one chained command. Sway cannot hold a window
+//! invisible, so it may show one frame at its tiled position first (`reveal_control` is false).
 
-// The write side (placement, close, focus) arrives in the next commit of this series; until
-// then some items are only used by the unit tests. Remove this allow with that commit.
+// The driver is not reachable from the command line until the registry selects it (the commit
+// after this one); until then everything here is used only by the unit tests. Remove this allow
+// with that commit.
 #![allow(dead_code)]
 
 pub mod client;
+pub mod command;
 pub mod ipc;
+pub mod matching;
+pub mod place;
 pub mod types;
 
 #[cfg(test)]
 mod fake;
 
 use crate::platform::{
-    Armed, Batch, CompositorBackend, Driver, DriverError, MonitorLayout, Rect, WindowMetadata,
+    Armed, Batch, CompositorBackend, Driver, DriverError, MonitorLayout, PlacementParams, Rect,
+    WindowMetadata,
 };
 use client::Client;
 use ipc::MessageType;
+use place::Pending;
+use spawn_at_core::driver::FocusIntent;
 use std::path::{Path, PathBuf};
+use std::sync::Mutex;
 
 /// The Sway driver: every call opens its own short connection to `$SWAYSOCK` (the way the X11
-/// driver connects per call), so the driver holds only the socket path.
+/// driver connects per call). The only state is the event subscription `arm` leaves for
+/// `post_spawn`.
 pub struct SwayDriver {
     socket: PathBuf,
+    pending: Mutex<Option<Pending>>,
 }
 
 impl SwayDriver {
@@ -51,7 +68,10 @@ impl SwayDriver {
                 e
             ))
         })?;
-        Ok(SwayDriver { socket })
+        Ok(SwayDriver {
+            socket,
+            pending: Mutex::new(None),
+        })
     }
 
     /// Runs `work` on a blocking thread with the socket path (the socket I/O is blocking).
@@ -92,8 +112,17 @@ pub fn fetch_windows(socket: &Path) -> Result<Vec<WindowMetadata>, DriverError> 
 
 #[async_trait::async_trait]
 impl Driver for SwayDriver {
+    /// Subscribes to `window` events and records the existing windows, before the application
+    /// starts. Sway needs no launch environment (no activation token), so `Armed` is empty.
     async fn arm(&self, _batch: Batch) -> Result<Armed, DriverError> {
+        let pending = self.blocking(place::subscribe_and_snapshot).await?;
+        *self.pending.lock().unwrap() = Some(pending);
         Ok(Armed::default())
+    }
+
+    /// Drops the subscription (best-effort, idempotent).
+    async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
+        Ok(self.pending.lock().unwrap().take().is_some())
     }
 }
 
@@ -101,6 +130,26 @@ impl Driver for SwayDriver {
 impl CompositorBackend for SwayDriver {
     fn name(&self) -> &'static str {
         "Sway"
+    }
+
+    fn supports_runtime_transform(&self) -> bool {
+        true
+    }
+
+    fn supports_close(&self) -> bool {
+        true
+    }
+
+    /// Runtime transform and close work; there is no claim wait (placement is in `post_spawn`),
+    /// no way to hold a new window invisible, and no helper.
+    fn capabilities(&self) -> crate::platform::capability::Capabilities {
+        crate::platform::capability::Capabilities {
+            runtime_transform: true,
+            claim_wait: false,
+            close: true,
+            reveal_control: false,
+            needs_helper: false,
+        }
     }
 
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
@@ -135,6 +184,82 @@ impl CompositorBackend for SwayDriver {
     async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
         self.blocking(fetch_windows).await
     }
+
+    /// Places the window `target_id` (an id, pid or class) so a window of the current size
+    /// `current_w` x `current_h` follows `params`; a size in `params` resizes it.
+    async fn transform_window(
+        &self,
+        target_id: &str,
+        params: PlacementParams,
+        current_w: u32,
+        current_h: u32,
+    ) -> Result<(), DriverError> {
+        let target_id = target_id.to_string();
+        self.blocking(move |socket| {
+            let (mut client, id) = connect_to_window(socket, &target_id)?;
+            place::transform(&mut client, id, &params, (current_w, current_h))
+        })
+        .await
+    }
+
+    async fn focus_window(&self, target_id: &str) -> Result<(), DriverError> {
+        let target_id = target_id.to_string();
+        self.blocking(move |socket| {
+            let (mut client, id) = connect_to_window(socket, &target_id)?;
+            place::run(&mut client, &command::focus(id))
+        })
+        .await
+    }
+
+    /// Asks the client to close the window (Sway's `kill` on the container).
+    async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
+        let target_id = target_id.to_string();
+        self.blocking(move |socket| {
+            let (mut client, id) = connect_to_window(socket, &target_id)?;
+            place::run(&mut client, &command::kill(id))
+        })
+        .await
+    }
+
+    /// Waits for the window of the process just launched (events from the subscription `arm`
+    /// opened) and places the first entry of the batch on it.
+    async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
+        let Some(entry) = batch.entries.first().cloned() else {
+            return Ok(());
+        };
+        let exclusive_focus = batch.focus == FocusIntent::Exclusive;
+        let pending = self.pending.lock().unwrap().take();
+        self.blocking(move |socket| {
+            let Some(Pending {
+                mut events,
+                snapshot,
+            }) = pending
+            else {
+                return Err(DriverError::IpcError(
+                    "post_spawn without arm: no window event subscription".to_string(),
+                ));
+            };
+            let mut matcher = matching::Matcher::new(snapshot, child_pid, &entry.app_hint);
+            let id = place::wait_for_window(
+                &mut events,
+                &mut matcher,
+                place::WINDOW_WAIT,
+                &|window_pid, launched| {
+                    crate::platform::linux::is_process_descendant(window_pid, launched)
+                },
+            )?;
+            let mut client = Client::connect(socket)?;
+            place::place_window(&mut client, id, &entry.placement, exclusive_focus)
+        })
+        .await
+    }
+}
+
+/// A connection and the container id of the window `target_id` names.
+fn connect_to_window(socket: &Path, target_id: &str) -> Result<(Client, u64), DriverError> {
+    let windows = fetch_windows(socket)?;
+    let id = place::resolve_window_id(&windows, target_id)?;
+    Ok((Client::connect(socket)?, id))
 }
 
 #[cfg(test)]
@@ -285,7 +410,7 @@ mod tests {
     /// The driver names itself `Sway`, declares no capability it does not have yet and needs no
     /// helper or installation.
     #[test]
-    fn test_name_and_default_capabilities() {
+    fn test_name_and_no_provisioner() {
         let fake = FakeSway::start(Script::default().reply(MessageType::GetOutputs, OUTPUTS_ONE));
         let driver = SwayDriver::connect(fake.path.clone()).unwrap();
         assert_eq!(driver.name(), "Sway");
@@ -293,3 +418,6 @@ mod tests {
         assert!(!driver.capabilities().needs_helper);
     }
 }
+
+#[cfg(test)]
+mod tests_write;
