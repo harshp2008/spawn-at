@@ -3,6 +3,7 @@ pub mod gnome;
 pub mod host;
 pub mod process_tree;
 pub mod registry;
+pub mod sway;
 pub mod x11;
 pub mod xdg;
 
