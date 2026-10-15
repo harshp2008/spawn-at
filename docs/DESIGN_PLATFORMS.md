@@ -187,7 +187,7 @@ Rule for every step: **behavior-preserving, one logical change, no new feature**
 
 | # | Change | Proof | Size | Risk |
 | :-- | :-- | :-- | :-- | :-- |
-| 0 | Baseline snapshot (script in `scratch/`, then a short `docs/` note): sorted test names, help outputs, golden hashes, installer fake-curl matrix | n/a (creates the proof) | S | none |
+| 0 **(done)** | Baseline snapshot (script in `scratch/baseline_platform/`, described in [REFACTOR_PROOFS.md](REFACTOR_PROOFS.md)): sorted test names, help outputs, golden hashes, installer fake-curl matrix | n/a (creates the proof) | S | none |
 | 1 **(done)** | Make the crate compile off Linux (leaks #1, #2): a compile-only stub `src/platform/non_linux.rs` mounted as `platform::linux` on other OSes (the real `config_store.rs` reused, `is_wayland_session() -> false`), `is_executable_file` split by `cfg(unix)`, and `ensure_supported_os()` that prints "spawn-at does not support this operating system yet" and exits 1. Neutral files unchanged. `cargo check --locked -p spawn-at` passes for `x86_64-pc-windows-gnu`, `x86_64-apple-darwin`, `aarch64-apple-darwin`; CI job `check-other-os`. (The tests and `spawn-at-verify` do not compile off Linux yet.) | tests unchanged; help diff empty | S | low |
 | 2 | One `ProcessTree` module (merge the two `/proc` copies, leak #3), callers unchanged | sorted test names; the existing process tests keep passing | S | low |
 | 3 | Pure-move split of `gnome/mod.rs` (1,886 lines) into `args.rs`, `detect.rs`, `deploy.rs` (install/uninstall), `driver.rs`, `tests.rs` | `git diff -M --stat`, sorted test names identical, release binary behavior identical | M | low (move only) |
