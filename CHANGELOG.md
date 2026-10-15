@@ -13,6 +13,7 @@ All notable changes to this project are recorded here. The format follows
 
 ### Documentation
 
+- `docs/DESIGN_RUNNER_SETUP.md`: design (not implemented) of the verify runner change that lets a spec launch its own fixture window, act on it by its recorded id, assert on it and tear it down, plus the catalog specs and the transform flash measurement that would sit on it. Awaiting owner approval; no code changed.
 - `docs/TEST_COVERAGE_AUDIT.md`: which `spawn-at` commands are tested, at which tier and on which backend, how the verify suite measures flicker, how the TUI test interface works, proposed new tests and the gaps found. No code changed.
 - `verify/README.md` no longer describes a web UI (`spawn-at-verify serve`, `tui --web`); neither exists. It now says which commands write `report.json` and `report.md` (`run` and `calibrate`, not the TUI). `README.md` says `--focus`, `--no-focus` and `--defocus` are accepted on `spawn` but currently have no effect. `CLAUDE.md` notes that `scripts/smoke-live.sh` is run by the owner by hand.
 
