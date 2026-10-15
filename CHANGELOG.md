@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `spawn-at-verify` preflight no longer blocks every test on a commit that is exactly a release tag. A binary that prints `spawn-at <version>` (no commit id) now passes when `git describe --tags --exact-match HEAD` is `v<version>` and the tree is clean; otherwise it fails with the same stale-binary message. Unrecognised `--version` output now fails instead of being skipped. Dev builds are checked as before.
+
 ## [0.2.0-beta.4] - 2026-10-15
 
 Pre-release. The GNOME extension (`assets/gnome/`) and `install.sh` are byte-identical to 0.2.0-beta.3, and GNOME Wayland placement behaves as before. The release restructures the code so other platforms can be added, and adds an experimental, off-by-default Sway backend. See
