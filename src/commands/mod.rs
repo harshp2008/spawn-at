@@ -22,9 +22,6 @@ pub use spawn::run_spawn_with;
 pub use transform::run_transform;
 
 #[cfg(test)]
-mod state_command_tests;
-
-#[cfg(test)]
 use crate::platform::CompositorBackend;
 use crate::platform::{DriverError, WindowMetadata};
 use std::time::{Duration, Instant};
@@ -1490,3 +1487,6 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod state_command_tests;
