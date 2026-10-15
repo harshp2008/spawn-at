@@ -45,3 +45,21 @@ jobs:
 
       - name: Test GNOME extension (node)
         run: node --test tests/*.js
+
+  # Other operating systems are not supported yet; this only keeps the crate compiling there.
+  # `cargo check` does not link, so the Ubuntu runner is enough. Tests and spawn-at-verify do
+  # not build off Linux yet and are not checked.
+  check-other-os:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+        with:
+          targets: x86_64-pc-windows-gnu,x86_64-apple-darwin,aarch64-apple-darwin
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - name: Check Windows (compile only)
+        run: cargo check --locked -p spawn-at -p spawn-at-core --target x86_64-pc-windows-gnu
+      - name: Check macOS Intel (compile only)
+        run: cargo check --locked -p spawn-at -p spawn-at-core --target x86_64-apple-darwin
+      - name: Check macOS Apple silicon (compile only)
+        run: cargo check --locked -p spawn-at -p spawn-at-core --target aarch64-apple-darwin
