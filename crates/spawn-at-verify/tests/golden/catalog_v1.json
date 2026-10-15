@@ -1,0 +1,3962 @@
+{
+  "suites": {
+    "full": [
+      "cloak/delayed-paint/delay-0",
+      "cloak/delayed-paint/delay-50",
+      "cloak/delayed-paint/delay-150",
+      "cloak/delayed-paint/delay-500",
+      "hostile/clamp-to-min",
+      "hostile/default-equals-min",
+      "hostile/grid-snap",
+      "hostile/hung",
+      "hostile/non-resizable",
+      "hostile/refuse-grow",
+      "hostile/restless",
+      "hostile/slow-above-cap",
+      "hostile/slow-below-cap",
+      "placement/bottom-below-min-both",
+      "placement/bottom-left-below-min-both",
+      "placement/bottom-left-smaller",
+      "placement/bottom-left",
+      "placement/bottom-right-below-min-both",
+      "placement/bottom-right-below-min-height",
+      "placement/bottom-right-below-min-width",
+      "placement/bottom-right-far-below-min",
+      "placement/bottom-right-larger",
+      "placement/bottom-right-minsize-at-min",
+      "placement/bottom-right-smaller",
+      "placement/bottom-right",
+      "placement/bottom-smaller",
+      "placement/bottom",
+      "placement/center-1200x800",
+      "placement/center-200x150",
+      "placement/center",
+      "placement/invalid-size-zero",
+      "placement/left",
+      "placement/margin-0",
+      "placement/margin-64",
+      "placement/right-below-min-both",
+      "placement/right-smaller",
+      "placement/right",
+      "placement/top-left-below-min-both",
+      "placement/top-left-smaller",
+      "placement/top-left",
+      "placement/top-right-below-min-both",
+      "placement/top-right-smaller",
+      "placement/top-right",
+      "placement/top",
+      "preflight/binary-head"
+    ],
+    "quick": [
+      "placement/bottom-below-min-both",
+      "placement/bottom-left-below-min-both",
+      "placement/bottom-left-smaller",
+      "placement/bottom-left",
+      "placement/bottom-right-below-min-both",
+      "placement/bottom-right-below-min-height",
+      "placement/bottom-right-below-min-width",
+      "placement/bottom-right-far-below-min",
+      "placement/bottom-right-larger",
+      "placement/bottom-right-minsize-at-min",
+      "placement/bottom-right-smaller",
+      "placement/bottom-right",
+      "placement/bottom-smaller",
+      "placement/bottom",
+      "placement/center-1200x800",
+      "placement/center-200x150",
+      "placement/center",
+      "placement/invalid-size-zero",
+      "placement/left",
+      "placement/margin-0",
+      "placement/margin-64",
+      "placement/right-below-min-both",
+      "placement/right-smaller",
+      "placement/right",
+      "placement/top-left-below-min-both",
+      "placement/top-left-smaller",
+      "placement/top-left",
+      "placement/top-right-below-min-both",
+      "placement/top-right-smaller",
+      "placement/top-right",
+      "placement/top",
+      "preflight/binary-head"
+    ],
+    "regression": [],
+    "release-gate": [
+      "cloak/delayed-paint/delay-0",
+      "cloak/delayed-paint/delay-50",
+      "cloak/delayed-paint/delay-150",
+      "cloak/delayed-paint/delay-500",
+      "placement/bottom-below-min-both",
+      "placement/bottom-left-below-min-both",
+      "placement/bottom-left-smaller",
+      "placement/bottom-left",
+      "placement/bottom-right-below-min-both",
+      "placement/bottom-right-below-min-height",
+      "placement/bottom-right-below-min-width",
+      "placement/bottom-right-far-below-min",
+      "placement/bottom-right-larger",
+      "placement/bottom-right-minsize-at-min",
+      "placement/bottom-right-smaller",
+      "placement/bottom-right",
+      "placement/bottom-smaller",
+      "placement/bottom",
+      "placement/center-1200x800",
+      "placement/center-200x150",
+      "placement/center",
+      "placement/invalid-size-zero",
+      "placement/left",
+      "placement/margin-0",
+      "placement/margin-64",
+      "placement/right-below-min-both",
+      "placement/right-smaller",
+      "placement/right",
+      "placement/top-left-below-min-both",
+      "placement/top-left-smaller",
+      "placement/top-left",
+      "placement/top-right-below-min-both",
+      "placement/top-right-smaller",
+      "placement/top-right",
+      "placement/top",
+      "preflight/binary-head"
+    ],
+    "visual": [
+      "cloak/delayed-paint/delay-0",
+      "cloak/delayed-paint/delay-50",
+      "cloak/delayed-paint/delay-150",
+      "cloak/delayed-paint/delay-500",
+      "placement/bottom-below-min-both",
+      "placement/bottom-left-below-min-both",
+      "placement/bottom-left-smaller",
+      "placement/bottom-left",
+      "placement/bottom-right-below-min-both",
+      "placement/bottom-right-below-min-height",
+      "placement/bottom-right-below-min-width",
+      "placement/bottom-right-far-below-min",
+      "placement/bottom-right-larger",
+      "placement/bottom-right-minsize-at-min",
+      "placement/bottom-right-smaller",
+      "placement/bottom-right",
+      "placement/bottom-smaller",
+      "placement/bottom",
+      "placement/center-1200x800",
+      "placement/center-200x150",
+      "placement/center",
+      "placement/left",
+      "placement/margin-0",
+      "placement/margin-64",
+      "placement/right-below-min-both",
+      "placement/right-smaller",
+      "placement/right",
+      "placement/top-left-below-min-both",
+      "placement/top-left-smaller",
+      "placement/top-left",
+      "placement/top-right-below-min-both",
+      "placement/top-right-smaller",
+      "placement/top-right",
+      "placement/top"
+    ]
+  },
+  "tests": [
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.cloak.delayedpaint",
+          "--anchor",
+          "center",
+          "--size",
+          "500",
+          "350",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "animation-and-cloak",
+      "description": "Masks window cold-start while the app takes 0 ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": true,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            500,
+            350
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, already in place, with no flash or jump?"
+      },
+      "id": "cloak/delayed-paint/delay-0",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "42-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": "delayed-paint",
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Cloak-DelayedPaint",
+          "--app-id",
+          "verify.cloak.delayedpaint",
+          "--paint-delay-ms",
+          "0",
+          "--width",
+          "500",
+          "--height",
+          "350",
+          "--expect",
+          "Should appear once, centred"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "delayed-paint"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "App paints slowly (0 ms)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.cloak.delayedpaint",
+          "--anchor",
+          "center",
+          "--size",
+          "500",
+          "350",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "animation-and-cloak",
+      "description": "Masks window cold-start while the app takes 50 ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": true,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            500,
+            350
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, already in place, with no flash or jump?"
+      },
+      "id": "cloak/delayed-paint/delay-50",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "42-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": "delayed-paint",
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Cloak-DelayedPaint",
+          "--app-id",
+          "verify.cloak.delayedpaint",
+          "--paint-delay-ms",
+          "50",
+          "--width",
+          "500",
+          "--height",
+          "350",
+          "--expect",
+          "Should appear once, centred"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "delayed-paint"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "App paints slowly (50 ms)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.cloak.delayedpaint",
+          "--anchor",
+          "center",
+          "--size",
+          "500",
+          "350",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "animation-and-cloak",
+      "description": "Masks window cold-start while the app takes 150 ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": true,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            500,
+            350
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, already in place, with no flash or jump?"
+      },
+      "id": "cloak/delayed-paint/delay-150",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "42-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": "delayed-paint",
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Cloak-DelayedPaint",
+          "--app-id",
+          "verify.cloak.delayedpaint",
+          "--paint-delay-ms",
+          "150",
+          "--width",
+          "500",
+          "--height",
+          "350",
+          "--expect",
+          "Should appear once, centred"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "delayed-paint"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "App paints slowly (150 ms)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.cloak.delayedpaint",
+          "--anchor",
+          "center",
+          "--size",
+          "500",
+          "350",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "animation-and-cloak",
+      "description": "Masks window cold-start while the app takes 500 ms before painting its first buffer. Validates zero off-target visibility via compositor actor trace.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": true,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            500,
+            350
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, already in place, with no flash or jump?"
+      },
+      "id": "cloak/delayed-paint/delay-500",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "42-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": "delayed-paint",
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Cloak-DelayedPaint",
+          "--app-id",
+          "verify.cloak.delayedpaint",
+          "--paint-delay-ms",
+          "500",
+          "--width",
+          "500",
+          "--height",
+          "350",
+          "--expect",
+          "Should appear once, centred"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "delayed-paint"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "App paints slowly (500 ms)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.clamp-to-min",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture reports a minimum of 300x200 and the request is 200x150. The extension raises the target to the reported minimum (SET_SIZE_CLAMPED), so the wait is for 300x200: Reached(300x200). KNOWN MISMATCH on GNOME 46: the extension cannot read the app's minimum (Meta-14 has no min-size accessor), so this cell fails until it can; TEST_PLAN 6.22.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            300,
+            200
+          ],
+          "outcome": "reached",
+          "reason": "at-target",
+          "tolerance_px": 2,
+          "waited_ms_max": 249,
+          "waited_ms_min": null
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/clamp-to-min",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-ClampToMin",
+          "--app-id",
+          "verify.hostile.clamp-to-min",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--min-size",
+          "300x200",
+          "--expect",
+          "Shrink target below the app minimum 300x200"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "Shrink target below the app minimum 300x200"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.default-equals-min",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture starts at 400x300 and reports 400x300 as its minimum; the request is 200x150. The target raised to the minimum equals the current size: Reached at once (waited 0) with the window still 400x300. KNOWN MISMATCH on GNOME 46: the extension cannot read the app's minimum (Meta-14 has no min-size accessor), so this cell fails until it can; TEST_PLAN 6.22.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            400,
+            300
+          ],
+          "outcome": "reached",
+          "reason": "at-target",
+          "tolerance_px": 2,
+          "waited_ms_max": 20,
+          "waited_ms_min": null
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/default-equals-min",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-DefaultEqualsMin",
+          "--app-id",
+          "verify.hostile.default-equals-min",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--min-size",
+          "400x300",
+          "--expect",
+          "App whose default size is its minimum"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App whose default size is its minimum"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.grid-snap",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture paints a buffer rounded down to a multiple of 37x41 (a terminal cell grid): 800x600 becomes 777x574. The first answer is not the target: Adjusted(777x574) after the quiet window.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            777,
+            574
+          ],
+          "outcome": "adjusted",
+          "reason": "quiet",
+          "tolerance_px": 2,
+          "waited_ms_max": 249,
+          "waited_ms_min": null
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/grid-snap",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-GridSnap",
+          "--app-id",
+          "verify.hostile.grid-snap",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--resize-increment",
+          "37x41",
+          "--expect",
+          "App that snaps to a 37x41 grid"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App that snaps to a 37x41 grid"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.hung",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture blocks its event loop for 2500 ms right after the first paint (--stall-after-map-ms 2500, under GNOME's 5 s not-responding limit). No answer within the cap of 250 ms: TimedOut(cap) at 400x300, well before the 1500 ms hard limit; the app resizes when it wakes (a real late paint).",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            400,
+            300
+          ],
+          "outcome": "timed-out",
+          "reason": "cap",
+          "tolerance_px": 2,
+          "waited_ms_max": 330,
+          "waited_ms_min": 240
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/hung",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-Hung",
+          "--app-id",
+          "verify.hostile.hung",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--stall-after-map-ms",
+          "2500",
+          "--expect",
+          "App hung for 2500 ms after it maps"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App hung for 2500 ms after it maps"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.non-resizable",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture is not resizable (--fixed-size: minimum = maximum). The extension skips the wait: Skipped(not-resizable) and the window keeps 400x300.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            400,
+            300
+          ],
+          "outcome": "skipped",
+          "reason": "not-resizable",
+          "tolerance_px": 2,
+          "waited_ms_max": 5,
+          "waited_ms_min": null
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/non-resizable",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-NonResizable",
+          "--app-id",
+          "verify.hostile.non-resizable",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--fixed-size",
+          "--expect",
+          "App that cannot be resized"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App that cannot be resized"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.refuse-grow",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture sets a maximum of 500x400 and the request is 800x600. The compositor clamps the request to the maximum, the app answers 500x400: Adjusted(500x400) after the quiet window (no cap timeout).",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            500,
+            400
+          ],
+          "outcome": "adjusted",
+          "reason": "quiet",
+          "tolerance_px": 2,
+          "waited_ms_max": 249,
+          "waited_ms_min": null
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/refuse-grow",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-RefuseGrow",
+          "--app-id",
+          "verify.hostile.refuse-grow",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--max-size",
+          "500x400",
+          "--expect",
+          "App refuses to grow past 500x400"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App refuses to grow past 500x400"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.restless",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture alternates between two buffer sizes every 20 ms for 2000 ms after the first resize (--flap-ms 2000), never at the requested size. Every change restarts the 30 ms quiet window, so the 1500 ms hard limit ends the wait: TimedOut(hard) at about 1500 ms, window revealed while still changing.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": null,
+          "outcome": "timed-out",
+          "reason": "hard",
+          "tolerance_px": 2,
+          "waited_ms_max": 1600,
+          "waited_ms_min": 1490
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/restless",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-Restless",
+          "--app-id",
+          "verify.hostile.restless",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--flap-ms",
+          "2000",
+          "--expect",
+          "App that keeps resizing for 2000 ms"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App that keeps resizing for 2000 ms"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.slow-above-cap",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture paints at a new size 400 ms after the configure (--resize-delay-ms 400). The cap of 250 ms ends the wait first: TimedOut(cap) with the window still at 400x300; the app resizes after the reveal (a real late paint).",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            400,
+            300
+          ],
+          "outcome": "timed-out",
+          "reason": "cap",
+          "tolerance_px": 2,
+          "waited_ms_max": 330,
+          "waited_ms_min": 240
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/slow-above-cap",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-SlowAboveCap",
+          "--app-id",
+          "verify.hostile.slow-above-cap",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--resize-delay-ms",
+          "400",
+          "--expect",
+          "App answers a resize 400 ms late (above the 250 ms cap)"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App answers a resize 400 ms late (above the 250 ms cap)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.hostile.slow-below-cap",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "hostile",
+      "description": "Fixture paints at a new size 100 ms after the configure (--resize-delay-ms 100). The ready-wait (default cap 250 ms) should wait for it and report Reached at 800x600. Written for the default cap of 250 ms; run it with --wait-cap-ms 250 on an extension whose default is 150.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": {
+          "final_size": [
+            800,
+            600
+          ],
+          "outcome": "reached",
+          "reason": "at-target",
+          "tolerance_px": 2,
+          "waited_ms_max": 249,
+          "waited_ms_min": 90
+        },
+        "stderr_absent": [
+          "[spawn-at] ERROR:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once and end at a sensible size?"
+      },
+      "id": "hostile/slow-below-cap",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": false,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "gnome"
+        ],
+        "gnome": "46-48",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "wayland"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Hostile-SlowBelowCap",
+          "--app-id",
+          "verify.hostile.slow-below-cap",
+          "--width",
+          "400",
+          "--height",
+          "300",
+          "--resize-delay-ms",
+          "100",
+          "--expect",
+          "App answers a resize 100 ms late (below the 250 ms cap)"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "hostile"
+      },
+      "tags": [
+        "hostile",
+        "needs-fixture",
+        "ready-wait"
+      ],
+      "title": "App answers a resize 100 ms late (below the 250 ms cap)"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottombelowminboth",
+          "--anchor",
+          "bottom",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x150 at the bottom anchor: it settles at 300x200 and must be placed for that size with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size at the bottom edge?"
+      },
+      "id": "placement/bottom-below-min-both",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomBelowMinBoth",
+          "--app-id",
+          "verify.placement.bottombelowminboth",
+          "--expect",
+          "Should be 300x200 at the bottom edge"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum on both axes (200x150 vs min 300x200), bottom"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomleftbelowminboth",
+          "--anchor",
+          "bottom-left",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x150 at the bottom-left anchor: it settles at 300x200 and must be placed for that size with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size at the bottom-left corner?"
+      },
+      "id": "placement/bottom-left-below-min-both",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomLeftBelowMinBoth",
+          "--app-id",
+          "verify.placement.bottomleftbelowminboth",
+          "--expect",
+          "Should be 300x200 at the bottom-left corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum on both axes (200x150 vs min 300x200), bottom-left"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomleftsmaller",
+          "--anchor",
+          "bottom-left",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the bottom-left anchor with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size at the bottom-left corner, 16px from the edge?"
+      },
+      "id": "placement/bottom-left-smaller",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomLeftSmaller",
+          "--app-id",
+          "verify.placement.bottomleftsmaller",
+          "--expect",
+          "Should shrink to 200x150 at the bottom-left corner"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window at the bottom-left corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomleft",
+          "--anchor",
+          "bottom-left",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the bottom-left corner of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the bottom-left corner with a small gap from screen edges, without flickering or jumping?"
+      },
+      "id": "placement/bottom-left",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomLeft",
+          "--app-id",
+          "verify.placement.bottomleft",
+          "--expect",
+          "Should appear at bottom-left corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed in bottom-left corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightbelowminboth",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x150: it settles at 300x200 and must sit in the bottom-right corner for that size, 16px from the edges.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size in the bottom-right corner, 16px from the edges, without flickering or jumping?"
+      },
+      "id": "placement/bottom-right-below-min-both",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightBelowMinBoth",
+          "--app-id",
+          "verify.placement.bottomrightbelowminboth",
+          "--expect",
+          "Should be 300x200 in the bottom-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum on both axes (200x150 vs min 300x200), bottom-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightbelowminheight",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "400",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 400x150: the height is raised to 200, the final size is 400x200, and the window must sit in the bottom-right corner for that size.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, 200 high, in the bottom-right corner?"
+      },
+      "id": "placement/bottom-right-below-min-height",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightBelowMinHeight",
+          "--app-id",
+          "verify.placement.bottomrightbelowminheight",
+          "--expect",
+          "Should be 400x200 in the bottom-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum height (400x150 vs min 300x200), bottom-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightbelowminwidth",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "200",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x300: the width is raised to 300, the final size is 300x300, and the window must sit in the bottom-right corner for that size.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once, 300 wide, in the bottom-right corner?"
+      },
+      "id": "placement/bottom-right-below-min-width",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightBelowMinWidth",
+          "--app-id",
+          "verify.placement.bottomrightbelowminwidth",
+          "--expect",
+          "Should be 300x300 in the bottom-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum width (200x300 vs min 300x200), bottom-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightfarbelowmin",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "50",
+          "50",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 50x50: it settles at 300x200 and must sit in the bottom-right corner for that size.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            50,
+            50
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size in the bottom-right corner?"
+      },
+      "id": "placement/bottom-right-far-below-min",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightFarBelowMin",
+          "--app-id",
+          "verify.placement.bottomrightfarbelowmin",
+          "--expect",
+          "Should be 300x200 in the bottom-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request far below the minimum (50x50 vs min 300x200), bottom-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightlarger",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "800",
+          "600",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 800x600 at the bottom-right corner with a 16px margin: a real grow.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            800,
+            600
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the larger size in the bottom-right corner, 16px from the edges, without flickering or jumping?"
+      },
+      "id": "placement/bottom-right-larger",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightLarger",
+          "--app-id",
+          "verify.placement.bottomrightlarger",
+          "--expect",
+          "Should grow to 800x600 in the bottom-right corner"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Larger 800x600 window in the bottom-right corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightminsizeatmin",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "300",
+          "200",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for exactly 300x200 at the bottom-right corner with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            300,
+            200
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size in the bottom-right corner, without flickering or jumping?"
+      },
+      "id": "placement/bottom-right-minsize-at-min",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightMinsizeAtMin",
+          "--app-id",
+          "verify.placement.bottomrightminsizeatmin",
+          "--expect",
+          "Should be exactly 300x200 in the bottom-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Window requested exactly at its 300x200 minimum, bottom-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomrightsmaller",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the bottom-right corner with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size in the bottom-right corner, 16px from the edges, without flickering or jumping?"
+      },
+      "id": "placement/bottom-right-smaller",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRightSmaller",
+          "--app-id",
+          "verify.placement.bottomrightsmaller",
+          "--expect",
+          "Should shrink to 200x150 in the bottom-right corner"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window in the bottom-right corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomright",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the bottom-right corner of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the bottom-right corner with a small gap from screen edges, without flickering or jumping?"
+      },
+      "id": "placement/bottom-right",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomRight",
+          "--app-id",
+          "verify.placement.bottomright",
+          "--expect",
+          "Should appear at bottom-right corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed in bottom-right corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottomsmaller",
+          "--anchor",
+          "bottom",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the bottom anchor with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size at the bottom edge, 16px from the edge?"
+      },
+      "id": "placement/bottom-smaller",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-BottomSmaller",
+          "--app-id",
+          "verify.placement.bottomsmaller",
+          "--expect",
+          "Should shrink to 200x150 at the bottom edge"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window at the bottom edge"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.bottom",
+          "--anchor",
+          "bottom",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the bottom edge of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the bottom edge with a small gap from the screen edge, without flickering or jumping?"
+      },
+      "id": "placement/bottom",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Bottom",
+          "--app-id",
+          "verify.placement.bottom",
+          "--expect",
+          "Should appear at bottom edge"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed at bottom edge"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.center1200x800",
+          "--anchor",
+          "center",
+          "--size",
+          "1200",
+          "800",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a 1200x800 test window centered in the work area.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            1200,
+            800
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did a large window appear once in the middle of the screen at the requested size, without flickering or jumping?"
+      },
+      "id": "placement/center-1200x800",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Center1200x800",
+          "--app-id",
+          "verify.placement.center1200x800",
+          "--expect",
+          "Should appear large and centered"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Large 1200x800 window centered in the work area"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.center200x150",
+          "--anchor",
+          "center",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a 200x150 test window centered in the work area.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did a small window appear once in the middle of the screen at the requested size, without flickering or jumping?"
+      },
+      "id": "placement/center-200x150",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Center200x150",
+          "--app-id",
+          "verify.placement.center200x150",
+          "--expect",
+          "Should appear small and centered"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Small 200x150 window centered in the work area"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.center",
+          "--anchor",
+          "center",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window centered in the work area at 400x300 with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "center",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the middle of the screen, without flickering or jumping?"
+      },
+      "id": "placement/center",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Center",
+          "--app-id",
+          "verify.placement.center",
+          "--expect",
+          "Should appear centered"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window centered in the work area"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.invalidsize",
+          "--anchor",
+          "center",
+          "--size",
+          "0",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Asks spawn-at for --size 0 150. The CLI must refuse before spawning anything: exit code 2 and the message 'Invalid size: width and height must be strictly positive integers'.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 2,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": null,
+        "stderr_absent": [],
+        "stderr_present": [
+          "[spawn-at] ERROR: Invalid size: width and height must be strictly positive integers"
+        ]
+      },
+      "human": {
+        "watch": "No window should appear at all."
+      },
+      "id": "placement/invalid-size-zero",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-InvalidSize",
+          "--app-id",
+          "verify.placement.invalidsize",
+          "--expect",
+          "Should never open: the CLI rejects the size"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "needs-fixture",
+        "expected-failure"
+      ],
+      "title": "Zero-width size is rejected by the CLI"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.left",
+          "--anchor",
+          "left",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the left edge of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the left edge with a small gap from the screen edge, without flickering or jumping?"
+      },
+      "id": "placement/left",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Left",
+          "--app-id",
+          "verify.placement.left",
+          "--expect",
+          "Should appear at left edge"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed at left edge"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.margin0",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "0"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the bottom-right corner of the work area with no boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 0,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once flush against the bottom-right corner, with no gap, without flickering or jumping?"
+      },
+      "id": "placement/margin-0",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Margin0",
+          "--app-id",
+          "verify.placement.margin0",
+          "--expect",
+          "Should touch bottom-right corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window in bottom-right corner with 0px margin"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.margin64",
+          "--anchor",
+          "bottom-right",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "64"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the bottom-right corner of the work area with a 64px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "bottom-right",
+          "margin": 64,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the bottom-right corner with a clearly larger gap from the screen edges than the 16px case, without flickering or jumping?"
+      },
+      "id": "placement/margin-64",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Margin64",
+          "--app-id",
+          "verify.placement.margin64",
+          "--expect",
+          "Should appear 64px from bottom-right corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window in bottom-right corner with 64px margin"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.rightbelowminboth",
+          "--anchor",
+          "right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x150 at the right anchor: it settles at 300x200 and must be placed for that size with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size at the right edge?"
+      },
+      "id": "placement/right-below-min-both",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-RightBelowMinBoth",
+          "--app-id",
+          "verify.placement.rightbelowminboth",
+          "--expect",
+          "Should be 300x200 at the right edge"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum on both axes (200x150 vs min 300x200), right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.rightsmaller",
+          "--anchor",
+          "right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the right anchor with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size at the right edge, 16px from the edge?"
+      },
+      "id": "placement/right-smaller",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-RightSmaller",
+          "--app-id",
+          "verify.placement.rightsmaller",
+          "--expect",
+          "Should shrink to 200x150 at the right edge"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window at the right edge"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.right",
+          "--anchor",
+          "right",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the right edge of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the right edge with a small gap from the screen edge, without flickering or jumping?"
+      },
+      "id": "placement/right",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Right",
+          "--app-id",
+          "verify.placement.right",
+          "--expect",
+          "Should appear at right edge"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed at right edge"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.topleftbelowminboth",
+          "--anchor",
+          "top-left",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Control: the top-left position does not depend on the window size. The fixture enforces a 300x200 minimum and is asked for 200x150: it settles at 300x200 and must still be at the top-left corner with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size in the top-left corner?"
+      },
+      "id": "placement/top-left-below-min-both",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopLeftBelowMinBoth",
+          "--app-id",
+          "verify.placement.topleftbelowminboth",
+          "--expect",
+          "Should be 300x200 at the top-left corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Control: request below the minimum on both axes (200x150 vs min 300x200), top-left"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.topleftsmaller",
+          "--anchor",
+          "top-left",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the top-left corner with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size in the top-left corner, 16px from the edges, without flickering or jumping?"
+      },
+      "id": "placement/top-left-smaller",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopLeftSmaller",
+          "--app-id",
+          "verify.placement.topleftsmaller",
+          "--expect",
+          "Should shrink to 200x150 in the top-left corner"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window in the top-left corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.topleft",
+          "--anchor",
+          "top-left",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the top-left corner of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-left",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the top-left corner with a small gap from screen edges, without flickering or jumping?"
+      },
+      "id": "placement/top-left",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopLeft",
+          "--app-id",
+          "verify.placement.topleft",
+          "--expect",
+          "Should appear at top-left corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed in top-left corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.toprightbelowminboth",
+          "--anchor",
+          "top-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "The fixture enforces a 300x200 minimum and is asked for 200x150 at the top-right anchor: it settles at 300x200 and must be placed for that size with a 16px margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at its minimum size at the top-right corner?"
+      },
+      "id": "placement/top-right-below-min-both",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopRightBelowMinBoth",
+          "--app-id",
+          "verify.placement.toprightbelowminboth",
+          "--expect",
+          "Should be 300x200 at the top-right corner"
+        ],
+        "min_height": 200,
+        "min_width": 300,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Request below the minimum on both axes (200x150 vs min 300x200), top-right"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.toprightsmaller",
+          "--anchor",
+          "top-right",
+          "--size",
+          "200",
+          "150",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns the fixture (minimum 100x100, opens at 400x300) and asks for 200x150 at the top-right anchor with a 16px margin: a real shrink that is legal for the app.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            200,
+            150
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the small size at the top-right corner, 16px from the edge?"
+      },
+      "id": "placement/top-right-smaller",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopRightSmaller",
+          "--app-id",
+          "verify.placement.toprightsmaller",
+          "--expect",
+          "Should shrink to 200x150 at the top-right corner"
+        ],
+        "min_height": 100,
+        "min_width": 100,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture",
+        "resize"
+      ],
+      "title": "Smaller 200x150 window at the top-right corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.topright",
+          "--anchor",
+          "top-right",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the top-right corner of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top-right",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once in the top-right corner with a small gap from screen edges, without flickering or jumping?"
+      },
+      "id": "placement/top-right",
+      "kind": "both",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-TopRight",
+          "--app-id",
+          "verify.placement.topright",
+          "--expect",
+          "Should appear at top-right corner"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed in top-right corner"
+    },
+    {
+      "action": {
+        "args": [
+          "--class",
+          "verify.placement.top",
+          "--anchor",
+          "top",
+          "--size",
+          "400",
+          "300",
+          "--margin",
+          "16"
+        ],
+        "command": "spawn",
+        "repeatable": false
+      },
+      "category": "placement",
+      "description": "Spawns a test window anchored to the top edge of the work area with a 16px boundary margin.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": {
+          "anchor": "top",
+          "margin": 16,
+          "margin_bottom": null,
+          "margin_left": null,
+          "margin_right": null,
+          "margin_top": null,
+          "pivot": null,
+          "size": [
+            400,
+            300
+          ],
+          "tolerance_px": 1
+        },
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": {
+        "watch": "Did the window appear once at the top edge with a small gap from the screen edge, without flickering or jumping?"
+      },
+      "id": "placement/top",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "fixture",
+        "args": [
+          "--title",
+          "Verify-Placement-Top",
+          "--app-id",
+          "verify.placement.top",
+          "--expect",
+          "Should appear at top edge"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "visual",
+        "needs-fixture"
+      ],
+      "title": "Window placed at top edge"
+    },
+    {
+      "action": {
+        "args": [],
+        "command": "preflight-binary-check",
+        "repeatable": true
+      },
+      "category": "basics",
+      "description": "Verifies that the spawn-at executable under test was compiled from the exact current repository git commit, avoiding testing stale binaries.",
+      "expect": {
+        "diagnostics": [],
+        "exit_code": 0,
+        "never_visible_off_target": false,
+        "rect": null,
+        "resize": null,
+        "stderr_absent": [
+          "[spawn-at] ERROR:",
+          "[spawn-at] WARNING:"
+        ],
+        "stderr_present": []
+      },
+      "human": null,
+      "id": "preflight/binary-head",
+      "kind": "auto",
+      "matrix": null,
+      "regression": null,
+      "required": true,
+      "requires": {
+        "apps": [],
+        "backend": [
+          "any"
+        ],
+        "gnome": "any",
+        "monitors_min": 1,
+        "scale": "any",
+        "session": [
+          "any"
+        ]
+      },
+      "subcategory": null,
+      "subject": {
+        "app": "system:git",
+        "args": [
+          "rev-parse",
+          "HEAD"
+        ],
+        "min_height": null,
+        "min_width": null,
+        "profile": "plain"
+      },
+      "tags": [
+        "preflight"
+      ],
+      "title": "Binary version matches repository HEAD"
+    }
+  ]
+}
