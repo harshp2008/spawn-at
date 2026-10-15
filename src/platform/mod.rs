@@ -15,6 +15,7 @@ pub mod install_notice;
 pub mod installer;
 pub mod provisioner;
 pub mod session_actions;
+pub mod update_hooks;
 pub mod upgrade;
 
 #[cfg(target_os = "linux")]
@@ -387,4 +388,9 @@ pub fn host() -> &'static dyn host::Host {
 /// How this machine logs out or reloads the shell (see [`session_actions::SessionActions`]).
 pub fn session_actions() -> &'static dyn session_actions::SessionActions {
     linux::session_actions()
+}
+
+/// The desktop-specific steps of `spawn-at update` (see [`update_hooks::UpdateHooks`]).
+pub fn update_hooks() -> &'static dyn update_hooks::UpdateHooks {
+    linux::update_hooks()
 }

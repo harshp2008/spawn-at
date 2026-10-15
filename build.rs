@@ -1,6 +1,11 @@
 use std::process::Command;
 
 fn main() {
+    // The target triple this binary is built for; the release asset of `spawn-at update` is named
+    // after it (see `update::asset_name_for`).
+    if let Ok(target) = std::env::var("TARGET") {
+        println!("cargo:rustc-env=SPAWN_AT_TARGET={}", target);
+    }
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=crates");

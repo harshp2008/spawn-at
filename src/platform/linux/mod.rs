@@ -14,6 +14,11 @@ pub fn session_actions() -> &'static dyn crate::platform::session_actions::Sessi
     &gnome::GnomeSessionActions
 }
 
+/// The Linux update hooks: the GNOME ones.
+pub fn update_hooks() -> &'static dyn crate::platform::update_hooks::UpdateHooks {
+    &gnome::GnomeUpdateHooks
+}
+
 /// The flags of the install command that belong to the Linux backends: the GNOME ones.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct BackendInstallArgs {

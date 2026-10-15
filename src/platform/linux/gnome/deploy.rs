@@ -398,3 +398,41 @@ impl crate::platform::session_actions::SessionActions for GnomeSessionActions {
         restart_gnome_shell_x11()
     }
 }
+
+/// The GNOME implementation of [`UpdateHooks`](crate::platform::update_hooks::UpdateHooks): active
+/// when `XDG_CURRENT_DESKTOP` contains GNOME.
+pub struct GnomeUpdateHooks;
+
+impl GnomeUpdateHooks {
+    fn on_gnome() -> bool {
+        std::env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or_default()
+            .to_uppercase()
+            .contains("GNOME")
+    }
+}
+
+impl crate::platform::update_hooks::UpdateHooks for GnomeUpdateHooks {
+    fn after_unpack(&self, new_binary: &std::path::Path) {
+        if Self::on_gnome() {
+            println!("Deploying GNOME Shell extension via newly unpacked binary...");
+            let ext_status = Command::new(new_binary)
+                .args(["install", "--skip-bin", "--headless"])
+                .status();
+            if let Err(e) = ext_status {
+                crate::diagnostics::render_warning(&format!(
+                    "Failed to install GNOME extension from new binary: {}",
+                    e
+                ));
+            }
+        }
+    }
+
+    fn offers_session_action(&self) -> bool {
+        Self::on_gnome()
+    }
+
+    fn session_is_wayland(&self) -> bool {
+        is_wayland_session()
+    }
+}

@@ -1,8 +1,8 @@
 //! Stand-in for `platform::linux` on operating systems spawn-at does not support yet.
 //!
-//! The neutral code (`config.rs`, `commands/spawn.rs`, `commands/config.rs`, `update.rs`) calls
-//! `crate::platform::linux::config_store::LinuxConfigStore` and
-//! `crate::platform::linux::gnome::is_wayland_session`. On a non-Linux target this module is
+//! The neutral code (`config.rs`, `commands/spawn.rs`, `commands/config.rs`) calls
+//! `crate::platform::linux::config_store::LinuxConfigStore`, and `platform/mod.rs` calls
+//! the functions this module defines. On a non-Linux target this module is
 //! mounted under the name `linux` (see `platform/mod.rs`), so those calls compile unchanged.
 //! Nothing here makes spawn-at work off Linux: `main` stops with a clear message first
 //! (`platform::ensure_supported_os`).
@@ -12,14 +12,6 @@
 /// used there yet.
 #[path = "linux/config_store.rs"]
 pub mod config_store;
-
-/// The GNOME pieces the neutral code asks about; there is no GNOME session off Linux.
-pub mod gnome {
-    /// Always false: no Wayland GNOME session exists on this operating system.
-    pub fn is_wayland_session() -> bool {
-        false
-    }
-}
 
 /// No install flags off Linux (there is no backend to configure).
 #[derive(clap::Args, Debug, Clone, Default)]
@@ -69,4 +61,21 @@ impl crate::platform::session_actions::SessionActions for NoSessionActions {
 /// Compile-only: off Linux nothing logs out or reloads (spawn-at stops before it could).
 pub fn session_actions() -> &'static dyn crate::platform::session_actions::SessionActions {
     &NoSessionActions
+}
+
+struct NoUpdateHooks;
+
+impl crate::platform::update_hooks::UpdateHooks for NoUpdateHooks {
+    fn after_unpack(&self, _new_binary: &std::path::Path) {}
+    fn offers_session_action(&self) -> bool {
+        false
+    }
+    fn session_is_wayland(&self) -> bool {
+        false
+    }
+}
+
+/// Compile-only: off Linux an upgrade deploys nothing and offers no session action.
+pub fn update_hooks() -> &'static dyn crate::platform::update_hooks::UpdateHooks {
+    &NoUpdateHooks
 }
