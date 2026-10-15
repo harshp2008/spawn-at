@@ -128,6 +128,11 @@ node --test tests/*.js
 cargo fmt --check
 cargo clippy --workspace --all-targets --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
 
+# A private headless Sway (never your desktop session; see docs/DESIGN_SWAY.md section 11)
+scripts/sway-headless.sh start --dry-run
+# The Sway live cases, run in that private Sway (nothing is started with --dry-run)
+scripts/sway-live.sh --dry-run
+
 # Build debug binary
 cargo build
 

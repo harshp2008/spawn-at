@@ -6,6 +6,11 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **EXPERIMENTAL Sway backend**, opt-in only: `SPAWN_AT_BACKEND=sway` places windows through Sway's IPC socket (`$SWAYSOCK`) with the same anchors, margins, sizes and monitor selection as on GNOME, and supports `query layout`, `query windows`, `transform`, `close` and `focus`. No helper or installation is needed. It is **never selected automatically**: every other environment, including a Sway session without the variable, gets exactly the backend it got before. With the variable set and `$SWAYSOCK` missing, empty or not a Sway socket, spawn-at exits with an error that names `$SWAYSOCK`; it does not fall back to X11. Limits: a window can show for one frame at its tiled position before it is placed (Sway cannot hold a window invisible), `--anchor cursor`, maximize, minimize and defocus are not supported, i3 is not supported. Tested only against a private headless Sway 1.9 with the repo's test window ([docs/DESIGN_SWAY.md](docs/DESIGN_SWAY.md), `scripts/sway-live.sh`); a real Sway session, real apps, XWayland windows and other Sway versions have not been tried.
+- `scripts/sway-headless.sh` starts and stops a private headless Sway for tests (own runtime directory, own sockets, no access to your session), and `scripts/sway-live.sh` runs the Sway live cases in it.
+
 ## [0.2.0-beta.3] - 2026-10-15
 
 Pre-release. Window placement, the ready-wait policy and the GNOME extension are the same as in

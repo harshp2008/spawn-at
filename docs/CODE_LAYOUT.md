@@ -13,7 +13,7 @@ An earlier version of this file was a reorganization proposal (target layout, mo
 | `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
 | `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`. | |
 
-Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `scripts/` (`smoke-live.sh`, and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
+Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
 
 ## Facts that constrain moving files
 
@@ -58,9 +58,18 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 78 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/gnome/tests.rs` | 780 |  |
-| `src/platform/linux/mod.rs` | 677 |  |
+| `src/platform/linux/mod.rs` | 686 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
-| `src/platform/linux/registry.rs` | 189 | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
+| `src/platform/linux/registry.rs` | 273 | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
+| `src/platform/linux/sway/client.rs` | 163 | A blocking connection to the Sway IPC socket. The framing is in `ipc`; this adds the socket, |
+| `src/platform/linux/sway/command.rs` | 135 | The text of the commands sent with `RUN_COMMAND`. Pure: every number is an integer, and the |
+| `src/platform/linux/sway/fake.rs` | 150 | A scripted stand-in for the Sway IPC socket, for tests (compiled only for tests). |
+| `src/platform/linux/sway/ipc.rs` | 268 | The Sway (i3) IPC wire format: framing only, no sockets. |
+| `src/platform/linux/sway/matching.rs` | 261 | Which new window belongs to the process spawn-at launched. Pure: the process-tree test is a |
+| `src/platform/linux/sway/mod.rs` | 418 | Sway backend (EXPERIMENTAL) |
+| `src/platform/linux/sway/place.rs` | 249 | The write side over blocking connections: waiting for the new window, placing it, and the |
+| `src/platform/linux/sway/tests_write.rs` | 583 | Placement, matching and the single-window commands against the scripted fake IPC server |
+| `src/platform/linux/sway/types.rs` | 620 | The JSON Sway sends, parsed into plain types, and the conversions to what the neutral code |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
 | `src/platform/linux/x11/mod.rs` | 403 | Native X11 Compositor Driver |
