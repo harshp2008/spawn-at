@@ -5,6 +5,7 @@
 
 use crate::cli::TransformArgs;
 use crate::commands::focus::apply_focus_policy;
+use crate::platform::capability::HelperNeed;
 use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use crate::target;
 use spawn_at_core::geometry;
@@ -38,14 +39,9 @@ pub async fn run_transform(
 
     // 2. Protocol version check and boundary resolution
     if args.geometry.area == geometry::Area::Screen {
-        if let Some(v) = backend.protocol_version().await {
-            if v < 4 {
-                return Err(format!(
-                    "extension is older than the CLI expects (protocol {}, need 4): run `spawn-at install` and log out and back in",
-                    v
-                )
-                .into());
-            }
+        let need = HelperNeed::ScreenArea;
+        if let Some(message) = backend.helper_status(need).await.message(need) {
+            return Err(message.into());
         }
     }
 

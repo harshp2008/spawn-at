@@ -36,13 +36,13 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
 | `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
 | `src/commands/mod.rs` | 1489 | Command Handlers |
-| `src/commands/query.rs` | 817 | Compositor State Query Command Handlers |
-| `src/commands/spawn.rs` | 1342 | Spawn Command Handler |
-| `src/commands/transform.rs` | 372 | Window Transformation Command Handler |
+| `src/commands/query.rs` | 816 | Compositor State Query Command Handlers |
+| `src/commands/spawn.rs` | 1336 | Spawn Command Handler |
+| `src/commands/transform.rs` | 368 | Window Transformation Command Handler |
 | `src/config.rs` | 430 | Configuration Manager |
 | `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
 | `src/main.rs` | 455 | spawn-at: Modular Zero-Flicker Window Placement Engine |
-| `src/platform/capability.rs` | 256 | What a backend can do, and narrow views of the backend trait. |
+| `src/platform/capability.rs` | 422 | What a backend can do, and narrow views of the backend trait. |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
 | `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
@@ -64,7 +64,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 371 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 378 | Platform & Compositor Driver Abstraction Layer |
 | `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
 | `src/platform/non_linux.rs` | 30 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
 | `src/platform/upgrade.rs` | 759 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |

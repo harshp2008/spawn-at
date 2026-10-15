@@ -4,6 +4,7 @@
 //! and mapped window metadata.
 
 use crate::cli::QueryCommands;
+use crate::platform::capability::{HelperNeed, HelperStatus};
 use crate::platform::CompositorBackend;
 use crate::target::{RelPosition, WindowMetadata};
 use spawn_at_core::geometry::{Area, LayoutRect, MonitorLayout, Rect};
@@ -64,16 +65,14 @@ pub async fn run_query(
             println!("{}, {}", x, y);
         }
         QueryCommands::Windows { json, area } => {
-            let protocol = backend.protocol_version().await;
-            let is_older = match protocol {
-                Some(v) if v < 5 => Some(v),
-                _ => None,
+            let need = HelperNeed::MonitorAndState;
+            let status = backend.helper_status(need).await;
+            let is_older = match status {
+                HelperStatus::Outdated { found, .. } => Some(found),
+                HelperStatus::Ok => None,
             };
-            if let Some(v) = is_older {
-                crate::diagnostics::render_info(&format!(
-                    "extension is older than the CLI expects (protocol {}, need 5): MON and STATE are unavailable; run `spawn-at install` and log out and back in",
-                    v
-                ));
+            if let Some(message) = status.message(need) {
+                crate::diagnostics::render_info(&message);
             }
             let mut windows = backend.get_windows().await?;
             if is_older.is_some() {

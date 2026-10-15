@@ -8,6 +8,7 @@
 
 use crate::cli::args::SpawnArgs;
 use crate::commands::wait_for_spawn;
+use crate::platform::capability::HelperNeed;
 use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
@@ -94,16 +95,9 @@ pub async fn run_spawn_with(
     };
 
     if spawn_args.geometry.area == Area::Screen {
-        if let Some(v) = driver.protocol_version().await {
-            if v < 4 {
-                return Err(DriverError::Execution(
-                    format!(
-                        "extension is older than the CLI expects (protocol {}, need 4): run `spawn-at install` and log out and back in",
-                        v
-                    )
-                    .into(),
-                ));
-            }
+        let need = HelperNeed::ScreenArea;
+        if let Some(message) = driver.helper_status(need).await.message(need) {
+            return Err(DriverError::Execution(message.into()));
         }
     }
 

@@ -36,6 +36,63 @@ pub struct Capabilities {
     pub needs_helper: bool,
 }
 
+/// What a command needs from the backend's helper (for GNOME: the Shell extension).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelperNeed {
+    /// Placing a window against the whole screen (`--area screen`): extension protocol 4.
+    ScreenArea,
+    /// Monitor and state columns of `query windows`: extension protocol 5.
+    MonitorAndState,
+}
+
+impl HelperNeed {
+    /// The lowest helper protocol that provides it.
+    pub fn min_protocol(self) -> u32 {
+        match self {
+            HelperNeed::ScreenArea => 4,
+            HelperNeed::MonitorAndState => 5,
+        }
+    }
+}
+
+/// Whether the backend's helper is new enough for a [`HelperNeed`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HelperStatus {
+    /// New enough, or the backend does not report a protocol (no helper to be outdated).
+    Ok,
+    /// The helper reports `found`, the command needs `needed`.
+    Outdated { found: u32, needed: u32 },
+}
+
+impl HelperStatus {
+    /// The status for the protocol a backend reported (`None`: it reports none).
+    pub fn from_protocol(reported: Option<u32>, need: HelperNeed) -> Self {
+        match reported {
+            Some(found) if found < need.min_protocol() => HelperStatus::Outdated {
+                found,
+                needed: need.min_protocol(),
+            },
+            _ => HelperStatus::Ok,
+        }
+    }
+
+    /// The message for an outdated helper, word for word what the commands printed before this
+    /// type existed; `None` when it is not outdated.
+    pub fn message(&self, need: HelperNeed) -> Option<String> {
+        match (*self, need) {
+            (HelperStatus::Ok, _) => None,
+            (HelperStatus::Outdated { found, needed }, HelperNeed::ScreenArea) => Some(format!(
+                "extension is older than the CLI expects (protocol {}, need {}): run `spawn-at install` and log out and back in",
+                found, needed
+            )),
+            (HelperStatus::Outdated { found, needed }, HelperNeed::MonitorAndState) => Some(format!(
+                "extension is older than the CLI expects (protocol {}, need {}): MON and STATE are unavailable; run `spawn-at install` and log out and back in",
+                found, needed
+            )),
+        }
+    }
+}
+
 /// Reading windows, monitors and the pointer.
 // Only `get_windows` and `get_window_rect` are asked through this view so far (the wait helpers
 // in `commands/mod.rs`); the rest completes the view for the next backend.
@@ -252,5 +309,114 @@ mod tests {
         assert_eq!(WindowQuery::resolve_id(&Minimal, &[], None), "resolved");
         assert!(unsupported(&Minimal).await);
         assert!(no_claim(&Minimal).await);
+    }
+}
+
+#[cfg(test)]
+mod helper_tests {
+    use super::*;
+    use crate::platform::{Armed, Batch, Driver};
+
+    /// A backend that reports a protocol number (or none).
+    struct Reports(Option<u32>);
+
+    #[async_trait::async_trait]
+    impl Driver for Reports {
+        async fn arm(&self, _batch: Batch) -> Result<Armed, DriverError> {
+            Ok(Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for Reports {
+        fn name(&self) -> &'static str {
+            "reports"
+        }
+        fn resolve_id(&self, _c: &[String], _k: Option<&str>) -> String {
+            String::new()
+        }
+        async fn protocol_version(&self) -> Option<u32> {
+            self.0
+        }
+    }
+
+    /// The thresholds are the ones the commands used: 4 for the screen area, 5 for monitor and
+    /// state; a backend that reports no protocol is never outdated.
+    #[test]
+    fn test_helper_status_thresholds() {
+        use HelperNeed::*;
+        assert_eq!(ScreenArea.min_protocol(), 4);
+        assert_eq!(MonitorAndState.min_protocol(), 5);
+        assert_eq!(
+            HelperStatus::from_protocol(None, ScreenArea),
+            HelperStatus::Ok
+        );
+        assert_eq!(
+            HelperStatus::from_protocol(Some(4), ScreenArea),
+            HelperStatus::Ok
+        );
+        assert_eq!(
+            HelperStatus::from_protocol(Some(3), ScreenArea),
+            HelperStatus::Outdated {
+                found: 3,
+                needed: 4
+            }
+        );
+        assert_eq!(
+            HelperStatus::from_protocol(Some(5), MonitorAndState),
+            HelperStatus::Ok
+        );
+        assert_eq!(
+            HelperStatus::from_protocol(Some(4), MonitorAndState),
+            HelperStatus::Outdated {
+                found: 4,
+                needed: 5
+            }
+        );
+    }
+
+    /// The messages are byte for byte the ones the commands printed before.
+    #[test]
+    fn test_helper_messages_are_unchanged() {
+        let screen = HelperStatus::Outdated {
+            found: 3,
+            needed: 4,
+        };
+        assert_eq!(
+            screen.message(HelperNeed::ScreenArea).unwrap(),
+            "extension is older than the CLI expects (protocol 3, need 4): run `spawn-at install` and log out and back in"
+        );
+        let mon = HelperStatus::Outdated {
+            found: 4,
+            needed: 5,
+        };
+        assert_eq!(
+            mon.message(HelperNeed::MonitorAndState).unwrap(),
+            "extension is older than the CLI expects (protocol 4, need 5): MON and STATE are unavailable; run `spawn-at install` and log out and back in"
+        );
+        assert_eq!(HelperStatus::Ok.message(HelperNeed::ScreenArea), None);
+    }
+
+    /// The trait default asks `protocol_version`, so every backend and test double that reports a
+    /// protocol gets the check without implementing anything.
+    #[tokio::test]
+    async fn test_default_helper_status_reads_the_reported_protocol() {
+        assert_eq!(
+            Reports(Some(2)).helper_status(HelperNeed::ScreenArea).await,
+            HelperStatus::Outdated {
+                found: 2,
+                needed: 4
+            }
+        );
+        assert_eq!(
+            Reports(None).helper_status(HelperNeed::ScreenArea).await,
+            HelperStatus::Ok
+        );
+        assert_eq!(
+            Reports(Some(6))
+                .helper_status(HelperNeed::MonitorAndState)
+                .await,
+            HelperStatus::Ok
+        );
     }
 }

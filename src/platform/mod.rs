@@ -277,6 +277,13 @@ pub trait CompositorBackend: Driver + Send + Sync {
         None
     }
 
+    /// Whether the backend's helper is new enough for `need`. The default compares the
+    /// `protocol_version` the backend reports with the protocol `need` requires, so the
+    /// commands hold no protocol numbers or messages.
+    async fn helper_status(&self, need: capability::HelperNeed) -> capability::HelperStatus {
+        capability::HelperStatus::from_protocol(self.protocol_version().await, need)
+    }
+
     // --- Core Actions ---
 
     /// Performs an animated or atomic transform on an existing window.
