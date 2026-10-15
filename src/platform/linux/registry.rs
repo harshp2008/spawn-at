@@ -5,11 +5,17 @@
 //! X11; otherwise, if `XDG_CURRENT_DESKTOP` contains `GNOME` (after uppercasing), the GNOME
 //! Wayland driver is tried first and used if it connects to the session bus; otherwise, and
 //! whenever the GNOME driver cannot connect, X11. Any other value of `SPAWN_AT_BACKEND` is
-//! ignored. Every other desktop (KDE, Sway, Hyprland, none at all) therefore gets X11.
+//! ignored. `candidates` therefore gives every other desktop (KDE, Sway, Hyprland, none at all)
+//! X11.
 //!
 //! One exception, and the only way to get the EXPERIMENTAL Sway backend: `SPAWN_AT_BACKEND=sway`
 //! (compared after lowercasing like `x11`, nothing trimmed) selects Sway and nothing else. It is
-//! never chosen from the desktop: a Sway session without the variable still gets X11.
+//! never chosen from the desktop.
+//!
+//! Before `candidates` is used, `unsupported` refuses the one case that used to fall to X11 with
+//! no word: a non-GNOME session that is not X11 (`XDG_SESSION_TYPE` other than `x11`, or unset)
+//! with no forced `x11` or `sway`. A real X11 session on any desktop, and a forced backend, are
+//! untouched.
 
 /// A backend this registry can pick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -29,6 +35,11 @@ pub struct Environment {
     pub forced: String,
     /// `XDG_CURRENT_DESKTOP`, uppercased; empty when unset or not UTF-8.
     pub desktop: String,
+    /// `XDG_CURRENT_DESKTOP` as set, for messages.
+    pub desktop_raw: String,
+    /// `XDG_SESSION_TYPE`, lowercased; empty when unset or not UTF-8. Read only by
+    /// `unsupported`; `candidates` ignores it.
+    pub session: String,
 }
 
 impl Environment {
@@ -38,15 +49,53 @@ impl Environment {
             &std::env::var("SPAWN_AT_BACKEND").unwrap_or_default(),
             &std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
         )
+        .with_session(&std::env::var("XDG_SESSION_TYPE").unwrap_or_default())
     }
 
-    /// From the raw values of the two variables.
+    /// From the raw values of the two variables; the session type starts out empty.
     pub fn from_values(forced: &str, desktop: &str) -> Self {
         Self {
             forced: forced.to_lowercase(),
             desktop: desktop.to_uppercase(),
+            desktop_raw: desktop.to_string(),
+            session: String::new(),
         }
     }
+
+    /// The same environment with the raw value of `XDG_SESSION_TYPE`.
+    pub fn with_session(mut self, session: &str) -> Self {
+        self.session = session.to_lowercase();
+        self
+    }
+}
+
+/// `Some(message)` when this session is one spawn-at does not support, `None` otherwise.
+///
+/// Supported: `SPAWN_AT_BACKEND` forcing `x11` or `sway`; a desktop containing `GNOME`; or an X11
+/// session (`XDG_SESSION_TYPE=x11`), where the X11 backend is the right one on any desktop.
+/// Everything else (a non-GNOME Wayland session, or no session type at all) is unsupported:
+/// it used to get X11 without a word, which sees XWayland windows only.
+pub fn unsupported(env: &Environment) -> Option<String> {
+    if env.forced == "x11" || env.forced == "sway" {
+        return None;
+    }
+    if env.desktop.contains("GNOME") || env.session == "x11" {
+        return None;
+    }
+    let shown = |v: &str| {
+        if v.is_empty() {
+            "(unset)".to_string()
+        } else {
+            format!("'{v}'")
+        }
+    };
+    Some(format!(
+        "this desktop is not supported (XDG_CURRENT_DESKTOP is {}, XDG_SESSION_TYPE is {}). \
+         spawn-at supports GNOME; Sway is experimental, via SPAWN_AT_BACKEND=sway. \
+         To try the X11 fallback anyway, set SPAWN_AT_BACKEND=x11 (it may or may not work).",
+        shown(&env.desktop_raw),
+        shown(&env.session)
+    ))
 }
 
 /// The backends to try, in order. The last one is always `X11` (which needs no connection test),
@@ -269,5 +318,89 @@ mod tests {
         // the Sway desktop still gets X11, the leak recorded as #11 in DESIGN_PLATFORMS.md
         let env = Environment::from_values("", "sway");
         assert_eq!(candidates(&env), vec![BackendId::X11]);
+    }
+
+    fn unsupported_for(forced: &str, desktop: &str, session: &str) -> Option<String> {
+        unsupported(&Environment::from_values(forced, desktop).with_session(session))
+    }
+
+    /// GNOME (any case, any position, any session type) is supported.
+    #[test]
+    fn test_gnome_is_supported_in_every_session_type() {
+        for desktop in ["GNOME", "gnome", "ubuntu:GNOME", "GNOME-Classic:GNOME"] {
+            for session in ["wayland", "x11", "", "tty"] {
+                assert_eq!(
+                    unsupported_for("", desktop, session),
+                    None,
+                    "{desktop} {session}"
+                );
+            }
+        }
+    }
+
+    /// A non-GNOME Wayland session, or one with no session type, without an override is an error
+    /// that names the desktop and the session, GNOME, the experimental Sway backend, and the
+    /// X11 opt-in with its warning.
+    #[test]
+    fn test_non_gnome_wayland_without_override_is_unsupported() {
+        for (desktop, session) in [
+            ("KDE", "wayland"),
+            ("sway", "wayland"),
+            ("", ""),
+            ("XFCE", "tty"),
+        ] {
+            let m = unsupported_for("", desktop, session).expect("unsupported");
+            assert!(m.contains("not supported"), "{m}");
+            assert!(m.contains("GNOME"), "{m}");
+            assert!(m.contains("SPAWN_AT_BACKEND=sway"), "{m}");
+            assert!(
+                m.contains("SPAWN_AT_BACKEND=x11") && m.contains("may or may not work"),
+                "{m}"
+            );
+        }
+        let m = unsupported_for("", "sway", "wayland").unwrap();
+        assert!(
+            m.contains("XDG_CURRENT_DESKTOP is 'sway'")
+                && m.contains("XDG_SESSION_TYPE is 'wayland'"),
+            "{m}"
+        );
+        let m = unsupported_for("", "", "").unwrap();
+        assert!(
+            m.contains("XDG_CURRENT_DESKTOP is (unset)")
+                && m.contains("XDG_SESSION_TYPE is (unset)"),
+            "{m}"
+        );
+    }
+
+    /// A real X11 session on any desktop is legitimate X11 use: supported, no notice.
+    #[test]
+    fn test_non_gnome_x11_session_is_supported() {
+        for desktop in ["KDE", "XFCE", "", "sway"] {
+            for session in ["x11", "X11"] {
+                assert_eq!(unsupported_for("", desktop, session), None);
+                assert_eq!(
+                    candidates(&Environment::from_values("", desktop).with_session(session)),
+                    vec![BackendId::X11]
+                );
+            }
+        }
+    }
+
+    /// Forcing x11 or sway is explicit and always supported; other values are ignored as before.
+    #[test]
+    fn test_forced_backends_are_supported_and_unchanged() {
+        for forced in ["x11", "X11", "sway", "Sway"] {
+            assert_eq!(unsupported_for(forced, "KDE", "wayland"), None, "{forced}");
+        }
+        let env = Environment::from_values("x11", "KDE").with_session("wayland");
+        assert_eq!(candidates(&env), vec![BackendId::X11]);
+        let env = Environment::from_values("sway", "KDE").with_session("wayland");
+        assert_eq!(candidates(&env), vec![BackendId::Sway]);
+        for forced in ["gnome", "wayland", " x11", "0"] {
+            assert!(
+                unsupported_for(forced, "KDE", "wayland").is_some(),
+                "{forced:?}"
+            );
+        }
     }
 }
