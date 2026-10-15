@@ -16,6 +16,12 @@ pub mod upgrade;
 #[cfg(target_os = "linux")]
 pub mod linux;
 
+// Other operating systems are not supported yet. This stub provides the few `platform::linux`
+// names the neutral code calls, so the crate compiles; see `non_linux.rs`.
+#[cfg(not(target_os = "linux"))]
+#[path = "non_linux.rs"]
+pub mod linux;
+
 #[cfg(target_os = "linux")]
 pub use linux::LinuxBackend as NativeBackend;
 
@@ -305,6 +311,16 @@ pub trait CompositorBackend: Driver + Send + Sync {
     /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
     async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
         Ok(())
+    }
+}
+
+/// Stops the program with one clear message on an operating system spawn-at does not support
+/// yet. Does nothing on Linux.
+pub fn ensure_supported_os() {
+    #[cfg(not(target_os = "linux"))]
+    {
+        crate::diagnostics::render_error("spawn-at does not support this operating system yet");
+        std::process::exit(1);
     }
 }
 

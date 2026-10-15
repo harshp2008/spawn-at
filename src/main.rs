@@ -52,6 +52,9 @@ async fn main() {
         std::process::exit(2);
     }
 
+    // Off Linux: one clear message, then exit (no-op on Linux).
+    crate::platform::ensure_supported_os();
+
     if let Commands::Update(update_args) = cli.command {
         if let Err(e) = crate::update::run_update(update_args) {
             crate::diagnostics::render_error(&format!("Update error: {}", e));
