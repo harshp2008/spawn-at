@@ -55,6 +55,12 @@ mod tests {
     #[test]
     fn test_the_provider_exists() {
         let hooks: &dyn super::UpdateHooks = crate::platform::update_hooks();
-        let _ = hooks.offers_session_action();
+        // Same rule as before the hooks existed: a session action is offered exactly when
+        // XDG_CURRENT_DESKTOP contains GNOME (no test changes that variable).
+        let on_gnome = std::env::var("XDG_CURRENT_DESKTOP")
+            .unwrap_or_default()
+            .to_uppercase()
+            .contains("GNOME");
+        assert_eq!(hooks.offers_session_action(), on_gnome);
     }
 }

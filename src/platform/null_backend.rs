@@ -11,6 +11,7 @@ use super::{Armed, Batch, CompositorBackend, Driver, DriverError};
 #[cfg_attr(target_os = "linux", allow(dead_code))]
 pub struct NullBackend;
 
+// Only `init_backend` off Linux and the tests use it (see the note on `NullBackend`).
 #[cfg_attr(target_os = "linux", allow(dead_code))]
 const WHY: &str = "Unsupported operating system";
 
