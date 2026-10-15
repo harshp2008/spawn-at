@@ -144,7 +144,9 @@ The preflight check runs first to prevent testing stale or out-of-sync binaries:
 | **Clean** (matches HEAD) | Clean working tree | **PASS** | Binary is fresh and matches current committed tree. |
 | **Clean** | Newer HEAD or dirty working tree | **FAIL** | Stale binary; rebuild before verifying. |
 | **Dirty** (e.g. `20f032e-dirty`) | Any state | **WARN** | Built from uncommitted changes; flagged as "dirty build". |
-| **No Commit ID** (release build) | Any state | **SKIP** | Release tarball without git metadata; skipped with reason. |
+| **Release version** (`spawn-at 0.2.0-beta.4`, no commit ID) | HEAD is exactly tag `v0.2.0-beta.4`, clean tree | **PASS** | Binary was built on that tag (`git describe --tags --exact-match HEAD`). |
+| **Release version** | HEAD untagged or tagged differently, or dirty tree | **FAIL** | Same stale-binary message as for a commit mismatch. |
+| **Unrecognised `-V` output** | Any state | **FAIL** | Neither `DEV BUILD` with a commit ID nor `spawn-at <version>`. |
 
 ### Dirty Build Policy
 - A binary flagged as dirty may execute development tests.

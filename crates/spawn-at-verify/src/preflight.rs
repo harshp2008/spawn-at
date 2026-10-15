@@ -77,12 +77,27 @@ pub fn inspect_binary(bin_path: &Path) -> Result<PreflightReport, String> {
     let (detected_commit, is_dirty_build, is_release_no_commit) =
         parse_binary_version(&version_out);
 
+    // A binary built on an exact release tag prints no commit id; the tag at HEAD is what
+    // identifies its commit (see `build.rs`, which uses `git describe --tags --exact-match`).
+    let head_tag = Command::new("git")
+        .args(["describe", "--tags", "--exact-match", "HEAD"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                Some(String::from_utf8_lossy(&o.stdout).trim().to_string())
+            } else {
+                None
+            }
+        });
+
     let verdict = evaluate_preflight_verdict(
         detected_commit.as_deref(),
         is_dirty_build,
         is_release_no_commit,
         repo_head.as_deref(),
         repo_dirty,
+        head_tag.as_deref(),
     );
 
     Ok(PreflightReport {
@@ -125,10 +140,11 @@ pub fn evaluate_preflight_verdict(
     is_release_no_commit: bool,
     repo_head: Option<&str>,
     repo_dirty: bool,
+    head_tag: Option<&str>,
 ) -> PreflightVerdict {
     if is_release_no_commit || bin_commit.is_none() {
-        return PreflightVerdict::Skip(
-            "Release build without commit ID; skipped git preflight".into(),
+        return PreflightVerdict::Fail(
+            "Unrecognised `spawn-at --version` output: neither a DEV BUILD commit id nor `spawn-at <version>`. Hint: run `cargo build -p spawn-at` first.".into(),
         );
     }
 
@@ -142,7 +158,13 @@ pub fn evaluate_preflight_verdict(
 
     if let Some(head) = repo_head {
         let clean_bin_c = bin_c.trim_end_matches("-dirty");
-        let matches_head = head.starts_with(clean_bin_c) || clean_bin_c.starts_with(head);
+        // A commit id is hex and never contains '.'; a release version such as `0.2.0-beta.4`
+        // always does. A release binary matches HEAD only when HEAD is exactly tag `v<version>`.
+        let matches_head = if clean_bin_c.contains('.') {
+            head_tag == Some(format!("v{}", clean_bin_c).as_str())
+        } else {
+            head.starts_with(clean_bin_c) || clean_bin_c.starts_with(head)
+        };
 
         if matches_head && !repo_dirty {
             PreflightVerdict::Pass
@@ -196,6 +218,7 @@ mod tests {
             false,
             Some("13a8feded2e5268c6081bc22c915864f7cc80f84"),
             false,
+            None,
         );
         assert_eq!(verdict, PreflightVerdict::Pass);
     }
@@ -209,6 +232,7 @@ mod tests {
             false,
             Some("13a8feded2e5268c6081bc22c915864f7cc80f84"),
             false,
+            None,
         );
         assert!(matches!(verdict, PreflightVerdict::Fail(_)));
     }
@@ -222,8 +246,92 @@ mod tests {
             false,
             Some("13a8feded2e5268c6081bc22c915864f7cc80f84"),
             false,
+            None,
         );
         assert!(matches!(verdict, PreflightVerdict::Warn(_)));
+    }
+
+    const HEAD: &str = "2e64085aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    /// Runs the full parse + verdict path on `-V` text, as `inspect_binary` does.
+    fn verdict_for(text: &str, head_tag: Option<&str>, repo_dirty: bool) -> PreflightVerdict {
+        let (commit, dirty, rel) = parse_binary_version(text);
+        evaluate_preflight_verdict(
+            commit.as_deref(),
+            dirty,
+            rel,
+            Some(HEAD),
+            repo_dirty,
+            head_tag,
+        )
+    }
+
+    const DEV_AT_HEAD: &str =
+        "DEV BUILD\nlast release was v0.2.0-beta.3\n-----\nPrevious Commit ID: 2e64085";
+
+    /// A dev build whose commit id is HEAD passes, tag or no tag.
+    #[test]
+    fn test_dev_build_matching_head_passes() {
+        assert_eq!(
+            verdict_for(DEV_AT_HEAD, None, false),
+            PreflightVerdict::Pass
+        );
+    }
+
+    /// A dev build from another commit still fails with the stale-binary message, even when
+    /// HEAD carries a tag (the tag must not rescue a dev build).
+    #[test]
+    fn test_dev_build_other_commit_fails() {
+        let text = "DEV BUILD\n-----\nPrevious Commit ID: 00d0da4";
+        for tag in [None, Some("v0.2.0-beta.4")] {
+            match verdict_for(text, tag, false) {
+                PreflightVerdict::Fail(m) => assert!(
+                    m.contains("binary commit '00d0da4' does not match repository HEAD '2e64085'"),
+                    "{m}"
+                ),
+                other => panic!("expected Fail, got {other:?}"),
+            }
+        }
+    }
+
+    /// `spawn-at 0.2.0-beta.4` passes when HEAD is exactly tag `v0.2.0-beta.4`.
+    #[test]
+    fn test_release_version_equal_to_exact_tag_passes() {
+        assert_eq!(
+            verdict_for("spawn-at 0.2.0-beta.4", Some("v0.2.0-beta.4"), false),
+            PreflightVerdict::Pass
+        );
+    }
+
+    /// A release version fails when HEAD is untagged or tagged with a different version, with the
+    /// existing message naming the version and the short HEAD.
+    #[test]
+    fn test_release_version_without_matching_tag_fails() {
+        for tag in [None, Some("v0.2.0-beta.3"), Some("0.2.0-beta.4")] {
+            match verdict_for("spawn-at 0.2.0-beta.4", tag, false) {
+                PreflightVerdict::Fail(m) => assert!(
+                    m.contains(
+                        "binary commit '0.2.0-beta.4' does not match repository HEAD '2e64085'"
+                    ),
+                    "{m}"
+                ),
+                other => panic!("tag {tag:?}: expected Fail, got {other:?}"),
+            }
+        }
+    }
+
+    /// Output that is neither a DEV BUILD nor `spawn-at <version>` (or is empty) fails.
+    #[test]
+    fn test_garbage_version_output_fails() {
+        for text in ["", "hello world", "error: unrecognized option"] {
+            assert!(
+                matches!(
+                    verdict_for(text, Some("v0.2.0-beta.4"), false),
+                    PreflightVerdict::Fail(_)
+                ),
+                "{text:?}"
+            );
+        }
     }
 }
 
