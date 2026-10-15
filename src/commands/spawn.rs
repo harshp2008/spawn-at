@@ -809,6 +809,83 @@ mod tests {
         (batch, warnings)
     }
 
+    /// Runs `run_spawn_with` for a 400x300 window with the given focus modifiers and returns the
+    /// batch that reached `arm`, plus every backend call in order.
+    async fn arm_with_focus_modifiers(
+        modifiers: crate::cli::FocusModifierArgs,
+    ) -> (Batch, Vec<String>) {
+        let batches = Arc::new(Mutex::new(Vec::new()));
+        let calls = Arc::new(Mutex::new(Vec::new()));
+        let backend = BatchRecorder {
+            inner: OrderingMockBackend {
+                calls: calls.clone(),
+            },
+            batches: batches.clone(),
+        };
+        let args = SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            focus_modifiers: modifiers,
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+        let res = run_spawn_with(&backend, args, false, Default::default()).await;
+        assert!(res.is_ok(), "{res:?}");
+        let mut batch = batches
+            .lock()
+            .unwrap()
+            .first()
+            .cloned()
+            .expect("arm was called");
+        // The entry key holds the process id and a millisecond timestamp, different every run.
+        batch.entries[0].key = "<key>".into();
+        let recorded = calls.lock().unwrap().clone();
+        (batch, recorded)
+    }
+
+    /// CHARACTERIZATION of audit gap 5 (`docs/TEST_COVERAGE_AUDIT.md`): `spawn --focus`,
+    /// `--no-focus` and `--defocus` are parsed, but `run_spawn_with` never reads
+    /// `SpawnArgs::focus_modifiers`: it builds the batch with `FocusIntent::Exclusive`
+    /// (`src/commands/spawn.rs`, the `Batch { .. }` literal) whatever the flags say, and calls
+    /// no focus method on the backend. This test pins that: all four runs arm the same batch
+    /// and make the same backend calls. It documents CURRENT behavior, not a contract. When the
+    /// flags are given an effect (for example `--no-focus` -> `FocusIntent::Leave`), this test
+    /// must change in the same commit, and the GNOME extension's focus handling needs a decision
+    /// first (see the audit report).
+    #[tokio::test]
+    async fn test_spawn_focus_modifiers_have_no_effect_today() {
+        use crate::cli::FocusModifierArgs;
+        let none = FocusModifierArgs::default();
+        let focus = FocusModifierArgs {
+            focus: true,
+            ..Default::default()
+        };
+        let no_focus = FocusModifierArgs {
+            no_focus: true,
+            ..Default::default()
+        };
+        let defocus = FocusModifierArgs {
+            defocus: true,
+            ..Default::default()
+        };
+
+        let (base, base_calls) = arm_with_focus_modifiers(none).await;
+        assert_eq!(base.focus, FocusIntent::Exclusive);
+        assert_eq!(base_calls, ["prepare_claim_wait", "arm"]);
+
+        for (name, modifiers) in [
+            ("--focus", focus),
+            ("--no-focus", no_focus),
+            ("--defocus", defocus),
+        ] {
+            let (batch, calls) = arm_with_focus_modifiers(modifiers).await;
+            assert_eq!(batch, base, "{name} changed the armed batch");
+            assert_eq!(calls, base_calls, "{name} changed the backend calls");
+        }
+    }
+
     #[tokio::test]
     async fn test_wait_flags_reach_the_armed_entry() {
         let (batch, warnings) = arm_with_wait_flags(Some("legacy"), Some("200")).await;

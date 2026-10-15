@@ -68,7 +68,7 @@ spawn-at spawn --anchor cursor --pivot center --size 400 500 gnome-calculator
 # Scratchpad terminal pinned to the top-right
 spawn-at spawn --anchor top-right --pivot top-right --size 800 500 -m 20 alacritty
 
-# Dashboard in the corner that doesn't steal your typing focus
+# Dashboard in the corner (`--no-focus` is accepted on `spawn` but currently has no effect)
 spawn-at spawn --anchor bottom-right --size 600 350 -m 16 --no-focus btop
 ```
 
@@ -285,7 +285,7 @@ Run `spawn-at --help` or `spawn-at <command> --help` for the full list.
 | **Bounds** | `--clamp <true\|false>` | Keeps the window inside the chosen area minus the margin (default true; rejected with `--area unbounded`). |
 | | `-m, --margin <PX>` | Universal margin in pixels (default 16; rejected with `--area unbounded`). |
 | | `--mt`, `--mb`, `--ml`, `--mr` | Per-side margins. |
-| **Behavior** | `--focus` / `--no-focus` / `--defocus` | Control focus after the action. |
+| **Behavior** | `--focus` / `--no-focus` / `--defocus` | Control focus after the action on `transform`, `maximize` and `restore`. On `spawn` they are accepted but currently have no effect: the spawn path never reads them. |
 | | `--json` | Output single structured JSON object on stdout (`spawn`, `query layout`, `query windows`). Diagnostics stay on stderr. |
 | | `--no-wait` | Exit without waiting for the compositor. |
 | **Target & command** | `--id` / `-c, --class` / `-t, --title` / `--pid` / `--focused` | Pick which window to act on (`--id` matches exact numeric ID from `query windows`). |

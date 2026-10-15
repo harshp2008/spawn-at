@@ -54,6 +54,7 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 ## Tests
 - Report counts per binary, plus the workspace total. Never quote a bare `cargo test --workspace` number for `spawn-at-verify`; use the command below.
 - Keep the baseline in `scratch/BASELINE.md` and compare against it. Never lower a count without saying why.
+- `scripts/smoke-live.sh` launches real GNOME apps (`gnome-calculator`, `gnome-text-editor`). The owner runs it by hand; Claude Code never runs it.
 
 ## Build and test commands (what CI runs, see `.github/workflows/ci.yml`)
 - Plain `cargo build` / `cargo test` at the root cover only the `spawn-at` package (`default-members = ["."]`). Name the other crates.

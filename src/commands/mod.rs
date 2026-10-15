@@ -1487,3 +1487,6 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod state_command_tests;

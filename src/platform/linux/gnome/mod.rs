@@ -71,6 +71,8 @@ mod detect;
 mod driver;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_control;
 
 // The public paths the rest of the crate uses (`platform::linux::gnome::...`) are kept here.
 pub use args::{GnomeInstallArgs, GnomeUninstallArgs};
