@@ -2,6 +2,7 @@ pub mod config_store;
 pub mod gnome;
 pub mod host;
 pub mod process_tree;
+pub mod registry;
 pub mod x11;
 pub mod xdg;
 
@@ -97,24 +98,15 @@ impl LinuxBackend {
     }
 
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
-        let forced = std::env::var("SPAWN_AT_BACKEND")
-            .unwrap_or_default()
-            .to_lowercase();
-        if forced == "x11" {
-            return Ok(Box::new(LinuxBackend {
-                driver: Box::new(x11::X11Driver),
-            }));
-        }
-
-        let desktop = std::env::var("XDG_CURRENT_DESKTOP")
-            .unwrap_or_default()
-            .to_uppercase();
-
-        if desktop.contains("GNOME") {
-            if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
-                return Ok(Box::new(LinuxBackend {
-                    driver: Box::new(driver),
-                }));
+        // The order of the choice (forced X11, then GNOME Wayland, else X11) is in `registry`.
+        let env = registry::Environment::from_process_env();
+        for id in registry::candidates(&env) {
+            if id == registry::BackendId::GnomeWayland {
+                if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
+                    return Ok(Box::new(LinuxBackend {
+                        driver: Box::new(driver),
+                    }));
+                }
             }
         }
 

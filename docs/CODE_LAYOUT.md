@@ -58,15 +58,17 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 78 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/gnome/tests.rs` | 780 |  |
-| `src/platform/linux/mod.rs` | 685 |  |
+| `src/platform/linux/mod.rs` | 677 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
+| `src/platform/linux/registry.rs` | 189 | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
 | `src/platform/linux/x11/mod.rs` | 403 | Native X11 Compositor Driver |
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 396 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 395 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/null_backend.rs` | 70 | The backend of an operating system spawn-at does not support. |
 | `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
 | `src/platform/session_actions.rs` | 36 | What ends a run: logging out, or reloading the shell. |
 | `src/platform/update_hooks.rs` | 60 | What `spawn-at update` needs to know about the desktop. |

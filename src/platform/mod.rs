@@ -13,6 +13,7 @@ pub mod escalate;
 pub mod host;
 pub mod install_notice;
 pub mod installer;
+pub mod null_backend;
 pub mod provisioner;
 pub mod session_actions;
 pub mod update_hooks;
@@ -375,9 +376,7 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
     return NativeBackend::bootstrap().await;
 
     #[cfg(not(target_os = "linux"))]
-    Err(DriverError::UnsupportedCapability(
-        "Unsupported operating system",
-    ))
+    Ok(Box::new(null_backend::NullBackend))
 }
 
 /// The [`host::Host`] of this operating system.
