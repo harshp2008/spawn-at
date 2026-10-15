@@ -464,7 +464,7 @@ mod autostart_file_tests {
             "XDG_SESSION_TYPE",
             "SPAWN_AT_BACKEND",
         ];
-        let saved: Vec<_> = names.iter().map(|n| std::env::var_os(n)).collect();
+        let saved: Vec<_> = names.iter().map(std::env::var_os).collect();
         std::env::set_var("XDG_CONFIG_HOME", &dir);
         std::env::set_var("XDG_CURRENT_DESKTOP", desktop);
         std::env::set_var("XDG_SESSION_TYPE", session);
