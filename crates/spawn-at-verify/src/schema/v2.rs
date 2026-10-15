@@ -415,7 +415,7 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
     strings.extend(t.expect.stderr_absent.iter().map(String::as_str));
     strings.extend(t.expect.diagnostics.iter().map(String::as_str));
     for s in strings {
-        for p in placeholders(s).map_err(&e)? {
+        for p in placeholders(s).map_err(e)? {
             if !declared.contains(p.name.as_str()) && p.name != NONEXISTENT {
                 return Err(e(format!(
                     "expectation '{s}': placeholder '{}' names no [[setup]]",
