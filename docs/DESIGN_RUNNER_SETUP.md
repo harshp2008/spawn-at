@@ -1,0 +1,435 @@
+# Design: tests of an existing window in the verify runner
+
+Status: **design only, 2026-10-15, for owner approval. Nothing here is implemented.** No Rust, JS, shell or workflow code was changed to write it. `main` was at `6d232c1`. Claims marked **(read)** come from reading the cited code, **(ran)** from running a command for this document (only `--help` and `list` style reads, and the existing test suites; nothing live), **(unverified)** from neither.
+
+This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE_AUDIT.md` (section 7 item 8, section 6 rows P6 and P7).
+
+## Table of contents
+
+1. [Current model](#1-current-model)
+2. [Proposed spec model](#2-proposed-spec-model)
+3. [Safety](#3-safety)
+4. [Backends](#4-backends)
+5. [Flicker for transform (P7)](#5-flicker-for-transform-p7)
+6. [The TUI and reports](#6-the-tui-and-reports)
+7. [Catalog specs proposed for batch 3](#7-catalog-specs-proposed-for-batch-3)
+8. [Test plan, implementation plan, risks, alternatives](#8-test-plan-implementation-plan-risks-alternatives)
+9. [Open questions for the owner](#9-open-questions-for-the-owner)
+10. [Citations](#10-citations)
+
+## 1. Current model
+
+**Defined.** A spec is one TOML file, deserialized into `TestDefinition` (`crates/spawn-at-verify/src/schema/types.rs:218`). The parts that matter here:
+
+- `subject: Option<TestSubject>`: at most one app to launch, `app = "fixture"` or `"system:<app>"` (`crates/spawn-at-verify/src/schema/types.rs:246`, `crates/spawn-at-verify/src/schema/types.rs:72`).
+- `action: TestAction`: exactly one `command` plus `args` (`crates/spawn-at-verify/src/schema/types.rs:248`, `crates/spawn-at-verify/src/schema/types.rs:97`). It is a required field and a single struct, not a list. **This is where "one action per test" is enforced in the data model.**
+- `expect: TestExpect` (`crates/spawn-at-verify/src/schema/types.rs:176`): `exit_code`, `stderr_absent`, `stderr_present`, `diagnostics`, `never_visible_off_target`, `rect` (oracle), `resize`. There is **no `stdout` expectation** at all, so even `query layout --json` cannot be asserted on today.
+- No struct has `deny_unknown_fields` (searched **(ran)**: no match in `src/`), so a key a binary does not know is silently dropped.
+
+**Loaded.** `TestRegistry::load_from_dir` scans `verify/**.toml` except `suites/` (`crates/spawn-at-verify/src/loader/registry.rs:20`, `crates/spawn-at-verify/src/loader/registry.rs:212-229`). The id must equal the path without extension (`crates/spawn-at-verify/src/loader/registry.rs:50`), an `[expect.rect]` must give its margin (`crates/spawn-at-verify/src/loader/registry.rs:61-73`), and the category must be in `VALID_CATEGORIES` (`crates/spawn-at-verify/src/loader/registry.rs:75`, `crates/spawn-at-verify/src/schema/matrix.rs:156`). A `[matrix]` expands into several tests and substitutes `{key}` in title, description, subject and action strings (`crates/spawn-at-verify/src/schema/matrix.rs:67-150`); an unknown `{name}` is left as it is.
+
+**Selected.** Suites are `verify/suites/*.toml`: `categories`, `tags` (with `!tag`), `required_only` (`crates/spawn-at-verify/src/schema/suite.rs:6-52`). A suite category name is mapped to a real one by an alias list inside `SuiteDefinition::matches` (`suite.rs:36-41`), and the same list is copied a second time in `TestRegistry::filter` (`crates/spawn-at-verify/src/loader/registry.rs:150-155`). The report maps ids to categories a third time (`crates/spawn-at-verify/src/runner/models.rs:227-247`). The alias list has no `lifecycle` to `focus` entry, which `crates/spawn-at-verify/tests/suite_wiring_test.rs` records as a known gap.
+
+**Run.** `TestRunner::run_detailed` loops over the selected tests and calls `execute_single_test` once per test and repeat (`crates/spawn-at-verify/src/runner/engine.rs:139-168`), then closes any tracked window (`engine.rs:171`). For one test (`crates/spawn-at-verify/src/runner/executor.rs`):
+
+| Step | Where |
+| :-- | :-- |
+| preflight block, environment skip, dry run, `preflight-binary-check` | `executor.rs:39`, `:67`, `:92`, `:118` |
+| fixture binary must exist, **only checked when the action is `spawn`** | `executor.rs:164-194` |
+| enable the extension's timing log; start the flash capture (**only `spawn` of the fixture**) | `executor.rs:201-211`, `crates/spawn-at-verify/src/runner/flash.rs:126-130` |
+| build the command line; the fixture is passed to `spawn-at spawn` after `--` with `--exit-after-ms` 10000 (Auto) or 300000 (Human, Both) as a crash backstop | `crates/spawn-at-verify/src/runner/validation.rs:17-92` (backstop `:70-81`) |
+| snapshot window ids, run **one** `Command` with the step timeout (5 s) | `executor.rs:213-228`, `crates/spawn-at-verify/src/runner/models.rs:367` |
+| attribute windows, **only for `spawn`** | `executor.rs:274` (calls `tracker.attribute_action_windows`, `crates/spawn-at-verify/src/tracker/state.rs:76`) |
+| the target of a `transform` is a literal `--id` in the spec args | `executor.rs:327-338` |
+| re-read the window 1300 ms later when the printed rectangle fails | `executor.rs:345-353`, `crates/spawn-at-verify/src/oracle/check.rs:96` and `:312` |
+| flash check, wait-rule info, trace assessment, validation, flash policy | `executor.rs:370`, `:378`, `:386`, `:401`, `:505` |
+
+**Traced.** The log slice of the run is read with the log source (`executor.rs:236`); on GNOME the extension's timing log is switched on over D-Bus before each test (`crates/spawn-at-verify/src/ext_logging.rs:226`, `executor.rs:202`). Whether the log source is the GNOME journal is decided from `XDG_CURRENT_DESKTOP` alone (`crates/spawn-at-verify/src/runner/engine.rs:49-58`).
+
+**Reported.** `spawn-at-verify run` and `calibrate` write `report.json`, `report.md` and `slices/` (`crates/spawn-at-verify/src/cli/run.rs:126`). A required test that ends `Skipped` makes the qualification report say "not supported" (`crates/spawn-at-verify/src/report/builder.rs:30-38`, `:45`).
+
+**Shown in the TUI.** `TuiApp::execute_test` builds a runner and calls `execute_single_test` **synchronously on the UI thread** (`crates/spawn-at-verify/src/tui/app/queue.rs:86-117`). An Auto test then closes the tracked windows (`queue.rs:66-69`); a Both or Human test leaves its window up and waits for a verdict (`queue.rs:70-76`), and `record_verdict` closes them (`queue.rs:184`). The drawer's SPEC section prints the action and the subject (`crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:81-128`).
+
+**Process facts that the design depends on.**
+
+- The fixture is started **by `spawn-at spawn`**, not by the runner (`validation.rs:47-69`). The runner never holds a handle to the fixture process: `attribute_action_windows` takes a `fixture_pid`, and `executor.rs:281` passes `None`. The only protection against a leaked fixture is its own `--exit-after-ms` and the close-by-id of the tracked window (`tracker/state.rs:226-236`).
+- `execute_with_timeout` runs each step in its own process group and kills the group with SIGKILL on timeout (`crates/spawn-at-verify/src/process.rs:57-63`, `:95-101`).
+- `RunOptions::test_timeout` exists (`crates/spawn-at-verify/src/runner/models.rs:338`) and has no reader **(ran: only its definition and default match)**.
+- Cleanup paths: end of `run_detailed` (`engine.rs:171`), TUI `Ctrl+C` key (`crates/spawn-at-verify/src/tui/app/input.rs:10-15`), the TUI's SIGTERM, SIGINT and SIGHUP flag (`crates/spawn-at-verify/src/tui/mod.rs:78-85`, `:140-149`), and `close_test_windows` after each test (`tui/app/state.rs:372`). `run` installs **no** signal handler and the crate sets no panic hook and no `panic = "abort"` **(ran: no match)**. In raw mode `Ctrl+C` is a key event, and the event loop is blocked while a test runs, so it is only seen between tests (`crates/spawn-at-verify/src/tui/mod.rs:113-126` against `crates/spawn-at-verify/src/tui/app/queue.rs:106`).
+- `WindowTracker` derives `Clone` and holds only ids (`tracker/state.rs:26-32`); nothing clones it **(ran)**.
+
+**What this means.** A test of an existing window needs (a) a window that exists before the action, (b) its id, (c) more than one command in some tests, (d) assertions on the window after the action. None of the four exists. The planned catalog rows are listed in `docs/TEST_PLAN.md:98-127`.
+
+## 2. Proposed spec model
+
+### 2.1 Principle
+
+Add **optional** things to a spec; change nothing that exists. A spec without the new keys is a version 1 spec and runs through the same code path as today. A spec with `schema_version = 2` may add: `[[setup]]` (launch our own fixture), `[[then]]` (more actions), `[[check]]` (assertions on the recorded window), and the new `[expect]` keys. `[action]` stays required and stays a single table: it is the **measured action** (the one whose flash, exit code and stderr are judged). Teardown is not a key; it is not configurable, because it is the safety mechanism (section 3).
+
+### 2.2 Before and after
+
+Before (today, `verify/placement/bottom-right.toml`, abbreviated): the runner launches the fixture through `spawn-at spawn` and places it.
+
+```toml
+id = "placement/bottom-right"
+kind = "both"
+[subject]
+app = "fixture"
+args = ["--title", "Verify-Placement-BottomRight", "--app-id", "verify.placement.bottomright"]
+[action]
+command = "spawn"
+args = ["--class", "verify.placement.bottomright", "--anchor", "bottom-right", "--size", "400", "300", "--margin", "16"]
+[expect]
+exit_code = 0
+[expect.rect]
+anchor = "bottom-right"
+size = [400, 300]
+margin = 16
+tolerance_px = 1
+```
+
+After (new, `verify/transforms/resize-by-id.toml`): the runner launches the fixture itself, finds its window, then transforms **that** window.
+
+```toml
+schema_version = 2                      # absent means 1: every current spec
+id = "transforms/resize-by-id"
+category = "transforms"
+title = "Resize an existing window by id"
+description = "Launches the fixture at 400x300, resizes that window to 600x450 centred, and checks the rectangle."
+kind = "auto"
+tags = ["needs-fixture", "existing-window", "moves-focus"]
+
+[requires]
+backend = ["gnome", "sway"]            # new value "sway": section 4
+
+[[setup]]                              # one fixture, launched by the runner, not by spawn-at
+name  = "w"                            # ${w} is its recorded window id
+args  = ["--width", "400", "--height", "300"]   # allow-listed fixture flags only
+# title, app-id, --exit-after-ms and the event directory are set by the runner, never by the spec
+
+[action]                               # the measured action; ${w} only in --id
+command = "transform"
+args = ["--id", "${w}", "--size", "600", "450", "--anchor", "center", "--margin", "16", "--no-focus"]
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]
+[expect.rect]                          # existing oracle, judged on the recorded window
+anchor = "center"
+size = [600, 450]
+margin = 16
+tolerance_px = 2
+```
+
+`[expect.rect]` is reused unchanged: for a v2 spec the runner always re-reads the recorded window after the action (the 1300 ms settle of `executor.rs:345-353`, but unconditional) and passes it as `final_rect`, which `check_geometry_final` already prefers over a printed rectangle (`crates/spawn-at-verify/src/oracle/check.rs:325-333`). No new oracle is needed.
+
+A longer example, with a second action and checks between them (`transforms/maximize-and-restore`):
+
+```toml
+schema_version = 2
+[[setup]]
+name = "w"
+[action]
+command = "maximize"
+args = ["--id", "${w}", "--no-focus"]
+[[then]]                                # extra actions, run in order after [action]
+command = "restore"
+args = ["--id", "${w}", "--no-focus"]
+[[check]]
+after = 0                               # 0 = after [action], 1 = after the first [[then]]; default = after the last
+window = "w"
+state = "maximized"                     # present | gone | maximized | minimized | normal | focused | unfocused
+[[check]]
+after = 1
+window = "w"
+state = "normal"
+[[check]]
+after = 1
+window = "w"
+same_rect_as = "before"                 # equal (tolerance 2 px) to the rectangle read just before [action]
+```
+
+New `[expect]` keys (v2 only): `stdout_present` (substrings, `${w}` allowed), `stdout_lists_window = "w"` (stdout is a JSON array with an entry whose id and title are `w`'s). These cover `query windows` and `query layout`.
+
+### 2.3 Rules the loader enforces for v2 (new code, only reached by v2 files)
+
+1. `[[setup]]`, `[[then]]`, `[[check]]` and the new `[expect]` keys in a file without `schema_version = 2` are a load error. `schema_version` greater than 2 is a load error.
+2. `command` in `[action]` and `[[then]]` is one of `focus`, `defocus`, `transform`, `maximize`, `minimize`, `restore`, `close`, `query`. (`spawn` stays v1; `install`, `uninstall`, `update`, `config` are never allowed here.)
+3. For the window commands the **only** selector is `--id ${name}` with `name` a declared `[[setup]]` name (or the special `${nonexistent}`, section 3.5). A literal `--id`, `--class`/`-c`, `--title`/`-t`, `--pid`, `--focused` is a load error, and so is `defocus` without `--id` (with no selector it targets the focused window: `DefocusArgs::get_selector`, `src/cli/args.rs:614`).
+4. A placeholder may name only a declared setup or a matrix key; setup names may not equal a matrix key. At most 3 setups per spec.
+5. `[[setup]].args` may contain only fixture flags from an allow-list (`--width`, `--height`, `--min-width`, `--min-height`, `--decorations`, `--paint-delay-ms`, `--expect`, `--state-colors`, the hostile flags of `crates/spawn-at-verify/src/bin/fixture.rs:39-100`). `--title`, `--app-id`, `--exit-after-ms`, `--protocol` are set by the runner.
+6. Matrix substitution (`matrix.rs:67-150`) is extended to `[[setup]]`, `[[then]]`, `[[check]]` strings.
+
+### 2.4 Proof that existing specs keep their exact meaning
+
+1. **No field of an existing struct changes.** `TestDefinition` gains `schema_version` (default 1), `setup`, `then`, `check`, all `#[serde(default)]`; `TestExpect` gains defaulted keys. A v1 file parses to the same values for every field it can set.
+2. **Golden of the whole catalog.** Before the first commit, record `sha256` of `serde_json::to_string_pretty` of the registry (all 45 tests, expanded) and of `spawn-at-verify list` and `list --suite <each of the five>`; after each commit the digests must be equal. New fields serialize as their defaults, so the check is made with those fields skipped (`skip_serializing_if` for default values, as `Entry.wait` already does, `crates/spawn-at-core/src/driver.rs`), or the golden is taken over the v1 fields only. Either way a run that differs fails the commit.
+3. **Executor path.** A v1 test never enters the new code: `execute_single_test` branches once at the top on `test.schema_version`, and the v1 body is untouched (the new v2 path lives in a new file). `crates/spawn-at-verify/src/runner/tests.rs`, `trace_capture_tests.rs` and `crates/spawn-at-verify/tests/tui/` must pass unedited.
+4. **Old binary, new spec.** Because unknown keys are ignored today, an *old* `spawn-at-verify` reading a v2 file would drop `[[setup]]` and run `transform --id ${w}`. The literal `${w}` is not a number, so `spawn-at` rejects it with exit 2 and the test fails loudly instead of passing. A stale verify binary is otherwise not detected (preflight checks `spawn-at`, not the verify binary: `crates/spawn-at-verify/src/preflight.rs`); the two are built from one commit by CI.
+
+## 3. Safety
+
+This is the most important section. The rule: **the runner acts only on windows and processes it created itself in this test, identified by data it recorded itself, and refuses to act on anything else.**
+
+### 3.1 What the smoke-live.sh incident was, and which guards are copied
+
+`scripts/smoke-live.sh` once killed a shared `gnome-terminal-server`, because the PID of a window can belong to a process that hosts many windows (header comment, `scripts/smoke-live.sh:9-16`; the evidence that terminal windows share one `gnome-terminal-server` pid is `docs/TEST_LOG.md:348`). Its guards, and what this design does with each:
+
+| smoke-live.sh guard | Copied as |
+| :-- | :-- |
+| the window to close is found by diffing ids before and after the spawn, closed by that recorded id, never by class or name (`:10-11`) | Window id recorded at setup; close **by id only**; an additional re-check that the id still carries our unique title (3.3). |
+| a process is killed only if `safe_to_kill` passes: not this script, not an ancestor (the terminal), not a PID that owned a window before the spawn, not the focused window's PID, and it hosts exactly one window (`:12-14`, `:73-82`) | The runner never kills a PID **found** anywhere. It signals only a `Child` it spawned and has not yet reaped (3.2). The ancestor and "owned a window before" cases cannot arise because the PID is never taken from `query windows` or `/proc`. |
+| "no gnome-terminal case"; terminal cases use the repo's own fixture (`:15-16`) | Setup launches **only our fixture**. `system:<app>` subjects are not allowed in `[[setup]]`. |
+| fail closed: an unknown focused window means no kill at all (`:75-76`) | Any doubt (ambiguous match, pid mismatch, failed query) is an error that kills only our own child. |
+| `sway-live.sh`: kill a fixture only if `comm` is `fixture` and its environment names the private socket; refuse any call whose `SWAYSOCK` is outside the private directory (`scripts/sway-live.sh:94-104`, `:126`, `:132-133`) | Section 4: the runner refuses v2 specs on `sway` unless `SWAYSOCK` is inside a directory carrying the `.spawn-at-sway-harness` marker. |
+
+### 3.2 Ownership: the runner holds the `Child`
+
+Setup launches the fixture **directly** (`std::process::Command`), not through `spawn-at spawn`, so the runner owns an `OwnedFixture { child: Child, title, window_id, event_dir }`:
+
+- **Unique title per run and per setup**: `verify-<run-uuid>-<test-index>-<name>`, where the run id is the process id plus a start timestamp plus a counter (as `DIR_SEQ` does for the flash directory, `crates/spawn-at-verify/src/runner/flash.rs:39`, `:63-67`). The same string is the fixture's `--title` and `--app-id` suffix.
+- **Backstop**: the runner always passes `--exit-after-ms` (10000 for Auto, 300000 for Both), exactly as `validation.rs:70-81` does today, so a SIGKILLed runner leaves a fixture that ends itself.
+- **Own process group**, as `process.rs:57-63` does, so a terminal `Ctrl+C` (SIGINT to the foreground group) is not the only signal path, and so the group id equals the child pid we created.
+- **Signals only through the handle**: `Child::kill()` (SIGKILL) or `libc::kill(child.id(), SIGTERM)` **only while `child.try_wait()` returns `Ok(None)`**, that is, before the child is reaped, so the PID cannot have been recycled. Never `kill` by a PID read from `query windows`, `/proc`, `pgrep` or a title.
+- **Window id** is recorded only when the window matching `title == unique title` **and** `pid == child.id()` appears in `query windows --json` exactly once. The extension reports the fixture's own pid for its window (the harness already relies on this: `window_pid`, `crates/spawn-at-verify/src/runner/flash.rs:173-177`). On Sway the pid field is the window's pid, which for a directly launched native Wayland client is its own **(unverified; one look at `swaymsg -t get_tree` in a private headless Sway settles it)**. If the pid check cannot be made on a backend, the unique title alone is used and the spec's tag records it.
+
+### 3.3 The target must be recorded, and is re-verified before every action
+
+- The loader forbids any selector except `--id ${name}` (2.3 rule 3), so a spec cannot name a user's window.
+- At run time the runner substitutes `${name}` only from the id it recorded. Just before **each** action it re-reads `query windows --json` and checks that the recorded id is present with the unique title and the child's pid. If not (the window moved on, or was replaced), it **does not run the action**: result `Error`, message "target changed: ...".
+- `defocus` and any command that defaults to "the focused window" can never run without `--id` (loader rule), and the focused-window default is never relied on.
+
+### 3.4 Teardown runs on every path
+
+`OwnedFixture` implements `Drop`; a `SetupSession` (all fixtures of one test) is held by the tracker so every existing cleanup path reaches it. Order, for each fixture, bounded by timeouts:
+
+1. If a window id was recorded and `query windows` still shows that id **with our title**: `spawn-at close --id <id> --no-wait` (5 s timeout, as `tracker/state.rs:226-236`). If the id is gone: skip. If the id exists with a **different** title: skip and warn (an id must never be closed because it equals a number we remember).
+2. Wait up to 1 s for `child.try_wait()`.
+3. Still running: SIGTERM through the handle, wait 1 s, then `child.kill()` and `child.wait()`.
+4. Remove the event directory (existing `FlashCapture::drop`, `runner/flash.rs:117-122`).
+
+| Path | How teardown is reached |
+| :-- | :-- |
+| normal end, assertion failure, setup error | the session is dropped at the end of `execute_single_test`'s v2 branch; Auto tests tear down there. |
+| action timeout | `execute_with_timeout` kills only the action's own process group (`process.rs:95-101`); the session is then dropped normally. The action's target fixture is not in that group (the fixture has its own). |
+| Both / Human test | the test must keep its window until the verdict, so the session is **moved into the tracker** instead of dropped; `record_verdict` and `close_test_windows` (`queue.rs:184`, `tui/app/state.rs:372`) drop it. |
+| TUI `Ctrl+C`, quit, SIGTERM, SIGHUP | the existing paths call `cleanup_test_windows` (`input.rs:10-15`, `crates/spawn-at-verify/src/tui/mod.rs:140-149`); that function is extended to drop the session too. The event loop is blocked during a test, so the delay is bounded by setup (5 s) + action (5 s) + settle (1.3 s) + teardown (about 3 s), **about 15 s worst case**, and is stated in the docs. |
+| `spawn-at-verify run` + `Ctrl+C` / SIGTERM | **new**: `run` today has no handler (it simply dies). The design adds a `signal-hook` flag checked between steps and inside the setup wait; `signal-hook` is already an optional dependency (`crates/spawn-at-verify/Cargo.toml`, feature `fixture`/`tui`) and would become non-optional. Without the flag, a killed `run` leaves a window until the fixture's `--exit-after-ms` ends it (10 s). |
+| panic | Rust unwinds (no `panic = "abort"`, **(ran)**), so `Drop` runs. A test injects a panic and asserts the fake fixture was killed. |
+| SIGKILL of the runner | cannot be handled; the fixture's `--exit-after-ms` ends the process, and the window goes with it. |
+
+After teardown the runner re-reads `query windows` and records "left behind: <id>" in the result message if the recorded id is still there (audit P12). It is a warning in the first version, not a failure (open question 9.9).
+
+### 3.5 Setup that fails halfway
+
+Every row ends the test as `Error` ("setup failed: ..."), never `AutoFail`, because nothing about the product was judged. **No action is run.** Everything already created is torn down by 3.4.
+
+| Failure | Result |
+| :-- | :-- |
+| fixture binary missing | `Error` before anything is launched (as `executor.rs:164-194`, extended to v2). |
+| the fixture process exits at once (bad flags, no display) | `Error` with its exit code and stderr; the `Child` is reaped; nothing to close. |
+| no window with our title after the setup timeout (5 s) | `Error`; our child is killed through the handle. No id was recorded, so nothing is closed by id. |
+| two windows match, or one matches by title but its pid is not our child's | `Error` "ambiguous"; our child is killed; **neither window is touched** (a window we cannot prove ours is never closed). |
+| `query windows` itself fails (extension down, stale protocol) | `Error`; our child is killed. |
+| setup 1 of 2 succeeded, setup 2 failed | `Error`; setup 1's window is closed by its recorded id and its child reaped. |
+| the runner is blocked/preflight fails | `Blocked`, as today (`executor.rs:39-64`), before any setup. |
+
+For tests that need an id that must **not** exist (a clean error for a missing window, `robustness/nonexistent-window-id`), the placeholder `${nonexistent}` is defined as `max(id seen in query windows) + 1000000`, re-verified absent immediately before the action. It is the only way a spec can name an id it did not record, and it names one the runner has just proved is not a window.
+
+### 3.6 The user's focus
+
+A freshly mapped fixture takes focus on GNOME (Mutter's default for new windows; the runner does not change any GNOME setting). Directly launched, it does so without the cloak that `spawn` uses. What the design does:
+
+- Every v2 spec that launches a window or acts on focus carries the tag `moves-focus` (audit gap 18: no such tag exists today). The `quick` suite gets `!moves-focus` added to its tags when the first such spec lands, so a quick run never steals focus by accident. `full` runs them.
+- Before the first setup of a run the runner records the id of the currently focused window (the TUI already does this for the terminal, `crates/spawn-at-verify/src/tui/app/state.rs:197-214`); teardown refocuses it with `spawn-at focus --id <recorded> --no-wait` **only if that window still exists and is not focused** (as `close_test_windows` does, `crates/spawn-at-verify/src/tui/app/state.rs:372-380`). This is best effort and is stated as such.
+- Specs use `--no-focus` on `transform`, `maximize`, `restore` where they do not test focus, so the action itself does not move focus. (`spawn --no-focus` is not available: it has no effect, audit gap 5.)
+- Specs whose point is a visual judgment, or that animate (maximize, minimize, restore, transform flash), are `kind = "both"`: the TUI stops with the `watch` question, which also tells the owner that the run is attended.
+- On headless Sway there is no user to disturb (section 4).
+
+## 4. Backends
+
+### 4.1 Support table
+
+Declared support is read from the drivers (`src/platform/linux/gnome/driver.rs`, `src/platform/linux/sway/mod.rs:185-215`, `src/platform/mod.rs:327-343`, `src/platform/linux/sway/tests_write.rs:527`); the built-binary behavior is pinned by `tests/sway_backend_cli_test.rs` (the "unsupported" text is `crates/spawn-at-core/src/driver.rs:98-103`, exit code 1).
+
+| Command | GNOME (live, owner by hand) | Sway (headless, private) | X11 |
+| :-- | :-- | :-- | :-- |
+| `transform` | yes | yes | out of scope here (P11) |
+| `focus` | yes | yes (`[con_id=N] focus`) | out of scope |
+| `defocus` | yes | **unsupported** | out of scope |
+| `maximize`, `minimize`, `restore` | yes | **unsupported** | out of scope |
+| `close` | yes, needs protocol 3 | yes (`kill`) | out of scope |
+| `query windows`, `query layout` | yes | yes | out of scope |
+| `query pointer` | yes | **unsupported** | out of scope |
+| flash measurement | yes (extension clock) | no (no extension, no clock anchor) | no |
+| timing log / trace | yes | no (no-op log source) | no |
+
+### 4.2 Skipped, not failed
+
+**The `Capabilities` struct cannot be used by the runner**: it lives in the binary crate (`src/platform/capability.rs:26`), which `spawn-at-verify` does not depend on (it dev-depends only on `spawn-at-core`, `crates/spawn-at-verify/Cargo.toml:68`), and it has no flag for focus, defocus, state or pointer (audit section 2). So support is declared **by the spec**:
+
+- `[requires] backend = ["gnome", "sway"]` already exists (`crates/spawn-at-verify/src/schema/types.rs:24`); the value `"sway"` is new. `EnvironmentInfo::check_requirements` today knows only `gnome` and `x11` (`crates/spawn-at-verify/src/probe.rs:86-101`), so a `sway` requirement would always be unsatisfied. The change: `EnvironmentInfo` gets a `backend` field, set from `SPAWN_AT_BACKEND` (lowercased, exactly the forced values of the binary's registry) and otherwise from the existing desktop rule. This mirrors the binary's selection; it can drift from it, and the only fully honest source would be a `spawn-at query backend` command, which is a production change and is **not** proposed here (open question 9.4).
+- A spec run on a backend not in its list ends `Skipped` with a fixed message **"unsupported on this backend (sway): spec requires gnome"**. No special status: `Skipped` already exists everywhere (`crates/spawn-at-verify/src/runner/models.rs:32`, `resolve_final_status` at `crates/spawn-at-verify/src/runner/models.rs:251-269`).
+- If a spec **lists** a backend and the command still answers "does not support this feature", that is a **failure** (the spec claims support), not a skip.
+- The unsupported behavior itself is tested as a positive: contract specs for Sway (`backend = ["sway"]`) assert exit 1 and `stderr_present = ["does not support this feature: defocus_window"]` (section 7).
+- **Consequence for qualification**: a required test that is skipped makes `supported` false (`report/builder.rs:30-48`). v2 specs must therefore be `required = false` at first (as the nine hostile specs are), or a per-backend requirement notion must be added. Open question 9.5.
+
+### 4.3 Running on headless Sway, unattended
+
+Yes, in principle: `scripts/sway-headless.sh` starts a private, headless Sway in a `0700` directory with its own runtime dir and sockets, no XWayland, and prints exports for a subshell (`scripts/sway-headless.sh:2-26`), and `scripts/sway-live.sh` already runs the full command set against it unattended with the same fixture. Nothing in CI installs Sway today **(ran: no `sway` in `.github/workflows/`)**, so "unattended" means the owner's machine or a future job (open question 9.8).
+
+What the runner needs for it, and the traps found while reading:
+
+1. **A thin wrapper**, `scripts/verify-sway.sh` (allowed: it only calls binaries): `sway-headless.sh start`, run the verify binary in a subshell with `SPAWN_AT_BACKEND=sway`, `SWAYSOCK`, `WAYLAND_DISPLAY` from the harness and **`DISPLAY` and `XDG_CURRENT_DESKTOP` unset**, then `sway-headless.sh stop` in a trap. `sway-live.sh` sets the variables on each `spawn-at` call only (`sway-live.sh:133`); the wrapper does it on the one child process.
+2. **Log source trap.** `TestRunner::new` chooses the GNOME journal source and the GNOME `SetLogging` control from `XDG_CURRENT_DESKTOP` alone (`engine.rs:49-58`). Run from a GNOME user's shell, a "Sway" run would still call `gdbus` on the **live GNOME session's** extension. The runner must pick the no-op source when the backend is not GNOME (decided in commit 6), and the wrapper unsets the variable as a second guard.
+3. **Private-session guard in the runner.** For `backend = sway`, a v2 spec runs only if `SWAYSOCK` is inside a directory that holds the `.spawn-at-sway-harness` marker and is owned by the user and is not `XDG_RUNTIME_DIR` (the checks of `check_dir`, `scripts/sway-headless.sh:52-60`). Otherwise the result is `Blocked` with that reason. This makes "never point the runner at the owner's real Sway session" a property of the runner, not of the wrapper.
+4. **No flash, no trace** on Sway: specs that assert them are skipped with "not measurable on this backend" (section 5).
+
+## 5. Flicker for transform (P7)
+
+### 5.1 What is measured, and what exists
+
+Today's measurement (audit section 4.2, **(read)** again here): the fixture logs `FIRST_PAINT WxH` once per new size, plus `RESIZED` and `MOVED`, in `CLOCK_MONOTONIC` to `fixture-<pid>.events` (`crates/spawn-at-verify/src/bin/fixture/trace.rs:87-102`, `window.rs:266-270`, `:351`); with the wire dump the paint time is the client's `wl_surface.commit`. The extension logs `CLOAK`/`UNCLOAK` on its own millisecond clock, tied to the monotonic clock by a `ClockAnchor` from `ANCHOR_SAMPLES = 4` bracketed `SetLogging(true)` calls (`crates/spawn-at-verify/src/trace/flash.rs:40`, `crates/spawn-at-verify/src/runner/flash.rs:58-74`; uncertainty 1.5-3.0 ms as recorded in `docs/TEST_LOG.md` 6.16). `detect_flash` (`trace/flash.rs:466`) calls it a flash when the reveal comes before the first paint at the final size, or the size or position changes after the reveal by more than `GEOMETRY_TOLERANCE_PX = 2` within `POST_REVEAL_WATCH_MS = 1500` (`trace/flash.rs:34`, `:37`).
+
+A runtime transform sends the batch Snapshot, Cloak, SetSize, WaitForCommit(500 ms), (SetPositionAnchored), Uncloak, DestroySnapshot (`src/platform/linux/gnome/driver.rs:289-329`), and the extension logs `CLOAK` and `UNCLOAK` for it in `_runBatch` (`assets/gnome/modern/extension.js:730`, `:744`). During the cloak the snapshot of the old content is what the user sees, so the thing to measure is the same as for spawn: **was the real window revealed before the client had painted the new size, and did anything change after the reveal.**
+
+### 5.2 What must be added
+
+All of it in the verify crate, none in the product:
+
+1. **Launch for the capture**: the setup fixture gets `FlashCapture::apply` (`runner/flash.rs:77-82`), i.e. `SPAWN_AT_FIXTURE_EVENT_DIR` and, by default, `SPAWN_AT_FIXTURE_TRACE_DIR`. Because the runner owns the `Child`, the events file is `fixture-<child pid>.events` and no guess is needed (today `read_events` falls back to "the only file", `crates/spawn-at-verify/src/runner/flash.rs:99-114`).
+2. **Allow capture for the new actions**: `wants_flash_capture` is `action.command == "spawn"` (`runner/flash.rs:126-130`); for v2 it is "the measured action is `transform` and the spec has a setup with `flash = true`".
+3. **Anchor close to the action**: take the bracketed `SetLogging` calls after the window is mapped and just before the action, so the anchor is fresh.
+4. **Judge the transform's own reveal**: `detect_flash` takes the first `UNCLOAK` in the events it is given. The runner passes it only the extension events **after the action's start** (converted with the anchor), so the setup window's own history cannot be picked. The client events need no cut: `client_flashes` already takes, as the content shown at the reveal, "the newest paint certainly before it" (`crates/spawn-at-verify/src/trace/flash.rs:684-696`), which is the paint at the setup size. The "nothing painted at the reveal" kind cannot occur for a transform; the relevant kind is `size-change-after-reveal`.
+5. **Plumbing**: the existing `run_flash_check` (`runner/flash.rs:266-341`) with `window = recorded id`; `FlashInfo` is already in `TestResult` and already rendered.
+
+Unverified, and to be checked by the owner with a read-only look at the journal before commit 8: that a runtime transform's `CLOAK` and `UNCLOAK` lines carry the window id and pid the way a spawn's do (the analyser filters by window id, `runner/flash.rs:166-170`). If they do not, the extension logs need the fields, which would be a (small, JS) product change and a separate decision.
+
+### 5.3 Thresholds and labels
+
+Unchanged from spawn: a numeric flash is a lead strictly above `max(clock uncertainty, --flash-threshold-ms)`; the label is `certain` when the lead is at least one frame period (16.7 ms at 60 Hz) and `possible` below it; `visible_probability = min(1, lead/frame)` is, in the code's own words, a hypothesis (`trace/flash.rs:613-637`, audit gap 10). A run that passed and flashed keeps its pass and says so, unless `--strict-flash` (`runner/flash.rs:138-163`). The transform specs are **informational by default**: they do not fail a run on a flash, and they must not be `required` (open question 9.5).
+
+### 5.4 What can not be measured
+
+- **Position-only transforms** have no paint, so only the extension's `ANCHOR_CORRECTION` after the reveal is evidence (`crates/spawn-at-verify/src/trace/flash.rs:499-525`); the client's `Moved` event is not delivered by winit on native Wayland (it exists for X11, `window.rs:351`; **unverified** for GNOME Wayland, the audit notes X11 reports it). The spec says "limited evidence".
+- **focus, defocus**: no geometry or paint change, so there is nothing to compare with the reveal; only the order of RAISE and ACTIVATE in the trace can be asserted (as `tests/dispatcher_test.js` does for `FocusWindow`).
+- **close**: nothing is revealed. What can be checked is that the window leaves `query windows` and the fixture process ends (section 7).
+- **maximize, minimize, restore**: Mutter's animation is by design not a flicker, and a direct state change has no cloak, so `detect_flash` returns basis `none` (audit 4.3).
+- **Any backend without the extension** (Sway, X11): there is no `UNCLOAK` and no clock anchor (`runner/flash.rs:59-62` returns `None`).
+- **Pixels**: nothing is captured. A clean result means no late paint or late move was found in the runs made, on one machine and one compositor version, with the fixture and not a real app. **It is not a guarantee that no frame was ever wrong.**
+
+## 6. The TUI and reports
+
+**Ids and groups.** v2 specs live under `verify/transforms/`, `verify/focus/`, `verify/queries/`, `verify/robustness/`, so the id equals the path (`crates/spawn-at-verify/src/loader/registry.rs:50`) and the category is the first segment. The existing empty directories `verify/transform`, `verify/query`, `verify/lifecycle`, ... hold only a README; the new ones are different directories (`docs/TEST_COVERAGE_AUDIT.md` gap 7). `category_rank` already orders `transforms`, `focus`, `queries`, `robustness` (`crates/spawn-at-verify/src/tui/app/state.rs:71-90`) and `ResultCategory` already maps them (`runner/models.rs:227-247`, `crates/spawn-at-verify/src/report/markdown.rs:92-104`). The suites need the `lifecycle` to `focus` alias in both copies (`suite.rs:36-41`, `crates/spawn-at-verify/src/loader/registry.rs:150-155`) and `suite_wiring_test.rs` will fail until its known-empty list is updated, which is its purpose.
+
+**Auto vs Both in the TUI.** Auto specs show PASS/FAIL, the geometry table for `[expect.rect]`, and the new **SETUP** and **THEN/CHECKS** lines in the drawer's SPEC section (`info_sections.rs:81-128` gains: setup names and flags, each action, each check with its result). Both specs show Pending until `p`/`x`, with the `watch` text; the fixture window stays up until the verdict (the session lives in the tracker, 3.4). What the human confirms is stated per spec in section 7 and is always about what a command cannot measure: animation, a jump, a blank frame, the focus ring. The Flash row and the `✱` count already render events (`docs/TEST_LOG.md` 6.16).
+
+**The TUI writes no `report.md`.** Only `run` and `calibrate` do (`crates/spawn-at-verify/src/cli/run.rs:126`, `crates/spawn-at-verify/src/cli/calibrate.rs:376`); the TUI saves the drawer text on `w` (`tui/app/clipboard.rs:36`, `tui/app/state.rs:241`). **Recommendation: not part of this work.** It is independent of the runner change, small (call `write_report_artifacts` with the `results` map on quit), and has its own decisions (when to write; whether a pending Both row is a failure in a file). Proposed as a separate change after batch 3; the new Both specs are then recorded only through `run`, which prints Pending rows for them, until then.
+
+## 7. Catalog specs proposed for batch 3
+
+"Unattended on headless Sway" means the spec can run by itself in the private Sway with no person; **no GNOME spec is unattended** (every one launches a window and takes focus, section 3.6). All are `required = false` (9.5). All `needs-fixture`, `existing-window`; all carry `moves-focus` except the pure queries on Sway.
+
+| Id | Setup | Action | Assertion | Kind | GNOME | Sway | Unattended on headless Sway |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| `queries/query-windows-lists-fixture` | `w` 400x300 | `query windows --json` | exit 0; `stdout_lists_window = "w"`; `[[check]] w present` | Auto | yes | yes | yes |
+| `queries/query-layout-json` | none | `query layout --json` | exit 0; `stdout_present = ["\"monitors\""]` | Auto | yes | yes | yes |
+| `queries/query-pointer` | none | `query pointer` | exit 0, stdout has two integers | Auto | yes | unsupported (skipped) | n/a |
+| `transforms/resize-by-id` | `w` 400x300 | `transform --id ${w} --size 600 450 --anchor center -m 16 --no-focus` | `[expect.rect]` centre 600x450, tolerance 2 | Auto | yes | yes | yes |
+| `transforms/reposition-by-id` | `w` 400x300 | `transform --id ${w} --anchor top-left -m 40 --no-focus` (no `--size`) | rect top-left, margin 40, size unchanged 400x300 | Auto | yes | yes | yes |
+| `transforms/anchor-corners` | `w` 400x300 | `transform ... --anchor {anchor}`, `[matrix] anchor = [top-left, top-right, bottom-left, bottom-right, center]` | rect per anchor | Auto | yes | yes | yes |
+| `transforms/resize-flash` | `w` 400x300, `flash = true` | `transform --id ${w} --size 700 500 --no-focus` | rect; flash events reported (informational); `watch`: "Did the window change size once, without a blank or old-size frame?" | Both | yes | skipped (no flash basis) | n/a |
+| `transforms/move-flash` | `w`, `flash = true` | `transform --id ${w} --anchor bottom-right -m 16 --no-focus` | rect; extension correction only ("limited evidence") | Both | yes | skipped | n/a |
+| `transforms/maximize-and-restore` | `w` | `maximize`, then `[[then]] restore` | after 0 `maximized`; after 1 `normal` and `same_rect_as = "before"`; `watch`: "Did it maximize and come back without a jump?" | Both | yes | unsupported (skipped) | n/a |
+| `transforms/minimize-and-restore` | `w` | `minimize`, then `restore` | after 0 `minimized`; after 1 `normal`; `watch` on the animation (`docs/TEST_PLAN.md` section 4) | Both | yes | unsupported (skipped) | n/a |
+| `focus/activate-fixture` | `a`, then `b` (b is focused) | `focus --id ${a}` | `a` focused, `b` unfocused | Auto | yes | yes | yes |
+| `focus/switch-between-windows` | `a`, `b` | `focus --id ${a}`, `[[then]] focus --id ${b}` | alternating `focused`/`unfocused` after each | Auto | yes | yes | yes |
+| `focus/defocus-active-window` | `a`, `b` | `defocus --id ${b} --to-window <title of a>` | `b` unfocused; **uses the unique title of `a`, the only title a spec may name, via `${a.title}`** | Auto | yes | unsupported (skipped) | n/a |
+| `robustness/close-by-id` | `w` | `close --id ${w}` | exit 0; `w` gone from `query windows`; the fixture `Child` exits within 2 s | Auto | yes | yes | yes |
+| `robustness/nonexistent-window-id` | none | `transform --id ${nonexistent} --size 400 300` | exit 1; `stderr_present = ["No window with id"]` | Auto | yes | yes | yes |
+| `robustness/sway-defocus-unsupported` | `w` | `defocus --id ${w}` | exit 1; `stderr_present = ["does not support this feature: defocus_window"]` | Auto | skipped (`backend = ["sway"]`) | yes | yes |
+| `robustness/sway-maximize-unsupported` | `w` | `maximize --id ${w}` | same, `set_window_state` | Auto | skipped | yes | yes |
+| `robustness/sway-query-pointer-unsupported` | none | `query pointer` | exit 1, `get_cursor_position` | Auto | skipped | yes | yes |
+
+Not proposed, and why: `focus/passive-spawn-no-focus` (`spawn --no-focus`): the flag has no effect today (audit gap 5, `commands::spawn::tests::test_spawn_focus_modifiers_have_no_effect_today`), so a passing spec would be false and a failing one a known failure; it waits for the owner's decision on gap 5. Multi-monitor and X11 specs: P11 and the multi-monitor row are separate.
+
+`${a.title}` is the one extra placeholder (the unique title, usable only as the argument of `--to-window` of `defocus`). `defocus --to-window` selects by title, and the title is the runner's own unique string.
+
+## 8. Test plan, implementation plan, risks, alternatives
+
+### 8.1 Tests of the runner change (no live session needed)
+
+All with fakes, in the style of `FakeBin` (`crates/spawn-at-verify/src/runner/trace_capture_tests.rs:386`) and `crates/spawn-at-verify/tests/tui/`:
+
+1. **Schema**: all 45 existing specs parse to identical values (the golden of 2.4); v2 parse; each loader rule of 2.3 has a failing example (v2 keys in a v1 file, literal `--id`, `--class`, `--focused`, bare `defocus`, unknown placeholder, matrix collision, 4 setups, unknown `schema_version`).
+2. **Placeholder substitution** and matrix extension.
+3. **OwnedFixture with a fake fixture script and a fake `spawn-at` script** (the fake answers `query windows --json` from a file the test controls): records the id by title **and** pid; a decoy window with the same title and another pid is rejected and its (real, test-spawned) process is asserted **still alive**; no window appears, two windows appear, the fixture exits at once, `query` fails, the second of two setups fails: each ends `Error`, runs no action (the fake records its calls), reaps the child, and closes by id only what was recorded.
+4. **Teardown order and paths**: close-by-id before any signal; id gone is skipped; id with a different title is skipped and warned; a child that ignores SIGTERM is SIGKILLed; a panic injected in a step still tears down (`catch_unwind`); a step timeout still tears down; no signal is ever sent to a pid the test did not spawn (the fake `query` lists a decoy pid; the test asserts the decoy survives).
+5. **Re-verification**: mutate the fake's window list between setup and action; the action is not run and the result is `Error`.
+6. **Checks**: `state`, `same_rect_as`, `after`, `stdout_lists_window`, `[expect.rect]` on the re-read rectangle.
+7. **Backends**: `check_requirements` with `backend = sway`, the `SPAWN_AT_BACKEND` mirror, the private-session guard (a socket outside a marked directory is `Blocked`), the no-op log source for a non-GNOME backend (no `gdbus` call, asserted with the fake logging control).
+8. **TUI headless** (`tests/tui`): a v2 spec renders SETUP/THEN/CHECKS without panicking (audit P13); a Both v2 test keeps its fake fixture alive until `record_verdict`, then it is closed; `Ctrl+C` after a Both test closes it.
+9. **Flash**: `detect_flash` fed the events after an action start picks the transform's `UNCLOAK`; a synthetic file with a setup paint and a late new-size paint after the reveal gives `size-change-after-reveal`; position-only gives only the extension correction.
+10. **Doc counts and citations** by script, as in this document.
+
+### 8.2 Implementation plan, small commits (each: fmt, clippy `-D warnings`, all suites, golden digests of 2.4)
+
+1. `feat(verify): schema_version and v2 keys, loader rules` (schema only; no runner change; goldens).
+2. `feat(verify): placeholders and matrix substitution for v2 fields`.
+3. `feat(verify): OwnedFixture and SetupSession` (launch, identify, teardown, `Drop`), with the fake-based tests; not wired.
+4. `feat(verify): run v2 tests in the executor` (new file; v1 path untouched), `run` signal flag, Error semantics, re-verification.
+5. `feat(verify): checks and stdout expectations`.
+6. `feat(verify): backend detection, sway requirement, unsupported skip, private-session guard, non-GNOME log source`.
+7. `feat(verify): TUI drawer and Both-mode session ownership`; tests.
+8. `feat(verify): flash measurement for transform` (after the owner's journal check, 5.2).
+9. `chore: scripts/verify-sway.sh` thin wrapper and its `--dry-run`; docs.
+10. Then batch 3 (separate PRs): 3a queries and Sway contract specs (safest, unattended), 3b transforms, 3c focus and close, 3d state commands and flash specs (Both). The `lifecycle` to `focus` alias and the suite tags change with 3c.
+
+Docs in the same commits; `docs/KNOWLEDGE.md` and `CHANGELOG.md` per the repo rules.
+
+### 8.3 Risks
+
+- **The directly launched fixture is not a spawn.** It is not placed or cloaked by spawn-at, which is what these tests want, but it means these specs say nothing about `spawn`. Intended.
+- **Focus theft** on GNOME is unavoidable and only mitigated (3.6).
+- **`query windows` pid/title semantics** differ per backend (unverified on Sway, 3.2); the guards degrade to title-only plus a tag, and a mismatch is an error, never an action.
+- **Id reuse.** Ids are monotonic on GNOME and Sway as far as read, but the design does not depend on it: close re-checks the title.
+- **Timing flakiness**: setup waits poll `query windows` every 100 ms for 5 s; the settle is 1300 ms; a loaded machine can exceed them. Failures are `Error` (setup) not `Fail`, and `--repeat` exists.
+- **Stale verify binary** and the ignored unknown keys (2.4 item 4).
+- **Blocking UI**: the TUI still blocks during a test (`queue.rs:106`); the 15 s bound is documented, not removed. Moving execution to a thread is a separate change.
+- **Runner change touches the safety-critical tracker**: contained by keeping v1 paths byte-identical and testing teardown first (commit 3 before 4).
+- **A runtime-transform trace without window id** (5.2) could force a JS change.
+
+### 8.4 Alternatives considered and rejected
+
+| Alternative | Why not |
+| :-- | :-- |
+| A shell wrapper: launch the fixture, read its id, then call `spawn-at-verify run --glob` with the id in the environment | One id per process cannot serve a suite; no per-test teardown on failure or in the TUI; duplicates the guards in shell (the incident was a shell script); no TUI rows; the spec still could not name the id. |
+| Launch the setup fixture with `spawn-at spawn` as today | The runner would again hold no process handle (`executor.rs:281`), so a leaked fixture could only be stopped by pid discovery, which is what the rules forbid; and it would test `spawn` inside every non-spawn test. Kept only as an idea for specs that *want* a placed start. |
+| Make `[action]` an array (`[[action]]`) | Changes the meaning and the type of a required v1 field; every v1 spec would need touching or an untagged enum. `[[then]]` adds without changing. |
+| Judge every command only by its exit code | `transform` and the state commands return 0 when the state never changed (audit gap 6, pinned by `src/commands/state_command_tests.rs`), so a query after is the only honest check. |
+| One shared fixture for the whole suite | Faster, but one test's state (focus, maximized) leaks into the next and a failure strands later tests. Possible later as an opt-in. |
+| Real apps (gnome-calculator, terminal) as targets | The incident; `CLAUDE.md` forbids it; their windows are shared or slow. |
+| Read capabilities from the binary's `Capabilities` | Not reachable from the verify crate and incomplete (4.2). |
+| Screen capture for flicker | No capture path exists (`docs/DESIGN_READY_WAIT.md` section 12, the ScreenCast attempt); out of scope. |
+| Run Sway tests in CI now | No Sway in the workflows; availability on the runner is unverified. |
+
+## 9. Open questions for the owner
+
+Each with my recommendation.
+
+1. **Launch the setup fixture directly (runner owns the `Child`) or through `spawn-at spawn`?** Recommend **directly**: process ownership is the core safety property (3.2).
+2. **Should the TUI write `report.json`/`report.md`?** Recommend **a separate change after batch 3**, not in this work (section 6).
+3. **A distinct `Unsupported` result instead of `Skipped` with a fixed message?** Recommend **Skipped plus the fixed prefix** for now: no change to statuses, report or TUI. Revisit when the first Sway qualification row is wanted.
+4. **How does the runner learn the backend?** Mirror `SPAWN_AT_BACKEND` and the desktop rule now. A `spawn-at query backend` command would be exact but is a product change; recommend **not now**.
+5. **Required or not?** Recommend **`required = false`** for every v2 spec at first, so `release-gate` and `supported` do not change, and revisit per backend (a skipped required test blocks "supported", 4.2).
+6. **Focus policy:** tag `moves-focus`, `!moves-focus` in `quick`, best-effort refocus of the recorded window. Recommend **yes**. Any GNOME run of these specs is attended.
+7. **Handle `Ctrl+C` and SIGTERM in `run`** (promote `signal-hook` to a normal dependency). Recommend **yes**, in commit 4.
+8. **Headless Sway in CI?** Recommend **not in this work**; first run `scripts/verify-sway.sh` by hand, then decide whether a non-required job is worth installing Sway on the runner (unverified that it is available).
+9. **Leftover after teardown**: warning or failure? Recommend **warning in the first version**, failure once it has been quiet for a release.
+10. **Two or more windows in one spec** (focus switching needs two): allowed up to 3. Recommend **yes**.
+11. **Journal check for the transform trace** (5.2): the owner reads the journal once, read-only, around one manual `spawn-at transform`, and confirms `CLOAK`/`UNCLOAK` carry the window id. Recommend doing it before commit 8.
+12. **`spawn --focus/--no-focus/--defocus`** (audit gap 5) decides whether `focus/passive-spawn-no-focus` can exist. Recommend deciding it before batch 3c, independently of this design.
+
+## 10. Citations
+
+All `path:line` references in this file are checked by a script (`scratch/cite_design.sh`, not committed): each path must exist, each line must be within the file, and the printed line is compared by eye with the claim. The output is in the pull request description. Line numbers are for `main` at `6d232c1`; documents cited without a line are cited by section.
