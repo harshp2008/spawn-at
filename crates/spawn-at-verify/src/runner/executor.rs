@@ -64,7 +64,14 @@ impl TestRunner {
         }
 
         // Check environment requirements
-        if let Err(skip_reason) = env_info.check_requirements(&test.requires) {
+        // A version 2 spec that the backend cannot serve is skipped with a fixed message.
+        let requirement = if test.v2.schema_version >= crate::schema::SCHEMA_VERSION_EXISTING_WINDOW
+        {
+            env_info.check_requirements_v2(&test.requires)
+        } else {
+            env_info.check_requirements(&test.requires)
+        };
+        if let Err(skip_reason) = requirement {
             let (final_status, disagreement) =
                 resolve_final_status(test.kind, AutoStatus::Skipped, &HumanVerdict::default());
             return TestResult {
@@ -112,6 +119,18 @@ impl TestRunner {
                 flash_info: Default::default(),
                 wait_info: Default::default(),
             };
+        }
+
+        // Aimed at Sway: only ever the private headless session of scripts/sway-headless.sh.
+        if env_info.backend() == "sway" {
+            if let Err(why) = crate::backend::private_sway_guard(
+                std::env::var("SWAYSOCK").ok().as_deref(),
+                std::env::var("XDG_RUNTIME_DIR").ok().as_deref(),
+                // SAFETY: geteuid has no preconditions.
+                unsafe { libc::geteuid() },
+            ) {
+                return super::executor_v2::blocked(test, start, why);
+            }
         }
 
         // Version 2: the test launches its own windows and acts on them

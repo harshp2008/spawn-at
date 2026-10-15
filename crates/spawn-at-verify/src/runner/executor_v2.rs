@@ -445,6 +445,11 @@ fn stdout_lists_window(stdout: &str, session: &SetupSession, name: &str) -> Resu
     }
 }
 
+/// A `Blocked` result: the run is refused before anything is started.
+pub(super) fn blocked(test: &TestDefinition, start: Instant, why: String) -> TestResult {
+    finish(test, start, Outcome::new(AutoStatus::Blocked, why))
+}
+
 /// Builds the result of a version 2 test from its outcome.
 fn finish(test: &TestDefinition, start: Instant, o: Outcome) -> TestResult {
     let (final_status, disagreement) =

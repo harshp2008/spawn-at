@@ -6,6 +6,7 @@
 #![cfg(unix)]
 #![warn(missing_docs)]
 
+pub mod backend;
 pub mod cli;
 pub mod display;
 pub mod ext_logging;

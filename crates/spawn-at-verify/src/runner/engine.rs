@@ -31,6 +31,13 @@ pub struct TestRunner {
 
 /// Why the no-op log source is in use: names `XDG_CURRENT_DESKTOP` and what it holds.
 fn no_log_source_reason() -> String {
+    if let Some(b) =
+        crate::backend::forced_backend(&std::env::var("SPAWN_AT_BACKEND").unwrap_or_default())
+    {
+        return format!(
+            "no log source: SPAWN_AT_BACKEND selects the {b} backend, which has no GNOME extension journal"
+        );
+    }
     match std::env::var("XDG_CURRENT_DESKTOP") {
         Ok(d) => format!(
             "no log source: XDG_CURRENT_DESKTOP is '{}', which does not contain 'gnome'",
@@ -55,9 +62,13 @@ fn logging_for(source: &dyn LogSource, noop_reason: Option<String>) -> Box<dyn L
 impl TestRunner {
     /// Constructs a new `TestRunner` with the given test registry and execution options.
     pub fn new(registry: TestRegistry, options: RunOptions) -> Self {
-        let is_gnome = std::env::var("XDG_CURRENT_DESKTOP")
-            .map(|d| d.to_lowercase().contains("gnome"))
-            .unwrap_or(false);
+        // The GNOME journal and the extension's `SetLogging` belong to the GNOME backend: with
+        // another backend forced (`SPAWN_AT_BACKEND=sway`) they are not used, even in a GNOME
+        // user's shell, so a run aimed at Sway never calls the live extension.
+        let is_gnome = crate::backend::gnome_journal_applies(
+            &std::env::var("XDG_CURRENT_DESKTOP").unwrap_or_default(),
+            &std::env::var("SPAWN_AT_BACKEND").unwrap_or_default(),
+        );
 
         let log_source: Box<dyn LogSource> = if is_gnome {
             Box::new(GnomeJournalSource)

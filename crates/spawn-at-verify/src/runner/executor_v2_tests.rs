@@ -727,3 +727,31 @@ args = ["--id", "${w}", "--no-focus"]
     assert_eq!(rig.fake.close_calls(), vec![1000]);
     assert!(child_pids(&rig).iter().all(|p| !alive(*p)));
 }
+
+// ---- backends ----
+
+#[test]
+fn test_a_spec_for_another_backend_is_skipped_and_starts_nothing() {
+    let mut rig = Rig::new("normal");
+    let body = r#"
+[requires]
+backend = ["sway"]
+[[setup]]
+name = "w"
+[action]
+command = "defocus"
+args = ["--id", "${w}"]
+"#;
+    let actions = FakeActions::ok();
+    let r = rig.run(&spec("auto", body), Arc::clone(&actions));
+    assert_eq!(r.auto_status, AutoStatus::Skipped);
+    assert_eq!(r.final_status, FinalStatus::Skipped, "Skipped, not Fail");
+    let m = r.message.unwrap();
+    assert!(m.starts_with("unsupported on this backend ("), "{m}");
+    assert!(m.ends_with("spec requires sway"), "{m}");
+    assert!(actions.calls().is_empty());
+    assert!(
+        child_pids(&rig).is_empty(),
+        "no fixture may be started for a skipped spec"
+    );
+}
