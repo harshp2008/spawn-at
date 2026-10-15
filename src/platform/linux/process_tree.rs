@@ -1,4 +1,7 @@
 //! # Process Tree Introspection Helpers
+//!
+//! One copy for everything that asks "is this window process a descendant of the process I
+//! spawned" (the neutral commands and the X11 driver). Reads `/proc/{pid}/stat`.
 
 /// Reads `/proc/{pid}/stat` on Linux to extract the Parent Process ID (PPID).
 pub fn get_parent_pid(pid: u32) -> Option<u32> {

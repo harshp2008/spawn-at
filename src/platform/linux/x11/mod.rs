@@ -2,13 +2,11 @@
 //!
 //! Submodules:
 //! - `atoms`: X11 atom manager and diagnostic logging macros.
-//! - `process`: Process tree introspection via `/proc/{pid}/stat`.
 //! - `session`: Dedicated X11 connection, window queries, and basic EWMH operations.
 //! - `interception`: Spawn interception event loop and geometry negotiation.
 
 pub mod atoms;
 pub mod interception;
-pub mod process;
 pub mod session;
 
 #[cfg(test)]

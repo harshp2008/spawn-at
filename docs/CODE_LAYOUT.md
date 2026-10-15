@@ -50,11 +50,11 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 1886 | GNOME Compositor Backend & Extension Driver |
-| `src/platform/linux/mod.rs` | 676 |  |
+| `src/platform/linux/mod.rs` | 651 |  |
+| `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
-| `src/platform/linux/x11/mod.rs` | 395 | Native X11 Compositor Driver |
-| `src/platform/linux/x11/process.rs` | 30 | Process Tree Introspection Helpers |
+| `src/platform/linux/x11/mod.rs` | 393 | Native X11 Compositor Driver |
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
