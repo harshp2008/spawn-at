@@ -666,3 +666,36 @@ Moved to [TEST_LOG.md](TEST_LOG.md#634-answering-a-sync-request-that-we-send-our
 
 Moved to [TEST_LOG.md](TEST_LOG.md#635-born-at-the-target-geometry-an-ld_preload-shim-on-the-test-client-2026-10-14).
 
+
+## 7. Sway backend (EXPERIMENTAL)
+
+Design, measurements and the list of decisions: [DESIGN_SWAY.md](DESIGN_SWAY.md). Nothing in this section touches GNOME; the Sway backend is only reachable with `SPAWN_AT_BACKEND=sway`.
+
+### 7.1 Unit and integration tests (run in CI, no Sway needed)
+
+| Group | Where | What it pins |
+| :-- | :-- | :-- |
+| Frame codec | `platform/linux/sway/ipc.rs` | Golden bytes read from a private headless Sway 1.9 (request frames, subscribe/command/workspaces replies, a `window` event), limits and errors. |
+| JSON and conversions | `platform/linux/sway/types.rs`, `tests/fixtures/sway/` | Layout of one output, of a scale-2 output with a 30 px bar and of two outputs; window metadata of a tiled and a floating window; scratchpad, XWayland and fullscreen cases; the four recorded `window` events; reply checking. |
+| Command text, matching | `sway/command.rs`, `sway/matching.rs` | The exact `RUN_COMMAND` strings; pid, descendant pid and app id rules, the 300 ms grace, never a window from before `arm`. |
+| Driver against a scripted socket | `sway/mod.rs`, `sway/tests_write.rs`, `sway/fake.rs` | Layout and windows over the socket; `arm` then `post_spawn` placing with each anchor family; no `resize` without `--size`; border and title bar corrected once; a window raised to its minimum re-anchored with its real size; close, focus, transform; unsupported operations say so. |
+| Selection | `platform/linux/registry.rs`, `tests/sway_backend_cli_test.rs` | Only the forced value `sway` (any case, nothing trimmed) selects Sway; the old-selection equivalence test is untouched; forced Sway without a usable `$SWAYSOCK` exits 1 with a message naming it and never falls back to X11; the `sway` desktop alone does not connect to the socket. |
+
+### 7.2 Live cases: `scripts/sway-live.sh`
+
+Runs two private headless Sway sessions through `scripts/sway-headless.sh` with the repo's fixture window (a native Wayland client), compares everything with `swaymsg`, closes each window by its recorded id and checks that no process or directory is left. Result of the run on 2026-10-15 (Sway 1.9, one machine, GNOME session running and untouched, `gnome-shell` PID unchanged):
+
+```text
+ passed: 62   failed: 0
+```
+
+| Session | Cases |
+| :-- | :-- |
+| A: one 1920x1080 output | `query layout` equals `swaymsg`; center; top-right margin 24; bottom-right margin 16 with size 30x20 (Sway raises it to 75x50 and the window is placed with that size: 1829,1014); bottom-right with 600x400; top-left 500x300 with `--no-wait`; `transform` to bottom-right 700x500 (1195,555); close by id and by class; forced Sway with `SWAYSOCK` unset, empty and missing exits 1 naming `$SWAYSOCK`. Every position within 1 px of the expectation computed from the work area `swaymsg` reports; `spawn --json` `window_id` equals the container id; `query windows` equals `swaymsg`. |
+| B: scale 2, 30 px bar, second output at x=960 | `query layout` equals `swaymsg` (logical pixels, work areas start at y=30); center on monitor 0; bottom-right with size 400x300 and top-left on monitor 1. |
+
+Also tried by hand on the same private Sway while building (not in the script): a real border and title bar (`for_window ... border normal 3`): `--size 600 400` gave a container of exactly 600x400 at the requested position (content 594x372).
+
+### 7.3 Not verified
+
+A real Sway session or real applications; XWayland windows; Sway versions other than 1.9; i3; frame timing before the first paint (whether a window shows at its tiled position first); `--area screen` and `--area unbounded`; clients that map at a different size than the one asked; fractional scales other than 1 and 2; more than two outputs; output names other than `HEADLESS-*`; `scripts/sway-live.sh` has not been run with `shellcheck` (not installed here; `bash -n` passes).

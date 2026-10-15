@@ -1,6 +1,6 @@
 # Design: a Sway backend
 
-Status: **design only, no backend code yet.** Written on 2026-10-15 against `main` at `b45df0f` (the platform-neutral restructuring, see [DESIGN_PLATFORMS.md](DESIGN_PLATFORMS.md)). What is checked is marked **verified** with how; what is not is marked **unverified**.
+Status: **implemented as an EXPERIMENTAL, opt-in backend** (`src/platform/linux/sway/`, branch `feat/sway-backend`); section 12 says what was built, where it differs from this design and what was run. The design (sections 1 to 11) was written on 2026-10-15 against `main` at `b45df0f` (the platform-neutral restructuring, see [DESIGN_PLATFORMS.md](DESIGN_PLATFORMS.md)); where the implementation chose differently, the text below is marked **Changed in the implementation** and section 12 has the reason. What is checked is marked **verified** with how; what is not is marked **unverified**.
 
 The harness that produced the evidence is [`scripts/sway-headless.sh`](../scripts/sway-headless.sh) (section 11). Everything "verified" below was observed on this machine with Sway 1.9 running headless in a private directory, with the repo's own fixture window as the only client. No real application and no GNOME session was involved.
 
@@ -74,7 +74,7 @@ The trait names are the ones in the code at `b45df0f`: `Capabilities` (`src/plat
 | `CompositorBackend::post_spawn(child_pid, batch)` | The placement step. It is awaited in every mode, including `--no-wait` (`spawn.rs:343`), which is why placement lives here and not in a claim waiter (a `--no-wait` run never awaits the waiter). Waits for the matching `window::new` (section 6), then issues one chained `RUN_COMMAND` (section 4). Same shape as the X11 driver (`src/platform/linux/x11/mod.rs:394`). |
 | `ReadySignal::prepare_claim_wait` | Returns `None` in the first version; the pipeline then polls (`wait_for_spawn`, `src/commands/mod.rs:191`). A claim waiter fed by the same event stream can come later. |
 | `WindowQuery::get_windows` | `GET_TREE`, flatten the leaves that have a `pid`. `WindowMetadata` (`src/target.rs:69`): `id` = `con` id, `pid`, `title` = `name`, `class` = `app_id`, or `window_properties.class` for XWayland, `app_id`, `x y w h` = `rect`, `focused`, `maximized` = false, `minimized` = false, `monitor` = index of the output, `workspace` = `num`, `state` = `fullscreen`/`floating`/`tiled`. |
-| `get_monitors`, `get_workareas`, `get_layout` | `GET_OUTPUTS` for the screen rect (`rect`, logical pixels) and `scale`; `GET_WORKSPACES` for the work area of each output's current workspace (its `rect` is the usable area, so bars are already excluded). `MonitorInfo` (`crates/spawn-at-core/src/geometry.rs:71`) gets `name`, `scale`, `screen`, `workarea`. |
+| `get_monitors`, `get_workareas`, `get_layout` | `GET_OUTPUTS` for the screen rect (`rect`, logical pixels) and `scale`; `GET_WORKSPACES` for the work area of each output's current workspace (its `rect` is the usable area, so bars are already excluded). `MonitorInfo` (`crates/spawn-at-core/src/geometry.rs:71`) gets `name`, `scale`, `screen`, `workarea`. **Changed in the implementation:** the first active output is flagged `primary` (Sway has none; the X11 driver does the same), so the default monitor is the same "primary" as on GNOME; and `state` uses the GNOME words `normal` and `fullscreen` (floating and tiled are both `normal`). |
 | `get_window_rect(id)` | Default implementation over `get_windows`. |
 | `get_cursor_position` | **Unsupported**: Sway IPC has no pointer query. Returns `UnsupportedCapability`; `--anchor cursor` fails with the standard message. |
 | `WindowControl::transform_window` | One `RUN_COMMAND` (section 4). |
@@ -104,9 +104,10 @@ Not supported and why: cursor position (no IPC), maximize/minimize (no such stat
 **Placement.** The shared engine (`spawn-at-core::geometry`) computes the target rect from the work area it is given. For Sway:
 
 1. Work area: the `rect` of the target output's current workspace (verified to be the usable area, in logical pixels, in global coordinates). Screen area: the output `rect`. `scale` is only reported; no scaling math is needed because Sway's coordinates are already logical.
-2. Default output: the output `GET_OUTPUTS` marks `"focused": true` (verified: the field exists, and followed the focused workspace in the two-output run), or the one `--monitor` names.
+2. Default output: **Changed in the implementation:** the same as on GNOME, the "primary" monitor, which for Sway is the first active output in the order `GET_OUTPUTS` lists them (decision of the owner, question 4); `--monitor N` picks the Nth in that order, and the shared `resolve_monitor_from_layout` does the choosing. (The design had proposed the output marked `"focused": true`.)
 3. Command, **one chained RUN_COMMAND so the criteria carry across commas** (`man 5 sway`): `[con_id=N] floating enable, resize set W H, move absolute position X Y`. Order: size first, then the position, so the position is the final one. `move absolute` is used because the engine's coordinates are global (verified on two outputs).
-4. Borders: a floating container's `rect` includes server-side decorations (`border`, `deco_rect`); `window_rect` is the part inside. Whether the engine's size means the frame or the content is open question 3. In the harness `border` is `none`/`csd`, which hides the difference.
+4. Borders: a floating container's `rect` includes server-side decorations (`border`, `deco_rect`); `window_rect` is the part inside. **Decided (question 3) and verified:** `--size` means the whole container (`rect`), which is what the GNOME extension sizes and what `query windows` reports, so the same command gives the same rectangle on both. `resize set` counts the content only, so after the chained command the driver reads the container back once and, if it differs, asks for the content size reduced by the border and title bar (`rect - window_rect`). Verified with `for_window ... border normal 3`: `--size 600 400` gave a container of exactly 600x400 (content 594x372).
+5. A size below what the window allows is raised by Sway (75x50 for the floating fixture window, verified; the GNOME extension reports the same situation as "size raised"). The driver then computes the position again with the size the window really has, so an anchor like bottom-right keeps it inside the area (`--size 30 20` at bottom-right with margin 16 gives 75x50 at 1829,1014, the position `verify_and_report_placement` expects).
 
 ## 5. Flicker-free strategy
 
@@ -127,18 +128,18 @@ Recommendation: B, with the subscription established in `arm` so no event is mis
 
 1. `pid == child_pid`.
 2. `pid` is a descendant of `child_pid` (`platform::linux::is_process_descendant`, `src/platform/linux/process_tree.rs`; this is what `matches_target` already does, `src/commands/mod.rs:50`): wrapper scripts, `env`, launchers that exec.
-3. `app_id` (or the XWayland class) matches the entry's hint with `match_window_app_hint` (`commands/mod.rs:95`): launchers that hand over to a running server (`gnome-terminal` style), where the pid never matches.
-4. Nothing matches within `window_timeout` (`spawn.rs`): do **not** move any other window. Print the standard "post-spawn hook failed" warning (`spawn.rs:343`) saying the application was started but not placed, and carry on. If two windows match rule 3, take the first and say so.
+3. `app_id` (or the XWayland class) matches the entry's hint with `match_window_app_hint` (`commands/mod.rs:95`): launchers that hand over to a running server (`gnome-terminal` style), where the pid never matches. **Implementation detail:** the hint is matched against the class only (the title is not passed, so a window titled like the command is not taken), an empty or `*` hint never matches by rule 3, and a rule 3 window is taken only after a 300 ms grace in which a pid match may still arrive; the first rule 3 window is kept.
+4. Nothing matches within 5 seconds (a constant, `place::WINDOW_WAIT`, the same wait the X11 driver uses; `post_spawn` has no access to `window_timeout`): do **not** move any other window. Print the standard "post-spawn hook failed" warning (`spawn.rs:343`) saying the application was started but not placed, and carry on.
 
 ## 7. Selection: never automatic
 
-`LinuxBackend::bootstrap` walks `registry::candidates` (`src/platform/linux/registry.rs:47`, `bootstrap` at `src/platform/linux/mod.rs:100`). Today `SPAWN_AT_BACKEND` is lowercased and compared to `x11` only; any other value, including `sway`, is ignored (`src/platform/linux/registry.rs:48`).
+`LinuxBackend::bootstrap` walks `registry::candidates` (`src/platform/linux/registry.rs:55`, `bootstrap` at `src/platform/linux/mod.rs:101`). Before this backend `SPAWN_AT_BACKEND` was lowercased and compared to `x11` only; any other value, including `sway`, was ignored.
 
-The only intended behaviour change: `SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`) selects `BackendId::Sway`. The rule is: if `forced == "sway"`, `candidates` returns `[Sway]`; every other input returns exactly what it returns today. `XDG_CURRENT_DESKTOP=sway` without the variable still gets X11 (leak #11 in DESIGN_PLATFORMS.md stays open, on purpose).
+The only behaviour change: `SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`) selects `BackendId::Sway`. The rule (`src/platform/linux/registry.rs:59`): if `forced == "sway"`, `candidates` returns `[Sway]`; every other input returns exactly what it returned before. `XDG_CURRENT_DESKTOP=sway` without the variable still gets X11 (leak #11 in DESIGN_PLATFORMS.md stays open, on purpose).
 
-The proof is the existing table test (`registry.rs`, 9 forced values x 14 desktops x D-Bus up or down against a copy of the old selection): extend it with forced `sway`, `SWAY`, ` sway` and `swayx` and assert that **all pre-existing rows are unchanged** and that only the rows with forced `sway`/`SWAY` differ.
+The proof: the existing table test (9 forced values x 14 desktops x D-Bus up or down against a copy of the old selection) is **unchanged** and still passes; the Sway cases are three separate tests that say why they differ from that copy (forced `sway`, `SWAY`, `Sway`, `sWaY` select Sway for every desktop and D-Bus result and never ask for the GNOME connection; ` sway`, `sway `, `swayx` and six more near values agree with the old copy; Sway is never a candidate without the variable). Nine more tests run the built binary against a stand-in socket (`tests/sway_backend_cli_test.rs`).
 
-**Forced but unusable is an error, never a fallback.** If `SPAWN_AT_BACKEND=sway` and `SWAYSOCK` is unset or empty, or the socket is not connectable, or the first reply is not valid IPC, `bootstrap` returns `DriverError::IpcError` with a message such as `SPAWN_AT_BACKEND=sway, but $SWAYSOCK is not set. Run spawn-at inside a Sway session, or unset SPAWN_AT_BACKEND.` (and the connect error for a bad socket), which `main` prints as "Driver initialization error: ..." and exits 1 (`src/main.rs`, the `init_backend` match). It must not fall through to X11, unlike the GNOME candidate, which falls back silently when D-Bus is unreachable (`src/platform/linux/mod.rs:103-110`). `I3SOCK` is not consulted (open question 7).
+**Forced but unusable is an error, never a fallback.** If `SPAWN_AT_BACKEND=sway` and `SWAYSOCK` is unset or empty, or the socket is not connectable, or the first reply is not valid IPC, `bootstrap` returns `DriverError::IpcError` (`src/platform/linux/mod.rs:107-112`, with `?`, so nothing after it runs) with a message such as `SPAWN_AT_BACKEND=sway, but $SWAYSOCK is not set. Run spawn-at inside a Sway session, or unset SPAWN_AT_BACKEND.` (and the connect error for a bad socket), which `main` prints as "Driver initialization error: ..." and exits 1 (`src/main.rs`, the `init_backend` match). It does not fall through to X11, unlike the GNOME candidate, which falls back silently when D-Bus is unreachable (`src/platform/linux/mod.rs:113-119`). `I3SOCK` is not consulted (open question 7: no i3 backend).
 
 ## 8. IPC: hand-roll, no new dependency
 
@@ -157,7 +158,7 @@ Recommendation: hand-roll with `std::os::unix::net::UnixStream` and `serde_json`
 4. **CI**: an optional job that installs `sway` on the Ubuntu runner and runs group 3. **Unverified** that the runner's package and a headless Sway work; keep it non-required until it has run.
 5. **Flash measurement** (section 5): out of scope for the first version.
 
-## 10. Open questions for the owner
+## 10. Open questions for the owner (answered; the answers are after the list)
 
 1. Is `reveal_control = false` (a possible one-frame flash) acceptable for the first Sway release, with the docs saying so?
 2. Should a Sway session later pick Sway automatically (`XDG_CURRENT_DESKTOP=sway`)? This design says no for now; it would change the backend that Sway users get today (X11 through XWayland).
@@ -166,6 +167,8 @@ Recommendation: hand-roll with `std::os::unix::net::UnixStream` and `serde_json`
 5. May CI install `sway` from the Ubuntu archive (section 9, item 4)?
 6. Do you want maximize/minimize mapped (to `fullscreen` and the scratchpad), or left unsupported?
 7. `I3SOCK`/i3: Sway and i3 share the protocol; should `SPAWN_AT_BACKEND=i3` also exist (and read `I3SOCK`), or stay out of scope?
+
+**Answers (owner, applied in the implementation):** (1) a possible one-frame flash is acceptable for a first release; Sway is documented as EXPERIMENTAL and `reveal_control` stays false. (2) Never auto-select Sway; `candidates()` is unchanged for every existing environment and only `SPAWN_AT_BACKEND=sway` selects it. (3) `--size` means what it means on GNOME (the whole window frame), so the same command gives the same result; the placement math of `spawn-at-core` is reused unchanged. (4) The default monitor is the same as on GNOME ("primary"; first output for Sway). (5) No CI job installs sway in this change. (6) No maximize/minimize mapping in v1; declared unsupported. (7) No i3 backend.
 
 ## 11. The harness
 
@@ -187,3 +190,36 @@ WAYLAND_DISPLAY="$WAYLAND_DISPLAY" target/debug/fixture --protocol wayland --tit
 swaymsg -t get_tree
 scripts/sway-headless.sh stop --dir "$SPAWN_AT_SWAY_DIR"
 ```
+
+## 12. Implementation status
+
+Built on `feat/sway-backend` in five commits (codec and types; read-only driver; placement; registry; script and docs). No new dependency: `Cargo.toml` and `Cargo.lock` are unchanged, the IPC is `std::os::unix::net::UnixStream` plus the `serde_json` already in the tree. The module exists only on Linux (`platform/linux/sway/`), so the three non-Linux `cargo check` runs and the CI job `check-other-os` do not see it.
+
+| File (`src/platform/linux/sway/`) | Role |
+| :-- | :-- |
+| `ipc.rs` | The 14-byte frame: encode, decode, limits, errors. Pure. |
+| `types.rs` | Serde types for outputs, workspaces, the tree and `window` events; conversion to `WindowMetadata` and `MonitorLayout`. Pure. |
+| `command.rs` | The `RUN_COMMAND` strings (integers only; nothing the user typed reaches Sway's command line). Pure. |
+| `matching.rs` | Pid, descendant and app id rules with the grace and the snapshot. Pure. |
+| `client.rs` | Blocking connection with timeouts; the `$SWAYSOCK` messages. |
+| `place.rs` | Subscribe and snapshot, wait for the window, place it, correct the frame, single-window commands. |
+| `mod.rs` | `SwayDriver` (`Driver` and `CompositorBackend`): one short connection per call, the only state is the subscription `arm` leaves for `post_spawn`. |
+| `fake.rs`, `tests_write.rs` | Test only: a scripted IPC server and the driver tests against it. |
+
+What differs from sections 1 to 11:
+
+- Primary monitor and the default monitor: first output, as on GNOME (section 4, answer 4).
+- `--size` is the whole container; the correction after `resize set` and the re-anchoring of a raised window are additions (section 4, items 4 and 5).
+- `state` in `query windows` is `normal` or `fullscreen`, the GNOME words, not `floating` and `tiled`.
+- A window in the scratchpad (`__i3_scratch`) is listed with `minimized` true, no monitor and no workspace.
+- No `window_timeout`: `post_spawn` waits a fixed 5 s (section 6). `--no-wait` still waits for the placement, because the pipeline awaits `post_spawn` in every mode (`spawn.rs:343`).
+- `FocusIntent::Exclusive` adds `focus`; `Leave` cannot be honoured because Sway focuses a new window by its own rules.
+- Only the first entry of a batch is placed (the X11 driver does the same).
+- Maximize, minimize, restore and defocus return the standard "does not support this feature" error; `--anchor cursor` and `--monitor cursor` use (0, 0) because the pointer cannot be read.
+
+What was run (all on the private headless Sway 1.9 of `scripts/sway-headless.sh`, with the repo's fixture window as the only client; the GNOME session was not touched and `gnome-shell` kept its PID):
+
+- `scripts/sway-live.sh`: 62 checks, 0 failed (list in [TEST_PLAN.md](TEST_PLAN.md) section 7).
+- By hand while building: the same placements through `spawn-at spawn --json`, `close`, `transform`; a real border and title bar; `--no-wait`; forced Sway with `SWAYSOCK` unset.
+
+Not verified (and not claimed): a real Sway session or real applications; XWayland windows (disabled in the harness); Sway versions other than 1.9; i3; frame timing before the first paint (the one-frame flash of section 5 has not been measured); `--area screen` and `--area unbounded`; clients that map at a size other than the one asked; scales other than 1 and 2; more than two outputs.

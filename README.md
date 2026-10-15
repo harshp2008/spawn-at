@@ -186,15 +186,39 @@ Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extensi
 | Real GTK apps | A few runs each, Wayland only: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 (the toolkit version was not checked). Firefox flashed in 6 of 6 runs under the old rule (TEST_PLAN 6.12). Chrome was never matched |
 | Qt and Electron apps | Untested |
 | Other X11 desktops | Experimental native driver, untested. No cloaking, so you'll see the flash. |
-| Hyprland, Sway, KDE, macOS, Windows | Not implemented |
+| Sway (**experimental**, opt-in with `SPAWN_AT_BACKEND=sway`, see [below](#sway-experimental)) | Run only against a private headless Sway 1.9 with the test window: no real Sway session, no real apps, and a window can flash once |
+| Hyprland, KDE, macOS, Windows | Not implemented |
 
 On an untested GNOME version the installer prints this before it installs anything and asks you to confirm; in a headless or non-interactive run it prints the notice and goes on. Apps that refuse a requested size can still end up larger than you asked for, but they're positioned using their final size, so anchors land correctly.
 
 **X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size and tried several signals on the test window. Most were not usable. The only leads are narrow: the X sync counter works as an experimental signal for GTK4-style clients only, and an `LD_PRELOAD` shim made one GTK4 test client map at the target size on one machine, with security and compatibility costs. No screen-capture measurement of what is visible has been made. **None of this ships in 0.2.0-beta.1, 0.2.0-beta.2 or 0.2.0-beta.3:** XWayland and X11 windows keep the old 30 ms rule and can still flash. Every number, what was tried and the caveats are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) 6.23 to 6.35 and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) sections 12 to 15.
 
+## Sway (experimental)
+
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below still gets the X11 backend, as before. Nothing needs installing; `spawn-at install` has nothing to do for it.
+
+```bash
+# inside a Sway session ($SWAYSOCK is set by Sway)
+SPAWN_AT_BACKEND=sway spawn-at spawn --anchor top-right -m 24 --size 600 400 -- foot
+# in the Sway config
+bindsym $mod+Shift+Return exec env SPAWN_AT_BACKEND=sway spawn-at spawn --anchor center -- foot
+```
+
+If `SPAWN_AT_BACKEND=sway` is set and `$SWAYSOCK` is missing, empty or not a Sway socket, spawn-at stops with an error that names `$SWAYSOCK`; it does not fall back to X11.
+
+What works: `spawn` with anchors, margins, `--size` and `--monitor <index>` (the default work area; `--area screen` and `unbounded` were not tried); `query layout`, `query windows`, `transform`, `close`, `focus`. Windows are made floating and placed with the same layout math as on GNOME. `--size` is the size of the whole window including its border and title bar, as on GNOME; a window cannot be made smaller than Sway lets it (75x50 for a floating window in the one setup tried), and then it is placed using the size it ended up with.
+
+What is different or missing:
+- **It can flash.** Sway has no way to keep a new window invisible until it is placed, so the window may show for one frame at its tiled position first. That has not been measured.
+- Not supported: `--anchor cursor` and `--monitor cursor` (Sway has no pointer query), maximize, minimize and defocus. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
+- A window is matched to the launched process by pid, then by parent process, then by app id. If none shows up within 5 seconds spawn-at warns that the application was started but not placed, and moves nothing else.
+- i3 is not supported.
+
+Tested: a private headless Sway 1.9 and the repo's own test window, with `scripts/sway-live.sh` (one output, then a scale-2 output with a bar plus a second output). Not tested: a real Sway session, real applications, XWayland windows, any other Sway version, frame timing. Design and measurements: [docs/DESIGN_SWAY.md](docs/DESIGN_SWAY.md).
+
 ## Roadmap
 
-v0.2.0-beta.3 is an installer release (download progress and retries, existing-install detection with `--clean-install`, no needless log-out, shorter prompts) and changes no placement behavior. Groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, Sway, KDE) are not implemented, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
+v0.2.0-beta.3 is an installer release (download progress and retries, existing-install detection with `--clean-install`, no needless log-out, shorter prompts) and changes no placement behavior. Groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
 
 ## Contributing a backend
 
