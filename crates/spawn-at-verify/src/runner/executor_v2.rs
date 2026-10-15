@@ -8,8 +8,8 @@
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::owned::{
-    ActionRunner, CliActions, CliControl, Control, SetupRequest, SetupSession, Timings,
-    EXIT_AFTER_AUTO_MS, EXIT_AFTER_HUMAN_MS,
+    guard_user_window, ActionRunner, CliActions, CliControl, Control, FocusReturn, SetupRequest,
+    SetupSession, Timings, EXIT_AFTER_AUTO_MS, EXIT_AFTER_HUMAN_MS,
 };
 use super::validation::{pass_assessment, validate_expectations, validate_geometry_final};
 use crate::oracle::Rect;
@@ -233,6 +233,12 @@ impl TestRunner {
             && !session.is_empty();
         if keep_open {
             outcome.message.push_str(" (window left open for review)");
+            // The person judging the window answers with keys that must reach the TUI's
+            // terminal, not the fixture that just took focus. Only `focus` is sent to the
+            // recorded window, then the window list confirms it (read-only).
+            if let FocusReturn::NotReturned(why) = session.restore_focus() {
+                tracker.notes.add(&test.id, why);
+            }
             tracker.owned.push(session);
         } else {
             let report = session.teardown();
@@ -317,6 +323,10 @@ impl TestRunner {
                     Ok(s) => args.push(s),
                     Err(e) => return Outcome::error(e),
                 }
+            }
+            // The window that had focus at the start is the user's: never an action target.
+            if let Err(e) = guard_user_window(session.user_window(), &args) {
+                return Outcome::error(e);
             }
             let out = match actions.run(&args, self.options.step_timeout) {
                 Ok(o) => o,

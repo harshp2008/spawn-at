@@ -306,6 +306,41 @@ struct OwnedFixture {
     stderr_path: PathBuf,
 }
 
+/// The warning shown when focus did not come back to the window recorded at the start.
+pub const FOCUS_NOT_RETURNED: &str = "could not return focus to your terminal";
+
+/// What [`SetupSession::restore_focus`] found.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FocusReturn {
+    /// No window was recorded at the start, it is gone, or it is one of ours: nothing was done
+    /// and nothing needs saying.
+    NothingRecorded,
+    /// The recorded window already had focus; no command was sent.
+    AlreadyFocused,
+    /// `focus` was sent and the window list now shows the window focused.
+    Returned,
+    /// `focus` was sent (or the list could not be read) and the window is not focused.
+    NotReturned(String),
+}
+
+/// Refuses an action that would do anything but focus the user's own window. `user` is the id
+/// recorded by [`SetupSession::remember_focus`]; a command line whose `--id` names it must be a
+/// `focus`. (Specs cannot name that id at all; this is the second lock.)
+pub fn guard_user_window(user: Option<u64>, args: &[String]) -> Result<(), String> {
+    let Some(user) = user else { return Ok(()) };
+    let named = args
+        .windows(2)
+        .any(|w| w[0] == "--id" && w[1] == user.to_string())
+        || args.iter().any(|a| a == &format!("--id={user}"));
+    if named && args.first().map(String::as_str) != Some("focus") {
+        return Err(format!(
+            "refusing `{}` on window {user}: it is the window that had focus when the run started, and the runner may only focus it",
+            args.first().map(String::as_str).unwrap_or("")
+        ));
+    }
+    Ok(())
+}
+
 /// What teardown found worth saying.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct TeardownReport {
@@ -407,6 +442,49 @@ impl SetupSession {
             .windows()
             .ok()
             .and_then(|list| list.iter().find(|w| w.focused).map(|w| w.id));
+    }
+
+    /// The id of the window that had focus before the first launch, if one was recorded. It is the
+    /// user's own window: the only thing the runner may ever do to it is give it focus.
+    pub fn user_window(&self) -> Option<u64> {
+        self.refocus
+    }
+
+    /// Puts focus back on the window recorded by [`SetupSession::remember_focus`] and checks
+    /// the result with a read-only window list. The only command sent to that window is `focus`.
+    /// Called once after the automatic phase of a test a person judges (the keys must reach the
+    /// TUI's terminal, not the fixture) and again in teardown, where it does nothing if focus is
+    /// already there.
+    pub fn restore_focus(&self) -> FocusReturn {
+        let Some(id) = self.refocus else {
+            return FocusReturn::NothingRecorded;
+        };
+        // Never one of our own windows, whatever the ids say.
+        if self.fixtures.iter().any(|f| f.window_id == Some(id)) {
+            return FocusReturn::NothingRecorded;
+        }
+        let focused_now = |this: &Self| -> Option<Option<bool>> {
+            let list = this.control.windows().ok()?;
+            Some(list.iter().find(|w| w.id == id).map(|w| w.focused))
+        };
+        match focused_now(self) {
+            None => FocusReturn::NotReturned(FOCUS_NOT_RETURNED.into()),
+            Some(None) => FocusReturn::NothingRecorded, // the window is gone: nothing to return to
+            Some(Some(true)) => FocusReturn::AlreadyFocused,
+            Some(Some(false)) => {
+                let _ = self.control.focus(id);
+                let deadline = Instant::now() + self.timings.check_wait.min(Duration::from_secs(1));
+                loop {
+                    if focused_now(self) == Some(Some(true)) {
+                        return FocusReturn::Returned;
+                    }
+                    if Instant::now() >= deadline {
+                        return FocusReturn::NotReturned(FOCUS_NOT_RETURNED.into());
+                    }
+                    std::thread::sleep(self.timings.poll);
+                }
+            }
+        }
     }
 
     /// Adds an environment variable for the fixtures launched from now on.
@@ -658,8 +736,10 @@ impl SetupSession {
         let mut report = TeardownReport::default();
         let control = Arc::clone(&self.control);
         let timings = self.timings;
+        let user_window = self.refocus;
         for f in self.fixtures.iter_mut().rev() {
-            if let Some(id) = f.window_id {
+            // The user's own window is never closed, even if an id were ever confused.
+            if let Some(id) = f.window_id.filter(|id| Some(*id) != user_window) {
                 match control.windows() {
                     Ok(list) => match list.iter().find(|w| w.id == id) {
                         Some(w) if w.title == f.title => {
@@ -724,17 +804,11 @@ impl SetupSession {
                     .push(format!("could not check for leftover windows: {e}")),
             }
         }
-        // Best effort: put focus back where it was, but only on a window that is still listed,
-        // lost focus, and is not one of ours.
-        if let Some(id) = self.refocus {
-            let ours = self.fixtures.iter().any(|f| f.window_id == Some(id));
-            if !ours {
-                if let Ok(list) = control.windows() {
-                    if list.iter().any(|w| w.id == id && !w.focused) {
-                        let _ = control.focus(id);
-                    }
-                }
-            }
+        // Best effort: put focus back where it was. The same mechanism as the return after the
+        // automatic phase of a Both test (`restore_focus`): it does nothing when the window still
+        // has focus, so the two never conflict.
+        if let FocusReturn::NotReturned(why) = self.restore_focus() {
+            report.warnings.push(why);
         }
         let _ = std::fs::remove_dir_all(&self.dir);
         self.report = report.clone();

@@ -220,6 +220,9 @@ fn test_queue_pauses_on_human_case_and_resumes_only_after_verdict() {
 
     // User dispatches verdict key 'p' (Pass)
     app.handle_key(KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE));
+    // The key only records the verdict; the event loop then runs the teardown and the rest of
+    // the queue after a redraw. Run those steps here.
+    app.run_all_pending();
 
     // Waiting flag must be cleared and queue should resume and finish
     assert!(

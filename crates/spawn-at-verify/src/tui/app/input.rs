@@ -46,16 +46,16 @@ impl TuiApp {
             ModalState::HumanVerdict { .. } => {
                 match key.code {
                     KeyCode::Char('p') | KeyCode::Char('P') => {
-                        self.record_verdict(HumanVerdictKind::Pass);
+                        self.apply_verdict(HumanVerdictKind::Pass);
                     }
                     KeyCode::Char('x') | KeyCode::Char('X') => {
-                        self.record_verdict(HumanVerdictKind::Fail);
+                        self.apply_verdict(HumanVerdictKind::Fail);
                     }
                     KeyCode::Char('s') | KeyCode::Char('S') => {
-                        self.record_verdict(HumanVerdictKind::Skip);
+                        self.apply_verdict(HumanVerdictKind::Skip);
                     }
                     KeyCode::Char('k') | KeyCode::Char('K') => {
-                        self.record_verdict(HumanVerdictKind::Flaky);
+                        self.apply_verdict(HumanVerdictKind::Flaky);
                     }
                     KeyCode::Esc => {
                         self.close_modal();
@@ -123,24 +123,19 @@ impl TuiApp {
                     self.modal = ModalState::Help;
                 }
                 KeyCode::Char('p') | KeyCode::Char('P') => {
-                    self.record_verdict(HumanVerdictKind::Pass);
+                    self.apply_verdict(HumanVerdictKind::Pass);
                 }
                 KeyCode::Char('x') | KeyCode::Char('X') => {
-                    self.record_verdict(HumanVerdictKind::Fail);
+                    self.apply_verdict(HumanVerdictKind::Fail);
                 }
                 KeyCode::Char('s') | KeyCode::Char('S') => {
-                    self.record_verdict(HumanVerdictKind::Skip);
+                    self.apply_verdict(HumanVerdictKind::Skip);
                 }
                 KeyCode::Char('k') | KeyCode::Char('K') => {
-                    self.record_verdict(HumanVerdictKind::Flaky);
+                    self.apply_verdict(HumanVerdictKind::Flaky);
                 }
                 KeyCode::Char('r') | KeyCode::Char('R') => {
-                    if let Some(test_id) = self.waiting_for_human.clone() {
-                        if let Some(test) = self.registry.get_test(&test_id).cloned() {
-                            self.close_test_windows();
-                            self.execute_test(&test);
-                        }
-                    }
+                    self.schedule_rerun_waiting();
                 }
                 KeyCode::Char('q') | KeyCode::Char('Q') => {
                     self.close_test_windows();
@@ -165,9 +160,7 @@ impl TuiApp {
                     self.detail_scroll = u16::MAX;
                 }
                 KeyCode::Esc => {
-                    self.close_test_windows();
-                    self.waiting_for_human = None;
-                    self.status_message = Some("Visual review cancelled.".into());
+                    self.cancel_review();
                 }
                 _ => {}
             }
@@ -242,16 +235,16 @@ impl TuiApp {
                 };
             }
             KeyCode::Char('r') if key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.run_selected_category();
+                self.schedule_run_selected_category();
             }
             KeyCode::Char('r') => {
-                self.run_selected();
+                self.schedule_run_selected();
             }
             KeyCode::Char('c') if !key.modifiers.contains(KeyModifiers::CONTROL) => {
-                self.run_selected_category();
+                self.schedule_run_selected_category();
             }
             KeyCode::Char('a') => {
-                self.run_all_filtered();
+                self.schedule_run_all_filtered();
             }
             KeyCode::Char('v') => {
                 self.open_verdict_modal();

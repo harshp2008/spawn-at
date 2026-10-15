@@ -124,6 +124,7 @@ Verification engine, automated test harness, and interactive qualification TUI f
     - `tests/tui/golden_invariants.rs`: Golden file comparisons and text grid invariants.
     - `tests/tui/layout_responsive.rs`: Responsive width breakpoints and small height layouts.
     - `tests/tui/polish.rs`: UI spacing, padding, and outcome symbols polish specifications.
+    - `tests/tui/verdict_feedback.rs`: Verdict keys in the next frame, teardown warnings, Esc and `r`, the selected-row marker in every state, focus return and its guard, with stand-in scripts.
     - `tests/tui/v2_flow.rs`: Version 2 specs in the TUI (drawer lines, Auto and Both ownership of the window, Ctrl-C), with stand-in scripts.
 
 ## Optional tools
