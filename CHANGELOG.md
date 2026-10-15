@@ -6,6 +6,11 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **Unsupported desktops are no longer handled silently.** On a non-GNOME Wayland session (or one with no `XDG_SESSION_TYPE`) spawn-at used to switch to the X11 backend without a word, which sees XWayland windows only. Without `SPAWN_AT_BACKEND` set, it now exits with status 1 and an error that names `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE`, says GNOME is the supported desktop and Sway is experimental (`SPAWN_AT_BACKEND=sway`), and says how to try X11 anyway: `SPAWN_AT_BACKEND=x11` ("it may or may not work"). Unchanged: GNOME sessions (including a GNOME session whose D-Bus connection fails, which still falls back to X11), real X11 sessions on any desktop, and an explicit `SPAWN_AT_BACKEND=x11` or `sway`. `spawn-at install` and `uninstall` on such a desktop print the same error and change nothing; there are no new flags, config keys or help text on the `spawn-at` command.
+- `install.sh` checks the desktop before it downloads anything. On an unsupported desktop it prints that the desktop is not supported yet and asks `Install anyway? [y/N]` (No, empty or no answer: nothing is installed, exit status 1). Without a terminal it stops with the same notice and tells you to re-run with the new `--allow-unsupported`, which skips the question. After an accepted install it runs the installer with `SPAWN_AT_BACKEND=x11` and reminds you that spawn-at needs that variable on this desktop. Supported environments (GNOME, an X11 session, a forced backend) see no change. Because `install.sh` is fetched from `main`, this part is live as soon as it is merged.
+
 ### Fixed
 
 - `spawn-at-verify` preflight no longer blocks every test on a commit that is exactly a release tag. A binary that prints `spawn-at <version>` (no commit id) now passes when `git describe --tags --exact-match HEAD` is `v<version>` and the tree is clean; otherwise it fails with the same stale-binary message. Unrecognised `--version` output now fails instead of being skipped. Dev builds are checked as before.

@@ -23,6 +23,8 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayland, log out and back in once so GNOME loads the extension (the installer asks last, and skips the question when the extension is unchanged and already running). On X11 the installer reloads the Shell in place and your apps stay open. On any other GNOME version the installer prints a notice first and asks before it installs (`--yes` skips the question). If spawn-at is already installed, an interactive install says where and which version and asks whether to upgrade in place (the default) or do a clean install; `--clean-install` does the clean install without asking and keeps your configuration. See [more install options](#more-install-options).
 
+**Supported desktops:** a GNOME session. On any other Wayland desktop (KDE, Hyprland, Sway, an unknown one) the installer says so first and asks `Install anyway? [y/N]` before it downloads anything; without a terminal it stops and tells you to re-run with `--allow-unsupported`. If you go on, spawn-at only has the X11 fallback there, which may or may not work, and it needs `SPAWN_AT_BACKEND=x11` to run. Without that variable spawn-at exits with an error on such a desktop instead of silently using X11. A real X11 session on any desktop needs nothing, and Sway is available as an experimental opt-in (`SPAWN_AT_BACKEND=sway`, see [below](#sway-experimental)).
+
 ## The problem
 
 | Environment | How you move a window | Catch |
@@ -195,7 +197,7 @@ On an untested GNOME version the installer prints this before it installs anythi
 
 ## Sway (experimental)
 
-An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below still gets the X11 backend, as before. Nothing needs installing; `spawn-at install` has nothing to do for it.
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error (it no longer falls back to X11 silently; `SPAWN_AT_BACKEND=x11` opts in to that). Nothing needs installing; `spawn-at install` has nothing to do for it.
 
 ```bash
 # inside a Sway session ($SWAYSOCK is set by Sway)
