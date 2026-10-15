@@ -37,16 +37,18 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
 | `src/commands/mod.rs` | 1489 | Command Handlers |
 | `src/commands/query.rs` | 816 | Compositor State Query Command Handlers |
-| `src/commands/spawn.rs` | 1336 | Spawn Command Handler |
+| `src/commands/spawn.rs` | 1325 | Spawn Command Handler |
 | `src/commands/transform.rs` | 368 | Window Transformation Command Handler |
-| `src/config.rs` | 430 | Configuration Manager |
+| `src/config.rs` | 429 | Configuration Manager |
 | `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
-| `src/main.rs` | 455 | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/main.rs` | 454 | spawn-at: Modular Zero-Flicker Window Placement Engine |
 | `src/platform/capability.rs` | 422 | What a backend can do, and narrow views of the backend trait. |
 | `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
 | `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
-| `src/platform/installer.rs` | 235 | OS-Level Binary Installer & Uninstaller |
+| `src/platform/host.rs` | 35 | What the operating system decides: bin dirs, autostart path, executable test, detaching a child. |
+| `src/platform/installer.rs` | 226 | OS-Level Binary Installer & Uninstaller |
 | `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/host.rs` | 137 | The Linux Host: the values the installer, the update check and the launcher always used. |
 | `src/platform/linux/gnome/args.rs` | 73 | Command-line flags of the GNOME install and uninstall steps. |
 | `src/platform/linux/gnome/dbus.rs` | 51 |  |
 | `src/platform/linux/gnome/deploy.rs` | 386 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
@@ -56,7 +58,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | 79 | GNOME Compositor Backend & Extension Driver |
 | `src/platform/linux/gnome/tests.rs` | 780 |  |
-| `src/platform/linux/mod.rs` | 673 |  |
+| `src/platform/linux/mod.rs` | 674 |  |
 | `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
 | `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
 | `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
@@ -64,15 +66,15 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
 | `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
 | `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 378 | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/mod.rs` | 384 | Platform & Compositor Driver Abstraction Layer |
 | `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
-| `src/platform/non_linux.rs` | 30 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
-| `src/platform/upgrade.rs` | 759 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
+| `src/platform/non_linux.rs` | 60 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
+| `src/platform/upgrade.rs` | 750 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
 | `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
 | `src/session.rs` | 856 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
 | `src/target.rs` | 592 | Window Target Resolution Engine |
 | `src/ui.rs` | 308 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
-| `src/update.rs` | 1424 | Update Manager & Release Checker |
+| `src/update.rs` | 1413 | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 

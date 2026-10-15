@@ -28,3 +28,33 @@ pub struct BackendInstallArgs {}
 /// No uninstall flags off Linux.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct BackendUninstallArgs {}
+
+/// Compile-only [`Host`](crate::platform::host::Host) for other operating systems: the values are
+/// placeholders (spawn-at stops before anything uses them).
+pub mod host {
+    use crate::platform::host::Host;
+    use crate::platform::InstallScope;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    pub struct NativeHost;
+
+    impl Host for NativeHost {
+        fn bin_dir(&self, _scope: InstallScope) -> Result<PathBuf, String> {
+            Err("spawn-at does not support this operating system yet".to_string())
+        }
+        fn user_bin_dir(&self) -> Option<PathBuf> {
+            None
+        }
+        fn system_bin_dir(&self) -> PathBuf {
+            PathBuf::new()
+        }
+        fn autostart_entry_path(&self) -> Result<PathBuf, String> {
+            Err("spawn-at does not support this operating system yet".to_string())
+        }
+        fn is_executable_file(&self, p: &Path) -> bool {
+            p.metadata().is_ok_and(|m| m.is_file())
+        }
+        fn detach_child(&self, _cmd: &mut Command) {}
+    }
+}

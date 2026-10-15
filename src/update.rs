@@ -300,18 +300,7 @@ pub fn trigger_background_check_if_needed(cfg: &mut Config) {
                 .stdin(std::process::Stdio::null())
                 .stdout(std::process::Stdio::null())
                 .stderr(std::process::Stdio::null());
-            #[cfg(unix)]
-            {
-                use std::os::unix::process::CommandExt;
-                unsafe {
-                    bg_cmd.pre_exec(|| {
-                        if libc::setsid() < 0 {
-                            libc::setpgid(0, 0);
-                        }
-                        Ok(())
-                    });
-                }
-            }
+            crate::platform::host().detach_child(&mut bg_cmd);
             let _ = bg_cmd.spawn();
         }
     }

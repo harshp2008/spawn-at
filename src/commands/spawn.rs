@@ -596,18 +596,7 @@ pub fn configure_child_process(cmd: &mut std::process::Command, is_json: bool) {
         cmd.stderr(std::process::Stdio::inherit());
     }
 
-    #[cfg(unix)]
-    {
-        use std::os::unix::process::CommandExt;
-        unsafe {
-            cmd.pre_exec(|| {
-                if libc::setsid() < 0 {
-                    libc::setpgid(0, 0);
-                }
-                Ok(())
-            });
-        }
-    }
+    crate::platform::host().detach_child(cmd);
 }
 
 #[cfg(test)]

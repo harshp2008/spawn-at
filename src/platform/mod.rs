@@ -10,6 +10,7 @@
 
 pub mod capability;
 pub mod escalate;
+pub mod host;
 pub mod install_notice;
 pub mod installer;
 pub mod provisioner;
@@ -375,4 +376,9 @@ pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
     Err(DriverError::UnsupportedCapability(
         "Unsupported operating system",
     ))
+}
+
+/// The [`host::Host`] of this operating system.
+pub fn host() -> &'static dyn host::Host {
+    &linux::host::NativeHost
 }

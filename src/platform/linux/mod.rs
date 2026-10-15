@@ -1,5 +1,6 @@
 pub mod config_store;
 pub mod gnome;
+pub mod host;
 pub mod process_tree;
 pub mod x11;
 pub mod xdg;

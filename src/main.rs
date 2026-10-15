@@ -131,9 +131,8 @@ async fn main() {
                 }
             } else {
                 use crate::platform::upgrade;
-                let user_bin = std::env::var_os("HOME")
-                    .map(|h| std::path::PathBuf::from(h).join(".local/bin"));
-                let system_bin = std::path::PathBuf::from("/usr/local/bin");
+                let user_bin = crate::platform::host().user_bin_dir();
+                let system_bin = crate::platform::host().system_bin_dir();
                 let found = match std::env::current_exe() {
                     Ok(exe) => upgrade::detect(
                         user_bin.as_deref(),

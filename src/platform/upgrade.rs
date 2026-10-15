@@ -64,17 +64,8 @@ pub fn find_existing(
     out
 }
 
-#[cfg(unix)]
 fn is_executable_file(p: &Path) -> bool {
-    use std::os::unix::fs::PermissionsExt;
-    p.metadata()
-        .is_ok_and(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
-}
-
-/// Off unix there is no executable bit; any regular file counts (spawn-at does not run there yet).
-#[cfg(not(unix))]
-fn is_executable_file(p: &Path) -> bool {
-    p.metadata().is_ok_and(|m| m.is_file())
+    crate::platform::host().is_executable_file(p)
 }
 
 /// Runs `<path> -V` and returns its stdout, or `None` when it fails, prints nothing or does not

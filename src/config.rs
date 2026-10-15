@@ -184,13 +184,12 @@ pub fn current_timestamp_secs() -> u64 {
 /// Path to XDG autostart entry: `$XDG_CONFIG_HOME/autostart/spawn-at-update-check.desktop` for an
 /// absolute `XDG_CONFIG_HOME`, else `~/.config/autostart/spawn-at-update-check.desktop`.
 pub fn autostart_desktop_path() -> Result<PathBuf, String> {
-    let get = |k: &str| std::env::var(k).ok();
-    autostart_path_from(get("XDG_CONFIG_HOME").as_deref(), get("HOME").as_deref())
+    crate::platform::host().autostart_entry_path()
 }
 
 /// The pure part of [`autostart_desktop_path`]. The config directory comes from the same rule as
 /// the config file (`config_location`, ignoring `SPAWN_AT_CONFIG`, which names one file).
-fn autostart_path_from(
+pub(crate) fn autostart_path_from(
     xdg_config_home: Option<&str>,
     home: Option<&str>,
 ) -> Result<PathBuf, String> {
