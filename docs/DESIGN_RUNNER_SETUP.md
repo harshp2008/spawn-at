@@ -329,6 +329,8 @@ Unchanged from spawn: a numeric flash is a lead strictly above `max(clock uncert
 
 ## 7. Catalog specs proposed for batch 3
 
+**Implemented 2026-10-16; the differences are in 11.5.**
+
 "Unattended on headless Sway" means the spec can run by itself in the private Sway with no person; **no GNOME spec is unattended** (every one launches a window and takes focus, section 3.6). All are `required = false` (9.5). All `needs-fixture`, `existing-window`; all carry `moves-focus` except the pure queries on Sway.
 
 | Id | Setup | Action | Assertion | Kind | GNOME | Sway | Unattended on headless Sway |
@@ -443,13 +445,13 @@ Implemented on branch `feat/runner-existing-window-setup`, 2026-10-15, as approv
 
 | Plan item (section 8.2) | Commit | Where |
 | :-- | :-- | :-- |
-| (added) golden of the loaded catalog | `ea4b986` | `crates/spawn-at-verify/tests/catalog_golden_test.rs:51`, `crates/spawn-at-verify/tests/golden/catalog_v1.json` |
+| (added) golden of the loaded catalog | `ea4b986` | `crates/spawn-at-verify/tests/catalog_golden_test.rs:52`, `crates/spawn-at-verify/tests/golden/catalog_v1.json` |
 | 1 schema and loader rules | `18c979a` | `crates/spawn-at-verify/src/schema/types.rs:233` (`TestSetup`), `:269` (`TestCheck`), `:290` (`SpecV2`); `crates/spawn-at-verify/src/schema/v2.rs:267` (`validate`), `:137` (`validate_action`), `:50` (`SETUP_FLAGS`) |
 | 2 placeholders, matrix | `3ced4c4` | `crates/spawn-at-verify/src/schema/v2.rs:450` (`substitute`), `crates/spawn-at-verify/src/schema/matrix.rs` (`expand_matrix`) |
 | 3 `SetupSession` | `a2b8312` | `crates/spawn-at-verify/src/runner/owned.rs:319` (`SetupSession`), `:466` (`launch`), `:576` (`verify_target`), `:653` (`teardown`), `:750` (`Drop`) |
 | 4 executor, `run` signals, 5 checks | `c78321f` | `crates/spawn-at-verify/src/runner/executor.rs:138` (the one branch), `crates/spawn-at-verify/src/runner/executor_v2.rs:174` (`execute_v2_test`), `:254` (`run_v2_steps`), `:144` (`eval_check`), `crates/spawn-at-verify/src/cli/run.rs:97` (signal handlers), `crates/spawn-at-verify/src/tracker/state.rs:31` (`OwnedSessions`) |
 | 6 backend, Skipped, Sway guard, journal fix | `77ab5d2` | `crates/spawn-at-verify/src/backend.rs:36`, `:53`, `:114`; `crates/spawn-at-verify/src/runner/executor.rs:125`; `crates/spawn-at-verify/src/runner/engine.rs:68` |
-| 7 TUI, moves-focus | `38d3c46` | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:102`, `verify/suites/quick.toml`, `crates/spawn-at-verify/tests/tui/v2_flow.rs:204` |
+| 7 TUI, moves-focus | `38d3c46` | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:102`, `verify/suites/quick.toml`, `crates/spawn-at-verify/tests/tui/v2_flow.rs:217` |
 | 9 wrapper | `63b9772`, `4c6c2b0` | `scripts/verify-sway.sh:101` |
 | (added) repeat after a signal | `ee56044` | `crates/spawn-at-verify/src/runner/engine.rs:197` |
 | 8 flash for transform, 10 catalog specs | not done | the next steps; no catalog spec was added |
@@ -491,6 +493,19 @@ Implemented on branch `feat/runner-existing-window-setup`, 2026-10-15, as approv
 | no GNOME journal or `SetLogging` when another backend is forced | `crates/spawn-at-verify/src/backend.rs` tests, `crates/spawn-at-verify/tests/run_sway_guard_test.rs`: `test_gnome_journal_is_not_used_when_sway_is_forced` |
 | no run against a Sway that is not the private session | `backend.rs`: `test_guard_refuses_everything_else`, `run_sway_guard_test.rs`: `test_a_sway_that_is_not_the_private_session_blocks_the_test` |
 | `quick` never selects a window-launching spec | `crates/spawn-at-verify/tests/suite_wiring_test.rs`: `test_quick_leaves_out_moves_focus_specs_and_full_keeps_them`, `v2_tests.rs`: `test_a_spec_that_launches_a_window_must_carry_the_moves_focus_tag` |
-| the 45 existing specs and the five suites are unchanged | `crates/spawn-at-verify/tests/catalog_golden_test.rs:51`, and the `list` hashes in the pull request |
+| the 45 existing specs and the five suites are unchanged | `crates/spawn-at-verify/tests/catalog_golden_test.rs:52`, and the `list` hashes in the pull request |
 
 Each guard in the table was broken on purpose once (loader rules, `owned.rs`, `executor_v2.rs`, `backend.rs`, the signal handler, the repeat fix, the quick tag), a test failed each time, and the code was restored; the pull request lists them. One guard cannot be broken alone: the `--id` value check in `validate_action` is also caught by the later placeholder check (both layers have tests).
+
+### 11.5 Section 7 (the catalog specs): implemented 2026-10-16
+
+All the specs of section 7 exist under `verify/queries/`, `verify/transforms/`, `verify/focus/` and `verify/robustness/` (18 files; the anchor matrix expands to five entries, so 22 catalog entries and 67 in all with the original 45). Differences from the table of section 7, with reasons:
+
+- **Ids**: `queries/query-windows-lists-fixture`, `queries/query-layout-json`, `focus/activate-fixture` and `transforms/minimize-and-restore` are the names used (the plan's `focus/activate-by-title` and `transforms/minimize-and-focus` did not match what a version 2 spec can do).
+- **`transforms/reposition-by-id` is GNOME only**, not "gnome, sway": on Sway a fresh tiled window is as large as the work area, so a position-only transform keeps 1920x1080 and the spec's "size unchanged, 400x300" fails (found on the first private headless Sway run). Sway's placement is covered by `resize-by-id` and `anchor-corners`.
+- **`transforms/anchor-corners` needed the matrix to reach `[expect.rect]`**: `anchor` and `pivot` there are now substituted too (`crates/spawn-at-verify/src/schema/matrix.rs`); a spec with no `{key}` in them is unchanged (the catalog golden proves it for the 45).
+- **`focus/defocus-active-window`** names `${a.title}` as the destination as designed; on GNOME a destination is looked up by class or application id, so the extension falls back to the most recently used window, which is `a`. The spec says so.
+- **`queries/query-layout-json` and `robustness/nonexistent-window-id` launch no window** and carry no `moves-focus` tag; the loader requires it only for specs with a `[[setup]]`.
+- **No spec carries the tag `visual`**, so the `visual` suite is unchanged; the four Both specs carry `human-review` (`spawn-at-verify tui --tag human-review`).
+- **The `lifecycle` to `focus` alias** was added to both copies of the alias list (`crates/spawn-at-verify/src/schema/suite.rs`, `crates/spawn-at-verify/src/loader/registry.rs`); `focus` is reachable and the known-empty list of `suite_wiring_test` shrank from eight names to four.
+- **Not done, as asked**: no flash measurement (`resize-flash` and `move-flash` only ask the human), no spec that depends on `spawn --no-focus`, no GNOME run.
