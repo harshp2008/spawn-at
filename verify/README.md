@@ -15,11 +15,11 @@ The verification suite lives in `crates/spawn-at-verify` as a developer-only wor
                            └──────────────┬───────────────┘
                                           │
                                           ▼
-┌─────────────────┐       ┌──────────────────────────────┐       ┌─────────────────┐
-│     TUI         │◄─────►│    spawn-at-verify Core      │◄─────►│     Web UI      │
-│ (ratatui/crossterm)     │  - Test Loader & Selectors   │       │  (Embedded HTML/│
-└─────────────────┘       │  - Independent Oracle        │       │   CSS/JS + SSE) │
-                          │  - Window Ownership Tracker  │       └─────────────────┘
+┌─────────────────┐       ┌──────────────────────────────┐
+│     TUI         │◄─────►│    spawn-at-verify Core      │
+│ (ratatui/crossterm)     │  - Test Loader & Selectors   │
+└─────────────────┘       │  - Independent Oracle        │
+                          │  - Window Ownership Tracker  │
                           │  - Event Bus & State Sync    │
                           └──────────────┬───────────────┘
                                          │ drives via public CLI only
@@ -47,7 +47,7 @@ The verification suite lives in `crates/spawn-at-verify` as a developer-only wor
 3. **Independent Geometric Oracle**: Expected window bounds are calculated by a standalone arithmetic oracle inside the test runner using monitor dimensions from `spawn-at query layout --json`.
    - **Semantic Authority**: The oracle follows the documented semantics of anchor, pivot, and margin from project documentation, **not from the implementation code**.
    - If the oracle ever disagrees with `spawn-at`, the failure must be flagged and reported; the oracle is never altered to accommodate diverging code behavior.
-4. **Unified Session State & Lock**: The headless core maintains the canonical test execution state with a single writer lock. Running `spawn-at-verify tui --web` serves both the local terminal and a mobile or secondary browser simultaneously against the exact same in-process session.
+4. **Unified Session State & Lock**: The headless core maintains the canonical test execution state with a single writer lock. The terminal UI is the only interactive front end: there is no web interface (see section 9).
 
 ---
 
@@ -222,7 +222,7 @@ The GNOME Shell extension emits structured JSON events when logging is enabled v
 
 ---
 
-## 9. TUI & Web Interface
+## 9. TUI
 
 ### Terminal User Interface (TUI)
 Run with real fixture cases:
@@ -250,16 +250,8 @@ cargo run -p spawn-at-verify --features tui,fixture -- tui
   2. Safely cleans up test-spawned windows via `spawn-at close --id <ID>`.
   3. Faithfully restores the initial GNOME Shell extension logging state (recorded at startup from `session.log` / `SPAWN_AT_DEBUG`); never blindly disables logging if the user had it turned on.
 
-### Web UI
-- Served via `spawn-at-verify serve --bind 127.0.0.1:<PORT>` or concurrently inside `tui --web`.
-- **Security**:
-  - Bound to loopback by default.
-  - Any non-loopback bind requires a high-entropy startup token printed to console and validated via header/cookie.
-  - Constant-time token comparison prevents timing attacks.
-  - Strict `Host` header and `Origin` validation prevents DNS rebinding and cross-site request forgery.
-  - Fixed action endpoints only: cannot execute arbitrary commands or file paths.
-- **Mobile Friendly**: Large touch targets for phone review while watching the physical monitor.
-- **Clipboard Fallback**: Textarea select-all and download links for HTTP connections where `navigator.clipboard` is unavailable.
+### No web interface
+There is no web UI. `spawn-at-verify --help` lists `run`, `list`, `check`, `report`, `tui`, `calibrate` and `render`; `spawn-at-verify serve` is "unrecognized subcommand" and `spawn-at-verify tui --help` has no `--web` option (checked 2026-10-15). An earlier version of this file described a loopback web server with a token; none of it exists in the code.
 
 ---
 
@@ -270,6 +262,8 @@ Test outputs are recorded under `verify-results/<timestamp>-<host>/` (`<timestam
 - `report.md`: Markdown summary report.
 - `slices/`: Individual per-test journal and trace logs.
 - **Privacy**: Window titles are redacted by default; opted into with `--include-titles`.
+
+**Which commands write these files.** Only `spawn-at-verify run` and `spawn-at-verify calibrate` write `report.json`, `report.md` and `slices/` (both call `write_report_artifacts`, `crates/spawn-at-verify/src/cli/run.rs` and `cli/calibrate.rs`). `spawn-at-verify report [PATH]` only re-renders a report that already exists. **The TUI (`spawn-at-verify tui`) writes no report**: results stay in memory and on screen, and the only file it writes is the text of the open detail drawer, saved with `w` as `verify-results/<test-id with / replaced by ->.log.txt`. A TUI session therefore leaves no `report.md`, and a `both` test still waiting for a human verdict is recorded nowhere unless the same tests are run with `run`. (Read from the code on 2026-10-15; the TUI was not run for this note.)
 
 ### Platform Support Qualification
 A platform or desktop environment may only be documented as **Supported** in `SUPPORT.md` (that file does not exist in the repository yet) if **100% of required tests pass** (`auto-pass` and human `pass` where `kind = "both"`). `spawn-at-verify report --support-row` formats verified candidate rows.
