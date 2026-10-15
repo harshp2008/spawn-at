@@ -10,6 +10,7 @@ id = "transforms/example"
 category = "transforms"
 title = "example"
 description = "example"
+tags = ["moves-focus"]
 kind = "auto"
 "#;
 
@@ -607,4 +608,38 @@ fn test_expect_rect_needs_a_recorded_window() {
     let without_setup = format!("[action]\ncommand = \"query\"\nargs = [\"layout\"]\n{rect}");
     assert_err(&without_setup, "needs a [[setup]]");
     assert!(v2(&format!("{GOOD}\n{rect}")).is_ok());
+}
+
+// ---- the moves-focus tag ----
+
+#[test]
+fn test_a_spec_that_launches_a_window_must_carry_the_moves_focus_tag() {
+    let head = |tags: &str| {
+        format!(
+            "schema_version = 2\nid = \"transforms/example\"\ncategory = \"transforms\"\ntitle = \"t\"\ndescription = \"d\"\nkind = \"auto\"\n{tags}\n"
+        )
+    };
+    let setup = "[[setup]]\nname = \"w\"\n[action]\ncommand = \"query\"\nargs = [\"windows\"]\n";
+    let check = |tags: &str| -> Result<(), String> {
+        let def: TestDefinition = toml::from_str(&format!("{}{setup}", head(tags))).unwrap();
+        validate(&def)
+    };
+    assert!(check("tags = [\"moves-focus\"]").is_ok());
+    assert!(check("tags = [\"visual\", \"moves-focus\"]").is_ok());
+    for bad in [
+        "",
+        "tags = []",
+        "tags = [\"visual\"]",
+        "tags = [\"moves_focus\"]",
+    ] {
+        let e = check(bad).unwrap_err();
+        assert!(e.contains("add the tag \"moves-focus\""), "{bad}: {e}");
+    }
+    // No window launched, nothing that moves focus: no tag needed.
+    let query_only = format!(
+        "{}[action]\ncommand = \"query\"\nargs = [\"layout\"]\n",
+        head("")
+    );
+    let def: TestDefinition = toml::from_str(&query_only).unwrap();
+    assert!(validate(&def).is_ok());
 }

@@ -99,6 +99,43 @@ pub fn render_spec_section(builder: &mut DrawerBuilder, test: &TestDefinition) {
         );
     }
 
+    // Version 2: the windows the runner launches, the actions after the first, and the checks.
+    if test.v2.schema_version >= crate::schema::SCHEMA_VERSION_EXISTING_WINDOW {
+        let grey = |s: String| {
+            vec![Span::styled(
+                s.clone(),
+                Style::default().fg(Color::Rgb(200, 200, 200)),
+            )]
+        };
+        builder.push_blank();
+        for s in &test.v2.setup {
+            let text = if s.args.is_empty() {
+                "fixture window".to_string()
+            } else {
+                format!("fixture window {}", s.args.join(" "))
+            };
+            builder.push_kv(&format!("Setup {}", s.name), grey(text.clone()), &text);
+        }
+        for (i, a) in test.v2.then.iter().enumerate() {
+            let text = format!("{} {}", a.command, a.args.join(" "));
+            builder.push_kv(&format!("Then {}", i + 1), grey(text.clone()), &text);
+        }
+        for c in &test.v2.check {
+            let what = match (&c.state, &c.same_rect_as, c.process_exited) {
+                (Some(s), _, _) => format!("{s:?}").to_lowercase(),
+                (_, Some(r), _) => format!("same rectangle as {r}"),
+                (_, _, true) => "fixture process exited".to_string(),
+                _ => "nothing".to_string(),
+            };
+            let when = match c.after {
+                Some(n) => format!("after action {n}"),
+                None => "after the last action".to_string(),
+            };
+            let text = format!("{what} ({when})");
+            builder.push_kv(&format!("Check {}", c.window), grey(text.clone()), &text);
+        }
+    }
+
     if test.subject.is_some() {
         builder.push_blank();
         if let Some(sub) = &test.subject {

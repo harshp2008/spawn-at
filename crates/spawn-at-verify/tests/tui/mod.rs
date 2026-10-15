@@ -14,6 +14,7 @@ pub mod footer_widths;
 pub mod golden_invariants;
 pub mod layout_responsive;
 pub mod polish;
+pub mod v2_flow;
 
 use ratatui::{backend::TestBackend, Terminal};
 use spawn_at_verify::runner::RunOptions;

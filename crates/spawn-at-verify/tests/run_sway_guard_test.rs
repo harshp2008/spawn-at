@@ -47,6 +47,7 @@ category = "transforms"
 title = "for sway"
 description = "focus a fixture window"
 kind = "auto"
+tags = ["moves-focus"]
 
 [requires]
 backend = ["sway"]

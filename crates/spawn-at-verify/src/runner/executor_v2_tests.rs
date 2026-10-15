@@ -22,6 +22,7 @@ id = "transforms/example"
 category = "transforms"
 title = "example"
 description = "example"
+tags = ["moves-focus"]
 "#;
 
 /// A version 2 spec of kind `kind` with `body`, checked by the loader rules.

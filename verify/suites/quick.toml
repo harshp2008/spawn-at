@@ -1,5 +1,5 @@
 name = "quick"
 description = "Fast automated sanity checks covering preflight, basic anchor placement, and core diagnostics."
 categories = ["preflight", "placement", "diagnostics"]
-tags = ["!slow", "!manual-setup"]
+tags = ["!slow", "!manual-setup", "!moves-focus"]
 required_only = false

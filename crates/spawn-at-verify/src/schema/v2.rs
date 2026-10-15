@@ -9,6 +9,9 @@ use super::types::{TestAction, TestDefinition, SCHEMA_VERSION_EXISTING_WINDOW};
 use regex::Regex;
 use std::collections::HashSet;
 
+/// The tag every spec that launches a window must carry; the `quick` suite excludes it.
+pub const MOVES_FOCUS_TAG: &str = "moves-focus";
+
 /// Most `[[setup]]` windows one spec may launch.
 pub const MAX_SETUPS: usize = 3;
 
@@ -331,6 +334,14 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
             }
         }
         validate_setup_args(&format!("Spec '{id}': setup '{}'", s.name), &s.args)?;
+    }
+
+    // A fixture window takes focus when it is mapped. Marking it lets a suite leave such specs
+    // out (`quick` does), so a quick run never moves the user's focus by accident.
+    if !t.v2.setup.is_empty() && !t.tags.iter().any(|x| x == MOVES_FOCUS_TAG) {
+        return Err(e(format!(
+            "a spec with [[setup]] launches a window, which takes focus: add the tag \"{MOVES_FOCUS_TAG}\""
+        )));
     }
 
     // Actions.

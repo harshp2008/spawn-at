@@ -189,3 +189,26 @@ fn test_unreachable_categories_are_exactly_the_listed_empty_ones() {
         );
     }
 }
+
+/// A spec tagged `moves-focus` (every spec that launches a window carries it, see
+/// `schema::v2`) is left out of `quick` and `release-gate`-style selection by tag only; `full`
+/// still runs it. Fails if `quick` stops excluding the tag.
+#[test]
+fn test_quick_leaves_out_moves_focus_specs_and_full_keeps_them() {
+    let reg = registry();
+    let quick = &reg.suites["quick"];
+    let full = &reg.suites["full"];
+    let mut t: TestDefinition = reg
+        .tests
+        .iter()
+        .find(|t| quick.matches(t) && full.matches(t))
+        .expect("a spec both suites select")
+        .clone();
+    assert!(quick.matches(&t) && full.matches(&t));
+    t.tags.push("moves-focus".to_string());
+    assert!(
+        !quick.matches(&t),
+        "quick must not select a moves-focus spec"
+    );
+    assert!(full.matches(&t), "full still selects it");
+}

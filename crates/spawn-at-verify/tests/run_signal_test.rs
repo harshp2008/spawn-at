@@ -48,6 +48,7 @@ category = "transforms"
 title = "slow"
 description = "a first action that takes 3 s, then a second that must never start once interrupted"
 kind = "auto"
+tags = ["moves-focus"]
 
 [[setup]]
 name = "w"
