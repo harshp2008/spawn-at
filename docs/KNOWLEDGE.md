@@ -59,6 +59,7 @@
 - The live GNOME suites and the 4 ignored tests are not covered by the refactor proofs and must be run by the owner before a release containing a refactor. Source: `docs/REFACTOR_PROOFS.md`, "What these proofs do not cover".
 - What the Sway tests do not cover (real Sway, XWayland, other versions, i3, scales other than 1 and 2, more than two outputs): `docs/TEST_PLAN.md`, "7.3 Not verified".
 - Which commands are tested, at which tier, and how flicker is (and is not) measured: `docs/TEST_COVERAGE_AUDIT.md` (audit of 2026-10-15; headline: `defocus`, `restore` and `minimize` have no behavior test, the verify catalog only has `spawn` specs, flash is measured only for GNOME `spawn`). Source: that file, sections 3, 4 and 7.
+- Batch 1 (2026-10-15) added the command-handler, GNOME D-Bus stub, extension, Sway-binary and suite-wiring tests; two things took long to find: `spawn --focus/--no-focus/--defocus` are parsed but never read (`run_spawn_with` always uses `FocusIntent::Exclusive`, pinned by `test_spawn_focus_modifiers_have_no_effect_today`), and a D-Bus stub on the same zbus connection as the client hangs unless `ProtocolVersion` is read before the first method call (`gnome/tests_control.rs`, `driver_for`). Source: `docs/TEST_COVERAGE_AUDIT.md`, section 7 "Update" notes.
 
 ## Gotchas
 

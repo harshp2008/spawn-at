@@ -14,9 +14,11 @@ All notable changes to this project are recorded here. The format follows
 ### Documentation
 
 - `docs/TEST_COVERAGE_AUDIT.md`: which `spawn-at` commands are tested, at which tier and on which backend, how the verify suite measures flicker, how the TUI test interface works, proposed new tests and the gaps found. No code changed.
+- `verify/README.md` no longer describes a web UI (`spawn-at-verify serve`, `tui --web`); neither exists. It now says which commands write `report.json` and `report.md` (`run` and `calibrate`, not the TUI). `README.md` says `--focus`, `--no-focus` and `--defocus` are accepted on `spawn` but currently have no effect. `CLAUDE.md` notes that `scripts/smoke-live.sh` is run by the owner by hand.
 
 ### Tests
 
+- Command coverage batch 1 (tests and docs only; the only edits to non-test files are `#[cfg(test)]` module declarations; no behavior, `--help` text, exit code or config key changed): 31 tests for `run_focus`, `run_defocus`, `run_maximize`, `run_minimize`, `run_restore` and `apply_focus_policy`, 11 D-Bus stub tests for the GNOME driver's focus, defocus, state, move and transform wrappers, 18 node tests for the extension's `DefocusWindow` and `SetWindowState`, 10 built-binary tests against a recording Sway stand-in (focus, close, transform, query, and the unsupported commands), 5 tests that check the verify suites and categories are wired consistently. Characterization tests pin two behaviors as they are today and are not contracts: `spawn --focus/--no-focus/--defocus` have no effect, and the state commands return success after a timed-out 2 s wait. Counts: `spawn-at` 443 (was 390), `spawn-at-verify` 414 + 4 ignored (409), node 204 (186).
 - The login autostart entry (`spawn-at-update-check.desktop`, `Exec=<binary> update --check --headless`) needs no backend on an unsupported desktop, and no code changed: `update` returns before `init_backend()` in `main.rs`, and `run_update` never reaches the backend registry. New tests pin the entry byte for byte on GNOME, on a non-GNOME X11 session and on the opt-in case (`SPAWN_AT_BACKEND=x11` on KDE Wayland), that uninstall removes it and a reinstall rewrites a stale one, and that `update --check --headless` on KDE Wayland exits 0 without the unsupported-desktop error.
 
 ### Fixed
