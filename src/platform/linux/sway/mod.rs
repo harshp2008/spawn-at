@@ -14,11 +14,6 @@
 //! `post_spawn` waits for the window and sends one chained command. Sway cannot hold a window
 //! invisible, so it may show one frame at its tiled position first (`reveal_control` is false).
 
-// The driver is not reachable from the command line until the registry selects it (the commit
-// after this one); until then everything here is used only by the unit tests. Remove this allow
-// with that commit.
-#![allow(dead_code)]
-
 pub mod client;
 pub mod command;
 pub mod ipc;

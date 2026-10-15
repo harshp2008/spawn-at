@@ -72,13 +72,6 @@ pub struct Frame {
     pub payload: Vec<u8>,
 }
 
-impl Frame {
-    /// True for an event (high bit of the type set).
-    pub fn is_event(&self) -> bool {
-        self.kind & 0x8000_0000 != 0
-    }
-}
-
 /// The bytes of a request frame.
 pub fn encode_frame(kind: MessageType, payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(HEADER_LEN + payload.len());
@@ -159,7 +152,11 @@ mod tests {
         let frame = read_frame(&mut Cursor::new(bytes)).unwrap();
         assert_eq!(frame.kind, MessageType::Subscribe as u32);
         assert_eq!(frame.payload, b"{\"success\": true}");
-        assert!(!frame.is_event());
+        assert_eq!(
+            frame.kind & 0x8000_0000,
+            0,
+            "a reply has the high bit clear"
+        );
     }
 
     /// The reply to a `nop` command: `[ { "success": true } ]` is 23 bytes (`17 00 00 00`).
@@ -188,7 +185,7 @@ mod tests {
         bytes.extend_from_slice(b"i3-ipc\x02\x00\x00\x00\x03\x00\x00\x80{}");
         let frame = read_frame(&mut Cursor::new(bytes)).unwrap();
         assert_eq!(frame.kind, EVENT_WINDOW);
-        assert!(frame.is_event());
+        assert_ne!(frame.kind & 0x8000_0000, 0, "an event has the high bit set");
         assert_eq!(frame.payload, b"{}");
     }
 

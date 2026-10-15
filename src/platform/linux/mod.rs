@@ -102,6 +102,14 @@ impl LinuxBackend {
         // The order of the choice (forced X11, then GNOME Wayland, else X11) is in `registry`.
         let env = registry::Environment::from_process_env();
         for id in registry::candidates(&env) {
+            // Sway was asked for by name: if it cannot be reached this is an error that names
+            // $SWAYSOCK, never a quiet switch to X11 (which would place XWayland windows only).
+            if id == registry::BackendId::Sway {
+                let driver = sway::SwayDriver::from_env()?;
+                return Ok(Box::new(LinuxBackend {
+                    driver: Box::new(driver),
+                }));
+            }
             if id == registry::BackendId::GnomeWayland {
                 if let Ok(driver) = gnome::GnomeWaylandDriver::new().await {
                     return Ok(Box::new(LinuxBackend {
