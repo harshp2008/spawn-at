@@ -304,7 +304,7 @@ All of it in the verify crate, none in the product:
 4. **Judge the transform's own reveal**: `detect_flash` takes the first `UNCLOAK` in the events it is given. The runner passes it only the extension events **after the action's start** (converted with the anchor), so the setup window's own history cannot be picked. The client events need no cut: `client_flashes` already takes, as the content shown at the reveal, "the newest paint certainly before it" (`crates/spawn-at-verify/src/trace/flash.rs:684-696`), which is the paint at the setup size. The "nothing painted at the reveal" kind cannot occur for a transform; the relevant kind is `size-change-after-reveal`.
 5. **Plumbing**: the existing `run_flash_check` (`runner/flash.rs:266-341`) with `window = recorded id`; `FlashInfo` is already in `TestResult` and already rendered.
 
-Unverified, and to be checked by the owner with a read-only look at the journal before commit 8: that a runtime transform's `CLOAK` and `UNCLOAK` lines carry the window id and pid the way a spawn's do (the analyser filters by window id, `runner/flash.rs:166-170`). If they do not, the extension logs need the fields, which would be a (small, JS) product change and a separate decision.
+Resolved by the owner's journal sample (2026-10-16, `crates/spawn-at-verify/tests/fixtures/real_transform_existing_window_trace.log`): a runtime transform's lines carry `win=[id=... pid=... class=...]` like a spawn's, so no product change is needed. The same sample showed that `focus` logs RAISE and ACTIVATE with the id, which this section first assumed could never be traced.
 
 ### 5.3 Thresholds and labels
 
@@ -313,11 +313,37 @@ Unchanged from spawn: a numeric flash is a lead strictly above `max(clock uncert
 ### 5.4 What can not be measured
 
 - **Position-only transforms** have no paint, so only the extension's `ANCHOR_CORRECTION` after the reveal is evidence (`crates/spawn-at-verify/src/trace/flash.rs:499-525`); the client's `Moved` event is not delivered by winit on native Wayland (it exists for X11, `window.rs:351`; **unverified** for GNOME Wayland, the audit notes X11 reports it). The spec says "limited evidence".
-- **focus, defocus**: no geometry or paint change, so there is nothing to compare with the reveal; only the order of RAISE and ACTIVATE in the trace can be asserted (as `tests/dispatcher_test.js` does for `FocusWindow`).
-- **close**: nothing is revealed. What can be checked is that the window leaves `query windows` and the fixture process ends (section 7).
-- **maximize, minimize, restore**: Mutter's animation is by design not a flicker, and a direct state change has no cloak, so `detect_flash` returns basis `none` (audit 4.3).
+- **focus, defocus**: no geometry or paint change, so there is nothing to compare with the reveal. `focus` does have a trace (RAISE and ACTIVATE with the window id, section 5.5); `defocus` has none for its target.
+- **close**: nothing is revealed and the extension logs nothing for it (section 5.5). What can be checked is that the window leaves `query windows` and the fixture process ends (section 7).
+- **maximize, minimize, restore**: Mutter's animation is by design not a flicker, and a direct state change has no cloak, so there is no flash analysis. The extension logs nothing for maximize and unmaximize, and only MINIMIZE / UNMINIMIZE for the others (section 5.5).
 - **Any backend without the extension** (Sway, X11): there is no `UNCLOAK` and no clock anchor (`runner/flash.rs:59-62` returns `None`).
 - **Pixels**: nothing is captured. A clean result means no late paint or late move was found in the runs made, on one machine and one compositor version, with the fixture and not a real app. **It is not a guarantee that no frame was ever wrong.**
+
+### 5.5 Implemented: what the extension logs per command, and how it is captured
+
+**Status: implemented** in `crates/spawn-at-verify` (`src/trace/action.rs`, `src/runner/action_trace.rs`, hooks in `src/runner/executor_v2.rs`). Nothing under `assets/gnome/` or `src/` changed; the table below was read from `assets/gnome/modern/` (the `legacy/` extension has the same call sites at other line numbers). Every `logTime` call that passes a window writes `win=[id=N pid=N class="..." ...]` (`logger.js:297`, `formatWindowMeta`), and the logger buffers lines and writes them from an idle callback (`logger.js:316`), so the journal's own timestamp is the flush time and only the `+N ms` stamp is the event time.
+
+| Command | What it logs (extension.js unless noted) | Carries the window id | Start/end for a duration |
+|---|---|---|---|
+| `transform` (`ExecuteBatch`, `:1592`, logs nothing itself) | `BATCH_STEP :715`, `SNAPSHOT_CREATED` (`cloak.js:150`) or `SNAPSHOT_SKIPPED :727`, `CLOAK :730`, `SET_SIZE_REQUEST :786`, `READY_WAIT_START :844`, `POSITION_SET :953`, `UNCLOAK :1129`, `UNCLOAK_4D_REVEAL :1133`, `ANCHOR_ARMED :1238`, `SNAPSHOT_DESTROYED` (`cloak.js:163`) | yes, all | yes: `CLOAK` to `UNCLOAK_4D_REVEAL` |
+| `focus` (`FocusWindow :1707`) | `RAISE :1469`, `ACTIVATE :1472`; with a batch pending on the window `FOCUS_DEFERRED :1720` or `FOCUS_BATCH_ALREADY_APPLIED :1715` instead | yes | `RAISE` to `ACTIVATE` (sub-millisecond) |
+| `minimize` (`SetWindowState :1737`) | `MINIMIZE :1756` | yes | no |
+| `unminimize`, `restore` | `UNMINIMIZE :1763` / `:1771` (restore only if the window was minimized) | yes | no |
+| `maximize`, `unmaximize` | nothing (`_maximize :303`, `_unmaximize :307` have no log call); `ANCHOR_RELEASED reason=EXTERNAL_STATE` (`:1742`, written at `:1275`) only if an anchor was armed | yes, when written | no |
+| `defocus` (`DefocusWindow :1730`) | nothing in `desktop` mode; in `window` mode and the default, `RAISE`/`ACTIVATE` (`:1490`-`:1508`) for the window that **receives** focus, never for the target | not the target's | no |
+| `close` (`CloseWindow :1787`) | nothing; `ANCHOR_RELEASED reason=EXTERNAL_CLOSE` (`:1792`, written at `:1275`) only if an anchor was armed, which is the line seen after a transform | yes, when written | no |
+| queries (`GetWindows :1663`, `GetLayout :1631`, `GetWorkareas :1620`, `GetCursor :1611`, `GetPointer :1616`) | nothing | n/a | n/a |
+| every new window (`:486`, `:531`) | `WINDOW_CREATED`, `ACTOR_MAP` for **every** window on the desktop, the user's included | yes | no |
+
+Usable trace: `transform`, `focus`. Partial: `minimize`, `unminimize`, `restore`. Nothing for the target: `defocus`, `maximize`, `unmaximize`, `close`, queries. These are product facts for the owner, not defects the runner works around; the extension is a byte-for-byte contract (`docs/DESIGN_PLATFORMS.md` section 7) and was not touched.
+
+**Capture** (`RunOptions::action_trace`, off by default so `cargo test` never reaches the live extension; `run` and the TUI turn it on). Per test: one `ensure_enabled` (the call every version 1 run makes), and, only if the test has a `transform`, the fixture event directory plus `ANCHOR_SAMPLES = 4` bracketed `SetLogging(true)` calls (what a fixture `spawn` makes). Per action: before it, the journal is read from the test's start second and the newest `+N ms` in it is kept as a floor; after it, the runner waits 250 ms, reads again and keeps the lines that name a **runner-owned window id**, are newer than the floor and are not `WINDOW_CREATED`/`ACTOR_MAP`/`REJECT_UNMATCHED`; for `transform` and `focus` it looks again (up to ten times, 100 ms apart) until `UNCLOAK_4D_REVEAL` / `ACTIVATE` is in. Lines of any other window, and lines without a window, are dropped before anything is stored, shown or written; the result's `log_slice` holds only the kept lines. Offsets are milliseconds from the first kept line of the action; with a clock anchor the lag from the action's start to that line is shown as "First line".
+
+**Differences from 5.2**: the setup fixture gets the event directory through `SetupSession::with_env` (not `FlashCapture::apply`); the action's own lines are selected by the floor above, not by converting the start with the anchor (the anchor is used for the reveal time and the "First line" lag); `detect_flash` receives the fixture's events from the action's start **plus the newest paint before it**, so a paint at the new size after the reveal reads as "content was 400x300" (a size change) rather than "nothing was painted"; the post-reveal watch is 1.5 s + 0.1 s as for spawn; the first transform of a test sets the result's flash fields, informational only (no spec opts in; `--strict-flash` does not apply to version 2).
+
+**Reasons** shown when there is no timeline (`TraceStatus::reason`): `not applicable: the extension logs nothing for this command`; `no extension on this backend (<backend>)`; `capture failed: <why>`; `no lines for this window in the slice`. None of them changes a verdict. Cloak and Budget show `n/a` for an action without a cloak phase.
+
+**Limits**: no pixels are captured. A clean flash result means no late paint or move was found in the runs made, on one machine and one compositor version, with the fixture and not a real app; it is not a guarantee. The `possible` bucket (a lead below one frame period) has a known noise level (`docs/TEST_COVERAGE_AUDIT.md` gap 10). Unverified on real GNOME: that a real run of the new capture produces the timelines the unit tests build from the owner's sample lines.
 
 ## 6. The TUI and reports
 
@@ -440,6 +466,8 @@ All `path:line` references in this file are checked by a script (`scratch/cite_d
 ## 11. Implementation status
 
 Implemented on branch `feat/runner-existing-window-setup`, 2026-10-15, as approved (owner decisions on section 9 below). The line citations of **this section** are checked against the current tree; those of sections 1 to 10 describe `main` at `ca11523`, before the implementation, and are checked against that commit (`git show ca11523:<path>`).
+
+Update 2026-10-16 (`feat/trace-existing-window`): section 5 is implemented (5.5). `runner/flash.rs` gained about 70 lines (`evaluate_action`, `env_pairs`) and `trace/flash.rs` one field, so the `runner/flash.rs` and `trace/flash.rs` line numbers cited in sections 5.1 to 5.4 are those of the code as designed; today `FlashCapture::apply` is `runner/flash.rs:77`, `read_events` `:114`, `wants_flash_capture` `:141`, `apply_flash_policy` `:153`, `run_flash_check` `:348`, `detect_flash` `trace/flash.rs:472`, `label_visibility` `:619`. Open question 11 (the journal check) is answered by the owner's sample.
 
 Update 2026-10-16 (`fix/tui-verdict-feedback`): the TUI no longer runs a test or the verdict teardown inside the key handler. `TuiApp::handle_key` queues a `Pending` step that the event loop runs after the next redraw (`tui/app/queue.rs`), so the "synchronously on the UI thread" sentences and the `queue.rs`/`tui/app/state.rs` line numbers in sections 1 to 6 describe the code as it was when the design was written. The focus memory (`remember_focus`) is now also used after the automatic part of a Both or Human test (`SetupSession::restore_focus`).
 
