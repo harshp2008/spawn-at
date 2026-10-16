@@ -67,26 +67,32 @@ pub enum ModalState {
     },
 }
 
-/// Computes fixed ordering rank for category grouping.
+/// Computes fixed ordering rank for category grouping. This is the one place the sidebar order
+/// is defined (`filtered_tests` sorts by it; spec file order and ids play no part).
+///
+/// Order and why: PREFLIGHT (is the binary the one under test); FOCUS (every attended spec
+/// needs focus to move and return, so it must work first); QUERIES (read-only, and the window
+/// list is what ownership checks and teardown rely on); ROBUSTNESS (close by id and bad ids: the
+/// safety paths, automatic, before anything attended); PLATFORM; then the attended groups
+/// together so the terminal loses focus in one stretch: PLACEMENT, CLOAK & DELAYED PAINT,
+/// TRANSFORMS; everything else (the hostile-app cells, shown as GENERAL) last as the riskiest.
 pub fn category_rank(cat_or_id: &str) -> usize {
-    if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
+    let s = cat_or_id;
+    if s.starts_with("preflight") || s == "basics" {
         0
-    } else if cat_or_id.starts_with("placement") || cat_or_id == "placement" {
+    } else if s.starts_with("focus") {
         1
-    } else if cat_or_id.starts_with("cloak") || cat_or_id == "animation-and-cloak" {
+    } else if s.starts_with("query") || s == "queries" {
         2
-    } else if cat_or_id.starts_with("transform") || cat_or_id == "transforms" {
+    } else if s.starts_with("robust") || s.starts_with("resilience") || s == "robustness" {
         3
-    } else if cat_or_id.starts_with("focus") {
+    } else if s.starts_with("platform") {
         4
-    } else if cat_or_id.starts_with("query") || cat_or_id == "queries" {
+    } else if s.starts_with("placement") {
         5
-    } else if cat_or_id.starts_with("robust")
-        || cat_or_id.starts_with("resilience")
-        || cat_or_id == "robustness"
-    {
+    } else if s.starts_with("cloak") || s == "animation-and-cloak" {
         6
-    } else if cat_or_id.starts_with("platform") {
+    } else if s.starts_with("transform") || s == "transforms" {
         7
     } else {
         8
