@@ -285,3 +285,50 @@ fn report_of(results: &[TestResult]) -> spawn_at_verify::report::SessionReport {
         false,
     )
 }
+
+/// One screen with both: the per-action trace of the selected test (details pane: cloak time and
+/// `Trace #0 ...`) and, in the Result box below it, the focus-return lines (the terminal recorded
+/// at start, each focus command's exit code and message, the window focused afterwards). The
+/// trace comes first (higher on screen), as the details pane sits above the Result box.
+#[test]
+fn test_screen_shows_the_trace_and_the_focus_return_lines_together() {
+    use spawn_at_verify::runner::focus_return::{FocusCommand, FocusReport, WindowRef};
+    let mut app = create_test_app();
+    app.fixture_exists = true;
+    let t = trace_of(TRANSFORM, "transform", "w", 3210662173);
+    let res = result_with(&app, vec![t], Some(FlashBasis::Client));
+    let test = app.selected_test().unwrap().clone();
+    app.results.insert(test.id.clone(), res);
+    let term = WindowRef {
+        id: 41,
+        class: "gnome-terminal".into(),
+        title: "term".into(),
+    };
+    app.focus_reports.insert(
+        test.id.clone(),
+        FocusReport {
+            recorded: Some(term.clone()),
+            sent: vec![FocusCommand {
+                exit_code: Some(0),
+                message: "ok".into(),
+            }],
+            focused_after: Some(term),
+            matches: true,
+            ..Default::default()
+        },
+    );
+    let mut terminal = Terminal::new(TestBackend::new(220, 60)).unwrap();
+    terminal.draw(|f| draw_ui(f, &app)).unwrap();
+    let text = dump_buffer_to_string(&terminal, 220, 60);
+    let row_of = |needle: &str| {
+        text.lines()
+            .position(|l| l.contains(needle))
+            .unwrap_or_else(|| panic!("no '{needle}' on screen:\n{text}"))
+    };
+    let trace = row_of("Cloak: 7.0 ms · Trace #0 transform on 'w': 16 event(s)");
+    let terminal_line = row_of("terminal: id 41 class 'gnome-terminal'");
+    let cmd = row_of("sent 1x: #1 exit 0 'ok'");
+    let after = row_of("afterwards: id 41");
+    assert!(trace < terminal_line && terminal_line <= cmd && cmd <= after);
+    assert!(text.contains("matches terminal: yes"), "{text}");
+}

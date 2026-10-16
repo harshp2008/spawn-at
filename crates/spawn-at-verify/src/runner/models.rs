@@ -354,6 +354,10 @@ pub struct RunOptions {
     /// Off by default so that a runner built in a test never touches the live extension (it turns
     /// the timing log on over D-Bus and reads the user journal); `run` and the TUI switch it on.
     pub action_trace: bool,
+    /// The caller returns focus to the window that had it after the automatic part of a test a
+    /// person judges, and records what it did (the TUI); the executor then skips its own
+    /// unrecorded return. Off by default.
+    pub caller_returns_focus: bool,
     /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
     /// empty by default, which adds nothing to the command line.
     pub wait: crate::trace::wait::WaitRequest,
@@ -378,6 +382,7 @@ impl Default for RunOptions {
             flash_threshold_ms: 0.0,
             wire_paint: true,
             action_trace: false,
+            caller_returns_focus: false,
             wait: Default::default(),
             interrupted: Default::default(),
         }
