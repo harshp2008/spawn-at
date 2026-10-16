@@ -2,16 +2,23 @@
 //!
 //! It fails when: a relative link, script, stylesheet or image points at a file that is not in
 //! the site; a `#fragment` names an id that its page does not have; a script, stylesheet, image,
-//! iframe or other resource would be fetched from another host; or a file names a known
-//! third-party font, CDN, analytics or playground host. Links to other sites in `<a href>` are
-//! counted and listed, not fetched: they are navigation, not requests the page makes by itself.
+//! iframe or other resource would be fetched from another host; a file names a known
+//! third-party font, CDN or analytics host; or a page has an element with the `playground` class.
+//! Links to other sites in `<a href>` are counted and listed, not fetched: they are navigation,
+//! not requests the page makes by itself.
+//!
+//! The `playground` rule exists because mdBook's own `book.js` contains the code that sends a
+//! code block to `play.rust-lang.org`. That code only runs when the user presses the Run button
+//! of an element with the `playground` class, which `[output.html.playground] runnable = false`
+//! stops mdBook from producing. So the host name is not searched for (it is always in the
+//! script); the condition that could make the request is.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
 
 /// Hosts that must not appear anywhere in the site's own files.
-const THIRD_PARTY: [&str; 9] = [
+const THIRD_PARTY: [&str; 8] = [
     "googleapis",
     "gstatic",
     "googletagmanager",
@@ -20,7 +27,6 @@ const THIRD_PARTY: [&str; 9] = [
     "jsdelivr",
     "unpkg.com",
     "plausible.io",
-    "play.rust-lang.org",
 ];
 
 /// One start tag with its attributes (names lower-cased, values with the common entities decoded).
@@ -326,6 +332,15 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
             .any(|p| rel_s.starts_with(p.as_str()));
 
         for tag in scan_tags(&text) {
+            if tag
+                .attr("class")
+                .is_some_and(|c| c.split_whitespace().any(|t| t == "playground"))
+            {
+                problems.push(format!(
+                    "{rel_s}: <{}> has the `playground` class (its Run button sends code to play.rust-lang.org)",
+                    tag.name
+                ));
+            }
             let (attr, is_resource) = match tag.name.as_str() {
                 "a" | "area" => ("href", false),
                 "link" => ("href", true),
@@ -572,6 +587,22 @@ mod tests {
         );
         assert!(problems.contains("googleapis"), "{problems}");
         assert!(!problems.contains("ok.example"), "{problems}");
+    }
+
+    /// An element with the `playground` class fails the check; a class that merely contains the
+    /// word (`playground-note`) does not.
+    #[test]
+    fn test_playground_class_is_flagged() {
+        let dir = site(
+            &[(
+                "index.html",
+                "<pre class=\"playground\"><code>x</code></pre><p class=\"playground-note\">ok</p>",
+            )],
+            "playground",
+        );
+        let problems = check_site(&dir, &opts()).unwrap().problems;
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("`playground` class"), "{problems:?}");
     }
 
     /// Fragments under a lenient directory are not verified; file existence still is.
