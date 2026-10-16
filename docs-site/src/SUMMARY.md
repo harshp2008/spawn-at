@@ -2,6 +2,29 @@
 
 [Introduction](introduction.md)
 
+# Using spawn-at
+
+- [Install](install.md)
+- [Quick start](quick-start.md)
+- [Concepts](concepts.md)
+- [Commands](commands/index.md)
+  - [spawn](commands/spawn.md)
+  - [transform](commands/transform.md)
+  - [Focus and window state](commands/window-state.md)
+  - [query](commands/query.md)
+  - [install, uninstall, update](commands/manage.md)
+- [Configuration](configuration.md)
+
+# Where it works
+
+- [Environments](environments/index.md)
+  - [GNOME on Wayland](environments/gnome-wayland.md)
+  - [Sway (experimental)](environments/sway.md)
+  - [X11 and XWayland](environments/x11-xwayland.md)
+  - [Unsupported desktops](environments/unsupported-desktops.md)
+- [Known shortcomings](shortcomings.md)
+- [Findings](findings.md)
+
 # Reference
 
 - [CLI reference](reference/index.md)
@@ -28,3 +51,10 @@
       - [spawn-at config unset](reference/spawn-at-config-unset.md)
       - [spawn-at config path](reference/spawn-at-config-path.md)
       - [spawn-at config reset](reference/spawn-at-config-reset.md)
+- [API documentation (rustdoc)](api.md)
+
+# Developing
+
+- [Testing and the verify tool](testing.md)
+- [Architecture and contributing](contributing.md)
+- [Changelog](changelog.md)

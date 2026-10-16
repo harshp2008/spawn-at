@@ -19,7 +19,7 @@ Things that `--help` does not show, found by running the binary:
 - `spawn` and `config` accept hidden wait flags that the help does not list. They are not
   documented here.
 
-For what each command is for, see the Commands chapter.
+For what each command is for, see [Commands](../commands/index.md).
 
 ## Sources
 
