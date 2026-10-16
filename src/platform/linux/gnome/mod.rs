@@ -39,15 +39,15 @@
 //!   - [`GnomeInstallArgs`]: Flags controlling extension enablement, X11 reload, and Wayland logout during install.
 //!   - [`GnomeUninstallArgs`]: Flags controlling file cleanup, X11 reload, and Wayland logout during uninstall.
 //! - **2. Session & Desktop Detection**
-//!   - [`is_wayland_session`]: Detects whether current desktop is running on Wayland via `loginctl`.
+//!   - `detect::is_wayland_session`: Detects whether current desktop is running on Wayland via `loginctl`.
 //! - **3. Execution & Reload Helpers**
-//!   - [`restart_gnome_shell_x11`]: Simulates `Alt+F2` -> `r` -> `Enter` via `xdotool` on X11.
+//!   - `deploy::restart_gnome_shell_x11`: Simulates `Alt+F2` -> `r` -> `Enter` via `xdotool` on X11.
 //! - **4. Driver Construction & Internal State**
 //!   - [`GnomeWaylandDriver`]: Core driver managing D-Bus communication with the GNOME extension.
 //! - **5. Pre-Map Arming Driver Trait**
-//!   - [`Driver`]: Pre-registers window targets and provides launch environment variables.
+//!   - [`Driver`](spawn_at_core::Driver): Pre-registers window targets and provides launch environment variables.
 //! - **6. Runtime Compositor Backend Trait**
-//!   - [`CompositorBackend`]: Implements `install`, `uninstall`, window transformations, state queries, and daemon mode.
+//!   - [`CompositorBackend`](crate::platform::CompositorBackend): Implements `install`, `uninstall`, window transformations, state queries, and daemon mode.
 //! - **7. Unit Tests**
 //!   - Test suite verifying argument defaults, `--no-action` overrides, flag toggles, and session queries.
 //!

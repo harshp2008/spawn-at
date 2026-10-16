@@ -56,7 +56,7 @@ const ECHO_POLL_INTERVAL: Duration = Duration::from_millis(20);
 /// Longest echo wait once an earlier wait has timed out; stops at the first match.
 const REMEMBERED_ECHO_TIMEOUT: Duration = Duration::from_millis(150);
 
-/// Polls `log` for [`ENABLE_ECHO`] in the slice starting at `since`, immediately and then every
+/// Polls `log` for `ENABLE_ECHO` in the slice starting at `since`, immediately and then every
 /// `interval`, and stops at the first match. No poll starts once `timeout` has elapsed, so the
 /// wait is at most `timeout` plus one in-flight `capture_slice` call.
 pub fn wait_for_echo(
@@ -183,8 +183,8 @@ impl Default for GdbusLogging {
 
 impl LoggingControl for GdbusLogging {
     /// Calls `SetLogging(true)`. With the "noop" log source it stops there, because nothing can
-    /// echo into it. Otherwise it waits up to the timeout for [`ENABLE_ECHO`] (see
-    /// [`wait_for_echo`]), or waits only [`REMEMBERED_ECHO_TIMEOUT`] once an earlier wait has timed out.
+    /// echo into it. Otherwise it waits up to the timeout for `ENABLE_ECHO` (see
+    /// [`wait_for_echo`]), or waits only `REMEMBERED_ECHO_TIMEOUT` once an earlier wait has timed out.
     fn ensure_enabled(&self, log: &dyn LogSource) -> LoggingOutcome {
         let since = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
