@@ -1,0 +1,107 @@
+name: Docs
+
+# Builds the documentation site (the mdBook user guide at the root, the rustdoc API under /api/)
+# on every pull request, and deploys it to GitHub Pages on a push to main. Separate from ci.yml
+# so the required `check` and `check-other-os` jobs keep their names.
+#
+# The site is served from https://harshp2008.github.io/spawn-at/ . Until the owner enables Pages
+# (Settings, Pages, Source: GitHub Actions) the deploy job is skipped and the build still runs.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # mdBook is downloaded as a release archive and checked against this SHA-256 before it runs.
+  # The digest is the one GitHub shows for the asset, and matches a download made on 2026-10-16.
+  MDBOOK_VERSION: v0.5.4
+  MDBOOK_SHA256: 3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7
+
+jobs:
+  docs:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+
+      - name: Install mdBook (release archive, checksum checked)
+        run: |
+          set -euo pipefail
+          archive="mdbook-${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          download="$RUNNER_TEMP/mdbook-download"
+          bin="$RUNNER_TEMP/mdbook-bin"
+          mkdir -p "$download" "$bin"
+          curl -fsSL --retry 3 -o "$download/$archive" \
+            "https://github.com/rust-lang/mdBook/releases/download/${MDBOOK_VERSION}/${archive}"
+          echo "${MDBOOK_SHA256}  $download/$archive" | sha256sum --check -
+          tar -xzf "$download/$archive" -C "$bin"
+          echo "$bin" >> "$GITHUB_PATH"
+          "$bin/mdbook" --version
+
+      # Builds the spawn-at binary, writes the CLI reference from its --help (a missing binary or
+      # a command without a page fails), checks the book source, runs mdbook build (a warning
+      # fails), runs cargo doc with warnings as errors, joins the two under one directory and
+      # checks it for broken links, missing ids and third-party requests. No network access is
+      # used by the checks. rustdoc runs with one lint allowed, rustdoc::invalid_html_tags: see
+      # RUSTDOC_FLAGS in crates/xtask/src/docs_site.rs.
+      - name: Build and check the site
+        run: cargo xtask docs-site
+
+      - name: Upload the site
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: target/docs-site/site
+
+  # Reads whether the owner has enabled Pages with the "GitHub Actions" source. It only reads,
+  # and it exists so that the deploy job (and its `github-pages` environment) is not touched
+  # while Pages is off.
+  pages-status:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: read
+    outputs:
+      enabled: ${{ steps.status.outputs.enabled }}
+    steps:
+      - id: status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if build_type="$(gh api "repos/${GITHUB_REPOSITORY}/pages" --jq .build_type 2>/dev/null)" \
+             && [ "$build_type" = "workflow" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+            echo "Pages is enabled with the GitHub Actions source: the site will be deployed."
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=Pages is not enabled::The site was built but not deployed. Enable it in Settings, Pages, Source: GitHub Actions."
+          fi
+
+  deploy:
+    needs: [docs, pages-status]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.pages-status.outputs.enabled == 'true'
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
