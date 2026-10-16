@@ -595,11 +595,11 @@ All of them fire at the shell-side resize, not at the client's paint. The client
 
 ## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; removed)
 
-Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is not part of this repository (it lives only in the author's local archive).
+Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`; an unpushed local branch `archive/x11-experiments` points at that commit).
 
 ## 14. Experiments: resize before the map, and a pixel probe (2026-10-14; removed)
 
-Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is not part of this repository (it lives only in the author's local archive). The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
+Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`; an unpushed local branch `archive/x11-experiments` points at that commit). The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
 
 ## 15. Future direction (post-beta)
 
@@ -623,5 +623,5 @@ This is a direction, not a plan or a promise. Nothing here is implemented, and *
 3. **Launch args per app** (a per-class table of arguments added to the command line). It is ahead of the shim: it changes no process internals and needs no injected code.
 4. The GTK4-on-X11 counter as an experimental, opt-in signal.
 5. The opt-in geometry shim, only if 1 to 4 leave a gap that matters, and with the security and compatibility concerns of TEST_PLAN 6.35 settled first.
-6. **CI on pull requests** (`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, tests). Today only `release.yml` exists, it runs on tag pushes, and its `cargo test` covers the root package only.
-7. **Fix the `python3 -c` fallback in `install.sh`** (the JSON parsing for the release lookup), which conflicts with the no-Python rule for committed tooling.
+6. **CI on pull requests** (`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings`, tests). Done since this section was written: `.github/workflows/ci.yml` exists and runs these on pull requests (with `--workspace` and `--locked`).
+7. **Fix the `python3 -c` fallback in `install.sh`**. Done since this section was written: `install.sh` has no `python` in it (`grep -c python install.sh` prints 0).

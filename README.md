@@ -156,7 +156,7 @@ Measured on one machine (GNOME 46, Wayland, one monitor, the project's own test 
 - **XWayland, X11 and GNOME 42-44 still use the old rule**, and flash. Only the test window has been tried there, not real X11 apps.
 - **An app already at its minimum size** (so it cannot answer a resize) makes the ready-wait run for the full `wait.cap_ms` (about +230 ms in our test). The same goes for an app that never answers (a hung one).
 
-The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 and 6.23).
+The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (the measurements are in [docs/TEST_LOG.md](docs/TEST_LOG.md) sections 6.23 and 6.30; the plan only links there).
 
 ## Settings
 
@@ -208,7 +208,7 @@ On an untested GNOME version the installer prints this before it installs anythi
 
 ## Sway (experimental)
 
-An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error (it no longer falls back to X11 silently; `SPAWN_AT_BACKEND=x11` opts in to that). Nothing needs installing; `spawn-at install` has nothing to do for it.
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error on `main` and in the next release after v0.2.0-beta.4 (in v0.2.0-beta.4 and earlier it falls back to the X11 driver without a message; `SPAWN_AT_BACKEND=x11` opts in to that on `main`). Nothing needs installing; `spawn-at install` has nothing to do for it.
 
 ```bash
 # inside a Sway session ($SWAYSOCK is set by Sway)
@@ -223,7 +223,7 @@ What works: `spawn` with anchors, margins, `--size` and `--monitor <index>` (the
 
 What is different or missing:
 - **It can flash.** Sway has no way to keep a new window invisible until it is placed, so the window may show for one frame at its tiled position first. That has not been measured.
-- Not supported: `--anchor cursor` and `--monitor cursor` (Sway has no pointer query), maximize, minimize and defocus. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
+- `--anchor cursor` and `--monitor cursor` do not work: Sway has no pointer query, so `spawn` places the window as if the pointer were at (0, 0) and does not report an error (`src/commands/spawn.rs`). `query pointer`, `maximize`, `minimize`, `restore` and `defocus` are not supported and exit 1 with a "does not support this feature" error. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
 - A window is matched to the launched process by pid, then by parent process, then by app id. If none shows up within 5 seconds spawn-at warns that the application was started but not placed, and moves nothing else.
 - i3 is not supported.
 
