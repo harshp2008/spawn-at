@@ -1,17 +1,19 @@
-//! `docs-check-html`: checks the assembled site (book plus `api/`) without any network access.
+//! `docs-check-html`: checks the assembled site (Astro output plus `api/`) without any network
+//! access.
 //!
 //! It fails when: a relative link, script, stylesheet or image points at a file that is not in
 //! the site; a `#fragment` names an id that its page does not have; a script, stylesheet, image,
 //! iframe or other resource would be fetched from another host; a file names a known
-//! third-party font, CDN or analytics host; or a page has an element with the `playground` class.
+//! third-party font, CDN or analytics host; a page has an element with the `playground` class;
+//! or the text of a page has an en or em dash glued to the front of a word (`–id`), which is what
+//! smart punctuation makes of a flag such as `--id`.
 //! Links to other sites in `<a href>` are counted and listed, not fetched: they are navigation,
 //! not requests the page makes by itself.
 //!
-//! The `playground` rule exists because mdBook's own `book.js` contains the code that sends a
-//! code block to `play.rust-lang.org`. That code only runs when the user presses the Run button
-//! of an element with the `playground` class, which `[output.html.playground] runnable = false`
-//! stops mdBook from producing. So the host name is not searched for (it is always in the
-//! script); the condition that could make the request is.
+//! The `playground` rule comes from the mdBook site this one replaces, whose `book.js` could send
+//! a code block to `play.rust-lang.org` when the user pressed the Run button of an element with
+//! the `playground` class. Starlight has no such element; the rule stays as a guard, because the
+//! condition that could make that request is cheap to test for.
 
 use std::collections::{HashMap, HashSet};
 use std::fs;
@@ -157,6 +159,63 @@ pub fn scan_tags(html: &str) -> Vec<Tag> {
         tags.push(Tag { name, attrs });
     }
     tags
+}
+
+/// The text of an HTML page: tags and comments are dropped (each tag leaves one newline, so text
+/// on either side of it is separate) and so are the bodies of `<script>` and `<style>`.
+pub fn visible_text(html: &str) -> String {
+    let lower = html.to_ascii_lowercase();
+    let b = html.as_bytes();
+    let mut out = String::new();
+    let mut i = 0;
+    while i < b.len() {
+        if b[i] != b'<' {
+            let ch = html[i..].chars().next().unwrap_or(' ');
+            out.push(ch);
+            i += ch.len_utf8();
+            continue;
+        }
+        if html[i..].starts_with("<!--") {
+            i = html[i..].find("-->").map_or(b.len(), |e| i + e + 3);
+            out.push('\n');
+            continue;
+        }
+        let raw_text_end = ["script", "style"].iter().find_map(|name| {
+            let opens = lower[i + 1..].starts_with(name)
+                && lower
+                    .as_bytes()
+                    .get(i + 1 + name.len())
+                    .is_some_and(|c| !c.is_ascii_alphanumeric());
+            opens.then(|| format!("</{name}"))
+        });
+        if let Some(close) = raw_text_end {
+            i = lower[i..].find(&close).map_or(b.len(), |e| i + e);
+        }
+        i = html[i..].find('>').map_or(b.len(), |e| i + e + 1);
+        out.push('\n');
+    }
+    out
+}
+
+/// En or em dashes that start a word in `html`'s text: preceded by whitespace (or a tag, or the
+/// start) and followed by a letter, like `–id` or `—anchor`. Smart punctuation turns the `--` of
+/// `--id` into an en dash, and writing prose does not produce this shape. Each hit is returned
+/// with a few characters of context.
+pub fn glued_dashes(html: &str) -> Vec<String> {
+    let text: Vec<char> = visible_text(html).chars().collect();
+    let mut hits = Vec::new();
+    for (i, &c) in text.iter().enumerate() {
+        let starts_word = i == 0 || text[i - 1].is_whitespace();
+        if (c == '\u{2013}' || c == '\u{2014}')
+            && starts_word
+            && text.get(i + 1).is_some_and(|n| n.is_alphabetic())
+        {
+            let end = (i + 12).min(text.len());
+            let snippet: String = text[i..end].iter().collect();
+            hits.push(snippet.replace('\n', " ").trim_end().to_string());
+        }
+    }
+    hits
 }
 
 /// Where a reference points.
@@ -332,6 +391,15 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
             continue;
         }
         html_files += 1;
+
+        if !generated {
+            for hit in glued_dashes(&text) {
+                problems.push(format!(
+                    "{rel_s}: the text has `{hit}`, a dash glued to a word: smart punctuation \
+                     rewrote a flag such as `--id` (set markdown.smartypants to false)"
+                ));
+            }
+        }
 
         for tag in scan_tags(&text) {
             if tag
@@ -603,6 +671,49 @@ mod tests {
         let problems = check_site(&dir, &opts()).unwrap().problems;
         assert_eq!(problems.len(), 1, "{problems:?}");
         assert!(problems[0].contains("`playground` class"), "{problems:?}");
+    }
+
+    /// Tags, comments and the bodies of `<script>` and `<style>` are not text; each tag keeps
+    /// the text on its two sides apart.
+    #[test]
+    fn test_visible_text_drops_tags_comments_and_scripts() {
+        let html = "<p>a<b>b</b></p><!-- –x --><script>var s = '–y';</script><style>i{}</style><code>c</code>";
+        assert_eq!(visible_text(html), "\na\nb\n\n\n\n\n\nc\n");
+    }
+
+    /// `–id` (what smart punctuation makes of `--id`) is found in prose and right after a tag; a
+    /// dash between spaces, a dash glued to the word before it, a range such as `10–20`, and a
+    /// dash in a script are not.
+    #[test]
+    fn test_glued_dashes() {
+        assert_eq!(glued_dashes("<p>use –id for it</p>"), vec!["–id for it"]);
+        assert_eq!(glued_dashes("<code>—anchor</code>"), vec!["—anchor"]);
+        assert!(glued_dashes("<p>a – b, c— d, 10–20, a–b</p>").is_empty());
+        assert!(glued_dashes("<script>x = '–id';</script><p>--id</p>").is_empty());
+    }
+
+    /// The check reports a rewritten flag on a hand-written page, and does not look at pages
+    /// under the generated directory.
+    #[test]
+    fn test_check_site_flags_rewritten_flag_outside_generated_dir() {
+        let dir = site(
+            &[
+                ("index.html", "<p>pass <code>–id 4</code></p>"),
+                ("api/a.html", "<p>–id</p>"),
+            ],
+            "dash",
+        );
+        let o = Options {
+            prefix: "/spawn-at/".into(),
+            generated: vec!["api/".into()],
+        };
+        let problems = check_site(&dir, &o).unwrap().problems;
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(
+            problems[0].starts_with("index.html: the text has `–id 4`,")
+                && problems[0].contains("smartypants"),
+            "{problems:?}"
+        );
     }
 
     /// Under a generated directory a broken `<a>` link is not reported (rustdoc leaves some into

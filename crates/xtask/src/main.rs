@@ -29,9 +29,9 @@ fn main() {
             eprintln!("  check-comment-only <git-rev> [path]");
             eprintln!("  check-doc-coverage [path...]");
             eprintln!("  burn-cpu --threads N --seconds S");
-            eprintln!("  docs-site [--mdbook P] [--bin P] [--out DIR]");
-            eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--summary FILE]");
-            eprintln!("  docs-check-src [DIR]");
+            eprintln!("  docs-site [--bin P] [--out DIR] [--clean-install]");
+            eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--config FILE]");
+            eprintln!("  docs-check-src [DOCS_DIR] [--config FILE]");
             eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             exit(1);
         }
