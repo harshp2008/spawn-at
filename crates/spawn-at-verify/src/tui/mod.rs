@@ -1,6 +1,7 @@
 //! Terminal User Interface (TUI) Module for spawn-at-verify.
 
 pub mod app;
+pub mod events;
 pub mod logging;
 pub mod render;
 pub mod views;
@@ -12,7 +13,6 @@ use crate::runner::RunOptions;
 use clap::Args;
 use crossterm::{
     cursor::{Hide, Show},
-    event::{self, Event},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -119,6 +119,7 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
     };
 
     // 5. Main event loop
+    let mut accel = events::Accel::default();
     loop {
         if term_flag.load(Ordering::Relaxed) || app.should_quit {
             break;
@@ -140,12 +141,10 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
             continue;
         }
 
-        if event::poll(Duration::from_millis(50)).map_err(|e| e.to_string())? {
-            if let Event::Key(key) = event::read().map_err(|e| e.to_string())? {
-                // Ctrl+C in raw mode is dispatched through handle_key
-                app.handle_key(key);
-            }
-        }
+        // Everything already pending is taken in one go and applied in order (Ctrl+C in raw
+        // mode is dispatched through handle_key), then the loop draws once: see `events`.
+        let frame = events::read_frame(&mut events::TerminalEvents, Duration::from_millis(50))?;
+        events::apply_events(&mut app, frame, &mut accel, std::time::Instant::now());
     }
 
     // 6. Unified Teardown: identical for Ctrl+C, quit, and signals
