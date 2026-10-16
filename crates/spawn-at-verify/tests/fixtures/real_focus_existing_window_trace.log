@@ -1,0 +1,2 @@
+[spawn-at-time] +2267771.29ms | RAISE win=[id=3210662165 pid=48203 class="verify.owned.a" app="" type=NORMAL proto=Wayland] opacity=242 frame=(100,140,400x300)
+[spawn-at-time] +2267771.38ms | ACTIVATE win=[id=3210662165 pid=48203 class="verify.owned.a" app="" type=NORMAL proto=Wayland] opacity=242 frame=(100,140,400x300)

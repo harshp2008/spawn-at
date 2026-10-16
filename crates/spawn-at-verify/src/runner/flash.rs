@@ -75,10 +75,25 @@ impl FlashCapture {
 
     /// Makes the spawned command (and the fixture it starts) write its events into this run's directory.
     pub fn apply(&self, cmd: &mut Command) {
-        cmd.env(EVENT_DIR_ENV, &self.dir);
-        if self.wire {
-            cmd.env(TRACE_DIR_ENV, &self.dir);
+        for (k, v) in self.env_pairs() {
+            cmd.env(k, v);
         }
+    }
+
+    /// The environment variables [`FlashCapture::apply`] sets, for a launcher that builds its own
+    /// command (a version 2 setup starts the fixture itself).
+    pub fn env_pairs(&self) -> Vec<(&'static str, String)> {
+        let dir = self.dir.to_string_lossy().into_owned();
+        let mut out = vec![(EVENT_DIR_ENV, dir.clone())];
+        if self.wire {
+            out.push((TRACE_DIR_ENV, dir));
+        }
+        out
+    }
+
+    /// Whether the fixture also writes the protocol dump into this run's directory.
+    pub fn wire_enabled(&self) -> bool {
+        self.wire
     }
 
     /// The text of the fixture's trace file `fixture-<pid>.log` (its own lines and the protocol
@@ -219,8 +234,75 @@ pub fn evaluate(
     let events = window_events(slice, window);
     let client = parse_client_events(client_text);
     let wire = wire_text.map(parse_wire_paints).unwrap_or_default();
+    evaluate_parsed(
+        &events,
+        slice,
+        &client,
+        &wire,
+        wire_text.is_some(),
+        brackets,
+        params,
+    )
+}
+
+/// Flash check of one `transform` action of a version 2 test, on the fixture's events from that
+/// action only. `trace_events` are the target's events of the action; `echo_slice` is any slice
+/// that holds the `SET_LOGGING` echoes of the anchor calls (the events themselves carry no echo).
+///
+/// Only paint events from `since_ns` on (the monotonic time the action started) count, plus the
+/// newest paint before it: the content that was on screen when the action began, which a paint at
+/// the new size after the reveal is then read against (a size change, not a "first paint"). A paint
+/// before the action cannot make a flash by itself, because it comes before the reveal.
+pub fn evaluate_action(
+    trace_events: &[TraceEvent],
+    echo_slice: &str,
+    client_text: &str,
+    wire_text: Option<&str>,
+    brackets: &[MonoBracket],
+    since_ns: u64,
+    params: FlashParams,
+) -> FlashInfo {
+    use crate::trace::flash::{ClientEvent, ClientEventKind};
+    let is_paint = |e: &ClientEvent| matches!(e.kind, ClientEventKind::FirstPaint { .. });
+    let mut client = parse_client_events(client_text);
+    let last_old_paint = client
+        .iter()
+        .rev()
+        .find(|e| e.t_ns < since_ns && is_paint(e))
+        .copied();
+    client.retain(|e| e.t_ns >= since_ns);
+    if let Some(p) = last_old_paint {
+        client.insert(0, p);
+    }
+    let mut wire = wire_text.map(parse_wire_paints).unwrap_or_default();
+    let last_old_wire = wire.iter().rev().find(|p| p.t_ns < since_ns).copied();
+    wire.retain(|p| p.t_ns >= since_ns);
+    if let Some(p) = last_old_wire {
+        wire.insert(0, p);
+    }
+    evaluate_parsed(
+        trace_events,
+        echo_slice,
+        &client,
+        &wire,
+        wire_text.is_some(),
+        brackets,
+        params,
+    )
+}
+
+/// The shared tail of [`evaluate`] and [`evaluate_action`]: anchor, notes and [`detect_flash`].
+fn evaluate_parsed(
+    events: &[TraceEvent],
+    slice: &str,
+    client: &[crate::trace::flash::ClientEvent],
+    wire: &[crate::trace::wire::WirePaint],
+    wire_asked: bool,
+    brackets: &[MonoBracket],
+    params: FlashParams,
+) -> FlashInfo {
     let mut notes = Vec::new();
-    if wire_text.is_some() && wire.is_empty() {
+    if wire_asked && wire.is_empty() {
         notes.push(
             "no wire paint times (the protocol dump has no commit or no TRACE_START): \
              paint times are the fixture's stamps"
@@ -239,9 +321,9 @@ pub fn evaluate(
         }
     };
     let mut info = detect_flash(&FlashInputs {
-        trace_events: &events,
-        client_events: &client,
-        wire_paints: &wire,
+        trace_events: events,
+        client_events: client,
+        wire_paints: wire,
         anchor: anchor.as_ref(),
         params,
     });

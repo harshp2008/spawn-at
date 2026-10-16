@@ -1,5 +1,6 @@
 //! Trace log event parser, lifecycle state machine, and budget checks.
 
+pub mod action;
 pub mod analyser;
 pub mod flash;
 pub mod models;

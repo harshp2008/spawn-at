@@ -4,11 +4,8 @@ use super::timeline_format::parse_compact_timeline;
 use crate::runner::TestResult;
 use crate::schema::TestDefinition;
 use crate::tui::views::builder::DrawerBuilder;
-use crate::tui::views::constants::{DRAWER_INDENT, DRAWER_RIGHT_PAD};
-use crate::tui::views::wrapping::wrap_value_tokens;
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
-use unicode_width::UnicodeWidthStr;
 
 /// Renders the TIMELINE section showing lifecycle events and timing deltas.
 pub fn render_timeline_section(
@@ -39,6 +36,13 @@ pub fn render_timeline_section(
         (Some(id), None) => Some(format!("window {}", id)),
         _ => None,
     };
+    // A version 2 result has one timeline per action, already limited to runner-owned windows.
+    if let Some(r) = res_opt.filter(|r| !r.flash_info.action_traces.is_empty()) {
+        let extra = super::action_trace_rows::timeline_heading_extra(r);
+        builder.push_heading("TIMELINE", extra.as_deref());
+        super::action_trace_rows::push_action_timelines(builder, r, compact);
+        return;
+    }
     builder.push_heading("TIMELINE", timeline_extra.as_deref());
 
     if compact {
@@ -55,89 +59,7 @@ pub fn render_timeline_section(
                 "no trace captured",
             );
         } else {
-            let max_a = trace_events
-                .iter()
-                .map(|e| format!("+{:.1} ms", e.dt_ms).width())
-                .max()
-                .unwrap_or(9)
-                .max(9);
-
-            let col_b_x = DRAWER_INDENT + max_a + 2;
-            let detail_indent = col_b_x + 2;
-
-            // Detail labels share the drawer-wide label column width.
-            for (lbl, _) in trace_events.iter().flat_map(|e| e.details.iter()) {
-                builder.note_label(lbl);
-            }
-            let label_col_w = builder.label_w;
-            let detail_val_x = detail_indent + label_col_w;
-            let detail_content_w = builder
-                .inner_width
-                .saturating_sub(detail_val_x + DRAWER_RIGHT_PAD);
-            let event_count = trace_events.len();
-
-            for (ev_idx, ev) in trace_events.iter().enumerate() {
-                let dt_str = format!("+{:.1} ms", ev.dt_ms);
-                let is_bold = matches!(
-                    ev.tag.as_str(),
-                    "CLOAK" | "UNCLOAK" | "COMMIT_RESOLVED" | "ACTOR_MAP" | "FALLBACK_USED"
-                );
-
-                let ev_style = if is_bold {
-                    Style::default()
-                        .fg(Color::Rgb(200, 200, 200))
-                        .add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(Color::Rgb(200, 200, 200))
-                };
-
-                let dt_pad = format!("{:>width$}", dt_str, width = max_a);
-                let indent_str = " ".repeat(DRAWER_INDENT);
-                let plain = format!("{}{}  {}", indent_str, dt_pad, ev.tag);
-                let line = Line::from(vec![
-                    Span::raw(indent_str),
-                    Span::styled(dt_pad, Style::default().fg(Color::DarkGray)),
-                    Span::raw("  "),
-                    Span::styled(ev.tag.clone(), ev_style),
-                ]);
-                builder.push(line, plain);
-
-                let indent_detail_str = " ".repeat(detail_indent);
-                for (lbl, val) in &ev.details {
-                    let lbl_fmt = builder.format_label(lbl);
-                    let val_lines = wrap_value_tokens(val, detail_content_w);
-                    for (line_idx, val_line) in val_lines.into_iter().enumerate() {
-                        if line_idx == 0 {
-                            let det_plain = format!("{}{}{}", indent_detail_str, lbl_fmt, val_line);
-                            let det_line = Line::from(vec![
-                                Span::raw(indent_detail_str.clone()),
-                                Span::styled(lbl_fmt.clone(), Style::default().fg(Color::DarkGray)),
-                                Span::styled(
-                                    val_line,
-                                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                                ),
-                            ]);
-                            builder.push(det_line, det_plain);
-                        } else {
-                            let indent_cont = " ".repeat(detail_val_x);
-                            let det_plain = format!("{}{}", indent_cont, val_line);
-                            let det_line = Line::from(vec![
-                                Span::raw(indent_cont),
-                                Span::styled(
-                                    val_line,
-                                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                                ),
-                            ]);
-                            builder.push(det_line, det_plain);
-                        }
-                    }
-                }
-
-                // Exactly 1 blank row between consecutive events in compact view
-                if ev_idx + 1 < event_count {
-                    builder.push_blank();
-                }
-            }
+            super::timeline_blocks::push_event_blocks(builder, &trace_events);
         }
     } else {
         // Raw view

@@ -1,5 +1,7 @@
 //! Common test harness helpers and submodule declarations for TUI test suite.
 
+pub mod action_trace_display;
+pub mod action_trace_render;
 pub mod app_flow;
 pub mod category_counts;
 pub mod drawer_content;
@@ -7,6 +9,7 @@ pub mod drawer_geometry;
 pub mod drawer_keys_clipboard;
 pub mod drawer_labels;
 pub mod drawer_order;
+pub mod drawer_scroll;
 pub mod drawer_trace;
 pub mod drawer_workarea;
 pub mod flash;

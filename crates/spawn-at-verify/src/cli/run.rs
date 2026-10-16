@@ -112,6 +112,7 @@ pub fn handle_run(args: RunArgs) {
             strict_flash: args.strict_flash,
             flash_threshold_ms: args.flash_threshold_ms,
             wire_paint: !args.no_wire_paint,
+            action_trace: true,
             wait,
             ..Default::default()
         },

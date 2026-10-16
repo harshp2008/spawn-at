@@ -1,0 +1,9 @@
+ ── TIMELINE ── window 3210662165 · pid 48203 ───────────────────────────────────────────────────
+                offsets count from the first line of each action
+    +0.0 ms  RAISE
+               opacity       242
+               frame         100,140 400×300
+
+    +0.1 ms  ACTIVATE
+               opacity       242
+               frame         100,140 400×300

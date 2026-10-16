@@ -64,6 +64,8 @@ Verification engine, automated test harness, and interactive qualification TUI f
   - `src/runner/engine.rs`: TestRunner orchestrator and test suite run loop.
   - `src/runner/executor.rs`: Single test case execution, process management, and log slicing.
   - `src/runner/executor_v2.rs`: Execution of a version 2 test: setup, actions, checks, teardown.
+  - `src/runner/action_trace.rs`: Capture of the extension's trace around each action of a version 2 test (journal floor, owned-window filter, settle and poll) and the transform flash check; off unless `RunOptions::action_trace`.
+  - `src/trace/action.rs`: What the extension logs per command, the owned-window filter, the per-action timeline and the exact reasons shown when there is none.
   - `src/runner/focus_return.rs`: Returning focus to the recorded terminal (settle, retries, checked) and the `FocusReport` the Result box shows.
   - `src/runner/owned.rs`: `SetupSession`: the fixture processes and windows a test launched itself, owned through their `Child` handles and torn down on every path; the `Control` and `ActionRunner` seams.
   - `src/runner/models.rs`: Execution status models, human verdicts, and options.
@@ -125,6 +127,7 @@ Verification engine, automated test harness, and interactive qualification TUI f
     - `tests/tui/golden_invariants.rs`: Golden file comparisons and text grid invariants.
     - `tests/tui/layout_responsive.rs`: Responsive width breakpoints and small height layouts.
     - `tests/tui/polish.rs`: UI spacing, padding, and outcome symbols polish specifications.
+    - `tests/tui/action_trace_display.rs`: The per-action trace in the drawer rows, TIMELINE, Result panel and markdown/JSON report, every reason, `n/a` rows, from the owner's real journal lines.
     - `tests/tui/sidebar_order.rs`: The sidebar category order built from the real catalog.
     - `tests/tui/focus_chain_sway.rs`: (ignored) the whole focus chain on a private headless Sway, run by `scripts/focus-chain-sway.sh`.
     - `tests/tui/verdict_feedback.rs`: Verdict keys in the next frame, teardown warnings, Esc and `r`, the selected-row marker in every state, focus return and its guard, with stand-in scripts.

@@ -22,22 +22,22 @@ impl TuiApp {
                         self.close_modal();
                     }
                     KeyCode::Down | KeyCode::Char('j') => {
-                        self.detail_scroll = self.detail_scroll.saturating_add(1);
+                        self.scroll_down(1);
                     }
                     KeyCode::Up | KeyCode::Char('k') => {
-                        self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                        self.scroll_up(1);
                     }
                     KeyCode::PageDown => {
-                        self.detail_scroll = self.detail_scroll.saturating_add(8);
+                        self.scroll_down(8);
                     }
                     KeyCode::PageUp => {
-                        self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                        self.scroll_up(8);
                     }
                     KeyCode::Home | KeyCode::Char('g') => {
                         self.detail_scroll = 0;
                     }
                     KeyCode::Char('G') => {
-                        self.detail_scroll = u16::MAX;
+                        self.scroll_to_end();
                     }
                     _ => {}
                 }
@@ -90,22 +90,22 @@ impl TuiApp {
                     self.should_quit = true;
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                    self.scroll_down(1);
                 }
                 KeyCode::Up | KeyCode::Char('k') => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                    self.scroll_up(1);
                 }
                 KeyCode::PageDown => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                    self.scroll_down(8);
                 }
                 KeyCode::PageUp => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                    self.scroll_up(8);
                 }
                 KeyCode::Home | KeyCode::Char('g') => {
                     self.detail_scroll = 0;
                 }
                 KeyCode::Char('G') => {
-                    self.detail_scroll = u16::MAX;
+                    self.scroll_to_end();
                 }
                 _ => {}
             }
@@ -142,22 +142,22 @@ impl TuiApp {
                     self.should_quit = true;
                 }
                 KeyCode::Down | KeyCode::Char('j') => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                    self.scroll_down(1);
                 }
                 KeyCode::Up => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                    self.scroll_up(1);
                 }
                 KeyCode::PageDown => {
-                    self.detail_scroll = self.detail_scroll.saturating_add(8);
+                    self.scroll_down(8);
                 }
                 KeyCode::PageUp => {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(8);
+                    self.scroll_up(8);
                 }
                 KeyCode::Home | KeyCode::Char('g') => {
                     self.detail_scroll = 0;
                 }
                 KeyCode::Char('G') => {
-                    self.detail_scroll = u16::MAX;
+                    self.scroll_to_end();
                 }
                 KeyCode::Esc => {
                     self.cancel_review();
@@ -182,23 +182,23 @@ impl TuiApp {
             }
             KeyCode::Down | KeyCode::Char('j') => {
                 if self.active_pane == ActivePane::Details {
-                    self.detail_scroll = self.detail_scroll.saturating_add(1);
+                    self.scroll_down(1);
                 } else {
                     self.next();
                 }
             }
             KeyCode::Up | KeyCode::Char('k') => {
                 if self.active_pane == ActivePane::Details {
-                    self.detail_scroll = self.detail_scroll.saturating_sub(1);
+                    self.scroll_up(1);
                 } else {
                     self.previous();
                 }
             }
             KeyCode::PageDown | KeyCode::Char(']') => {
-                self.detail_scroll = self.detail_scroll.saturating_add(6);
+                self.scroll_down(6);
             }
             KeyCode::PageUp | KeyCode::Char('[') => {
-                self.detail_scroll = self.detail_scroll.saturating_sub(6);
+                self.scroll_up(6);
             }
             KeyCode::Home | KeyCode::Char('g') => {
                 if self.active_pane == ActivePane::Details {
@@ -210,7 +210,7 @@ impl TuiApp {
             }
             KeyCode::Char('G') => {
                 if self.active_pane == ActivePane::Details {
-                    self.detail_scroll = u16::MAX;
+                    self.scroll_to_end();
                 } else {
                     let count = self.filtered_tests().len();
                     if count > 0 {

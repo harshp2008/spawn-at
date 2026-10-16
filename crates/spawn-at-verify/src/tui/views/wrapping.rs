@@ -141,3 +141,23 @@ pub fn wrap_value_tokens(text: &str, max_width: usize) -> Vec<String> {
     }
     lines
 }
+
+/// Rows `lines` take when drawn `width` columns wide with word wrapping: each line at least one
+/// row, and a line wider than the viewport as many as it wraps to.
+pub fn wrapped_row_count(lines: &[ratatui::text::Line<'_>], width: usize) -> usize {
+    lines
+        .iter()
+        .map(|l| {
+            let plain: String = l.spans.iter().map(|s| s.content.as_ref()).collect();
+            super::panels::count_wrapped_lines(&plain, width.max(1)).max(1)
+        })
+        .sum()
+}
+
+/// The largest useful scroll offset: the rows that do not fit in `viewport` rows, capped to what
+/// the offset's type holds.
+pub fn max_scroll(total_rows: usize, viewport_rows: usize) -> u16 {
+    total_rows
+        .saturating_sub(viewport_rows)
+        .min(u16::MAX as usize) as u16
+}

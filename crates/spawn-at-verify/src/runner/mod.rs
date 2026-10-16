@@ -1,5 +1,6 @@
 //! Test execution engine, results aggregation, and validation checks.
 
+mod action_trace;
 pub mod engine;
 pub mod executor;
 mod executor_v2;
@@ -9,6 +10,8 @@ pub mod models;
 pub mod owned;
 pub mod validation;
 
+#[cfg(test)]
+mod action_trace_tests;
 #[cfg(test)]
 mod executor_v2_tests;
 #[cfg(test)]
@@ -28,6 +31,7 @@ mod trace_capture_tests;
 #[cfg(test)]
 mod wire_paint_tests;
 
+pub use action_trace::TraceTimings;
 pub use engine::TestRunner;
 pub use models::{
     resolve_final_status, AutoStatus, FinalStatus, HumanVerdict, HumanVerdictKind, RunOptions,

@@ -165,13 +165,32 @@ All are `schema_version = 2`, `required = false`, launch only the runner's own f
 | `transforms/resize-by-id` | Auto | gnome, sway | yes |
 | `transforms/reposition-by-id` (position only) | Auto | gnome | n/a (a fresh tiled Sway window is work-area sized, so "size unchanged" is not 400x300) |
 | `transforms/anchor-corners/anchor-{top-left,top-right,bottom-left,bottom-right,center}` (one file, a matrix) | Auto | gnome, sway | yes |
-| `transforms/resize-flash`, `transforms/move-flash` | **Both** | gnome | n/a. They check the final rectangle and ask you to judge by eye; they do **not** trace or measure flicker (that is a later task) |
+| `transforms/resize-flash`, `transforms/move-flash` | **Both** | gnome | n/a. They check the final rectangle and ask you to judge by eye; on GNOME the run also records the extension's timeline and an informational flash check (see "What is traced" below) |
 | `transforms/maximize-and-restore`, `transforms/minimize-and-restore` | **Both** | gnome | n/a (Sway declares them unsupported) |
 | `focus/activate-fixture`, `focus/switch-between-windows` (two windows) | Auto | gnome, sway | yes |
 | `focus/defocus-active-window` | Auto | gnome | n/a (Sway: defocus unsupported) |
 | `robustness/close-by-id` (window gone and the fixture process ended) | Auto | gnome, sway | yes |
 | `robustness/nonexistent-window-id` (no window launched) | Auto | gnome, sway | yes |
 | `robustness/sway-defocus-unsupported`, `robustness/sway-maximize-unsupported`, `robustness/sway-query-pointer-unsupported` | Auto | sway | yes |
+
+#### What is traced for these specs
+
+On GNOME, `run` and the TUI record, for every action of these specs, the extension's own log lines for the windows the runner launched, and show them as a timeline (event, ms after the first line of the action, key fields such as `frame=(...)`) in the drawer's TIMELINE section, the Result panel and the `run` report (`report.json` key `action_traces`, `report.md` section 7). **The TUI itself still writes no report.** The extension logs a trace for some commands only; the table is from the extension source (`docs/DESIGN_RUNNER_SETUP.md` section 5.5 has the file:line citations):
+
+| Command | In the timeline | Cloak / Budget rows |
+| :-- | :-- | :-- |
+| `transform` | full: `BATCH_STEP`, `SNAPSHOT_*`, `CLOAK`, `SET_SIZE_REQUEST`, `READY_WAIT_*`, `COMMIT_*`, `POSITION_SET`, `UNCLOAK`, `UNCLOAK_4D_REVEAL`, `ANCHOR_ARMED` | cloak to reveal in ms, judged against the provisional 100 ms |
+| `focus` | `RAISE`, `ACTIVATE` | `n/a`, no flash analysis (no cloak phase) |
+| `minimize`, `unminimize`, `restore` | `MINIMIZE` / `UNMINIMIZE` only | `n/a` |
+| `maximize`, `unmaximize`, `defocus`, `close`, queries | nothing for the target (`ANCHOR_RELEASED` if an anchor was armed) | `n/a` |
+
+Reasons shown instead of a timeline: `not applicable: the extension logs nothing for this command`; `no extension on this backend (<backend>)` (Sway and X11 have no extension); `capture failed: <why>` (journal unreadable, timing log could not be enabled); `no lines for this window in the slice`. None of them changes a verdict, and a missing or empty slice never fails a test.
+
+The timeline is laid out exactly like a spawn's (same parser, same block renderer): `TIMELINE ── window <id> · pid <pid>` (pid only when a captured line has one), each event as a name line with its offset right-aligned (`+7.6 ms`, counted from the first line of its action; one caption says so), aligned readable rows (`pre-frame  100,140 300×200`, `reason  at target`, floats to one decimal), and a blank row between events. The Trace row reads `✔ clean, no violations · 16 events` when the checks apply (a transform: one reveal, cloak before it, no size or position step or correction after it) and otherwise gives the reason (`checks not applied: this command has no cloak phase`, or one of the four reasons above); the flash caveat sits under the Flash row.
+
+**Only lines of the windows the runner launched are kept.** The extension writes lines for every window on the desktop (`WINDOW_CREATED`, `ACTOR_MAP`, ...), so the runner filters by the recorded window ids before it stores, shows or writes anything. Capture is `RunOptions::action_trace`: on for `run` and the TUI, off for a bare `TestRunner`, so `cargo test` never touches the live extension. It reuses the timing-log enable every run makes and, for a `transform`, the same four bracketed `SetLogging` calls a fixture `spawn` makes.
+
+**Transform flash is informational.** The fixture of a `transform` test is started with the event directory, and `detect_flash` compares its paint events from the action's start with the extension's reveal, with the same `certain` (at least one frame) and `possible` labels as `spawn`. It never changes a verdict (no spec opts in; `--strict-flash` does not apply to version 2 specs); a flash shows as `PASS (flash)`. **No pixels are captured. A clean result means no late paint or move was found in the runs made, not that none can happen. The `possible` bucket has a known noise level** (a lead below one frame period). Offsets are on the extension's clock, which is stamped at the event; the journal's own timestamp is the flush time and is not used.
 
 A spec on a backend it does not list is **Skipped** with `unsupported on this backend (<backend>): spec requires <list>` (shown as `⊘` in the TUI list, `SKIPPED` and the reason in the result box).
 
@@ -332,6 +351,7 @@ cargo run -p spawn-at-verify --features tui,fixture -- tui
   - `PageDown` / `PageUp`: Scroll detail drawer by page
   - `[` / `]`: Scroll detail drawer while remaining in table view
   - `Home`: Reset scroll to top of detail drawer
+  - `G` / `End`-style jump to the end: `G` scrolls to the last row. The offset is always clamped to the rows that do not fit (the content's wrapped rows minus the viewport, recomputed on every draw and so on every resize), at the key and again at the draw, so holding a scroll key or pressing `G` can never push the drawer past its end. `Esc` closes the drawer from any scroll state. The drawer ends with a blank row and a dim centred rule (` end of details ` between `─` fills, exactly the drawer's inner width, the odd fill on the right, cut to fit below 16 columns; rebuilt on every draw) (part of the scroll height, so the end shows it fully), and its title shows `▲ more` while there is content above and `▼ more` while there is content below; none of these is in copied (`y`) or saved (`w`) text or the reports. The details pane of the main view has its own builder and does not show the marker. A panic anywhere in the TUI now restores the terminal (leaves raw mode and the alternate screen) before the message prints. (Before this, `G` stored the largest offset and the next draw overflowed inside ratatui's paragraph, which in a debug build is a panic that left the terminal in raw mode: no key, Escape included, did anything.)
   - `r`: Execute currently selected test
   - `a`: Execute all tests matching current filter
   - `v`: Open human visual review verdict modal (`[P]` Pass, `[F]` Fail, `[S]` Skip, `[K]` Flaky, `[Esc]` Cancel)

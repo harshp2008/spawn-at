@@ -380,6 +380,12 @@ pub struct FlashInfo {
     /// the verdict used the wire times, so both verdicts can be compared.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flash_by_stamp: Option<bool>,
+    /// The extension's timeline of each action of a version 2 test (`transform`, `focus`, ...).
+    /// It is kept here, next to the flash result computed from the same lines, so that the many
+    /// places that build a `TestResult` need no new field; empty for every other test and for a
+    /// run that did not capture (`RunOptions::action_trace` off).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub action_traces: Vec<super::action::ActionTrace>,
 }
 
 /// Which clock reading stands for "the client painted" in a run's verdict.

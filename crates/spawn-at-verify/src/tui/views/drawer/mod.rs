@@ -1,9 +1,11 @@
 //! Drawer widget rendering and content assembly.
 
+pub mod action_trace_rows;
 pub mod geometry_section;
 pub mod header_section;
 pub mod info_sections;
 pub mod result_section;
+pub mod timeline_blocks;
 pub mod timeline_format;
 pub mod timeline_section;
 
@@ -11,7 +13,7 @@ pub use geometry_section::render_geometry_section;
 pub use header_section::render_header_section;
 pub use info_sections::{render_look_for_section, render_output_section, render_spec_section};
 pub use result_section::render_result_section;
-pub use timeline_format::{parse_compact_timeline, ParsedTimelineEvent};
+pub use timeline_format::{parse_compact_timeline, parse_timeline_lines, ParsedTimelineEvent};
 pub use timeline_section::render_timeline_section;
 
 use super::builder::DrawerBuilder;
@@ -87,46 +89,91 @@ pub fn build_drawer_content(
     (builder.lines, full_plain)
 }
 
+/// The text of the end marker the drawer shows below its content (display only: copy, save and
+/// the reports are built from the content without it).
+pub const END_MARKER: &str = "end of details";
+
+/// The marker line for an inner width of `width` columns: ` end of details ` centered with `─`
+/// on both sides so the line is exactly `width` columns (the extra `─` of an odd width goes on the
+/// right). Narrower than the text it is cut to `width` columns, so it never wraps.
+pub fn end_marker_text(width: usize) -> String {
+    use unicode_width::UnicodeWidthStr;
+    let text = format!(" {END_MARKER} ");
+    let text_w = text.width();
+    if width < text_w {
+        return text.chars().take(width).collect();
+    }
+    let fill = width - text_w;
+    let left = fill / 2;
+    format!("{}{}{}", "─".repeat(left), text, "─".repeat(fill - left))
+}
+
+/// Appends a blank row and the dim end marker (as wide as the inner width the content wraps to),
+/// so the last row of the content is not flush against the border. It is part of the height the
+/// scroll maximum is computed from.
+fn push_end_marker(lines: &mut Vec<Line<'static>>, inner_width: usize) {
+    lines.push(Line::raw(""));
+    lines.push(Line::from(Span::styled(
+        end_marker_text(inner_width),
+        Style::default().fg(Color::DarkGray),
+    )));
+}
+
+/// The rows the drawer's content takes when drawn in an area `width` columns wide (the number the
+/// scroll maximum is computed from).
+pub fn drawer_content_rows(app: &TuiApp, test: &TestDefinition, width: usize) -> usize {
+    let (mut lines, _) = build_drawer_content(app, test, width, !app.drawer_raw_view);
+    push_end_marker(&mut lines, width.saturating_sub(2));
+    super::wrapping::wrapped_row_count(&lines, width.saturating_sub(2))
+}
+
 /// Renders the detail drawer popup overlay and scroll indicators.
 pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded: bool) {
     let test_opt = app.selected_test();
     if let Some(test) = test_opt {
-        let (lines, _plain) =
+        let (mut lines, _plain) =
             build_drawer_content(app, test, area.width as usize, !app.drawer_raw_view);
-        let total_lines = lines.len();
-        let title = app.get_drawer_title(&test.id);
+        push_end_marker(&mut lines, area.width.saturating_sub(2) as usize);
         let inner_height = area.height.saturating_sub(2) as usize;
+        // The rows the drawn text really takes (wrapped to the inner width) decide how far it can
+        // scroll. The offset is clamped here, where it is read, as well as where keys write it:
+        // a ratatui paragraph adds the offset to a row index and overflows on a huge one.
+        let total_lines =
+            super::wrapping::wrapped_row_count(&lines, area.width.saturating_sub(2) as usize);
+        let max = super::wrapping::max_scroll(total_lines, inner_height);
+        app.scroll_max.set(max);
+        let scroll = app.detail_scroll.min(max);
+        let title = app.get_drawer_title(&test.id);
 
-        let title_line = if app.detail_scroll > 0 && total_lines > inner_height {
-            Line::from(vec![
-                Span::styled(format!(" {} ", title), Style::default().fg(Color::Cyan)),
-                Span::styled("  ▲ more ", Style::default().fg(Color::DarkGray)),
-            ])
-        } else {
-            Line::from(vec![Span::styled(
-                format!(" {} ", title),
-                Style::default().fg(Color::Cyan),
-            )])
-        };
+        let more_above = scroll > 0 && total_lines > inner_height;
+        let more_below =
+            total_lines > inner_height && (scroll as usize + inner_height) < total_lines;
+        let mut title_spans = vec![Span::styled(
+            format!(" {} ", title),
+            Style::default().fg(Color::Cyan),
+        )];
+        if more_above {
+            title_spans.push(Span::styled(
+                "  ▲ more ",
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+        if more_below {
+            title_spans.push(Span::styled(
+                "  ▼ more ",
+                Style::default().fg(Color::DarkGray),
+            ));
+        }
+        let title_line = Line::from(title_spans);
 
-        let mut block = Block::default()
+        let block = Block::default()
             .borders(Borders::ALL)
             .border_style(Style::default().fg(Color::Cyan))
             .title(title_line);
 
-        if total_lines > inner_height && (app.detail_scroll as usize + inner_height) < total_lines {
-            block = block.title_bottom(
-                Line::from(vec![Span::styled(
-                    " ▼ more ",
-                    Style::default().fg(Color::DarkGray),
-                )])
-                .alignment(ratatui::layout::Alignment::Right),
-            );
-        }
-
         let widget = Paragraph::new(lines)
             .block(block)
-            .scroll((app.detail_scroll, 0))
+            .scroll((scroll, 0))
             .wrap(Wrap { trim: false });
 
         f.render_widget(widget, area);

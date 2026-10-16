@@ -278,7 +278,27 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
             }
 
             // Cloak & Trace with fixed 2-char symbol slot
-            if let Some(report) = res.trace_report() {
+            if !res.flash_info.action_traces.is_empty() {
+                // A version 2 result: one line per action with its own reason or event count,
+                // and the cloak time only for an action that has a cloak phase.
+                let labelled = res.flash_info.action_traces.len() > 1;
+                for t in &res.flash_info.action_traces {
+                    let cloak = match t.cloak_to_reveal_ms {
+                        Some(ms) => format!("Cloak: {:.1} ms · ", ms),
+                        None => String::new(),
+                    };
+                    let color = match t.verdict() {
+                        crate::trace::action::ActionVerdict::Clean => Color::Green,
+                        crate::trace::action::ActionVerdict::Violations(_) => Color::Red,
+                        crate::trace::action::ActionVerdict::NotApplied(_) => Color::DarkGray,
+                    };
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(cloak, Style::default().fg(Color::White)),
+                        Span::styled(t.panel_text(labelled), Style::default().fg(color)),
+                    ]));
+                }
+            } else if let Some(report) = res.trace_report() {
                 let trace_part = if report.is_pass() {
                     Span::styled("Trace: 0 violations", Style::default().fg(Color::Green))
                 } else {
@@ -351,9 +371,12 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
     }
 
     // Clipping and "▼ more" hint
-    let total_lines = lines.len();
     let inner_h = inner.height as usize;
-    let is_clipped = total_lines > (app.detail_scroll as usize + inner_h);
+    let total_lines = crate::tui::views::wrapping::wrapped_row_count(&lines, inner.width as usize);
+    let max = crate::tui::views::wrapping::max_scroll(total_lines, inner_h);
+    app.scroll_max.set(max);
+    let scroll = app.detail_scroll.min(max);
+    let is_clipped = total_lines > (scroll as usize + inner_h);
 
     if is_clipped {
         block = block.title_bottom(
@@ -363,7 +386,7 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                     .add_modifier(Modifier::BOLD),
             ),
         );
-        let last_visible_idx = (app.detail_scroll as usize + inner_h).saturating_sub(1);
+        let last_visible_idx = (scroll as usize + inner_h).saturating_sub(1);
         if last_visible_idx < lines.len() {
             let orig_line = &lines[last_visible_idx];
             let mut spans = orig_line.spans.clone();
@@ -379,7 +402,7 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
 
     let p = Paragraph::new(lines)
         .block(block)
-        .scroll((app.detail_scroll, 0))
+        .scroll((scroll, 0))
         .wrap(Wrap { trim: false });
 
     f.render_widget(p, area);

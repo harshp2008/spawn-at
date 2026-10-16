@@ -78,6 +78,14 @@ pub fn humanise_key(key: &str) -> String {
 /// Normalizes trace event attribute values for compact display.
 pub fn clean_trace_val(val: &str) -> String {
     let trimmed = val.trim().trim_matches('"');
+    // A bare number with a long fraction (`2.5540000200271606`) is shown to one decimal.
+    if let Some((_, frac)) = trimmed.split_once('.') {
+        if frac.len() > 1 && frac.chars().all(|c| c.is_ascii_digit()) {
+            if let Ok(f) = trimmed.parse::<f64>() {
+                return format!("{f:.1}");
+            }
+        }
+    }
     let unwrapped = if trimmed.starts_with('(') && trimmed.ends_with(')') {
         &trimmed[1..trimmed.len() - 1]
     } else {
@@ -183,13 +191,25 @@ pub fn parse_compact_timeline(
     res_opt: Option<&TestResult>,
     trace_report: Option<&crate::trace::TraceReport>,
 ) -> Vec<ParsedTimelineEvent> {
+    let Some(r) = res_opt else {
+        return Vec::new();
+    };
+    let lines: Vec<&str> = match (trace_report, &r.log_slice) {
+        (Some(rep), _) => rep.events.iter().map(|e| e.raw.as_str()).collect(),
+        (None, Some(slice)) => slice.lines().collect(),
+        (None, None) => Vec::new(),
+    };
+    parse_timeline_lines(lines)
+}
+
+/// Turns journal lines (`[spawn-at-time] +N ms | TAG win=[...] key=value ...`) into timeline
+/// events, with offsets counted from the first line and values humanised. The one parser behind
+/// both the spawn timeline and the per-action timeline of an existing-window test.
+pub fn parse_timeline_lines<'a>(
+    lines: impl IntoIterator<Item = &'a str>,
+) -> Vec<ParsedTimelineEvent> {
     let mut out = Vec::new();
-    if let Some(r) = res_opt {
-        let lines: Vec<&str> = match (trace_report, &r.log_slice) {
-            (Some(rep), _) => rep.events.iter().map(|e| e.raw.as_str()).collect(),
-            (None, Some(slice)) => slice.lines().collect(),
-            (None, None) => Vec::new(),
-        };
+    {
         {
             let mut first_time: Option<f64> = None;
             for line in lines {
@@ -301,6 +321,16 @@ pub fn parse_compact_timeline(
                     }
                 }
 
+                // A reason is worded the same whichever event carries it: `AT_TARGET` becomes
+                // `at target` (clean_trace_val), and so does the kebab form `at-target`.
+                for (k, v) in details.iter_mut() {
+                    if k == "reason"
+                        && v.contains('-')
+                        && v.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    {
+                        *v = v.replace('-', " ");
+                    }
+                }
                 out.push(ParsedTimelineEvent {
                     dt_ms: rel_dt,
                     tag,
