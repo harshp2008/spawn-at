@@ -1,4 +1,6 @@
-# Configuration
+---
+title: "Configuration"
+---
 
 Nothing needs to be set. With no config file and no flags, spawn-at behaves as it did before the
 settings existed.
@@ -93,7 +95,7 @@ login autostart entry.
 
 | Variable | Effect |
 | :--- | :--- |
-| `SPAWN_AT_BACKEND` | `x11` forces the X11 driver, `sway` the experimental Sway driver. See [Environments](environments/index.md) |
+| `SPAWN_AT_BACKEND` | `x11` forces the X11 driver, `sway` the experimental Sway driver. See [Environments](/spawn-at/environments/) |
 | `SPAWN_AT_CONFIG` | Path of the config file |
 | `SPAWN_AT_DEBUG` | `1` or `true` turns on debug output |
 | `NO_COLOR` | Plain output |

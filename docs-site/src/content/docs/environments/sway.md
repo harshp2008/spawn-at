@@ -1,4 +1,6 @@
-# Sway
+---
+title: "Sway"
+---
 
 **Status: experimental, opt-in.** It is chosen only with `SPAWN_AT_BACKEND=sway`, never
 automatically. **Tested only on a private headless Sway 1.9** with the project's own test window.

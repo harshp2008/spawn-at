@@ -1,4 +1,6 @@
-# Testing and the verify tool
+---
+title: "Testing and the verify tool"
+---
 
 ## What is tested, in layers
 
@@ -28,7 +30,7 @@ private Sway.
   map and its reveal, the reveal happens once, and no cloak lingers. These checks read the GNOME
   extension's log and do not exist on Sway or X11.
 - **Flash.** Computed from the test window's own paint events against the extension's reveal. No
-  pixels. See [Findings](findings.md) for what it can and cannot say.
+  pixels. See [Findings](/spawn-at/findings/) for what it can and cannot say.
 - **Resize outcomes** for awkward apps: `reached`, `adjusted`, `timed-out`, `skipped`.
 - **Existing windows** (`schema_version = 2` specs): the runner starts its own test window, acts on
   it by the id it recorded, checks the result, and tears everything down.

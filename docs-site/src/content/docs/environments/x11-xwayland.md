@@ -1,4 +1,6 @@
-# X11 and XWayland
+---
+title: "X11 and XWayland"
+---
 
 **Status: fallback only, experimental, untested with real applications.** Two different things share
 this name, and they behave differently.
@@ -28,7 +30,7 @@ It is used when:
 - a GNOME session's D-Bus connection fails: it falls back to the X11 driver.
 
 On a non-GNOME Wayland session without `SPAWN_AT_BACKEND`, `main` exits with an error instead; see
-[Unsupported desktops](unsupported-desktops.md). That error is in no release yet: v0.2.0-beta.4 and
+[Unsupported desktops](/spawn-at/environments/unsupported-desktops/). That error is in no release yet: v0.2.0-beta.4 and
 earlier use this X11 driver there without a message.
 
 ### How well it is tested

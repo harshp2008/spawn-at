@@ -1,4 +1,6 @@
-# spawn
+---
+title: "spawn"
+---
 
 ```text
 spawn-at spawn [OPTIONS] <COMMAND>...
@@ -44,15 +46,15 @@ SPAWN_AT_BACKEND=sway spawn-at spawn --anchor top-right -m 24 --size 600 400 -- 
   placement, because that step runs in every mode.
 - **Slow start.** If the window does not appear in time, spawn warns
   `WARNING: ... did not appear within 2s`. The limit is the setting `spawn.window_timeout_ms`; raise
-  it for heavy programs that start cold. See [Configuration](../configuration.md).
+  it for heavy programs that start cold. See [Configuration](/spawn-at/configuration/).
 - **`--focus`, `--no-focus` and `--defocus` are accepted on `spawn` and do nothing.** The code
   never reads them for `spawn`: it always asks for exclusive focus. `--help` still describes them.
   A test pins this behaviour as it is today; it is not a promise.
 - **The size is a request.** A program with a larger minimum size ends up larger, and is positioned
-  with the size it ended up with. See [Concepts](../concepts.md).
+  with the size it ended up with. See [Concepts](/spawn-at/concepts/).
 - **Only the first window of a launch** is placed on Sway.
 - Hidden flags for the wait rule exist (`--wait-strategy`, a cap in milliseconds). They are not
-  listed in `--help`; use the settings in [Configuration](../configuration.md).
+  listed in `--help`; use the settings in [Configuration](/spawn-at/configuration/).
 
 ## Sources
 

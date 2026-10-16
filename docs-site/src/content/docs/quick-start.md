@@ -1,7 +1,9 @@
-# Quick start
+---
+title: "Quick start"
+---
 
 These examples assume spawn-at is installed on GNOME with Wayland, the one tested setup. On any
-other desktop, see [Environments](environments/index.md) first.
+other desktop, see [Environments](/spawn-at/environments/) first.
 
 ## Open an app in a place
 
@@ -60,17 +62,18 @@ spawn-at config                    # every setting, its value, and where the val
 spawn-at config set wait.cap_ms 400
 ```
 
-See [Configuration](configuration.md). With no config file and no flags, the defaults apply.
+See [Configuration](/spawn-at/configuration/). With no config file and no flags, the defaults apply.
 
 ## If it prints an error about the desktop
 
-> [!NOTE]
-> **Release status (remove after the first release newer than v0.2.0-beta.4).** This error is on
-> `main` and in no release yet. v0.2.0-beta.4 and earlier switch to the X11 driver on a non-GNOME
-> Wayland desktop without a message.
+:::note
+**Release status (remove after the first release newer than v0.2.0-beta.4).** This error is on
+`main` and in no release yet. v0.2.0-beta.4 and earlier switch to the X11 driver on a non-GNOME
+Wayland desktop without a message.
+:::
 
 On `main`, on a Wayland desktop that is not GNOME, spawn-at stops with an error and says so. See
-[Unsupported desktops](environments/unsupported-desktops.md).
+[Unsupported desktops](/spawn-at/environments/unsupported-desktops/).
 
 ## Sources
 

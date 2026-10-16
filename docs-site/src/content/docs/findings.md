@@ -1,4 +1,6 @@
-# Findings
+---
+title: "Findings"
+---
 
 What was measured, how, and what each result cannot tell you. All numbers come from the
 repository's test logs. They were taken on **one machine** (GNOME Shell 46, Wayland, one monitor)
@@ -72,13 +74,13 @@ covers the test window, `gnome-text-editor`, `zenity` and `firefox`. `zenity --t
 
 All of the signals tried to detect an X11 client's paint failed on the test window; the X11 flash
 numbers are "possible" almost always because the reveal precedes the paint by construction. The
-table and the numbers are on [X11 and XWayland](environments/x11-xwayland.md).
+table and the numbers are on [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
 ## Sway
 
 62 live checks passed on a private headless Sway 1.9, and 15 catalog specs passed. These check
 positions and commands, not timing: **the one-frame flash that Sway can have has not been measured**,
-and the harness's flash analysis cannot run there. See [Sway](environments/sway.md).
+and the harness's flash analysis cannot run there. See [Sway](/spawn-at/environments/sway/).
 
 ## What no result covers
 

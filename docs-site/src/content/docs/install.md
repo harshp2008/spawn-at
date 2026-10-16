@@ -1,4 +1,6 @@
-# Install
+---
+title: "Install"
+---
 
 ## The supported path
 
@@ -11,12 +13,12 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 1. Stops with an error unless the machine is Linux x86_64, because that is the only prebuilt binary.
    The error suggests building from source.
-2. Checks the desktop before it downloads anything (see [Unsupported desktops](environments/unsupported-desktops.md)).
+2. Checks the desktop before it downloads anything (see [Unsupported desktops](/spawn-at/environments/unsupported-desktops/)).
 3. Looks up the release on the GitHub API, and falls back to GitHub's web endpoints if the API
    fails, then downloads `spawn-at-x86_64-unknown-linux-gnu.tar.gz` from the release.
 4. Runs `spawn-at install`. Every flag that `install.sh` does not recognise is passed on to it.
 
-Only GNOME Shell 46 on Wayland has been tested. See [GNOME on Wayland](environments/gnome-wayland.md).
+Only GNOME Shell 46 on Wayland has been tested. See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
 
 ## What the installer asks
 
@@ -38,11 +40,12 @@ info` reports the extension ACTIVE, and the files are older than the running She
 `NoLogoutNeeded`). On an X11 session the installer reloads the Shell in place and your applications
 stay open (`--help` of `--gnome-x11-reload`; not run here).
 
-> [!WARNING]
-> `--gnome-wayland-logout` on Wayland logs you out **without asking** (`src/session.rs`,
-> `decision`) and closes your open applications. `--no-action` answers No to the question. In a
-> run that is `--headless` or whose stdout is not a terminal (`src/main.rs`, `interactive`) the flags decide: the log-out is off unless
-> you pass `--gnome-wayland-logout`, whose default is `false` (`install --help`).
+:::caution
+`--gnome-wayland-logout` on Wayland logs you out **without asking** (`src/session.rs`,
+`decision`) and closes your open applications. `--no-action` answers No to the question. In a
+run that is `--headless` or whose stdout is not a terminal (`src/main.rs`, `interactive`) the flags decide: the log-out is off unless
+you pass `--gnome-wayland-logout`, whose default is `false` (`install --help`).
+:::
 
 Without a terminal, `--headless` makes it non-interactive:
 
@@ -65,16 +68,17 @@ cargo build --release && ./target/release/spawn-at install
 ```
 
 `--version` takes a release tag. `--scope` is `user` (the default) or `system`. All flags of
-`spawn-at install` are listed on [its reference page](reference/spawn-at-install.md).
+`spawn-at install` are listed on [its reference page](/spawn-at/reference/spawn-at-install/).
 
 ## Unsupported desktops
 
-> [!NOTE]
-> **Release status (remove after the first release newer than v0.2.0-beta.4).** `install.sh` is
-> fetched from `main`, so the question below is asked today. The binary that the v0.2.0-beta.4
-> release installs does not refuse a non-GNOME Wayland desktop: it switches to the X11 driver
-> without a message. The refusal is on `main` only. The `install.sh` inside the beta.4 tag has no
-> such question and is byte-identical to beta.3's (`CHANGELOG.md`).
+:::note
+**Release status (remove after the first release newer than v0.2.0-beta.4).** `install.sh` is
+fetched from `main`, so the question below is asked today. The binary that the v0.2.0-beta.4
+release installs does not refuse a non-GNOME Wayland desktop: it switches to the X11 driver
+without a message. The refusal is on `main` only. The `install.sh` inside the beta.4 tag has no
+such question and is byte-identical to beta.3's (`CHANGELOG.md`).
+:::
 
 On a Wayland desktop that is not GNOME, `install.sh` prints a notice and asks
 `Install anyway? [y/N]` before it downloads anything. Answering no, or giving no answer, installs
@@ -104,13 +108,14 @@ spawn-at uninstall
 removes the binary, the extension directory and the login update-check entry, and nothing else.
 Your config file is never deleted.
 
-> [!WARNING]
-> Run in a terminal, bare `spawn-at uninstall` first asks what to do with the binary (user scope,
-> system scope, or keep it; `src/main.rs`) and then really removes things. `uninstall` has no
-> `--dry-run` (`spawn-at uninstall --help` lists none; only `install` has one). On GNOME Wayland,
-> `--gnome-wayland-logout` logs you out and closes your applications; its default is `false`.
-> `--headless --skip-bin` removes only the extension and the login entry and asks nothing. `--scope system` and `--skip-bin` exist; see
-[the reference page](reference/spawn-at-uninstall.md).
+:::caution
+Run in a terminal, bare `spawn-at uninstall` first asks what to do with the binary (user scope,
+system scope, or keep it; `src/main.rs`) and then really removes things. `uninstall` has no
+`--dry-run` (`spawn-at uninstall --help` lists none; only `install` has one). On GNOME Wayland,
+`--gnome-wayland-logout` logs you out and closes your applications; its default is `false`.
+`--headless --skip-bin` removes only the extension and the login entry and asks nothing. `--scope system` and `--skip-bin` exist; see
+[the reference page](/spawn-at/reference/spawn-at-uninstall/).
+:::
 
 ## What is not verified
 

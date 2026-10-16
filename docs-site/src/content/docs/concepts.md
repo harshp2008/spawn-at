@@ -1,4 +1,6 @@
-# Concepts
+---
+title: "Concepts"
+---
 
 ## Where a window goes
 
@@ -96,7 +98,7 @@ for the application is the **ready-wait**:
 - XWayland and X11 windows, and the older extension for GNOME 42 to 44, use the older rule: a 30 ms
   quiet period, a 120 ms minimum, and a 1500 ms hard cap.
 - Setting `wait.strategy` to `legacy` selects the original 30 ms rule; see
-  [Configuration](configuration.md).
+  [Configuration](/spawn-at/configuration/).
 
 A window never stays invisible. Registrations expire after 15 seconds (1.2 seconds for wildcard
 matches), a window that matches nothing is revealed at once, and an error during placement restores
@@ -114,7 +116,7 @@ pulses focus while the window is still hidden.
 
 "Flash" in this book follows the project's test harness: the window was revealed before the app's
 first commit at its final size, read from the Wayland protocol, or it changed size or position
-after the reveal. No screen capture was done. See [Findings](findings.md).
+after the reveal. No screen capture was done. See [Findings](/spawn-at/findings/).
 
 ## Sources
 

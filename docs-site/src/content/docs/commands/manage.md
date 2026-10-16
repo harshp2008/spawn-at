@@ -1,4 +1,6 @@
-# install, uninstall, update
+---
+title: "install, uninstall, update"
+---
 
 These three manage spawn-at itself, not windows. `update` needs no backend: it returns before one
 is chosen, so it also works on an unsupported desktop. `install` and `uninstall` do not (see below).
@@ -10,9 +12,9 @@ is chosen, so it also works on an unsupported desktop. `install` and `uninstall`
 | `update` | Checks GitHub for a newer release; `--check` only looks, `--force` reinstalls |
 
 The questions `install` asks and the flags that answer them in advance are on the
-[Install](../install.md) page. The full option lists are in the reference:
-[`install`](../reference/spawn-at-install.md), [`uninstall`](../reference/spawn-at-uninstall.md),
-[`update`](../reference/spawn-at-update.md).
+[Install](/spawn-at/install/) page. The full option lists are in the reference:
+[`install`](/spawn-at/reference/spawn-at-install/), [`uninstall`](/spawn-at/reference/spawn-at-uninstall/),
+[`update`](/spawn-at/reference/spawn-at-update/).
 
 Two options are worth knowing before you run them:
 
@@ -21,7 +23,7 @@ Two options are worth knowing before you run them:
 - On `main` (not in a release yet), on a desktop that is not supported, `install` and `uninstall`
   print the same error as every other command and change nothing. Run `install.sh` with
   `--allow-unsupported` instead (see
-  [Unsupported desktops](../environments/unsupported-desktops.md)). In v0.2.0-beta.4 and earlier the
+  [Unsupported desktops](/spawn-at/environments/unsupported-desktops/)). In v0.2.0-beta.4 and earlier the
   binary does not refuse.
 - **`uninstall` run bare, in a terminal, asks what to do with the binary** (user scope, system scope
   or keep it), and it has no `--dry-run`. On GNOME Wayland, `--gnome-wayland-logout` logs you out and

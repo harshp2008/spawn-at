@@ -1,4 +1,8 @@
-# CLI reference
+---
+title: "CLI reference"
+sidebar:
+  label: Overview
+---
 
 The pages in this section are the output of `--help`, one page per command, unchanged. They are
 written by `cargo xtask docs-cli-reference` from the `spawn-at` binary at the time the site is
@@ -7,8 +11,8 @@ from and cannot drift from it. If the binary is missing, the build stops with an
 
 Pages exist for the root command and for every command that a `Commands:` list shows, including
 nested ones (`query layout`, `config set`). The `help` entry that clap adds to each list is not a
-command and has no page. The build also fails if `--help` lists a command that has no page or no
-entry in the book's table of contents.
+command and has no page. The build also fails if `--help` lists a command that has no page, or if
+the sidebar in `docs-site/astro.config.mjs` does not list the folder these pages are in.
 
 Things that `--help` does not show, found by running the binary:
 
@@ -19,7 +23,7 @@ Things that `--help` does not show, found by running the binary:
 - `spawn` and `config` accept hidden wait flags that the help does not list. They are not
   documented here.
 
-For what each command is for, see [Commands](../commands/index.md).
+For what each command is for, see [Commands](/spawn-at/commands/).
 
 ## Sources
 

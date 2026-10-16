@@ -1,4 +1,6 @@
-# Architecture and contributing
+---
+title: "Architecture and contributing"
+---
 
 ## The crates
 
@@ -108,21 +110,26 @@ root covers only the `spawn-at` package.
 
 ## Build this documentation
 
-You need `mdbook` 0.5.4 on your `PATH` (a release archive from the mdBook repository; the checked
-download is in `.github/workflows/docs.yml`).
+The site is built with [Starlight](https://starlight.astro.build/) (Astro). You need Node.js and
+npm; the major version CI uses is in `docs-site/.nvmrc` (24), and `docs-site/package.json` pins
+the exact versions of `astro` and `@astrojs/starlight`. `npm ci` downloads the packages from the npm
+registry the first time (installed with `--ignore-scripts`, so no package runs an install script).
 
 ```bash
-cargo xtask docs-site           # builds the binary, the CLI reference, the book and rustdoc, then checks them
+cargo xtask docs-site           # builds the binary, the CLI reference, the site and rustdoc, then checks them
 ```
 
-The finished site is in `target/docs-site/site/`; open `index.html` there. The pieces:
+The finished site is in `target/docs-site/site/`; open `index.html` there. The pages are the
+markdown files in `docs-site/src/content/docs/`, and the order of the menu is the `sidebar` in
+`docs-site/astro.config.mjs`. Links between pages are written as `/spawn-at/<page>/`, because the
+site is served under `/spawn-at/`. The pieces:
 
 | Command | What it does |
 | :--- | :--- |
-| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help`. Fails if the binary is missing or a command has no page |
-| `cargo xtask docs-check-src` | Checks the book's markdown: empty pages, environment pages, `Sources` lists, forbidden text |
-| `mdbook build docs-site` | Builds the book into `target/docs-site/book/` |
-| `cargo xtask docs-check-html <dir>` | Checks a built site for broken links, missing ids and third-party requests |
+| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/`. Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
+| `cargo xtask docs-check-src` | Checks the markdown and the config: front matter, a duplicate `#` title, empty pages, pages missing from the sidebar, `.md` links, environment pages, `Sources` lists, `smartypants: false`, forbidden text |
+| `npm ci` and `npm run build` in `docs-site/` | Install the pinned packages and build the site into `docs-site/dist/` (`docs-site` does both; it reuses `node_modules` when it is newer than the lock file) |
+| `cargo xtask docs-check-html <dir>` | Checks a built site for broken links, missing ids, a flag such as `--id` turned into an en dash, and third-party requests |
 
 ## Sources
 

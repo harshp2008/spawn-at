@@ -1,4 +1,6 @@
-# transform
+---
+title: "transform"
+---
 
 ```text
 spawn-at transform [OPTIONS]
@@ -6,7 +8,7 @@ spawn-at transform [OPTIONS]
 
 Moves, resizes, or both, a window that is already open. It takes a window selector (`--id`,
 `--class`, `--title`, `--pid`, `--focused`) and the same placement options as
-[`spawn`](spawn.md): `--area`, `--monitor`, `--anchor`, `--pivot`, `-p`/`-o`, `-s`, `--clamp`,
+[`spawn`](/spawn-at/commands/spawn/): `--area`, `--monitor`, `--anchor`, `--pivot`, `-p`/`-o`, `-s`, `--clamp`,
 margins.
 
 ## Examples
@@ -47,7 +49,7 @@ spawn-at transform --id <ID> --size 600 450 --anchor center --margin 0 --no-focu
 ## Not measured
 
 Whether `transform` flashes. A test records an informational flash check for it on GNOME, but it has
-not been run on a real GNOME session. See [Findings](../findings.md).
+not been run on a real GNOME session. See [Findings](/spawn-at/findings/).
 
 ## Sources
 

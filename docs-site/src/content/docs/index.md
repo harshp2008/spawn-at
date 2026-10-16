@@ -1,4 +1,6 @@
-# Introduction
+---
+title: "Introduction"
+---
 
 spawn-at is a command-line tool that starts an application, or moves one that is already open,
 and puts its window at an exact position and size.
@@ -22,10 +24,10 @@ command and one placement model, with a separate driver for each desktop underne
 ## What it is not
 
 - **Not a guarantee of no flicker.** The GNOME driver removes most flashes in the measurements
-  that were made, not all of them. See [Findings](findings.md) for the numbers and their limits.
+  that were made, not all of them. See [Findings](/spawn-at/findings/) for the numbers and their limits.
 - **Not tested widely.** Only GNOME Shell 46 on Wayland has been tested in earnest, on one machine.
-  Everything else is untested or experimental. See [Environments](environments/index.md) and
-  [Known shortcomings](shortcomings.md).
+  Everything else is untested or experimental. See [Environments](/spawn-at/environments/) and
+  [Known shortcomings](/spawn-at/shortcomings/).
 - **Not a cross-desktop tool yet.** KDE, Hyprland, macOS and Windows are not implemented. On macOS
   and Windows the program prints `spawn-at does not support this operating system yet` and exits
   with status 1.
@@ -45,13 +47,13 @@ A binary that is not built from a release tag prints `DEV BUILD` for `spawn-at -
 
 | If you want to | Read |
 | :--- | :--- |
-| Install it | [Install](install.md), then [Quick start](quick-start.md) |
-| Understand anchors, margins and the waiting rules | [Concepts](concepts.md) |
-| Look up a command | [Commands](commands/index.md) and the [CLI reference](reference/index.md) |
-| Change a setting | [Configuration](configuration.md) |
-| Know whether your desktop works | [Environments](environments/index.md) |
-| Know what is broken or unmeasured | [Known shortcomings](shortcomings.md) and [Findings](findings.md) |
-| Work on spawn-at | [Testing and the verify tool](testing.md), [Architecture and contributing](contributing.md), [API documentation](api.md) |
+| Install it | [Install](/spawn-at/install/), then [Quick start](/spawn-at/quick-start/) |
+| Understand anchors, margins and the waiting rules | [Concepts](/spawn-at/concepts/) |
+| Look up a command | [Commands](/spawn-at/commands/) and the [CLI reference](/spawn-at/reference/) |
+| Change a setting | [Configuration](/spawn-at/configuration/) |
+| Know whether your desktop works | [Environments](/spawn-at/environments/) |
+| Know what is broken or unmeasured | [Known shortcomings](/spawn-at/shortcomings/) and [Findings](/spawn-at/findings/) |
+| Work on spawn-at | [Testing and the verify tool](/spawn-at/testing/), [Architecture and contributing](/spawn-at/contributing/), [API documentation](/spawn-at/rustdoc/) |
 
 Every page ends with a list of the files in the repository it was written from. Where this book
 says something is "not verified", it means no test or run in the repository covers it.

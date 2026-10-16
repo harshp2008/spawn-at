@@ -1,4 +1,6 @@
-# Known shortcomings
+---
+title: "Known shortcomings"
+---
 
 An honest list of what is broken, missing or unmeasured, taken from the repository's own audits.
 Nothing here is a plan; it describes the state at version 0.2.0-beta.4 plus the unreleased changes
@@ -27,11 +29,11 @@ on `main`.
 ## Gaps per environment
 
 - **GNOME 42 to 44, 45, 47 and later, X11 sessions, XWayland, multi-monitor, fractional scaling, Qt
-  and Electron apps:** untested. See [GNOME on Wayland](environments/gnome-wayland.md).
+  and Electron apps:** untested. See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
 - **Sway:** a private headless 1.9 only; `defocus`, `maximize`, `minimize`, `restore`,
-  `query pointer` unsupported; no i3. See [Sway](environments/sway.md).
+  `query pointer` unsupported; no i3. See [Sway](/spawn-at/environments/sway/).
 - **X11 driver:** no test touches an X server, and the tests named "supported on X11" pass on a
-  connection error. See [X11 and XWayland](environments/x11-xwayland.md).
+  connection error. See [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 - **Windows, macOS:** not implemented; `cargo check` only. The macOS and Windows branches of the
   privilege-escalation code have never been run.
 - **KDE, Hyprland:** not implemented.

@@ -1,12 +1,15 @@
-# Unsupported desktops
+---
+title: "Unsupported desktops"
+---
 
-> [!NOTE]
-> **Release status (remove this note after the first release newer than v0.2.0-beta.4).**
-> The refusal described on this page is on `main` and not in any release yet. In v0.2.0-beta.4 and
-> earlier, spawn-at switches to the X11 driver on a non-GNOME Wayland session without a message
-> (`registry::unsupported` does not exist in those tags). `install.sh` is fetched from `main`, so it
-> already asks `Install anyway? [y/N]`; the copy of `install.sh` inside the beta.4 tag does not, and
-> is byte-identical to beta.3's according to `CHANGELOG.md`.
+:::note
+**Release status (remove this note after the first release newer than v0.2.0-beta.4).**
+The refusal described on this page is on `main` and not in any release yet. In v0.2.0-beta.4 and
+earlier, spawn-at switches to the X11 driver on a non-GNOME Wayland session without a message
+(`registry::unsupported` does not exist in those tags). `install.sh` is fetched from `main`, so it
+already asks `Install anyway? [y/N]`; the copy of `install.sh` inside the beta.4 tag does not, and
+is byte-identical to beta.3's according to `CHANGELOG.md`.
+:::
 
 spawn-at supports GNOME. On a Wayland desktop that is not GNOME, such as KDE or Hyprland, or when
 the session type is unknown, it refuses to run instead of silently switching to the X11 driver,
@@ -40,15 +43,15 @@ SPAWN_AT_BACKEND=x11 spawn-at spawn --anchor center -- <your program>
 ```
 
 It sees XWayland windows only, has no cloak, and the error says it "may or may not work". The
-details are on [X11 and XWayland](x11-xwayland.md). If your desktop is Sway, use the experimental
-Sway driver instead: [Sway](sway.md).
+details are on [X11 and XWayland](/spawn-at/environments/x11-xwayland/). If your desktop is Sway, use the experimental
+Sway driver instead: [Sway](/spawn-at/environments/sway/).
 
 ## The installer
 
 `install.sh` asks the same question before it downloads anything: it prints that the desktop is not
 supported yet and asks `Install anyway? [y/N]`. Without a terminal it stops and tells you to re-run
 with `--allow-unsupported`. If you go on, spawn-at needs `SPAWN_AT_BACKEND=x11` to run on that
-desktop. See [Install](../install.md).
+desktop. See [Install](/spawn-at/install/).
 
 ## What still works
 

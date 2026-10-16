@@ -1,4 +1,6 @@
-# query
+---
+title: "query"
+---
 
 ```text
 spawn-at query layout

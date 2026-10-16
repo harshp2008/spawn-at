@@ -1,7 +1,9 @@
-# Focus and window state
+---
+title: "Focus and window state"
+---
 
 These commands act on a window that is already open. Each takes a window selector (`--id`,
-`--class`, `--title`, `--pid`, `--focused`); see [Commands](index.md).
+`--class`, `--title`, `--pid`, `--focused`); see [Commands](/spawn-at/commands/).
 
 | Command | What it does |
 | :--- | :--- |
@@ -18,11 +20,12 @@ spawn-at maximize --focused
 spawn-at close --id 4
 ```
 
-> [!WARNING]
-> These act on real windows. `close --id 4` asks whichever window has id 4 to close. It is a request, not a
-> kill, but what the application does about unsaved work was not tested. The id `4` is only an example: take the id
-> from `spawn-at query windows`. `maximize --focused` changes whichever window has focus when you
-> press enter, which may be your terminal.
+:::caution
+These act on real windows. `close --id 4` asks whichever window has id 4 to close. It is a request, not a
+kill, but what the application does about unsaved work was not tested. The id `4` is only an example: take the id
+from `spawn-at query windows`. `maximize --focused` changes whichever window has focus when you
+press enter, which may be your terminal.
+:::
 
 ## defocus
 
@@ -35,13 +38,13 @@ sends nothing.
 ## Focus options
 
 `--focus`, `--no-focus` and `--defocus` control focus after the action on `transform`, `maximize`
-and `restore`. On `spawn` they are accepted and ignored; see [spawn](spawn.md).
+and `restore`. On `spawn` they are accepted and ignored; see [spawn](/spawn-at/commands/spawn/).
 
 ## Animations on GNOME
 
 - `minimize` and `restore` play the normal animation (shrink into the dock, zoom back).
 - Resizing plays the normal resize transitions.
-- A `transform` of a minimized window suppresses the glide; see [transform](transform.md).
+- A `transform` of a minimized window suppresses the glide; see [transform](/spawn-at/commands/transform/).
 
 ## Things to know
 
@@ -57,7 +60,7 @@ and `restore`. On `spawn` they are accepted and ignored; see [spawn](spawn.md).
   `restore`: they exit 1 with a "does not support this feature" error and send nothing.
 - **Nothing here has been run live on GNOME.** The commands have unit, D-Bus stub and node tests.
   The test-catalog specs that exercise them on a real session exist but have not been run there.
-  See [Known shortcomings](../shortcomings.md).
+  See [Known shortcomings](/spawn-at/shortcomings/).
 
 ## Sources
 
