@@ -1,0 +1,30 @@
+[book]
+title = "spawn-at"
+description = "User guide for spawn-at: place windows at an exact position and size on GNOME Wayland."
+language = "en"
+src = "src"
+
+[build]
+# Under target/ so the output is already ignored by git.
+build-dir = "../target/docs-site/book"
+create-missing = false
+
+[output.html]
+# The site is served from https://harshp2008.github.io/spawn-at/
+site-url = "/spawn-at/"
+git-repository-url = "https://github.com/harshp2008/spawn-at"
+git-repository-icon = "fab-github"
+# {path} is relative to the book root (docs-site/) and already starts with src/. The CLI
+# reference pages are generated, so their edit link points at a file that is not in the repository.
+edit-url-template = "https://github.com/harshp2008/spawn-at/edit/main/docs-site/{path}"
+
+[output.html.search]
+enable = true
+
+[output.html.print]
+enable = true
+
+# No "Run" button on code blocks: it would send the code to play.rust-lang.org. The site must
+# make no third-party request.
+[output.html.playground]
+runnable = false
