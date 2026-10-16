@@ -168,7 +168,7 @@ fn test_content_height_matches_the_rendered_row_count() {
             "{w}x{h}: the end of the content is not drawn:\n{end}"
         );
         assert!(
-            end.contains("ANCHOR_RELEASED") || end.contains("SNAPSHOT_DESTROYED"),
+            end.contains("end of details") && end.contains("external close"),
             "{w}x{h}:\n{end}"
         );
     }
@@ -247,16 +247,14 @@ fn test_end_of_scroll_shows_blank_row_then_marker() {
     key(&mut app, KeyCode::Char('G'));
     let screen = draw(&mut app, 100, 24);
     let rows = inner_rows(&screen);
-    let last = rows.last().unwrap();
+    // Last three rows: blank, the rule, blank (the rule is off the bottom border).
+    let rule = &rows[rows.len() - 2];
     assert!(
-        last.starts_with('─') && last.ends_with('─') && last.contains(MARKER),
+        rule.starts_with('─') && rule.ends_with('─') && rule.contains(MARKER),
         "{screen}"
     );
-    assert_eq!(
-        rows[rows.len() - 2],
-        "",
-        "blank row above the marker:\n{screen}"
-    );
+    assert_eq!(rows[rows.len() - 3], "", "blank row above:\n{screen}");
+    assert_eq!(rows[rows.len() - 1], "", "blank row below:\n{screen}");
     let t = title_row(&screen);
     assert!(t.contains("▲ more") && !t.contains("▼ more"), "{t}");
 }
@@ -361,7 +359,7 @@ fn test_marker_row_fills_the_drawn_width_and_counts_as_one_row() {
         let base = spawn_at_verify::tui::views::wrapping::wrapped_row_count(&lines, w as usize - 2);
         assert_eq!(
             drawer_content_rows(&app, &test, w as usize),
-            base + 2,
+            base + 3,
             "{w}x{h}"
         );
     }

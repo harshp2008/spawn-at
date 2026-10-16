@@ -28,6 +28,19 @@ use ratatui::{
     Frame,
 };
 
+// How many times `build_drawer_content` has run on this thread: the work a draw does when the
+// content is rebuilt (parsing and laying out the whole timeline). Tests count it to prove that a
+// scroll-only change does not rebuild. Per thread, so tests running side by side count only
+// their own.
+thread_local! {
+    static CONTENT_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// The number of builds on this thread so far.
+pub fn content_builds() -> usize {
+    CONTENT_BUILDS.with(|c| c.get())
+}
+
 /// Renders every drawer section into `builder` in display order.
 fn render_sections(
     builder: &mut DrawerBuilder,
@@ -78,6 +91,7 @@ pub fn build_drawer_content(
     width: usize,
     compact: bool,
 ) -> (Vec<Line<'static>>, String) {
+    CONTENT_BUILDS.with(|c| c.set(c.get() + 1));
     let mut probe = DrawerBuilder::new(width);
     render_sections(&mut probe, app, test, compact);
     let label_w = (probe.max_label_seen + 2).clamp(DRAWER_LABEL_W, DRAWER_LABEL_W_MAX);
@@ -117,6 +131,8 @@ fn push_end_marker(lines: &mut Vec<Line<'static>>, inner_width: usize) {
         end_marker_text(inner_width),
         Style::default().fg(Color::DarkGray),
     )));
+    // One more blank row, so the rule does not sit on the bottom border.
+    lines.push(Line::raw(""));
 }
 
 /// The rows the drawer's content takes when drawn in an area `width` columns wide (the number the
@@ -127,19 +143,67 @@ pub fn drawer_content_rows(app: &TuiApp, test: &TestDefinition, width: usize) ->
     super::wrapping::wrapped_row_count(&lines, width.saturating_sub(2))
 }
 
+/// The drawn content (with the end marker) and its wrapped row count, kept between draws.
+pub struct DrawerCache {
+    key: u64,
+    lines: Vec<Line<'static>>,
+    rows: usize,
+}
+
+/// Everything the drawer's text depends on, as one number: the test, the width, compact or raw,
+/// and the state its sections read (the result, the notes, the focus report, the run load, the
+/// environment, the waiting and closing flags). The scroll offset is not part of it. Anything
+/// that changes the text changes the key, so the cache needs no hooks in the code that mutates
+/// the app; `TuiApp::invalidate_drawer_cache` also drops it outright.
+fn content_key(app: &TuiApp, test: &TestDefinition, width: usize) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    test.id.hash(&mut h);
+    width.hash(&mut h);
+    app.drawer_raw_view.hash(&mut h);
+    format!("{:?}", app.results.get(&test.id)).hash(&mut h);
+    app.tracker.notes.get(&test.id).hash(&mut h);
+    format!("{:?}", app.focus_reports.get(&test.id)).hash(&mut h);
+    format!("{:?}", app.run_load).hash(&mut h);
+    format!("{:?}", app.env_info).hash(&mut h);
+    (app.waiting_for_human.as_deref() == Some(test.id.as_str())).hash(&mut h);
+    (app.closing_for.as_deref() == Some(test.id.as_str())).hash(&mut h);
+    h.finish()
+}
+
+/// The content for `width` columns: from the cache when its key still matches, else rebuilt.
+fn cached_content(
+    app: &TuiApp,
+    test: &TestDefinition,
+    width: usize,
+) -> (Vec<Line<'static>>, usize) {
+    let key = content_key(app, test, width);
+    if let Some(c) = app.drawer_cache.borrow().as_ref() {
+        if c.key == key {
+            return (c.lines.clone(), c.rows);
+        }
+    }
+    let (mut lines, _) = build_drawer_content(app, test, width, !app.drawer_raw_view);
+    push_end_marker(&mut lines, width.saturating_sub(2));
+    let rows = super::wrapping::wrapped_row_count(&lines, width.saturating_sub(2));
+    *app.drawer_cache.borrow_mut() = Some(DrawerCache {
+        key,
+        lines: lines.clone(),
+        rows,
+    });
+    (lines, rows)
+}
+
 /// Renders the detail drawer popup overlay and scroll indicators.
 pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded: bool) {
     let test_opt = app.selected_test();
     if let Some(test) = test_opt {
-        let (mut lines, _plain) =
-            build_drawer_content(app, test, area.width as usize, !app.drawer_raw_view);
-        push_end_marker(&mut lines, area.width.saturating_sub(2) as usize);
         let inner_height = area.height.saturating_sub(2) as usize;
         // The rows the drawn text really takes (wrapped to the inner width) decide how far it can
         // scroll. The offset is clamped here, where it is read, as well as where keys write it:
-        // a ratatui paragraph adds the offset to a row index and overflows on a huge one.
-        let total_lines =
-            super::wrapping::wrapped_row_count(&lines, area.width.saturating_sub(2) as usize);
+        // a ratatui paragraph adds the offset to a row index and overflows on a huge one. The
+        // content and its row count are rebuilt only when something that shows in it changed.
+        let (lines, total_lines) = cached_content(app, test, area.width as usize);
         let max = super::wrapping::max_scroll(total_lines, inner_height);
         app.scroll_max.set(max);
         let scroll = app.detail_scroll.min(max);

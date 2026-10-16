@@ -160,6 +160,8 @@ pub struct TuiApp {
     /// first draw it is `u16::MAX` (nothing is known yet, so the keys are not limited); the draw
     /// clamps what it reads either way.
     pub scroll_max: std::cell::Cell<u16>,
+    /// The drawer's laid-out content, kept while only the scroll offset changes.
+    pub drawer_cache: std::cell::RefCell<Option<crate::tui::views::drawer::DrawerCache>>,
     /// Whether the detail drawer overlay is open.
     pub detail_drawer_open: bool,
     /// Ids of tests waiting to run, in execution order.
@@ -269,6 +271,7 @@ impl TuiApp {
             should_quit: false,
             detail_scroll: 0,
             scroll_max: std::cell::Cell::new(u16::MAX),
+            drawer_cache: std::cell::RefCell::new(None),
             detail_drawer_open: false,
             queue: VecDeque::new(),
             waiting_for_human: None,
@@ -320,6 +323,11 @@ impl TuiApp {
     }
 
     // Navigation and state methods
+    /// Drops the drawer's cached content, so the next draw rebuilds it.
+    pub fn invalidate_drawer_cache(&self) {
+        *self.drawer_cache.borrow_mut() = None;
+    }
+
     /// The largest scroll offset of the view drawn last.
     pub fn detail_scroll_max(&self) -> u16 {
         self.scroll_max.get()
