@@ -257,9 +257,13 @@ fn files_under(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
 pub struct Options {
     /// Path the site is served under, e.g. `/spawn-at/`.
     pub prefix: String,
-    /// Directories (relative to the root, with a trailing `/`) whose `#fragment`s are not
-    /// verified because the page's ids are made by script (rustdoc source pages).
-    pub lenient_fragments: Vec<String>,
+    /// Directories (relative to the root, with a trailing `/`) written by another tool, such as
+    /// rustdoc's `api/`. The `<a>` links of their pages are not verified: rustdoc checks its own
+    /// intra-doc links, and with `--no-deps` it leaves links into the documentation of
+    /// dependencies (copied from their trait docs) that cannot resolve here. Their `src/` listings
+    /// are not searched for host names, because they show our own source code. Scripts,
+    /// stylesheets, images and the like are still checked.
+    pub generated: Vec<String>,
 }
 
 /// Result of a site check.
@@ -302,9 +306,11 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
         let Ok(text) = fs::read_to_string(file) else {
             continue;
         };
+        let generated = opts.generated.iter().any(|p| rel_s.starts_with(p.as_str()));
         let skip_hosts = rel_s.contains("searchindex")
             || rel_s.contains("search-index")
-            || rel_s.contains("sidebar-items");
+            || rel_s.contains("sidebar-items")
+            || (generated && rel_s.contains("/src/"));
         if !skip_hosts {
             for host in THIRD_PARTY {
                 if text.contains(host) {
@@ -326,10 +332,6 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
             continue;
         }
         html_files += 1;
-        let lenient = opts
-            .lenient_fragments
-            .iter()
-            .any(|p| rel_s.starts_with(p.as_str()));
 
         for tag in scan_tags(&text) {
             if tag
@@ -350,6 +352,9 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
                 "object" => ("data", true),
                 _ => continue,
             };
+            if generated && !is_resource {
+                continue;
+            }
             let Some(href) = tag.attr(attr) else { continue };
             match classify(href, &rel, &opts.prefix) {
                 Target::Skip => {}
@@ -381,10 +386,7 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
                         continue;
                     };
                     let Some(fragment) = fragment else { continue };
-                    if lenient
-                        || fragment.is_empty()
-                        || found.extension().is_none_or(|e| e != "html")
-                    {
+                    if fragment.is_empty() || found.extension().is_none_or(|e| e != "html") {
                         continue;
                     }
                     let ids = ids_cache.entry(found.clone()).or_insert_with(|| {
@@ -408,12 +410,12 @@ pub fn check_site(root: &Path, opts: &Options) -> Result<Report, String> {
     })
 }
 
-/// Entry point of `cargo xtask docs-check-html <site-dir> [--site-prefix P] [--lenient-fragments DIR]...`.
+/// Entry point of `cargo xtask docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]...`.
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut root = None;
     let mut opts = Options {
         prefix: "/spawn-at/".to_string(),
-        lenient_fragments: Vec::new(),
+        generated: Vec::new(),
     };
     let mut it = args.iter();
     while let Some(a) = it.next() {
@@ -421,11 +423,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
             "--site-prefix" => {
                 opts.prefix = it.next().ok_or("--site-prefix needs a value")?.clone()
             }
-            "--lenient-fragments" => opts.lenient_fragments.push(
-                it.next()
-                    .ok_or("--lenient-fragments needs a value")?
-                    .clone(),
-            ),
+            "--generated-dir" => opts
+                .generated
+                .push(it.next().ok_or("--generated-dir needs a value")?.clone()),
             other if root.is_none() && !other.starts_with("--") => {
                 root = Some(PathBuf::from(other))
             }
@@ -433,7 +433,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
     }
     let root = root.ok_or(
-        "usage: cargo xtask docs-check-html <site-dir> [--site-prefix P] [--lenient-fragments DIR]",
+        "usage: cargo xtask docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]",
     )?;
     let report = check_site(&root, &opts)?;
     println!(
@@ -539,7 +539,7 @@ mod tests {
     fn opts() -> Options {
         Options {
             prefix: "/spawn-at/".into(),
-            lenient_fragments: vec![],
+            generated: vec![],
         }
     }
 
@@ -605,27 +605,43 @@ mod tests {
         assert!(problems[0].contains("`playground` class"), "{problems:?}");
     }
 
-    /// Fragments under a lenient directory are not verified; file existence still is.
+    /// Under a generated directory a broken `<a>` link is not reported (rustdoc leaves some into
+    /// dependency docs), a missing stylesheet and a script from another host still are, and a
+    /// `src/` listing that mentions a CDN host name is not searched.
     #[test]
-    fn test_lenient_fragments_skip_ids_only() {
+    fn test_generated_dir_skips_anchors_and_source_listings_only() {
         let dir = site(
             &[
                 (
                     "api/a.html",
-                    "<a href=\"b.html#42\">b</a><a href=\"zzz.html\">z</a>",
+                    "<a href=\"zzz.html\">z</a><a href=\"b.html#42\">b</a>\
+                     <link rel=stylesheet href=\"missing.css\">\
+                     <script src=\"https://cdn.example/x.js\"></script>",
                 ),
                 ("api/b.html", "x"),
+                (
+                    "api/src/k/lib.rs.html",
+                    "<pre>const H: &str = \"unpkg.com\";</pre>",
+                ),
+                ("book.html", "<a href=\"zzz.html\">z</a>"),
             ],
-            "lenient",
+            "generated",
         );
         let o = Options {
             prefix: "/spawn-at/".into(),
-            lenient_fragments: vec!["api/".into()],
+            generated: vec!["api/".into()],
         };
         let problems = check_site(&dir, &o).unwrap().problems.join("\n");
+        assert!(!problems.contains("api/a.html: <a>"), "{problems}");
         assert!(
-            !problems.contains("no id") && problems.contains("zzz.html"),
+            problems.contains("api/a.html: <link>") && problems.contains("missing.css"),
             "{problems}"
         );
+        assert!(
+            problems.contains("api/a.html: <script> loads https://cdn.example/x.js"),
+            "{problems}"
+        );
+        assert!(!problems.contains("lib.rs.html"), "{problems}");
+        assert!(problems.contains("book.html: <a> zzz.html"), "{problems}");
     }
 }

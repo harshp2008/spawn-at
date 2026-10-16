@@ -32,7 +32,7 @@ fn main() {
             eprintln!("  docs-site [--mdbook P] [--bin P] [--out DIR]");
             eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--summary FILE]");
             eprintln!("  docs-check-src [DIR]");
-            eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--lenient-fragments DIR]");
+            eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             exit(1);
         }
     };
