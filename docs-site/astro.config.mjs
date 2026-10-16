@@ -17,10 +17,6 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/harshp2008/spawn-at' },
       ],
-      editLink: {
-        // The CLI reference pages are generated at build time, so their edit link has no file.
-        baseUrl: 'https://github.com/harshp2008/spawn-at/edit/main/docs-site/',
-      },
       customCss: ['./src/styles/custom.css'],
       // Same order and groups as the mdBook table of contents this replaces. The CLI reference
       // group is filled from the folder `reference`, so a new command needs no entry here.
