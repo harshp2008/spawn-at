@@ -634,3 +634,82 @@ fn test_marker_stays_visible_on_the_selected_row_in_every_state() {
     assert_eq!(marker_color(Color::DarkGray, false), Color::DarkGray);
     assert_eq!(marker_color(Color::DarkGray, true), Color::White);
 }
+
+/// The focus return is recorded and shown whatever happens: after `r` the Result panel names the
+/// terminal that was recorded at start, says `focus` was sent to it once (exit 0) and which
+/// window had focus afterwards, and the verdict teardown keeps a report that still matches.
+#[test]
+fn test_result_panel_shows_the_focus_return_chain() {
+    let rig = Rig::new("chain");
+    let mut app = rig.app();
+    assert_eq!(app.terminal_window_id, Some(7), "recorded at start");
+    select(&mut app, "transforms/both");
+    key(&mut app, 'r');
+    app.run_all_pending();
+    let r = &app.focus_reports["transforms/both"];
+    assert!(r.matches, "{:?}", r.lines());
+    let (plain, _, _) = get_result_content(&app);
+    assert!(
+        plain.contains("focus terminal: id 7 class '' title 'term'"),
+        "{plain}"
+    );
+    assert!(
+        plain.contains("focus focus command: sent 1x: #1 exit 0"),
+        "{plain}"
+    );
+    assert!(plain.contains("matches terminal: yes"), "{plain}");
+    key(&mut app, 'p');
+    app.run_all_pending();
+    assert!(app.focus_reports["transforms/both"].matches);
+    assert_eq!(rig.focused(), "7");
+}
+
+/// A focus that never lands: the report says three sends, what had focus instead, and NO.
+#[test]
+fn test_result_panel_shows_a_failed_focus_return_exactly() {
+    let rig = Rig::new("chain-fail");
+    std::fs::write(rig.root.join("bin/nofocus"), "").unwrap();
+    let mut app = rig.app();
+    app.focus_timings = spawn_at_verify::runner::focus_return::FocusTimings {
+        settle: std::time::Duration::from_millis(5),
+        attempts: 3,
+        wait: std::time::Duration::from_millis(40),
+        poll: std::time::Duration::from_millis(10),
+    };
+    select(&mut app, "transforms/both");
+    key(&mut app, 'r');
+    app.run_all_pending();
+    let lines = app.focus_reports["transforms/both"].lines();
+    assert!(
+        lines[1].starts_with("focus command: sent 3x: #1 exit 0"),
+        "{lines:?}"
+    );
+    assert!(lines[2].contains("matches terminal: NO"), "{lines:?}");
+    assert!(
+        lines[2].contains("id 1000"),
+        "the fixture still had focus: {lines:?}"
+    );
+    let (plain, _, _) = get_result_content(&app);
+    assert!(plain.contains("matches terminal: NO"), "{plain}");
+}
+
+/// No window focused at start: the panel says none was found and why, and nothing is sent.
+#[test]
+fn test_result_panel_says_when_no_terminal_was_found() {
+    let rig = Rig::new("chain-none");
+    std::fs::write(rig.root.join("bin/focus_id"), "0\n").unwrap();
+    let mut app = rig.app();
+    assert_eq!(app.terminal_window_id, None);
+    select(&mut app, "transforms/both");
+    key(&mut app, 'r');
+    app.run_all_pending();
+    let (plain, _, _) = get_result_content(&app);
+    assert!(
+        plain.contains("terminal: none found (no window reported focused (1 listed))"),
+        "{plain}"
+    );
+    assert!(
+        plain.contains("not sent (no terminal window recorded)"),
+        "{plain}"
+    );
+}

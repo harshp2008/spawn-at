@@ -349,6 +349,10 @@ pub struct RunOptions {
     /// no measurable cost at idle or under load); without it the fixture's own `FIRST_PAINT`
     /// stamps are the paint times.
     pub wire_paint: bool,
+    /// The caller returns focus to the window that had it after the automatic part of a test a
+    /// person judges, and records what it did (the TUI); the executor then skips its own
+    /// unrecorded return. Off by default.
+    pub caller_returns_focus: bool,
     /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
     /// empty by default, which adds nothing to the command line.
     pub wait: crate::trace::wait::WaitRequest,
@@ -372,6 +376,7 @@ impl Default for RunOptions {
             strict_flash: false,
             flash_threshold_ms: 0.0,
             wire_paint: true,
+            caller_returns_focus: false,
             wait: Default::default(),
             interrupted: Default::default(),
         }

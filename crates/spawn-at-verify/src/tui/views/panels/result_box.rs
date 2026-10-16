@@ -26,6 +26,15 @@ pub fn get_result_content(app: &TuiApp) -> (String, Line<'static>, Color) {
                 Style::default().fg(Color::Cyan),
             ));
         }
+        // Always shown for a test whose window was left open for a person: what was recorded as
+        // the terminal, what was sent and what had focus afterwards (to paste when it fails).
+        if let Some(report) = app.focus_reports.get(&test.id) {
+            for l in report.lines() {
+                let text = format!("  ·  focus {l}");
+                plain.push_str(&text);
+                spans.push(Span::styled(text, Style::default().fg(Color::Cyan)));
+            }
+        }
         for note in app.tracker.notes.get(&test.id) {
             plain.push_str(&format!("  ·  ⚠ {note}"));
             spans.push(Span::styled(

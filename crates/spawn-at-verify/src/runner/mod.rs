@@ -4,6 +4,7 @@ pub mod engine;
 pub mod executor;
 mod executor_v2;
 pub mod flash;
+pub mod focus_return;
 pub mod models;
 pub mod owned;
 pub mod validation;
@@ -12,6 +13,8 @@ pub mod validation;
 mod executor_v2_tests;
 #[cfg(test)]
 mod flash_tests;
+#[cfg(test)]
+mod focus_return_tests;
 #[cfg(test)]
 mod owned_tests;
 #[cfg(test)]

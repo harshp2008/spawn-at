@@ -106,6 +106,15 @@ pub trait Control: Send + Sync {
     /// Gives the window with this id keyboard focus; true when the command succeeded. Used only
     /// to put focus back on the window that had it before the test (design 3.6).
     fn focus(&self, id: u64) -> bool;
+    /// Like [`Control::focus`], with the exit code and message for the focus-return report. The
+    /// default knows only success or failure.
+    fn focus_detail(&self, id: u64) -> super::focus_return::FocusCommand {
+        let ok = self.focus(id);
+        super::focus_return::FocusCommand {
+            exit_code: Some(if ok { 0 } else { 1 }),
+            message: String::new(),
+        }
+    }
 }
 
 /// Runs one `spawn-at` action of a test. A trait so tests can answer without a binary.
@@ -171,13 +180,28 @@ impl Control for CliControl {
     }
 
     fn focus(&self, id: u64) -> bool {
+        self.focus_detail(id).exit_code == Some(0)
+    }
+
+    fn focus_detail(&self, id: u64) -> super::focus_return::FocusCommand {
         let mut cmd = Command::new(&self.bin);
         cmd.args(["focus", "--id", &id.to_string(), "--no-wait"]);
         crate::no_config::isolate(&mut cmd);
-        matches!(
-            crate::process::execute_with_timeout(cmd, Duration::from_millis(1500)),
-            Ok(out) if out.exit_code == Some(0)
-        )
+        match crate::process::execute_with_timeout(cmd, Duration::from_millis(1500)) {
+            Ok(out) => super::focus_return::FocusCommand {
+                exit_code: out.exit_code,
+                message: String::from_utf8_lossy(&out.stderr)
+                    .lines()
+                    .find(|l| !l.trim().is_empty())
+                    .unwrap_or("")
+                    .trim()
+                    .to_string(),
+            },
+            Err(e) => super::focus_return::FocusCommand {
+                exit_code: None,
+                message: e,
+            },
+        }
     }
 }
 
