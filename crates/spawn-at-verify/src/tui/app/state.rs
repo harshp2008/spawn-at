@@ -155,6 +155,11 @@ pub struct TuiApp {
     pub should_quit: bool,
     /// Rows the detail drawer is scrolled down; reset to 0 when the selection changes.
     pub detail_scroll: u16,
+    /// The largest offset the view drawn last allows (its wrapped rows minus its viewport),
+    /// written by every draw of a scrollable view; the scroll keys clamp to it. Before the
+    /// first draw it is `u16::MAX` (nothing is known yet, so the keys are not limited); the draw
+    /// clamps what it reads either way.
+    pub scroll_max: std::cell::Cell<u16>,
     /// Whether the detail drawer overlay is open.
     pub detail_drawer_open: bool,
     /// Ids of tests waiting to run, in execution order.
@@ -263,6 +268,7 @@ impl TuiApp {
             status_message: None,
             should_quit: false,
             detail_scroll: 0,
+            scroll_max: std::cell::Cell::new(u16::MAX),
             detail_drawer_open: false,
             queue: VecDeque::new(),
             waiting_for_human: None,
@@ -314,6 +320,33 @@ impl TuiApp {
     }
 
     // Navigation and state methods
+    /// The largest scroll offset of the view drawn last.
+    pub fn detail_scroll_max(&self) -> u16 {
+        self.scroll_max.get()
+    }
+
+    /// Scrolls down by `n` rows, never past the end of the view drawn last.
+    pub fn scroll_down(&mut self, n: u16) {
+        self.detail_scroll = self
+            .detail_scroll
+            .saturating_add(n)
+            .min(self.scroll_max.get());
+    }
+
+    /// Scrolls up by `n` rows. An offset left beyond the end (a view that got shorter) is
+    /// brought back first, so one key press always moves.
+    pub fn scroll_up(&mut self, n: u16) {
+        self.detail_scroll = self
+            .detail_scroll
+            .min(self.scroll_max.get())
+            .saturating_sub(n);
+    }
+
+    /// Scrolls to the end of the view drawn last.
+    pub fn scroll_to_end(&mut self) {
+        self.detail_scroll = self.scroll_max.get();
+    }
+
     /// Toggles folding expansion/collapse for the currently selected test category.
     pub fn toggle_collapse_selected_category(&mut self) {
         if let Some(test) = self.selected_test() {

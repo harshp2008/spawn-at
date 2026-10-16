@@ -85,6 +85,14 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
     signal_hook::flag::register(signal_hook::consts::SIGHUP, Arc::clone(&term_flag))
         .map_err(|e| format!("Failed to register SIGHUP hook: {}", e))?;
 
+    // A panic anywhere below (a draw, a key handler) must give the terminal back first, or the
+    // shell is left in raw mode on the alternate screen: keys echo nothing, Escape does nothing,
+    // and the message is lost.
+    install_panic_hook_with(Box::new(|| {
+        let _ = disable_raw_mode();
+        let _ = execute!(std::io::stdout(), LeaveAlternateScreen, Show);
+    }));
+
     // 3. Initialize terminal raw mode and alternate screen
     enable_raw_mode().map_err(|e| format!("Failed to enable terminal raw mode: {}", e))?;
     let mut stdout = stdout();
@@ -144,6 +152,16 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
     unified_teardown(&mut app, &mut logging_guard);
 
     Ok(())
+}
+
+/// Installs a panic hook that runs `restore` (leave raw mode and the alternate screen) and then
+/// the hook that was there, which prints the panic message on the restored screen.
+pub fn install_panic_hook_with(restore: Box<dyn Fn() + Send + Sync + 'static>) {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        restore();
+        previous(info);
+    }));
 }
 
 /// Unified cleanup procedure executed on all exit pathways (Ctrl+C, 'q', SIGTERM, SIGHUP).

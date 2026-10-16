@@ -12,7 +12,8 @@ use spawn_at_verify::trace::flash::FlashInfo;
 use spawn_at_verify::tui::app::TuiApp;
 use spawn_at_verify::tui::views::build_drawer_content;
 
-const TRANSFORM: &str = include_str!("../fixtures/real_transform_existing_window_trace.log");
+pub(crate) const TRANSFORM: &str =
+    include_str!("../fixtures/real_transform_existing_window_trace.log");
 const FOCUS: &str = include_str!("../fixtures/real_focus_existing_window_trace.log");
 const GOLDEN_TRANSFORM: &str = include_str!("../fixtures/golden_transform_timeline.txt");
 const GOLDEN_FOCUS: &str = include_str!("../fixtures/golden_focus_timeline.txt");
@@ -30,7 +31,13 @@ fn owned() -> Vec<OwnedWindow> {
     ]
 }
 
-fn trace_of(slice: &str, command: &str, target: &str, id: u64, index: usize) -> ActionTrace {
+pub(crate) fn trace_of(
+    slice: &str,
+    command: &str,
+    target: &str,
+    id: u64,
+    index: usize,
+) -> ActionTrace {
     let events = owned_events(slice, &owned());
     let spec = ActionSpec {
         index,
@@ -41,7 +48,7 @@ fn trace_of(slice: &str, command: &str, target: &str, id: u64, index: usize) -> 
     build_action_trace(&spec, &events, &owned(), None, None)
 }
 
-fn result_with(app: &TuiApp, traces: Vec<ActionTrace>) -> TestResult {
+pub(crate) fn result_with(app: &TuiApp, traces: Vec<ActionTrace>) -> TestResult {
     let test = app.selected_test().unwrap();
     TestResult {
         id: test.id.clone(),
@@ -331,4 +338,26 @@ fn test_trace_row_wording() {
     );
     assert!(!plain.contains("event(s)"), "the old count wording is gone");
     assert!(!plain.contains("Offsets "), "no separate Offsets row");
+}
+
+/// The same reason reads the same on every event: `AT_TARGET` on COMMIT_RESOLVED and `at-target`
+/// on READY_WAIT_RESOLVED both show `at target`; other values and fields are untouched.
+#[test]
+fn test_same_reason_reads_the_same_on_every_event() {
+    let w =
+        r#"win=[id=3210662173 pid=48217 class="verify.owned.w" app="" type=NORMAL proto=Wayland]"#;
+    let lines = format!(
+        "[spawn-at-time] +10.00ms | COMMIT_RESOLVED {w} reason=AT_TARGET\n[spawn-at-time] +11.00ms | READY_WAIT_RESOLVED {w} outcome=reached reason=at-target source=size-changed"
+    );
+    let app = create_test_app();
+    let t = timeline(
+        result_with(
+            &app,
+            vec![trace_of(&lines, "transform", "w", 3210662173, 0)],
+        ),
+        100,
+        true,
+    );
+    assert_eq!(t.matches("reason        at target").count(), 2, "{t}");
+    assert!(t.contains("outcome       reached") && t.contains("source        size-changed"));
 }

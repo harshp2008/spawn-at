@@ -371,9 +371,12 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
     }
 
     // Clipping and "▼ more" hint
-    let total_lines = lines.len();
     let inner_h = inner.height as usize;
-    let is_clipped = total_lines > (app.detail_scroll as usize + inner_h);
+    let total_lines = crate::tui::views::wrapping::wrapped_row_count(&lines, inner.width as usize);
+    let max = crate::tui::views::wrapping::max_scroll(total_lines, inner_h);
+    app.scroll_max.set(max);
+    let scroll = app.detail_scroll.min(max);
+    let is_clipped = total_lines > (scroll as usize + inner_h);
 
     if is_clipped {
         block = block.title_bottom(
@@ -383,7 +386,7 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
                     .add_modifier(Modifier::BOLD),
             ),
         );
-        let last_visible_idx = (app.detail_scroll as usize + inner_h).saturating_sub(1);
+        let last_visible_idx = (scroll as usize + inner_h).saturating_sub(1);
         if last_visible_idx < lines.len() {
             let orig_line = &lines[last_visible_idx];
             let mut spans = orig_line.spans.clone();
@@ -399,7 +402,7 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
 
     let p = Paragraph::new(lines)
         .block(block)
-        .scroll((app.detail_scroll, 0))
+        .scroll((scroll, 0))
         .wrap(Wrap { trim: false });
 
     f.render_widget(p, area);

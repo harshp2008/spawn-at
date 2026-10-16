@@ -9,6 +9,7 @@ pub mod drawer_geometry;
 pub mod drawer_keys_clipboard;
 pub mod drawer_labels;
 pub mod drawer_order;
+pub mod drawer_scroll;
 pub mod drawer_trace;
 pub mod drawer_workarea;
 pub mod flash;

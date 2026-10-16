@@ -89,17 +89,31 @@ pub fn build_drawer_content(
     (builder.lines, full_plain)
 }
 
+/// The rows the drawer's content takes when drawn in an area `width` columns wide (the number the
+/// scroll maximum is computed from).
+pub fn drawer_content_rows(app: &TuiApp, test: &TestDefinition, width: usize) -> usize {
+    let (lines, _) = build_drawer_content(app, test, width, !app.drawer_raw_view);
+    super::wrapping::wrapped_row_count(&lines, width.saturating_sub(2))
+}
+
 /// Renders the detail drawer popup overlay and scroll indicators.
 pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded: bool) {
     let test_opt = app.selected_test();
     if let Some(test) = test_opt {
         let (lines, _plain) =
             build_drawer_content(app, test, area.width as usize, !app.drawer_raw_view);
-        let total_lines = lines.len();
-        let title = app.get_drawer_title(&test.id);
         let inner_height = area.height.saturating_sub(2) as usize;
+        // The rows the drawn text really takes (wrapped to the inner width) decide how far it can
+        // scroll. The offset is clamped here, where it is read, as well as where keys write it:
+        // a ratatui paragraph adds the offset to a row index and overflows on a huge one.
+        let total_lines =
+            super::wrapping::wrapped_row_count(&lines, area.width.saturating_sub(2) as usize);
+        let max = super::wrapping::max_scroll(total_lines, inner_height);
+        app.scroll_max.set(max);
+        let scroll = app.detail_scroll.min(max);
+        let title = app.get_drawer_title(&test.id);
 
-        let title_line = if app.detail_scroll > 0 && total_lines > inner_height {
+        let title_line = if scroll > 0 && total_lines > inner_height {
             Line::from(vec![
                 Span::styled(format!(" {} ", title), Style::default().fg(Color::Cyan)),
                 Span::styled("  ▲ more ", Style::default().fg(Color::DarkGray)),
@@ -116,7 +130,7 @@ pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded:
             .border_style(Style::default().fg(Color::Cyan))
             .title(title_line);
 
-        if total_lines > inner_height && (app.detail_scroll as usize + inner_height) < total_lines {
+        if total_lines > inner_height && (scroll as usize + inner_height) < total_lines {
             block = block.title_bottom(
                 Line::from(vec![Span::styled(
                     " ▼ more ",
@@ -128,7 +142,7 @@ pub fn draw_detail_drawer(f: &mut Frame, app: &TuiApp, area: Rect, _is_expanded:
 
         let widget = Paragraph::new(lines)
             .block(block)
-            .scroll((app.detail_scroll, 0))
+            .scroll((scroll, 0))
             .wrap(Wrap { trim: false });
 
         f.render_widget(widget, area);

@@ -321,6 +321,16 @@ pub fn parse_timeline_lines<'a>(
                     }
                 }
 
+                // A reason is worded the same whichever event carries it: `AT_TARGET` becomes
+                // `at target` (clean_trace_val), and so does the kebab form `at-target`.
+                for (k, v) in details.iter_mut() {
+                    if k == "reason"
+                        && v.contains('-')
+                        && v.chars().all(|c| c.is_ascii_lowercase() || c == '-')
+                    {
+                        *v = v.replace('-', " ");
+                    }
+                }
                 out.push(ParsedTimelineEvent {
                     dt_ms: rel_dt,
                     tag,
