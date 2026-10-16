@@ -84,7 +84,9 @@ impl TuiApp {
 
     /// Executes a single test case through the runner and records its result.
     pub(crate) fn execute_test(&mut self, test: &TestDefinition) {
-        let runner = TestRunner::new(self.registry.clone(), self.options.clone());
+        let mut options = self.options.clone();
+        options.caller_returns_focus = true;
+        let runner = TestRunner::new(self.registry.clone(), options);
         let preflight = self.preflight.clone().unwrap_or_else(|| PreflightReport {
             detected_commit: None,
             binary_version_output: String::new(),
@@ -113,7 +115,18 @@ impl TuiApp {
             "Ran {}: {:?} ({}ms)",
             test.id, result.final_status, result.duration_ms
         ));
+        // A test a person judges leaves its window open; the verdict keys must reach this
+        // terminal, so focus goes back now (for every kind of spec, not only version 2) and the
+        // report of what happened is kept for the Result panel.
+        let judged = matches!(test.kind, TestKind::Human | TestKind::Both)
+            && !matches!(
+                result.auto_status,
+                AutoStatus::Error | AutoStatus::Blocked | AutoStatus::Skipped
+            );
         self.results.insert(test.id.clone(), result);
+        if judged {
+            self.return_focus_to_terminal(&test.id);
+        }
     }
 
     /// Displays the human review modal overlay for recording verdicts.
@@ -159,6 +172,10 @@ impl TuiApp {
             Some(Pending::Teardown { continue_queue }) => {
                 let id = self.closing_for.take();
                 let lines = self.close_test_windows_noted();
+                let report = self.last_focus_report.take();
+                if let (Some(id), Some(report)) = (id.as_ref(), report) {
+                    self.focus_reports.insert(id.clone(), report);
+                }
                 if let Some(id) = id {
                     for line in lines {
                         self.tracker.notes.add(&id, line);

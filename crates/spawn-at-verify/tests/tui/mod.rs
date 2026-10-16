@@ -10,10 +10,12 @@ pub mod drawer_order;
 pub mod drawer_trace;
 pub mod drawer_workarea;
 pub mod flash;
+pub mod focus_chain_sway;
 pub mod footer_widths;
 pub mod golden_invariants;
 pub mod layout_responsive;
 pub mod polish;
+pub mod sidebar_order;
 pub mod v2_flow;
 pub mod verdict_feedback;
 

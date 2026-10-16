@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- `spawn-at-verify tui` (developer tool; nothing in `spawn-at` changed): FOCUS is now the second group of the Tests list, after PREFLIGHT (order: PREFLIGHT, FOCUS, QUERIES, ROBUSTNESS, PLACEMENT, CLOAK & DELAYED PAINT, TRANSFORMS, GENERAL). An earlier change had reordered the drawer instead. Focus now goes back to the terminal after the automatic part of every attended test (placement and cloak specs had no return before), is checked and retried, and the Result box always shows the recorded terminal, each `focus` command's exit code and what had focus afterwards. Covered on a private headless Sway; not verified on GNOME.
+
 ### Added
 
 - **Catalog specs for an existing window** (developer tool; nothing in `spawn-at` changed): 18 files, 22 entries, in `verify/queries/`, `verify/transforms/`, `verify/focus/` and `verify/robustness/`: query windows/layout/pointer, resize, reposition, anchor corners, maximize/minimize and restore, focus, switch, defocus, close by id, a nonexistent id, and three Sway "unsupported" contract specs. All `required = false`, all `moves-focus` where they open a window, four `Both` specs that ask a person (and measure no flicker). On a private headless Sway 15 pass and 7 GNOME-only specs are Skipped; none has been run on GNOME. The original 45 specs are byte-identical (a golden test and unchanged `list` hashes). The suite alias `lifecycle` now selects the `focus` category; `[expect.rect]` `anchor`/`pivot` follow a `[matrix]`. How to run them: `verify/README.md`.

@@ -67,26 +67,32 @@ pub enum ModalState {
     },
 }
 
-/// Computes fixed ordering rank for category grouping.
+/// Computes fixed ordering rank for category grouping. This is the one place the sidebar order
+/// is defined (`filtered_tests` sorts by it; spec file order and ids play no part).
+///
+/// Order and why: PREFLIGHT (is the binary the one under test); FOCUS (every attended spec
+/// needs focus to move and return, so it must work first); QUERIES (read-only, and the window
+/// list is what ownership checks and teardown rely on); ROBUSTNESS (close by id and bad ids: the
+/// safety paths, automatic, before anything attended); PLATFORM; then the attended groups
+/// together so the terminal loses focus in one stretch: PLACEMENT, CLOAK & DELAYED PAINT,
+/// TRANSFORMS; everything else (the hostile-app cells, shown as GENERAL) last as the riskiest.
 pub fn category_rank(cat_or_id: &str) -> usize {
-    if cat_or_id.starts_with("preflight") || cat_or_id == "basics" {
+    let s = cat_or_id;
+    if s.starts_with("preflight") || s == "basics" {
         0
-    } else if cat_or_id.starts_with("placement") || cat_or_id == "placement" {
+    } else if s.starts_with("focus") {
         1
-    } else if cat_or_id.starts_with("cloak") || cat_or_id == "animation-and-cloak" {
+    } else if s.starts_with("query") || s == "queries" {
         2
-    } else if cat_or_id.starts_with("transform") || cat_or_id == "transforms" {
+    } else if s.starts_with("robust") || s.starts_with("resilience") || s == "robustness" {
         3
-    } else if cat_or_id.starts_with("focus") {
+    } else if s.starts_with("platform") {
         4
-    } else if cat_or_id.starts_with("query") || cat_or_id == "queries" {
+    } else if s.starts_with("placement") {
         5
-    } else if cat_or_id.starts_with("robust")
-        || cat_or_id.starts_with("resilience")
-        || cat_or_id == "robustness"
-    {
+    } else if s.starts_with("cloak") || s == "animation-and-cloak" {
         6
-    } else if cat_or_id.starts_with("platform") {
+    } else if s.starts_with("transform") || s == "transforms" {
         7
     } else {
         8
@@ -159,6 +165,16 @@ pub struct TuiApp {
     /// Id of the window that was focused when the app started (the terminal), refocused after
     /// test windows are closed; `None` if it could not be determined.
     pub terminal_window_id: Option<u64>,
+    /// The terminal window as the window list described it at start (id, class, title).
+    pub terminal_ref: Option<crate::runner::focus_return::WindowRef>,
+    /// Why no terminal window was recorded (empty when one was).
+    pub terminal_note: String,
+    /// What the last focus return of each test did and saw, by test id; shown in the Result panel.
+    pub focus_reports: HashMap<String, crate::runner::focus_return::FocusReport>,
+    /// The report of the focus return the last teardown made, taken by `run_pending`.
+    pub last_focus_report: Option<crate::runner::focus_return::FocusReport>,
+    /// Waits of a focus return (shortened by tests).
+    pub focus_timings: crate::runner::focus_return::FocusTimings,
     /// Pane that receives scroll and navigation keys: the tests list or the details pane.
     pub active_pane: ActivePane,
     /// Directory the drawer's save key writes `<id>.log.txt` files into.
@@ -214,26 +230,20 @@ impl TuiApp {
         let tracker = WindowTracker::snapshot_startup(&bin_path)
             .unwrap_or_else(|_| WindowTracker::new_with_preexisting(&[]));
 
-        let terminal_window_id = {
-            let mut cmd = std::process::Command::new(&bin_path);
-            cmd.args(["query", "windows", "--json"]);
-            crate::process::execute_with_timeout(cmd, std::time::Duration::from_millis(500))
-                .ok()
-                .and_then(|out| {
-                    serde_json::from_slice::<serde_json::Value>(&out.stdout)
-                        .ok()
-                        .and_then(|v| {
-                            v.as_array().and_then(|arr| {
-                                for item in arr {
-                                    if item.get("focused").and_then(|f| f.as_bool()) == Some(true) {
-                                        return item.get("id").and_then(|id| id.as_u64());
-                                    }
-                                }
-                                None
-                            })
-                        })
-                })
+        // The window that has focus now is the terminal the TUI runs in. A failed query is kept as
+        // the reason (it used to be swallowed by a 500 ms timeout) and shown with every focus
+        // return. A binary that does not exist keeps this from querying a live desktop.
+        let (terminal_ref, terminal_note) = if bin_path.exists() {
+            match crate::runner::focus_return::find_focused(&crate::runner::owned::CliControl {
+                bin: bin_path.clone(),
+            }) {
+                Ok(w) => (Some(w), String::new()),
+                Err(why) => (None, why),
+            }
+        } else {
+            (None, "no spawn-at binary to query windows with".to_string())
         };
+        let terminal_window_id = terminal_ref.as_ref().map(|w| w.id);
 
         Ok(Self {
             registry,
@@ -257,6 +267,11 @@ impl TuiApp {
             queue: VecDeque::new(),
             waiting_for_human: None,
             terminal_window_id,
+            terminal_ref,
+            terminal_note,
+            focus_reports: HashMap::new(),
+            last_focus_report: None,
+            focus_timings: Default::default(),
             active_pane: ActivePane::List,
             report_dir: PathBuf::from("verify-results"),
             run_load: None,
@@ -420,23 +435,41 @@ impl TuiApp {
             }
             Err(e) => lines.push(e),
         }
-        if let Some(term_id) = self.terminal_window_id {
-            let has_focus =
-                crate::runner::owned::Control::windows(&crate::runner::owned::CliControl {
-                    bin: self.bin_path.clone(),
-                })
-                .map(|w| w.iter().any(|w| w.id == term_id && w.focused))
-                .unwrap_or(false);
-            if !has_focus {
-                let mut cmd = std::process::Command::new(&self.bin_path);
-                cmd.args(["focus", "--id", &term_id.to_string(), "--no-wait"]);
-                let _ = crate::process::execute_with_timeout(
-                    cmd,
-                    std::time::Duration::from_millis(500),
-                );
-            }
+        // The windows are gone (or asked to go): give the terminal focus, checked and retried,
+        // and keep the report for the Result panel. Only `focus` is sent to it.
+        let report = self.focus_return_report();
+        self.last_focus_report = Some(report.clone());
+        if report.recorded.is_some() && !report.matches {
+            lines.push(crate::runner::owned::FOCUS_NOT_RETURNED.to_string());
         }
         lines
+    }
+
+    /// Runs a focus return to the terminal recorded at start and returns what it did and saw.
+    pub fn focus_return_report(&self) -> crate::runner::focus_return::FocusReport {
+        let mut forbidden = self.tracker.tracked_test_windows.clone();
+        forbidden.extend(self.tracker.owned.all_ids());
+        crate::runner::focus_return::return_focus(
+            &crate::runner::owned::CliControl {
+                bin: self.bin_path.clone(),
+            },
+            self.terminal_ref.as_ref(),
+            &self.terminal_note,
+            &forbidden,
+            &self.focus_timings,
+        )
+    }
+
+    /// Gives focus back to the terminal after the automatic part of a test a person judges, so
+    /// the verdict keys reach the TUI, and records the report under the test's id.
+    pub fn return_focus_to_terminal(&mut self, test_id: &str) {
+        let report = self.focus_return_report();
+        if report.recorded.is_some() && !report.matches {
+            self.tracker
+                .notes
+                .add(test_id, crate::runner::owned::FOCUS_NOT_RETURNED);
+        }
+        self.focus_reports.insert(test_id.to_string(), report);
     }
 
     /// Dismisses any currently open modal dialog overlay.

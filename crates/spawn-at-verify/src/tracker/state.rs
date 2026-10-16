@@ -53,6 +53,16 @@ impl OwnedSessions {
         self.len() == 0
     }
 
+    /// The recorded window ids of every held session.
+    pub fn all_ids(&self) -> Vec<u64> {
+        self.0
+            .lock()
+            .unwrap()
+            .iter()
+            .flat_map(|s| s.recorded_ids())
+            .collect()
+    }
+
     /// Tears down every held session, newest first, and forgets them.
     pub fn teardown_all(&self) -> Vec<TeardownReport> {
         let mut sessions = std::mem::take(&mut *self.0.lock().unwrap());

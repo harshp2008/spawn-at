@@ -236,8 +236,12 @@ impl TestRunner {
             // The person judging the window answers with keys that must reach the TUI's
             // terminal, not the fixture that just took focus. Only `focus` is sent to the
             // recorded window, then the window list confirms it (read-only).
-            if let FocusReturn::NotReturned(why) = session.restore_focus() {
-                tracker.notes.add(&test.id, why);
+            // A caller that keeps its own record of the return (the TUI, which shows every step
+            // in the Result panel) does it itself.
+            if !self.options.caller_returns_focus {
+                if let FocusReturn::NotReturned(why) = session.restore_focus() {
+                    tracker.notes.add(&test.id, why);
+                }
             }
             tracker.owned.push(session);
         } else {
