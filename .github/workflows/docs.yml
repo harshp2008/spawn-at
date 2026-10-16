@@ -1,6 +1,6 @@
 name: Docs
 
-# Builds the documentation site (the mdBook user guide at the root, the rustdoc API under /api/)
+# Builds the documentation site (the Starlight user guide at the root, the rustdoc API under /api/)
 # on every pull request, and deploys it to GitHub Pages on a push to main. Separate from ci.yml
 # so the required `check` and `check-other-os` jobs keep their names.
 #
@@ -21,10 +21,9 @@ concurrency:
 
 env:
   CARGO_TERM_COLOR: always
-  # mdBook is downloaded as a release archive and checked against this SHA-256 before it runs.
-  # The digest is the one GitHub shows for the asset, and matches a download made on 2026-10-16.
-  MDBOOK_VERSION: v0.5.4
-  MDBOOK_SHA256: 3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7
+  # Astro sends anonymous usage data unless told not to; the xtask command and the npm scripts
+  # set this too.
+  ASTRO_TELEMETRY_DISABLED: '1'
 
 jobs:
   docs:
@@ -35,27 +34,22 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-
-      - name: Install mdBook (release archive, checksum checked)
-        run: |
-          set -euo pipefail
-          archive="mdbook-${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
-          download="$RUNNER_TEMP/mdbook-download"
-          bin="$RUNNER_TEMP/mdbook-bin"
-          mkdir -p "$download" "$bin"
-          curl -fsSL --retry 3 -o "$download/$archive" \
-            "https://github.com/rust-lang/mdBook/releases/download/${MDBOOK_VERSION}/${archive}"
-          echo "${MDBOOK_SHA256}  $download/$archive" | sha256sum --check -
-          tar -xzf "$download/$archive" -C "$bin"
-          echo "$bin" >> "$GITHUB_PATH"
-          "$bin/mdbook" --version
+      # Same action and pin as ci.yml. The Node major comes from docs-site/.nvmrc (24, as in
+      # ci.yml); the npm download cache is keyed on docs-site/package-lock.json.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: docs-site/.nvmrc
+          cache: npm
+          cache-dependency-path: docs-site/package-lock.json
 
       # Builds the spawn-at binary, writes the CLI reference from its --help (a missing binary or
-      # a command without a page fails), checks the book source, runs mdbook build (a warning
-      # fails), runs cargo doc with warnings as errors, joins the two under one directory and
-      # checks it for broken links, missing ids and third-party requests. No network access is
-      # used by the checks. rustdoc runs with one lint allowed, rustdoc::invalid_html_tags: see
-      # RUSTDOC_FLAGS in crates/xtask/src/docs_site.rs.
+      # a command without a page fails), checks the site source and the Starlight config, runs
+      # `npm ci --ignore-scripts` in docs-site/ (the build needs no install script) and
+      # `astro build` (a failing build fails the job), runs cargo doc with warnings as errors,
+      # joins the two under one directory and checks it for broken links, missing ids, flags
+      # rewritten by smart punctuation and third-party requests. The checks use no network.
+      # rustdoc runs with one lint allowed, rustdoc::invalid_html_tags: see RUSTDOC_FLAGS in
+      # crates/xtask/src/docs_site.rs.
       - name: Build and check the site
         run: cargo xtask docs-site
 
