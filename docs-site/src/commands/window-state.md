@@ -18,11 +18,18 @@ spawn-at maximize --focused
 spawn-at close --id 4
 ```
 
+> [!WARNING]
+> These act on real windows. `close --id 4` asks whichever window has id 4 to close. It is a request, not a
+> kill, but what the application does about unsaved work was not tested. The id `4` is only an example: take the id
+> from `spawn-at query windows`. `maximize --focused` changes whichever window has focus when you
+> press enter, which may be your terminal.
+
 ## defocus
 
 By default it hands focus to the most recently used other window. Two options choose the
-destination: `--to-desktop` gives focus to the desktop or shell, and `--to-window <TO>` gives it to
-a window named by title, class or id. If the target window is not focused already, `defocus`
+destination: `--to-desktop` (alias `--desktop`) gives focus to the desktop or shell, and
+`--to-window <TO_WINDOW>` (alias `--to`) gives it to a window named by title, class or id. The two
+options cannot be combined. The aliases are not shown in `--help` (`src/cli/args.rs`, `DefocusArgs`). If the target window is not focused already, `defocus`
 sends nothing.
 
 ## Focus options

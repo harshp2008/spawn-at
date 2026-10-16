@@ -26,7 +26,8 @@ spawn-at spawn --anchor top-right --pivot top-right --size 800 500 -m 20 alacrit
 spawn-at spawn --anchor bottom-right --size 600 350 -m 16 --no-focus btop
 ```
 
-Bind any of these to a GNOME custom shortcut and you have instant floating tools.
+The README suggests binding any of these to a GNOME custom shortcut. That was not tried for this
+book.
 
 ## Move a window that is already open
 
@@ -63,7 +64,12 @@ See [Configuration](configuration.md). With no config file and no flags, the def
 
 ## If it prints an error about the desktop
 
-On a Wayland desktop that is not GNOME, spawn-at stops with an error and says so. See
+> [!NOTE]
+> **Release status (remove after the first release newer than v0.2.0-beta.4).** This error is on
+> `main` and in no release yet. v0.2.0-beta.4 and earlier switch to the X11 driver on a non-GNOME
+> Wayland desktop without a message.
+
+On `main`, on a Wayland desktop that is not GNOME, spawn-at stops with an error and says so. See
 [Unsupported desktops](environments/unsupported-desktops.md).
 
 ## Sources

@@ -18,12 +18,20 @@ Two options are worth knowing before you run them:
 
 - `install --dry-run` prints the notice and what would be installed, then stops without changing
   anything.
-- On a desktop that is not supported, `install` and `uninstall` print the same error as every other
-  command and change nothing. Run `install.sh` with `--allow-unsupported` instead (see
-  [Unsupported desktops](../environments/unsupported-desktops.md)).
+- On `main` (not in a release yet), on a desktop that is not supported, `install` and `uninstall`
+  print the same error as every other command and change nothing. Run `install.sh` with
+  `--allow-unsupported` instead (see
+  [Unsupported desktops](../environments/unsupported-desktops.md)). In v0.2.0-beta.4 and earlier the
+  binary does not refuse.
+- **`uninstall` run bare, in a terminal, asks what to do with the binary** (user scope, system scope
+  or keep it), and it has no `--dry-run`. On GNOME Wayland, `--gnome-wayland-logout` logs you out and
+  closes your applications; it defaults to `false`. Use `--skip-bin --headless` to leave the binary
+  alone and not be asked.
 
-For a backend that needs no helper (X11, Sway), the backend's part of `install` prints "No
-installation required". Only GNOME has an extension to deploy.
+For a backend that needs no helper (X11, Sway), the backend's part of `install` prints `No
+installation required for NAME.` and the backend's part of `uninstall` prints `No uninstallation
+required for NAME.`, where NAME is the backend's name (`src/platform/mod.rs`, the default `install`
+and `uninstall`). Only GNOME has an extension to deploy.
 
 ## Sources
 

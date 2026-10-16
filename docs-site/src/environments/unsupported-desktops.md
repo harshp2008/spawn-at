@@ -1,5 +1,13 @@
 # Unsupported desktops
 
+> [!NOTE]
+> **Release status (remove this note after the first release newer than v0.2.0-beta.4).**
+> The refusal described on this page is on `main` and not in any release yet. In v0.2.0-beta.4 and
+> earlier, spawn-at switches to the X11 driver on a non-GNOME Wayland session without a message
+> (`registry::unsupported` does not exist in those tags). `install.sh` is fetched from `main`, so it
+> already asks `Install anyway? [y/N]`; the copy of `install.sh` inside the beta.4 tag does not, and
+> is byte-identical to beta.3's according to `CHANGELOG.md`.
+
 spawn-at supports GNOME. On a Wayland desktop that is not GNOME, such as KDE or Hyprland, or when
 the session type is unknown, it refuses to run instead of silently switching to the X11 driver,
 which on Wayland would only see XWayland windows.

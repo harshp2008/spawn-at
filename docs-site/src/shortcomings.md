@@ -48,7 +48,11 @@ on `main`.
 
 ## What the extension's log shows, and does not
 
-Test tooling reads the extension's timing log. A trace inventory of the extension found:
+Test tooling reads the extension's timing log. A trace inventory of the extension
+(`docs/DESIGN_RUNNER_SETUP.md` section 5.5; the call sites were re-opened in
+`assets/gnome/modern/extension.js` for this book, for example `RAISE` and `ACTIVATE` at lines 1469
+and 1472, `MINIMIZE` at 1756, `UNMINIMIZE` at 1763 and 1771, `WINDOW_CREATED` at 486 and `ACTOR_MAP`
+at 531; the `legacy/` extension has them at other lines) found:
 
 - `transform` logs a full timeline with the window id.
 - `focus` logs `RAISE` and `ACTIVATE`; `minimize` and `unminimize` log `MINIMIZE` and `UNMINIMIZE`.

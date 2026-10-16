@@ -48,7 +48,7 @@ From the code and the audit of the test suite. "Unsupported" means the backend a
 | `defocus` | yes | yes | unsupported |
 | `maximize`, `minimize`, `restore` | yes | yes | unsupported |
 | `close` | yes | yes | yes |
-| `install`, `uninstall` | does the real work | "No installation required" | "No installation required" |
+| `install`, `uninstall` | does the real work | "No installation required…" / "No uninstallation required…" | same as X11 |
 | `update`, `config` | independent of the desktop | same | same |
 
 Presence in the table is not the same as tested. Several of these cells have no behaviour test at

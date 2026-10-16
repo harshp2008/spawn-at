@@ -21,7 +21,7 @@ All of this lives in `src/platform/` and `spawn-at-core`.
 | :--- | :--- |
 | `Driver` (core) | `arm(Batch)` before the program starts, and `disarm`. The platform-neutral heart; the spawn pipeline never sees D-Bus or X11 |
 | `CompositorBackend` | Extends `Driver` with setup and teardown, capability flags, queries (windows, monitors, work areas, pointer) and actions (transform, state, focus, close, `post_spawn`). Most methods default to "unsupported", so a new backend can start small |
-| `Capabilities`, `WindowQuery`, `WindowControl`, `ReadySignal` | What a backend can do, and narrow views of the trait |
+| `Capabilities` (a struct), `WindowQuery`, `WindowControl`, `ReadySignal` (traits) | What a backend can do, and narrow views of the trait (`src/platform/capability.rs`) |
 | `Provisioner` | Install and uninstall of whatever a backend needs on the machine (for GNOME, the extension) |
 | `Host` | Per-OS services: binary directories, the autostart path, the executable test, detaching a child |
 | `SessionActions`, `UpdateHooks` | Log out or reload the shell; the desktop-specific steps of `spawn-at update` |
@@ -99,10 +99,11 @@ cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,s
 cargo test --locked -p spawn-at -p spawn-at-core -p xtask
 cargo test --locked -p spawn-at-verify --features tui,fixture
 node --test tests/*.js
-cargo build --release --locked       # target/release/spawn-at
 ```
 
-CI also compile-checks the workspace for Windows and both macOS targets. Plain `cargo test` at the
+The release workflow (`.github/workflows/release.yml`, on `v*` tags) builds the release binary with
+`cargo build --release --locked`, which produces `target/release/spawn-at`. `ci.yml` does not run
+that build. CI also compile-checks the workspace for Windows and both macOS targets. Plain `cargo test` at the
 root covers only the `spawn-at` package.
 
 ## Build this documentation
@@ -130,5 +131,5 @@ The finished site is in `target/docs-site/site/`; open `index.html` there. The p
 - `docs/DESIGN_PLATFORMS.md`, sections 2, 4 and 7
 - `docs/REFACTOR_PROOFS.md`
 - `docs/KNOWLEDGE.md` ("Architecture map", "Install and release")
-- `.github/workflows/ci.yml`
+- `.github/workflows/ci.yml`, `.github/workflows/release.yml` (the release build)
 - `crates/xtask/src/` (the documentation commands)

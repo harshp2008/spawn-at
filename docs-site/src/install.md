@@ -30,9 +30,19 @@ In a terminal, `spawn-at install` can ask these questions. The flags answer them
 | Release channel and update notices | Update preferences | `--update-channel stable\|beta`, `--update-notify` |
 | Log out now? | GNOME Wayland, last of all | `--gnome-wayland-logout`, `--no-action` |
 
-On Wayland you log out and back in once so GNOME loads the extension. The installer asks last, and
-skips the question when the extension on disk is unchanged and already running. On an X11 session
-the installer reloads the Shell in place and your applications stay open.
+On Wayland you log out and back in once so GNOME loads the extension. The installer asks last
+(`src/session.rs`, `decision`: "otherwise: asked at the end"). It skips the log-out question and
+advice when the files about to be deployed are identical to the deployed ones, `gnome-extensions
+info` reports the extension ACTIVE, and the files are older than the running Shell
+(`src/platform/linux/gnome/logout.rs`, `decide`; `src/session.rs`, `install_outcome` returns
+`NoLogoutNeeded`). On an X11 session the installer reloads the Shell in place and your applications
+stay open (`--help` of `--gnome-x11-reload`; not run here).
+
+> [!WARNING]
+> `--gnome-wayland-logout` on Wayland logs you out **without asking** (`src/session.rs`,
+> `decision`) and closes your open applications. `--no-action` answers No to the question. In a
+> run that is `--headless` or whose stdout is not a terminal (`src/main.rs`, `interactive`) the flags decide: the log-out is off unless
+> you pass `--gnome-wayland-logout`, whose default is `false` (`install --help`).
 
 Without a terminal, `--headless` makes it non-interactive:
 
@@ -58,6 +68,13 @@ cargo build --release && ./target/release/spawn-at install
 `spawn-at install` are listed on [its reference page](reference/spawn-at-install.md).
 
 ## Unsupported desktops
+
+> [!NOTE]
+> **Release status (remove after the first release newer than v0.2.0-beta.4).** `install.sh` is
+> fetched from `main`, so the question below is asked today. The binary that the v0.2.0-beta.4
+> release installs does not refuse a non-GNOME Wayland desktop: it switches to the X11 driver
+> without a message. The refusal is on `main` only. The `install.sh` inside the beta.4 tag has no
+> such question and is byte-identical to beta.3's (`CHANGELOG.md`).
 
 On a Wayland desktop that is not GNOME, `install.sh` prints a notice and asks
 `Install anyway? [y/N]` before it downloads anything. Answering no, or giving no answer, installs
@@ -85,7 +102,14 @@ spawn-at uninstall
 ```
 
 removes the binary, the extension directory and the login update-check entry, and nothing else.
-Your config file is never deleted. `--scope system` and `--skip-bin` exist; see
+Your config file is never deleted.
+
+> [!WARNING]
+> Run in a terminal, bare `spawn-at uninstall` first asks what to do with the binary (user scope,
+> system scope, or keep it; `src/main.rs`) and then really removes things. `uninstall` has no
+> `--dry-run` (`spawn-at uninstall --help` lists none; only `install` has one). On GNOME Wayland,
+> `--gnome-wayland-logout` logs you out and closes your applications; its default is `false`.
+> `--headless --skip-bin` removes only the extension and the login entry and asks nothing. `--scope system` and `--skip-bin` exist; see
 [the reference page](reference/spawn-at-uninstall.md).
 
 ## What is not verified
@@ -104,4 +128,6 @@ Your config file is never deleted. `--scope system` and `--skip-bin` exist; see
 - `docs/CONFIG.md` (uninstall keeps the config file; update channel)
 - `docs/KNOWLEDGE.md` ("Install and release", "Architecture map": login autostart entry)
 - `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")
+- `src/session.rs` (`decision`, `install_outcome`), `src/platform/linux/gnome/logout.rs` (`decide`), `src/main.rs` (`interactive`, `--dry-run`)
+- `git show v0.2.0-beta.4:src/platform/linux/registry.rs` and `git diff v0.2.0-beta.3 v0.2.0-beta.4 --quiet -- install.sh assets` (the release-status notes)
 - the output of `spawn-at install --help` and `spawn-at update --help`

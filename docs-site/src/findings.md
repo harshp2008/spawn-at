@@ -45,8 +45,8 @@ Reading it:
   21.5 ms and 7.3 ms at the median; the medians varied between batches, and no one repeated an
   identical batch to measure that spread.
 - Idle there is no difference in cloak time (about 19.5 ms median in both arms, first measurement).
-- The old rule's loaded flash rate is not a constant of nature: other logins gave 15 of 20 and 40 of
-  40. The log suggests a difference between logins; the cause was not examined.
+- The old rule's loaded flash rate is not a constant of nature: other logins gave 15 of 20
+  (the baseline login, `TEST_LOG.md` 6.18 table) and 40 of 40 (`TEST_LOG.md` 6.19, line 862). The log suggests a difference between logins; the cause was not examined.
 - In the repeat, 1 of 40 idle ready-wait runs hit the 250 ms cap: the app did not answer in time, the
   window was revealed at its old size and corrected 49 ms later. The cause of the stall was not found.
 

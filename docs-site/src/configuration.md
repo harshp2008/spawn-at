@@ -7,7 +7,7 @@ settings existed.
 
 | Key | Default | Allowed | What it does |
 | :--- | :--- | :--- | :--- |
-| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (150 ms before 0.2.0) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway |
+| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (it was 150 ms in development builds, `CHANGELOG.md`) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway |
 | `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the original 30 ms quiet rule; `ready-wait` is the newer wait on GNOME Wayland |
 | `spawn.window_timeout_ms` | 2000 | whole milliseconds, 200 to 60000 | How long `spawn` waits for the new window to appear before it warns that it did not (applies to the extension's claim and again to the fallback poll) |
 
@@ -68,7 +68,13 @@ login autostart entry.
   number. In both cases `spawn` carries on with the defaults. A bad value is a warning for that key
   only.
 - `set`, `unset` and `reset` rewrite the file **without its comments**. Unknown keys and tables are
-  kept. A malformed file is never overwritten by `set`.
+  kept. A malformed file is never overwritten by `set`. Checked with a throwaway file that had a
+  comment on top, comments inside and after `[wait]` and `cap_ms`, a `[custom]` table and an
+  `[update]` table: after `config set wait.strategy legacy` every comment was gone, `[custom]` and
+  `[update]` were kept unchanged, and the tables came out sorted by name (`custom`, `update`,
+  `wait`). `unset` and `reset` gave the same shape (`reset` left only `[custom]` and `[update]`).
+  `set` on a file containing `[wait` exited 1 with "unclosed table … fix or remove the file before
+  changing settings" and left it untouched.
 - The update checker keeps its own `[update]` table in the same file and replaces only that table
   when it saves.
 - `spawn-at uninstall` and `install --clean-install` never delete this file.
@@ -109,4 +115,5 @@ commands and the X11 timeouts are fixed in code. A per-application override does
 - `README.md` ("Settings")
 - `docs/CONFIG.md` ("First slice", "Design", "Later", update channel paragraph)
 - `docs/KNOWLEDGE.md` ("Install and release": channel `all`)
-- the output of `spawn-at config`, `config set` and `config get`, run in a temporary directory
+- `CHANGELOG.md` ("[0.2.0-beta.1] Changed": "Default `wait.cap_ms` is 250 ms (it was 150 ms in development builds)")
+- the output of `spawn-at config`, `config set`, `config get`, `config unset` and `config reset`, run in a temporary directory with `env -i`, including the file with comments described under Rules
