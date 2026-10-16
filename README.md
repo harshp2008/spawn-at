@@ -25,6 +25,17 @@ Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayl
 
 **Supported desktops:** a GNOME session. On any other Wayland desktop (KDE, Hyprland, Sway, an unknown one) the installer says so first and asks `Install anyway? [y/N]` before it downloads anything; without a terminal it stops and tells you to re-run with `--allow-unsupported`. If you go on, spawn-at only has the X11 fallback there, which may or may not work, and it needs `SPAWN_AT_BACKEND=x11` to run. Without that variable spawn-at exits with an error on such a desktop instead of silently using X11. A real X11 session on any desktop needs nothing, and Sway is available as an experimental opt-in (`SPAWN_AT_BACKEND=sway`, see [below](#sway-experimental)).
 
+## Documentation
+
+The user guide and the API documentation are published at <https://harshp2008.github.io/spawn-at/> (the site goes live once GitHub Pages is enabled for the repository). The guide covers install, concepts, every command, configuration, each environment with what was and was not tested, the known shortcomings, and the measurements. The CLI reference is generated from the binary's `--help`, and the Rust API docs from the source comments.
+
+To build the site locally you need [mdBook](https://github.com/rust-lang/mdBook) 0.5.4 on your `PATH` (a release archive; `.github/workflows/docs.yml` shows the checked download):
+
+```bash
+cargo xtask docs-site        # binary, CLI reference, book, rustdoc, then the checks
+# the finished site: target/docs-site/site/index.html (the API docs are under api/)
+```
+
 ## The problem
 
 | Environment | How you move a window | Catch |
@@ -145,7 +156,7 @@ Measured on one machine (GNOME 46, Wayland, one monitor, the project's own test 
 - **XWayland, X11 and GNOME 42-44 still use the old rule**, and flash. Only the test window has been tried there, not real X11 apps.
 - **An app already at its minimum size** (so it cannot answer a resize) makes the ready-wait run for the full `wait.cap_ms` (about +230 ms in our test). The same goes for an app that never answers (a hung one).
 
-The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 and 6.23).
+The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (the measurements are in [docs/TEST_LOG.md](docs/TEST_LOG.md) sections 6.23 and 6.30; the plan only links there).
 
 ## Settings
 
@@ -197,7 +208,7 @@ On an untested GNOME version the installer prints this before it installs anythi
 
 ## Sway (experimental)
 
-An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error (it no longer falls back to X11 silently; `SPAWN_AT_BACKEND=x11` opts in to that). Nothing needs installing; `spawn-at install` has nothing to do for it.
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error on `main` and in the next release after v0.2.0-beta.4 (in v0.2.0-beta.4 and earlier it falls back to the X11 driver without a message; `SPAWN_AT_BACKEND=x11` opts in to that on `main`). Nothing needs installing; `spawn-at install` has nothing to do for it.
 
 ```bash
 # inside a Sway session ($SWAYSOCK is set by Sway)
@@ -212,7 +223,7 @@ What works: `spawn` with anchors, margins, `--size` and `--monitor <index>` (the
 
 What is different or missing:
 - **It can flash.** Sway has no way to keep a new window invisible until it is placed, so the window may show for one frame at its tiled position first. That has not been measured.
-- Not supported: `--anchor cursor` and `--monitor cursor` (Sway has no pointer query), maximize, minimize and defocus. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
+- `--anchor cursor` and `--monitor cursor` do not work: Sway has no pointer query, so `spawn` places the window as if the pointer were at (0, 0) and does not report an error (`src/commands/spawn.rs`). `query pointer`, `maximize`, `minimize`, `restore` and `defocus` are not supported and exit 1 with a "does not support this feature" error. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
 - A window is matched to the launched process by pid, then by parent process, then by app id. If none shows up within 5 seconds spawn-at warns that the application was started but not placed, and moves nothing else.
 - i3 is not supported.
 

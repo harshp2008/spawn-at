@@ -2,7 +2,7 @@
 //! login autostart entry lives, what counts as an executable, and how a started program is
 //! detached from this process.
 //!
-//! One implementation per OS, chosen at compile time ([`NativeHost`]). The Linux one returns the
+//! One implementation per OS, chosen at compile time (`NativeHost`). The Linux one returns the
 //! values the code used before this trait existed; off Linux a compile-only stand-in exists
 //! (spawn-at stops at `ensure_supported_os` there).
 

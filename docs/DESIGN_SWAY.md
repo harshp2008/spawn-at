@@ -76,14 +76,14 @@ The trait names are the ones in the code at `b45df0f`: `Capabilities` (`src/plat
 | `WindowQuery::get_windows` | `GET_TREE`, flatten the leaves that have a `pid`. `WindowMetadata` (`src/target.rs:69`): `id` = `con` id, `pid`, `title` = `name`, `class` = `app_id`, or `window_properties.class` for XWayland, `app_id`, `x y w h` = `rect`, `focused`, `maximized` = false, `minimized` = false, `monitor` = index of the output, `workspace` = `num`, `state` = `fullscreen`/`floating`/`tiled`. |
 | `get_monitors`, `get_workareas`, `get_layout` | `GET_OUTPUTS` for the screen rect (`rect`, logical pixels) and `scale`; `GET_WORKSPACES` for the work area of each output's current workspace (its `rect` is the usable area, so bars are already excluded). `MonitorInfo` (`crates/spawn-at-core/src/geometry.rs:71`) gets `name`, `scale`, `screen`, `workarea`. **Changed in the implementation:** the first active output is flagged `primary` (Sway has none; the X11 driver does the same), so the default monitor is the same "primary" as on GNOME; and `state` uses the GNOME words `normal` and `fullscreen` (floating and tiled are both `normal`). |
 | `get_window_rect(id)` | Default implementation over `get_windows`. |
-| `get_cursor_position` | **Unsupported**: Sway IPC has no pointer query. Returns `UnsupportedCapability`; `--anchor cursor` fails with the standard message. |
+| `get_cursor_position` | **Unsupported**: Sway IPC has no pointer query. Returns `UnsupportedCapability`; `query pointer` fails with the standard message. `spawn --anchor cursor` and `--monitor cursor` do not fail: `src/commands/spawn.rs` (`driver.get_cursor_position().await.unwrap_or((0, 0))`) uses (0, 0) in place of the pointer (see section 12). |
 | `WindowControl::transform_window` | One `RUN_COMMAND` (section 4). |
 | `set_window_state` | `Restore` and `Maximize`/`Minimize`: **unsupported** in the first version (Sway has `fullscreen` and the scratchpad, which are not the same thing; see open question 6). |
 | `focus_window` | `[con_id=N] focus`. `defocus_window`: unsupported. |
 | `close_window` | `[con_id=N] kill` (verified to close the fixture). |
 | `resolve_id` | The command name, or the explicit class (Sway matches by `app_id`). |
 | `protocol_version` / `HelperStatus` | `None`, so `HelperStatus::Ok` (`capability.rs:60`): there is no helper. |
-| `Provisioner` | `provisioner()` returns `None`; `spawn-at install` prints "No installation required for sway." (the default, `src/platform/mod.rs`). |
+| `Provisioner` | `provisioner()` returns `None`; `spawn-at install` prints "No installation required for Sway." and `spawn-at uninstall` prints "No uninstallation required for Sway." (the defaults, `src/platform/mod.rs`; the name is `Sway` from `name()`). |
 | `Host` | Unchanged (Linux). |
 | `UpdateHooks`, `SessionActions` | Unchanged: they are the GNOME ones and do nothing unless `XDG_CURRENT_DESKTOP` contains GNOME (`gnome/deploy.rs:407`). The Sway backend records no session action, so `session::finish()` has nothing to do. |
 

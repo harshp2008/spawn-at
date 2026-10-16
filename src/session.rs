@@ -8,7 +8,7 @@
 //! only then performs the action. A step that fails ends the run (`exit(1)` or an `Err`) without
 //! calling [`finish`], so a failure never asks and never logs the user out.
 //!
-//! The decision is a pure function of what was recorded and the answer ([`outcome`]); the
+//! The decision is a pure function of what was recorded and the answer ([`install_outcome`], [`uninstall_outcome`], [`update_outcome`]); the
 //! asking, printing and performing go through [`SessionOps`] so tests can record the order.
 
 use std::sync::Mutex;

@@ -1,6 +1,12 @@
 //! # spawn-at-core
 //!
 //! Pure mathematical geometry engine, declarative scheduling types, and driver abstractions for `spawn-at`.
+//!
+//! The part of `spawn-at` that does no I/O and names no display server: the placement arithmetic
+//! ([`geometry`]), the [`Driver`] trait and the [`Batch`] types a compositor driver receives
+//! ([`driver`]), the ready-wait state machine ([`ready_wait`]), the settings schema and the
+//! `config` actions ([`settings`]), the per-spawn wait override ([`wait_override`]) and the resize
+//! report ([`resize_report`]). The `spawn-at` binary crate is built on it.
 
 pub mod driver;
 pub mod geometry;

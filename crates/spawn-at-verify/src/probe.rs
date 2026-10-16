@@ -21,7 +21,7 @@ pub struct EnvironmentInfo {
     /// extension under test (`workspace.get_work_area_for_monitor`), so it is NOT independent.
     pub primary_workarea: Option<Rect>,
     /// Primary workarea read from mutter's `_NET_WORKAREA` hint, independent of the extension;
-    /// `None` when it cannot be read (see [`probe_independent_workarea`]).
+    /// `None` when it cannot be read (see `probe_independent_workarea`).
     pub independent_workarea: Option<Rect>,
 }
 

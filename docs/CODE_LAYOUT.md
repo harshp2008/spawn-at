@@ -11,9 +11,9 @@ An earlier version of this file was a reorganization proposal (target layout, mo
 | `.` (package `spawn-at`) | The CLI and the installer. Binary `spawn-at`. | The only default member (`default-members = ["."]` in `Cargo.toml`), so plain `cargo build` / `cargo test` cover only this package. |
 | `crates/spawn-at-core` | Pure logic with no I/O: geometry, driver trait and batch types, ready-wait state machine, settings, wait override, resize report. | Modules in `src/lib.rs`: `driver`, `geometry`, `ready_wait`, `resize_report`, `settings`, `wait_override`. |
 | `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
-| `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`. | |
+| `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`, and the documentation-site commands (`docs-site`, `docs-cli-reference`, `docs-check-src`, `docs-check-html`). | No dependencies. |
 
-Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`).
+Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`, among them `check-comment-only-product.sh`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`, `docs.yml`), `docs-site/` (the mdBook user guide: `book.toml` and `src/`; see "Documentation site" below).
 
 ## Facts that constrain moving files
 
@@ -95,7 +95,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | :--- | ---: | :--- |
 | `crates/spawn-at-core/src/driver.rs` | 140 | Declarative Compositor Driver Abstraction |
 | `crates/spawn-at-core/src/geometry.rs` | 1680 | Pure Mathematical Geometry Engine |
-| `crates/spawn-at-core/src/lib.rs` | 17 | spawn-at-core |
+| `crates/spawn-at-core/src/lib.rs` | 23 | spawn-at-core |
 | `crates/spawn-at-core/src/ready_wait.rs` | 535 | Ready-wait state machine |
 | `crates/spawn-at-core/src/resize_report.rs` | 147 | Resize report |
 | `crates/spawn-at-core/src/settings.rs` | 584 | User settings: schema, validation, defaults, precedence and the `config` commands |
@@ -112,7 +112,11 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/xtask/src/comment_only.rs` | 205 | `check-comment-only`: verifies a commit changes only comments relative to a base revision. |
 | `crates/xtask/src/compiler_docs.rs` | 117 | Compiler-backed documentation check: collects rustc's `missing_docs` warnings. |
 | `crates/xtask/src/doc_coverage.rs` | 276 | `check-doc-coverage`: text scan for undocumented items, merged with the compiler lint. |
-| `crates/xtask/src/main.rs` | 67 | xtask: Internal developer and CI tooling for spawn-at. |
+| `crates/xtask/src/docs_check.rs` | 313 | `docs-check-src`: checks the markdown of the book before it is built. |
+| `crates/xtask/src/docs_cli.rs` | 363 | `docs-cli-reference`: writes one book page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
+| `crates/xtask/src/docs_html.rs` | 647 | `docs-check-html`: checks the assembled site (book plus `api/`) without any network access. |
+| `crates/xtask/src/docs_site.rs` | 178 | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
+| `crates/xtask/src/main.rs` | 93 | xtask: Internal developer and CI tooling for spawn-at. |
 | `crates/xtask/tests/burn_cpu_test.rs` | 38 | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
 
 ### spawn-at-verify, library and binaries (`crates/spawn-at-verify/src/`)
@@ -139,7 +143,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/spawn-at-verify/src/cli/tui.rs` | 30 | Handler for `spawn-at-verify tui` subcommand. |
 | `crates/spawn-at-verify/src/display.rs` | 180 | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
 | `crates/spawn-at-verify/src/ext_logging.rs` | 605 | Control of the GNOME extension's timing log over session D-Bus. |
-| `crates/spawn-at-verify/src/lib.rs` | 27 | spawn-at-verify |
+| `crates/spawn-at-verify/src/lib.rs` | 34 | spawn-at-verify |
 | `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
 | `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
 | `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
@@ -297,6 +301,35 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 ## Specs read by `spawn-at-verify`
 
 `verify/<category>/*.toml` are the test specs, `verify/suites/*.toml` the suite definitions and `verify/golden/` the shared golden data. `spawn-at-verify list` shows what is loaded; see [verify/README.md](../verify/README.md).
+
+## Documentation site
+
+The user guide is an mdBook in `docs-site/` (`book.toml`, `src/`). The rustdoc API docs are built
+from the source comments and published under `api/` of the same site. The CLI reference
+(`docs-site/src/reference/spawn-at*.md`) is generated from the built binary's `--help` at build
+time and is **not committed** (`.gitignore` lists it; only `reference/index.md` is tracked), so it
+cannot drift from the binary. Every hand-written page ends with a `## Sources` list.
+
+mdBook 0.5.4 must be on `PATH` (the release archive; `.github/workflows/docs.yml` shows the download
+and its SHA-256 check). Then:
+
+```bash
+cargo xtask docs-site                      # everything below, in CI order; site in target/docs-site/site/
+cargo xtask docs-cli-reference --bin target/debug/spawn-at   # only the generated reference (needs the built binary)
+cargo xtask docs-check-src                 # book markdown: empty pages, environment pages, Sources, forbidden text
+mdbook build docs-site                     # the book alone, into target/docs-site/book/
+RUSTDOCFLAGS="-D warnings -A rustdoc::invalid_html_tags" cargo doc --no-deps --workspace --exclude xtask --locked
+cargo xtask docs-check-html target/docs-site/site --generated-dir api/   # links, ids, third-party requests
+```
+
+`xtask` is left out of the published API docs: it is internal tooling with no public API. The
+`-A rustdoc::invalid_html_tags` is for one item: the help text of `--monitor` is the doc comment
+`(<INDEX>, ...)` in `src/cli/args.rs`, which clap prints and rustdoc reads as an unclosed HTML tag;
+fixing it would change `--help`. Every other rustdoc warning fails the build.
+
+`.github/workflows/docs.yml` runs the same command on every pull request and, on a push to `main`,
+deploys to GitHub Pages once the owner has enabled Pages with the "GitHub Actions" source. It makes
+no third-party request: no external fonts, scripts or analytics, and the playground is off.
 
 ## Historical evidence
 

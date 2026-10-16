@@ -6,3 +6,7 @@ staging/
 verify-results/
 scratch/
 scratch/
+
+# Documentation site (docs-site/). The CLI reference is generated at build time and never committed.
+/docs-site/src/reference/*
+!/docs-site/src/reference/index.md

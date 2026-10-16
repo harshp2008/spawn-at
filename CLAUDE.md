@@ -62,7 +62,7 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 - `cargo fmt --check`
 - `cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings`
 - `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`
-- `cargo test --locked -p spawn-at-verify --features tui,fixture` (4 tests stay ignored: they need a live display)
+- `cargo test --locked -p spawn-at-verify --features tui,fixture` (5 tests stay ignored: 4 in `fixture_test.rs` need a live display, 1 in `focus_chain_sway.rs` needs a private Sway)
 - `node --test tests/*.js`
 - Release binary: `cargo build --release --locked` (produces `target/release/spawn-at`).
 

@@ -1,4 +1,4 @@
-cle# Legacy GNOME (42–44) Differences & Compatibility Analysis
+# Legacy GNOME (42–44) Differences & Compatibility Analysis
 
 **Author:** Antigravity (Advanced Agentic Coding)  
 **Date:** 2026-10-09  

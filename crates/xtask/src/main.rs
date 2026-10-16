@@ -1,6 +1,8 @@
 //! xtask: Internal developer and CI tooling for spawn-at.
 //!
-//! Provides `check-comment-only`, `check-doc-coverage` and `burn-cpu` without external dependencies.
+//! Provides `check-comment-only`, `check-doc-coverage`, `burn-cpu` and the documentation-site
+//! commands (`docs-site`, `docs-cli-reference`, `docs-check-src`, `docs-check-html`) without
+//! external dependencies.
 //! `check-doc-coverage` with no paths gates `crates/spawn-at-verify/src` and only reports a count
 //! for `tests/`.
 //! `check-doc-coverage` combines a text scan with the compiler's `missing_docs` lint.
@@ -9,6 +11,10 @@ mod burn_cpu;
 mod comment_only;
 mod compiler_docs;
 mod doc_coverage;
+mod docs_check;
+mod docs_cli;
+mod docs_html;
+mod docs_site;
 
 use std::env;
 use std::process::exit;
@@ -23,6 +29,10 @@ fn main() {
             eprintln!("  check-comment-only <git-rev> [path]");
             eprintln!("  check-doc-coverage [path...]");
             eprintln!("  burn-cpu --threads N --seconds S");
+            eprintln!("  docs-site [--mdbook P] [--bin P] [--out DIR]");
+            eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--summary FILE]");
+            eprintln!("  docs-check-src [DIR]");
+            eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             exit(1);
         }
     };
@@ -58,9 +68,25 @@ fn main() {
             let rest: Vec<String> = args.collect();
             burn_cpu::run_burn_cpu(&rest);
         }
+        "docs-site" | "docs-cli-reference" | "docs-check-src" | "docs-check-html" => {
+            let rest: Vec<String> = args.collect();
+            let result = match subcommand.as_str() {
+                "docs-site" => docs_site::run(&rest),
+                "docs-cli-reference" => docs_cli::run(&rest),
+                "docs-check-src" => docs_check::run(&rest),
+                _ => docs_html::run(&rest),
+            };
+            if let Err(message) = result {
+                eprintln!("{} failed:\n{}", subcommand, message);
+                exit(1);
+            }
+        }
         other => {
             eprintln!("Unknown subcommand: {}", other);
-            eprintln!("Available subcommands: check-comment-only, check-doc-coverage, burn-cpu");
+            eprintln!(
+                "Available subcommands: check-comment-only, check-doc-coverage, burn-cpu, \
+                 docs-site, docs-cli-reference, docs-check-src, docs-check-html"
+            );
             exit(1);
         }
     }
