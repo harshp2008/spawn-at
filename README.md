@@ -25,6 +25,17 @@ Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayl
 
 **Supported desktops:** a GNOME session. On any other Wayland desktop (KDE, Hyprland, Sway, an unknown one) the installer says so first and asks `Install anyway? [y/N]` before it downloads anything; without a terminal it stops and tells you to re-run with `--allow-unsupported`. If you go on, spawn-at only has the X11 fallback there, which may or may not work, and it needs `SPAWN_AT_BACKEND=x11` to run. Without that variable spawn-at exits with an error on such a desktop instead of silently using X11. A real X11 session on any desktop needs nothing, and Sway is available as an experimental opt-in (`SPAWN_AT_BACKEND=sway`, see [below](#sway-experimental)).
 
+## Documentation
+
+The user guide and the API documentation are published at <https://harshp2008.github.io/spawn-at/> (the site goes live once GitHub Pages is enabled for the repository). The guide covers install, concepts, every command, configuration, each environment with what was and was not tested, the known shortcomings, and the measurements. The CLI reference is generated from the binary's `--help`, and the Rust API docs from the source comments.
+
+To build the site locally you need [mdBook](https://github.com/rust-lang/mdBook) 0.5.4 on your `PATH` (a release archive; `.github/workflows/docs.yml` shows the checked download):
+
+```bash
+cargo xtask docs-site        # binary, CLI reference, book, rustdoc, then the checks
+# the finished site: target/docs-site/site/index.html (the API docs are under api/)
+```
+
 ## The problem
 
 | Environment | How you move a window | Catch |
