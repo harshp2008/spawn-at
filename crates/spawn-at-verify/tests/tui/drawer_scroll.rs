@@ -209,3 +209,102 @@ fn test_draw_alone_clamps_a_huge_stored_offset() {
         assert!(visible_content(&main) > 3, "{w}x{h}:\n{main}");
     }
 }
+
+const MARKER: &str = "── end of details ──";
+
+/// The drawer box's inner rows (between its top and bottom borders) of a drawn frame.
+fn inner_rows(screen: &str) -> Vec<String> {
+    let rows: Vec<&str> = screen.lines().collect();
+    let top = rows
+        .iter()
+        .position(|l| l.contains("Details"))
+        .expect("drawer title");
+    let bottom = rows[top + 1..]
+        .iter()
+        .position(|l| l.contains('└'))
+        .map(|i| i + top + 1)
+        .expect("drawer bottom border");
+    rows[top + 1..bottom]
+        .iter()
+        .map(|l| l.trim_matches(|c| c == '│' || c == ' ').to_string())
+        .collect()
+}
+
+fn title_row(screen: &str) -> String {
+    screen
+        .lines()
+        .find(|l| l.contains("Details"))
+        .unwrap()
+        .to_string()
+}
+
+/// At the end of the scroll the last rows drawn are a blank row and the marker, the marker is
+/// fully visible, and the arrows say there is content above and none below.
+#[test]
+fn test_end_of_scroll_shows_blank_row_then_marker() {
+    let mut app = app_with_long_drawer();
+    draw(&mut app, 100, 24);
+    key(&mut app, KeyCode::Char('G'));
+    let screen = draw(&mut app, 100, 24);
+    let rows = inner_rows(&screen);
+    assert_eq!(rows.last().unwrap(), MARKER, "{screen}");
+    assert_eq!(
+        rows[rows.len() - 2],
+        "",
+        "blank row above the marker:\n{screen}"
+    );
+    let t = title_row(&screen);
+    assert!(t.contains("▲ more") && !t.contains("▼ more"), "{t}");
+}
+
+/// Mid-scroll the marker is not visible and `▼ more` shows (with `▲ more`); at the top only
+/// `▼ more` shows.
+#[test]
+fn test_arrows_follow_the_position() {
+    let mut app = app_with_long_drawer();
+    let top = draw(&mut app, 100, 24);
+    let t = title_row(&top);
+    assert!(!t.contains("▲ more") && t.contains("▼ more"), "{t}");
+    assert!(!top.contains(MARKER));
+    key(&mut app, KeyCode::PageDown);
+    let mid = draw(&mut app, 100, 24);
+    let t = title_row(&mid);
+    assert!(t.contains("▲ more") && t.contains("▼ more"), "{t}");
+    assert!(!mid.contains(MARKER), "{mid}");
+}
+
+/// Content that fits: neither arrow, and the marker is still there.
+#[test]
+fn test_content_that_fits_shows_the_marker_and_no_arrows() {
+    let mut app = app_with_long_drawer();
+    let screen = draw(&mut app, 100, 120);
+    let t = title_row(&screen);
+    assert!(!t.contains("more"), "{t}");
+    assert!(screen.contains(MARKER), "{screen}");
+}
+
+/// The marker and the arrows are display only: copied text and saved files are the content as
+/// built, without them.
+#[test]
+fn test_copy_and_save_do_not_contain_the_marker_or_arrows() {
+    use std::sync::{Arc, Mutex};
+    let mut app = app_with_long_drawer();
+    let dir = std::env::temp_dir().join(format!("spawn-at-verify-marker-{}", std::process::id()));
+    let _ = std::fs::create_dir_all(&dir);
+    app.report_dir = dir.clone();
+    draw(&mut app, 100, 24);
+    let got = Arc::new(Mutex::new(String::new()));
+    let g = Arc::clone(&got);
+    app.clipboard_fn = Some(Arc::new(move |t: &str| {
+        *g.lock().unwrap() = t.to_string();
+        Ok(())
+    }));
+    app.copy_drawer_text();
+    let copied = got.lock().unwrap().clone();
+    let saved = std::fs::read_to_string(app.save_drawer_text().unwrap()).unwrap();
+    for text in [&copied, &saved] {
+        assert!(text.contains("TIMELINE"), "the content is there");
+        assert!(!text.contains(MARKER) && !text.contains("more"), "{text}");
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
