@@ -65,6 +65,7 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 - `cargo test --locked -p spawn-at-verify --features tui,fixture` (5 tests stay ignored: 4 in `fixture_test.rs` need a live display, 1 in `focus_chain_sway.rs` needs a private Sway)
 - `node --test tests/*.js`
 - Release binary: `cargo build --release --locked` (produces `target/release/spawn-at`).
+- Docs site (CI job `docs`, `.github/workflows/docs.yml`): `cargo xtask docs-site`. It needs Node + npm (major in `docs-site/.nvmrc`), runs `npm ci --ignore-scripts` in `docs-site/` and builds with Starlight (Astro). Pieces: `cargo xtask docs-check-src`, `cargo xtask docs-cli-reference`, `cargo xtask docs-check-html <dir>`. Set `ASTRO_TELEMETRY_DISABLED=1` for any manual `astro` or `npm` run there.
 
 ## Paths
 - The repo path has a space (`~/Documents/GITHUB PROJECTS/spawn-at`). Always quote it.
