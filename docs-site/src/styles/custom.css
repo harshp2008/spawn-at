@@ -1,0 +1,88 @@
+/* Look of the spawn-at docs. Only Starlight's documented CSS variables are set here, plus a few
+   rules for tables and code blocks. No fonts are loaded: the system font stacks of Starlight apply. */
+
+:root {
+  /* Body text one step above Starlight's 16px, for reading long pages. */
+  --sl-text-body: 1.0625rem;
+  --sl-text-code: 0.9rem;
+  /* A little shorter than the 3.5rem / 4rem default, so the header takes less of the screen. */
+  --sl-nav-height: 3rem;
+}
+
+/* Blue accent. Links use --sl-color-text-accent, which Starlight maps to the accent colours. */
+:root,
+:root[data-theme='dark'] {
+  --sl-color-accent-low: #0e2a52;
+  --sl-color-accent: #3b82f6;
+  --sl-color-accent-high: #9cc3ff;
+}
+
+:root[data-theme='light'] {
+  --sl-color-accent-low: #dbe8ff;
+  --sl-color-accent: #1f5fbf;
+  --sl-color-accent-high: #123d80;
+  --sl-color-text-accent: #1a56ad;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    --sl-color-accent-low: #dbe8ff;
+    --sl-color-accent: #1f5fbf;
+    --sl-color-accent-high: #123d80;
+    --sl-color-text-accent: #1a56ad;
+  }
+}
+
+/* The header line is lighter than the default. */
+header.header {
+  border-bottom-color: var(--sl-color-hairline-light);
+}
+
+/* Links in the text are underlined, so they do not rely on colour alone. */
+.sl-markdown-content a:not(:where(.not-content *)) {
+  text-underline-offset: 0.2em;
+}
+
+/* Tables: a rule under the header row, a quiet rule between rows, and the table scrolls inside
+   its own box when it is wider than the column. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  max-width: 100%;
+  font-size: var(--sl-text-sm);
+}
+.sl-markdown-content thead th:not(:where(.not-content *)) {
+  border-bottom: 2px solid var(--sl-color-gray-4);
+  white-space: nowrap;
+}
+.sl-markdown-content tbody tr:last-child :is(td):not(:where(.not-content *)) {
+  border-bottom: 0;
+}
+.sl-markdown-content td:not(:where(.not-content *)) {
+  border-bottom-color: var(--sl-color-hairline-light);
+}
+
+/* Inline code that is long (a path, a flag list) wraps instead of widening the page. */
+.sl-markdown-content :not(pre) > code {
+  overflow-wrap: anywhere;
+}
+.sl-markdown-content table :not(pre) > code {
+  overflow-wrap: normal;
+}
+
+/* Code blocks keep their own horizontal scroll; the page never scrolls sideways. A long
+   `curl ... | bash` line scrolls inside the block. */
+.expressive-code,
+.expressive-code .frame,
+.expressive-code pre {
+  max-width: 100%;
+}
+.expressive-code pre {
+  overflow-x: auto;
+}
+.sl-markdown-content,
+main {
+  min-width: 0;
+}
+html,
+body {
+  overflow-x: clip;
+}
