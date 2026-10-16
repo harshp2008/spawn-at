@@ -278,7 +278,24 @@ pub fn draw_details_pane(f: &mut Frame, app: &TuiApp, area: Rect, _is_narrow: bo
             }
 
             // Cloak & Trace with fixed 2-char symbol slot
-            if let Some(report) = res.trace_report() {
+            if !res.flash_info.action_traces.is_empty() {
+                // A version 2 result: one line per action with its own reason or event count,
+                // and the cloak time only for an action that has a cloak phase.
+                for t in &res.flash_info.action_traces {
+                    let cloak = match t.cloak_to_reveal_ms {
+                        Some(ms) => format!("Cloak: {:.1} ms · ", ms),
+                        None => String::new(),
+                    };
+                    lines.push(Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(cloak, Style::default().fg(Color::White)),
+                        Span::styled(
+                            format!("Trace {}", t.headline()),
+                            Style::default().fg(Color::DarkGray),
+                        ),
+                    ]));
+                }
+            } else if let Some(report) = res.trace_report() {
                 let trace_part = if report.is_pass() {
                     Span::styled("Trace: 0 violations", Style::default().fg(Color::Green))
                 } else {

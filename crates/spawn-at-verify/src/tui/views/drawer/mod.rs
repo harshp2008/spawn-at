@@ -1,5 +1,6 @@
 //! Drawer widget rendering and content assembly.
 
+pub mod action_trace_rows;
 pub mod geometry_section;
 pub mod header_section;
 pub mod info_sections;

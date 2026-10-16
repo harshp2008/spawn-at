@@ -221,5 +221,38 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         md.push('\n');
     }
 
+    // The extension's trace of each action of a version 2 test (commands on an existing window):
+    // only lines of windows the runner launched, offsets counted from the first line of the action.
+    let traced: Vec<&TestResult> = report
+        .results
+        .iter()
+        .filter(|r| !r.flash_info.action_traces.is_empty())
+        .collect();
+    if !traced.is_empty() {
+        md.push_str("## 7. Extension trace of actions\n\n");
+        md.push_str(&format!(
+            "No pixels are captured. Flash results are {}.\n\n",
+            crate::trace::action::FLASH_CAVEAT
+        ));
+        for r in traced {
+            md.push_str(&format!("### `{}`\n\n", r.id));
+            for t in &r.flash_info.action_traces {
+                md.push_str(&format!(
+                    "- {} (extension logs: {}; cloak: {})\n",
+                    t.headline(),
+                    t.logs,
+                    t.cloak_text()
+                ));
+                for e in &t.events {
+                    md.push_str(&format!(
+                        "  - +{:.2} ms `{}` ({}) {}\n",
+                        e.offset_ms, e.tag, e.window, e.detail
+                    ));
+                }
+            }
+            md.push('\n');
+        }
+    }
+
     md
 }

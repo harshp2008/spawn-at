@@ -191,183 +191,191 @@ pub fn render_result_section(
     };
     builder.push_kv("Verdict", v_spans, &v_plain);
 
-    let trace_state = res_opt.map(|r| r.trace_state());
-    let trace_report = trace_state.as_ref().and_then(|s| s.report().cloned());
-
-    // Only the trace's own CLOAK..UNCLOAK pair counts. The run's wall-clock duration is the time
-    // the `spawn-at` process took, not a cloak time, so it is never substituted.
-    let cloak_ms = trace_report.as_ref().and_then(|rep| rep.cloak_duration_ms);
-
-    let (c_spans, c_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
-        (
-            vec![Span::styled(
-                format!("{:.1} ms", dur),
-                Style::default().fg(Color::Rgb(200, 200, 200)),
-            )],
-            format!("{:.1} ms", dur),
-        )
+    // A version 2 result carries the extension's trace of each action: its rows replace the
+    // version 1 Cloak, Budget, Trace and Reason rows, which describe a `spawn` slice.
+    let traced = res_opt.filter(|r| !r.flash_info.action_traces.is_empty());
+    if let Some(r) = traced {
+        super::action_trace_rows::push_action_trace_rows(builder, r);
+        push_flash_rows(builder, r);
     } else {
-        (
-            vec![Span::styled(
-                "not measured",
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            )],
-            "not measured".into(),
-        )
-    };
-    builder.push_kv("Cloak", c_spans, &c_plain);
+        let trace_state = res_opt.map(|r| r.trace_state());
+        let trace_report = trace_state.as_ref().and_then(|s| s.report().cloned());
 
-    // Budget: 100 ms (provisional)   ✔ within budget | ! over provisional budget
-    let (b_spans, b_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
-        if dur <= 100.0 {
+        // Only the trace's own CLOAK..UNCLOAK pair counts. The run's wall-clock duration is the time
+        // the `spawn-at` process took, not a cloak time, so it is never substituted.
+        let cloak_ms = trace_report.as_ref().and_then(|rep| rep.cloak_duration_ms);
+
+        let (c_spans, c_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
             (
-                vec![
-                    Span::styled(
-                        "100 ms (provisional)   ",
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(
-                        "✔ ",
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled("within budget", Style::default().fg(Color::Green)),
-                ],
-                "100 ms (provisional)   ✔ within budget".into(),
+                vec![Span::styled(
+                    format!("{:.1} ms", dur),
+                    Style::default().fg(Color::Rgb(200, 200, 200)),
+                )],
+                format!("{:.1} ms", dur),
             )
         } else {
             (
-                vec![
-                    Span::styled(
-                        "100 ms (provisional)   ",
-                        Style::default().fg(Color::Rgb(200, 200, 200)),
-                    ),
-                    Span::styled(
-                        "! ",
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        "over provisional budget",
-                        Style::default().fg(Color::Yellow),
-                    ),
-                ],
-                "100 ms (provisional)   ! over provisional budget".into(),
-            )
-        }
-    } else {
-        (
-            vec![
-                Span::styled(
-                    "100 ms (provisional)   ",
-                    Style::default().fg(Color::Rgb(200, 200, 200)),
-                ),
-                Span::styled(
+                vec![Span::styled(
                     "not measured",
                     Style::default()
                         .fg(Color::DarkGray)
                         .add_modifier(Modifier::ITALIC),
-                ),
-            ],
-            "100 ms (provisional)   not measured".into(),
-        )
-    };
-    builder.push_kv("Budget", b_spans, &b_plain);
+                )],
+                "not measured".into(),
+            )
+        };
+        builder.push_kv("Cloak", c_spans, &c_plain);
 
-    let (t_spans, t_plain): (Vec<Span<'static>>, String) = if let Some(ref rep) = trace_report {
-        if rep.is_pass() {
+        // Budget: 100 ms (provisional)   ✔ within budget | ! over provisional budget
+        let (b_spans, b_plain): (Vec<Span<'static>>, String) = if let Some(dur) = cloak_ms {
+            if dur <= 100.0 {
+                (
+                    vec![
+                        Span::styled(
+                            "100 ms (provisional)   ",
+                            Style::default().fg(Color::Rgb(200, 200, 200)),
+                        ),
+                        Span::styled(
+                            "✔ ",
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled("within budget", Style::default().fg(Color::Green)),
+                    ],
+                    "100 ms (provisional)   ✔ within budget".into(),
+                )
+            } else {
+                (
+                    vec![
+                        Span::styled(
+                            "100 ms (provisional)   ",
+                            Style::default().fg(Color::Rgb(200, 200, 200)),
+                        ),
+                        Span::styled(
+                            "! ",
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            "over provisional budget",
+                            Style::default().fg(Color::Yellow),
+                        ),
+                    ],
+                    "100 ms (provisional)   ! over provisional budget".into(),
+                )
+            }
+        } else {
             (
                 vec![
                     Span::styled(
-                        "✔ ",
-                        Style::default()
-                            .fg(Color::Green)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(
-                        "clean, no violations",
+                        "100 ms (provisional)   ",
                         Style::default().fg(Color::Rgb(200, 200, 200)),
                     ),
+                    Span::styled(
+                        "not measured",
+                        Style::default()
+                            .fg(Color::DarkGray)
+                            .add_modifier(Modifier::ITALIC),
+                    ),
                 ],
-                "✔ clean, no violations".into(),
+                "100 ms (provisional)   not measured".into(),
+            )
+        };
+        builder.push_kv("Budget", b_spans, &b_plain);
+
+        let (t_spans, t_plain): (Vec<Span<'static>>, String) = if let Some(ref rep) = trace_report {
+            if rep.is_pass() {
+                (
+                    vec![
+                        Span::styled(
+                            "✔ ",
+                            Style::default()
+                                .fg(Color::Green)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(
+                            "clean, no violations",
+                            Style::default().fg(Color::Rgb(200, 200, 200)),
+                        ),
+                    ],
+                    "✔ clean, no violations".into(),
+                )
+            } else {
+                let msg = rep
+                    .violations
+                    .first()
+                    .map(|v| v.message.clone())
+                    .unwrap_or_else(|| "violations detected".to_string());
+                let display_msg = format!("✖ {}", msg);
+                (
+                    vec![
+                        Span::styled(
+                            "✖ ",
+                            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(msg, Style::default().fg(Color::Red)),
+                    ],
+                    display_msg,
+                )
+            }
+        } else if res_opt.is_some() {
+            (
+                vec![Span::styled(
+                    "not analysed (no trace captured)",
+                    Style::default().fg(Color::Yellow),
+                )],
+                "not analysed (no trace captured)".into(),
             )
         } else {
-            let msg = rep
-                .violations
-                .first()
-                .map(|v| v.message.clone())
-                .unwrap_or_else(|| "violations detected".to_string());
-            let display_msg = format!("✖ {}", msg);
             (
-                vec![
-                    Span::styled(
-                        "✖ ",
-                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(msg, Style::default().fg(Color::Red)),
-                ],
-                display_msg,
+                vec![Span::styled(
+                    "pending execution",
+                    Style::default()
+                        .fg(Color::DarkGray)
+                        .add_modifier(Modifier::ITALIC),
+                )],
+                "pending execution".into(),
             )
+        };
+        builder.push_kv("Trace", t_spans, &t_plain);
+        // Trace warnings (cloak over budget, placement corrected after reveal) do not change the verdict.
+        if let Some(rep) = &trace_report {
+            for w in &rep.warnings {
+                builder.push_kv(
+                    "Warning",
+                    vec![
+                        Span::styled(
+                            "⚠ ",
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                        Span::styled(w.clone(), Style::default().fg(Color::Yellow)),
+                    ],
+                    &format!("⚠ {}", w),
+                );
+            }
         }
-    } else if res_opt.is_some() {
-        (
-            vec![Span::styled(
-                "not analysed (no trace captured)",
-                Style::default().fg(Color::Yellow),
-            )],
-            "not analysed (no trace captured)".into(),
-        )
-    } else {
-        (
-            vec![Span::styled(
-                "pending execution",
-                Style::default()
-                    .fg(Color::DarkGray)
-                    .add_modifier(Modifier::ITALIC),
-            )],
-            "pending execution".into(),
-        )
-    };
-    builder.push_kv("Trace", t_spans, &t_plain);
-    // Trace warnings (cloak over budget, placement corrected after reveal) do not change the verdict.
-    if let Some(rep) = &trace_report {
-        for w in &rep.warnings {
+        if let Some(r) = res_opt {
+            push_flash_rows(builder, r);
+        }
+        // Why there is no trace, or (with a trace) the run-time note, e.g. logging could not be enabled.
+        let reason = trace_state
+            .as_ref()
+            .and_then(|s| s.reason())
+            .or_else(|| res_opt.and_then(|r| r.trace_note.as_deref()));
+        if let Some(why) = reason {
             builder.push_kv(
-                "Warning",
-                vec![
-                    Span::styled(
-                        "⚠ ",
-                        Style::default()
-                            .fg(Color::Yellow)
-                            .add_modifier(Modifier::BOLD),
-                    ),
-                    Span::styled(w.clone(), Style::default().fg(Color::Yellow)),
-                ],
-                &format!("⚠ {}", w),
+                "Reason",
+                vec![Span::styled(
+                    why.to_string(),
+                    Style::default().fg(Color::Yellow),
+                )],
+                why,
             );
         }
-    }
-    if let Some(r) = res_opt {
-        push_flash_rows(builder, r);
-    }
-    // Why there is no trace, or (with a trace) the run-time note, e.g. logging could not be enabled.
-    let reason = trace_state
-        .as_ref()
-        .and_then(|s| s.reason())
-        .or_else(|| res_opt.and_then(|r| r.trace_note.as_deref()));
-    if let Some(why) = reason {
-        builder.push_kv(
-            "Reason",
-            vec![Span::styled(
-                why.to_string(),
-                Style::default().fg(Color::Yellow),
-            )],
-            why,
-        );
     }
 
     // Geometry: the same comparison as the GEOMETRY table and the runner's verdict.

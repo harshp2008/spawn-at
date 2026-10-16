@@ -399,3 +399,34 @@ pub fn joined_raw(traces: &[ActionTrace]) -> String {
         .collect::<Vec<_>>()
         .join("\n")
 }
+
+/// The caveat shown wherever a flash result for a `transform` is shown. The extension's log and
+/// the fixture's paint events are the only evidence: no pixel is ever captured.
+pub const FLASH_CAVEAT: &str = "informational: a clean result means no late paint was found in the runs tested, not a guarantee; 'possible' flashes have a known noise level; no pixels are captured";
+
+/// Why a command has no flash analysis: it never hides the window, so there is no cloak to end.
+pub const NO_CLOAK_NOTE: &str = "no flash analysis: this command has no cloak phase";
+
+impl ActionTrace {
+    /// The cloak duration as shown in the Cloak row: the time from `CLOAK` to
+    /// `UNCLOAK_4D_REVEAL`, or `n/a` with the reason it does not apply.
+    pub fn cloak_text(&self) -> String {
+        match self.cloak_to_reveal_ms {
+            Some(ms) => format!("{ms:.1} ms (CLOAK to UNCLOAK_4D_REVEAL)"),
+            None if self.has_cloak_phase() => "n/a (CLOAK logged, no UNCLOAK_4D_REVEAL)".into(),
+            None => format!("n/a (no cloak phase for {})", self.command),
+        }
+    }
+
+    /// One line for the Trace row: the event count and window, or the reason there is no timeline.
+    pub fn headline(&self) -> String {
+        let what = match &self.target {
+            Some(t) => format!("{} on '{}'", self.command, t),
+            None => self.command.clone(),
+        };
+        match self.status.reason() {
+            Some(why) => format!("#{} {}: {}", self.index, what, why),
+            None => format!("#{} {}: {} event(s)", self.index, what, self.events.len()),
+        }
+    }
+}
