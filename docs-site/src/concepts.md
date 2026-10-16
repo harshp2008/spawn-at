@@ -27,7 +27,10 @@ margins.
 **Pivot (`--pivot`).** Which point of the window sits on the anchor: `center`, `top-left`,
 `top-right`, `bottom-left`, `bottom-right`. If omitted, each anchor uses its own matching point
 (`center` to `center`, `top` to top-centre, corners to the same corner), and `cursor` uses
-`top-left`.
+`top-left`. Without `--anchor` the pivot is `top-left`. This is what the code does
+(`crates/spawn-at-core/src/geometry.rs`, the pivot match near line 660, and the test
+`test_new_matrix_and_cursor_default_pivot`). The `--anchor` text in `--help` says "defaults to
+top-left pivot when --pivot is omitted", which is only true for `cursor` and for no anchor.
 
 **Position (`-p X Y`, or the alias `-o X Y`).** Without `--anchor` it is a position in the area,
 counted from the area's own top-left corner with no margin added. With `--anchor` it is an offset
@@ -121,3 +124,4 @@ after the reveal. No screen capture was done. See [Findings](findings.md).
 - `docs/DESIGN_PLATFORMS.md`, section 4 (reveal control is GNOME-only)
 - `docs/DESIGN_READY_WAIT.md`, section 12 (X11 and XWayland keep the legacy rule)
 - `docs/TEST_PLAN.md`, sections 6.1 to 6.3 (minimum-size evidence)
+- `crates/spawn-at-core/src/geometry.rs` (default pivot) and the output of `spawn-at spawn --help`
