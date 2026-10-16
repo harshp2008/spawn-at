@@ -27,6 +27,8 @@ pub struct TestRunner {
     pub(crate) actions: Option<Arc<dyn ActionRunner>>,
     /// Waits and grace periods of version 2 tests (shortened by tests).
     pub(crate) v2_timings: super::owned::Timings,
+    /// Waits of the per-action trace capture of version 2 tests (shortened by tests).
+    pub(crate) trace_timings: super::action_trace::TraceTimings,
 }
 
 /// Why the no-op log source is in use: names `XDG_CURRENT_DESKTOP` and what it holds.
@@ -85,7 +87,14 @@ impl TestRunner {
             control: None,
             actions: None,
             v2_timings: Default::default(),
+            trace_timings: Default::default(),
         }
+    }
+
+    /// Shortens the waits of the per-action trace capture (for tests with a fake journal).
+    pub fn with_trace_timings(mut self, timings: super::action_trace::TraceTimings) -> Self {
+        self.trace_timings = timings;
+        self
     }
 
     /// Shortens the waits and grace periods of version 2 tests (for tests with fakes).

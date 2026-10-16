@@ -539,6 +539,15 @@ impl SetupSession {
         self.fixtures.iter().filter_map(|f| f.window_id).collect()
     }
 
+    /// Setup name and recorded id of every fixture whose window was found: the windows whose
+    /// lines of the extension's log may be kept and shown.
+    pub fn named_ids(&self) -> Vec<(String, u64)> {
+        self.fixtures
+            .iter()
+            .filter_map(|f| f.window_id.map(|id| (f.name.clone(), id)))
+            .collect()
+    }
+
     /// Launches one fixture and waits for its window. The fixture is part of the session from the
     /// moment it starts, so a failure at any later point still tears it down.
     pub fn launch(&mut self, req: &SetupRequest) -> Result<(), SetupError> {

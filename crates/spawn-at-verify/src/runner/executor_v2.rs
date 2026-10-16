@@ -5,6 +5,7 @@
 //! failed query and an interrupt are `Error` (nothing about the product was judged); a command
 //! that exits wrongly, a check that does not hold and a rectangle that is off are `AutoFail`.
 
+use super::action_trace::{ActionTraceRun, TraceOutcome};
 use super::engine::TestRunner;
 use super::models::{resolve_final_status, AutoStatus, HumanVerdict, TestResult};
 use super::owned::{
@@ -30,6 +31,8 @@ struct Outcome {
     stdout: String,
     stderr: String,
     final_rect: Option<Rect>,
+    /// The extension's trace of the actions and its flash result; `None` when none was taken.
+    trace: Option<Box<TraceOutcome>>,
 }
 
 impl Outcome {
@@ -41,6 +44,7 @@ impl Outcome {
             stdout: String::new(),
             stderr: String::new(),
             final_rect: None,
+            trace: None,
         }
     }
     fn error(message: impl Into<String>) -> Self {
@@ -203,6 +207,9 @@ impl TestRunner {
             TestKind::Auto => EXIT_AFTER_AUTO_MS,
             TestKind::Human | TestKind::Both => EXIT_AFTER_HUMAN_MS,
         };
+        // The extension's log is turned on (and, for a transform, the fixture's event directory
+        // made) before the fixtures start, because their environment depends on it.
+        let mut trace = self.plan_action_trace(test, env_info);
         let mut session = match SetupSession::new(
             Arc::clone(&control),
             fixture_bin,
@@ -213,19 +220,38 @@ impl TestRunner {
         ) {
             Ok(s) => s,
             Err(e) => {
-                return finish(test, start, Outcome::error(format!("setup failed: {e}")));
+                return finish(
+                    test,
+                    start + trace.spent(),
+                    Outcome::error(format!("setup failed: {e}")),
+                );
             }
         };
+        for (key, value) in trace.fixture_env() {
+            session = session.with_env(key, &value);
+        }
         if !test.v2.setup.is_empty() {
             session.remember_focus();
         }
 
         let mut captured = Captured::default();
-        let mut outcome = self.run_v2_steps(test, env_info, &mut session, &*actions, &mut captured);
+        let mut outcome = self.run_v2_steps(
+            test,
+            env_info,
+            &mut session,
+            &*actions,
+            &mut captured,
+            &mut trace,
+        );
         outcome.exit_code = captured.exit_code;
         outcome.stdout = captured.stdout;
         outcome.stderr = captured.stderr;
         outcome.final_rect = captured.final_rect;
+        // Flash is measured while the fixture is alive and its events file is complete. The time
+        // spent capturing is not part of the run's duration, as for a version 1 run.
+        let traced = self.trace_finish(trace, &session);
+        let start = start + traced.spent;
+        outcome.trace = Some(Box::new(traced));
 
         // A test a person judges keeps its window until the verdict; the tracker tears it down.
         let keep_open = matches!(test.kind, TestKind::Human | TestKind::Both)
@@ -264,6 +290,7 @@ impl TestRunner {
         session: &mut SetupSession,
         actions: &dyn ActionRunner,
         captured: &mut Captured,
+        trace: &mut ActionTraceRun,
     ) -> Outcome {
         let timings = self.v2_timings;
         for s in &test.v2.setup {
@@ -328,7 +355,11 @@ impl TestRunner {
             if let Err(e) = guard_user_window(session.user_window(), &args) {
                 return Outcome::error(e);
             }
-            let out = match actions.run(&args, self.options.step_timeout) {
+            // The extension's lines of this action are read whatever the action returns.
+            let probe = self.trace_before(trace, i, action, target_name(action), session);
+            let ran = actions.run(&args, self.options.step_timeout);
+            self.trace_after(trace, probe, session);
+            let out = match ran {
                 Ok(o) => o,
                 Err(e) => return Outcome::error(format!("Harness error executing command: {e}")),
             };
@@ -478,10 +509,10 @@ fn finish(test: &TestDefinition, start: Instant, o: Outcome) -> TestResult {
         stdout: o.stdout,
         stderr: o.stderr,
         message: Some(o.message),
-        log_slice: None,
+        log_slice: o.trace.as_ref().and_then(|t| t.log_slice.clone()),
         trace_note: None,
         final_rect: o.final_rect,
-        flash_info: Default::default(),
+        flash_info: o.trace.map(|t| t.flash).unwrap_or_default(),
         wait_info: Default::default(),
     }
 }

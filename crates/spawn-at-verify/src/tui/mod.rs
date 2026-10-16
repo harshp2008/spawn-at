@@ -69,6 +69,7 @@ pub fn run_tui(args: TuiArgs) -> Result<(), String> {
     let options = RunOptions {
         bin_path,
         filter,
+        action_trace: true,
         ..Default::default()
     };
 

@@ -349,6 +349,11 @@ pub struct RunOptions {
     /// no measurable cost at idle or under load); without it the fixture's own `FIRST_PAINT`
     /// stamps are the paint times.
     pub wire_paint: bool,
+    /// Capture the extension's trace of every action of a version 2 test (a command on an
+    /// existing window) and, for `transform`, measure flash from the fixture's paint events.
+    /// Off by default so that a runner built in a test never touches the live extension (it turns
+    /// the timing log on over D-Bus and reads the user journal); `run` and the TUI switch it on.
+    pub action_trace: bool,
     /// Developer override passed to every `spawn` action (`--wait-strategy`, `--wait-cap-ms`);
     /// empty by default, which adds nothing to the command line.
     pub wait: crate::trace::wait::WaitRequest,
@@ -372,6 +377,7 @@ impl Default for RunOptions {
             strict_flash: false,
             flash_threshold_ms: 0.0,
             wire_paint: true,
+            action_trace: false,
             wait: Default::default(),
             interrupted: Default::default(),
         }
