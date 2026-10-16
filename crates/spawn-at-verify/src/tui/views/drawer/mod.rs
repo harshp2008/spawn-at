@@ -117,6 +117,8 @@ fn push_end_marker(lines: &mut Vec<Line<'static>>, inner_width: usize) {
         end_marker_text(inner_width),
         Style::default().fg(Color::DarkGray),
     )));
+    // One more blank row, so the rule does not sit on the bottom border.
+    lines.push(Line::raw(""));
 }
 
 /// The rows the drawer's content takes when drawn in an area `width` columns wide (the number the
