@@ -13,7 +13,7 @@ An earlier version of this file was a reorganization proposal (target layout, mo
 | `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
 | `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`, and the documentation-site commands (`docs-site`, `docs-cli-reference`, `docs-check-src`, `docs-check-html`). | No dependencies. |
 
-Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`, among them `check-comment-only-product.sh`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`, `docs.yml`), `docs-site/` (the mdBook user guide: `book.toml` and `src/`; see "Documentation site" below).
+Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`, among them `check-comment-only-product.sh`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`, `docs.yml`), `docs-site/` (the Starlight user guide: `astro.config.mjs`, `package.json` and `src/content/docs/`; see "Documentation site" below).
 
 ## Facts that constrain moving files
 
@@ -112,10 +112,10 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/xtask/src/comment_only.rs` | 205 | `check-comment-only`: verifies a commit changes only comments relative to a base revision. |
 | `crates/xtask/src/compiler_docs.rs` | 117 | Compiler-backed documentation check: collects rustc's `missing_docs` warnings. |
 | `crates/xtask/src/doc_coverage.rs` | 276 | `check-doc-coverage`: text scan for undocumented items, merged with the compiler lint. |
-| `crates/xtask/src/docs_check.rs` | 313 | `docs-check-src`: checks the markdown of the book before it is built. |
-| `crates/xtask/src/docs_cli.rs` | 363 | `docs-cli-reference`: writes one book page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
-| `crates/xtask/src/docs_html.rs` | 647 | `docs-check-html`: checks the assembled site (book plus `api/`) without any network access. |
-| `crates/xtask/src/docs_site.rs` | 178 | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
+| `crates/xtask/src/docs_check.rs` | 565 | `docs-check-src`: checks the markdown of the site (`docs-site/src/content/docs`) and the Starlight config before the site is built. |
+| `crates/xtask/src/docs_cli.rs` | 499 | `docs-cli-reference`: writes one Starlight page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
+| `crates/xtask/src/docs_html.rs` | 758 | `docs-check-html`: checks the assembled site (Astro output plus `api/`) without any network access. |
+| `crates/xtask/src/docs_site.rs` | 267 | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
 | `crates/xtask/src/main.rs` | 93 | xtask: Internal developer and CI tooling for spawn-at. |
 | `crates/xtask/tests/burn_cpu_test.rs` | 38 | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
 
@@ -304,22 +304,24 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ## Documentation site
 
-The user guide is an mdBook in `docs-site/` (`book.toml`, `src/`). The rustdoc API docs are built
-from the source comments and published under `api/` of the same site. The CLI reference
-(`docs-site/src/reference/spawn-at*.md`) is generated from the built binary's `--help` at build
-time and is **not committed** (`.gitignore` lists it; only `reference/index.md` is tracked), so it
-cannot drift from the binary. Every hand-written page ends with a `## Sources` list.
+The user guide is a Starlight (Astro) project in `docs-site/` (`astro.config.mjs`, `package.json`
+with exact versions, `package-lock.json`, `.nvmrc`, `src/content/docs/`, `src/styles/custom.css`).
+The rustdoc API docs are built from the source comments and published under `api/` of the same
+site; the hand-written page about them is `rustdoc.md`, because a page at `/api/` would collide with
+that folder. The CLI reference (`docs-site/src/content/docs/reference/spawn-at*.md`) is generated
+from the built binary's `--help` at build time and is **not committed** (`.gitignore` lists it; only
+`reference/index.md` is tracked), so it cannot drift from the binary. Every hand-written page ends
+with a `## Sources` list.
 
-mdBook 0.5.4 must be on `PATH` (the release archive; `.github/workflows/docs.yml` shows the download
-and its SHA-256 check). Then:
+Node.js and npm must be installed (the major version CI uses is in `docs-site/.nvmrc`). Then:
 
 ```bash
 cargo xtask docs-site                      # everything below, in CI order; site in target/docs-site/site/
 cargo xtask docs-cli-reference --bin target/debug/spawn-at   # only the generated reference (needs the built binary)
-cargo xtask docs-check-src                 # book markdown: empty pages, environment pages, Sources, forbidden text
-mdbook build docs-site                     # the book alone, into target/docs-site/book/
+cargo xtask docs-check-src                 # markdown and astro.config.mjs: front matter, sidebar, Sources, forbidden text
+(cd docs-site && npm ci --ignore-scripts && npm run build)   # the Starlight site alone, into docs-site/dist/
 RUSTDOCFLAGS="-D warnings -A rustdoc::invalid_html_tags" cargo doc --no-deps --workspace --exclude xtask --locked
-cargo xtask docs-check-html target/docs-site/site --generated-dir api/   # links, ids, third-party requests
+cargo xtask docs-check-html target/docs-site/site --generated-dir api/   # links, ids, rewritten flags, third-party requests
 ```
 
 `xtask` is left out of the published API docs: it is internal tooling with no public API. The
@@ -329,7 +331,8 @@ fixing it would change `--help`. Every other rustdoc warning fails the build.
 
 `.github/workflows/docs.yml` runs the same command on every pull request and, on a push to `main`,
 deploys to GitHub Pages once the owner has enabled Pages with the "GitHub Actions" source. It makes
-no third-party request: no external fonts, scripts or analytics, and the playground is off.
+no third-party request: no external fonts, scripts or analytics, and Astro's telemetry is off
+(`ASTRO_TELEMETRY_DISABLED=1` in the workflow, the npm scripts and the xtask command).
 
 ## Historical evidence
 

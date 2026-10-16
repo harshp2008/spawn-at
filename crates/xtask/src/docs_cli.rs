@@ -1,10 +1,14 @@
-//! `docs-cli-reference`: writes one book page per `spawn-at` command from the built binary's own
-//! `--help` output, and fails if a command that `--help` lists has no page.
+//! `docs-cli-reference`: writes one Starlight page per `spawn-at` command from the built binary's
+//! own `--help` output, and fails if a command that `--help` lists has no page.
 //!
-//! The pages are generated at build time and are not committed, so they cannot drift from the
+//! The pages are generated at build time into `docs-site/src/content/docs/reference/` (git
+//! ignores everything there except the hand-written `index.md`), so they cannot drift from the
 //! binary. The walk starts at the root command and follows every `Commands:` list it prints, so
 //! nested commands (`query layout`, `config set`) get a page too. The built-in `help` entry that
-//! clap adds to every list is skipped: it is not a command of its own.
+//! clap adds to every list is skipped: it is not a command of its own. Each page starts with a
+//! front-matter block (`title`, `description`) and has no `# ` heading, because Starlight prints
+//! the title as the page heading. The sidebar lists them through an `autogenerate` entry for the
+//! folder `reference` in `docs-site/astro.config.mjs`, which this module checks for.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -114,12 +118,21 @@ fn fence_for(text: &str) -> String {
     "`".repeat(longest.max(2) + 1)
 }
 
-/// The markdown of one page: a heading, the command that produced the text, and the text.
+/// `text` as a double-quoted YAML scalar: backslash and double quote are escaped.
+fn yaml_quote(text: &str) -> String {
+    format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// The markdown of one page: front matter, the command that produced the text, and the text.
+/// There is no `# ` heading; Starlight prints `title` as the heading.
 pub fn render_page(path: &[String], help: &str, version: Option<&str>) -> String {
     let line = command_line(path);
     let mut page = format!(
-        "# `{line}`\n\nThis page is generated from the built binary at build time. \
-         The text below is the output of `{line} --help`, unchanged.\n\n"
+        "---\ntitle: {}\ndescription: {}\n---\n\n\
+         This page is generated from the built binary at build time. \
+         The text below is the output of `{line} --help`, unchanged.\n\n",
+        yaml_quote(&line),
+        yaml_quote(&format!("Output of {line} --help, unchanged."))
     );
     let body = help.trim_end();
     let fence = fence_for(body);
@@ -136,12 +149,29 @@ pub fn render_page(path: &[String], help: &str, version: Option<&str>) -> String
     page
 }
 
-/// Problems with the pages of `commands`: a page file that is missing, and a page that
-/// `SUMMARY.md` does not link. An empty list means the reference is complete.
+/// True if `config` (the text of `astro.config.mjs`) has a sidebar entry
+/// `autogenerate: { directory: '<dir>' }` for the folder `dir`, with either quote style. Text
+/// search, not a JavaScript parse: it looks at the 80 bytes after each `autogenerate`.
+pub fn sidebar_autogenerates(config: &str, dir: &str) -> bool {
+    let wanted = [format!("'{dir}'"), format!("\"{dir}\"")];
+    config.match_indices("autogenerate").any(|(i, _)| {
+        let mut end = (i + 80).min(config.len());
+        while !config.is_char_boundary(end) {
+            end -= 1;
+        }
+        let window = &config[i..end];
+        let window = window.split('}').next().unwrap_or(window);
+        window.contains("directory") && wanted.iter().any(|w| window.contains(w.as_str()))
+    })
+}
+
+/// Problems with the pages of `commands`: a page file that is missing, and a sidebar that does
+/// not list the folder `reference` by `autogenerate` (so the generated pages would be built but
+/// not reachable from the menu). An empty list means the reference is complete.
 pub fn check_coverage(
     commands: &[Vec<String>],
     reference_dir: &Path,
-    summary: &str,
+    sidebar_config: &str,
 ) -> Vec<String> {
     let mut problems = Vec::new();
     for path in commands {
@@ -153,19 +183,40 @@ pub fn check_coverage(
                 reference_dir.join(&file).display()
             ));
         }
-        if !summary.contains(&format!("(reference/{file})")) {
-            problems.push(format!(
-                "`{}` is listed by --help but SUMMARY.md does not link reference/{}",
-                command_line(path),
-                file
-            ));
-        }
+    }
+    if !sidebar_autogenerates(sidebar_config, "reference") {
+        problems.push(
+            "the sidebar in astro.config.mjs has no `autogenerate: { directory: 'reference' }` \
+             entry, so the generated reference pages would not be in the menu"
+                .to_string(),
+        );
     }
     problems
 }
 
+/// Removes `spawn-at*.md` files of `dir` that are not in `keep`: pages of a command that no
+/// longer exists. `index.md` and any other file are left alone.
+fn remove_stale_pages(dir: &Path, keep: &[PathBuf]) -> Result<(), String> {
+    let entries = fs::read_dir(dir).map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
+    for entry in entries {
+        let path = entry
+            .map_err(|e| format!("cannot read {}: {}", dir.display(), e))?
+            .path();
+        let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
+        if name.starts_with("spawn-at") && name.ends_with(".md") && !keep.contains(&path) {
+            fs::remove_file(&path)
+                .map_err(|e| format!("cannot remove {}: {}", path.display(), e))?;
+        }
+    }
+    Ok(())
+}
+
 /// Generates the pages and then runs the coverage check. Returns the paths written.
-pub fn generate(bin: &Path, reference_dir: &Path, summary: &str) -> Result<Vec<PathBuf>, String> {
+pub fn generate(
+    bin: &Path,
+    reference_dir: &Path,
+    sidebar_config: &str,
+) -> Result<Vec<PathBuf>, String> {
     let commands = discover(bin)?;
     let version = run_capture(bin, &["-V"])?;
     fs::create_dir_all(reference_dir)
@@ -182,8 +233,9 @@ pub fn generate(bin: &Path, reference_dir: &Path, summary: &str) -> Result<Vec<P
             .map_err(|e| format!("cannot write {}: {}", file.display(), e))?;
         written.push(file);
     }
+    remove_stale_pages(reference_dir, &written)?;
     let paths: Vec<Vec<String>> = commands.iter().map(|c| c.path.clone()).collect();
-    let problems = check_coverage(&paths, reference_dir, summary);
+    let problems = check_coverage(&paths, reference_dir, sidebar_config);
     if problems.is_empty() {
         Ok(written)
     } else {
@@ -191,24 +243,24 @@ pub fn generate(bin: &Path, reference_dir: &Path, summary: &str) -> Result<Vec<P
     }
 }
 
-/// Entry point of `cargo xtask docs-cli-reference --bin <path> [--out <dir>] [--summary <file>]`.
+/// Entry point of `cargo xtask docs-cli-reference --bin <path> [--out <dir>] [--config <file>]`.
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut bin = PathBuf::from("target/debug/spawn-at");
-    let mut out = PathBuf::from("docs-site/src/reference");
-    let mut summary = PathBuf::from("docs-site/src/SUMMARY.md");
+    let mut out = PathBuf::from("docs-site/src/content/docs/reference");
+    let mut config = PathBuf::from("docs-site/astro.config.mjs");
     let mut it = args.iter();
     while let Some(flag) = it.next() {
         let value = it.next().ok_or_else(|| format!("{} needs a value", flag))?;
         match flag.as_str() {
             "--bin" => bin = PathBuf::from(value),
             "--out" => out = PathBuf::from(value),
-            "--summary" => summary = PathBuf::from(value),
+            "--config" => config = PathBuf::from(value),
             other => return Err(format!("unknown option {}", other)),
         }
     }
-    let summary_text = fs::read_to_string(&summary)
-        .map_err(|e| format!("cannot read {}: {}", summary.display(), e))?;
-    let written = generate(&bin, &out, &summary_text)?;
+    let config_text = fs::read_to_string(&config)
+        .map_err(|e| format!("cannot read {}: {}", config.display(), e))?;
+    let written = generate(&bin, &out, &config_text)?;
     println!(
         "==> wrote {} reference pages to {}",
         written.len(),
@@ -293,9 +345,17 @@ Options:
         dir
     }
 
+    /// Held by every test that writes and then runs the stand-in script. A process forked by one
+    /// test while another test still has the script open for writing makes that test's `exec` fail
+    /// with "Text file busy"; the lock keeps the write and the runs of one test apart from the
+    /// forks of the others.
     #[cfg(unix)]
-    fn fake_cli(dir: &Path) -> PathBuf {
+    static SCRIPT_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    #[cfg(unix)]
+    fn fake_cli(dir: &Path) -> (std::sync::MutexGuard<'static, ()>, PathBuf) {
         use std::os::unix::fs::PermissionsExt;
+        let guard = SCRIPT_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let script = dir.join("fake-spawn-at");
         let body = "#!/bin/sh\n\
             case \"$*\" in\n\
@@ -306,8 +366,11 @@ Options:
             esac\n";
         fs::write(&script, body).unwrap();
         fs::set_permissions(&script, fs::Permissions::from_mode(0o755)).unwrap();
-        script
+        (guard, script)
     }
+
+    /// The sidebar entry the tests use: the same shape as in `docs-site/astro.config.mjs`.
+    const SIDEBAR: &str = "items: [{ autogenerate: { directory: 'reference' } }],";
 
     /// Against a stand-in CLI with a nested command: all four pages are written, the nested one
     /// is found by following `beta`'s own list, and only the root page carries the version.
@@ -315,11 +378,9 @@ Options:
     #[test]
     fn test_generate_walks_nested_commands() {
         let dir = temp_dir("generate");
-        let bin = fake_cli(&dir);
+        let (_guard, bin) = fake_cli(&dir);
         let out = dir.join("reference");
-        let summary = "(reference/spawn-at.md) (reference/spawn-at-alpha.md) \
-                       (reference/spawn-at-beta.md) (reference/spawn-at-beta-inner.md)";
-        let written = generate(&bin, &out, summary).unwrap();
+        let written = generate(&bin, &out, SIDEBAR).unwrap();
         assert_eq!(written.len(), 4);
         let root = fs::read_to_string(out.join("spawn-at.md")).unwrap();
         assert!(root.contains("spawn-at 9.9.9"));
@@ -328,36 +389,111 @@ Options:
         let _ = fs::remove_dir_all(&dir);
     }
 
-    /// A command that `--help` lists but SUMMARY.md does not link fails the build, naming it.
+    /// If the sidebar config has no `autogenerate` entry for `reference`, the build fails and the
+    /// message names the config, because the generated pages would not be in the menu.
     #[cfg(unix)]
     #[test]
-    fn test_generate_fails_when_summary_misses_a_command() {
-        let dir = temp_dir("summary");
-        let bin = fake_cli(&dir);
-        let summary =
-            "(reference/spawn-at.md) (reference/spawn-at-alpha.md) (reference/spawn-at-beta.md)";
-        let err = generate(&bin, &dir.join("reference"), summary)
+    fn test_generate_fails_when_sidebar_does_not_autogenerate_reference() {
+        let dir = temp_dir("sidebar");
+        let (_guard, bin) = fake_cli(&dir);
+        let err = generate(&bin, &dir.join("reference"), "items: ['install']")
             .err()
             .unwrap();
         assert!(
-            err.contains("spawn-at beta inner") && err.contains("SUMMARY.md"),
+            err.contains("astro.config.mjs") && err.contains("autogenerate"),
             "{}",
             err
         );
         let _ = fs::remove_dir_all(&dir);
     }
 
-    /// A missing page file is reported even when SUMMARY.md links it.
+    /// A missing page file is reported even when the sidebar autogenerates the folder.
     #[test]
     fn test_check_coverage_reports_missing_page_file() {
         let dir = temp_dir("coverage");
-        let problems = check_coverage(
-            &[vec!["gone".to_string()]],
-            &dir,
-            "(reference/spawn-at-gone.md)",
-        );
+        let problems = check_coverage(&[vec!["gone".to_string()]], &dir, SIDEBAR);
         assert_eq!(problems.len(), 1);
         assert!(problems[0].contains("has no page"), "{:?}", problems);
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// The sidebar check accepts both quote styles and either spacing, and rejects another
+    /// folder, a `directory` that is not next to an `autogenerate`, and an empty config.
+    #[test]
+    fn test_sidebar_autogenerates() {
+        assert!(sidebar_autogenerates(
+            "{ autogenerate: { directory: \"reference\" } }",
+            "reference"
+        ));
+        assert!(sidebar_autogenerates(SIDEBAR, "reference"));
+        assert!(!sidebar_autogenerates(
+            "{ autogenerate: { directory: 'guides' } }",
+            "reference"
+        ));
+        assert!(!sidebar_autogenerates(
+            "autogenerate: { directory: 'guides' }, { slug: 'x', directory: 'reference' }",
+            "reference"
+        ));
+        assert!(!sidebar_autogenerates("", "reference"));
+    }
+
+    /// A page starts with a `---` block holding `title` and `description`, then the generated
+    /// paragraph; there is no `# ` heading line (Starlight would show the title twice).
+    #[test]
+    fn test_render_page_has_front_matter_and_no_h1() {
+        let page = render_page(&["query".to_string(), "layout".to_string()], "h\n", None);
+        assert!(
+            page.starts_with(
+                "---\ntitle: \"spawn-at query layout\"\n\
+                 description: \"Output of spawn-at query layout --help, unchanged.\"\n---\n\n"
+            ),
+            "{page}"
+        );
+        assert!(!page.lines().any(|l| l.starts_with("# ")), "{page}");
+    }
+
+    /// A double quote or backslash in a title cannot end the YAML string early.
+    #[test]
+    fn test_yaml_quote_escapes() {
+        assert_eq!(yaml_quote("a\"b\\c"), "\"a\\\"b\\\\c\"");
+    }
+
+    /// Pages of commands that no longer exist are removed, while `index.md` and a file that does
+    /// not start with `spawn-at` stay. This keeps the output the same as a run on an empty folder.
+    #[cfg(unix)]
+    #[test]
+    fn test_generate_removes_stale_command_pages_only() {
+        let dir = temp_dir("stale");
+        let (_guard, bin) = fake_cli(&dir);
+        let out = dir.join("reference");
+        fs::create_dir_all(&out).unwrap();
+        fs::write(out.join("spawn-at-gone.md"), "old").unwrap();
+        fs::write(out.join("index.md"), "hand-written").unwrap();
+        fs::write(out.join("notes.md"), "keep").unwrap();
+        generate(&bin, &out, SIDEBAR).unwrap();
+        assert!(!out.join("spawn-at-gone.md").exists());
+        assert!(out.join("index.md").is_file() && out.join("notes.md").is_file());
+        assert!(out.join("spawn-at-beta.md").is_file());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// Two runs on the same binary write byte-identical files.
+    #[cfg(unix)]
+    #[test]
+    fn test_generate_is_deterministic() {
+        let dir = temp_dir("determinism");
+        let (_guard, bin) = fake_cli(&dir);
+        let (a, b) = (dir.join("a"), dir.join("b"));
+        let first = generate(&bin, &a, SIDEBAR).unwrap();
+        generate(&bin, &b, SIDEBAR).unwrap();
+        for path in first {
+            let name = path.file_name().unwrap();
+            assert_eq!(
+                fs::read(&path).unwrap(),
+                fs::read(b.join(name)).unwrap(),
+                "{name:?}"
+            );
+        }
         let _ = fs::remove_dir_all(&dir);
     }
 }

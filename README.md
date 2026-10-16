@@ -29,10 +29,10 @@ Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayl
 
 The user guide and the API documentation are published at <https://harshp2008.github.io/spawn-at/> (the site goes live once GitHub Pages is enabled for the repository). The guide covers install, concepts, every command, configuration, each environment with what was and was not tested, the known shortcomings, and the measurements. The CLI reference is generated from the binary's `--help`, and the Rust API docs from the source comments.
 
-To build the site locally you need [mdBook](https://github.com/rust-lang/mdBook) 0.5.4 on your `PATH` (a release archive; `.github/workflows/docs.yml` shows the checked download):
+To build the site locally you need Node.js and npm (the major version CI uses is in `docs-site/.nvmrc`); the site is built with [Starlight](https://starlight.astro.build/), whose pinned versions are in `docs-site/package.json`:
 
 ```bash
-cargo xtask docs-site        # binary, CLI reference, book, rustdoc, then the checks
+cargo xtask docs-site        # binary, CLI reference, Starlight site, rustdoc, then the checks
 # the finished site: target/docs-site/site/index.html (the API docs are under api/)
 ```
 

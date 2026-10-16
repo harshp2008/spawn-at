@@ -1,14 +1,17 @@
 //! `docs-site`: builds the whole documentation site the way CI does, and checks it.
 //!
 //! Steps, in order, each of which stops the run on failure: build the `spawn-at` binary; write
-//! the CLI reference from its `--help`; check the book's markdown; `mdbook build` (any `WARN`
-//! line is a failure); `cargo doc` with warnings as errors; copy the book and the rustdoc output
-//! (under `api/`) into one directory; check that directory for broken links and third-party
-//! requests.
+//! the CLI reference from its `--help`; check the site's markdown and Starlight config; install
+//! the npm packages (`npm ci`, or reuse `docs-site/node_modules` when it is newer than
+//! `package.json` and `package-lock.json`); `astro build` (Starlight, with Pagefind search);
+//! `cargo doc` with warnings as errors; copy the Astro output and the rustdoc output (under
+//! `api/`) into one directory; check that directory for broken links, missing ids, rewritten
+//! flags and third-party requests. No step needs a network except `npm ci`, and only when it runs.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::SystemTime;
 
 use crate::{docs_check, docs_cli, docs_html};
 
@@ -19,9 +22,20 @@ use crate::{docs_check, docs_cli, docs_html};
 /// warning still fails the build.
 const RUSTDOC_FLAGS: &str = "-D warnings -A rustdoc::invalid_html_tags";
 
-const BOOK_DIR: &str = "docs-site";
-const BOOK_OUT: &str = "target/docs-site/book";
+/// The Astro project: `package.json`, `astro.config.mjs` and `src/content/docs/`.
+const SITE_DIR: &str = "docs-site";
+/// Where `astro build` writes (Astro's default `outDir`, inside the project; git ignores it).
+const ASTRO_OUT: &str = "docs-site/dist";
 const DEFAULT_SITE: &str = "target/docs-site/site";
+
+/// Files the built site must contain: the home page, the 404 page, the Pagefind search script
+/// (the site's search runs from these local files) and the favicon the pages link to.
+const REQUIRED_FILES: [&str; 4] = [
+    "index.html",
+    "404.html",
+    "pagefind/pagefind.js",
+    "favicon.svg",
+];
 
 fn step(text: &str) {
     println!("\n==> {text}");
@@ -53,46 +67,53 @@ pub fn copy_dir(from: &Path, to: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// True if mdBook's output holds a warning line. mdBook exits 0 on warnings, so the output is
-/// the only place they show.
-pub fn has_warning(output: &str) -> bool {
-    output.lines().any(|l| {
-        l.contains(" WARN ") || l.contains("[WARN]") || l.to_lowercase().contains("warning")
-    })
+fn modified(path: &Path) -> Option<SystemTime> {
+    fs::metadata(path).and_then(|m| m.modified()).ok()
 }
 
-fn mdbook_build(mdbook: &str) -> Result<(), String> {
-    let out = Command::new(mdbook)
-        .args(["build", BOOK_DIR])
-        .output()
-        .map_err(|e| {
-            format!("cannot run `{mdbook}`: {e}. Install mdBook v0.5.4 (see .github/workflows/docs.yml for the checked download) or pass --mdbook <path>")
-        })?;
-    let text = format!(
-        "{}{}",
-        String::from_utf8_lossy(&out.stdout),
-        String::from_utf8_lossy(&out.stderr)
-    );
-    print!("{text}");
-    if !out.status.success() {
-        return Err(format!("mdbook build failed with {:?}", out.status.code()));
-    }
-    if has_warning(&text) {
-        return Err("mdbook build printed a warning; warnings are errors here".to_string());
-    }
-    Ok(())
+/// True if the packages in `project/node_modules` can be reused: npm's own record of what it
+/// installed (`node_modules/.package-lock.json`) exists and is newer than both `package.json` and
+/// `package-lock.json`. When it is not, the run does a clean `npm ci`.
+pub fn node_modules_fresh(project: &Path) -> bool {
+    let Some(installed) = modified(&project.join("node_modules/.package-lock.json")) else {
+        return false;
+    };
+    ["package.json", "package-lock.json"]
+        .iter()
+        .all(|f| modified(&project.join(f)).is_some_and(|m| m <= installed))
 }
 
-/// Entry point of `cargo xtask docs-site [--mdbook P] [--bin P] [--out DIR]`.
+/// The names in `REQUIRED_FILES` that `site` does not contain.
+pub fn missing_files(site: &Path) -> Vec<&'static str> {
+    REQUIRED_FILES
+        .iter()
+        .copied()
+        .filter(|f| !site.join(f).is_file())
+        .collect()
+}
+
+/// An `npm` command run in the Astro project with Astro's telemetry off.
+fn npm(args: &[&str]) -> Command {
+    let mut cmd = Command::new("npm");
+    cmd.args(args)
+        .current_dir(SITE_DIR)
+        .env("ASTRO_TELEMETRY_DISABLED", "1");
+    cmd
+}
+
+/// Entry point of `cargo xtask docs-site [--bin P] [--out DIR] [--clean-install]`.
 pub fn run(args: &[String]) -> Result<(), String> {
-    let mut mdbook = "mdbook".to_string();
     let mut bin = PathBuf::from("target/debug/spawn-at");
     let mut site = PathBuf::from(DEFAULT_SITE);
+    let mut clean_install = false;
     let mut it = args.iter();
     while let Some(flag) = it.next() {
+        if flag == "--clean-install" {
+            clean_install = true;
+            continue;
+        }
         let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
         match flag.as_str() {
-            "--mdbook" => mdbook = value.clone(),
             "--bin" => bin = PathBuf::from(value),
             "--out" => site = PathBuf::from(value),
             other => return Err(format!("unknown option {other}")),
@@ -108,11 +129,27 @@ pub fn run(args: &[String]) -> Result<(), String> {
     step("generate the CLI reference");
     docs_cli::run(&["--bin".to_string(), bin.display().to_string()])?;
 
-    step("check the book source");
-    docs_check::run(&[format!("{BOOK_DIR}/src")])?;
+    step("check the site source");
+    docs_check::run(&[])?;
 
-    step("mdbook build");
-    mdbook_build(&mdbook)?;
+    if clean_install || !node_modules_fresh(Path::new(SITE_DIR)) {
+        // --ignore-scripts: no package's install script runs. The build does not need one
+        // (checked on a clean install); a package that starts needing one fails here, loudly.
+        step("npm ci (clean install from package-lock.json)");
+        run_cmd(
+            &mut npm(&["ci", "--ignore-scripts", "--no-audit", "--no-fund"]),
+            "npm ci",
+        )?;
+    } else {
+        step("reuse docs-site/node_modules (newer than package.json and package-lock.json)");
+    }
+
+    step("astro build");
+    let dist = Path::new(ASTRO_OUT);
+    if dist.exists() {
+        fs::remove_dir_all(dist).map_err(|e| format!("cannot clear {ASTRO_OUT}: {e}"))?;
+    }
+    run_cmd(&mut npm(&["run", "build"]), "npm run build")?;
 
     step("cargo doc (warnings are errors)");
     // Old output of another crate set (for example xtask) must not end up in the site.
@@ -137,9 +174,21 @@ pub fn run(args: &[String]) -> Result<(), String> {
     if site.exists() {
         fs::remove_dir_all(&site).map_err(|e| format!("cannot clear {}: {e}", site.display()))?;
     }
-    copy_dir(Path::new(BOOK_OUT), &site).map_err(|e| format!("cannot copy the book: {e}"))?;
+    if dist.join("api").exists() {
+        return Err(format!(
+            "{ASTRO_OUT}/api exists: the site has a page or file at /api/, which is the rustdoc output's place"
+        ));
+    }
+    copy_dir(dist, &site).map_err(|e| format!("cannot copy the site: {e}"))?;
     copy_dir(Path::new("target/doc"), &site.join("api"))
         .map_err(|e| format!("cannot copy the rustdoc output: {e}"))?;
+    let missing = missing_files(&site);
+    if !missing.is_empty() {
+        return Err(format!(
+            "the built site lacks {} (is search or the favicon switched off?)",
+            missing.join(", ")
+        ));
+    }
 
     step("check the assembled site");
     docs_html::run(&[
@@ -154,25 +203,65 @@ pub fn run(args: &[String]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs::File;
+    use std::time::Duration;
 
-    /// mdBook's warning lines are recognised; ordinary info lines are not.
-    #[test]
-    fn test_has_warning() {
-        assert!(has_warning("2026-10-16 WARN mdbook_core: broken thing\n"));
-        assert!(has_warning("[WARN] x"));
-        assert!(!has_warning("2026-10-16 INFO Book building has started\n"));
+    fn temp(tag: &str) -> PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("xtask-docs-site-{}-{}", std::process::id(), tag));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn touch(path: &Path, age_secs: u64) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let file = File::create(path).unwrap();
+        file.set_modified(SystemTime::now() - Duration::from_secs(age_secs))
+            .unwrap();
     }
 
     /// Nested directories and files are copied, and the source is left in place.
     #[test]
     fn test_copy_dir_copies_nested_files() {
-        let base = std::env::temp_dir().join(format!("xtask-docs-copy-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
+        let base = temp("copy");
         fs::create_dir_all(base.join("from/a/b")).unwrap();
         fs::write(base.join("from/a/b/f.txt"), "x").unwrap();
         copy_dir(&base.join("from"), &base.join("to")).unwrap();
         assert_eq!(fs::read_to_string(base.join("to/a/b/f.txt")).unwrap(), "x");
         assert!(base.join("from/a/b/f.txt").is_file());
         let _ = fs::remove_dir_all(&base);
+    }
+
+    /// Installed packages are reused only when npm's record of them is newer than both
+    /// `package.json` and `package-lock.json`; no record, or an older one, means `npm ci`.
+    #[test]
+    fn test_node_modules_fresh() {
+        let dir = temp("fresh");
+        touch(&dir.join("package.json"), 100);
+        touch(&dir.join("package-lock.json"), 100);
+        assert!(!node_modules_fresh(&dir), "no node_modules yet");
+        touch(&dir.join("node_modules/.package-lock.json"), 10);
+        assert!(node_modules_fresh(&dir));
+        touch(&dir.join("package-lock.json"), 1);
+        assert!(
+            !node_modules_fresh(&dir),
+            "lock file changed after the install"
+        );
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// A built site without the Pagefind script (search switched off) or without a 404 page is
+    /// reported by name; a complete one reports nothing.
+    #[test]
+    fn test_missing_files() {
+        let dir = temp("missing");
+        for f in ["index.html", "404.html", "favicon.svg"] {
+            touch(&dir.join(f), 1);
+        }
+        assert_eq!(missing_files(&dir), vec!["pagefind/pagefind.js"]);
+        touch(&dir.join("pagefind/pagefind.js"), 1);
+        assert!(missing_files(&dir).is_empty());
+        let _ = fs::remove_dir_all(&dir);
     }
 }
