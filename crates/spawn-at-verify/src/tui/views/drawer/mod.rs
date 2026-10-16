@@ -5,6 +5,7 @@ pub mod geometry_section;
 pub mod header_section;
 pub mod info_sections;
 pub mod result_section;
+pub mod timeline_blocks;
 pub mod timeline_format;
 pub mod timeline_section;
 
