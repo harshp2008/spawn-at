@@ -38,13 +38,7 @@ pub fn render_timeline_section(
     };
     // A version 2 result has one timeline per action, already limited to runner-owned windows.
     if let Some(r) = res_opt.filter(|r| !r.flash_info.action_traces.is_empty()) {
-        let owned = r
-            .flash_info
-            .action_traces
-            .iter()
-            .filter_map(|t| t.window_id)
-            .next();
-        let extra = owned.map(|id| format!("window {id}"));
+        let extra = super::action_trace_rows::timeline_heading_extra(r);
         builder.push_heading("TIMELINE", extra.as_deref());
         super::action_trace_rows::push_action_timelines(builder, r, compact);
         return;

@@ -108,11 +108,11 @@ fn test_transform_rows_and_timeline() {
     );
     assert!(row(&plain, "Budget").contains("within budget"), "{plain}");
     assert!(
-        row(&plain, "Trace").contains("#0 transform on 'w': 16 event(s)"),
+        row(&plain, "Trace").contains("✔ clean, no violations · 16 events"),
         "{plain}"
     );
     assert!(
-        row(&plain, "Flash note").contains("informational") && plain.contains("guarantee"),
+        plain.contains("informational") && plain.contains("guarantee"),
         "{plain}"
     );
     assert!(plain.contains("no pixels are captured"), "{plain}");
@@ -121,13 +121,14 @@ fn test_transform_rows_and_timeline() {
     assert!(
         plain
             .lines()
-            .any(|l| l.contains("+7.60 ms") && l.contains("UNCLOAK_4D_REVEAL")),
+            .any(|l| l.contains("+7.6 ms") && l.contains("UNCLOAK_4D_REVEAL")),
         "{plain}"
     );
     assert!(
         plain
             .lines()
-            .any(|l| l.contains("+0.57 ms") && l.contains("opacity=0 frame=(100,140,400x300)")),
+            .any(|l| l.contains("+0.6 ms") && l.ends_with("CLOAK"))
+            && plain.contains("frame         100,140 400×300"),
         "{plain}"
     );
 }
@@ -149,17 +150,17 @@ fn test_focus_rows_say_na_and_timeline_has_raise_and_activate() {
         row(&plain, "Flash").contains("no flash analysis: this command has no cloak phase"),
         "{plain}"
     );
-    assert!(row(&plain, "Trace").contains("2 event(s)"), "{plain}");
+    assert!(row(&plain, "Trace").contains("· 2 events"), "{plain}");
     assert!(
         plain
             .lines()
-            .any(|l| l.contains("+0.00 ms") && l.contains("RAISE")),
+            .any(|l| l.contains("+0.0 ms") && l.contains("RAISE")),
         "{plain}"
     );
     assert!(
         plain
             .lines()
-            .any(|l| l.contains("+0.09 ms") && l.contains("ACTIVATE")),
+            .any(|l| l.contains("+0.1 ms") && l.contains("ACTIVATE")),
         "{plain}"
     );
 }
@@ -199,7 +200,12 @@ fn test_each_reason_is_shown_in_the_trace_row() {
         let plain = drawer(&mut app, res, true);
         assert!(row(&plain, "Trace").contains(text), "{text}:\n{plain}");
         assert!(row(&plain, "Cloak").contains("n/a"), "{plain}");
-        assert!(plain.contains("Extension logs"), "{plain}");
+        // The inventory sentence is only added where lines were expected and absent.
+        assert_eq!(
+            plain.contains("Extension logs"),
+            text == "no lines for this window in the slice",
+            "{plain}"
+        );
         assert!(!plain.contains("not analysed"), "{plain}");
         assert!(!plain.contains("no log slice was captured"), "{plain}");
     }
@@ -229,10 +235,10 @@ fn test_result_panel_has_a_trace_line_per_action() {
     terminal.draw(|f| draw_ui(f, &app)).unwrap();
     let rendered = dump_buffer_to_string(&terminal, 200, 34);
     assert!(
-        rendered.contains("Cloak: 7.0 ms · Trace #0 transform on 'w': 16 event(s)"),
+        rendered.contains("Cloak: 7.0 ms · Trace: 0 violations · 16 events"),
         "{rendered}"
     );
-    assert!(!rendered.contains("Trace: 0 violations"), "{rendered}");
+    assert!(!rendered.contains("event(s)"), "{rendered}");
 }
 
 /// The markdown report of `run` lists each action's trace; a report with no traced result has no
@@ -251,8 +257,16 @@ fn test_markdown_report_lists_action_traces() {
     );
     assert!(json.contains("\"cloak_to_reveal_ms\":7.03"), "{json}");
     assert!(md.contains("## 7. Extension trace of actions"), "{md}");
-    assert!(md.contains("#0 transform on 'w': 16 event(s)"), "{md}");
-    assert!(md.contains("`UNCLOAK_4D_REVEAL` (w)"), "{md}");
+    assert!(
+        md.contains("- #0 transform on 'w': ✔ clean, no violations · 16 events (cloak: 7.0 ms"),
+        "{md}"
+    );
+    assert!(md.contains("Window process id: 48217."), "{md}");
+    assert!(md.contains("`UNCLOAK_4D_REVEAL`"), "{md}");
+    assert!(
+        md.contains("+0.6 ms `CLOAK` opacity 0; frame 100,140 400×300"),
+        "{md}"
+    );
     assert!(md.contains("no pixels are captured"), "{md}");
     let plain = report_of(&[]);
     assert!(!render_markdown_report(&plain).contains("Extension trace of actions"));
@@ -325,7 +339,7 @@ fn test_screen_shows_the_trace_and_the_focus_return_lines_together() {
             .position(|l| l.contains(needle))
             .unwrap_or_else(|| panic!("no '{needle}' on screen:\n{text}"))
     };
-    let trace = row_of("Cloak: 7.0 ms · Trace #0 transform on 'w': 16 event(s)");
+    let trace = row_of("Cloak: 7.0 ms · Trace: 0 violations · 16 events");
     let terminal_line = row_of("terminal: id 41 class 'gnome-terminal'");
     let cmd = row_of("sent 1x: #1 exit 0 'ok'");
     let after = row_of("afterwards: id 41");

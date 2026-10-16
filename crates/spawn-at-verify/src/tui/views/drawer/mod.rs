@@ -13,7 +13,7 @@ pub use geometry_section::render_geometry_section;
 pub use header_section::render_header_section;
 pub use info_sections::{render_look_for_section, render_output_section, render_spec_section};
 pub use result_section::render_result_section;
-pub use timeline_format::{parse_compact_timeline, ParsedTimelineEvent};
+pub use timeline_format::{parse_compact_timeline, parse_timeline_lines, ParsedTimelineEvent};
 pub use timeline_section::render_timeline_section;
 
 use super::builder::DrawerBuilder;

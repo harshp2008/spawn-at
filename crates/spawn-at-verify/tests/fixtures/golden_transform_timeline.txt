@@ -1,0 +1,56 @@
+ ── TIMELINE ── window 3210662173 · pid 48217 ───────────────────────────────────────────────────
+                offsets count from the first line of each action
+    +0.0 ms  BATCH_STEP
+               instruction   Snapshot
+
+    +0.0 ms  SNAPSHOT_CREATED
+               visible       true
+               pos           100, 140
+               size          400×300
+               opacity       255
+
+    +0.6 ms  CLOAK
+               opacity       0
+               frame         100,140 400×300
+
+    +0.6 ms  SET_SIZE_REQUEST
+               requested     300×200
+
+    +0.8 ms  READY_WAIT_START
+               strategy      ready-wait
+               kind          NativeWayland
+               target        300×200
+               current       400×300
+
+    +3.8 ms  COMMIT_SAMPLE
+               source        size-changed
+               frame         300×200
+
+    +3.9 ms  COMMIT_RESOLVED
+               reason        at target
+
+    +3.9 ms  READY_WAIT_RESOLVED
+               outcome       reached
+               elapsed ms    3.2
+
+    +3.9 ms  APPLY_ANCHOR
+               final frame   1604, 56
+
+    +4.1 ms  POSITION_SET
+               pre-frame     100,140 300×200
+               post-frame    1604,56 300×200
+
+    +4.3 ms  UNCLOAK_4B
+
+    +7.6 ms  UNCLOAK
+               opacity       255
+               frame         1604,56 300×200
+
+    +7.6 ms  UNCLOAK_4D_REVEAL
+
+    +7.6 ms  ANCHOR_ARMED
+
+    +7.8 ms  SNAPSHOT_DESTROYED
+
+  +123.5 ms  ANCHOR_RELEASED
+               reason        external close

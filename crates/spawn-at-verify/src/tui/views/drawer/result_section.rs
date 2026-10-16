@@ -197,6 +197,7 @@ pub fn render_result_section(
     if let Some(r) = traced {
         super::action_trace_rows::push_action_trace_rows(builder, r);
         push_flash_rows(builder, r);
+        super::action_trace_rows::push_flash_note(builder, r);
     } else {
         let trace_state = res_opt.map(|r| r.trace_state());
         let trace_report = trace_state.as_ref().and_then(|s| s.report().cloned());

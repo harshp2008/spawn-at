@@ -430,3 +430,143 @@ impl ActionTrace {
         }
     }
 }
+
+/// Why the cloak checks are not run for an action that has lines but no cloak phase (`focus`,
+/// `minimize`, ...).
+pub const NO_CLOAK_CHECKS: &str = "checks not applied: this command has no cloak phase";
+
+/// What the lifecycle checks found in one action's timeline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ActionVerdict {
+    /// The checks ran and found nothing.
+    Clean,
+    /// The checks ran; each entry is one problem, in plain words.
+    Violations(Vec<String>),
+    /// The checks cannot be applied; the reason is shown instead of a verdict.
+    NotApplied(String),
+}
+
+impl ActionTrace {
+    /// The window's process id, read from the `pid=N` of the captured lines. `None` when no line
+    /// has one, or the extension printed `-1` (unknown): nothing is made up.
+    pub fn pid(&self) -> Option<u64> {
+        self.events.iter().find_map(|e| {
+            let rest = e.raw.split("pid=").nth(1)?;
+            let digits: String = rest.chars().take_while(char::is_ascii_digit).collect();
+            digits.parse().ok()
+        })
+    }
+
+    /// `#0 transform on 'w'`: which action this is.
+    pub fn label(&self) -> String {
+        match &self.target {
+            Some(t) => format!("#{} {} on '{}'", self.index, self.command, t),
+            None => format!("#{} {}", self.index, self.command),
+        }
+    }
+
+    /// Applies the same kind of checks the spawn analysis makes to a transform's lines: the cloak
+    /// comes before the reveal, there is one reveal, it comes after the last size and position
+    /// step, and nothing changes size or position after it. Only an action with a cloak phase is
+    /// checked; for the others the reason is given, never a fake "clean".
+    pub fn verdict(&self) -> ActionVerdict {
+        if let Some(why) = self.status.reason() {
+            return ActionVerdict::NotApplied(why);
+        }
+        if !self.has_cloak_phase() {
+            return ActionVerdict::NotApplied(NO_CLOAK_CHECKS.into());
+        }
+        let tags: Vec<&str> = self.events.iter().map(|e| e.tag.as_str()).collect();
+        let first = |t: &str| tags.iter().position(|x| *x == t);
+        let mut problems = Vec::new();
+        let reveals = tags.iter().filter(|t| **t == "UNCLOAK").count();
+        if reveals > 1 {
+            problems.push(format!("{reveals} reveals (UNCLOAK) in one action"));
+        }
+        match (first("CLOAK"), first("UNCLOAK")) {
+            (Some(c), Some(u)) if c > u => problems.push("revealed before it was cloaked".into()),
+            (Some(_), None) => problems.push("cloaked but never revealed".into()),
+            _ => {}
+        }
+        if let Some(u) = first("UNCLOAK") {
+            for (i, t) in tags.iter().enumerate() {
+                let step = matches!(
+                    *t,
+                    "AFTER_SET_SIZE"
+                        | "AFTER_SET_POSITION_ANCHORED"
+                        | "POSITION_SET"
+                        | "COMMIT_RESOLVED"
+                        | "SET_SIZE_REQUEST"
+                );
+                if step && i > u {
+                    problems.push(format!("{t} after the reveal"));
+                }
+                if matches!(*t, "ANCHOR_CORRECTION" | "LATE_RESIZE_CORRECTED") && i > u {
+                    problems.push(format!("{t}: size or position changed after the reveal"));
+                }
+            }
+        }
+        if problems.is_empty() {
+            ActionVerdict::Clean
+        } else {
+            ActionVerdict::Violations(problems)
+        }
+    }
+
+    /// The Trace row text: the verdict (or the reason there is none) and the event count, with
+    /// the action label when `labelled` (more than one action ran).
+    pub fn trace_text(&self, labelled: bool) -> String {
+        let n = self.events.len();
+        let count = if n == 1 {
+            "1 event".to_string()
+        } else {
+            format!("{n} events")
+        };
+        let body = match self.verdict() {
+            ActionVerdict::Clean => format!("✔ clean, no violations · {count}"),
+            ActionVerdict::Violations(v) => format!(
+                "✖ {}{} · {count}",
+                v[0],
+                if v.len() > 1 {
+                    format!(" (+{} more)", v.len() - 1)
+                } else {
+                    String::new()
+                }
+            ),
+            ActionVerdict::NotApplied(why) if n > 0 => format!("{why} · {count}"),
+            ActionVerdict::NotApplied(why) => why,
+        };
+        if labelled {
+            format!("{}: {}", self.label(), body)
+        } else {
+            body
+        }
+    }
+}
+
+impl ActionTrace {
+    /// The Result panel line, worded like the spawn one (`Trace: 0 violations`) plus the event
+    /// count; the action label only when more than one action ran.
+    pub fn panel_text(&self, labelled: bool) -> String {
+        let n = self.events.len();
+        let tail = if n > 0 {
+            format!(" · {n} event{}", if n == 1 { "" } else { "s" })
+        } else {
+            String::new()
+        };
+        let body = match self.verdict() {
+            ActionVerdict::Clean => format!("Trace: 0 violations{tail}"),
+            ActionVerdict::Violations(v) => format!(
+                "Trace: {} violation{}{tail}",
+                v.len(),
+                if v.len() == 1 { "" } else { "s" }
+            ),
+            ActionVerdict::NotApplied(why) => format!("Trace: {why}{tail}"),
+        };
+        if labelled {
+            format!("{} · {}", self.label(), body)
+        } else {
+            body
+        }
+    }
+}

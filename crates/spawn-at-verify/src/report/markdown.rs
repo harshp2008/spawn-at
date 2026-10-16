@@ -236,18 +236,19 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         ));
         for r in traced {
             md.push_str(&format!("### `{}`\n\n", r.id));
+            if let Some(pid) = r.flash_info.action_traces.iter().find_map(|t| t.pid()) {
+                md.push_str(&format!("Window process id: {pid}.\n\n"));
+            }
             for t in &r.flash_info.action_traces {
                 md.push_str(&format!(
-                    "- {} (extension logs: {}; cloak: {})\n",
-                    t.headline(),
-                    t.logs,
+                    "- {}: {} (cloak: {})\n",
+                    t.label(),
+                    t.trace_text(false),
                     t.cloak_text()
                 ));
-                for e in &t.events {
-                    md.push_str(&format!(
-                        "  - +{:.2} ms `{}` ({}) {}\n",
-                        e.offset_ms, e.tag, e.window, e.detail
-                    ));
+                for line in action_event_lines(t) {
+                    md.push_str(&line);
+                    md.push('\n');
                 }
             }
             md.push('\n');
@@ -255,4 +256,33 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
     }
 
     md
+}
+
+/// The event lines of one action for the markdown report. With the `tui` feature they come from
+/// the same parser as the drawer's timeline (offset to one decimal, humanised keys and values);
+/// without it the extension's own `key=value` text is kept.
+#[cfg(feature = "tui")]
+fn action_event_lines(t: &crate::trace::action::ActionTrace) -> Vec<String> {
+    crate::tui::views::drawer::parse_timeline_lines(t.events.iter().map(|e| e.raw.as_str()))
+        .into_iter()
+        .map(|e| {
+            let fields: Vec<String> = e.details.iter().map(|(k, v)| format!("{k} {v}")).collect();
+            format!("  - +{:.1} ms `{}` {}", e.dt_ms, e.tag, fields.join("; "))
+                .trim_end()
+                .to_string()
+        })
+        .collect()
+}
+
+/// See the `tui` variant.
+#[cfg(not(feature = "tui"))]
+fn action_event_lines(t: &crate::trace::action::ActionTrace) -> Vec<String> {
+    t.events
+        .iter()
+        .map(|e| {
+            format!("  - +{:.1} ms `{}` {}", e.offset_ms, e.tag, e.detail)
+                .trim_end()
+                .to_string()
+        })
+        .collect()
 }
