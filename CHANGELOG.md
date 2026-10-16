@@ -8,6 +8,8 @@ All notable changes to this project are recorded here. The format follows
 
 ### Fixed
 
+- `spawn-at-verify tui` (developer tool): scrolling the details drawer to its end (`G`, or holding PageDown) no longer locks the screen. The offset was stored unclamped (`G` set `u16::MAX`) and the next draw overflowed inside ratatui's `Paragraph` (`paragraph.rs:483`, a panic in a debug build), which left the terminal in raw mode on the alternate screen, so no key, Escape included, did anything. The offset is now clamped to the real rows (wrapped, with the blank rows between events) at the key and at the draw, on every resize; a panic hook restores the terminal before the message prints. The timeline also words a `reason` alike on every event (`at-target` and `AT_TARGET` both read `at target`). Covered by headless tests; not re-run on GNOME.
+
 - `spawn-at-verify tui` (developer tool; nothing in `spawn-at` changed): FOCUS is now the second group of the Tests list, after PREFLIGHT (order: PREFLIGHT, FOCUS, QUERIES, ROBUSTNESS, PLACEMENT, CLOAK & DELAYED PAINT, TRANSFORMS, GENERAL). An earlier change had reordered the drawer instead. Focus now goes back to the terminal after the automatic part of every attended test (placement and cloak specs had no return before), is checked and retried, and the Result box always shows the recorded terminal, each `focus` command's exit code and what had focus afterwards. Covered on a private headless Sway; not verified on GNOME.
 
 ### Added

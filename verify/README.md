@@ -351,6 +351,7 @@ cargo run -p spawn-at-verify --features tui,fixture -- tui
   - `PageDown` / `PageUp`: Scroll detail drawer by page
   - `[` / `]`: Scroll detail drawer while remaining in table view
   - `Home`: Reset scroll to top of detail drawer
+  - `G` / `End`-style jump to the end: `G` scrolls to the last row. The offset is always clamped to the rows that do not fit (the content's wrapped rows minus the viewport, recomputed on every draw and so on every resize), at the key and again at the draw, so holding a scroll key or pressing `G` can never push the drawer past its end. `Esc` closes the drawer from any scroll state. A panic anywhere in the TUI now restores the terminal (leaves raw mode and the alternate screen) before the message prints. (Before this, `G` stored the largest offset and the next draw overflowed inside ratatui's paragraph, which in a debug build is a panic that left the terminal in raw mode: no key, Escape included, did anything.)
   - `r`: Execute currently selected test
   - `a`: Execute all tests matching current filter
   - `v`: Open human visual review verdict modal (`[P]` Pass, `[F]` Fail, `[S]` Skip, `[K]` Flaky, `[Esc]` Cancel)
