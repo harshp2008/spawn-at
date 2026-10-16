@@ -210,7 +210,7 @@ fn test_draw_alone_clamps_a_huge_stored_offset() {
     }
 }
 
-const MARKER: &str = "── end of details ──";
+const MARKER: &str = " end of details ";
 
 /// The drawer box's inner rows (between its top and bottom borders) of a drawn frame.
 fn inner_rows(screen: &str) -> Vec<String> {
@@ -247,7 +247,11 @@ fn test_end_of_scroll_shows_blank_row_then_marker() {
     key(&mut app, KeyCode::Char('G'));
     let screen = draw(&mut app, 100, 24);
     let rows = inner_rows(&screen);
-    assert_eq!(rows.last().unwrap(), MARKER, "{screen}");
+    let last = rows.last().unwrap();
+    assert!(
+        last.starts_with('─') && last.ends_with('─') && last.contains(MARKER),
+        "{screen}"
+    );
     assert_eq!(
         rows[rows.len() - 2],
         "",
@@ -307,4 +311,84 @@ fn test_copy_and_save_do_not_contain_the_marker_or_arrows() {
         assert!(!text.contains(MARKER) && !text.contains("more"), "{text}");
     }
     let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The marker line is exactly the inner width, centred, with the extra `─` of an odd width on the
+/// right; narrower than the text it is cut, never longer.
+#[test]
+fn test_marker_is_centred_and_exactly_the_inner_width() {
+    use spawn_at_verify::tui::views::drawer::end_marker_text;
+    for w in [60usize, 61, 80, 119, 200] {
+        let m = end_marker_text(w);
+        assert_eq!(m.chars().count(), w, "{w}");
+        let left = m.chars().take_while(|c| *c == '─').count();
+        let right = m.chars().rev().take_while(|c| *c == '─').count();
+        assert!(m[m.find(' ').unwrap()..].contains(" end of details "));
+        assert!(right == left || right == left + 1, "{w}: {left}/{right}");
+        assert_eq!(right - left, w % 2, "{w}: extra fill goes right when odd");
+    }
+    assert_eq!(end_marker_text(18), "─ end of details ─");
+    for w in [0usize, 1, 5, 15, 16, 17] {
+        assert!(end_marker_text(w).chars().count() <= w, "{w}");
+    }
+    assert_eq!(end_marker_text(16), " end of details ");
+    assert_eq!(end_marker_text(5), " end ");
+}
+
+/// Drawn at the supported minimum (60 columns) and wider, the marker row is the inner width,
+/// is the last row, and adds exactly two rows (blank + marker) to the content: the row count the
+/// maximum uses equals the content's plus two, at every width.
+#[test]
+fn test_marker_row_fills_the_drawn_width_and_counts_as_one_row() {
+    use spawn_at_verify::tui::views::build_drawer_content;
+    for (w, h) in [(60u16, 20u16), (61, 20), (80, 24), (119, 30), (200, 40)] {
+        let mut app = app_with_long_drawer();
+        draw(&mut app, w, h);
+        key(&mut app, KeyCode::Char('G'));
+        let screen = draw(&mut app, w, h);
+        let row = screen
+            .lines()
+            .find(|l| l.contains("end of details"))
+            .unwrap_or_else(|| panic!("{w}x{h}: no marker:\n{screen}"));
+        let inner: String = row.chars().skip(1).take(w as usize - 2).collect();
+        assert_eq!(inner.chars().count(), w as usize - 2);
+        assert!(
+            inner.starts_with('─') && inner.ends_with('─'),
+            "{w}: {inner}"
+        );
+        let test = app.selected_test().unwrap().clone();
+        let (lines, _) = build_drawer_content(&app, &test, w as usize, true);
+        let base = spawn_at_verify::tui::views::wrapping::wrapped_row_count(&lines, w as usize - 2);
+        assert_eq!(
+            drawer_content_rows(&app, &test, w as usize),
+            base + 2,
+            "{w}x{h}"
+        );
+    }
+}
+
+/// Resize while scrolled to the end: the line is rebuilt for the new width.
+#[test]
+fn test_marker_is_rebuilt_on_resize() {
+    let mut app = app_with_long_drawer();
+    draw(&mut app, 80, 24);
+    key(&mut app, KeyCode::Char('G'));
+    for (w, h) in [(80u16, 24u16), (120, 30), (61, 20)] {
+        // Wider and taller: the stored offset is past the new end and the draw clamps it. Narrower:
+        // the end moved down, so go to it again.
+        if w == 61 {
+            draw(&mut app, w, h); // the keys use the maximum of the view drawn last
+            key(&mut app, KeyCode::Char('G'));
+        }
+        let screen = draw(&mut app, w, h);
+        let row = screen
+            .lines()
+            .find(|l| l.contains("end of details"))
+            .unwrap();
+        let inner: String = row.chars().skip(1).take(w as usize - 2).collect();
+        assert!(
+            inner.starts_with('─') && inner.ends_with('─'),
+            "{w}: {inner}"
+        );
+    }
 }
