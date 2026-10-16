@@ -242,7 +242,7 @@ fn test_markdown_report_lists_action_traces() {
     let app = create_test_app();
     let t = trace_of(TRANSFORM, "transform", "w", 3210662173);
     let res = result_with(&app, vec![t], Some(FlashBasis::Client));
-    let report = report_of(&[res.clone()]);
+    let report = report_of(std::slice::from_ref(&res));
     let md = render_markdown_report(&report);
     let json = serde_json::to_string(&report).unwrap();
     assert!(

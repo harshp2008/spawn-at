@@ -98,9 +98,7 @@ pub fn push_action_timelines(builder: &mut DrawerBuilder, r: &TestResult, compac
                 };
                 builder.push_wrapped_kv(
                     &format!("+{:.2} ms", e.offset_ms),
-                    &format!("{}{} {}", e.tag, window, e.detail)
-                        .trim_end()
-                        .to_string(),
+                    format!("{}{} {}", e.tag, window, e.detail).trim_end(),
                     grey,
                 );
             } else {
