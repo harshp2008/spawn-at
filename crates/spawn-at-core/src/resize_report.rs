@@ -4,6 +4,10 @@
 //! protocol 6) and appears in the CLI's `--json` output as the `resize` object. The kinds are the
 //! four of [`crate::ready_wait::Outcome`], spelled as the golden scripts spell them.
 //!
+//! The GNOME driver (`src/platform/linux/gnome/driver.rs`) builds a [`ResizeReport`] from the
+//! signal; `spawn` adds the requested size and prints it. This module only converts and
+//! serialises: it does no I/O and does not run the wait itself.
+//!
 //! A reader must tolerate a kind it does not know: [`ResizeKind::from_wire`] maps it to
 //! [`ResizeKind::Unknown`] instead of failing.
 
@@ -12,11 +16,14 @@ use serde::{Deserialize, Serialize};
 /// Width and height in pixels, serialised as `{"w": .., "h": ..}`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Dim {
+    /// Width in pixels.
     pub w: u32,
+    /// Height in pixels.
     pub h: u32,
 }
 
-/// Which of the four outcomes the wait ended in.
+/// How the wait ended: the four outcomes of [`crate::ready_wait::Outcome`], plus `Unknown` for a
+/// kind this build does not recognise. Serialises in kebab-case (`timed-out`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
@@ -57,14 +64,17 @@ pub struct ResizeReport {
     /// The window's frame size when the wait ended (for a skipped wait, its size at the request).
     #[serde(rename = "final")]
     pub final_size: Dim,
-    /// Milliseconds the wait reports (0 for a skipped wait).
+    /// Milliseconds as sent by the extension; copied, not measured here. The 0 for a skipped wait
+    /// is not verified from this crate.
     pub waited_ms: u32,
     /// Why the wait ended: `at-target`, `quiet`, `cap`, `hard`, or the skip reason.
     pub reason: String,
 }
 
 impl ResizeReport {
-    /// Builds a report from the fields of the `ResizeOutcome` signal.
+    /// Builds a report from the fields of the `ResizeOutcome` signal. `requested` is left `None`;
+    /// add it with [`ResizeReport::with_requested`]. An unknown `outcome` text becomes
+    /// [`ResizeKind::Unknown`]; the other fields are copied as given.
     pub fn from_wire(
         outcome: &str,
         final_w: u32,
@@ -84,7 +94,7 @@ impl ResizeReport {
         }
     }
 
-    /// The same report with the size the CLI asked for.
+    /// The same report with `requested` set to `w` x `h` pixels, the size the CLI asked for.
     pub fn with_requested(mut self, w: u32, h: u32) -> Self {
         self.requested = Some(Dim { w, h });
         self
