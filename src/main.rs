@@ -1,19 +1,20 @@
-//! # spawn-at: Modular Zero-Flicker Window Placement Engine
+//! Entry point of the `spawn-at` binary: parses the command line, then runs one subcommand.
 //!
-//! ## Architectural Overview
+//! Order of work in `main`: `-V`/`--version` is answered before clap runs; `Cli::validate` rejects
+//! bad flag combinations (exit 2); `update` and `config` run without a compositor; every other
+//! subcommand first builds the backend with `init_backend`, then runs its `commands::run_*`
+//! handler or, for `install` and `uninstall`, the prompts and installer steps written out below.
 //!
-//! `spawn-at` is a standalone utility that enables mathematically perfect cold-starts
-//! and dynamic transformations for desktop applications on Linux, with primary zero-flicker
-//! support for GNOME Wayland.
+//! Module roles:
+//! - `cli`: clap definitions of the subcommands and their flags.
+//! - `commands`: one handler per subcommand, written against the backend trait.
+//! - `platform`: the `CompositorBackend` trait, its per-session implementations and the installer.
+//! - `target`: selects windows by id, PID, class, title substring or focus.
+//! - `spawn_at_core::geometry` (crate `spawn-at-core`): pixel coordinates, work areas, anchors and
+//!   clamping.
 //!
-//! ### Core Components:
-//! - **CLI Router ([`cli`]):** Parses subcommands (`install`, `uninstall`, `config`, `update`, `spawn`, `transform`, `query`, `focus`, `defocus`, `maximize`, `minimize`, `restore`, `close`) using `clap`.
-//! - **Commands ([`commands`]):** Platform-agnostic execution handlers for subcommands.
-//! - **Compositor Platform ([`platform`]):** Trait-based abstraction (`CompositorBackend`) allowing
-//!   environment-specific mechanics.
-//! - **Platform Resolver ([`platform`]):** Maps binary command invocations to canonical FreeDesktop / Wayland App IDs.
-//! - **Geometry Engine (`spawn_at_core::geometry`, in the `spawn-at-core` crate):** Calculates absolute pixel coordinates, workareas, anchor placements, and clamping.
-//! - **Target Resolver ([`target`]):** Resolves deterministic window targets by PID, class, title, or focus.
+//! This file holds no window placement logic; it only wires arguments to handlers and maps their
+//! errors to exit codes (1 for a failed command, 2 for invalid arguments).
 
 mod cli;
 mod commands;
@@ -35,12 +36,17 @@ use std::io::IsTerminal;
 #[tokio::main]
 async fn main() {
     let raw_args: Vec<String> = std::env::args().collect();
+    // `Cli` sets `disable_version_flag`, so clap has no `-V`; this check prints
+    // `get_version_display` (`spawn-at <tag>`, or the `DEV BUILD` block on a non-tag build).
     if raw_args.iter().any(|a| a == "-V" || a == "--version") {
         println!("{}", crate::update::get_version_display());
         return;
     }
 
     let mut cli = Cli::parse();
+    // clap does not report whether a `--` was typed. `SpawnArgs::validate` needs it to accept a
+    // command that starts with `-`. Any `--` anywhere in argv sets it, even one that belongs to a
+    // value of another flag.
     if raw_args.iter().any(|a| a == "--") {
         if let Commands::Spawn(ref mut s) = cli.command {
             s.after_double_dash = true;
@@ -72,6 +78,9 @@ async fn main() {
         return;
     }
 
+    // No update notice after `query layout --json` and `query windows --json`. The notice itself
+    // only renders when stdout and stderr are both terminals. The `Update` test is always false
+    // here because `update` returned above.
     let suppress_update_notice = matches!(cli.command, Commands::Update(_))
         || match &cli.command {
             Commands::Query { cmd } => match cmd {
