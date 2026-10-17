@@ -37,8 +37,7 @@ command and one placement model, with a separate driver for each desktop underne
 
 ## Status
 
-spawn-at is in beta. The latest release is `v0.2.0-beta.4` (2026-10-15); the version in
-`Cargo.toml` is `0.2.0-beta.4`. Prebuilt binaries are published for Linux x86_64 only. Windows and
+spawn-at is in beta. The latest release is `v0.2.0-beta.5`, a prerelease. Prebuilt binaries are published for Linux x86_64 only. Windows and
 macOS builds are compile-checked in CI and have never been run.
 
 A binary that is not built from a release tag prints `DEV BUILD` for `spawn-at -V`.
@@ -61,7 +60,7 @@ says something is "not verified", it means no test or run in the repository cove
 ## Sources
 
 - `README.md` (intro, "Support", "How well it works", "Roadmap")
-- `CHANGELOG.md` ("[0.2.0-beta.4]", "[0.2.0-beta.3]")
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md`
+- `CHANGELOG.md` ("[0.2.0-beta.5]", "[0.2.0-beta.4]")
+- `docs/RELEASE_NOTES_0.2.0-beta.5.md`
 - `Cargo.toml` (package version), `install.sh` (prebuilt target), `CLAUDE.md` ("Versions and releases")
 - `docs/DESIGN_PLATFORMS.md`, section 5 (macOS and Windows are not implemented)

@@ -20,7 +20,7 @@ Two options are worth knowing before you run them:
 
 - `install --dry-run` prints the notice and what would be installed, then stops without changing
   anything.
-- On `main` (not in a release yet), on a desktop that is not supported, `install` and `uninstall`
+- From v0.2.0-beta.5, on a desktop that is not supported, `install` and `uninstall`
   print the same error as every other command and change nothing. Run `install.sh` with
   `--allow-unsupported` instead (see
   [Unsupported desktops](/spawn-at/environments/unsupported-desktops/)). In v0.2.0-beta.4 and earlier the
@@ -49,7 +49,7 @@ and `uninstall`). Only GNOME has an extension to deploy.
 
 ## Sources
 
-- `CHANGELOG.md` ("[Unreleased] Changed", "[0.2.0-beta.3] Added")
+- `CHANGELOG.md` ("[0.2.0-beta.5] Changed", "[0.2.0-beta.3] Added")
 - `docs/DESIGN_PLATFORMS.md`, section 6 step 5
 - `docs/TEST_COVERAGE_AUDIT.md`, section 2 (`install`, `uninstall`, `update`)
 - `docs/KNOWLEDGE.md` ("Architecture map")

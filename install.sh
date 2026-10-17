@@ -62,7 +62,7 @@ while [[ $# -gt 0 ]]; do
             else
                 error_headline "Flag --version / -v requires a release tag (e.g., v0.1.0 or v0.2.0-alpha)."
                 error_help_heading
-                echo "  - Add the tag after the flag, e.g.: bash install.sh --version v0.2.0-beta.3" >&2
+                echo "  - Add the tag after the flag, e.g.: bash install.sh --version v0.2.0-beta.5" >&2
                 echo "  - The available tags are listed at https://github.com/${REPO}/releases" >&2
                 error_end
                 exit 1
@@ -334,7 +334,7 @@ if [ -n "$TARGET_VERSION" ]; then
     if ! valid_tag "$RESOLVED_TAG"; then
         error_headline "'${RESOLVED_TAG}' is not a valid release tag."
         error_help_heading
-        echo "  - Use a tag as listed at https://github.com/${REPO}/releases, e.g.: bash install.sh --version v0.2.0-beta.3" >&2
+        echo "  - Use a tag as listed at https://github.com/${REPO}/releases, e.g.: bash install.sh --version v0.2.0-beta.5" >&2
         error_end
         exit 1
     fi

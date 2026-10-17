@@ -3,8 +3,7 @@ title: "Known shortcomings"
 ---
 
 An honest list of what is broken, missing or unmeasured, taken from the repository's own audits.
-Nothing here is a plan; it describes the state at version 0.2.0-beta.4 plus the unreleased changes
-on `main`.
+Nothing here is a plan; it describes the state at version 0.2.0-beta.5.
 
 ## Behaviour that does not match what you might expect
 

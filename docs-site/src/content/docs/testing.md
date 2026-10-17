@@ -13,8 +13,8 @@ title: "Testing and the verify tool"
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
-Counts measured on `main` at `8fd1cc5` on 2026-10-16, before the documentation tooling was added:
-`spawn-at` 443, `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` 619 passed and 5 ignored (with
+Counts measured on 2026-10-17 on the tree that v0.2.0-beta.5 is prepared from:
+`spawn-at` 443, `spawn-at-core` 64, `xtask` 53, `spawn-at-verify` 619 passed and 5 ignored (with
 `--features tui,fixture`), Node 204. Five tests stay ignored: four need a live display, one needs a
 private Sway.
 
@@ -115,4 +115,4 @@ These come from the project rules and the harness design.
 - `docs/TEST_PLAN.md`, section 7 and the suite counts
 - `docs/KNOWLEDGE.md` ("Testing and fixtures")
 - `docs/CODE_LAYOUT.md` ("Facts that constrain moving files")
-- the counts come from `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`, `cargo test --locked -p spawn-at-verify --features tui,fixture` and `node --test tests/*.js`, run on `main` at `8fd1cc5`
+- the counts come from `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`, `cargo test --locked -p spawn-at-verify --features tui,fixture` and `node --test tests/*.js`, run on 2026-10-17
