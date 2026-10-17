@@ -1,3 +1,11 @@
+//! Everything Linux-specific: the three drivers (`gnome`, `sway`, `x11`), the backend choice
+//! (`registry`), the Linux [`host::NativeHost`] and config store, and [`LinuxBackend`], the one
+//! value the commands hold on this OS.
+//!
+//! [`LinuxBackend::bootstrap`] picks and builds the driver; `LinuxBackend` then forwards every
+//! [`CompositorBackend`] call to it. `LinuxBackend` must not add behavior of its own on top of
+//! the driver's: it only chooses and forwards (with one gap, see its docs).
+
 pub mod config_store;
 pub mod gnome;
 pub mod host;
@@ -11,16 +19,20 @@ pub mod xdg;
 pub use process_tree::is_process_descendant;
 
 /// The Linux session actions: the GNOME ones (log out with `gnome-session-quit`, reload the X11
-/// shell with keystrokes).
+/// shell with keystrokes), whatever the backend in use. Returns a static value; nothing runs.
 pub fn session_actions() -> &'static dyn crate::platform::session_actions::SessionActions {
     &gnome::GnomeSessionActions
 }
 
-/// The Linux update hooks: the GNOME ones.
+/// The Linux update hooks: the GNOME ones, whatever the backend in use (they check
+/// `XDG_CURRENT_DESKTOP` themselves). Returns a static value; nothing runs.
 pub fn update_hooks() -> &'static dyn crate::platform::update_hooks::UpdateHooks {
     &gnome::GnomeUpdateHooks
 }
 
+// Clap derive: the `///` on this struct and on `BackendUninstallArgs` is part of the `--help`
+// contract and must stay as it is; notes go in plain `//`. Only the GNOME flags exist at this
+// commit (Sway and X11 add none).
 /// The flags of the install command that belong to the Linux backends: the GNOME ones.
 #[derive(clap::Args, Debug, Clone, Default)]
 pub struct BackendInstallArgs {
@@ -41,7 +53,11 @@ use crate::platform::{
 };
 use x11rb::connection::Connection as _;
 
-/// Queries available display monitor bounding boxes via native X11 RANDR or screen fallback.
+/// Monitor rectangles from a fresh X11 connection (`DISPLAY`): the RANDR monitors if the server
+/// reports any, else one rectangle of the whole screen at (0, 0). Empty when the connection
+/// fails; there is no error value. Opens and drops a connection on every call.
+// Caller at this commit: the GNOME driver (src/platform/linux/gnome/driver.rs), which uses it
+// next to its own layout data; the X11 driver has its own queries.
 pub fn query_x11_monitors() -> Vec<Rect> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
         let root = conn.setup().roots[screen_num].root;
@@ -73,7 +89,9 @@ pub fn query_x11_monitors() -> Vec<Rect> {
     Vec::new()
 }
 
-/// Queries current pointer coordinates using native X11 protocol.
+/// The pointer position (root x, y) from a fresh X11 connection, or `None` when the connection
+/// or the query fails. Opens and drops a connection on every call.
+// Caller at this commit: the GNOME driver, which falls back to (0, 0) on `None`.
 pub fn query_x11_cursor() -> Option<(i32, i32)> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
         let root = conn.setup().roots[screen_num].root;
@@ -87,7 +105,16 @@ pub fn query_x11_cursor() -> Option<(i32, i32)> {
     None
 }
 
-/// Unified Linux compositor backend adapter that delegates to either GNOME or X11 driver.
+/// The Linux backend: holds one driver and forwards every call to it.
+///
+/// It forwards each [`CompositorBackend`] method and [`Driver::arm`] to the driver unchanged.
+/// [`Driver::disarm`] is not forwarded: `LinuxBackend` uses the trait default, which does nothing
+/// and returns `Ok(false)`, whatever driver is inside.
+// Surprising, left as is (comment-only change): the spawn command calls `disarm` on the value
+// from `init_backend`, which is a `LinuxBackend` on Linux, so the GNOME driver's `disarm`
+// (the extension's DisarmSpawn call) and the Sway driver's are not reached from there; read
+// from src/commands/spawn.rs and the impls at this commit, not run. The driver inside is
+// `GnomeWaylandDriver`, `SwayDriver` or `X11Driver`.
 pub struct LinuxBackend {
     driver: Box<dyn CompositorBackend>,
 }
@@ -98,6 +125,15 @@ impl LinuxBackend {
         Self { driver }
     }
 
+    /// Builds the backend for this process. Reads `SPAWN_AT_BACKEND`, `XDG_CURRENT_DESKTOP` and
+    /// `XDG_SESSION_TYPE`, then follows [`registry::candidates`]: Sway if forced, else the GNOME
+    /// Wayland driver when the desktop is GNOME and it connects, else X11.
+    ///
+    /// Errors: [`DriverError::Execution`] with the [`registry::unsupported`] message on an
+    /// unsupported desktop (that check is not in v0.2.0-beta.4); the error of
+    /// `SwayDriver::from_env` when Sway is forced and unreachable, with no fallback to X11. A
+    /// GNOME connection failure is not an error: it falls through to X11.
+    /// Side effects: opens the session D-Bus connection (GNOME) or the Sway socket.
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {
         // The order of the choice (forced X11, then GNOME Wayland, else X11) is in `registry`.
         let env = registry::Environment::from_process_env();
