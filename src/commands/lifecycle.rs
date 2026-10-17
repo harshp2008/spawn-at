@@ -1,13 +1,21 @@
-//! # Window Lifecycle State Command Handlers
+//! Handlers for the `close`, `maximize`, `minimize` and `restore` subcommands (and the unused
+//! `run_unminimize`).
 //!
-//! Provides handlers for window state transformations (maximize, minimize, unminimize, restore).
+//! Each one resolves a single window from `get_windows()`, sends the request through the backend
+//! (`close_window` or `set_window_state`) and, unless `no_wait`, waits for the window list to show
+//! the result. It does not decide how a compositor maximizes or minimizes a window.
+//!
+//! The waits of `maximize`, `minimize` and `restore` ignore their result (`let _ =`), so a window
+//! that never reaches the state still gives exit code 0. Only `close` turns a failed wait into an
+//! error.
 
 use crate::cli::{CloseArgs, MaximizeArgs, MinimizeArgs, RestoreArgs};
 use crate::commands::focus::apply_focus_policy;
 use crate::platform::{CompositorBackend, WindowState};
 use crate::target::{self, WindowSelector};
 
-/// Executes the `close` subcommand: requests graceful window closure and verifies termination.
+/// Runs `spawn-at close` with a 1500 ms wait for the window to disappear; see
+/// [`run_close_with_timeout`].
 pub async fn run_close(
     backend: &dyn CompositorBackend,
     args: CloseArgs,
@@ -22,7 +30,15 @@ pub async fn run_close(
     .await
 }
 
-/// Executes the `close` subcommand with a specified verification timeout.
+/// Asks the backend to close the matching window, then (unless `no_wait`) polls `get_windows()`
+/// every 50 ms for up to `timeout` until the window is gone.
+///
+/// Errors: invalid `args`; `capabilities().close` is false ("this backend cannot close windows");
+/// no matching window; a failing `close_window`; or the window still listed after `timeout`
+/// ("did not close within ..."), which happens for example when the application keeps the window
+/// open to ask the user something. A failing `get_windows()` during the wait counts as an empty
+/// list, i.e. as closed. The window is looked up by id when it has one, else by
+/// `matches_target` on the resolved target id.
 pub async fn run_close_with_timeout(
     backend: &dyn CompositorBackend,
     args: CloseArgs,
@@ -81,7 +97,10 @@ pub async fn run_close_with_timeout(
     Ok(())
 }
 
-/// Executes the `maximize` subcommand: sets the window state to maximized and applies focus policy.
+/// Runs `spawn-at maximize`: sends `WindowState::Maximize`, applies the focus flag from
+/// `args.focus_modifiers` (see `apply_focus_policy`), then unless `no_wait` waits up to 2000 ms for
+/// `maximized`; a timeout is ignored. Errors: invalid `args`, no matching window, or a failing
+/// backend call.
 pub async fn run_maximize(
     backend: &dyn CompositorBackend,
     args: MaximizeArgs,
@@ -112,7 +131,10 @@ pub async fn run_maximize(
     Ok(())
 }
 
-/// Executes the `minimize` subcommand: minimizes the target window into the panel or dock.
+/// Runs `spawn-at minimize`: sends `WindowState::Minimize`, then unless `no_wait` waits up to
+/// 2000 ms for `minimized` (a window that drops out of the list also counts); a timeout is
+/// ignored. `MinimizeArgs` has no focus flags, so no focus call is made. Errors: invalid `args`,
+/// no matching window, or a failing backend call.
 pub async fn run_minimize(
     backend: &dyn CompositorBackend,
     args: MinimizeArgs,
@@ -177,7 +199,12 @@ pub async fn run_unminimize(
     Ok(())
 }
 
-/// Executes the `restore` subcommand: unmaximizes and restores the window to its floating geometry.
+/// Runs `spawn-at restore` (also reached through the `unmaximize` and `unminimize` aliases):
+/// sends `WindowState::Restore`, applies the focus flag from `args.focus_modifiers`, then unless
+/// `no_wait` waits up to 2000 ms for the window to be neither maximized nor minimized; a timeout
+/// is ignored. Errors: invalid `args`, no matching window, or a failing backend call.
+// The GNOME extension's `restore` case (modern/ and legacy/ extension.js) unminimizes a minimized
+// window and unmaximizes a maximized one; other backends are not verified.
 pub async fn run_restore(
     backend: &dyn CompositorBackend,
     args: RestoreArgs,
