@@ -30,6 +30,15 @@ repository either.
 | [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/) | Final-state oracle and re-measure | 0 of 640 fail on the final rectangle; stale printed rectangle remains |
 | [6.12](/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/) | Why the window is revealed at its old size | Mechanism found; "accept" recommended; no fix built |
 
+## Flash detection and the Mutter investigation (2026-10-12 to 2026-10-13)
+
+| ID | Experiment | Verdict |
+| :--- | :--- | :--- |
+| [6.13](/spawn-at/experiments/6-13-cloak-starves-frame-callbacks/) | Does the cloak starve frame callbacks (H4) | H4 not supported |
+| [6.14](/spawn-at/experiments/6-14-mutter-api-and-arrival-wait/) | Mutter API leads and an arrival-wait simulation | Do not build the arrival wait with the cap as the only stop |
+| [6.15](/spawn-at/experiments/6-15-flash-aware-verdict/) | Flash-aware verdict (harness) | The extension cannot see a slow client's late paint |
+| [6.16](/spawn-at/experiments/6-16-flash-numeric-headline/) | Flash: numeric headline and visibility label | 19 of 20 numeric flashes; model 55 to 57% against about 70% by eye |
+
 ## X11 and XWayland investigation (2026-10-14)
 
 The question was how to tell that an X11 client has painted at its new size. The summary table is on
