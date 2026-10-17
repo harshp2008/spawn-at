@@ -1,7 +1,8 @@
-//! # Compositor State Query Command Handlers
+//! The handler of `spawn-at query` (`layout`, `pointer`, `windows`) and the function that fills in
+//! each window's position relative to its monitor.
 //!
-//! Provides handlers for inspecting active compositor workareas, pointer coordinates,
-//! and mapped window metadata.
+//! It only reads: every call goes to a `CompositorBackend` getter and the result is printed to
+//! stdout (plain table, or JSON with `--json`). It must not change window or compositor state.
 
 use crate::cli::QueryCommands;
 use crate::platform::capability::{HelperNeed, HelperStatus};
@@ -9,7 +10,21 @@ use crate::platform::CompositorBackend;
 use crate::target::{RelPosition, WindowMetadata};
 use spawn_at_core::geometry::{Area, LayoutRect, MonitorLayout, Rect};
 
-/// Executes the `query` subcommand: fetches requested compositor state and prints to stdout.
+/// Runs one `spawn-at query` subcommand and prints its result to stdout.
+///
+/// - `layout`: one table row per monitor (index, name, primary, scale, screen and work area as
+///   `WxH@X,Y`, insets top/right/bottom/left), then the layout's note if it has one; `-` marks a
+///   missing value. With `json` the serialized layout is printed instead.
+/// - `pointer`: `x, y` of the cursor. There is no JSON form.
+/// - `windows`: one row per window, or a JSON array with `json`. Relative coordinates are
+///   computed for `area` (see [`compute_relative_window_coordinates`]). If
+///   `helper_status(MonitorAndState)` says the extension helper is outdated, its message is
+///   printed with `render_info` and the `monitor` and `state` of every window are dropped.
+///
+/// Errors: any failing backend call (`get_layout` for `layout`, `get_cursor_position` for
+/// `pointer`, `get_windows` for `windows`) and JSON serialization. For `windows`, a failing
+/// `get_layout` is not an error: the monitor and work area lists are tried instead, and if those
+/// fail too, no window gets relative coordinates.
 pub async fn run_query(
     backend: &dyn CompositorBackend,
     cmd: QueryCommands,
@@ -82,7 +97,8 @@ pub async fn run_query(
                 }
             }
 
-            // Retrieve layout or fallback monitor information to compute relative coordinates
+            // The monitor and work area lists are fetched only when `get_layout` failed; with a
+            // layout they stay `None`.
             let layout_opt = backend.get_layout().await.ok();
             let workareas_fallback = if layout_opt.is_none() {
                 backend.get_workareas().await.ok()
@@ -106,6 +122,9 @@ pub async fn run_query(
             if json {
                 println!("{}", serde_json::to_string(&windows)?);
             } else {
+                // Column widths are the longest cell, with minimums of 2 (ID), 3 (PID, MON), 5
+                // (CLASS, STATE), 8 (GEOMETRY) and 3 (REL); FOCUSED is fixed at 7. CLASS and STATE
+                // are measured in bytes, so a non-ASCII class makes its column wider than the text.
                 let id_w = windows
                     .iter()
                     .map(|w| w.id.map(|i| i.to_string().len()).unwrap_or(1))
@@ -191,6 +210,16 @@ pub async fn run_query(
     Ok(())
 }
 
+/// Sets `rel` and `area` on every window: its position relative to the top-left corner of the
+/// chosen area of its own monitor, in the same units as `x` and `y` (px).
+///
+/// - `Unbounded`: `rel` is the window's `x`, `y` and `area` is `"unbounded"`.
+/// - `Screen` / `Workarea`: the monitor is looked up by the window's `monitor` index, in
+///   `layout_opt` if given, else in `monitors_fallback` / `workareas_fallback` by list position.
+///   `area` is then `"screen"` or `"workarea"`. A window with no `monitor`, or whose monitor is
+///   not found, gets `rel = None` and `area = None`.
+///
+/// Does not fail and does not clamp: a window partly off its monitor gets negative `rel`.
 pub fn compute_relative_window_coordinates(
     windows: &mut [WindowMetadata],
     layout_opt: Option<&MonitorLayout>,
