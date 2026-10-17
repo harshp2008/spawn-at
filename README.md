@@ -232,7 +232,7 @@ Tested: a private headless Sway 1.9 and the repo's own test window, with `script
 
 ## Roadmap
 
-v0.2.0-beta.4 restructures the code for other platforms and adds an experimental, opt-in Sway backend; it changes no GNOME placement behavior. v0.2.0-beta.5 makes a non-GNOME Wayland session an error instead of a silent fall back to X11. Groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
+**Done in v0.2.0:** the code is restructured for other platforms, there is an experimental, opt-in Sway backend, and a non-GNOME Wayland session is an error instead of a silent fall back to X11. None of this changes GNOME placement behavior. **Next:** groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
 
 ## Contributing a backend
 
