@@ -1,13 +1,22 @@
 //! # Pure Mathematical Geometry Engine
 //!
-//! This module provides a platform-agnostic, pure mathematical coordinate and layout engine
-//! with zero I/O, D-Bus, or compositor dependencies.
+//! Placement arithmetic and monitor selection on plain rectangles. It does no I/O and has no
+//! D-Bus or compositor dependency: callers pass in the rectangles, the pointer position and the
+//! cursor position, and get a [`Rect`] or a choice back. It must not query a display server.
 //!
 //! ## Coordinate System Conventions
 //! - **Origin `(0, 0)`**: Top-left of the primary display or virtual bounding box.
 //! - **Axes**: X increases to the right, Y increases downwards.
 //! - **Coordinate Spaces**: Coordinates can be absolute (global desktop bounds spanning multi-monitor setups) or relative.
 //! - **Sign Conventions**: Coordinates (`x`, `y`) are signed `i32` to allow for negative monitor offsets, while dimensions (`width`, `height`) are unsigned `u32` to prevent impossible sizes.
+//! - **Units**: pixels, as the caller supplies them; this module does not scale.
+//! - **Rounding**: halves are computed with integer division, which truncates toward zero. When
+//!   a window fits, an odd leftover pixel therefore goes to the right or bottom side of a centred
+//!   window. [`apply_pivot`] with [`Pivot::Center`] rounds up instead, and
+//!   [`check_geometry_diagnostics`] rounds with `f64::round`. Details are on each function.
+//! - **Overflow**: the sums are plain `i32` arithmetic, not checked (a debug build panics on
+//!   overflow, a release build wraps unless overflow checks are enabled). Only the cursor tests in
+//!   [`resolve_workarea`] and [`resolve_monitor_from_layout`] use saturating adds.
 
 use serde::{Deserialize, Serialize};
 
@@ -26,12 +35,17 @@ pub struct Rect {
     pub height: u32,
 }
 
-/// A rectangle representation specifically formatted for layout introspection ({ x, y, w, h }).
+/// A [`Rect`] spelled `{ x, y, w, h }` in serialised form, as used by the monitor layout. The
+/// `From` impls between the two types copy the four fields.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LayoutRect {
+    /// Horizontal position of the top-left corner.
     pub x: i32,
+    /// Vertical position of the top-left corner.
     pub y: i32,
+    /// Width in pixels.
     pub w: u32,
+    /// Height in pixels.
     pub h: u32,
 }
 
@@ -57,29 +71,48 @@ impl From<LayoutRect> for Rect {
     }
 }
 
-/// Derived insets (screen boundary minus usable workarea) in logical pixels.
+/// The distance from each edge of a monitor's screen rectangle to its workarea, in the units of
+/// the rectangles it was computed from (see [`MonitorInfo::compute_insets`]). Negative when the
+/// workarea reaches past the screen edge.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct LayoutInsets {
+    /// Workarea top minus screen top.
     pub top: i32,
+    /// Screen right edge minus workarea right edge.
     pub right: i32,
+    /// Screen bottom edge minus workarea bottom edge.
     pub bottom: i32,
+    /// Workarea left minus screen left.
     pub left: i32,
 }
 
-/// Introspection metadata for an individual display monitor.
+/// One monitor of a [`MonitorLayout`]. Every rectangle is optional because a backend may not
+/// report it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitorInfo {
+    /// Index of the monitor; the numeric selector of [`resolve_monitor_from_layout`] matches this
+    /// field, not the position in [`MonitorLayout::monitors`].
     pub index: usize,
+    /// Connector name, if known; [`resolve_monitor_from_layout`] matches it ASCII
+    /// case-insensitively.
     pub name: Option<String>,
+    /// True for the primary monitor. Not enforced: a layout may have none, or several.
     pub primary: bool,
+    /// Scale factor if the backend reports one. Not used in this module.
     pub scale: Option<f64>,
+    /// The whole monitor rectangle.
     pub screen: Option<LayoutRect>,
+    /// The part of the monitor not taken by panels and docks.
     pub workarea: Option<LayoutRect>,
+    /// Edge distances between `screen` and `workarea`, if both were known.
     pub insets: Option<LayoutInsets>,
 }
 
 impl MonitorInfo {
-    /// Computes derived insets from screen and workarea rectangles if both are available.
+    /// Computes derived insets from screen and workarea rectangles if both are available;
+    /// `None` when either is missing. `top` and `left` are workarea minus screen, `right` and
+    /// `bottom` are screen edge minus workarea edge (plain `i32` arithmetic, see the module notes
+    /// on overflow).
     pub fn compute_insets(
         screen: Option<LayoutRect>,
         workarea: Option<LayoutRect>,
@@ -98,16 +131,23 @@ impl MonitorInfo {
     }
 }
 
-/// Comprehensive compositor monitor layout schema (version 1).
+/// The monitors of the desktop, as a serialisable schema.
+// At this commit every constructor under src/ sets schema_version to 1.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitorLayout {
+    /// Version of this schema.
     pub schema_version: u32,
+    /// The monitors, in the order the backend gave them.
     pub monitors: Vec<MonitorInfo>,
+    /// Free text from the backend; omitted from the serialised form when `None`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
 }
 
-/// Defines the origin point for window placement relative to a bounding workarea.
+/// The reference point of a placement inside the bounding area. `Cursor` uses the cursor
+/// position instead. [`compute_screen_anchor`] gives the point each variant names; when no
+/// [`Pivot`] is set, [`calculate_rect_from_placement`] places the window so that the named
+/// corner or edge meets that point, and with a pivot the pivot corner meets it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Anchor {
@@ -133,13 +173,19 @@ pub enum Anchor {
     Cursor,
 }
 
-/// Defines the boundary reference area for placement.
+/// Which area bounds a placement. In this module only `Unbounded` has an effect: it makes
+/// [`calculate_rect_from_placement`] skip the clamp and measure `pos` from the global origin.
+/// `Workarea` and `Screen` are not told apart here; the caller puts the rectangle it chose into
+/// [`PlacementParams::workarea`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Area {
+    /// The monitor area without panels and docks (the default).
     #[default]
     Workarea,
+    /// The whole monitor rectangle.
     Screen,
+    /// No bounding rectangle: no clamping, and `pos` is absolute.
     Unbounded,
 }
 
@@ -153,7 +199,8 @@ impl std::fmt::Display for Area {
     }
 }
 
-/// Defines which corner of the window aligns with the target coordinate.
+/// Which point of the window is put on the target coordinate. When a pivot is set it overrides
+/// the per-anchor alignment in [`calculate_rect_from_placement`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "clap", derive(clap::ValueEnum))]
 pub enum Pivot {
@@ -166,30 +213,51 @@ pub enum Pivot {
     BottomLeft,
     /// The target coordinate aligns with the window's bottom-right corner.
     BottomRight,
-    /// The target coordinate aligns with the window's center.
+    /// The target coordinate aligns with the window's center (rounded up, see [`apply_pivot`]).
     Center,
 }
 
+// serde default for `PlacementParams::clamp`.
 fn default_true() -> bool {
     true
 }
 
-/// Declarative parameters describing spatial positioning, alignment, and bounding box constraints.
+/// Everything [`calculate_rect_from_placement`] needs, in pixels. [`PlacementParams::default`]
+/// sets nothing, with margin 0, an empty `workarea` and `clamp` true.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct PlacementParams {
+    /// Absolute position of the reference point: added to the workarea origin, or to `(0, 0)` for
+    /// [`Area::Unbounded`]. Used only when there is no `anchor`, and it wins over `offset` then.
     pub pos: Option<(i32, i32)>,
+    /// With an `anchor`: added to the anchor point. Without one and without `pos`: used like
+    /// `pos`. Ignored when both `pos` and `offset` are set and there is no anchor.
     pub offset: Option<(i32, i32)>,
+    /// Named reference point of the workarea; takes priority over `pos`.
     pub anchor: Option<Anchor>,
+    /// Which point of the window goes on the target coordinate.
     pub pivot: Option<Pivot>,
+    /// Requested `(width, height)`; replaces the window size passed to
+    /// [`calculate_rect_from_placement`].
     pub size: Option<(u32, u32)>,
+    /// Margin on all four sides; a directional margin below replaces it for that side.
     pub margin: i32,
+    /// Top margin override.
     pub margin_top: Option<i32>,
+    /// Bottom margin override.
     pub margin_bottom: Option<i32>,
+    /// Left margin override.
     pub margin_left: Option<i32>,
+    /// Right margin override.
     pub margin_right: Option<i32>,
+    /// See [`Area`]; `None` is the same as not `Unbounded`.
     pub area: Option<Area>,
+    /// Cursor position, used by [`Anchor::Cursor`].
     pub cursor_pos: Option<(i32, i32)>,
+    /// The rectangle placements are made in (a workarea, or a screen rectangle chosen by the
+    /// caller).
     pub workarea: Rect,
+    /// Keep the window inside `workarea` minus the margins. Missing in serialised input means true.
+    /// Has no effect for [`Area::Unbounded`].
     #[serde(default = "default_true")]
     pub clamp: bool,
 }
@@ -215,8 +283,17 @@ impl Default for PlacementParams {
     }
 }
 
-/// Resolves the target workarea rectangle from a list of workareas, pointer coordinates,
-/// and a monitor selector string (`<INDEX>`, `"cursor"`, or `"primary"`).
+/// Picks one rectangle from `workareas` (in monitor order) by the `monitor` selector, which is
+/// trimmed and compared in lower case.
+///
+/// - `"cursor"`: the first rectangle that contains `pointer` (left and top edges inside, right and
+///   bottom edges outside); the first rectangle if none does.
+/// - decimal digits: the rectangle at that position in the slice; the first one if the index is
+///   out of range.
+/// - anything else, including `"primary"` and connector names: the first rectangle. The slice is
+///   assumed to start with the primary monitor; nothing here checks that.
+///
+/// Errors: `Err` only when `workareas` is empty.
 pub fn resolve_workarea(
     workareas: &[Rect],
     pointer: (i32, i32),
@@ -252,8 +329,20 @@ pub fn resolve_workarea(
     Ok(workareas[0])
 }
 
-/// Resolves a target monitor from a layout schema, pointer coordinates, and an optional monitor selector.
-/// Returns the chosen `MonitorInfo` and a boolean indicating if it fell back to index 0 because no monitor was flagged primary.
+/// Picks a monitor of `layout` by `monitor_selector`. Returns the monitor and a flag that is true
+/// only when it fell back to the first monitor of the list because none is flagged `primary`.
+///
+/// The selector is trimmed and compared in lower case, and tried in this order:
+/// - `"cursor"`: the first monitor whose `screen` (else `workarea`, else an empty rectangle at
+///   0,0) contains `pointer` (left and top edges inside, right and bottom outside); otherwise the
+///   primary monitor, otherwise the first one (flag true).
+/// - decimal digits: the monitor whose `index` field equals the number; if there is none, the
+///   first monitor of the list (flag false).
+/// - `"primary"`: the primary monitor, else the first one (flag true).
+/// - any other text: the monitor whose `name` equals the selector ignoring ASCII case (the
+///   selector is not trimmed for this comparison); if none, as for `"primary"`.
+///
+/// With `None` the result is as for `"primary"`. An empty layout gives `(None, false)`.
 pub fn resolve_monitor_from_layout<'a>(
     layout: &'a MonitorLayout,
     pointer: (i32, i32),
@@ -320,7 +409,10 @@ pub fn resolve_monitor_from_layout<'a>(
     }
 }
 
-/// Finds the monitor in the layout that has the largest pixel overlap with the given window rectangle.
+/// Finds the monitor whose `screen` (else `workarea`, else an empty rectangle at 0,0) overlaps
+/// `window_rect` in the largest number of pixels (width times height of the intersection). A
+/// tie goes to the monitor earlier in the list. `None` when nothing overlaps or the layout is
+/// empty. Plain `i32` sums, see the module notes on overflow.
 pub fn find_monitor_with_largest_overlap(
     layout: &MonitorLayout,
     window_rect: Rect,
@@ -347,7 +439,9 @@ pub fn find_monitor_with_largest_overlap(
     best_m
 }
 
-/// Returns true if the window geometry intersects more than one monitor rectangle in the layout.
+/// True if `win_rect` overlaps at least two of the rectangles in `monitors`. Rectangles that only
+/// touch the window along an edge do not count (the overlap must be at least 1 px in both
+/// directions).
 pub fn window_straddles_monitors(win_rect: Rect, monitors: &[Rect]) -> bool {
     let mut count = 0;
     for m in monitors {
@@ -365,8 +459,14 @@ pub fn window_straddles_monitors(win_rect: Rect, monitors: &[Rect]) -> bool {
     false
 }
 
-/// Computes the top-left origin coordinates `(x, y)` for a window of size `(win_w, win_h)`
-/// anchored inside `workarea` with a given `margin`.
+/// The top-left corner `(x, y)` of a `win_w` x `win_h` window placed against `anchor` inside
+/// `workarea`, with the same `margin` on every side.
+///
+/// Corner and edge anchors keep `margin` from the named edges; centred directions use
+/// `(workarea size - window size) / 2` (integer division, truncating toward zero) and ignore the
+/// margin. `Anchor::Cursor` has no cursor here and returns the workarea's top-left corner. Does
+/// not clamp. Not the function [`calculate_rect_from_placement`] calls; that one uses
+/// [`compute_screen_anchor`] and [`apply_pivot`].
 pub fn apply_anchor(
     workarea: Rect,
     win_w: u32,
@@ -427,7 +527,12 @@ pub fn apply_anchor(
     }
 }
 
-/// Resolves screen anchor point `(x, y)` on the given workarea with directional margins.
+/// The point `(x, y)` that `anchor` names on `workarea`. This is a point, not a window origin.
+///
+/// Corners and edges are inset by the margin of the side they touch (the point moves inward by
+/// `margin_left`/`margin_top`, and by `margin_right`/`margin_bottom` from the far edges). A
+/// centred coordinate is the workarea origin plus half its size, integer division truncating.
+/// `Anchor::Cursor` gives `cursor_pos`, or the top-left point with margins when it is `None`.
 pub fn compute_screen_anchor(
     workarea: Rect,
     anchor: Anchor,
@@ -475,7 +580,25 @@ pub fn compute_screen_anchor(
     }
 }
 
-/// Computes the final target window geometry rectangle from declarative placement parameters.
+/// The rectangle a window of `win_w` x `win_h` pixels gets under `params` (`params.size`, when
+/// set, replaces both numbers).
+///
+/// Steps, as the code does them:
+/// 1. Each margin is its directional override, else `params.margin`.
+/// 2. The anchor point: with an `anchor`, [`compute_screen_anchor`] on `params.workarea`; else
+///    `pos` (or, if absent, `offset`) added to the workarea origin, or to `(0, 0)` for
+///    [`Area::Unbounded`]; else the workarea origin moved in by the left and top margins.
+/// 3. The target is the anchor point plus `offset`, but only when there is an `anchor`.
+/// 4. The window origin: with a `pivot`, [`apply_pivot`] on the target. With only an `anchor`,
+///    each variant is aligned as follows. Centred axes use `(workarea size - window size) / 2`
+///    (truncating toward zero) from the workarea origin, plus the offset, and ignore the margins.
+///    Right and bottom anchors place the window's right or bottom edge on the target. With
+///    neither, the target is the top-left corner.
+/// 5. Unless `area` is `Unbounded` or `clamp` is false, [`clamp_to_bounds`] keeps the origin
+///    inside the workarea minus the margins (the size is never changed).
+///
+/// Does not check that the window fits; a window larger than the available space ends up at the
+/// top-left limit of the clamp range.
 pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h: u32) -> Rect {
     let w = params.size.map(|s| s.0).unwrap_or(win_w);
     let h = params.size.map(|s| s.1).unwrap_or(win_h);
@@ -562,8 +685,9 @@ pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h
     }
 }
 
-/// Computes the top-left origin coordinates `(x, y)` when placing a window of size
-/// `(win_w, win_h)` such that the specified `pivot` point aligns with `(target_x, target_y)`.
+/// The top-left corner `(x, y)` of a `win_w` x `win_h` window whose `pivot` point is at
+/// `(target_x, target_y)`. For `Pivot::Center` the half sizes are `(size + 1) / 2`, so an odd size
+/// puts the extra pixel on the left and top side.
 pub fn apply_pivot(
     target_x: i32,
     target_y: i32,
@@ -581,8 +705,10 @@ pub fn apply_pivot(
     }
 }
 
-/// Clamps `rect.x` and `rect.y` so that the window stays strictly within the bounds,
-/// accounting for a global `margin` and specific directional boundaries.
+/// Moves `rect` so that it lies inside `bounds` shrunk by the four `bound_*` insets, each plus
+/// `global_margin`. Only `x` and `y` change; width and height are kept. When the window is wider
+/// (or taller) than the space left, the range collapses to its minimum, so the window sits at the
+/// left (or top) limit and sticks out on the right (or bottom).
 pub fn clamp_to_bounds(
     rect: Rect,
     bounds: Rect,
@@ -620,23 +746,43 @@ pub fn clamp_to_bounds(
     }
 }
 
-/// Diagnostic messages generated during geometry resolution.
+/// A finding of [`check_geometry_diagnostics`]. None of them changes the placement.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum GeometryDiagnostic {
-    /// Window size exceeds the available workarea space after margins.
+    /// The requested size is wider than the workarea width minus the left and right margins, or
+    /// taller than the height minus the top and bottom margins. `w` and `h` are the requested
+    /// width and height in pixels.
     Oversized { w: u32, h: u32 },
-    /// Window origin coordinates were adjusted due to boundary margin clamping.
+    /// The origin the parameters ask for lies outside the range the clamp allows.
     Repositioned {
+        /// Requested x of the window origin.
         raw_x: i32,
+        /// Requested y of the window origin.
         raw_y: i32,
+        /// x after clamping to the allowed range.
         clamped_x: i32,
+        /// y after clamping to the allowed range.
         clamped_y: i32,
     },
-    /// Window size is smaller than typical toolkit constraints.
+    /// The requested width is under 100 px or the height under 80 px. `w` and `h` are the
+    /// requested width and height in pixels.
     SubMinimumSize { w: u32, h: u32 },
 }
 
-/// Evaluates spatial placement parameters against the bounding workarea and returns any diagnostics.
+/// Checks `params` for the three findings of [`GeometryDiagnostic`]. Returns nothing when
+/// `params.size` is `None`.
+///
+/// `Oversized` is tested first; only when it does not apply is the origin computed and
+/// `Repositioned` tested. `SubMinimumSize` (width below 100 or height below 80) is tested
+/// independently, so it can accompany `Oversized`.
+///
+/// This is a separate computation from [`calculate_rect_from_placement`] and differs from it:
+/// it ignores `clamp` and `area` (it reports `Repositioned` even if no clamp would run); it takes
+/// `pos` as given, not added to the workarea origin; it adds `offset` in every case, where the
+/// placement code adds it only with an `anchor`; and it places the pivot or anchor fraction (0, 0.5 or 1) of the size with `f64::round` (halves away
+/// from zero), where the placement code uses truncating integer division or `(size + 1) / 2`. For
+/// odd sizes the origins can therefore differ by 1 px. Checked by reading both functions, not by
+/// a test.
 pub fn check_geometry_diagnostics(params: &PlacementParams) -> Vec<GeometryDiagnostic> {
     let mut diags = Vec::new();
 
