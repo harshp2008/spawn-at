@@ -1,10 +1,14 @@
-//! # Spawn Command Handler
+//! The handler of `spawn-at spawn`: places the window of a new application before it is shown.
 //!
-//! Orchestrates the multi-stage window placement and application launch pipeline:
-//! 1. Resolves geometry and workareas from compositor backend.
-//! 2. Arms the backend driver (fail-open on driver error).
-//! 3. Launches the child process with armed environment variables.
-//! 4. Executes post-spawn interception hooks and waits for window mapping.
+//! The order in `run_spawn_with` is: read the boundary rectangle and fill `PlacementParams` from
+//! the flags; build one `Batch` entry keyed by a fresh startup key; record the ids of the windows
+//! that exist now; `arm` the backend; start the command with the environment `arm` returned;
+//! call `post_spawn`; then, unless `no_wait`, wait for the window (a backend claim signal first,
+//! polling `wait_for_spawn` second), re-read its geometry and report it.
+//!
+//! Arming is fail-open: if `arm` fails the command is still started, unplaced, with a warning. The
+//! JSON printed for `--json` is `SpawnOutputJson`. This module does not decide how a backend
+//! intercepts the window; it only calls the `CompositorBackend` methods.
 
 use crate::cli::args::SpawnArgs;
 use crate::commands::wait_for_spawn;
@@ -21,20 +25,33 @@ use std::time::Duration;
 /// Structured JSON output emitted to stdout when `--json` is supplied to `spawn-at spawn`.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq)]
 pub struct SpawnOutputJson {
+    /// Compositor id of the placed window; `None` when no window was found, or in the early
+    /// output printed without waiting.
     pub window_id: Option<u64>,
+    /// Final position and size in px; all 0 when no window was found.
     pub x: i32,
     pub y: i32,
     pub w: u32,
     pub h: u32,
+    /// `x` and `y` minus the top-left corner of the boundary rectangle (0, 0 for the unbounded
+    /// area).
     pub rel_x: i32,
     pub rel_y: i32,
+    /// The `--area` value that `rel_x` and `rel_y` are relative to.
     pub area: String,
+    /// `raised_w` or `raised_h`, or the backend claim reported the size as raised. Always false
+    /// without `--size`.
     pub size_raised: bool,
+    /// Final width is strictly larger than the requested width.
     #[serde(default)]
     pub raised_w: bool,
+    /// Final height is strictly larger than the requested height.
     #[serde(default)]
     pub raised_h: bool,
+    /// The application showed an already existing window instead of a new one; nothing was moved.
     pub reused_existing_window: bool,
+    /// How the window was found: `"claim"` (backend signal) or `"poll"` (window list polling, also
+    /// used for the output printed without a wait).
     pub source: String,
     /// How the size request ended (protocol 6 extension, native Wayland window). Left out of the
     /// JSON when the extension reported none: an older extension, a legacy-strategy window, a
@@ -43,8 +60,9 @@ pub struct SpawnOutputJson {
     pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
 }
 
-/// Executes the spawn subcommand pipeline with the user's config file. A file that is missing,
+/// Runs `spawn-at spawn` with the settings from the user's config file. A file that is missing,
 /// unreadable or malformed never fails the spawn: the defaults apply and a warning is printed.
+/// For the errors and output see [`run_spawn_with`].
 pub async fn run_spawn(
     driver: &(dyn CompositorBackend + Sync),
     spawn_args: SpawnArgs,
@@ -56,6 +74,19 @@ pub async fn run_spawn(
 }
 
 /// [`run_spawn`] with the settings already read (`Loaded::default()` is "no config file").
+///
+/// Errors (`DriverError::Execution` unless noted): an empty command; invalid arguments;
+/// `--area screen` without the helper it needs; the command could not be started (the armed
+/// token is disarmed first).
+///
+/// Not errors, all returning `Ok(())`: `arm` failing (warning, then the command runs unplaced
+/// with no wait); `post_spawn` failing (warning); the window not appearing within the
+/// `window_timeout_ms` setting, or the application reusing an old window (a warning or
+/// diagnostic, and with `--json` an output with `window_id: null`).
+///
+/// With `json`, exactly one `SpawnOutputJson` line goes to stdout, except when `arm` failed and
+/// `no_wait` is set: then nothing is printed. The child's own stdout and stderr go to
+/// `/dev/null` in that case (see [`configure_child_process`]).
 pub async fn run_spawn_with(
     driver: &(dyn CompositorBackend + Sync),
     spawn_args: SpawnArgs,
@@ -80,7 +111,9 @@ pub async fn run_spawn_with(
         return Err(DriverError::Execution(e.into()));
     }
 
-    // 1. Calculate target geometry parameters
+    // 1. Placement parameters. The cursor is read only for `--anchor cursor` / `--monitor cursor`;
+    // if that read fails the position falls back to (0, 0) without a message (`transform` returns
+    // the error instead).
     let is_cursor_anchor = spawn_args.geometry.anchor == Some(Anchor::Cursor);
     let is_cursor_monitor = spawn_args
         .geometry
@@ -103,6 +136,11 @@ pub async fn run_spawn_with(
 
     let is_unbounded = spawn_args.geometry.area == Area::Unbounded;
 
+    // Boundary: an empty rectangle for the unbounded area; otherwise the screen or work area of the
+    // monitor chosen from `get_layout` (`--monitor`, default primary). If `get_layout` fails, the
+    // monitor or work area list is searched instead ("cursor" when the cursor is needed, else
+    // `--monitor`, else "primary"). A failing list or an unresolved monitor gives an empty
+    // rectangle, not an error.
     let target_boundary = if is_unbounded {
         Rect::default()
     } else {
@@ -150,6 +188,7 @@ pub async fn run_spawn_with(
     };
     let area_str = spawn_args.geometry.area.to_string();
 
+    // With an anchor the position flag is an offset from the anchor; without one it is absolute.
     let pos_or_offset = spawn_args.geometry.pos_or_offset();
     let (pos, offset) = if spawn_args.geometry.anchor.is_some() {
         (None, pos_or_offset)
@@ -157,6 +196,8 @@ pub async fn run_spawn_with(
         (pos_or_offset, None)
     };
 
+    // `--size` needs exactly two values that parse as u32; anything else gives no size here
+    // (`validate` is expected to have rejected it already; not verified for every input).
     let size = spawn_args.geometry.size.as_ref().and_then(|s| {
         if s.len() == 2 {
             let w = s[0].parse::<u32>().ok()?;
@@ -230,7 +271,9 @@ pub async fn run_spawn_with(
         }
     }
 
-    // 2. Generate unique activation token / entry key conforming to freedesktop startup notification spec
+    // 2. The entry key: `spawn-at-<our pid>-<ms since epoch>_TIME<same ms>`. It is also the
+    // `startup_id` that `wait_for_spawn` looks for in a window's title or class. Whether it follows
+    // the freedesktop startup-notification format is not verified.
     let ts_ms = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -255,6 +298,9 @@ pub async fn run_spawn_with(
     }
     let wait: WaitOverride = spawn_at_core::settings::wait_override(&wait_flags, &file);
 
+    // One batch with one entry. Fixed values: id 1, reveal together, exclusive focus, normal
+    // urgency, 15000 ms deadline (not the `window_timeout_ms` setting, which only bounds the
+    // waits below).
     let batch = Batch {
         id: 1,
         entries: vec![Entry {
@@ -269,7 +315,8 @@ pub async fn run_spawn_with(
         deadline: Duration::from_millis(15000),
     };
 
-    // Pre-record existing window IDs so wait_for_spawn captures the newly spawned window accurately
+    // Ids of the windows open now, so `wait_for_spawn` can tell a new window from an old one. A
+    // failing `get_windows` gives an empty set.
     let pre_existing_ids: std::collections::HashSet<u64> = driver
         .get_windows()
         .await
@@ -278,10 +325,11 @@ pub async fn run_spawn_with(
         .filter_map(|w| w.id)
         .collect();
 
-    // 2. Prepare claim wait subscription BEFORE calling arm (prevents missing fast claims)
+    // 3. Subscribe to the claim signal before `arm`, so a claim that arrives right after arming
+    // is not missed. A backend without one, or an error, gives `None`.
     let claim_waiter = driver.prepare_claim_wait(&app_hint).await.ok().flatten();
 
-    // 3. Arm the driver with the declarative batch intent (fail-open on arm failure)
+    // 4. Arm the backend. A failure only warns: the command is started anyway, unplaced.
     let armed_opt = match driver.arm(batch.clone()).await {
         Ok(a) => Some(a),
         Err(e) => {
@@ -294,7 +342,8 @@ pub async fn run_spawn_with(
         }
     };
 
-    // 4. Launch child process with armed environment variables
+    // 5. Start the command with the environment variables `arm` returned. The child is never
+    // waited for.
     let mut cmd = std::process::Command::new(&spawn_args.command[0]);
     cmd.args(&spawn_args.command[1..]);
     if let Some(ref armed) = armed_opt {
@@ -318,6 +367,8 @@ pub async fn run_spawn_with(
         }
     };
 
+    // Arm failed, `--json`, waiting allowed: print the placeholder line (id null, geometry 0,
+    // source "poll") right away. No wait follows, because the block below needs an armed backend.
     if armed_opt.is_none() && spawn_args.json && !no_wait {
         let output = SpawnOutputJson {
             window_id: None,
@@ -339,11 +390,13 @@ pub async fn run_spawn_with(
     }
 
     if let Some(ref _armed) = armed_opt {
-        // Polymorphic post-spawn interception hook
+        // Backend hook that runs after the child exists, with its pid and the batch. What it does
+        // is up to the backend.
         if let Err(e) = driver.post_spawn(child.id(), &batch).await {
             crate::diagnostics::render_warning(&format!("Window post-spawn hook failed: {}", e));
         }
 
+        // `--no-wait --json`: the same placeholder line, then the function returns.
         if no_wait && spawn_args.json {
             let output = SpawnOutputJson {
                 window_id: None,
@@ -368,6 +421,9 @@ pub async fn run_spawn_with(
             let mut claim_result: Option<(u64, Rect, bool)> = None;
             let mut claim_resize: Option<spawn_at_core::resize_report::ResizeReport> = None;
 
+            // Claim first, up to `window_timeout`. An `Execution` error (the backend reported a
+            // failed placement) is printed as a warning; any other error, including a timeout,
+            // is silent. Both fall back to polling, which waits up to `window_timeout` again.
             if let Some(mut waiter) = claim_waiter {
                 match waiter.wait_claim(window_timeout).await {
                     Ok(claim) => {
@@ -426,6 +482,10 @@ pub async fn run_spawn_with(
                             )
                         }
                         Err(e) => {
+                            // "Reused" is recognised by the text of the error that
+                            // `wait_for_spawn` builds, so changing that text changes this.
+                            // Either way the command returns `Ok(())`, so a window that never
+                            // appeared still gives exit code 0.
                             let is_reused = e.to_string().contains("reused an existing window");
                             if !is_reused {
                                 crate::diagnostics::render_warning(&format!(
@@ -486,7 +546,9 @@ pub async fn run_spawn_with(
                 }
             };
 
-            // Settle re-check before final geometry diagnostics
+            // Read the geometry again for up to 300 ms until it satisfies `params`
+            // (`settle_window_geometry`); the last rectangle seen replaces the claimed or polled
+            // one.
             if let Some(settled_rect) = crate::commands::settle_window_geometry(
                 driver,
                 win_id,
@@ -499,7 +561,10 @@ pub async fn run_spawn_with(
                 final_rect = settled_rect;
             }
             if let Some(id) = win_id {
-                // If explicit placement was requested and the client re-maximized itself, re-assert once, bounded.
+                // If a size, position or anchor was requested and the window is maximized now (the
+                // application maximized itself), send `Restore` and the same placement once more,
+                // wait 150 ms and re-read the rectangle. Once only; the results of the two calls
+                // are ignored.
                 let has_explicit_placement =
                     params.size.is_some() || params.pos.is_some() || params.anchor.is_some();
                 if has_explicit_placement {
@@ -530,6 +595,8 @@ pub async fn run_spawn_with(
                 }
             }
 
+            // Strictly larger than requested counts as raised. Without `--size` all three are
+            // false, even if the claim said `size_raised`.
             let (raised_w, raised_h, size_raised) = if let Some(req) = params.size {
                 let rw = final_rect.width > req.0;
                 let rh = final_rect.height > req.1;
@@ -574,11 +641,14 @@ pub async fn run_spawn_with(
     Ok(())
 }
 
-/// Configures child command detachment and stdio inheritance policy:
-/// - In own session (`setsid()`, fallback to `setpgid(0, 0)`)
-/// - Stdin is always redirected to `/dev/null` so GUI apps never block or contend for terminal input
-/// - If `json` or non-TTY, `stdout`/`stderr` are redirected to `/dev/null` to prevent hung pipes (e.g. `OUT=$(...)`)
-/// - If interactive TTY and not `json`, inherits `stdout`/`stderr` so app logs remain visible
+/// Sets up the standard streams of the child and detaches it from this process.
+///
+/// - stdin is always `/dev/null`.
+/// - stdout (and, separately, stderr) is `/dev/null` when `is_json` is true or that stream of
+///   this process is not a terminal, so a caller capturing our output (`OUT=$(spawn-at ...)`)
+///   is not held open by the app; otherwise the child inherits it.
+/// - Detaching is `host().detach_child`; on Linux it calls `setsid()` in the child and falls back
+///   to `setpgid(0, 0)` if that fails.
 pub fn configure_child_process(cmd: &mut std::process::Command, is_json: bool) {
     use std::io::IsTerminal;
 
