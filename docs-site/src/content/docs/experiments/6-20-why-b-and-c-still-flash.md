@@ -2,7 +2,7 @@
 title: "6.20 Why arms B and C still flash under load"
 ---
 
-Why arms B and C still flash under load: classification and a protocol-level re-run (no code change). Most remaining flashes are a late timestamp in the fixture, not a late app; the cap-150 timeouts are real.
+Why arms B and C still flash under load: classification and a protocol-level re-run (no code change). 16 of the 21 remaining flashes (class a) are a late `FIRST_PAINT` stamp in the fixture, not a late app. For the 5 B timeouts (class b) the log says: "The app really was late for a cap of 150 ms".
 
 | Field | Value |
 | :-- | :-- |
