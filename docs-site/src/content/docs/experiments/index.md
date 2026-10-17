@@ -47,6 +47,10 @@ repository either.
 | [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/) | Ready-wait: live validation | Criteria 2 and 3 not met, 4 not shown |
 | [6.19](/spawn-at/experiments/6-19-ready-wait-abc/) | Same-session A/B/C with the override | Cap 250 recommended; B and C not separable |
 | [6.20](/spawn-at/experiments/6-20-why-b-and-c-still-flash/) | Why B and C still flash under load | `reached` flashes are a late stamp; B timeouts are real |
+| [6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/) | Default cap 250 and the wire paint time | Wire time 0 of 40 flashes for B and C against 24 for A; no timeouts |
+| [6.22](/spawn-at/experiments/6-22-hostile-apps/) | Hostile apps | Cells match except two product findings; hard limit run live |
+| [6.23](/spawn-at/experiments/6-23-post-reinstall-live-check/) | Post-reinstall check and XWayland signals | Loaded D 0 of 40 against A 26 of 40; no XWayland signal reliable |
+| [6.24](/spawn-at/experiments/6-24-texture-reader/) | Texture reader and texture size as a signal | Reader works; texture size not usable |
 
 ## X11 and XWayland investigation (2026-10-14)
 
