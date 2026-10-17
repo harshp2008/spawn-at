@@ -1,21 +1,24 @@
-//! Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made,
-//! as a pure function so every environment can be tested without a desktop.
+//! Which Linux backend a session gets, as pure functions of three environment variables so every
+//! environment can be tested without a desktop. No I/O and no D-Bus: the caller reads the
+//! variables ([`Environment::from_process_env`]), connects the drivers and builds the backend.
 //!
-//! The order is: `SPAWN_AT_BACKEND=x11` (compared after lowercasing, so `X11` counts too) forces
-//! X11; otherwise, if `XDG_CURRENT_DESKTOP` contains `GNOME` (after uppercasing), the GNOME
-//! Wayland driver is tried first and used if it connects to the session bus; otherwise, and
-//! whenever the GNOME driver cannot connect, X11. Any other value of `SPAWN_AT_BACKEND` is
-//! ignored. `candidates` therefore gives every other desktop (KDE, Sway, Hyprland, none at all)
-//! X11.
+//! Order, as `candidates` implements it (values are only case-folded, never trimmed):
+//! 1. `SPAWN_AT_BACKEND` equal to `x11` after lowercasing (so `X11` counts, `X11 ` and ` x11`
+//!    do not): X11 only.
+//! 2. `SPAWN_AT_BACKEND` equal to `sway` after lowercasing: Sway only, with no fallback. It is
+//!    the only way to get the EXPERIMENTAL Sway backend; it is never chosen from the desktop.
+//! 3. `XDG_CURRENT_DESKTOP` containing `GNOME` after uppercasing (`ubuntu:GNOME` counts):
+//!    the GNOME Wayland driver first, then X11 if the caller finds the driver cannot connect.
+//! 4. Anything else, including every other desktop (KDE, Hyprland, none at all): X11.
 //!
-//! One exception, and the only way to get the EXPERIMENTAL Sway backend: `SPAWN_AT_BACKEND=sway`
-//! (compared after lowercasing like `x11`, nothing trimmed) selects Sway and nothing else. It is
-//! never chosen from the desktop.
+//! Any other value of `SPAWN_AT_BACKEND` (such as `gnome`) is ignored by `candidates`.
 //!
-//! Before `candidates` is used, `unsupported` refuses the one case that used to fall to X11 with
-//! no word: a non-GNOME session that is not X11 (`XDG_SESSION_TYPE` other than `x11`, or unset)
-//! with no forced `x11` or `sway`. A real X11 session on any desktop, and a forced backend, are
-//! untouched.
+//! Unsupported-desktop rule, `unsupported`, checked by the caller before `candidates`: a session
+//! is refused when `SPAWN_AT_BACKEND` is neither `x11` nor `sway`, `XDG_CURRENT_DESKTOP` does
+//! not contain `GNOME`, and `XDG_SESSION_TYPE` is not `x11` (after lowercasing; unset counts as
+//! not `x11`). A non-GNOME X11 session and a forced backend are accepted.
+//! `XDG_SESSION_TYPE` is read only by this rule.
+// Caller: `LinuxBackend::bootstrap` in src/platform/linux/mod.rs; `select` is test-only.
 
 /// A backend this registry can pick.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +31,8 @@ pub enum BackendId {
     Sway,
 }
 
-/// The two environment variables the choice reads, normalised the way the old code did.
+/// The three environment variables the choice reads, with the case normalised as the fields say.
+/// A variable that is unset or not valid UTF-8 reads as the empty string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Environment {
     /// `SPAWN_AT_BACKEND`, lowercased; empty when unset or not UTF-8.
@@ -73,8 +77,9 @@ impl Environment {
 ///
 /// Supported: `SPAWN_AT_BACKEND` forcing `x11` or `sway`; a desktop containing `GNOME`; or an X11
 /// session (`XDG_SESSION_TYPE=x11`), where the X11 backend is the right one on any desktop.
-/// Everything else (a non-GNOME Wayland session, or no session type at all) is unsupported:
-/// it used to get X11 without a word, which sees XWayland windows only.
+/// Everything else (a non-GNOME Wayland session, or no session type at all) is unsupported. The
+/// message names `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE` as set (`(unset)` when empty) and
+/// mentions `SPAWN_AT_BACKEND=sway` and `SPAWN_AT_BACKEND=x11`.
 pub fn unsupported(env: &Environment) -> Option<String> {
     if env.forced == "x11" || env.forced == "sway" {
         return None;
@@ -98,9 +103,10 @@ pub fn unsupported(env: &Environment) -> Option<String> {
     ))
 }
 
-/// The backends to try, in order. The last one is always `X11` (which needs no connection test),
-/// except when Sway is forced: then Sway is the only candidate and there is nothing to fall back
-/// to, because the user asked for it by name.
+/// The backends to try, in order (see the module header for the rules). The last one is `X11`
+/// (which needs no connection test), except when Sway is forced: then Sway is the only candidate
+/// and there is nothing to fall back to, because the user asked for it by name. Never empty.
+/// Does not look at `XDG_SESSION_TYPE`.
 pub fn candidates(env: &Environment) -> Vec<BackendId> {
     if env.forced == "x11" {
         return vec![BackendId::X11];
@@ -133,8 +139,9 @@ pub fn select(env: &Environment, mut gnome_connects: impl FnMut() -> bool) -> Ba
 mod tests {
     use super::*;
 
-    /// The selection exactly as `LinuxBackend::bootstrap` wrote it before this module existed
-    /// (the D-Bus connection result is a parameter instead of an await).
+    /// A reference model of the selection that knows only `x11` as a forced value (it knows no
+    /// `sway`) and takes the D-Bus connection result as a parameter instead of an await;
+    /// `select` is compared against it below.
     fn old_selection(forced_raw: &str, desktop_raw: &str, dbus_ok: bool) -> BackendId {
         let forced = forced_raw.to_lowercase();
         if forced == "x11" {

@@ -6,8 +6,12 @@
 
 use super::{Armed, Batch, CompositorBackend, Driver, DriverError};
 
-/// A backend that does nothing and refuses everything. Only `init_backend` off Linux builds it
-/// (and the tests), so on Linux the compiler sees no use.
+/// A backend that does nothing and refuses everything. `arm` fails with
+/// `UnsupportedCapability("Unsupported operating system")`; `name` is `"unsupported"`; all other
+/// methods keep the trait defaults (no provisioner, no capability, `get_windows` refuses);
+/// `resolve_id` returns the explicit class, else the first word of the command, else an empty
+/// string. Only `init_backend` off Linux builds it (and the tests), so on Linux the compiler
+/// sees no use.
 #[cfg_attr(target_os = "linux", allow(dead_code))]
 pub struct NullBackend;
 
@@ -40,8 +44,8 @@ impl CompositorBackend for NullBackend {
 mod tests {
     use super::*;
 
-    /// Everything the null backend is asked refuses with the same words the old non-Linux
-    /// `init_backend` error had; it needs nothing installed and has no capability.
+    /// Everything the null backend is asked refuses: `get_windows` names itself in the error and
+    /// `arm` carries the `WHY` text; it needs nothing installed and has no capability.
     #[tokio::test]
     async fn test_null_backend_refuses_everything() {
         let b = NullBackend;

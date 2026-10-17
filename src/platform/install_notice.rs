@@ -1,15 +1,22 @@
 //! The notice printed before an install on a platform spawn-at has not been run on, and the
 //! confirmation that goes with it. Pure: no I/O and no terminal, so the decision is tested for
 //! every GNOME version without a GNOME.
+//!
+//! It only builds the text and the yes/no decision; printing, prompting and reading the GNOME
+//! version belong to the callers.
+// Callers at this commit: `gnome_notice` from the GNOME provisioner (src/platform/linux/gnome/
+// deploy.rs) and `gate` from `main`'s install branch.
 
 /// Where to report problems.
 pub const ISSUES_URL: &str = "https://github.com/harshp2008/spawn-at/issues";
 
 /// What the install should say about the detected GNOME Shell, or `None` for the one
-/// configuration that has actually been run (GNOME 46 on Wayland).
+/// combination that gets no notice: major version 46 on Wayland.
 ///
-/// `major` is the GNOME Shell major version, `None` when `gnome-shell --version` could not be
-/// read. Two lines, so it is read before it is scrolled away.
+/// `major` is the GNOME Shell major version, `None` when it could not be read. The text is two
+/// lines: `NOTICE: ...`, then `It may not work. Bug reports are welcome: <ISSUES_URL>`. Wording
+/// by case: 46 on X11 is "only PARTLY tested"; 42 to 44 "uses the legacy extension" and is
+/// UNTESTED; any other version, and an unreadable one, is UNTESTED.
 pub fn gnome_notice(major: Option<u32>, wayland: bool) -> Option<String> {
     let tail = format!("It may not work. Bug reports are welcome: {ISSUES_URL}");
     match (major, wayland) {
@@ -38,9 +45,9 @@ pub enum Gate {
     Declined,
 }
 
-/// Decides whether the install goes on. With `--yes`, or when nobody can answer (headless, or no
-/// terminal), it goes on after the notice has been printed, so scripts keep working; otherwise
-/// `ask` is called and its answer decides.
+/// Decides whether the install goes on: `Proceed` when `yes` is set or `interactive` is false,
+/// without calling `ask`; otherwise `ask()` decides (true is `Proceed`). Whether the notice was
+/// printed is not this function's business.
 pub fn gate(yes: bool, interactive: bool, ask: impl FnOnce() -> bool) -> Gate {
     if yes || !interactive || ask() {
         Gate::Proceed

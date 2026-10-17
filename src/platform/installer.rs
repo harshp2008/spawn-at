@@ -1,16 +1,19 @@
-//! # OS-Level Binary Installer & Uninstaller
+//! Copies the running `spawn-at` executable into the bin directory of an [`InstallScope`] and
+//! removes it again. Only the binary: the extension and the config are other modules' business.
 //!
-//! Handles copying and removing the `spawn-at` binary to/from directories in `$PATH`
-//! for user and system installation scopes across operating systems.
+//! The directory comes from `platform::host().bin_dir(scope)`; this module hardcodes none. Both
+//! functions refuse with an error string on any OS but Linux (`cfg!(target_os = "linux")`), print
+//! their progress to stdout, and fall back to `sudo` (see `platform::escalate`) only when the
+//! plain copy or removal fails with `PermissionDenied`.
 
 use crate::platform::InstallScope;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-/// Stubs and documentation for macOS binary installation:
-/// - User Scope: `~/.local/bin/spawn-at`
-/// - System Scope: `/usr/local/bin/spawn-at`
+/// The macOS install path as text: `~/.local/bin/spawn-at` for user scope, `/usr/local/bin/spawn-at`
+/// for system scope. Not used by the install code (that is Linux only); only the test below calls
+/// it, which is why it has `allow(dead_code)`.
 #[allow(dead_code)]
 fn macos_destination_info(scope: InstallScope) -> &'static str {
     match scope {
@@ -19,9 +22,10 @@ fn macos_destination_info(scope: InstallScope) -> &'static str {
     }
 }
 
-/// Stubs and documentation for Windows binary installation:
-/// - User Scope: `%LOCALAPPDATA%\Programs\spawn-at\spawn-at.exe` (requires modifying HKCU\Environment registry key for PATH)
-/// - System Scope: `%ProgramFiles%\spawn-at\spawn-at.exe` (requires modifying HKLM\SYSTEM\CurrentControlSet\Control\Session Manager\Environment for PATH)
+/// The Windows install path as text: `%LOCALAPPDATA%\Programs\spawn-at\spawn-at.exe` for user
+/// scope, `%ProgramFiles%\spawn-at\spawn-at.exe` for system scope. Not used by the install code
+/// (that is Linux only); only the test below calls it. Nothing in this file edits PATH or the
+/// registry.
 #[allow(dead_code)]
 fn windows_destination_info(scope: InstallScope) -> &'static str {
     match scope {
@@ -36,12 +40,17 @@ fn get_target_dir(scope: InstallScope) -> Result<PathBuf, String> {
     crate::platform::host().bin_dir(scope)
 }
 
-/// Absolute path `install_binary(scope)` puts the binary at.
+/// The path `install_binary(scope)` puts the binary at: the scope's bin directory plus
+/// `spawn-at`. Absolute when the host's directory is (Linux: yes).
+///
+/// Errors: the host's message when the directory cannot be determined (Linux, user scope: `HOME`
+/// unset or not UTF-8). Touches nothing on disk.
 pub fn installed_binary_path(scope: InstallScope) -> Result<PathBuf, String> {
     Ok(get_target_dir(scope)?.join("spawn-at"))
 }
 
-/// Checks if `dir` is present in the current process's `$PATH`.
+/// True if `dir` equals an entry of this process's `PATH` as written, or after both are
+/// canonicalized. False when `PATH` is unset.
 fn is_in_path(dir: &PathBuf) -> bool {
     let path_env = match std::env::var_os("PATH") {
         Some(val) => val,
@@ -63,7 +72,17 @@ fn is_in_path(dir: &PathBuf) -> bool {
     })
 }
 
-/// Installs the currently running executable to the target scope directory (`~/.local/bin` or `/usr/local/bin`).
+/// Copies the running executable (`current_exe`) to `<bin dir>/spawn-at` and returns that path.
+///
+/// Creates the directory if missing; skips the copy when source and destination are the same
+/// file (compared after canonicalizing); sets mode 0755 after a plain copy (a failure to set it
+/// is ignored). Only prints a warning with `export PATH` advice, never edits a shell file, when
+/// the directory is not in `PATH`.
+///
+/// Errors: a message string on a non-Linux OS, when the executable or the directory cannot be
+/// found or created, when the copy fails for a reason other than `PermissionDenied`, or when
+/// the `sudo` fallback fails. A `PermissionDenied` while creating the directory is not an error
+/// by itself (the copy then fails or falls back to `sudo`).
 pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
     if !cfg!(target_os = "linux") {
         return Err(format!(
@@ -152,7 +171,11 @@ pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
     Ok(dest_file)
 }
 
-/// Removes the `spawn-at` binary from the specified target scope directory.
+/// Removes `<bin dir>/spawn-at` for `scope`. A missing file is not an error: it prints that the
+/// binary was not found and returns `Ok(())`.
+///
+/// Errors: a message string on a non-Linux OS, when the directory cannot be determined, or when
+/// the removal fails (after the `sudo` fallback for `PermissionDenied`).
 pub fn uninstall_binary(scope: InstallScope) -> Result<(), String> {
     if !cfg!(target_os = "linux") {
         return Err(format!(

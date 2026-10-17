@@ -9,11 +9,17 @@
 use super::{DriverError, InstallArgs, UninstallArgs};
 
 /// What a backend does for `spawn-at install` and `spawn-at uninstall`.
+///
+/// All three methods are required; there are no defaults. An implementor reports failure as a
+/// [`DriverError`]; the caller decides what to print.
+// The only implementor at this commit is `GnomeWaylandDriver` (src/platform/linux/gnome/
+// deploy.rs); the rest are test doubles.
 pub trait Provisioner: Send + Sync {
     /// A short notice to print (and confirm) before installing when this environment has not been
-    /// tested; `None` when it has.
+    /// tested; `None` when it has. It returns the text only; the caller prints and asks.
     fn install_notice(&self) -> Option<String>;
-    /// Installs what the backend needs (for GNOME: deploys and enables the extension).
+    /// Installs what the backend needs (for GNOME: deploys and enables the extension). Side
+    /// effects on the machine are the implementor's; `args` carries the scope and the flags.
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError>;
     /// Removes it again.
     fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError>;

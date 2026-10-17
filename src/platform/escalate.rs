@@ -1,12 +1,24 @@
-//! # Platform Privilege Escalation
+//! Copying or removing a file through `sudo` after a plain attempt was refused.
 //!
-//! Provides reactive elevation helpers (such as `sudo` on Linux/macOS or UAC on Windows)
-//! invoked only when standard filesystem operations fail with `PermissionDenied`.
+//! Linux and macOS run `sudo` as a child process with the terminal attached, so it may prompt
+//! for a password; on Windows both helpers return an error saying it is not implemented, and on
+//! any other target one saying it is unsupported. It must not be used as a first attempt: the
+//! helpers print a "Permission denied" notice themselves and do not try the plain operation.
+// Callers at this commit: src/platform/installer.rs, only in the `PermissionDenied` arm after
+// `fs::copy` or `fs::remove_file` failed.
 
 use std::path::Path;
 use std::process::Command;
 
-/// Attempts to execute a file copy with elevated privileges appropriate for the host OS.
+/// Copies `src` to `dest` through `sudo`.
+///
+/// Linux: `sudo install -D -m 755 src dest` (creates missing parent directories of `dest`).
+/// macOS: `sudo install -m 755 src dest` (no `-D`, so `dest`'s directory must exist).
+/// Prints a "Permission denied" notice to stdout first.
+///
+/// Errors: a message string if `sudo` cannot be started, if it exits non-zero ("Elevation was
+/// rejected or failed."), and always on Windows and on targets other than Linux, macOS and
+/// Windows.
 pub fn copy_elevated(src: &Path, dest: &Path) -> Result<(), String> {
     #[cfg(target_os = "linux")]
     {
@@ -59,7 +71,9 @@ pub fn copy_elevated(src: &Path, dest: &Path) -> Result<(), String> {
     }
 }
 
-/// Attempts to remove a file with elevated privileges.
+/// Removes `dest` through `sudo rm -f`, after printing the same "Permission denied" notice.
+///
+/// Errors: as [`copy_elevated`]. `rm -f` succeeds when the file is already gone.
 pub fn remove_elevated(dest: &Path) -> Result<(), String> {
     #[cfg(any(target_os = "linux", target_os = "macos"))]
     {

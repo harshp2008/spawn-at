@@ -1,6 +1,12 @@
 //! What `spawn-at update` needs to know about the desktop: whether a helper has to be deployed
 //! from the new binary, and whether the run should end with the log-out / reload question.
 //! Supplied by the platform so `update.rs` reads no desktop environment variable.
+//!
+//! None of the methods returns an error: a failing step is reported by the implementation on
+//! its own output and the upgrade goes on.
+// Providers at this commit: `gnome::GnomeUpdateHooks` on Linux (src/platform/linux/gnome/
+// deploy.rs) and a do-nothing stand-in in `non_linux.rs`. The only callers found by grep are in
+// `update.rs`.
 
 use std::path::Path;
 
@@ -9,10 +15,15 @@ pub trait UpdateHooks {
     /// After the new binary is unpacked and checked, before it replaces the running one: deploys
     /// what the desktop needs from it (GNOME: the Shell extension, via `install --skip-bin
     /// --headless`). Prints its own progress and warnings.
+    ///
+    /// Side effect: runs `new_binary` as a child process.
+    // GNOME does this only when `XDG_CURRENT_DESKTOP` contains GNOME (uppercased), and warns only
+    // when the child cannot be started; a child that runs and exits non-zero is not reported
+    // here (the status is not inspected).
     fn after_unpack(&self, new_binary: &Path);
 
     /// True if this desktop has a session action to offer after the upgrade (a log-out or a Shell
-    /// reload).
+    /// reload). GNOME: `XDG_CURRENT_DESKTOP` contains GNOME.
     fn offers_session_action(&self) -> bool;
 
     /// True if the session is Wayland (the question and the action differ from X11).
