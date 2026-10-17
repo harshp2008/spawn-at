@@ -5,9 +5,11 @@ title: "Install"
 ## The supported path
 
 ```bash
-# v0.2.0 is in beta, so --prerelease is needed for now
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash
 ```
+
+Without `--version`, this installs the latest stable release. `--version <tag>` installs that
+release and `--prerelease` takes the newest release including pre-releases.
 
 `install.sh` is fetched from the `main` branch of the repository. It:
 
@@ -59,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0
 
 # Remove an existing install first, without asking; your config file is kept (its [update] table is rewritten by the install that follows)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
@@ -75,14 +77,6 @@ cargo build --release && ./target/release/spawn-at install
 [the reference page](/spawn-at/reference/spawn-at-install/).
 
 ## Unsupported desktops
-
-:::note
-**Release status (remove after the first release newer than v0.2.0-beta.5).** `install.sh` is
-fetched from `main`, so the question below is asked whichever version it installs. The binary that
-the v0.2.0-beta.4 release installs does not refuse a non-GNOME Wayland desktop: it switches to the
-X11 driver without a message. The refusal is in the binary from v0.2.0-beta.5. The `install.sh`
-inside the beta.4 tag has no such question and is byte-identical to beta.3's (`CHANGELOG.md`).
-:::
 
 On a Wayland desktop that is not GNOME, `install.sh` prints a notice and asks
 `Install anyway? [y/N]` before it downloads anything. Answering no, or giving no answer, installs
@@ -139,5 +133,4 @@ system scope, or keep it; `src/main.rs`) and then really removes things. `uninst
 - `docs/KNOWLEDGE.md` ("Install and release", "Architecture map": login autostart entry)
 - `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")
 - `src/session.rs` (`decision`, `install_outcome`), `src/platform/linux/gnome/logout.rs` (`decide`), `src/main.rs` (`interactive`, `--dry-run`)
-- `git show v0.2.0-beta.4:src/platform/linux/registry.rs` and `git diff v0.2.0-beta.3 v0.2.0-beta.4 --quiet -- install.sh assets` (the release-status notes)
 - the output of `spawn-at install --help` and `spawn-at update --help`

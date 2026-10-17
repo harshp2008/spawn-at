@@ -1,7 +1,7 @@
 <h1 align="center">spawn-at</h1>
 
 <p align="center">
-  <a href="https://github.com/harshp2008/spawn-at/releases"><img src="https://img.shields.io/github/v/release/harshp2008/spawn-at?include_prereleases&style=flat-square&color=blue" alt="Latest Release"></a>
+  <a href="https://github.com/harshp2008/spawn-at/releases"><img src="https://img.shields.io/github/v/release/harshp2008/spawn-at?style=flat-square&color=blue" alt="Latest Release"></a>
   <a href="https://github.com/harshp2008/spawn-at/blob/main/Cargo.toml"><img src="https://img.shields.io/badge/rust-2021%20edition-orange?style=flat-square" alt="Rust Edition"></a>
   <a href="https://github.com/harshp2008/spawn-at/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License: MIT"></a>
 </p>
@@ -17,9 +17,10 @@ Want to open an app at an exact spot and size? On X11 you can move anything, but
 ## Install
 
 ```bash
-# v0.2.0 is in beta, so --prerelease is needed for now
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash
 ```
+
+This installs the latest stable release. `--version <tag>` installs a specific release and `--prerelease` takes the newest release including pre-releases (see [more install options](#more-install-options)).
 
 Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayland, log out and back in once so GNOME loads the extension (the installer asks last, and skips the question when the extension is unchanged and already running). On X11 the installer reloads the Shell in place and your apps stay open. On any other GNOME version the installer prints a notice first and asks before it installs (`--yes` skips the question). If spawn-at is already installed, an interactive install says where and which version and asks whether to upgrade in place (the default) or do a clean install; `--clean-install` does the clean install without asking and keeps your configuration. See [more install options](#more-install-options).
 
@@ -204,11 +205,11 @@ Only one configuration has been tested. **X11 and the legacy GNOME 42-44 extensi
 
 On an untested GNOME version the installer prints this before it installs anything and asks you to confirm; in a headless or non-interactive run it prints the notice and goes on. Apps that refuse a requested size can still end up larger than you asked for, but they're positioned using their final size, so anchors land correctly.
 
-**X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size and tried several signals on the test window. Most were not usable. The only leads are narrow: the X sync counter works as an experimental signal for GTK4-style clients only, and an `LD_PRELOAD` shim made one GTK4 test client map at the target size on one machine, with security and compatibility costs. No screen-capture measurement of what is visible has been made. **None of this ships in 0.2.0-beta.1, 0.2.0-beta.2, 0.2.0-beta.3 or 0.2.0-beta.4:** XWayland and X11 windows keep the old 30 ms rule and can still flash. Every number, what was tried and the caveats are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) 6.23 to 6.35 and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) sections 12 to 15.
+**X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size and tried several signals on the test window. Most were not usable. The only leads are narrow: the X sync counter works as an experimental signal for GTK4-style clients only, and an `LD_PRELOAD` shim made one GTK4 test client map at the target size on one machine, with security and compatibility costs. No screen-capture measurement of what is visible has been made. **None of this ships:** XWayland and X11 windows keep the old 30 ms rule and can still flash. Every number, what was tried and the caveats are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) 6.23 to 6.35 and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) sections 12 to 15.
 
 ## Sway (experimental)
 
-An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error from v0.2.0-beta.5 (in v0.2.0-beta.4 and earlier it falls back to the X11 driver without a message; from v0.2.0-beta.5, `SPAWN_AT_BACKEND=x11` opts in to that). Nothing needs installing; `spawn-at install` has nothing to do for it.
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error (`SPAWN_AT_BACKEND=x11` opts in to the X11 driver there). Nothing needs installing; `spawn-at install` has nothing to do for it.
 
 ```bash
 # inside a Sway session ($SWAYSOCK is set by Sway)
@@ -253,7 +254,10 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0
+
+# Newest release including pre-releases
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
 
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
