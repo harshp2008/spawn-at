@@ -130,8 +130,8 @@ impl LinuxBackend {
     /// Wayland driver when the desktop is GNOME and it connects, else X11.
     ///
     /// Errors: [`DriverError::Execution`] with the [`registry::unsupported`] message on an
-    /// unsupported desktop (that check is not in v0.2.0-beta.4); the error of
-    /// `SwayDriver::from_env` when Sway is forced and unreachable, with no fallback to X11. A
+    /// unsupported desktop; the error of `SwayDriver::from_env` when Sway is forced and
+    /// unreachable, with no fallback to X11. A
     /// GNOME connection failure is not an error: it falls through to X11.
     /// Side effects: opens the session D-Bus connection (GNOME) or the Sway socket.
     pub async fn bootstrap() -> Result<Box<dyn CompositorBackend>, DriverError> {

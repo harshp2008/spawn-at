@@ -18,9 +18,6 @@
 //! not contain `GNOME`, and `XDG_SESSION_TYPE` is not `x11` (after lowercasing; unset counts as
 //! not `x11`). A non-GNOME X11 session and a forced backend are accepted.
 //! `XDG_SESSION_TYPE` is read only by this rule.
-// Not in the v0.2.0-beta.4 tag (checked with `git merge-base --is-ancestor`): the
-// unsupported-desktop rule, commit f7e9b18. In the tag the Sway option (cd06a0d) and
-// `candidates` exist and every non-GNOME desktop falls through to X11 without a message.
 // Caller: `LinuxBackend::bootstrap` in src/platform/linux/mod.rs; `select` is test-only.
 
 /// A backend this registry can pick.
@@ -82,7 +79,7 @@ impl Environment {
 /// session (`XDG_SESSION_TYPE=x11`), where the X11 backend is the right one on any desktop.
 /// Everything else (a non-GNOME Wayland session, or no session type at all) is unsupported. The
 /// message names `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE` as set (`(unset)` when empty) and
-/// mentions `SPAWN_AT_BACKEND=sway` and `SPAWN_AT_BACKEND=x11`. Not in v0.2.0-beta.4.
+/// mentions `SPAWN_AT_BACKEND=sway` and `SPAWN_AT_BACKEND=x11`.
 pub fn unsupported(env: &Environment) -> Option<String> {
     if env.forced == "x11" || env.forced == "sway" {
         return None;
