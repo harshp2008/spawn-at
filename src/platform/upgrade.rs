@@ -1,10 +1,15 @@
 //! Detects an existing spawn-at install and plans what `spawn-at install` does about it:
-//! keep and upgrade in place (today's behaviour), do nothing, or a clean install that removes
-//! the old binary, extension and autostart entry first.
+//! install over it, do nothing, or a clean install that removes the old binary, extension and
+//! autostart entry first.
 //!
-//! A clean install never touches the config file or the settings in it: `spawn-at uninstall`
-//! does not remove them either, and nothing here does. The decision logic takes its facts and
-//! its prompt as arguments, so tests need no terminal, no real home and no real install.
+//! A clean install never touches the config file or the settings in it: there is no removal
+//! step for them here. The decision logic ([`plan`]) takes its facts and its prompt as
+//! arguments and prints nothing itself, so tests need no terminal, no real home and no real
+//! install. The probing ([`find_existing`], [`query_version`], [`detect`]) reads the file
+//! system and runs the candidate binaries with `-V`; the real removal ([`RealCleanOps`]) runs
+//! the uninstall code and so touches the live install.
+// Caller at this commit: the install branch of `main` (src/main.rs), which passes the real facts
+// and `dialoguer` prompts.
 
 use crate::platform::installer;
 use crate::platform::{CompositorBackend, InstallScope, UninstallArgs};
@@ -20,21 +25,29 @@ pub const VERSION_TIMEOUT: Duration = Duration::from_secs(2);
 /// An existing spawn-at binary.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Found {
+    /// The path as found (not canonicalized).
     pub path: PathBuf,
-    /// Version text for the user; `None` when `-V` failed or timed out.
+    /// Version text for the user; `None` when `-V` failed or timed out. `"dev build"` for a
+    /// development build.
     pub version: Option<String>,
+    /// The parsed version; `None` when `version` is `None`, for a development build, or when the
+    /// text does not parse.
     pub semver: Option<Version>,
 }
 
 /// The version being installed.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NewVersion {
+    /// The text shown to the user.
     pub display: String,
+    /// `None` when it cannot be compared (then the relation to an existing install is unknown).
     pub semver: Option<Version>,
 }
 
-/// Executable `spawn-at` files in the user location, the system location and on PATH, each once
-/// (symlinks resolved), never the running binary. Order: user, system, then PATH order.
+/// Executable `spawn-at` files in the user location, the system location and on PATH, each once,
+/// never the running binary. Order: user, system, then PATH order. Duplicates and the running
+/// binary are detected on the canonicalized path (symlinks resolved), but the returned paths are
+/// the uncanonicalized candidates. A candidate that does not exist is skipped.
 pub fn find_existing(
     user_bin: Option<&Path>,
     system_bin: &Path,
@@ -68,8 +81,9 @@ fn is_executable_file(p: &Path) -> bool {
     crate::platform::host().is_executable_file(p)
 }
 
-/// Runs `<path> -V` and returns its stdout, or `None` when it fails, prints nothing or does not
-/// finish within `timeout` (the process is killed then).
+/// Runs `<path> -V` and returns its trimmed stdout, or `None` when it cannot be started, exits
+/// non-zero, prints nothing or does not finish within `timeout` (the process is killed then).
+/// Polls every 20 ms. Side effect: executes `path`; stdin is closed and stderr discarded.
 pub fn query_version(path: &Path, timeout: Duration) -> Option<String> {
     let mut child = Command::new(path)
         .arg("-V")
@@ -100,8 +114,10 @@ pub fn query_version(path: &Path, timeout: Duration) -> Option<String> {
     }
 }
 
-/// Turns the text of `spawn-at -V` into what is shown and a comparable version. A release build
-/// prints `spawn-at <version>`; a development build prints `DEV BUILD ...` and has no version.
+/// Turns the text of `spawn-at -V` into what is shown and a comparable version. Only the first
+/// line counts. Text starting with `DEV BUILD` gives `("dev build", None)`; otherwise a leading
+/// `spawn-at ` is stripped and the rest is shown as is, with a version only if
+/// `update::parse_semver` accepts it.
 pub fn parse_version_output(out: &str) -> (String, Option<Version>) {
     let first = out.lines().next().unwrap_or("").trim();
     if first.starts_with("DEV BUILD") {
@@ -111,7 +127,9 @@ pub fn parse_version_output(out: &str) -> (String, Option<Version>) {
     (ver.to_string(), crate::update::parse_semver(ver))
 }
 
-/// Finds the existing binaries and asks each for its version.
+/// Finds the existing binaries ([`find_existing`]) and asks each for its version with
+/// [`query_version`] and [`VERSION_TIMEOUT`]; runs them one after another, so a hanging binary
+/// delays this by up to 2 s.
 pub fn detect(
     user_bin: Option<&Path>,
     system_bin: &Path,
@@ -136,7 +154,7 @@ pub fn detect(
 pub enum Choice {
     /// Leave everything as it is.
     NoChange,
-    /// Install over the existing one (today's behaviour).
+    /// Install over the existing one (also used for "reinstall" and "downgrade" items).
     Upgrade,
     /// Remove the existing install first.
     Clean,
@@ -146,7 +164,9 @@ pub enum Choice {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Question {
     pub prompt: String,
+    /// The labels shown and what each one means, in display order.
     pub items: Vec<(String, Choice)>,
+    /// Index into `items` of the preselected item.
     pub default: usize,
 }
 
@@ -161,6 +181,8 @@ pub enum Plan {
     Stop,
 }
 
+// How the existing install's version compares with the one being installed; `Unknown` when
+// either has no parsed version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Relation {
     Same,
@@ -200,13 +222,16 @@ fn describe(found: &[Found], new: &NewVersion) -> Vec<String> {
 }
 
 /// Decides what to do. `say` prints a line; `ask` shows a question and returns the index of the
-/// picked item, or `None` when the prompt cannot be shown (then nothing is uninstalled).
+/// picked item, or `None` when the prompt cannot be shown (then the result is [`Plan::Proceed`]:
+/// the install goes on over the existing one and nothing is uninstalled).
 ///
 /// - nothing found: proceed (with `clean_flag`, say that the flag had nothing to do);
-/// - `clean_flag`: clean install, no question, interactive or not;
-/// - not interactive, no flag: proceed, silently, nothing uninstalled;
-/// - interactive: describe what was found and ask; the default keeps the install (for a
-///   downgrade: stops, so the newer version is not replaced by accident).
+/// - `clean_flag` with something found: [`Plan::Clean`], no question, interactive or not;
+/// - not interactive, no flag: proceed, silently, nothing uninstalled (also over a NEWER one);
+/// - interactive: describe what was found and ask. Only the first entry of `found` is compared
+///   with `new`. The default item is "keep, change nothing" ([`Plan::Stop`]) when the versions
+///   are the same or the installed one is newer, and "upgrade in place" otherwise (older, or
+///   either version unknown).
 pub fn plan(
     found: &[Found],
     new: &NewVersion,
@@ -283,9 +308,13 @@ pub fn plan(
 }
 
 /// The steps of a clean install's removal, so tests can record them.
+// Implemented by `RealCleanOps` below and by recorders in the tests.
 pub trait CleanOps {
+    /// Removes one found binary. An error stops [`run_clean`].
     fn remove_binary(&mut self, path: &Path) -> Result<(), String>;
+    /// Removes the extension. An error stops [`run_clean`] before the autostart entry.
     fn remove_extension(&mut self) -> Result<(), String>;
+    /// Removes the login autostart entry; cannot fail from the caller's side.
     fn remove_autostart(&mut self);
 }
 
@@ -305,8 +334,13 @@ pub fn run_clean(
     Ok(())
 }
 
-/// The real removal: the same code `spawn-at uninstall` runs, minus its prompts and any
-/// log-out or reload.
+/// The real removal: it calls the backend's `uninstall` with `skip_bin`, `headless` and, on
+/// Linux, the GNOME flags `gnome_delete_files` and `no_action` (no log-out or reload), plus
+/// `installer::uninstall_binary` and the autostart removal. Side effects: deletes files of the
+/// live install. Tests must use a recording `CleanOps` instead.
+///
+/// A found binary is removed only if its path is `user_bin/spawn-at` or `system_bin/spawn-at`;
+/// any other (a copy on `PATH`) is reported as "Not removed" and kept.
 pub struct RealCleanOps<'a> {
     pub driver: &'a dyn CompositorBackend,
     pub user_bin: Option<PathBuf>,
