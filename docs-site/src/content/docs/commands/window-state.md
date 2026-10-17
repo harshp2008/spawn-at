@@ -51,9 +51,17 @@ and `restore`. On `spawn` they are accepted and ignored; see [spawn](/spawn-at/c
 - **A window on another workspace is not found.** On GNOME, `focus`, `defocus`, the state commands
   and `close` look at the windows of the active workspace only. The extension answers "false" and the
   CLI reports that the compositor failed to do it. This is pinned by a node test, not fixed.
-- **Success does not prove the state changed.** After the action, these commands wait up to 2
-  seconds, polling every 50 ms, for the window to reach the new state. If it never does, they still
-  exit 0. This is pinned by tests and is not fixed, because reporting it would change an exit code.
+- **Success does not prove the state changed.** After the action, `focus`, `defocus`, `maximize`,
+  `minimize`, `restore` and `transform` wait up to 2 seconds, polling every 50 ms, for the window to
+  reach the new state. If it never does, they still exit 0. This is pinned by tests and is not
+  fixed, because reporting it would change an exit code. `--no-wait` skips the wait.
+- **`defocus` prints its success line either way.** Once it has sent the request, it prints
+  `Defocused window '...' (focus yielded to ...)` whether the wait found the window unfocused, timed
+  out, or was skipped with `--no-wait`.
+- **`close` does check.** It polls every 50 ms for up to 1500 ms for the window to leave the window
+  list and fails with `did not close within ...` if it is still there, for example when the
+  application asks the user to save first. `--no-wait` skips this check. A failure to read the window list during that wait counts
+  as "closed".
 - **`close` asks, it does not force.** It needs extension protocol 3 on GNOME. The `close` tests that
   exist use a mock backend and a D-Bus stub; the live use is cleanup of the project's test windows.
 - **Sway** supports `focus` and `close`. It does not support `defocus`, `maximize`, `minimize` or

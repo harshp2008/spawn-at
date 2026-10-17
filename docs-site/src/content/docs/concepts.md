@@ -104,6 +104,11 @@ A window never stays invisible. Registrations expire after 15 seconds (1.2 secon
 matches), a window that matches nothing is revealed at once, and an error during placement restores
 the opacity. If something goes wrong you get a normally placed window.
 
+Nothing withdraws a registration early. `spawn-at` does not send the extension's disarm call on
+Linux, not even when the program fails to start, so a registration the program never claims stays
+until it expires. A window that the extension matches to it in that time is placed instead; see
+[Known limits](/spawn-at/known-limits/).
+
 After the reveal, the extension corrects a resize that arrives late by re-anchoring, and keeps a
 listener for size changes: when the app resizes itself and the anchored position moves, the frame is
 moved back. The listener is dropped when the window closes or one second after the last correction.

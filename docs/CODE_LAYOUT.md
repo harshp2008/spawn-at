@@ -1,6 +1,6 @@
 # Code layout
 
-What is in the repository now. The file list below is generated from the tracked files: line counts are `wc -l`, and the last column is the first `//!` line of the file itself (blank when the file has none). Where the tables and the code disagree, the code wins. Build and test commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
+What is in the repository now. The file list below is generated from the tracked files: the last column is the first `//!` line of the file itself (blank when the file has none). The tables carry no line counts; use `wc -l` when you need one. Where the tables and the code disagree, the code wins. Build and test commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 An earlier version of this file was a reorganization proposal (target layout, move map, stages 1 to 5). Only stage 1, the modularization of `spawn-at-verify`, was carried out; the rest was never built, and its paths no longer matched the tree, so it was removed. It is in git history (`git log -- docs/CODE_LAYOUT.md`).
 
@@ -27,276 +27,276 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### spawn-at (the CLI, `src/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `src/cli/args.rs` | 673 | CLI Argument Structs and Definitions |
-| `src/cli/mod.rs` | 84 | Command Line Interface Definitions |
-| `src/cli/tests.rs` | 1338 |  |
-| `src/commands/config.rs` | 40 | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
-| `src/commands/focus.rs` | 122 | Window Focus Command Handlers |
-| `src/commands/lifecycle.rs` | 209 | Window Lifecycle State Command Handlers |
-| `src/commands/mod.rs` | 1489 | Command Handlers |
-| `src/commands/query.rs` | 816 | Compositor State Query Command Handlers |
-| `src/commands/spawn.rs` | 1325 | Spawn Command Handler |
-| `src/commands/transform.rs` | 368 | Window Transformation Command Handler |
-| `src/config.rs` | 429 | Configuration Manager |
-| `src/diagnostics.rs` | 1481 | Centralized Diagnostics Layer |
-| `src/main.rs` | 454 | spawn-at: Modular Zero-Flicker Window Placement Engine |
-| `src/platform/capability.rs` | 422 | What a backend can do, and narrow views of the backend trait. |
-| `src/platform/escalate.rs` | 93 | Platform Privilege Escalation |
-| `src/platform/install_notice.rs` | 108 | The notice printed before an install on a platform spawn-at has not been run on, and the |
-| `src/platform/host.rs` | 35 | What the operating system decides: bin dirs, autostart path, executable test, detaching a child. |
-| `src/platform/installer.rs` | 226 | OS-Level Binary Installer & Uninstaller |
-| `src/platform/linux/config_store.rs` | 141 | The config file on Linux: where it is and how it is read and written. |
-| `src/platform/linux/host.rs` | 137 | The Linux Host: the values the installer, the update check and the launcher always used. |
-| `src/platform/linux/gnome/args.rs` | 73 | Command-line flags of the GNOME install and uninstall steps. |
-| `src/platform/linux/gnome/dbus.rs` | 51 |  |
-| `src/platform/linux/gnome/deploy.rs` | 438 | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
-| `src/platform/linux/gnome/detect.rs` | 112 | Detection of the GNOME Shell version and of a Wayland session. |
-| `src/platform/linux/gnome/driver.rs` | 529 | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
-| `src/platform/linux/gnome/logout.rs` | 411 | Decides whether a GNOME Wayland install still needs a log-out. |
-| `src/platform/linux/gnome/mechanics.rs` | 640 | Internal GNOME Compositor Mechanics |
-| `src/platform/linux/gnome/mod.rs` | 78 | GNOME Compositor Backend & Extension Driver |
-| `src/platform/linux/gnome/tests.rs` | 780 |  |
-| `src/platform/linux/mod.rs` | 686 |  |
-| `src/platform/linux/process_tree.rs` | 33 | Process Tree Introspection Helpers |
-| `src/platform/linux/registry.rs` | 273 | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
-| `src/platform/linux/sway/client.rs` | 163 | A blocking connection to the Sway IPC socket. The framing is in `ipc`; this adds the socket, |
-| `src/platform/linux/sway/command.rs` | 135 | The text of the commands sent with `RUN_COMMAND`. Pure: every number is an integer, and the |
-| `src/platform/linux/sway/fake.rs` | 150 | A scripted stand-in for the Sway IPC socket, for tests (compiled only for tests). |
-| `src/platform/linux/sway/ipc.rs` | 268 | The Sway (i3) IPC wire format: framing only, no sockets. |
-| `src/platform/linux/sway/matching.rs` | 261 | Which new window belongs to the process spawn-at launched. Pure: the process-tree test is a |
-| `src/platform/linux/sway/mod.rs` | 418 | Sway backend (EXPERIMENTAL) |
-| `src/platform/linux/sway/place.rs` | 249 | The write side over blocking connections: waiting for the new window, placing it, and the |
-| `src/platform/linux/sway/tests_write.rs` | 583 | Placement, matching and the single-window commands against the scripted fake IPC server |
-| `src/platform/linux/sway/types.rs` | 620 | The JSON Sway sends, parsed into plain types, and the conversions to what the neutral code |
-| `src/platform/linux/x11/atoms.rs` | 37 | X11 Atoms and Diagnostic Logging |
-| `src/platform/linux/x11/interception.rs` | 294 | X11 Spawn Interception Pipeline |
-| `src/platform/linux/x11/mod.rs` | 403 | Native X11 Compositor Driver |
-| `src/platform/linux/x11/session.rs` | 643 | X11 Display Session and Window Operations |
-| `src/platform/linux/x11/tests.rs` | 265 | Native X11 Driver Tests |
-| `src/platform/linux/xdg.rs` | 198 | Linux XDG Desktop Entry & Wayland App ID Resolver |
-| `src/platform/mod.rs` | 395 | Platform & Compositor Driver Abstraction Layer |
-| `src/platform/null_backend.rs` | 71 | The backend of an operating system spawn-at does not support. |
-| `src/platform/provisioner.rs` | 110 | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
-| `src/platform/session_actions.rs` | 36 | What ends a run: logging out, or reloading the shell. |
-| `src/platform/update_hooks.rs` | 66 | What `spawn-at update` needs to know about the desktop. |
-| `src/platform/non_linux.rs` | 81 | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
-| `src/platform/upgrade.rs` | 750 | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
-| `src/prompts.rs` | 207 | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
-| `src/session.rs` | 854 | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
-| `src/target.rs` | 592 | Window Target Resolution Engine |
-| `src/ui.rs` | 308 | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
-| `src/update.rs` | 1403 | Update Manager & Release Checker |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `src/cli/args.rs` | CLI Argument Structs and Definitions |
+| `src/cli/mod.rs` | Command Line Interface Definitions |
+| `src/cli/tests.rs` |  |
+| `src/commands/config.rs` | `spawn-at config`: show, get, set, unset, path and reset for the user's settings. It needs no |
+| `src/commands/focus.rs` | Window Focus Command Handlers |
+| `src/commands/lifecycle.rs` | Window Lifecycle State Command Handlers |
+| `src/commands/mod.rs` | Command Handlers |
+| `src/commands/query.rs` | Compositor State Query Command Handlers |
+| `src/commands/spawn.rs` | Spawn Command Handler |
+| `src/commands/transform.rs` | Window Transformation Command Handler |
+| `src/config.rs` | Configuration Manager |
+| `src/diagnostics.rs` | Centralized Diagnostics Layer |
+| `src/main.rs` | spawn-at: Modular Zero-Flicker Window Placement Engine |
+| `src/platform/capability.rs` | What a backend can do, and narrow views of the backend trait. |
+| `src/platform/escalate.rs` | Platform Privilege Escalation |
+| `src/platform/install_notice.rs` | The notice printed before an install on a platform spawn-at has not been run on, and the |
+| `src/platform/host.rs` | What the operating system decides: bin dirs, autostart path, executable test, detaching a child. |
+| `src/platform/installer.rs` | OS-Level Binary Installer & Uninstaller |
+| `src/platform/linux/config_store.rs` | The config file on Linux: where it is and how it is read and written. |
+| `src/platform/linux/host.rs` | The Linux Host: the values the installer, the update check and the launcher always used. |
+| `src/platform/linux/gnome/args.rs` | Command-line flags of the GNOME install and uninstall steps. |
+| `src/platform/linux/gnome/dbus.rs` |  |
+| `src/platform/linux/gnome/deploy.rs` | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded |
+| `src/platform/linux/gnome/detect.rs` | Detection of the GNOME Shell version and of a Wayland session. |
+| `src/platform/linux/gnome/driver.rs` | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the |
+| `src/platform/linux/gnome/logout.rs` | Decides whether a GNOME Wayland install still needs a log-out. |
+| `src/platform/linux/gnome/mechanics.rs` | Internal GNOME Compositor Mechanics |
+| `src/platform/linux/gnome/mod.rs` | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/tests.rs` |  |
+| `src/platform/linux/mod.rs` |  |
+| `src/platform/linux/process_tree.rs` | Process Tree Introspection Helpers |
+| `src/platform/linux/registry.rs` | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
+| `src/platform/linux/sway/client.rs` | A blocking connection to the Sway IPC socket. The framing is in `ipc`; this adds the socket, |
+| `src/platform/linux/sway/command.rs` | The text of the commands sent with `RUN_COMMAND`. Pure: every number is an integer, and the |
+| `src/platform/linux/sway/fake.rs` | A scripted stand-in for the Sway IPC socket, for tests (compiled only for tests). |
+| `src/platform/linux/sway/ipc.rs` | The Sway (i3) IPC wire format: framing only, no sockets. |
+| `src/platform/linux/sway/matching.rs` | Which new window belongs to the process spawn-at launched. Pure: the process-tree test is a |
+| `src/platform/linux/sway/mod.rs` | Sway backend (EXPERIMENTAL) |
+| `src/platform/linux/sway/place.rs` | The write side over blocking connections: waiting for the new window, placing it, and the |
+| `src/platform/linux/sway/tests_write.rs` | Placement, matching and the single-window commands against the scripted fake IPC server |
+| `src/platform/linux/sway/types.rs` | The JSON Sway sends, parsed into plain types, and the conversions to what the neutral code |
+| `src/platform/linux/x11/atoms.rs` | X11 Atoms and Diagnostic Logging |
+| `src/platform/linux/x11/interception.rs` | X11 Spawn Interception Pipeline |
+| `src/platform/linux/x11/mod.rs` | Native X11 Compositor Driver |
+| `src/platform/linux/x11/session.rs` | X11 Display Session and Window Operations |
+| `src/platform/linux/x11/tests.rs` | Native X11 Driver Tests |
+| `src/platform/linux/xdg.rs` | Linux XDG Desktop Entry & Wayland App ID Resolver |
+| `src/platform/mod.rs` | Platform & Compositor Driver Abstraction Layer |
+| `src/platform/null_backend.rs` | The backend of an operating system spawn-at does not support. |
+| `src/platform/provisioner.rs` | Setup and teardown of what a backend needs on the machine (for GNOME: the Shell extension). |
+| `src/platform/session_actions.rs` | What ends a run: logging out, or reloading the shell. |
+| `src/platform/update_hooks.rs` | What `spawn-at update` needs to know about the desktop. |
+| `src/platform/non_linux.rs` | Stand-in for `platform::linux` on operating systems spawn-at does not support yet. |
+| `src/platform/upgrade.rs` | Detects an existing spawn-at install and plans what `spawn-at install` does about it: |
+| `src/prompts.rs` | Every dialoguer prompt and item list of the program, in one place, with a guard test. |
+| `src/session.rs` | The end of a run: the question about logging out (or reloading the X11 Shell), the advice about it, and the log-out itself. |
+| `src/target.rs` | Window Target Resolution Engine |
+| `src/ui.rs` | Layout of the installer's terminal output: every block of output (a `=== ... ===` section or a plain group of lines) is separated from the |
+| `src/update.rs` | Update Manager & Release Checker |
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `crates/spawn-at-core/src/driver.rs` | 140 | Declarative Compositor Driver Abstraction |
-| `crates/spawn-at-core/src/geometry.rs` | 1680 | Pure Mathematical Geometry Engine |
-| `crates/spawn-at-core/src/lib.rs` | 23 | spawn-at-core |
-| `crates/spawn-at-core/src/ready_wait.rs` | 535 | Ready-wait state machine |
-| `crates/spawn-at-core/src/resize_report.rs` | 147 | Resize report |
-| `crates/spawn-at-core/src/settings.rs` | 584 | User settings: schema, validation, defaults, precedence and the `config` commands |
-| `crates/spawn-at-core/src/settings/tests.rs` | 365 |  |
-| `crates/spawn-at-core/src/wait_override.rs` | 203 | Per-spawn override of the resize wait |
-| `crates/spawn-at-core/tests/golden_placement.rs` | 292 |  |
-| `crates/spawn-at-core/tests/ready_wait_vectors.rs` | 100 | Runs every golden script in `tests/ready_wait_vectors/scripts/` through the Rust ready-wait |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `crates/spawn-at-core/src/driver.rs` | Declarative Compositor Driver Abstraction |
+| `crates/spawn-at-core/src/geometry.rs` | Pure Mathematical Geometry Engine |
+| `crates/spawn-at-core/src/lib.rs` | spawn-at-core |
+| `crates/spawn-at-core/src/ready_wait.rs` | Ready-wait state machine |
+| `crates/spawn-at-core/src/resize_report.rs` | Resize report |
+| `crates/spawn-at-core/src/settings.rs` | User settings: schema, validation, defaults, precedence and the `config` commands |
+| `crates/spawn-at-core/src/settings/tests.rs` |  |
+| `crates/spawn-at-core/src/wait_override.rs` | Per-spawn override of the resize wait |
+| `crates/spawn-at-core/tests/golden_placement.rs` |  |
+| `crates/spawn-at-core/tests/ready_wait_vectors.rs` | Runs every golden script in `tests/ready_wait_vectors/scripts/` through the Rust ready-wait |
 
 ### xtask (`crates/xtask/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `crates/xtask/src/burn_cpu.rs` | 242 | `burn-cpu`: keeps N threads of this process spinning for S seconds, to put the machine under |
-| `crates/xtask/src/comment_only.rs` | 205 | `check-comment-only`: verifies a commit changes only comments relative to a base revision. |
-| `crates/xtask/src/compiler_docs.rs` | 117 | Compiler-backed documentation check: collects rustc's `missing_docs` warnings. |
-| `crates/xtask/src/doc_coverage.rs` | 276 | `check-doc-coverage`: text scan for undocumented items, merged with the compiler lint. |
-| `crates/xtask/src/docs_check.rs` | 565 | `docs-check-src`: checks the markdown of the site (`docs-site/src/content/docs`) and the Starlight config before the site is built. |
-| `crates/xtask/src/docs_cli.rs` | 499 | `docs-cli-reference`: writes one Starlight page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
-| `crates/xtask/src/docs_html.rs` | 758 | `docs-check-html`: checks the assembled site (Astro output plus `api/`) without any network access. |
-| `crates/xtask/src/docs_site.rs` | 267 | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
-| `crates/xtask/src/main.rs` | 93 | xtask: Internal developer and CI tooling for spawn-at. |
-| `crates/xtask/tests/burn_cpu_test.rs` | 38 | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `crates/xtask/src/burn_cpu.rs` | `burn-cpu`: keeps N threads of this process spinning for S seconds, to put the machine under |
+| `crates/xtask/src/comment_only.rs` | `check-comment-only`: verifies a commit changes only comments relative to a base revision. |
+| `crates/xtask/src/compiler_docs.rs` | Compiler-backed documentation check: collects rustc's `missing_docs` warnings. |
+| `crates/xtask/src/doc_coverage.rs` | `check-doc-coverage`: text scan for undocumented items, merged with the compiler lint. |
+| `crates/xtask/src/docs_check.rs` | `docs-check-src`: checks the markdown of the site (`docs-site/src/content/docs`) and the Starlight config before the site is built. |
+| `crates/xtask/src/docs_cli.rs` | `docs-cli-reference`: writes one Starlight page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
+| `crates/xtask/src/docs_html.rs` | `docs-check-html`: checks the assembled site (Astro output plus `api/`) without any network access. |
+| `crates/xtask/src/docs_site.rs` | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
+| `crates/xtask/src/main.rs` | xtask: Internal developer and CI tooling for spawn-at. |
+| `crates/xtask/tests/burn_cpu_test.rs` | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
 
 ### spawn-at-verify, library and binaries (`crates/spawn-at-verify/src/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `crates/spawn-at-verify/src/bin/fixture.rs` | 393 | Standalone GUI test fixture window application (`winit` + `softbuffer`). |
-| `crates/spawn-at-verify/src/bin/fixture/behaviour.rs` | 298 | Hostile-app behaviours of the fixture, as pure decisions (harness only; never in the product). |
-| `crates/spawn-at-verify/src/bin/fixture/font.rs` | 404 | Bitmap font table (10x16) generated from DejaVu Sans Mono Bold. |
-| `crates/spawn-at-verify/src/bin/fixture/mod.rs` | 7 | Fixture window, renderer, and bitmap font modules. |
-| `crates/spawn-at-verify/src/bin/fixture/renderer.rs` | 151 | Softbuffer frame drawing and bitmap text rendering. |
-| `crates/spawn-at-verify/src/bin/fixture/trace.rs` | 144 | Event files of the fixture: a developer trace and the client-side events the harness reads. |
-| `crates/spawn-at-verify/src/bin/fixture/window.rs` | 383 | Window creation, winit event loop, and signal handling. |
-| `crates/spawn-at-verify/src/cli/args.rs` | 310 | CLI argument parser schemas and subcommand definitions. |
-| `crates/spawn-at-verify/src/cli/calibrate.rs` | 403 | Handler for `spawn-at-verify calibrate`: repeated measurement of one case's cloak duration. |
-| `crates/spawn-at-verify/src/cli/check.rs` | 97 | Handler for `spawn-at-verify check` subcommand. |
-| `crates/spawn-at-verify/src/cli/list.rs` | 49 | Handler for `spawn-at-verify list` subcommand. |
-| `crates/spawn-at-verify/src/cli/mod.rs` | 37 | CLI argument models and subcommand handlers. |
-| `crates/spawn-at-verify/src/cli/render.rs` | 54 | Handler for `spawn-at-verify render`: prints the TUI drawer for a recorded real case. |
-| `crates/spawn-at-verify/src/cli/report.rs` | 67 | Handler for `spawn-at-verify report` subcommand. |
-| `crates/spawn-at-verify/src/cli/run.rs` | 300 | Handler for `spawn-at-verify run` subcommand. |
-| `crates/spawn-at-verify/src/cli/run_summary.rs` | 346 | Counting, summary text and process exit code for `spawn-at-verify run`. |
-| `crates/spawn-at-verify/src/cli/smoke_eval.rs` | 214 | Helper CLI utilities for smoke-live.sh JSON evaluation and placement verification. |
-| `crates/spawn-at-verify/src/cli/tui.rs` | 30 | Handler for `spawn-at-verify tui` subcommand. |
-| `crates/spawn-at-verify/src/display.rs` | 180 | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
-| `crates/spawn-at-verify/src/ext_logging.rs` | 605 | Control of the GNOME extension's timing log over session D-Bus. |
-| `crates/spawn-at-verify/src/lib.rs` | 34 | spawn-at-verify |
-| `crates/spawn-at-verify/src/loadavg.rs` | 124 | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
-| `crates/spawn-at-verify/src/loader/filter.rs` | 42 | Test filter criteria and pattern matching. |
-| `crates/spawn-at-verify/src/loader/mod.rs` | 12 | Test loader and suite registry for spawn-at-verify. |
-| `crates/spawn-at-verify/src/loader/registry.rs` | 232 | Test registry discovery, loading, and collection management. |
-| `crates/spawn-at-verify/src/loader/tests.rs` | 231 | Unit tests for test loader, filtering, and tree visualization. |
-| `crates/spawn-at-verify/src/loader/tree.rs` | 76 | Hierarchical formatting and summary generation for test definitions. |
-| `crates/spawn-at-verify/src/log_source.rs` | 192 | Log Capture Abstraction (`LogSource` trait). |
-| `crates/spawn-at-verify/src/main.rs` | 20 | CLI binary entrypoint for spawn-at-verify. |
-| `crates/spawn-at-verify/src/no_config.rs` | 50 | Keeps the user's `spawn-at` config file out of harness runs. |
-| `crates/spawn-at-verify/src/oracle/calculator.rs` | 244 | Mathematical placement calculations, anchor formulas, and pivot offsets. |
-| `crates/spawn-at-verify/src/oracle/check.rs` | 730 | Comparison of an observed placement against the oracle's expected rectangle. |
-| `crates/spawn-at-verify/src/oracle/mod.rs` | 15 | Mathematical placement oracle and golden vector cross-validation. |
-| `crates/spawn-at-verify/src/oracle/tests/golden.rs` | 516 | Hand-computed golden placement calculations and tolerance checks. |
-| `crates/spawn-at-verify/src/oracle/tests/min_size.rs` | 168 | Oracle with a fixture minimum: expected size is `max(requested, minimum)` per axis, the |
-| `crates/spawn-at-verify/src/oracle/tests/mod.rs` | 5 | Oracle test suite organizing hand-computed golden vectors and file-based checks. |
-| `crates/spawn-at-verify/src/oracle/tests/vectors.rs` | 99 | Shared golden placement vector file cross-validation. |
-| `crates/spawn-at-verify/src/preflight.rs` | 318 | Preflight Gate: binary freshness & git status inspection. |
-| `crates/spawn-at-verify/src/probe.rs` | 380 | Environment probe: checks desktop environment, session type, and app availability. |
-| `crates/spawn-at-verify/src/process.rs` | 166 | Safe Process Execution Pipeline |
-| `crates/spawn-at-verify/src/report/builder.rs` | 215 | Session report builder, qualification evaluator, and artifact writer. |
-| `crates/spawn-at-verify/src/report/markdown.rs` | 225 | Markdown session report rendering. |
-| `crates/spawn-at-verify/src/report/mod.rs` | 14 | Verification session report models, redaction, and JSON/Markdown export. |
-| `crates/spawn-at-verify/src/report/models.rs` | 119 | Session report and qualification summary data structures. |
-| `crates/spawn-at-verify/src/report/redaction.rs` | 117 | Title redaction, privacy filtering, and timestamp formatting utilities. |
-| `crates/spawn-at-verify/src/report/tests.rs` | 668 | Unit tests for report structures, redaction, and formatting. |
-| `crates/spawn-at-verify/src/runner/engine.rs` | 175 | Test runner execution engine, repeat loops, and process orchestration. |
-| `crates/spawn-at-verify/src/runner/executor.rs` | 536 | Single-test execution, process invocation, log capture, and attribution. |
-| `crates/spawn-at-verify/src/runner/flash.rs` | 342 | Flash check of one run: where the fixture writes its events, how long the run watches after the |
-| `crates/spawn-at-verify/src/runner/flash_tests.rs` | 306 | Wiring of the flash check: the journal slice, the fixture's event text and the anchor brackets |
-| `crates/spawn-at-verify/src/runner/mod.rs` | 29 | Test execution engine, results aggregation, and validation checks. |
-| `crates/spawn-at-verify/src/runner/models.rs` | 375 | Outcome models, execution options, and verdict resolution rules for test runs. |
-| `crates/spawn-at-verify/src/runner/resize_expect_tests.rs` | 135 | `[expect.resize]`: the ready-wait outcome a spec declares, read from the CLI's `--json`. |
-| `crates/spawn-at-verify/src/runner/tests.rs` | 751 | Unit tests for test runner execution, parsing, and verdict resolution. |
-| `crates/spawn-at-verify/src/runner/trace_capture_tests.rs` | 492 | Runs `execute_single_test` against `/bin/echo` and a fake extension to check that logging is |
-| `crates/spawn-at-verify/src/runner/validation.rs` | 407 | Expectation verification, output matching, and action argument building. |
-| `crates/spawn-at-verify/src/runner/wire_paint_tests.rs` | 263 | Wire paint times in the flash check: the client's commit read from the fixture's protocol dump |
-| `crates/spawn-at-verify/src/schema/matrix.rs` | 171 | Test definition matrix expansion and categorization helpers. |
-| `crates/spawn-at-verify/src/schema/mod.rs` | 12 | Declarative TOML test definition schemas, matrix expansion, and validation rules. |
-| `crates/spawn-at-verify/src/schema/suite.rs` | 65 | Test suite definition schema models. |
-| `crates/spawn-at-verify/src/schema/tests.rs` | 234 | Unit tests for schema models and matrix expansion rules. |
-| `crates/spawn-at-verify/src/schema/types.rs` | 258 | Core declarative TOML schema data models. |
-| `crates/spawn-at-verify/src/trace/analyser.rs` | 266 | Trace invariant analysis, lifecycle verification, and timing budget checks. |
-| `crates/spawn-at-verify/src/trace/flash.rs` | 765 | Flash detection: was the window shown before it was ready, or did it change after the reveal? |
-| `crates/spawn-at-verify/src/trace/mod.rs` | 16 | Trace log event parser, lifecycle state machine, and budget checks. |
-| `crates/spawn-at-verify/src/trace/models.rs` | 112 | Trace data models, events, and violation structures. |
-| `crates/spawn-at-verify/src/trace/parser.rs` | 261 | Trace log parsing, event extraction, and regex tokenization. |
-| `crates/spawn-at-verify/src/trace/phases.rs` | 105 | Phase gaps inside one window's placement trace, for diagnosing where cloak time goes. |
-| `crates/spawn-at-verify/src/trace/report.rs` | 72 | Trace analysis summary and outcome reporting models. |
-| `crates/spawn-at-verify/src/trace/state.rs` | 70 | Whether a log slice holds an analysable trace for a window, and if not, why not. |
-| `crates/spawn-at-verify/src/trace/wait.rs` | 320 | The wait rule each run used, for A/B runs inside one login (`docs/DESIGN_READY_WAIT.md` |
-| `crates/spawn-at-verify/src/trace/wire.rs` | 264 | Paint times read from the fixture's Wayland protocol dump. |
-| `crates/spawn-at-verify/src/tracker/mod.rs` | 11 | Window tracking and window leak cleanup prevention across test sessions. |
-| `crates/spawn-at-verify/src/tracker/state.rs` | 349 | Window tracker state, attribution algorithms, and window leak cleanup. |
-| `crates/spawn-at-verify/src/tracker/tests.rs` | 458 | Unit tests for window tracker attribution, cap limits, and cleanup rules. |
-| `crates/spawn-at-verify/src/tui/app/clipboard.rs` | 250 | Clipboard provider integrations (OSC 52, wl-copy, xclip) and drawer export. |
-| `crates/spawn-at-verify/src/tui/app/input.rs` | 262 | Keyboard event handling and navigation dispatch. |
-| `crates/spawn-at-verify/src/tui/app/mod.rs` | 9 | Interactive TUI application architecture (state, input, execution queue, clipboard). |
-| `crates/spawn-at-verify/src/tui/app/queue.rs` | 191 | Execution queue processing, test running, and human review verdict recording. |
-| `crates/spawn-at-verify/src/tui/app/state.rs` | 396 | TUI state models, interactive app state, and selection navigation. |
-| `crates/spawn-at-verify/src/tui/logging.rs` | 128 | Extension Logging State Detection & Restoration Guard. |
-| `crates/spawn-at-verify/src/tui/mod.rs` | 164 | Terminal User Interface (TUI) Module for spawn-at-verify. |
-| `crates/spawn-at-verify/src/tui/render.rs` | 216 | Headless rendering of the detail drawer for recorded real runs. |
-| `crates/spawn-at-verify/src/tui/views/builder.rs` | 193 | Drawer content line assembly builder. |
-| `crates/spawn-at-verify/src/tui/views/constants.rs` | 10 | Drawer layout sizing constants and column offsets. |
-| `crates/spawn-at-verify/src/tui/views/drawer/geometry_section.rs` | 267 | Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict. |
-| `crates/spawn-at-verify/src/tui/views/drawer/header_section.rs` | 81 | Drawer header section rendering (Title, ID, Mode, Description). |
-| `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs` | 293 | Drawer informational sections: WHAT TO LOOK FOR, SPEC and OUTPUT (each a separate function so the drawer can order them). |
-| `crates/spawn-at-verify/src/tui/views/drawer/mod.rs` | 138 | Drawer widget rendering and content assembly. |
-| `crates/spawn-at-verify/src/tui/views/drawer/result_section.rs` | 644 | Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget). |
-| `crates/spawn-at-verify/src/tui/views/drawer/timeline_format.rs` | 313 | Formatting, parsing, and key humanisation for drawer timeline events. |
-| `crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs` | 186 | Drawer TIMELINE section rendering. |
-| `crates/spawn-at-verify/src/tui/views/footer.rs` | 352 | TUI bottom footer bars and responsive keybinding grids. |
-| `crates/spawn-at-verify/src/tui/views/mod.rs` | 161 | TUI views module organizing layout, widgets, drawer, and modals. |
-| `crates/spawn-at-verify/src/tui/views/modals/help.rs` | 361 | Keyboard shortcuts and navigation help overlay modal. |
-| `crates/spawn-at-verify/src/tui/views/modals/mod.rs` | 30 | Modal overlays: keyboard shortcuts help and human review verdict dialog. |
-| `crates/spawn-at-verify/src/tui/views/modals/verdict.rs` | 94 | Human review verdict input dialog modal. |
-| `crates/spawn-at-verify/src/tui/views/panels/description.rs` | 386 | Test description pane and line wrapping count helpers. |
-| `crates/spawn-at-verify/src/tui/views/panels/header.rs` | 117 | Top header banner and missing fixture warning panel. |
-| `crates/spawn-at-verify/src/tui/views/panels/mod.rs` | 11 | Main dashboard panel widgets and calculations. |
-| `crates/spawn-at-verify/src/tui/views/panels/result_box.rs` | 180 | Test result status display box and height calculation. |
-| `crates/spawn-at-verify/src/tui/views/panels/tests_list.rs` | 318 | Test category tree and list widget panel. |
-| `crates/spawn-at-verify/src/tui/views/theme.rs` | 106 | Theme styling, color mapping, and status indicators. |
-| `crates/spawn-at-verify/src/tui/views/wrapping.rs` | 143 | Text tokenization, word wrapping, and dimension string normalisation. |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `crates/spawn-at-verify/src/bin/fixture.rs` | Standalone GUI test fixture window application (`winit` + `softbuffer`). |
+| `crates/spawn-at-verify/src/bin/fixture/behaviour.rs` | Hostile-app behaviours of the fixture, as pure decisions (harness only; never in the product). |
+| `crates/spawn-at-verify/src/bin/fixture/font.rs` | Bitmap font table (10x16) generated from DejaVu Sans Mono Bold. |
+| `crates/spawn-at-verify/src/bin/fixture/mod.rs` | Fixture window, renderer, and bitmap font modules. |
+| `crates/spawn-at-verify/src/bin/fixture/renderer.rs` | Softbuffer frame drawing and bitmap text rendering. |
+| `crates/spawn-at-verify/src/bin/fixture/trace.rs` | Event files of the fixture: a developer trace and the client-side events the harness reads. |
+| `crates/spawn-at-verify/src/bin/fixture/window.rs` | Window creation, winit event loop, and signal handling. |
+| `crates/spawn-at-verify/src/cli/args.rs` | CLI argument parser schemas and subcommand definitions. |
+| `crates/spawn-at-verify/src/cli/calibrate.rs` | Handler for `spawn-at-verify calibrate`: repeated measurement of one case's cloak duration. |
+| `crates/spawn-at-verify/src/cli/check.rs` | Handler for `spawn-at-verify check` subcommand. |
+| `crates/spawn-at-verify/src/cli/list.rs` | Handler for `spawn-at-verify list` subcommand. |
+| `crates/spawn-at-verify/src/cli/mod.rs` | CLI argument models and subcommand handlers. |
+| `crates/spawn-at-verify/src/cli/render.rs` | Handler for `spawn-at-verify render`: prints the TUI drawer for a recorded real case. |
+| `crates/spawn-at-verify/src/cli/report.rs` | Handler for `spawn-at-verify report` subcommand. |
+| `crates/spawn-at-verify/src/cli/run.rs` | Handler for `spawn-at-verify run` subcommand. |
+| `crates/spawn-at-verify/src/cli/run_summary.rs` | Counting, summary text and process exit code for `spawn-at-verify run`. |
+| `crates/spawn-at-verify/src/cli/smoke_eval.rs` | Helper CLI utilities for smoke-live.sh JSON evaluation and placement verification. |
+| `crates/spawn-at-verify/src/cli/tui.rs` | Handler for `spawn-at-verify tui` subcommand. |
+| `crates/spawn-at-verify/src/display.rs` | Display refresh rate, read-only: `xrandr --query` on X11, Mutter's `GetCurrentState` over |
+| `crates/spawn-at-verify/src/ext_logging.rs` | Control of the GNOME extension's timing log over session D-Bus. |
+| `crates/spawn-at-verify/src/lib.rs` | spawn-at-verify |
+| `crates/spawn-at-verify/src/loadavg.rs` | System load average (`/proc/loadavg`), recorded with each run so a slow batch can be told |
+| `crates/spawn-at-verify/src/loader/filter.rs` | Test filter criteria and pattern matching. |
+| `crates/spawn-at-verify/src/loader/mod.rs` | Test loader and suite registry for spawn-at-verify. |
+| `crates/spawn-at-verify/src/loader/registry.rs` | Test registry discovery, loading, and collection management. |
+| `crates/spawn-at-verify/src/loader/tests.rs` | Unit tests for test loader, filtering, and tree visualization. |
+| `crates/spawn-at-verify/src/loader/tree.rs` | Hierarchical formatting and summary generation for test definitions. |
+| `crates/spawn-at-verify/src/log_source.rs` | Log Capture Abstraction (`LogSource` trait). |
+| `crates/spawn-at-verify/src/main.rs` | CLI binary entrypoint for spawn-at-verify. |
+| `crates/spawn-at-verify/src/no_config.rs` | Keeps the user's `spawn-at` config file out of harness runs. |
+| `crates/spawn-at-verify/src/oracle/calculator.rs` | Mathematical placement calculations, anchor formulas, and pivot offsets. |
+| `crates/spawn-at-verify/src/oracle/check.rs` | Comparison of an observed placement against the oracle's expected rectangle. |
+| `crates/spawn-at-verify/src/oracle/mod.rs` | Mathematical placement oracle and golden vector cross-validation. |
+| `crates/spawn-at-verify/src/oracle/tests/golden.rs` | Hand-computed golden placement calculations and tolerance checks. |
+| `crates/spawn-at-verify/src/oracle/tests/min_size.rs` | Oracle with a fixture minimum: expected size is `max(requested, minimum)` per axis, the |
+| `crates/spawn-at-verify/src/oracle/tests/mod.rs` | Oracle test suite organizing hand-computed golden vectors and file-based checks. |
+| `crates/spawn-at-verify/src/oracle/tests/vectors.rs` | Shared golden placement vector file cross-validation. |
+| `crates/spawn-at-verify/src/preflight.rs` | Preflight Gate: binary freshness & git status inspection. |
+| `crates/spawn-at-verify/src/probe.rs` | Environment probe: checks desktop environment, session type, and app availability. |
+| `crates/spawn-at-verify/src/process.rs` | Safe Process Execution Pipeline |
+| `crates/spawn-at-verify/src/report/builder.rs` | Session report builder, qualification evaluator, and artifact writer. |
+| `crates/spawn-at-verify/src/report/markdown.rs` | Markdown session report rendering. |
+| `crates/spawn-at-verify/src/report/mod.rs` | Verification session report models, redaction, and JSON/Markdown export. |
+| `crates/spawn-at-verify/src/report/models.rs` | Session report and qualification summary data structures. |
+| `crates/spawn-at-verify/src/report/redaction.rs` | Title redaction, privacy filtering, and timestamp formatting utilities. |
+| `crates/spawn-at-verify/src/report/tests.rs` | Unit tests for report structures, redaction, and formatting. |
+| `crates/spawn-at-verify/src/runner/engine.rs` | Test runner execution engine, repeat loops, and process orchestration. |
+| `crates/spawn-at-verify/src/runner/executor.rs` | Single-test execution, process invocation, log capture, and attribution. |
+| `crates/spawn-at-verify/src/runner/flash.rs` | Flash check of one run: where the fixture writes its events, how long the run watches after the |
+| `crates/spawn-at-verify/src/runner/flash_tests.rs` | Wiring of the flash check: the journal slice, the fixture's event text and the anchor brackets |
+| `crates/spawn-at-verify/src/runner/mod.rs` | Test execution engine, results aggregation, and validation checks. |
+| `crates/spawn-at-verify/src/runner/models.rs` | Outcome models, execution options, and verdict resolution rules for test runs. |
+| `crates/spawn-at-verify/src/runner/resize_expect_tests.rs` | `[expect.resize]`: the ready-wait outcome a spec declares, read from the CLI's `--json`. |
+| `crates/spawn-at-verify/src/runner/tests.rs` | Unit tests for test runner execution, parsing, and verdict resolution. |
+| `crates/spawn-at-verify/src/runner/trace_capture_tests.rs` | Runs `execute_single_test` against `/bin/echo` and a fake extension to check that logging is |
+| `crates/spawn-at-verify/src/runner/validation.rs` | Expectation verification, output matching, and action argument building. |
+| `crates/spawn-at-verify/src/runner/wire_paint_tests.rs` | Wire paint times in the flash check: the client's commit read from the fixture's protocol dump |
+| `crates/spawn-at-verify/src/schema/matrix.rs` | Test definition matrix expansion and categorization helpers. |
+| `crates/spawn-at-verify/src/schema/mod.rs` | Declarative TOML test definition schemas, matrix expansion, and validation rules. |
+| `crates/spawn-at-verify/src/schema/suite.rs` | Test suite definition schema models. |
+| `crates/spawn-at-verify/src/schema/tests.rs` | Unit tests for schema models and matrix expansion rules. |
+| `crates/spawn-at-verify/src/schema/types.rs` | Core declarative TOML schema data models. |
+| `crates/spawn-at-verify/src/trace/analyser.rs` | Trace invariant analysis, lifecycle verification, and timing budget checks. |
+| `crates/spawn-at-verify/src/trace/flash.rs` | Flash detection: was the window shown before it was ready, or did it change after the reveal? |
+| `crates/spawn-at-verify/src/trace/mod.rs` | Trace log event parser, lifecycle state machine, and budget checks. |
+| `crates/spawn-at-verify/src/trace/models.rs` | Trace data models, events, and violation structures. |
+| `crates/spawn-at-verify/src/trace/parser.rs` | Trace log parsing, event extraction, and regex tokenization. |
+| `crates/spawn-at-verify/src/trace/phases.rs` | Phase gaps inside one window's placement trace, for diagnosing where cloak time goes. |
+| `crates/spawn-at-verify/src/trace/report.rs` | Trace analysis summary and outcome reporting models. |
+| `crates/spawn-at-verify/src/trace/state.rs` | Whether a log slice holds an analysable trace for a window, and if not, why not. |
+| `crates/spawn-at-verify/src/trace/wait.rs` | The wait rule each run used, for A/B runs inside one login (`docs/DESIGN_READY_WAIT.md` |
+| `crates/spawn-at-verify/src/trace/wire.rs` | Paint times read from the fixture's Wayland protocol dump. |
+| `crates/spawn-at-verify/src/tracker/mod.rs` | Window tracking and window leak cleanup prevention across test sessions. |
+| `crates/spawn-at-verify/src/tracker/state.rs` | Window tracker state, attribution algorithms, and window leak cleanup. |
+| `crates/spawn-at-verify/src/tracker/tests.rs` | Unit tests for window tracker attribution, cap limits, and cleanup rules. |
+| `crates/spawn-at-verify/src/tui/app/clipboard.rs` | Clipboard provider integrations (OSC 52, wl-copy, xclip) and drawer export. |
+| `crates/spawn-at-verify/src/tui/app/input.rs` | Keyboard event handling and navigation dispatch. |
+| `crates/spawn-at-verify/src/tui/app/mod.rs` | Interactive TUI application architecture (state, input, execution queue, clipboard). |
+| `crates/spawn-at-verify/src/tui/app/queue.rs` | Execution queue processing, test running, and human review verdict recording. |
+| `crates/spawn-at-verify/src/tui/app/state.rs` | TUI state models, interactive app state, and selection navigation. |
+| `crates/spawn-at-verify/src/tui/logging.rs` | Extension Logging State Detection & Restoration Guard. |
+| `crates/spawn-at-verify/src/tui/mod.rs` | Terminal User Interface (TUI) Module for spawn-at-verify. |
+| `crates/spawn-at-verify/src/tui/render.rs` | Headless rendering of the detail drawer for recorded real runs. |
+| `crates/spawn-at-verify/src/tui/views/builder.rs` | Drawer content line assembly builder. |
+| `crates/spawn-at-verify/src/tui/views/constants.rs` | Drawer layout sizing constants and column offsets. |
+| `crates/spawn-at-verify/src/tui/views/drawer/geometry_section.rs` | Drawer GEOMETRY section rendering: expected (oracle) vs actual placement with a verdict. |
+| `crates/spawn-at-verify/src/tui/views/drawer/header_section.rs` | Drawer header section rendering (Title, ID, Mode, Description). |
+| `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs` | Drawer informational sections: WHAT TO LOOK FOR, SPEC and OUTPUT (each a separate function so the drawer can order them). |
+| `crates/spawn-at-verify/src/tui/views/drawer/mod.rs` | Drawer widget rendering and content assembly. |
+| `crates/spawn-at-verify/src/tui/views/drawer/result_section.rs` | Drawer RESULT section rendering (Verdict, Cloak duration, provisional timing budget). |
+| `crates/spawn-at-verify/src/tui/views/drawer/timeline_format.rs` | Formatting, parsing, and key humanisation for drawer timeline events. |
+| `crates/spawn-at-verify/src/tui/views/drawer/timeline_section.rs` | Drawer TIMELINE section rendering. |
+| `crates/spawn-at-verify/src/tui/views/footer.rs` | TUI bottom footer bars and responsive keybinding grids. |
+| `crates/spawn-at-verify/src/tui/views/mod.rs` | TUI views module organizing layout, widgets, drawer, and modals. |
+| `crates/spawn-at-verify/src/tui/views/modals/help.rs` | Keyboard shortcuts and navigation help overlay modal. |
+| `crates/spawn-at-verify/src/tui/views/modals/mod.rs` | Modal overlays: keyboard shortcuts help and human review verdict dialog. |
+| `crates/spawn-at-verify/src/tui/views/modals/verdict.rs` | Human review verdict input dialog modal. |
+| `crates/spawn-at-verify/src/tui/views/panels/description.rs` | Test description pane and line wrapping count helpers. |
+| `crates/spawn-at-verify/src/tui/views/panels/header.rs` | Top header banner and missing fixture warning panel. |
+| `crates/spawn-at-verify/src/tui/views/panels/mod.rs` | Main dashboard panel widgets and calculations. |
+| `crates/spawn-at-verify/src/tui/views/panels/result_box.rs` | Test result status display box and height calculation. |
+| `crates/spawn-at-verify/src/tui/views/panels/tests_list.rs` | Test category tree and list widget panel. |
+| `crates/spawn-at-verify/src/tui/views/theme.rs` | Theme styling, color mapping, and status indicators. |
+| `crates/spawn-at-verify/src/tui/views/wrapping.rs` | Text tokenization, word wrapping, and dimension string normalisation. |
 
 ### spawn-at-verify, integration tests (`crates/spawn-at-verify/tests/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `crates/spawn-at-verify/tests/category_library_test.rs` | 359 | Headless test verifying category schema, loader validation, and library coverage. |
-| `crates/spawn-at-verify/tests/cli_exit_codes_test.rs` | 137 | The `run` exit codes are documented in `run --help` and match the summary policy. |
-| `crates/spawn-at-verify/tests/fixture_test.rs` | 254 |  |
-| `crates/spawn-at-verify/tests/flash_test.rs` | 664 | Flash detection on synthetic traces: the extension's log lines and the fixture's event file |
-| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | 577 | Cross-check test comparing spawn-at-verify independent geometric oracle |
-| `crates/spawn-at-verify/tests/preflight_tools_test.rs` | 28 | `run` prints an install hint on stderr when the optional X11 tools are not on PATH. |
-| `crates/spawn-at-verify/tests/render_test.rs` | 363 | `spawn-at-verify render`: recorded real cases only, correct case selected, nothing wider than |
-| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | 630 | Comprehensive test suite for the trace event parser and lifecycle verification engine. |
-| `crates/spawn-at-verify/tests/trace_state_test.rs` | 81 | `assess_trace` must tell "analysed" from "no trace captured": an empty or foreign log slice |
-| `crates/spawn-at-verify/tests/trace_window_scope_test.rs` | 209 | Regression tests: the analyser and `TestResult` must measure the window the fixture named in |
-| `crates/spawn-at-verify/tests/tui/app_flow.rs` | 312 | App workflow integration tests (initialization, navigation, filtering, verdicts). |
-| `crates/spawn-at-verify/tests/tui/category_counts.rs` | 150 | Category heading counts in the tests list: only a final Pass counts as passed; tests that |
-| `crates/spawn-at-verify/tests/tui/drawer_content.rs` | 590 | Drawer content ordering, formatting, geometry table, and timeline tests. |
-| `crates/spawn-at-verify/tests/tui/drawer_geometry.rs` | 212 | GEOMETRY table and RESULT "Geometry" row: Expected comes from the oracle, the mark comes from |
-| `crates/spawn-at-verify/tests/tui/drawer_keys_clipboard.rs` | 427 | Drawer keybindings, shortcuts help modal, and clipboard copy/save tests. |
-| `crates/spawn-at-verify/tests/tui/drawer_labels.rs` | 258 | Drawer-wide shared label column: width rule, cap, truncation and wrapped continuation. |
-| `crates/spawn-at-verify/tests/tui/drawer_order.rs` | 120 | Drawer section order, anchor/margin de-duplication and the auto-test verdict row. |
-| `crates/spawn-at-verify/tests/tui/drawer_trace.rs` | 333 | RESULT section when the log slice holds no trace for the window: "not analysed", never a |
-| `crates/spawn-at-verify/tests/tui/drawer_workarea.rs` | 182 | Which workarea the geometry check trusts: the probe is primary, the extension's logged bounds |
-| `crates/spawn-at-verify/tests/tui/flash.rs` | 219 | "PASS (flash)" in the TUI: its own symbol and colour in the list, its own verdict and rows in |
-| `crates/spawn-at-verify/tests/tui/footer_widths.rs` | 160 | Keys bar completeness at every width: no shortcut action may silently disappear. |
-| `crates/spawn-at-verify/tests/tui/golden_invariants.rs` | 471 | Responsive golden file assertions and drawer grid invariant tests. |
-| `crates/spawn-at-verify/tests/tui/layout_responsive.rs` | 470 | Responsive layout and breakpoint rendering integration tests. |
-| `crates/spawn-at-verify/tests/tui/mod.rs` | 337 | Common test harness helpers and submodule declarations for TUI test suite. |
-| `crates/spawn-at-verify/tests/tui/polish.rs` | 455 | UI polish, padding, spacing, and characterization specification tests. |
-| `crates/spawn-at-verify/tests/tui_test.rs` | 4 | Integration test suite for the spawn-at-verify TUI interface. |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `crates/spawn-at-verify/tests/category_library_test.rs` | Headless test verifying category schema, loader validation, and library coverage. |
+| `crates/spawn-at-verify/tests/cli_exit_codes_test.rs` | The `run` exit codes are documented in `run --help` and match the summary policy. |
+| `crates/spawn-at-verify/tests/fixture_test.rs` |  |
+| `crates/spawn-at-verify/tests/flash_test.rs` | Flash detection on synthetic traces: the extension's log lines and the fixture's event file |
+| `crates/spawn-at-verify/tests/oracle_cross_check.rs` | Cross-check test comparing spawn-at-verify independent geometric oracle |
+| `crates/spawn-at-verify/tests/preflight_tools_test.rs` | `run` prints an install hint on stderr when the optional X11 tools are not on PATH. |
+| `crates/spawn-at-verify/tests/render_test.rs` | `spawn-at-verify render`: recorded real cases only, correct case selected, nothing wider than |
+| `crates/spawn-at-verify/tests/trace_analyser_test.rs` | Comprehensive test suite for the trace event parser and lifecycle verification engine. |
+| `crates/spawn-at-verify/tests/trace_state_test.rs` | `assess_trace` must tell "analysed" from "no trace captured": an empty or foreign log slice |
+| `crates/spawn-at-verify/tests/trace_window_scope_test.rs` | Regression tests: the analyser and `TestResult` must measure the window the fixture named in |
+| `crates/spawn-at-verify/tests/tui/app_flow.rs` | App workflow integration tests (initialization, navigation, filtering, verdicts). |
+| `crates/spawn-at-verify/tests/tui/category_counts.rs` | Category heading counts in the tests list: only a final Pass counts as passed; tests that |
+| `crates/spawn-at-verify/tests/tui/drawer_content.rs` | Drawer content ordering, formatting, geometry table, and timeline tests. |
+| `crates/spawn-at-verify/tests/tui/drawer_geometry.rs` | GEOMETRY table and RESULT "Geometry" row: Expected comes from the oracle, the mark comes from |
+| `crates/spawn-at-verify/tests/tui/drawer_keys_clipboard.rs` | Drawer keybindings, shortcuts help modal, and clipboard copy/save tests. |
+| `crates/spawn-at-verify/tests/tui/drawer_labels.rs` | Drawer-wide shared label column: width rule, cap, truncation and wrapped continuation. |
+| `crates/spawn-at-verify/tests/tui/drawer_order.rs` | Drawer section order, anchor/margin de-duplication and the auto-test verdict row. |
+| `crates/spawn-at-verify/tests/tui/drawer_trace.rs` | RESULT section when the log slice holds no trace for the window: "not analysed", never a |
+| `crates/spawn-at-verify/tests/tui/drawer_workarea.rs` | Which workarea the geometry check trusts: the probe is primary, the extension's logged bounds |
+| `crates/spawn-at-verify/tests/tui/flash.rs` | "PASS (flash)" in the TUI: its own symbol and colour in the list, its own verdict and rows in |
+| `crates/spawn-at-verify/tests/tui/footer_widths.rs` | Keys bar completeness at every width: no shortcut action may silently disappear. |
+| `crates/spawn-at-verify/tests/tui/golden_invariants.rs` | Responsive golden file assertions and drawer grid invariant tests. |
+| `crates/spawn-at-verify/tests/tui/layout_responsive.rs` | Responsive layout and breakpoint rendering integration tests. |
+| `crates/spawn-at-verify/tests/tui/mod.rs` | Common test harness helpers and submodule declarations for TUI test suite. |
+| `crates/spawn-at-verify/tests/tui/polish.rs` | UI polish, padding, spacing, and characterization specification tests. |
+| `crates/spawn-at-verify/tests/tui_test.rs` | Integration test suite for the spawn-at-verify TUI interface. |
 
 ### GNOME extension (`assets/gnome/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `assets/gnome/legacy/anchor.js` | 53 | spawn-at — pure anchor and bounding box calculation (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/cloak.js` | 159 | spawn-at — actor opacity cloaking and snapshot management (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/commit.js` | 152 | spawn-at — Mutter commit & frame presentation detection (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/dbus.js` | 113 | spawn-at — D-Bus interface definition and session export (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/extension.js` | 1622 | spawn-at — precise window spawning, sizing, positioning and orchestration |
-| `assets/gnome/legacy/logger.js` | 321 | spawn-at — persistent session logging and enriched telemetry (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/pulse.js` | 205 | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking (Legacy GNOME 42-44). |
-| `assets/gnome/legacy/validator.js` | 158 |  |
-| `assets/gnome/modern/anchor.js` | 60 | spawn-at — pure anchor and bounding box calculation. |
-| `assets/gnome/modern/cloak.js` | 180 | spawn-at — actor opacity cloaking and snapshot management. |
-| `assets/gnome/modern/commit.js` | 321 | spawn-at — Mutter commit & frame presentation detection. |
-| `assets/gnome/modern/dbus.js` | 115 | spawn-at — D-Bus interface definition and session export. |
-| `assets/gnome/modern/extension.js` | 1799 | spawn-at — precise window spawning, sizing, positioning and orchestration |
-| `assets/gnome/modern/logger.js` | 324 | spawn-at — persistent session logging and enriched telemetry. |
-| `assets/gnome/modern/pulse.js` | 224 | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking. |
-| `assets/gnome/modern/ready_wait.js` | 164 | spawn-at — ready-wait state machine (JS port of crates/spawn-at-core/src/ready_wait.rs). |
-| `assets/gnome/modern/validator.js` | 204 |  |
-| `assets/gnome/modern/x11_observe.js` | 259 | spawn-at — observe-only logging of the paint signals of X11 and XWayland windows. |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `assets/gnome/legacy/anchor.js` | spawn-at — pure anchor and bounding box calculation (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/cloak.js` | spawn-at — actor opacity cloaking and snapshot management (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/commit.js` | spawn-at — Mutter commit & frame presentation detection (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/dbus.js` | spawn-at — D-Bus interface definition and session export (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/extension.js` | spawn-at — precise window spawning, sizing, positioning and orchestration |
+| `assets/gnome/legacy/logger.js` | spawn-at — persistent session logging and enriched telemetry (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/pulse.js` | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking (Legacy GNOME 42-44). |
+| `assets/gnome/legacy/validator.js` |  |
+| `assets/gnome/modern/anchor.js` | spawn-at — pure anchor and bounding box calculation. |
+| `assets/gnome/modern/cloak.js` | spawn-at — actor opacity cloaking and snapshot management. |
+| `assets/gnome/modern/commit.js` | spawn-at — Mutter commit & frame presentation detection. |
+| `assets/gnome/modern/dbus.js` | spawn-at — D-Bus interface definition and session export. |
+| `assets/gnome/modern/extension.js` | spawn-at — precise window spawning, sizing, positioning and orchestration |
+| `assets/gnome/modern/logger.js` | spawn-at — persistent session logging and enriched telemetry. |
+| `assets/gnome/modern/pulse.js` | spawn-at — VTE / terminal cursor heartbeat and focus pulse tracking. |
+| `assets/gnome/modern/ready_wait.js` | spawn-at — ready-wait state machine (JS port of crates/spawn-at-core/src/ready_wait.rs). |
+| `assets/gnome/modern/validator.js` |  |
+| `assets/gnome/modern/x11_observe.js` | spawn-at — observe-only logging of the paint signals of X11 and XWayland windows. |
 
 ### Node tests (`tests/`)
 
-| File | Lines | Module doc (first `//!` line of the file) |
-| :--- | ---: | :--- |
-| `tests/cloak_test.js` | 148 |  |
-| `tests/dispatcher_test.js` | 1531 |  |
-| `tests/extension_test.js` | 234 |  |
-| `tests/gi_loader.js` | 157 |  |
-| `tests/golden_anchor_test.js` | 152 |  |
-| `tests/late_resize_test.js` | 195 |  |
-| `tests/legacy_dispatcher_test.js` | 1265 |  |
-| `tests/ready_wait_test.js` | 120 |  |
-| `tests/ready_wait_wiring_test.js` | 713 |  |
-| `tests/wait_override_test.js` | 71 |  |
-| `tests/x11_observe_test.js` | 320 |  |
+| File | Module doc (first `//!` line of the file) |
+| :--- | :--- |
+| `tests/cloak_test.js` |  |
+| `tests/dispatcher_test.js` |  |
+| `tests/extension_test.js` |  |
+| `tests/gi_loader.js` |  |
+| `tests/golden_anchor_test.js` |  |
+| `tests/late_resize_test.js` |  |
+| `tests/legacy_dispatcher_test.js` |  |
+| `tests/ready_wait_test.js` |  |
+| `tests/ready_wait_wiring_test.js` |  |
+| `tests/wait_override_test.js` |  |
+| `tests/x11_observe_test.js` |  |
 
 ## Specs read by `spawn-at-verify`
 

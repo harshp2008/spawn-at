@@ -26,10 +26,14 @@ Commands that act on a window already open take one selector:
 | Option | Picks the window by |
 | :--- | :--- |
 | `--id <ID>` | The numeric id shown by `query windows` |
-| `-c, --class <CLASS>` | Class or application id |
-| `-t, --title <TITLE>` | A substring of the title |
+| `-c, --class <CLASS>` | Class or application id, compared case-insensitively: the whole class, or its last dot-separated part (`calculator` finds `org.gnome.Calculator`) |
+| `-t, --title <TITLE>` | A substring of the title, case-insensitive |
 | `--pid <PID>` | Process id |
 | `--focused` | Whichever window has focus |
+
+When several options are given, a window must satisfy all of them. This is the rule for windows that
+already exist. The name that `spawn` uses to recognise its own new window is matched more loosely;
+see [Known limits](/spawn-at/known-limits/).
 
 ## Options every command takes
 

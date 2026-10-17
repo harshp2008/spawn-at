@@ -30,6 +30,18 @@ Two options are worth knowing before you run them:
   closes your applications; it defaults to `false`. Use `--skip-bin --headless` to leave the binary
   alone and not be asked.
 
+On GNOME, the closing line does not report the result of `gnome-extensions`:
+
+- `install` prints `Note: 'gnome-extensions enable' returned a non-zero exit code ...` when the
+  enable command exits non-zero, and then still prints `Spawn-At GNOME extension successfully
+  installed and enabled.` It stops with an error only when `gnome-extensions` cannot be started.
+- `uninstall` runs `gnome-extensions disable` and ignores the outcome, including a missing
+  `gnome-extensions`. `Spawn-At extension successfully uninstalled.` is printed whatever happened;
+  an error is raised only if deleting the extension directory fails.
+
+Read from the code (`src/platform/linux/gnome/deploy.rs`), not run, because running them would
+change the live session.
+
 For a backend that needs no helper (X11, Sway), the backend's part of `install` prints `No
 installation required for NAME.` and the backend's part of `uninstall` prints `No uninstallation
 required for NAME.`, where NAME is `X11` or `Sway` (the driver's `name()`; `src/platform/mod.rs`, the default `install`
