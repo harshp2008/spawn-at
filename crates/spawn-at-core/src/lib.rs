@@ -6,8 +6,10 @@
 //! ([`geometry`]), the [`Driver`] trait and the [`Batch`] types a compositor driver receives
 //! ([`driver`]), the ready-wait state machine ([`ready_wait`]), the settings schema and the
 //! `config` actions ([`settings`]), the per-spawn wait override ([`wait_override`]) and the resize
-//! report ([`resize_report`]). The `spawn-at` binary crate is built on it. Nothing in this crate
-//! may do I/O or depend on a compositor; that belongs in the backends under `src/platform/`.
+//! report ([`resize_report`]). Nothing in this crate may do I/O or depend on a compositor.
+
+// At this commit the `spawn-at` binary crate is built on this crate and its compositor backends
+// live under src/platform/.
 
 pub mod driver;
 pub mod geometry;

@@ -4,12 +4,14 @@
 //! protocol 6) and appears in the CLI's `--json` output as the `resize` object. The kinds are the
 //! four of [`crate::ready_wait::Outcome`], spelled as the golden scripts spell them.
 //!
-//! The GNOME driver (`src/platform/linux/gnome/driver.rs`) builds a [`ResizeReport`] from the
-//! signal; `spawn` adds the requested size and prints it. This module only converts and
-//! serialises: it does no I/O and does not run the wait itself.
+//! A caller builds a [`ResizeReport`] from the signal's fields and may add the requested size.
+//! This module only converts and serialises: it does no I/O and does not run the wait itself.
 //!
 //! A reader must tolerate a kind it does not know: [`ResizeKind::from_wire`] maps it to
 //! [`ResizeKind::Unknown`] instead of failing.
+
+// Callers at this commit: src/platform/linux/gnome/driver.rs builds the report from the signal and
+// src/commands/spawn.rs adds the requested size and prints it.
 
 use serde::{Deserialize, Serialize};
 
