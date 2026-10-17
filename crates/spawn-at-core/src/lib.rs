@@ -8,8 +8,8 @@
 //! `config` actions ([`settings`]), the per-spawn wait override ([`wait_override`]) and the resize
 //! report ([`resize_report`]). Nothing in this crate may do I/O or depend on a compositor.
 
-// At this commit the `spawn-at` binary crate is built on this crate and its compositor backends
-// live under src/platform/.
+// The `spawn-at` binary crate is built on this crate and its compositor backends live under
+// src/platform/.
 
 pub mod driver;
 pub mod geometry;

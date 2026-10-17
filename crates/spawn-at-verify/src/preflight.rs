@@ -158,7 +158,7 @@ pub fn evaluate_preflight_verdict(
 
     if let Some(head) = repo_head {
         let clean_bin_c = bin_c.trim_end_matches("-dirty");
-        // A commit id is hex and never contains '.'; a release version such as `0.2.0-beta.4`
+        // A commit id is hex and never contains '.'; a release version such as `1.2.3-rc.1`
         // always does. A release binary matches HEAD only when HEAD is exactly tag `v<version>`.
         let matches_head = if clean_bin_c.contains('.') {
             head_tag == Some(format!("v{}", clean_bin_c).as_str())

@@ -18,8 +18,8 @@ use std::time::Duration;
 /// When the windows of a batch become visible.
 ///
 /// The variants state the intended meaning.
-// At this commit src/commands/spawn.rs builds `Together` and src/platform/null_backend.rs builds
-// `Independent`. A grep of `.reveal` under src/ finds no reader; not verified beyond that grep.
+// src/commands/spawn.rs builds `Together` and src/platform/null_backend.rs builds `Independent`.
+// `grep -rn "\.reveal\b" src/` finds no reader; not verified beyond that grep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Reveal {
     /// Intended: every window stays hidden until all are mapped, then all appear together.
@@ -30,8 +30,9 @@ pub enum Reveal {
 
 /// Who gets keyboard focus once the batch is placed.
 ///
-// At this commit src/platform/linux/sway/mod.rs and src/platform/linux/x11/interception.rs compare
-// the field with `Exclusive`; a grep finds no code under src/ that matches on `Entry`.
+// src/platform/linux/sway/mod.rs and src/platform/linux/x11/interception.rs compare the field
+// with `Exclusive`; `grep -rn "FocusIntent::Entry" src/` finds nothing, so no code builds
+// or matches on `Entry`.
 // src/commands/spawn.rs builds `Exclusive`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FocusIntent {
@@ -45,8 +46,8 @@ pub enum FocusIntent {
 
 /// Scheduling urgency of the batch.
 ///
-// At this commit only `Normal` is constructed under src/ and a grep finds no reader of the field.
-// No `--bypass-fifo` flag exists in the repository (grep).
+// Only `Normal` is constructed under src/ and `grep -rn "\.urgency\b" src/` finds no reader of the
+// field. Outside this comment, `grep -rn bypass-fifo .` finds no such flag.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Urgency {
     /// Standard scheduling.
@@ -59,11 +60,13 @@ pub enum Urgency {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Entry {
     /// Identifies the entry within its batch.
-    // At this commit the GNOME and X11 drivers return it as the value of XDG_ACTIVATION_TOKEN and
-    // DESKTOP_STARTUP_ID, and GNOME uses it as the target id when the batch has several entries.
+    // The GNOME and X11 drivers return it as the value of XDG_ACTIVATION_TOKEN and
+    // DESKTOP_STARTUP_ID, and GNOME uses it as the target id when the batch has several entries
+    // (src/platform/linux/gnome/driver.rs, x11/mod.rs).
     pub key: String,
     /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor").
-    // At this commit GNOME uses it as the target id of a single-entry batch, or "*" when empty.
+    // GNOME uses it as the target id of a single-entry batch, or "*" when empty; the Sway and X11
+    // drivers match new windows against it (grep -rn "app_hint" src/platform/linux/).
     pub app_hint: String,
     /// Position, size and anchor to apply.
     pub placement: PlacementParams,
@@ -74,8 +77,8 @@ pub struct Entry {
 }
 
 /// The windows one spawn asks the compositor driver to place, passed to [`Driver::arm`].
-// At this commit src/commands/spawn.rs builds a batch of exactly one entry with id 1 and a grep
-// finds no reader of `id` under src/.
+// src/commands/spawn.rs builds a batch of exactly one entry with id 1; `grep -rn "batch\.id" src/`
+// finds no reader of `id`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Batch {
     /// Batch identifier.
@@ -89,8 +92,8 @@ pub struct Batch {
     /// Scheduling urgency.
     pub urgency: Urgency,
     /// Intended: how long to wait for the windows to map before revealing anyway.
-    // At this commit spawn.rs sets 15000 ms and a grep finds no driver under src/ reading it;
-    // not verified beyond the grep.
+    // spawn.rs sets 15000 ms; `grep -rn "\.deadline\b" src/` finds no driver reading it; not
+    // verified beyond the grep.
     pub deadline: Duration,
 }
 
@@ -98,12 +101,12 @@ pub struct Batch {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Armed {
     /// Environment variables the caller sets on the child process.
-    // At this commit the GNOME and X11 drivers return XDG_ACTIVATION_TOKEN and
-    // DESKTOP_STARTUP_ID, and spawn.rs applies them with `cmd.env`.
+    // The GNOME and X11 drivers return XDG_ACTIVATION_TOKEN and DESKTOP_STARTUP_ID, the Sway driver
+    // returns none, and spawn.rs applies the pairs with `cmd.env`.
     pub launch_env: Vec<(String, String)>,
     /// Identifies the registration; the value to pass to [`Driver::disarm`].
-    // At this commit the GNOME driver sets it to the target id of the last entry and spawn.rs
-    // passes it to disarm when the child cannot be started.
+    // The GNOME driver sets it to the target id of the last entry and spawn.rs passes it to
+    // `disarm` when the child cannot be started; the X11 driver sets the last entry's key.
     pub token: Option<String>,
 }
 
@@ -161,21 +164,24 @@ impl From<String> for DriverError {
 }
 
 /// What a compositor backend offers a caller: register the placement before the child exists.
-// At this commit `CompositorBackend` in src/platform/mod.rs has this trait as a supertrait.
+// `CompositorBackend` in src/platform/mod.rs has this trait as a supertrait.
 #[async_trait::async_trait]
 pub trait Driver: Send + Sync {
     /// Registers the batch with the compositor side so the window is placed when it appears, and
     /// returns the environment for the child. Call it before launching the child.
     ///
     /// Errors: [`DriverError`]; which variant depends on the implementation.
-    // At this commit the GNOME driver returns IpcError when the D-Bus call fails and the null
-    // backend returns UnsupportedCapability.
+    // The GNOME driver returns IpcError when the D-Bus call fails and the null backend returns
+    // UnsupportedCapability.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError>;
 
     /// Withdraws a registration made by [`Driver::arm`], given [`Armed::token`]. The default does
     /// nothing and returns `Ok(false)`.
-    // At this commit the GNOME driver overrides it and returns the answer of the extension's
-    // DisarmSpawn call.
+    // The GNOME driver overrides it (the answer of the extension's DisarmSpawn call), and so do the
+    // Sway driver (drops its event subscription) and the X11 driver (always `Ok(true)`). The
+    // `LinuxBackend` that wraps them does not forward it (grep -n "fn disarm"
+    // src/platform/linux/mod.rs finds nothing), so the call in src/commands/spawn.rs reaches this
+    // default and returns `Ok(false)` on Linux.
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
         Ok(false)
     }
