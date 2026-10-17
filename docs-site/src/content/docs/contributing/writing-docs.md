@@ -91,6 +91,12 @@ prose into an en dash and `...` into an ellipsis. `docs-check-html` fails if a d
 of a word appears in the built text. Write flags and paths in backticks anyway, and write the long form
 of a flag (`--margin-top`) the way `--help` prints it.
 
+## Tables
+
+The site style (`src/styles/tables.css`) centers every table and makes it as wide as its content, up
+to the width of the column; a table that is too wide scrolls inside its own box. Keep header cells
+short, because a header never wraps.
+
 ## Generated and hand-written pages
 
 - The CLI reference (`reference/spawn-at*.md`) is generated from the built binary's `--help` at build time
