@@ -27,6 +27,7 @@ export default defineConfig({
           collapsed: true,
           items: [
             'install',
+            'requirements',
             'update',
             'installer-flags',
             'files-and-paths',

@@ -19,6 +19,8 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 4. Runs `spawn-at install`. Every flag that `install.sh` does not recognise is passed on to it.
 
 Only GNOME Shell 46 on Wayland has been tested. See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
+The programs it needs (`curl`, `tar`, `gnome-extensions`) and the accepted desktops are on
+[Requirements](/spawn-at/requirements/).
 
 ## What the installer asks
 
