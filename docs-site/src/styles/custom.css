@@ -145,3 +145,11 @@ body {
   font-size: var(--sl-text-base);
   line-height: 1.4;
 }
+
+/* The page footer starts with an empty `div.meta` (no edit link, no last-updated date). It still
+   has `margin-top: 3rem` and is followed by the footer's 1.5rem flex gap, which left 4.5rem of
+   blank space above the previous/next links. Hiding the empty block leaves the footer's own
+   1.5rem top margin. */
+footer > .meta:empty {
+  display: none;
+}
