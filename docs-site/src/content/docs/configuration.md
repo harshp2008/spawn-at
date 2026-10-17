@@ -100,12 +100,18 @@ login autostart entry.
 | `SPAWN_AT_DEBUG` | `1` or `true` turns on debug output |
 | `NO_COLOR` | Plain output |
 
+This is the short list. Every variable the code reads (`SWAYSOCK`, `XDG_CONFIG_HOME`, `TERM`,
+`COLORTERM`, `LC_ALL`, `LANG`, `COLUMNS` and the rest) and the exit statuses are on
+[Environment and exit codes](/spawn-at/environment/).
+
 ## Update preferences
 
 `[update]` in the same file holds the release channel (`stable`, the default, or `beta`, which also
 offers pre-releases), whether to check at login and whether to show notices. `all` is a deprecated
 name for `beta` and is read as `beta`. These are not yet set through `spawn-at config`; use
-`spawn-at update --channel` or `spawn-at install --update-channel`.
+`spawn-at update --channel` or `spawn-at install --update-channel`. The key names (`auto_check`,
+`channel`, `notify` and the four cache keys), their defaults, and the fact that `spawn-at install`
+rewrites three of them are on [Environment and exit codes](/spawn-at/environment/#the-update-table).
 
 ## Not configurable yet
 

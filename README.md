@@ -258,7 +258,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
 
-# Remove an existing install (binary, extension, login update check) first, without asking; your config and settings are kept
+# Remove an existing install (binary, extension, login update check) first, without asking; your config file is kept (the install that follows rewrites its [update] table)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
 
 # Headless

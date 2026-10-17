@@ -28,7 +28,7 @@ In a terminal, `spawn-at install` can ask these questions. The flags answer them
 | :--- | :--- | :--- |
 | Install anyway? `[y/N]` | The desktop is not GNOME and the session is not X11 | `--allow-unsupported` (`install.sh` only) |
 | Go on, after a notice | An untested GNOME version | `--yes` skips the question; the notice is still printed |
-| Upgrade in place (the default) or clean install | spawn-at is already installed; it says where and which version | `--clean-install` removes it first without asking and keeps your configuration |
+| Upgrade in place (the default) or clean install | spawn-at is already installed; it says where and which version | `--clean-install` removes it first without asking and keeps your config file. Every install, clean or not, then rewrites the `[update]` table in it (read from source, not run; see [Installer flags](/spawn-at/installer-flags/#headless-defaults)) |
 | Release channel and update notices | Update preferences | `--update-channel stable\|beta`, `--update-notify` |
 | Log out now? | GNOME Wayland, last of all | `--gnome-wayland-logout`, `--no-action` |
 
@@ -59,7 +59,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 # Pin a version
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
 
-# Remove an existing install first, without asking; your config and settings are kept
+# Remove an existing install first, without asking; your config file is kept (its [update] table is rewritten by the install that follows)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
 
 # From source
@@ -93,7 +93,7 @@ Not changed by this: a GNOME session, a real X11 session on any desktop, and a f
 
 ## Update
 
-`spawn-at update` checks GitHub for a newer release and installs it. It takes `--check` (look only),
+`spawn-at update` checks GitHub for a newer release and installs it. It takes `--check` (install nothing; it still saves what it found to the config file),
 `--channel stable|beta` (`beta` also offers pre-releases; `all` is a deprecated alias of `beta`),
 `--force` (reinstall even if current) and `--headless`. The release asset it asks for is named after
 the platform the binary was built for. What it downloads, replaces and asks, and what it does not
