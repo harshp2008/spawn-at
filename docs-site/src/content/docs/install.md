@@ -94,7 +94,8 @@ Not changed by this: a GNOME session, a real X11 session on any desktop, and a f
 `spawn-at update` checks GitHub for a newer release and installs it. It takes `--check` (look only),
 `--channel stable|beta` (`beta` also offers pre-releases; `all` is a deprecated alias of `beta`),
 `--force` (reinstall even if current) and `--headless`. The release asset it asks for is named after
-the platform the binary was built for.
+the platform the binary was built for. What it downloads, replaces and asks, and what it does not
+check, is on the [Update](/spawn-at/update/) page.
 
 At login, an autostart entry runs `spawn-at update --check --headless`. It needs no backend, so it
 also works on an unsupported desktop.

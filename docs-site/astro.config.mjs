@@ -27,6 +27,7 @@ export default defineConfig({
           collapsed: true,
           items: [
             'install',
+            'update',
             'quick-start',
             'concepts',
             {
