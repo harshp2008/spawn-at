@@ -1,7 +1,12 @@
-//! # Command Handlers
+//! The handlers of the window subcommands (`spawn`, `transform`, `query`, `focus`, `defocus`,
+//! `maximize`, `minimize`, `restore`, `close`, plus `config`) and the helpers they share: window
+//! matching by hint (`matches_target`, `match_window_app_hint`) and the polling waits
+//! (`wait_for_spawn`, `wait_for_state_change`, `settle_window_geometry`).
 //!
-//! This module contains platform-agnostic implementations of the CLI commands.
-//! It isolates CLI routing logic from the compositor-specific execution logic.
+//! Handlers reach the compositor only through the `platform` traits (`CompositorBackend`,
+//! `WindowQuery`) and name no display server. The one Linux-only call is the process-tree check
+//! `platform::linux::is_process_descendant`, behind `cfg(target_os = "linux")`. Nothing here
+//! parses arguments (that is `cli`) or exits the process (that is `main`).
 
 pub mod config;
 pub mod focus;
@@ -26,27 +31,35 @@ use crate::platform::CompositorBackend;
 use crate::platform::{DriverError, WindowMetadata};
 use std::time::{Duration, Instant};
 
+/// The window state that [`wait_for_state_change`] waits for.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ExpectedState {
-    /// Window geometry changed to (x, y, w, h).
+    /// Position and size match; a `None` field is not compared and a `Some` field matches within
+    /// 4 px.
     Geometry {
         x: Option<i32>,
         y: Option<i32>,
         w: Option<u32>,
         h: Option<u32>,
     },
-    /// Window input focus matches expected boolean.
+    /// `WindowMetadata::focused` equals the boolean.
     Focused(bool),
-    /// Window maximized state matches expected boolean.
+    /// `WindowMetadata::maximized` equals the boolean.
     Maximized(bool),
-    /// Window minimized state matches expected boolean.
+    /// `WindowMetadata::minimized` equals the boolean. `Minimized(true)` is also met when a window
+    /// that was listed earlier is no longer in the window list.
     Minimized(bool),
-    /// Window is restored (neither maximized nor minimized).
+    /// Neither maximized nor minimized.
     Restored,
 }
 
-/// Helper function to match a window in a metadata list against a target identifier.
-/// Checks window ID, direct PID, child/descendant process tree PID, class name, or title.
+/// Whether `win` is the window that `target_id` names. An empty `target_id` matches nothing.
+///
+/// `target_id` is tried, in order, as: `pid:class` (split at the first `:`, each half matched on
+/// its own), a window id (u64), a PID (equal to the window's PID, or, on Linux, a process the
+/// window's PID descends from), then an app hint for the window's class and title (see
+/// [`match_window_app_hint`]). A number is tried as both id and PID, so `1234` matches window id
+/// 1234 and PID 1234.
 pub fn matches_target(win: &WindowMetadata, target_id: &str) -> bool {
     if target_id.is_empty() {
         return false;
@@ -86,12 +99,15 @@ pub fn matches_target(win: &WindowMetadata, target_id: &str) -> bool {
     match_window_app_hint(target_id, &win.class, &win.title)
 }
 
-/// Matches an application hint against a window's class and title.
+/// Whether `app_hint` names a window with class `win_class` and title `win_title`, compared
+/// case-insensitively. An empty hint or `*` matches every window.
 ///
-/// Designed to support launcher-style applications where the initial launcher process
-/// hands off to a pre-existing daemon/server process (e.g., `gnome-terminal` -> `gnome-terminal-server`,
-/// or reverse-DNS `org.gnome.Terminal` vs WM_CLASS `Gnome-terminal`), while maintaining strict
-/// filtering so non-wildcard queries do not match arbitrary unrelated windows.
+/// Besides an exact class match it accepts: the last dot segment of the hint or of the class
+/// (`org.gnome.Calculator` and `calculator`); reverse-DNS tails joined by `-` or nothing
+/// (`org.gnome.Terminal` and `gnome-terminal`); a `-server`, `.server`, `-daemon`, `.daemon` or
+/// `-service` suffix on either side (`gnome-terminal-server` and `gnome-terminal`); and the hint
+/// appearing anywhere in the title. That last rule is loose: a short hint matches any window whose
+/// title contains it.
 pub fn match_window_app_hint(app_hint: &str, win_class: &str, win_title: &str) -> bool {
     let hint = app_hint.trim();
     if hint.is_empty() || hint == "*" {
@@ -173,6 +189,8 @@ pub fn match_window_app_hint(app_hint: &str, win_class: &str, win_title: &str) -
     false
 }
 
+// Removes one trailing `-server`, `.server`, `-daemon`, `.daemon` or `-service`, the first that
+// fits in that order; returns `s` unchanged when none does.
 fn strip_daemon_suffix(s: &str) -> &str {
     s.strip_suffix("-server")
         .or_else(|| s.strip_suffix(".server"))
@@ -182,12 +200,19 @@ fn strip_daemon_suffix(s: &str) -> &str {
         .unwrap_or(s)
 }
 
-/// Blocks by polling `driver.get_windows()` until a window matching the spawned process
-/// (by PID/process tree, startup notification token, or application class/title) appears
-/// and is mapped (`w > 0 && h > 0`), or `timeout` expires.
+/// Polls `driver.get_windows()` every 50 ms until a mapped window (`w > 0 && h > 0`) belonging to
+/// the spawned process appears, or `timeout` expires. Awaiting it does not block the thread.
 ///
-/// Disregards pre-existing window IDs to ensure newly spawned instances are captured accurately,
-/// including for D-Bus-activated applications.
+/// A window is a candidate when its id is not in `pre_existing_ids` (a window without an id counts
+/// as new) and one of these holds: its PID is `child_pid` or, on Linux, a descendant of it;
+/// `startup_id` (when not empty) is contained in its title or class; or `app_hint` matches its
+/// class, title or app id (see [`match_window_app_hint`]). An empty or `*` hint accepts any new
+/// window. If no new window qualifies, any window with `child_pid` or a descendant of it as PID is
+/// accepted even if its id is in `pre_existing_ids`.
+///
+/// On timeout it returns `DriverError::Execution` when an old window in `pre_existing_ids` matches
+/// a non-empty `app_hint` (the application reused a window; a diagnostic is also rendered), else
+/// `DriverError::TargetNotFound`. A failing `get_windows` is treated as an empty list.
 pub async fn wait_for_spawn<Q: crate::platform::capability::WindowQuery + ?Sized>(
     driver: &Q,
     child_pid: u32,
@@ -298,8 +323,12 @@ pub async fn wait_for_spawn<Q: crate::platform::capability::WindowQuery + ?Sized
     )))
 }
 
-/// Blocks by polling `driver.get_windows()` every 50ms until the target window's state
-/// matches `expected_state` or `timeout` expires.
+/// Polls `driver.get_windows()` every 50 ms until the first window that [`matches_target`] for
+/// `target_id` is in `expected_state`, and returns a copy of it.
+///
+/// Errors: `DriverError::TargetNotFound` when `timeout` expires first (the message is the same
+/// whether no window matched or the state never held). A failing `get_windows` is treated as an
+/// empty list. With a zero `timeout` it returns the error without polling.
 pub async fn wait_for_state_change<Q: crate::platform::capability::WindowQuery + ?Sized>(
     driver: &Q,
     target_id: &str,
@@ -350,8 +379,15 @@ pub async fn wait_for_state_change<Q: crate::platform::capability::WindowQuery +
     )))
 }
 
-/// Polls the compositor driver until the target window's reported geometry equals
-/// the expected target geometry or `timeout` expires, returning the last known geometry.
+/// Polls every 25 ms for the window's rectangle until it satisfies `params`, or `timeout`
+/// expires, and returns the last rectangle read (`None` if none was ever read). Running out of
+/// time is not an error.
+///
+/// The rectangle comes from `get_window_rect(window_id)`, falling back to `get_windows()` when
+/// that fails or when `window_id` is `None` (the window is then found with [`matches_target`]).
+/// Satisfied means: if `params` has a position or an anchor, x and y are each within 1 px of the
+/// position that `calculate_rect_from_placement` gives for the window's actual size; if `params`
+/// has a size, width and height are each at least the requested ones (larger passes).
 pub async fn settle_window_geometry<Q: crate::platform::capability::WindowQuery + ?Sized>(
     backend: &Q,
     window_id: Option<u64>,
