@@ -224,7 +224,7 @@ What works: `spawn` with anchors, margins, `--size` and `--monitor <index>` (the
 What is different or missing:
 - **It can flash.** Sway has no way to keep a new window invisible until it is placed, so the window may show for one frame at its tiled position first. That has not been measured.
 - `--anchor cursor` and `--monitor cursor` do not work: Sway has no pointer query, so `spawn` places the window as if the pointer were at (0, 0) and does not report an error (`src/commands/spawn.rs`). `query pointer`, `maximize`, `minimize`, `restore` and `defocus` are not supported and exit 1 with a "does not support this feature" error. `--monitor` counts outputs in the order Sway lists them; monitor 0 is reported as primary because Sway has none.
-- A window is matched to the launched process by pid, then by parent process, then by app id. If none shows up within 5 seconds spawn-at warns that the application was started but not placed, and moves nothing else.
+- A window is matched to the launched process by pid, then by parent process, then by app id. If none shows up within 5 seconds spawn-at warns that the application was started but not placed, and moves nothing else. `spawn` exits 0 in that case.
 - i3 is not supported.
 
 Tested: a private headless Sway 1.9 and the repo's own test window, with `scripts/sway-live.sh` (one output, then a scale-2 output with a bar plus a second output). Not tested: a real Sway session, real applications, XWayland windows, any other Sway version, frame timing. Design and measurements: [docs/DESIGN_SWAY.md](docs/DESIGN_SWAY.md).

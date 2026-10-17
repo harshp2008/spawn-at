@@ -44,14 +44,17 @@ it is then placed using the size it ended up with.
   with a "does not support this feature" error and send nothing to Sway.
 - **Options that do not work:** `--anchor cursor` and `--monitor cursor`. Sway has no pointer query, so
   `spawn` uses (0, 0) in place of the pointer position (`src/commands/spawn.rs` falls back to
-  (0, 0) when the backend cannot read it).
+  (0, 0) when the backend cannot read it), without a message. `transform` with either option, and
+  `query pointer`, report the error instead.
 - **`--monitor`** counts outputs in the order Sway lists them. Monitor 0 is reported as primary,
   because Sway has no primary output.
 - **Matching the window.** A new window is matched to the launched process by pid, then by parent
   process, then by application id. If none appears within 5 seconds, spawn-at warns that the
   application was started but not placed, and moves nothing else. Windows that existed before the
-  launch are never moved.
-- **`--no-wait`** still waits for the placement. Only the first window of a batch is placed.
+  launch are never moved. `spawn` still waits `spawn.window_timeout_ms` for the window after that
+  warning, and exits 0 whether or not a window appeared.
+- **`--no-wait`** still waits for the placement. Only the first window of a batch is placed, and
+  `spawn` sends a batch of one.
 - A window in the scratchpad is listed with `state` `minimized`; `state` is otherwise `normal` or
   `fullscreen`.
 - **i3 is not supported**, although it shares the IPC.
