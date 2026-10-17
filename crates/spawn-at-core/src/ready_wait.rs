@@ -3,8 +3,7 @@
 //! Decides when a window has answered a size request, from size samples and time alone. It does
 //! no I/O and reads no clock: the caller passes the current time in milliseconds with every call
 //! and schedules a timer for the deadline the machine returns. That makes it testable with a
-//! virtual clock and identical in the JS port (`assets/gnome/modern/ready_wait.js`); both are
-//! checked against the scripts in `tests/ready_wait_vectors/`.
+//! virtual clock and identical in a port to another language that follows the same scripts.
 //!
 //! Rules (native Wayland strategy, `docs/DESIGN_READY_WAIT.md` section 4.3):
 //! - A non-resizable, fullscreen or tiled window is [`Outcome::Skipped`]; this is checked first.
@@ -16,13 +15,23 @@
 //! - No answer within `cap_ms` of the start is [`Outcome::TimedOut`] with phase `Cap`.
 //! - `hard_ms` after the start ends the wait in any phase: `TimedOut` with phase `Hard`.
 //!
-//! A sample equal to the previous size is not an answer (the first `allocation` of a window is its
-//! initial buffer, TEST_PLAN 6.12) and is ignored.
+//! A sample equal to the previous size is not an answer and is ignored.
 //!
 //! Ordering: a sample arriving at the same millisecond as a deadline is applied before the timer
-//! fires; a sample arriving after a deadline is handled as if the timer had fired on time, and the
-//! outcome reports the deadline, not the late arrival. When the quiet deadline and the hard
-//! deadline coincide the hard limit wins.
+//! fires ([`ReadyWait::on_sample`] expires only when `now` is later than the deadline, while
+//! [`ReadyWait::on_tick`] expires at `now >= deadline`); a sample arriving after a deadline is
+//! handled as if the timer had fired on time, and the outcome reports the deadline, not the late
+//! arrival. When the quiet or cap deadline and the hard deadline coincide, or the cap is longer
+//! than the hard limit, the outcome is the `Hard` timeout.
+//!
+//! The machine never checks that time moves forward; see [`ReadyWait::on_sample`].
+
+// The JS port is assets/gnome/modern/ready_wait.js; the Rust and the JS machine are both run
+// against the scripts in tests/ready_wait_vectors/ (tests/ready_wait_test.js and
+// crates/spawn-at-core/tests/ready_wait_vectors.rs). Why an equal sample is not an answer: in the
+// measured run in the table of docs/TEST_PLAN.md section 2.1 a first `allocation` sample still
+// showed the pre-resize frame (400x300) before the real size arrived. Not verified beyond reading
+// that table.
 
 use serde::{Deserialize, Serialize};
 
@@ -32,23 +41,28 @@ pub type Millis = u64;
 /// Width and height in pixels.
 pub type Size = (u32, u32);
 
-/// Timing constants of the wait. This is the single source of the numbers; the JS port carries a
-/// copy that a shared test (`tests/ready_wait_vectors/policy.json`) keeps equal to this one.
+/// Timing constants of the wait, all in milliseconds from the start of the request unless noted.
+/// `#[serde(default)]`: a missing field takes the value of [`Policy::default`].
+// This is the Rust copy of the numbers; the JS port carries another one and
+// tests/ready_wait_test.js checks that tests/ready_wait_vectors/policy.json equals the default.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[non_exhaustive]
 #[serde(default)]
 pub struct Policy {
-    /// Longest wait for any answer, from the start of the request.
+    /// Longest wait for any answer, from the start of the request. A cap longer than `hard_ms`
+    /// never fires: the hard limit ends the wait first.
     pub cap_ms: Millis,
-    /// Time without a further size change that ends the quiet phase.
+    /// Time without a further size change that ends the quiet phase (counted from the latest
+    /// change, not from the start).
     pub quiet_ms: Millis,
     /// Unconditional end of the wait, from the start of the request.
     pub hard_ms: Millis,
 }
 
 impl Default for Policy {
-    /// Cap 250 ms, quiet 30 ms (the existing `COMMIT_QUIET_MS`), hard limit 1500 ms (the existing
-    /// `COMMIT_HARD_CAP_MS`).
+    /// Cap 250 ms, quiet 30 ms, hard limit 1500 ms.
+    // The 30 and 1500 equal COMMIT_QUIET_MS and COMMIT_HARD_CAP_MS in
+    // assets/gnome/modern/commit.js.
     fn default() -> Self {
         Self {
             cap_ms: 250,
@@ -65,7 +79,8 @@ pub struct Request {
     pub target: Size,
     /// The window's size when the request was made.
     pub current: Size,
-    /// False when the window cannot be resized (`allows_resize()` is false).
+    /// False when the window cannot be resized. A missing field in a script means true.
+    // The extension fills it from `window.allows_resize()` (assets/gnome/modern/extension.js).
     #[serde(default = "default_true")]
     pub resizable: bool,
     /// True for a fullscreen window.
@@ -82,7 +97,7 @@ fn default_true() -> bool {
 }
 
 impl Request {
-    /// A resizable, windowed request.
+    /// A request for a resizable window that is neither fullscreen nor tiled.
     pub fn new(target: Size, current: Size) -> Self {
         Self {
             target,
@@ -94,7 +109,8 @@ impl Request {
     }
 }
 
-/// Why no wait was attempted.
+/// Why no wait was attempted. Serialises in kebab-case (`not-resizable`). When several apply the
+/// order of checking in [`ReadyWait::start`] is not resizable, fullscreen, tiled.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 #[non_exhaustive]
@@ -118,7 +134,7 @@ pub enum TimeoutPhase {
 }
 
 /// How a wait ended. Serialises as `{"outcome": "reached" | "adjusted" | "timed-out" | "skipped", ...}`,
-/// the shape the golden scripts expect.
+/// the shape the golden scripts expect (`AdjustedTo` is spelled `adjusted`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "outcome", rename_all = "kebab-case")]
 #[non_exhaustive]
@@ -135,14 +151,16 @@ pub enum Outcome {
     AdjustedTo {
         /// The size the window settled at.
         size: Size,
-        /// Milliseconds from the start of the request.
+        /// Milliseconds from the start of the request to the end of the quiet window (the
+        /// deadline, not the time the call arrived).
         waited_ms: Millis,
     },
     /// The cap or the hard limit ended the wait.
     TimedOut {
         /// The last size seen (the starting size if there was no answer).
         last_size: Size,
-        /// Milliseconds from the start of the request, equal to the limit that fired.
+        /// Milliseconds from the start of the request to the deadline that fired: `cap_ms` for
+        /// `Cap`, `hard_ms` for `Hard`.
         waited_ms: Millis,
         /// Which limit fired.
         phase: TimeoutPhase,
@@ -193,8 +211,10 @@ pub struct ReadyWait {
 }
 
 impl ReadyWait {
-    /// Starts a wait at time `now`. Returns the machine and its first action: `Done` for a skipped
-    /// or already-satisfied request, else `Wait` until the cap.
+    /// Starts a wait at time `now`. Returns the machine and its first action: `Done(Skipped)` when
+    /// the window is not resizable, fullscreen or tiled (checked in that order, before anything
+    /// else), `Done(Reached)` with `waited_ms` 0 when the current size already equals the target,
+    /// else `Wait` until the cap (or the hard limit, if that is earlier).
     pub fn start(policy: Policy, request: Request, now: Millis) -> (ReadyWait, Action) {
         let machine = ReadyWait {
             policy,
@@ -225,7 +245,16 @@ impl ReadyWait {
         (machine, action)
     }
 
-    /// A size sample at time `now`.
+    /// A size sample at time `now`. After the wait is over it returns the same `Done` again.
+    ///
+    /// Order of checks: a `now` later than the current deadline ends the wait as if the timer had
+    /// fired (the sample is not looked at); a sample equal to the target is `Reached`; a sample
+    /// different from the latest size is the window's answer (it starts or restarts the quiet
+    /// clock); a sample equal to the latest size changes nothing.
+    ///
+    /// Panics: `now` must not be earlier than the `now` given to [`ReadyWait::start`]. This is
+    /// not checked; a sample equal to the target would compute `now - started` on `u64` and
+    /// overflow (a panic in a debug build, a wrapped value in a release build).
     pub fn on_sample(&mut self, size: Size, now: Millis) -> Action {
         if let Phase::Done(outcome) = self.phase {
             return Action::Done(outcome);
@@ -246,7 +275,9 @@ impl ReadyWait {
         self.waiting()
     }
 
-    /// The time `now` was reached with no new sample (the caller's timer for the last deadline).
+    /// The caller's timer: `now` was reached with no new sample. Ends the wait when `now` is at or
+    /// after the current deadline, else returns `Wait` for that deadline again. After the wait is
+    /// over it returns the same `Done` again.
     pub fn on_tick(&mut self, now: Millis) -> Action {
         if let Phase::Done(outcome) = self.phase {
             return Action::Done(outcome);
@@ -276,7 +307,10 @@ impl ReadyWait {
         }
     }
 
-    /// Ends the wait because the current deadline passed. The outcome reports the deadline.
+    /// Ends the wait because the current deadline passed. The outcome reports the deadline, not
+    /// the time of the call. The hard limit wins whenever the deadline reaches it (`>=`): then the
+    /// result is `TimedOut` with phase `Hard` in every phase. Otherwise: no answer yet is
+    /// `TimedOut` with phase `Cap`, and an answer followed by quiet is `AdjustedTo`.
     fn expire(&mut self) -> Action {
         let deadline = self.deadline();
         let waited_ms = deadline - self.started;
@@ -300,14 +334,15 @@ impl ReadyWait {
         self.finish_here(outcome)
     }
 
-    /// Records `outcome` and returns the machine with `Done`.
+    /// Consumes the machine, marks it `Done(outcome)` and returns it with `Action::Done(outcome)`.
+    /// Used by [`ReadyWait::start`], which has no machine to mutate yet.
     fn finish(self, outcome: Outcome) -> (ReadyWait, Action) {
         let mut machine = self;
         let action = machine.finish_here(outcome);
         (machine, action)
     }
 
-    /// Records `outcome` in place.
+    /// Marks the machine `Done(outcome)` in place and returns `Action::Done(outcome)`.
     fn finish_here(&mut self, outcome: Outcome) -> Action {
         self.phase = Phase::Done(outcome);
         Action::Done(outcome)
