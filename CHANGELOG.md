@@ -6,6 +6,8 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+- Installer: the PATH advice is now idempotent and mentions logging out; it no longer suggests appending to a shell file.
+
 ## [0.2.0-beta.5] - 2026-10-17
 
 Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-beta.4 (`git diff 2e64085..main -- assets` is empty), and GNOME Wayland placement behaves as before. Two changes are visible to users: `spawn-at` refuses a non-GNOME Wayland session instead of silently using the X11 backend, and `install.sh` asks before installing on such a desktop. Everything else below is documentation, comments, tests and the developer-only `spawn-at-verify` tool. See

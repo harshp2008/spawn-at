@@ -72,12 +72,66 @@ fn is_in_path(dir: &PathBuf) -> bool {
     })
 }
 
+/// Quotes `dir` for POSIX sh. Returns `(text, plain)`: when every character is one of
+/// `A-Z a-z 0-9 _ . / - + @ % = , :` the text is `dir` unchanged and `plain` is true (safe inside
+/// double quotes); otherwise it is `dir` in single quotes with each `'` written as `'\''` and
+/// `plain` is false.
+fn sh_quote_dir(dir: &str) -> (String, bool) {
+    let plain = !dir.is_empty()
+        && dir
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_./-+@%=,:".contains(c));
+    if plain {
+        (dir.to_string(), true)
+    } else {
+        (format!("'{}'", dir.replace('\'', "'\\''")), false)
+    }
+}
+
+/// The text printed when `dir` is not in `PATH`: how to use it in this terminal and a guarded
+/// line to put in a startup file by hand. Pure; nothing is written anywhere.
+///
+/// When `dir` is `<home>/.local/bin` it first says that `~/.profile` adds that directory once it
+/// exists on Debian and Ubuntu, so logging in again is usually enough. The guarded line is
+/// `case ":$PATH:" in ... esac` (POSIX sh, also valid in bash and zsh): it adds `dir` only when
+/// `PATH` does not already hold it, so running it twice or in nested shells adds it once. A `dir`
+/// with characters outside the plain set (see `sh_quote_dir`) is single-quoted. The text has no
+/// `>>` append command.
+fn path_advice(dir: &std::path::Path, home: Option<&std::path::Path>) -> String {
+    let shown = dir.to_string_lossy();
+    let (q, plain) = sh_quote_dir(&shown);
+    let (export, guard) = if plain {
+        (
+            format!("export PATH=\"{q}:$PATH\""),
+            format!("case \":$PATH:\" in *\":{q}:\"*) ;; *) export PATH=\"{q}:$PATH\" ;; esac"),
+        )
+    } else {
+        (
+            format!("export PATH={q}:\"$PATH\""),
+            format!("case \":$PATH:\" in *\":\"{q}\":\"*) ;; *) export PATH={q}:\"$PATH\" ;; esac"),
+        )
+    };
+    let mut out = String::new();
+    if home.is_some_and(|h| dir == h.join(".local").join("bin")) {
+        out.push_str(
+            "On Debian and Ubuntu, ~/.profile adds this directory once it exists, so logging out\n\
+             and back in (or running '. ~/.profile') is usually enough.\n",
+        );
+    }
+    out.push_str(&format!("For this terminal only:\n  {export}\n"));
+    out.push_str("To make it permanent in any shell, add this line to ~/.profile, ~/.bashrc or\n");
+    out.push_str(&format!(
+        "~/.zshrc with an editor (safe to run more than once):\n  {guard}"
+    ));
+    out
+}
+
 /// Copies the running executable (`current_exe`) to `<bin dir>/spawn-at` and returns that path.
 ///
 /// Creates the directory if missing; skips the copy when source and destination are the same
 /// file (compared after canonicalizing); sets mode 0755 after a plain copy (a failure to set it
-/// is ignored). Only prints a warning with `export PATH` advice, never edits a shell file, when
-/// the directory is not in `PATH`.
+/// is ignored). When the directory is not in `PATH` it only prints a warning and the `path_advice`
+/// text; it never edits a shell file.
 ///
 /// Errors: a message string on a non-Linux OS, when the executable or the directory cannot be
 /// found or created, when the copy fails for a reason other than `PermissionDenied`, or when
@@ -158,12 +212,8 @@ pub fn install_binary(scope: InstallScope) -> Result<PathBuf, String> {
             "'{}' is not currently in your $PATH.",
             target_dir.display()
         ));
-        println!("To run 'spawn-at' globally, add it to your shell startup file:");
-        println!(
-            "  echo 'export PATH=\"{}:$PATH\"' >> ~/.bashrc",
-            target_dir.display()
-        );
-        println!("  (or ~/.zshrc / ~/.profile depending on your shell)");
+        let home = std::env::var_os("HOME").map(PathBuf::from);
+        println!("{}", path_advice(&target_dir, home.as_deref()));
     } else {
         println!("Verified: '{}' is in $PATH.", target_dir.display());
     }
@@ -231,6 +281,46 @@ mod tests {
 
         let sys_dir = get_target_dir(InstallScope::System).unwrap();
         assert_eq!(sys_dir, PathBuf::from("/usr/local/bin"));
+    }
+
+    use std::path::Path;
+
+    #[test]
+    fn advice_has_guarded_line_with_exact_dir() {
+        let a = path_advice(Path::new("/home/x/.local/bin"), Some(Path::new("/home/x")));
+        assert!(a.contains(
+            "case \":$PATH:\" in *\":/home/x/.local/bin:\"*) ;; *) export PATH=\"/home/x/.local/bin:$PATH\" ;; esac"
+        ));
+        assert!(a.contains("  export PATH=\"/home/x/.local/bin:$PATH\"\n"));
+    }
+
+    #[test]
+    fn advice_never_appends_to_a_file() {
+        for dir in ["/home/x/.local/bin", "/opt/my tools/bin", "/usr/local/bin"] {
+            let a = path_advice(Path::new(dir), Some(Path::new("/home/x")));
+            assert!(!a.contains(">>"), "{a}");
+        }
+    }
+
+    #[test]
+    fn advice_logout_hint_only_for_home_local_bin() {
+        let home = Some(Path::new("/home/x"));
+        assert!(path_advice(Path::new("/home/x/.local/bin"), home).contains("~/.profile adds"));
+        assert!(!path_advice(Path::new("/usr/local/bin"), home).contains("~/.profile adds"));
+        assert!(!path_advice(Path::new("/home/y/.local/bin"), home).contains("~/.profile adds"));
+        assert!(!path_advice(Path::new("/home/x/.local/bin"), None).contains("~/.profile adds"));
+    }
+
+    #[test]
+    fn advice_quotes_dirs_with_spaces_and_quotes() {
+        let a = path_advice(Path::new("/opt/my tools/bin"), None);
+        assert!(
+            a.contains("export PATH='/opt/my tools/bin':\"$PATH\""),
+            "{a}"
+        );
+        assert!(a.contains("*\":\"'/opt/my tools/bin'\":\"*"), "{a}");
+        let b = path_advice(Path::new("/o'p/$x"), None);
+        assert!(b.contains("'/o'\\''p/$x'"), "{b}");
     }
 
     #[test]

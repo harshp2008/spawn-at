@@ -14,7 +14,7 @@ title: "Testing and the verify tool"
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
 Counts measured on 2026-10-17 on the tree that v0.2.0-beta.5 is prepared from:
-`spawn-at` 443, `spawn-at-core` 64, `xtask` 53, `spawn-at-verify` 619 passed and 5 ignored (with
+`spawn-at` 447, `spawn-at-core` 64, `xtask` 53, `spawn-at-verify` 619 passed and 5 ignored (with
 `--features tui,fixture`), Node 204. Five tests stay ignored: four need a live display, one needs a
 private Sway.
 
