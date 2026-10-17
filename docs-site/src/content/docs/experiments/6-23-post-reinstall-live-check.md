@@ -2,42 +2,25 @@
 title: "6.23 Post-reinstall live check and XWayland signals"
 ---
 
-## Title
+Post-reinstall live check: default cap, A/D regression, XWayland signal study. The new default beats the legacy rule under load, and no XWayland signal is reliable enough to build on.
 
-Post-reinstall live check: default cap, A/D regression, XWayland signal study
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.23. Follows [6.22](/spawn-at/experiments/6-22-hostile-apps/); the texture signal is re-run in [6.24](/spawn-at/experiments/6-24-texture-reader/). |
+| **Date** | 2026-10-13. |
+| **Build** | A debug `spawn-at` newer than every source file. The log gives the stale-binary check but no single commit for the measurements; the draft of phase 1 had been committed first, and the first idle batch was blocked because the binary's embedded commit `6ebace0` did not match `HEAD` `1655116`. The version string is not recorded. Extension installed after a reinstall and a new login at 20:29 (gnome-shell pid 159346), protocol 6, installed files identical to `assets/gnome/modern`. No code changed. **A previous attempt of this check ended in a GNOME Shell crash.** The log records that Mutter 46.2 aborted at 20:28:39 with `libmutter:ERROR window.c:1518 meta_window_unmanage: assertion failed focus_window != window` after a real `gnome-text-editor` forced to X11 was closed while focused. The extension had only logged `REJECT_UNMATCHED` for that window. Nothing from the crashed run is reused: it was a different login (gnome-shell pid 116188), so every number below was measured again. Whether closing a focused XWayland window crashes Mutter 46.2 regardless of this extension was not tested. After that crash no real X11 or XWayland application was run. |
+| **Verdict** | "Is any candidate reliable enough to build on? No." Product consequences unchanged: XWayland and X11 windows keep the legacy rule. |
+| **Raw results** | `scratch/p23r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.23. Follows [6.22](/spawn-at/experiments/6-22-hostile-apps/); the texture signal is re-run in
-[6.24](/spawn-at/experiments/6-24-texture-reader/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-A debug `spawn-at` newer than every source file. The log gives the stale-binary check but no single
-commit for the measurements; the draft of phase 1 had been committed first, and the first idle batch
-was blocked because the binary's embedded commit `6ebace0` did not match `HEAD` `1655116`. The version
-string is not recorded. Extension installed after a reinstall and a new login at 20:29 (gnome-shell pid
-159346), protocol 6, installed files identical to `assets/gnome/modern`. No code changed.
-
-**A previous attempt of this check ended in a GNOME Shell crash.** The log records that Mutter 46.2
-aborted at 20:28:39 with `libmutter:ERROR window.c:1518 meta_window_unmanage: assertion failed
-focus_window != window` after a real `gnome-text-editor` forced to X11 was closed while focused. The
-extension had only logged `REJECT_UNMATCHED` for that window. Nothing from the crashed run is reused: it
-was a different login (gnome-shell pid 116188), so every number below was measured again. Whether
-closing a focused XWayland window crashes Mutter 46.2 regardless of this extension was not tested. After
-that crash no real X11 or XWayland application was run.
-
-## Question
+**Question**
 
 (1) After a reinstall, is the default cap 250 live, and does a `cap_ms` in the config file behave as
 documented? (2) Does the new default (arm D) behave better than the legacy rule (arm A)? (3) On the
 XWayland fixture, which signals could tell that the client has painted at the new size?
 
-## Setup and environment
+**Setup and environment**
 
 Native Wayland: specs `placement/bottom-right-smaller` and `bottom-right-larger`, arm order rotated
 every iteration, one `run` per spec per arm, 1.5 s apart. Idle: 10 per arm per spec (40 runs). Loaded: 22
@@ -49,14 +32,10 @@ XWayland: the fixture only, `--protocol x11`, `bottom-right-smaller` and `-large
 `SPAWN_AT_FIXTURE_EVENT_DIR` set and `SetLogging(true)` for the batch, so that the extension's
 `X11_OBS_*` times and the fixture's events share `CLOCK_MONOTONIC` without an anchor.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run`; `spawn-at spawn --json` with the fixture; `spawn-at config show`; `gdbus` for
 `SetLogging` and `ProtocolVersion`; `xtask burn-cpu`. Full command lines not recorded.
-
-## Raw result location
-
-`scratch/p23r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -97,11 +76,6 @@ XWayland signal study (80 runs, all exit 0):
 | (iii) `first-frame` | Not a paint signal |
 | (iv) texture size equals the target | Could not be evaluated here; see 6.24 |
 | (v) buffer rectangle or actor size | Not a paint signal (the window manager's rectangle) |
-
-## Verdict
-
-"Is any candidate reliable enough to build on? No." Product consequences unchanged: XWayland and X11
-windows keep the legacy rule.
 
 ## Not verified
 

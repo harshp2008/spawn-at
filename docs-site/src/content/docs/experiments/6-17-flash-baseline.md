@@ -2,32 +2,24 @@
 title: "6.17 Flash baseline before the ready-wait change"
 ---
 
-## Title
+BASELINE before the ready-wait change: flash on native Wayland, XWayland and X11. This is a baseline, not a verdict, taken before the ready-wait change.
 
-BASELINE before the ready-wait change: flash on native Wayland, XWayland and X11
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.17. The comparison point for [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/). |
+| **Date** | 2026-10-13. |
+| **Build** | Binary commit `0756167`, the catalog commit that added `placement/top-left-smaller` (36 tests); the log gives no version string. The log's emphasis: no product or extension code was touched, and nothing in it is a result of the ready-wait change. `bottom-right-larger` ran with a debug `spawn-at`; the "release" batch used a release fixture with a debug copy of `spawn-at`, because the harness requires the binary's commit to equal `HEAD`. |
+| **Verdict** | A baseline, not a verdict. The log records that the X11 column is not re-measured (this session is Wayland), and the knowledge base notes the XWayland rate of the old rule varied between logins: 1 of 10 here and 9 of 10 and 10 of 10 in [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/); its explanation is a hypothesis. |
+| **Raw results** | Not in the repository. The log states the scratch specs and batch scripts are not committed, and that the raw per-run JSON stayed in the session scratchpad. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.17. The comparison point for [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-Binary commit `0756167`, the catalog commit that added `placement/top-left-smaller` (36 tests); the
-log gives no version string. The log's emphasis: no product or extension code was touched, and nothing
-in it is a result of the ready-wait change. `bottom-right-larger` ran with a debug `spawn-at`; the
-"release" batch used a release fixture with a debug copy of `spawn-at`, because the harness requires the
-binary's commit to equal `HEAD`.
-
-## Question
+**Question**
 
 How often does a window flash on native Wayland, on XWayland and on X11 under the rule that existed
 before the ready-wait change?
 
-## Setup and environment
+**Setup and environment**
 
 `XDG_SESSION_TYPE=wayland`, GNOME Shell 46, 22 CPUs, 60.00 Hz. Every run is one isolated `run`
 invocation, specs interleaved, 1.5 s apart, 10 runs per spec per batch; all exit 0 and `auto-pass`.
@@ -42,15 +34,10 @@ invocation, specs interleaved, 1.5 s apart, 10 runs per spec per batch; all exit
 Specs: `bottom-right-larger`, `bottom-right-smaller`, `top-left-smaller` and a delayed-paint control
 (throwaway specs in `scratch/`).
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run` per spec, and `cargo build --release --bin fixture`. Full command lines not
 recorded.
-
-## Raw result location
-
-Not in the repository. The log states the scratch specs and batch scripts are not committed, and that
-the raw per-run JSON stayed in the session scratchpad.
 
 ## Result
 
@@ -82,13 +69,6 @@ the raw per-run JSON stayed in the session scratchpad.
 | `bottom-right-larger`, idle, release fixture | 0 / 10 | not run | 0 / 10 |
 | `bottom-right-larger`, 22 threads, debug | 9 / 10 | not run | not run |
 | old warnings, idle | 0 of 60 | 0 of 10 | 0 of 90 |
-
-## Verdict
-
-A baseline, not a verdict. The log records that the X11 column is not re-measured (this session is
-Wayland), and the knowledge base notes the XWayland rate of the old rule varied between logins: 1 of
-10 here and 9 of 10 and 10 of 10 in [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/);
-its explanation is a hypothesis.
 
 ## Not verified
 

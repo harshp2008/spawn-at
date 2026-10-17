@@ -2,33 +2,25 @@
 title: "6.20 Why arms B and C still flash under load"
 ---
 
-## Title
+Why arms B and C still flash under load: classification and a protocol-level re-run (no code change). Most remaining flashes are a late timestamp in the fixture, not a late app; the cap-150 timeouts are real.
 
-Why arms B and C still flash under load: classification and a protocol-level re-run (no code change)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.20. Follows [6.19](/spawn-at/experiments/6-19-ready-wait-abc/); the next step is [6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/). |
+| **Date** | 2026-10-13. |
+| **Build** | The user's dataset was recorded with `binary_commit` `0f90bc1` (not dirty). The commit of the traced re-run's binary is not recorded in this section. The version string is not recorded. Nothing in the product, the extension, the fixture or the harness was changed; the only file written in the repository was the log section. Tests were not run. |
+| **Verdict** | The user's observation is confirmed for the 16 `reached` flashes of B and C: they are not "the app answered late"; in the traced re-run the content was committed before the reveal and the flash is the fixture's late `FIRST_PAINT` stamp. It does not hold for the 5 B timeouts. Proposals, not implemented: for class a, take the `FIRST_PAINT` time before `present()` in the harness and fixture (no product change); for class b, raise the default cap from 150 to 250 as 6.19 recommended. |
+| **Raw results** | Not in the repository: the throwaway scripts (`lf_rows.jq`, `lf_abs.jq`, `lf_trace.awk`, `lf_client.awk`, `lf_join.sh`, `lf_timeline.sh`, `lf_calib.sh`, `lf_trace_loaded.sh`, `mono.rs`) are not committed; the raw traced runs and the dumps stayed in the session scratchpad. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.20. Follows [6.19](/spawn-at/experiments/6-19-ready-wait-abc/); the next step is
-[6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-The user's dataset was recorded with `binary_commit` `0f90bc1` (not dirty). The commit of the traced
-re-run's binary is not recorded in this section. The version string is not recorded. Nothing in the
-product, the extension, the fixture or the harness was changed; the only file written in the repository
-was the log section. Tests were not run.
-
-## Question
+**Question**
 
 Why do B (cap 150) and C (cap 250) still flash in 21 loaded runs, and is that the mechanism of A's
 shrink flashes? The observation to test, given by the user: the remaining flashes do not look like
 "the app answered late".
 
-## Setup and environment
+**Setup and environment**
 
 GNOME on Wayland, 22 CPUs. Two data sources. (1) The user's dataset, 150 run JSONs (`br/`:
 `bottom-right-smaller` and `-larger`, 20 per arm per spec; `tl/`: `top-left-smaller`, 10 per arm), under
@@ -39,16 +31,10 @@ writes its Wayland protocol dump: loaded 80 runs (arms B and C; 72 `reached` and
 untraced data (12 of 72 = 16.7% against 16 of 94 = 17.0%). The clocks were aligned with 120 bracketed
 `SetLogging` calls to an interval 6.02 ms wide (about +/-3 ms).
 
-## Commands run
+**Commands run**
 
 The harness `run` with the fixture trace variable set; a throwaway Rust `CLOCK_MONOTONIC` reader in
 `scratch/`. Full command lines not recorded.
-
-## Raw result location
-
-Not in the repository: the throwaway scripts (`lf_rows.jq`, `lf_abs.jq`, `lf_trace.awk`,
-`lf_client.awk`, `lf_join.sh`, `lf_timeline.sh`, `lf_calib.sh`, `lf_trace_loaded.sh`, `mono.rs`) are not
-committed; the raw traced runs and the dumps stayed in the session scratchpad.
 
 ## Result
 
@@ -80,14 +66,6 @@ and C runs.
   bottom-right anchored on the stale frame and corrected 6 to 178 ms later: "the app answered late" in
   the plain sense, which the ready-wait removes.
 - One traced C run had its cap timer fire 450 ms late (`elapsed_ms` 700.8 against `waited_ms` 250).
-
-## Verdict
-
-The user's observation is confirmed for the 16 `reached` flashes of B and C: they are not "the app
-answered late"; in the traced re-run the content was committed before the reveal and the flash is the
-fixture's late `FIRST_PAINT` stamp. It does not hold for the 5 B timeouts. Proposals, not implemented:
-for class a, take the `FIRST_PAINT` time before `present()` in the harness and fixture (no product
-change); for class b, raise the default cap from 150 to 250 as 6.19 recommended.
 
 ## Not verified
 
