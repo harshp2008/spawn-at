@@ -6,13 +6,18 @@
 //! exactly this code and the log-out advice can be dropped. Every other case, and every fact
 //! that cannot be read, keeps the advice. The facts sit behind [`ExtensionFacts`] so tests can
 //! inject them; [`RealFacts`] reads the real extension directory, `gnome-extensions info` and /proc.
+//!
+//! [`decide`] is pure over the facts. Only [`RealFacts`] touches the machine, and it only reads:
+//! it runs `gnome-extensions info`, lists `/proc` and reads files. Nothing here writes, logs out
+//! or prints; the caller turns [`LogoutNeed`] into advice.
 
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-/// A file found in the deployed extension directory.
+/// One entry of the deployed extension directory: its file name, its contents and its
+/// modification time.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DeployedFile {
     pub name: String,
@@ -20,11 +25,13 @@ pub struct DeployedFile {
     pub modified: SystemTime,
 }
 
-/// The facts the decision needs. `Err` means "could not be read".
+/// The facts the decision needs. `Err(text)` means "could not be read"; [`decide`] turns every
+/// `Err` into [`LogoutNeed::Needed`] and puts the text in the reason.
 pub trait ExtensionFacts {
-    /// The regular files of the deployed extension directory; `None` when it does not exist.
-    /// A sub-directory or other non-regular entry is reported as an error-free extra file by
-    /// the real implementation (name ending in `/`).
+    /// The entries of the deployed extension directory; `None` when it does not exist.
+    /// [`RealFacts`] lists a sub-directory, a symlink or any other non-regular entry as an
+    /// empty file named `<name>/` with modification time 0 (the epoch), without an error, so
+    /// it counts as an extra file in [`decide`].
     fn deployed_files(&self) -> Result<Option<Vec<DeployedFile>>, String>;
     /// True when `gnome-extensions info` reports the state ACTIVE.
     fn is_active(&self) -> Result<bool, String>;
@@ -37,15 +44,22 @@ pub trait ExtensionFacts {
 pub enum LogoutNeed {
     /// Files identical, extension active, files older than the running Shell: no log-out.
     NotNeeded,
-    /// Keep today's behaviour (ask and warn); the text says which fact decided.
+    /// The log-out advice stays (the caller asks and warns). The text says which fact decided.
     Needed(String),
 }
 
-/// Safety margin: file times must be at least this much before the Shell's start time, because
-/// the start time is derived from the boot time and clock ticks and is not exact.
+/// Safety margin of 2 s: the newest file time plus this must not be after the Shell's start
+/// time, because the start time is derived from the boot time and clock ticks and is not exact.
 const START_MARGIN: Duration = Duration::from_secs(2);
 
-/// Applies the rule. `expected` is the variant the install is about to deploy.
+/// Applies the rule. `expected` is the (file name, contents) list the install is about to deploy.
+///
+/// Returns [`LogoutNeed::NotNeeded`] only when, in this order: the directory exists and holds
+/// exactly as many entries as `expected`; each expected name is present with identical bytes;
+/// the extension is ACTIVE; the Shell's start time is readable; and the newest deployed
+/// modification time plus 2 s is not after that start time. The first check that fails gives
+/// [`LogoutNeed::Needed`] with its reason, including every unreadable fact.
+// Caller: the install in deploy.rs, only on Wayland (grep -n "logout::decide" src/).
 pub fn decide(facts: &dyn ExtensionFacts, expected: &[(&str, &str)]) -> LogoutNeed {
     let deployed = match facts.deployed_files() {
         Ok(Some(d)) => d,
@@ -83,7 +97,9 @@ pub fn decide(facts: &dyn ExtensionFacts, expected: &[(&str, &str)]) -> LogoutNe
     }
 }
 
-/// Reads the State line of `gnome-extensions info <uuid>`: `Some(true)` for ACTIVE.
+/// Reads the `State:` line of the output of `gnome-extensions info <uuid>`: `Some(true)` when
+/// the value is ACTIVE (any letter case), `Some(false)` for another value, `None` when there is
+/// no such line. Whether the label stays "State" in a translated output is not verified.
 pub fn parse_info_active(info: &str) -> Option<bool> {
     info.lines().find_map(|l| {
         let (key, value) = l.trim().split_once(':')?;
@@ -92,7 +108,10 @@ pub fn parse_info_active(info: &str) -> Option<bool> {
 }
 
 /// Start time of a process from the text of `/proc/<pid>/stat`, the boot time (`btime` of
-/// /proc/stat, seconds since the epoch) and the clock ticks per second.
+/// /proc/stat, seconds since the epoch) and the clock ticks per second. The result is
+/// `btime` plus `starttime` ticks converted to whole milliseconds (the remainder is dropped).
+/// `None` when the text has no `)`, has fewer than 20 fields after it, the field is not a
+/// number, or `ticks_per_sec` is 0.
 pub fn parse_proc_start(stat: &str, btime: u64, ticks_per_sec: u64) -> Option<SystemTime> {
     // The command name is in parentheses and may contain spaces; the fields after the last ')'
     // start at field 3, so starttime (field 22) is the 20th one after it.
@@ -105,13 +124,16 @@ pub fn parse_proc_start(stat: &str, btime: u64, ticks_per_sec: u64) -> Option<Sy
     Some(UNIX_EPOCH + Duration::from_secs(btime) + Duration::from_millis(ms))
 }
 
-/// Reads the facts from this machine.
+/// Reads the facts from this machine: the files in `ext_dir`, the state of the extension
+/// `uuid` from `gnome-extensions info`, and the start time of the user's gnome-shell process.
 pub struct RealFacts {
     pub ext_dir: PathBuf,
     pub uuid: &'static str,
 }
 
 impl ExtensionFacts for RealFacts {
+    /// Reads the whole directory, every regular file's bytes included. `None` only for a
+    /// missing directory; other I/O errors are returned as text.
     fn deployed_files(&self) -> Result<Option<Vec<DeployedFile>>, String> {
         let entries = match fs::read_dir(&self.ext_dir) {
             Ok(e) => e,
@@ -140,6 +162,8 @@ impl ExtensionFacts for RealFacts {
         Ok(Some(out))
     }
 
+    /// Runs `gnome-extensions info <uuid>`. `Err` when it cannot be started, exits non-zero, or
+    /// prints no `State:` line.
     fn is_active(&self) -> Result<bool, String> {
         let o = Command::new("gnome-extensions")
             .args(["info", self.uuid])
@@ -152,6 +176,10 @@ impl ExtensionFacts for RealFacts {
             .ok_or_else(|| "no State line in the gnome-extensions info output".to_string())
     }
 
+    /// Finds the process whose `/proc/<pid>/comm` is exactly `gnome-shell` and whose directory
+    /// is owned by the current uid, and returns its start time. `Err` unless there is exactly
+    /// one such process (zero, or two such as a nested Shell, give an error), or when `/proc`
+    /// cannot be parsed.
     fn shell_started(&self) -> Result<SystemTime, String> {
         use std::os::unix::fs::MetadataExt;
         // SAFETY: getuid has no preconditions.
