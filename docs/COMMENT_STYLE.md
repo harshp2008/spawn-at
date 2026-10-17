@@ -30,7 +30,8 @@ Rules for comments in Rust code. Comment-only commits must pass
   contract.
 - Statements about OTHER files ("no code under `src/` reads this", "only the Sway driver compares
   it", "`spawn` always sets 1") go stale. Put them in a plain `//` comment next to the item,
-  worded as a fact about the code at this commit, or leave them out.
+  stated as a fact about the code with a grep hint (`grep -rn "<name>" src/`) so a reader can
+  recheck it, or leave them out. No time phrase ("currently", "for now").
 - Mark anything you could not verify as "not verified" instead of guessing.
 
 ## Form
