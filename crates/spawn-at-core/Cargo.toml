@@ -1,6 +1,6 @@
 [package]
 name = "spawn-at-core"
-version = "0.2.0-beta.4"
+version = "0.2.0-beta.5"
 edition = "2021"
 description = "Pure mathematical geometry and declarative scheduling primitives for spawn-at"
 
