@@ -2,41 +2,32 @@
 title: "6.25c Hold the cloak: built, not run"
 ---
 
-## Title
+`x11-hold-damage`, built and tested offline, not installed and not run in a Shell (X11 investigation, stage 1, phase 3). The experiment was built and tested offline only; the live run is in the next record.
 
-`x11-hold-damage`, built and tested offline, not installed and not run in a Shell (X11 investigation,
-stage 1, phase 3)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.25c (the third part of section 6.25 of `docs/TEST_LOG.md`). The live run is [6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/). |
+| **Date** | 2026-10-14. The commit that added it, `196ac20`, is dated 2026-10-14 in `git log`. |
+| **Build** | Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `b09e27f` at the start of the section. The extension change is the commit `196ac20`, "experimental x11-hold-damage wait for XWayland/X11 (off by default, not installed)". It was never installed in a Shell for this section. The output of `spawn-at --version` is not recorded. |
+| **Verdict** | Built and tested offline only. The log lists the open question the live run was to answer: whether the paint's `damaged` arrives while the window stays cloaked. The answer is in [6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/). |
+| **Raw results** | `scratch/p26/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.25c (the third part of section 6.25 of `docs/TEST_LOG.md`). The live run is
-[6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/).
-
-## Date
-
-2026-10-14. The commit that added it, `196ac20`, is dated 2026-10-14 in `git log`.
-
-## Build
-
-Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `b09e27f` at the start of the
-section. The extension change is the commit `196ac20`, "experimental x11-hold-damage wait for
-XWayland/X11 (off by default, not installed)". It was never installed in a Shell for this section.
-The output of `spawn-at --version` is not recorded.
-
-## Question
+**Question**
 
 The log calls this the "hold-the-cloak experiment": for an XWayland or X11 window with a size
 request, keep the window cloaked after `set_size`, ignore the first `damaged` event and end the wait
 on the second. The open question the log says the live run answers: whether the paint's `damaged`
 arrives while the window stays cloaked.
 
-## Setup and environment
+**Setup and environment**
 
 Node tests (extension code with mocked GNOME objects) and Rust tests only. The code was a new
 module `x11_hold.js` and a hidden strategy value. The log states: not installed, not run in a Shell,
 no default changed.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. By the log: the test suites were run, and the log gives
 `cargo fmt --check` and `cargo clippy --workspace --all-targets -- -D warnings` as clean.
@@ -44,10 +35,6 @@ Exact command lines not recorded. By the log: the test suites were run, and the 
 How the experiment was selected (from the log): the hidden flag `--wait-strategy x11-hold-damage`,
 with `--wait-cap-ms` for its cap. The config file and `spawn-at config set` refused the value
 (`wait.strategy must be auto, legacy or ready-wait`); `auto` stayed the default.
-
-## Raw result location
-
-`scratch/p26/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -65,11 +52,6 @@ Tests added: 8 in `tests/x11_hold_test.js`, 4 in `tests/ready_wait_wiring_test.j
 `wait_override.rs` (plus the round-trip list), 1 assertion in `settings/tests.rs`, 1 in
 `mechanics.rs`. Counts after: `spawn-at` 206 (was 205), `spawn-at-core` 65, `xtask` 10,
 `spawn-at-verify` (`tui,fixture`) 402 passed and 4 ignored, node 188 (was 176).
-
-## Verdict
-
-Built and tested offline only. The log lists the open question the live run was to answer: whether the
-paint's `damaged` arrives while the window stays cloaked. The answer is in [6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/).
 
 ## Not verified
 

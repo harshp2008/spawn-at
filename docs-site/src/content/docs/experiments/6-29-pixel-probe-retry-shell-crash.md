@@ -2,45 +2,32 @@
 title: "6.29 Pixel probe retry: the Shell crashed"
 ---
 
-## Title
+`x11-pixel-probe`, live retry with the `Mtk.Rectangle` fix: stopped after phase 1, GNOME Shell crashed in the batch. The probe worked in the smoke run, then the batch crashed GNOME Shell; the probe must not be used.
 
-`x11-pixel-probe`, live retry with the `Mtk.Rectangle` fix: stopped after phase 1, GNOME Shell crashed
-in the batch
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.29. Follows [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/). |
+| **Date** | 2026-10-14. The crash is logged at 09:59:04 on that date. |
+| **Build** | Tag: none recorded. Tree: HEAD `2d8fc5e`. The installed extension included the `Mtk.Rectangle` fix, commit `02ae11e`, "the pixel probe passes a real Mtk.Rectangle as the get_image clip (not installed, not yet run)". The output of `spawn-at --version` is not recorded for this section. Session: GNOME on Wayland, gnome-shell pid 553983 (started 09:57:09), extension ACTIVE, protocol 6. |
+| **Verdict** | The probe as built can crash the Shell and must not be used. It was removed together with the other X11 experiments. |
+| **Raw results** | `scratch/p30r/`, with the discarded batch in `scratch/p30r/idle_DISCARDED_shell_crashed/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.29. Follows [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/).
-
-## Date
-
-2026-10-14. The crash is logged at 09:59:04 on that date.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `2d8fc5e`. The installed extension included the `Mtk.Rectangle` fix,
-commit `02ae11e`, "the pixel probe passes a real Mtk.Rectangle as the get_image clip (not installed,
-not yet run)". The output of `spawn-at --version` is not recorded for this section. Session: GNOME on
-Wayland, gnome-shell pid 553983 (started 09:57:09), extension ACTIVE, protocol 6.
-
-## Question
+**Question**
 
 Does the pixel probe work once the clip is a real `Mtk.Rectangle`, and can it tell a blank new buffer
 from a painted one?
 
-## Setup and environment
+**Setup and environment**
 
 Fixture only: `--protocol x11 --state-colors`. A smoke of 3 idle `larger` spawns (09:58:25 to
 09:58:32), then an idle batch of 20 runs per spec with arm `x11-pixel-probe`, logging switched on by
 the batch script, started at 09:59:04.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded.
-
-## Raw result location
-
-`scratch/p30r/`, with the discarded batch in `scratch/p30r/idle_DISCARDED_shell_crashed/` (gitignored).
-Not in the repository.
 
 ## Result
 
@@ -76,11 +63,6 @@ one Mutter line, `surface_state_changed: assertion 'wl_window->has_last_sent_con
 after the Shell started. The author called it a baseline and went on; the log says that under the rule
 "stop if the journal shows a gnome-shell assertion" the author should have stopped and asked. It was
 not the crash: the Shell lived until 09:59:04.
-
-## Verdict
-
-The probe as built can crash the Shell and must not be used. It was removed together with the other
-X11 experiments.
 
 ## Not verified
 

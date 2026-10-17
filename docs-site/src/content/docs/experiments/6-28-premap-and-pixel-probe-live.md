@@ -2,34 +2,25 @@
 title: "6.28 Pre-map resize and pixel probe: live"
 ---
 
-## Title
+`x11-pixel-probe` and `x11-premap`, live on the XWayland fixture. The pixel probe failed at its first call and pre-map is not usable as a ready signal.
 
-`x11-pixel-probe` and `x11-premap`, live on the XWayland fixture
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.28. Follows [6.27](/spawn-at/experiments/6-27-premap-and-pixel-probe-built/); the probe is tried again in [6.29](/spawn-at/experiments/6-29-pixel-probe-retry-shell-crash/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `cd7967f`, tree clean. The debug fixture binary was built with `--features tui,fixture` and supports `--state-colors`. The output of `spawn-at --version` is not recorded for this section. The session was GNOME on Wayland, extension ACTIVE, protocol 6, installed files identical to `assets/gnome/modern` including `x11_premap.js` and `x11_probe.js`, after a new login. |
+| **Verdict** | `x11-pixel-probe`: inconclusive, nothing measured. `x11-premap`: not usable as a ready signal on this evidence, because `first-frame` is a map event, not an app event. The log's note: the early resize itself works and is cheap, and a signal that follows the app's commit would be needed. |
+| **Raw results** | `scratch/p29r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.28. Follows [6.27](/spawn-at/experiments/6-27-premap-and-pixel-probe-built/); the probe is
-tried again in [6.29](/spawn-at/experiments/6-29-pixel-probe-retry-shell-crash/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `cd7967f`, tree clean. The debug fixture binary was built with
-`--features tui,fixture` and supports `--state-colors`. The output of `spawn-at --version` is not
-recorded for this section. The session was GNOME on Wayland, extension ACTIVE, protocol 6, installed
-files identical to `assets/gnome/modern` including `x11_premap.js` and `x11_probe.js`, after a new
-login.
-
-## Question
+**Question**
 
 (1) Does the pixel probe read the window texture, and can "blank new buffer" be told from "painted"?
 (2) Does resizing the window before it is mapped make the app's first paint land at the target size,
 and does revealing on `first-frame` then avoid the flash?
 
-## Setup and environment
+**Setup and environment**
 
 Fixture only: `--protocol x11`, plus `--state-colors` for the probe. No real X11 or XWayland
 application. Defaults unchanged. Probe logging is enabled by the batch scripts sending `SetLogging(true)`
@@ -38,15 +29,11 @@ pre-map: 5 runs per spec per arm in the same session, arms rotated, idle and the
 threads after a 70 s warm-up. Arm A is `legacy`; arm P is `x11-premap`. "Hidden" is `window-created`
 to `UNCLOAK`.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. By the log: `spawn-at spawn` of the fixture with
 `--wait-strategy x11-pixel-probe --state-colors` (3 idle `larger` spawns), and with
 `--wait-strategy legacy` or `x11-premap` (40 smoke runs).
-
-## Raw result location
-
-`scratch/p29r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -81,12 +68,6 @@ later, `first-frame` 19.4 ms after the resize and `READY_WAIT_RESOLVED ... reaso
   loaded P runs was 7 of 10 (70%, below the 80% bar), and loaded flashes were 8 of 10 for P against 9
   of 10 for A. The full A/B was not run.
 - Cleanup: no `xtask`, fixture or `gst-launch` process left; no PNG left; gnome-shell pid unchanged.
-
-## Verdict
-
-`x11-pixel-probe`: inconclusive, nothing measured. `x11-premap`: not usable as a ready signal on this
-evidence, because `first-frame` is a map event, not an app event. The log's note: the early resize
-itself works and is cheap, and a signal that follows the app's commit would be needed.
 
 ## Not verified
 

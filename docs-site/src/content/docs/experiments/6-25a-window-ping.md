@@ -2,42 +2,32 @@
 title: "6.25a Window ping"
 ---
 
-## Title
+Is a window ping observable? (X11 investigation, stage 1, phase 1a). There is no usable ping or pong API.
 
-Is a window ping observable? (X11 investigation, stage 1, phase 1a)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.25a (the first part of section 6.25 of `docs/TEST_LOG.md`). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `b09e27f`, tree clean, extension ACTIVE, installed files identical to `assets/gnome/modern`. The output of `spawn-at --version` is not recorded for this section. |
+| **Verdict** | No usable ping/pong API. Nothing was added for it (the log's phase 3b: ping/pong logging, nothing added). |
+| **Raw results** | `scratch/p26/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.25a (the first part of section 6.25 of `docs/TEST_LOG.md`).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `b09e27f`, tree clean, extension
-ACTIVE, installed files identical to `assets/gnome/modern`. The output of `spawn-at --version` is
-not recorded for this section.
-
-## Question
+**Question**
 
 Is a window ping observable (the log's phase 1a question)? The wider question of the
 investigation, as the [X11 and XWayland](/spawn-at/environments/x11-xwayland/) page puts it, was how
 to tell that an X11 client has painted at its new size.
 
-## Setup and environment
+**Setup and environment**
 
 `gjs` with the `Meta-14` typelib, run outside the Shell. Introspection only: no window was pinged.
 The log's label for the whole section: fixture only, nothing installed, no default changed.
 
-## Commands run
+**Commands run**
 
 `gjs` introspection of the `Meta-14` typelib. Exact command line not recorded.
-
-## Raw result location
-
-`scratch/p26/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -54,11 +44,6 @@ The log's label for the whole section: fixture only, nothing installed, no defau
 - A reply that arrives in time leaves no trace the extension can read. `check_alive` is an action
   that makes Mutter send a ping and may bring up the "not responding" dialog for a hung
   application. It is not an observation.
-
-## Verdict
-
-No usable ping/pong API. Nothing was added for it (the log's phase 3b: ping/pong logging, nothing
-added).
 
 ## Not verified
 
