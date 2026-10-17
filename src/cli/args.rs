@@ -1,5 +1,14 @@
 //! # CLI Argument Structs and Definitions
 
+// Clap-derived structs and enums for the subcommands, plus their `validate` checks that clap
+// cannot express. The `///` lines on structs, enums, fields and variants in this file are the
+// `--help` text, so they are the contract and are not edited in a comment-only change; notes
+// here are plain `//`. The `validate` methods only check the arguments and print nothing.
+// `Cli::validate` (src/cli/mod.rs) calls them for spawn, transform, focus, defocus, maximize,
+// minimize, restore and close; `main` prints the `Err` text and exits with status 2 (main.rs).
+// install, uninstall, config, update and query have no check here. No code in this file talks
+// to a backend or touches the file system.
+
 use clap::{Args, Subcommand};
 use spawn_at_core::geometry::{Anchor, Area, Pivot};
 
@@ -119,6 +128,8 @@ pub struct GeometryArgs {
 }
 
 impl GeometryArgs {
+    // The effective clamp: always false for `--area unbounded`, otherwise `--clamp` if given,
+    // else true.
     pub fn clamp(&self) -> bool {
         if self.area == Area::Unbounded {
             false
@@ -127,6 +138,9 @@ impl GeometryArgs {
         }
     }
 
+    // The effective universal margin in pixels: 0 for `--area unbounded`, otherwise `--margin`
+    // if given, else 16. The per-side margins are not looked at here; transform.rs falls back to
+    // this value for a side without its own margin.
     pub fn margin(&self) -> i32 {
         if self.area == Area::Unbounded {
             0
@@ -135,6 +149,11 @@ impl GeometryArgs {
         }
     }
 
+    // Rejects: with `--area unbounded`, `--monitor`, `--clamp`, any margin flag and any `--anchor`
+    // except `cursor`; a `--size` without exactly 2 values or with a value that parses as an
+    // integer <= 0 (a value that does not parse as an integer is not rejected here); `--pos`
+    // together with `--offset`; and `--pos` or `--offset` given more than once (more than 2
+    // values collected).
     pub fn validate(&self) -> Result<(), String> {
         if self.area == Area::Unbounded {
             if self.monitor.is_some() {
@@ -262,6 +281,8 @@ pub struct SpawnArgs {
     pub after_double_dash: bool,
 }
 
+// Edit distance between `a` and `b` counted in bytes (not characters), so a non-ASCII character
+// counts as several edits. Insertion, deletion and substitution each cost 1.
 fn levenshtein(a: &str, b: &str) -> usize {
     let a_bytes = a.as_bytes();
     let b_bytes = b.as_bytes();
@@ -279,6 +300,13 @@ fn levenshtein(a: &str, b: &str) -> usize {
     prev[b_bytes.len()]
 }
 
+// The "Did you mean" text for a mistyped option in the command position of `spawn`. First a fixed
+// table of flags people guess (`--no-clamp` and `--clamp` give `--clamp false`, `--no-margin`
+// gives `--margin 0`, `--screen`, `--workarea`, `--cursor`, `--center` and the four corner
+// names give the `--area` or `--anchor` form). Otherwise the closest entry of `KNOWN_OPTIONS`
+// within edit distance 3, the first one listed on a tie; `None` when none is that close.
+// `KNOWN_OPTIONS` does not list `--wait-strategy`, `--wait-cap-ms` or `--help`. The only
+// caller found by grep is `SpawnArgs::validate` below.
 pub fn find_option_suggestion(token: &str) -> Option<&'static str> {
     match token {
         "--no-clamp" | "-no-clamp" => Some("--clamp false"),
@@ -329,6 +357,10 @@ pub fn find_option_suggestion(token: &str) -> Option<&'static str> {
 }
 
 impl SpawnArgs {
+    // The geometry checks, then: a command whose first word starts with `-` is an error ("unknown
+    // option ...", plus a suggestion when `find_option_suggestion` has one) unless `--` was in the
+    // raw arguments (`after_double_dash`, set by `main` before this runs, never by clap). An empty
+    // `command` is not checked here: clap's `required = true` does that.
     pub fn validate(&self) -> Result<(), String> {
         self.geometry.validate()?;
 
@@ -381,6 +413,9 @@ pub struct TransformArgs {
 }
 
 impl TransformArgs {
+    // Needs at least one selector, valid geometry, and at least one of a size, a position or
+    // offset, or an anchor. `--pivot` alone does not count as something to change, although the
+    // error text mentions "--pivot with --size".
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_none()
             && self.class.is_none()
@@ -466,6 +501,8 @@ pub struct WindowTargetArgs {
 }
 
 impl WindowTargetArgs {
+    // Needs at least one of `--id`, `--class`, `--title`, `--pid`, `--focused`. The selectors
+    // are not checked against each other or against the open windows here.
     pub fn validate(&self) -> Result<(), String> {
         if self.id.is_none()
             && self.class.is_none()
@@ -597,10 +634,15 @@ pub struct DefocusArgs {
 }
 
 impl DefocusArgs {
+    // Always `Ok`: defocus needs no selector (`get_selector` defaults to the focused window), and
+    // clap already rejects `--to-desktop` together with `--to-window`.
     pub fn validate(&self) -> Result<(), String> {
         Ok(())
     }
 
+    // The pair handed to `defocus_window`: `("desktop", "")`, `("window", <the value of
+    // --to-window>)`, or `("mru", "")` when neither flag is given. What each driver does with
+    // "mru" is not verified here.
     pub fn mode_and_destination(&self) -> (&'static str, &str) {
         if self.to_desktop {
             ("desktop", "")
@@ -611,6 +653,8 @@ impl DefocusArgs {
         }
     }
 
+    // The selector for the window to defocus: the given selectors, or the focused window when none
+    // of `--id`, `--class`, `--title`, `--pid`, `--focused` is set.
     pub fn get_selector(&self) -> crate::target::WindowSelector {
         if self.target.id.is_none()
             && self.target.class.is_none()
