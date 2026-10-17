@@ -1,13 +1,16 @@
-//! # Platform & Compositor Driver Abstraction Layer
+//! The seam between the neutral commands and the per-desktop drivers.
 //!
-//! ## Architectural Rationale
+//! [`CompositorBackend`] is the trait every driver implements; the commands only hold a
+//! `Box<dyn CompositorBackend>` from [`init_backend`] and never name a display server. This
+//! module also declares the small per-OS traits ([`host::Host`], [`session_actions::SessionActions`],
+//! [`update_hooks::UpdateHooks`]) and the types shared by their callers ([`ClaimResult`],
+//! [`WindowState`], [`InstallArgs`], [`UninstallArgs`]).
 //!
-//! In desktop ecosystems, window management mechanics differ drastically across
-//! display servers (GNOME Wayland, X11, and future macOS/Windows backends).
-//! The `CompositorBackend` trait abstracts these differences into a unified interface,
-//! allowing `spawn-at` to inspect the runtime environment and route execution to the
-//! optimal driver without leaking display-server-specific IPC details to high-level commands.
+//! It must not contain display-server code: that lives in the driver modules under `linux`.
 
+// Implementors of `CompositorBackend` at this commit (not verified for other commits): the
+// `linux::LinuxBackend` adapter that wraps one of `GnomeWaylandDriver`, `SwayDriver` and
+// `X11Driver`, and `null_backend::NullBackend`. The rest are test doubles.
 pub mod capability;
 pub mod escalate;
 pub mod host;
@@ -48,13 +51,21 @@ use std::time::Duration;
 /// The result reported when a compositor claims and finishes placement of an armed window.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ClaimResult {
+    // The GNOME subscription copies these fields from the extension's claim signal and returns
+    // `Err` instead of a `ClaimResult` when the signal has `success == false`, so `success` is
+    // always true in a result it returns (read in `GnomeClaimSubscription::wait_claim`).
+    // The GNOME subscription sets `target_id` to the id in the signal, which can be the
+    // wildcard `"*"` when the signal used it.
+    /// The target id the claim was reported for.
     pub target_id: String,
     pub success: bool,
+    /// The id of the claimed window.
     pub window_id: u64,
     pub x: i32,
     pub y: i32,
     pub w: u32,
     pub h: u32,
+    // What `size_raised` means is defined by the extension; not verified here.
     pub size_raised: bool,
     pub error: String,
     /// How the size request ended, from the `ResizeOutcome` signal of extension protocol 6.
@@ -63,13 +74,22 @@ pub struct ClaimResult {
 }
 
 /// A subscription to window claim notifications issued by the compositor backend.
+///
+/// Created by [`CompositorBackend::prepare_claim_wait`] before arming, so a signal sent right
+/// after arming is not missed.
+// Implemented by `GnomeClaimSubscription` (src/platform/linux/gnome/driver.rs); the rest are
+// test doubles.
 #[async_trait::async_trait]
 pub trait ClaimSubscription: Send + Sync {
-    /// Awaits the next claim signal matching the armed target or times out.
+    /// Awaits the next claim signal matching the armed target, for at most `timeout`.
+    ///
+    /// Errors: [`DriverError`]; the variants are up to the implementor.
+    // The GNOME one returns TargetNotFound on a timeout or a closed signal stream and Execution
+    // when the signal reports a failed placement.
     async fn wait_claim(&mut self, timeout: Duration) -> Result<ClaimResult, DriverError>;
 }
 
-/// The desired window state for transformations.
+/// The window state `CompositorBackend::set_window_state` is asked to set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum WindowState {
     Maximize,
@@ -81,6 +101,10 @@ pub enum WindowState {
     Restore,
 }
 
+// The scope flag of install and uninstall (`--scope`). Clap derives: a `///` here or on a field
+// of `InstallArgs`/`UninstallArgs` would change the `--help` text, so these notes are plain `//`.
+// `User` is the default for both commands; where each scope puts the binary is decided by
+// `host::Host::bin_dir`, not here.
 #[derive(clap::ValueEnum, Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum InstallScope {
     #[default]
@@ -129,27 +153,50 @@ pub struct UninstallArgs {
     pub backend: BackendUninstallArgs,
 }
 
-/// Core interface representing a window manager or compositor driver.
+/// What one desktop's driver offers the commands. It extends [`Driver`], so an implementor also
+/// provides [`Driver::arm`] (required; [`Driver::disarm`] has a default).
+///
+/// Required methods: [`CompositorBackend::name`], [`CompositorBackend::resolve_id`] and
+/// `Driver::arm`. Every other method has a default; read each default below as "this backend
+/// does not do that", so an implementor overrides exactly what it can do and keeps its
+/// [`CompositorBackend::capabilities`] consistent with it.
+///
+/// An implementor must keep [`CompositorBackend::capabilities`] true only for operations whose
+/// methods it overrides: a command that checks a capability first refuses with its own message
+/// when it is false and never calls the method. Failures are reported as [`DriverError`]; the
+/// defaults return [`DriverError::UnsupportedCapability`] carrying the method name, except
+/// [`CompositorBackend::close_window`] (a [`DriverError::Execution`] with a fixed message).
+// Implementors at this commit: `GnomeWaylandDriver`, `SwayDriver` and `X11Driver` (the real
+// drivers), `linux::LinuxBackend` (forwards every method to one of them) and
+// `null_backend::NullBackend`; the rest are test doubles in test modules.
+// Callers that check a capability first, at this commit: `commands/transform.rs` (`runtime_transform`)
+// and `commands/lifecycle.rs` (`close`). Other commands call the methods directly and handle the
+// error; `reveal_control` and `needs_helper` are read by no command.
 #[async_trait::async_trait]
 pub trait CompositorBackend: Driver + Send + Sync {
-    /// Human-readable name of the window manager / driver.
+    /// Short name of the driver, for messages (required, no default).
     fn name(&self) -> &'static str;
 
     // --- Setup & Teardown ---
 
     /// What this backend needs on the machine and how to set it up and remove it; `None` when it
-    /// needs nothing (see [`provisioner::Provisioner`]).
+    /// needs nothing (see [`provisioner::Provisioner`]). The default is `None`.
     fn provisioner(&self) -> Option<&dyn provisioner::Provisioner> {
         None
     }
 
     /// A short notice to print (and confirm) before installing when this environment has not been
-    /// tested; `None` when it has, or when the driver has nothing to say.
+    /// tested; `None` when it has, or when the driver has nothing to say. The default asks
+    /// [`CompositorBackend::provisioner`] and gives `None` without one.
     fn install_notice(&self) -> Option<String> {
         self.provisioner().and_then(|p| p.install_notice())
     }
 
     /// Installs any necessary system hooks or extensions required by this driver.
+    ///
+    /// The default calls the provisioner's `install`; without a provisioner it prints
+    /// `No installation required for <name>.` to stdout and returns `Ok(())`. Any other side
+    /// effect is the provisioner's.
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         match self.provisioner() {
             Some(p) => p.install(args),
@@ -161,6 +208,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Uninstalls any previously installed system hooks or extensions.
+    ///
+    /// The default calls the provisioner's `uninstall`; without one it prints
+    /// `No uninstallation required for <name>.` and returns `Ok(())`.
     fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
         match self.provisioner() {
             Some(p) => p.uninstall(args),
@@ -173,9 +223,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
 
     // --- Capability Checking ---
 
-    /// What this backend can do. The default is built from the `supports_*` methods, so a
-    /// backend (or a test double) that only has those behaves as before; the GNOME and X11
-    /// drivers return their own values.
+    /// What this backend can do. The default copies `runtime_transform`, `claim_wait` and
+    /// `close` from the `supports_*` methods and sets `reveal_control` and `needs_helper` to
+    /// false. The GNOME, Sway and X11 drivers return their own values.
     fn capabilities(&self) -> capability::Capabilities {
         capability::Capabilities {
             runtime_transform: self.supports_runtime_transform(),
@@ -186,12 +236,13 @@ pub trait CompositorBackend: Driver + Send + Sync {
         }
     }
 
-    /// True if the compositor supports moving/resizing mapped windows via IPC.
+    /// True if the compositor supports moving/resizing mapped windows via IPC. Default: false.
     fn supports_runtime_transform(&self) -> bool {
         false
     }
 
     /// True if the compositor supports asynchronous event/signal notification for claimed windows.
+    /// Default: false.
     // Backend contract: implemented by the GNOME driver and forwarded by LinuxBackend, exercised
     // by tests, but no production code asks it today.
     #[allow(dead_code)]
@@ -199,12 +250,14 @@ pub trait CompositorBackend: Driver + Send + Sync {
         false
     }
 
-    /// True if the compositor backend supports closing windows.
+    /// True if the compositor backend supports closing windows. Default: false.
     fn supports_close(&self) -> bool {
         false
     }
 
     /// Prepares a subscription to wait for window claim notifications before arming.
+    ///
+    /// The default returns `Ok(None)`: the backend has no claim signal.
     async fn prepare_claim_wait(
         &self,
         _target_id: &str,
@@ -213,6 +266,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
     }
 
     /// Queries the current geometry of a window by its unique ID.
+    ///
+    /// The default looks the id up in [`CompositorBackend::get_windows`] and returns
+    /// [`DriverError::TargetNotFound`] when no window has it.
     async fn get_window_rect(&self, id: u64) -> Result<Rect, DriverError> {
         let windows = self.get_windows().await?;
         windows
@@ -230,30 +286,36 @@ pub trait CompositorBackend: Driver + Send + Sync {
     // --- Environment Queries ---
 
     /// Resolves the application identifier (e.g. Wayland App ID, X11 WM_CLASS, Windows executable name, or macOS Bundle ID)
-    /// for the given command and optional explicit class override.
+    /// for the given command and optional explicit class override. Required, no default.
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String;
 
     /// Query current pointer position (X, Y) in compositor/screen coordinates.
+    /// The default returns `UnsupportedCapability("get_cursor_position")`.
     async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
         Err(DriverError::UnsupportedCapability("get_cursor_position"))
     }
 
-    /// Query active display monitor bounding boxes.
+    /// Query active display monitor bounding boxes. The default is an empty list.
     async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
         Ok(Vec::new())
     }
 
-    /// Query active workareas (monitor bounds minus panels/docks).
+    /// Query active workareas (monitor bounds minus panels/docks). The default returns
+    /// [`CompositorBackend::get_monitors`], i.e. no panels subtracted.
     async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
         self.get_monitors().await
     }
 
-    /// Query active windows.
+    /// Query active windows. The default returns `UnsupportedCapability("get_windows")`.
     async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
         Err(DriverError::UnsupportedCapability("get_windows"))
     }
 
     /// Query monitor layout (screens, workareas, scales, and insets).
+    ///
+    /// The default builds a `schema_version` 1 layout from [`CompositorBackend::get_workareas`]:
+    /// one entry per workarea in order, index 0 marked primary, only `index`, `primary` and
+    /// `workarea` filled, no `note`.
     async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
         let workareas = self.get_workareas().await?;
         let monitors = workareas
@@ -276,7 +338,8 @@ pub trait CompositorBackend: Driver + Send + Sync {
         })
     }
 
-    /// Query compositor extension protocol version if supported (None for X11 / unversioned backends).
+    /// Query compositor extension protocol version if supported (None for X11 / unversioned
+    /// backends). The default is `None`.
     async fn protocol_version(&self) -> Option<u32> {
         None
     }
@@ -291,6 +354,9 @@ pub trait CompositorBackend: Driver + Send + Sync {
     // --- Core Actions ---
 
     /// Performs an animated or atomic transform on an existing window.
+    /// The default returns `UnsupportedCapability("transform_window")`; the same default
+    /// pattern (with the method's own name) applies to `move_window`, `move_resize_window`,
+    /// `set_window_state`, `focus_window` and `defocus_window`.
     async fn transform_window(
         &self,
         _target_id: &str,
@@ -347,14 +413,16 @@ pub trait CompositorBackend: Driver + Send + Sync {
         Err(DriverError::UnsupportedCapability("defocus_window"))
     }
 
-    /// Requests graceful closure of the specified target window.
+    /// Requests graceful closure of the specified target window. The default returns
+    /// `DriverError::Execution("this backend cannot close windows")`, not `UnsupportedCapability`.
     async fn close_window(&self, _target_id: &str) -> Result<(), DriverError> {
         Err(DriverError::Execution(
             "this backend cannot close windows".into(),
         ))
     }
 
-    /// Optional post-spawn synchronization hook (e.g. for X11 window interception).
+    /// Optional post-spawn synchronization hook (e.g. for X11 window interception). The default
+    /// does nothing and returns `Ok(())`. Only the Sway and X11 drivers override it.
     async fn post_spawn(&self, _child_pid: u32, _batch: &Batch) -> Result<(), DriverError> {
         Ok(())
     }
@@ -370,7 +438,12 @@ pub fn ensure_supported_os() {
     }
 }
 
-/// Automatically detects the active desktop environment and returns the appropriate driver.
+/// Builds the backend for this session.
+///
+/// On Linux this is `LinuxBackend::bootstrap`, which reads `SPAWN_AT_BACKEND`,
+/// `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE` (see `linux::registry`) and fails with
+/// [`DriverError::Execution`] on a desktop it does not support, or when a forced Sway cannot be
+/// reached. On other systems it returns the refusing `NullBackend`.
 pub async fn init_backend() -> Result<Box<dyn CompositorBackend>, DriverError> {
     #[cfg(target_os = "linux")]
     return NativeBackend::bootstrap().await;
