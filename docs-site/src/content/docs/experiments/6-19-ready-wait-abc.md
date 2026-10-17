@@ -2,35 +2,26 @@
 title: "6.19 Ready-wait: same-session A/B/C"
 ---
 
-## Title
+Ready-wait: same-session A/B/C with the per-spawn override (no code change). The log recommends a cap of 250 ms; the two caps are not separable on flashes.
 
-Ready-wait: same-session A/B/C with the per-spawn override (no code change)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.19. Follows [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/); explained by [6.20](/spawn-at/experiments/6-20-why-b-and-c-still-flash/). |
+| **Date** | 2026-10-13. |
+| **Build** | Debug `spawn-at`, `spawn-at-verify` and `fixture` built from the code of commit `5a2c7be` (`binary_commit` in the report is `5a2c7be`, `is_dirty_build` false). The per-spawn override flags come from commits `44ee6b7` and `80ef74a`. The extension installed at 12:27:22 IST; the Shell process started at 12:30:49 IST. The version string is not recorded. Nothing in the product, extension or harness was changed; the only file written in the repository was the log section. Tests were not run. |
+| **Verdict** | The log recommends cap 250, labelled "a recommendation; the decision is the user's": at idle the two caps are indistinguishable and neither is ever reached (largest wait 40.8 ms); under load only 250 meets the 70% criterion because it turns 9 of B's 10 cap timeouts into runs that reached the target. The price is the cloak tail (p95 +34 ms, max +80 ms against 150). The log holds this loosely: B and C are not separable on flashes, both caps leave 41 to 42 of 50 loaded runs over the 100 ms budget, and a cap between 150 and 250 or above 250 was not tried. |
+| **Raw results** | Not in the repository: scratch scripts (`ab_batch.sh`, `ab_loaded.sh`, `ab_rows.sh`, `ab_rows.jq`, `ab_stats.sh`, `ab_stats.jq`, `app_ab.sh`, `rw_extract2.sh`) are throwaway and gitignored; the raw per-run JSON (330 fixture runs) and the app logs stayed in the session scratchpad. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.19. Follows [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/); explained by
-[6.20](/spawn-at/experiments/6-20-why-b-and-c-still-flash/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-Debug `spawn-at`, `spawn-at-verify` and `fixture` built from the code of commit `5a2c7be`
-(`binary_commit` in the report is `5a2c7be`, `is_dirty_build` false). The per-spawn override flags come
-from commits `44ee6b7` and `80ef74a`. The extension installed at 12:27:22 IST; the Shell process started
-at 12:30:49 IST. The version string is not recorded. Nothing in the product, extension or harness was
-changed; the only file written in the repository was the log section. Tests were not run.
-
-## Question
+**Question**
 
 In one login and one extension instance, how do the legacy rule and the ready-wait with two caps
 compare? Arm A is `--wait-strategy legacy` (the 30 ms rule); arm B is `--wait-strategy ready-wait
 --wait-cap-ms 150`; arm C is `--wait-strategy ready-wait --wait-cap-ms 250`. The log's criteria are
 those of 6.18.
 
-## Setup and environment
+**Setup and environment**
 
 GNOME Shell 46 on Wayland, 22 CPUs, 60 Hz, one monitor. Preflight confirmed before any measurement: the
 session; the extension ACTIVE and byte-identical to the tree (`diff -rq` printed nothing); protocol 6;
@@ -46,7 +37,7 @@ per arm, 180 runs). Loaded: 22 `burn-cpu` threads, 70 s warm-up, `bottom-right-*
 and `top-left-smaller` 10 per arm (150 runs); mean load average at run start A 25.80, B 25.86, C 25.77.
 Every run was checked against its arm; 0 of 330 failed a check.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run --dir scratch/flashlib --bin target/debug/spawn-at --glob placement/<spec> --json
 <arm flags>`, one process per run, specs and arms interleaved, a 1.5 s sleep after each; `xtask
@@ -54,12 +45,6 @@ burn-cpu --threads 22`; for real apps `spawn-at spawn --class <id> --anchor bott
 --margin 16 [override flags] -- <app>`. The first batch script needed fixes (the arm rotation started
 at the second arm; a stale-file copy was removed; a wrong binary argument in a trial that was
 discarded).
-
-## Raw result location
-
-Not in the repository: scratch scripts (`ab_batch.sh`, `ab_loaded.sh`, `ab_rows.sh`, `ab_rows.jq`,
-`ab_stats.sh`, `ab_stats.jq`, `app_ab.sh`, `rw_extract2.sh`) are throwaway and gitignored; the raw per-run
-JSON (330 fixture runs) and the app logs stayed in the session scratchpad.
 
 ## Result
 
@@ -88,15 +73,6 @@ JSON (330 fixture runs) and the app logs stayed in the session scratchpad.
 - Criteria: (1) idle 0 flashes: met for both; (2) loaded flashes down at least 70%: B not met (68.1%,
   one flash fewer would have been 70.2%), C met (76.6%); (3) idle cloak median up by no more than 10
   ms: met for both (-1.4 and -0.6 ms); (4) hung or refusing apps end by the hard limit: not shown.
-
-## Verdict
-
-The log recommends cap 250, labelled "a recommendation; the decision is the user's": at idle the two
-caps are indistinguishable and neither is ever reached (largest wait 40.8 ms); under load only 250 meets
-the 70% criterion because it turns 9 of B's 10 cap timeouts into runs that reached the target. The
-price is the cloak tail (p95 +34 ms, max +80 ms against 150). The log holds this loosely: B and C are
-not separable on flashes, both caps leave 41 to 42 of 50 loaded runs over the 100 ms budget, and a cap
-between 150 and 250 or above 250 was not tried.
 
 ## Not verified
 

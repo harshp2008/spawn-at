@@ -2,30 +2,24 @@
 title: "6.11.1 Final-state oracle and re-measure"
 ---
 
-## Title
+Final-state oracle, post-reveal warning and re-measure. Judged on the final rectangle, no run failed; the window is still first shown at the wrong geometry under load.
 
-Final-state oracle, post-reveal warning and re-measure
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.11.1. A correction to [6.11](/spawn-at/experiments/6-11-late-resize-fix-live/). |
+| **Date** | 2026-10-12. |
+| **Build** | Binary at commit `e47c41f` (HEAD, clean build, preflight pass). The fix `9e6b65d` was live in the same Shell as in 6.11. Two harness commits are part of the section: `d01687b` (the final-state oracle) and `e47c41f` (the trace warning). The version string is not recorded. No product code changed. |
+| **Verdict** | Placement is correct on the final rectangle (0 of 640 failures across idle and loaded). What remains wrong, and now shows as warnings, is that the window is shown at the wrong geometry first and `spawn-at`'s printed rectangle is not where the window ends up. The log calls the "known flaky under CPU load" marks of 6.11 a statement about the printed rectangle, not about final placement. |
+| **Raw results** | `verify-results/gate-20261012/g3/` and `scratch/gap.jq` (throwaway), both gitignored. Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.11.1. A correction to [6.11](/spawn-at/experiments/6-11-late-resize-fix-live/).
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Binary at commit `e47c41f` (HEAD, clean build, preflight pass). The fix `9e6b65d` was live in the same
-Shell as in 6.11. Two harness commits are part of the section: `d01687b` (the final-state oracle) and
-`e47c41f` (the trace warning). The version string is not recorded. No product code changed.
-
-## Question
+**Question**
 
 6.11 judged placement on the rectangle `spawn-at` printed at exit. Is the window's final rectangle
 correct, and how often is the window shown at the wrong geometry first?
 
-## Setup and environment
+**Setup and environment**
 
 GNOME 46 on Wayland. 16 resize specs x 20 runs, each a separate `spawn-at-verify run --glob
 placement/<id>`, isolated (no `verify.*` window and no fixture process before any of the 640 runs),
@@ -39,16 +33,11 @@ is not a failure. A printed rectangle that already matches waits for nothing. Co
 trace analyser warns `placement corrected after reveal (+N ms)` for the first `ANCHOR_CORRECTION` after
 `UNCLOAK`. Both are tested in both directions.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run --glob placement/<id>` per run; `cargo xtask burn-cpu --threads 22`; `spawn-at
 query windows --json` for the re-read; `journalctl --user -b _COMM=gnome-shell` for the arm and release
 check. Full command lines not recorded.
-
-## Raw result location
-
-`verify-results/gate-20261012/g3/` and `scratch/gap.jq` (throwaway), both gitignored. Not in the
-repository.
 
 ## Result
 
@@ -75,13 +64,6 @@ repository.
 - Read-only checks: the verify runner never passes `--no-wait` to `spawn`; in the isolated regime no
   run's `ARM_SPAWN` came before the previous run's `ANCHOR_RELEASED` (0 of 357), while in `--repeat`
   304 of 319 did, which is that regime's definition.
-
-## Verdict
-
-Placement is correct on the final rectangle (0 of 640 failures across idle and loaded). What remains
-wrong, and now shows as warnings, is that the window is shown at the wrong geometry first and
-`spawn-at`'s printed rectangle is not where the window ends up. The log calls the "known flaky under
-CPU load" marks of 6.11 a statement about the printed rectangle, not about final placement.
 
 ## Not verified
 

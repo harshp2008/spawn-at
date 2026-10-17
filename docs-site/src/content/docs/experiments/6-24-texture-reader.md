@@ -2,31 +2,24 @@
 title: "6.24 Texture reader and texture size as a signal"
 ---
 
-## Title
+Texture reader live check and texture size as a signal. The corrected reader works, but the texture size is not a usable signal.
 
-Texture reader live check and texture size as a signal
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.24. Re-runs candidate (iv) of [6.23](/spawn-at/experiments/6-23-post-reinstall-live-check/). |
+| **Date** | 2026-10-13. |
+| **Build** | `target/debug/spawn-at` built at commit `64faab9`, the commit of the tree. The version string is not recorded. After a reinstall and a new login at 22:05:22 (gnome-shell pid 245567), protocol 6, installed files identical to `assets/gnome/modern`, and the installed `x11_observe.js` containing `readTextureSize`. No code changed. |
+| **Verdict** | Not usable. The texture size reaches the target at the first `damaged` in 80 of 80 runs, before the client has painted in 59 of them, so it does not say "the client painted at the target". It is the same signal as the frame size and the first `damaged` of 6.23. The log names as still open whether a cloaked window gets `damaged` for its repaint (answered in [6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/)) and a client-side signal (the X sync counter, later tried in [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/) onward). |
+| **Raw results** | `scratch/p24r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.24. Re-runs candidate (iv) of [6.23](/spawn-at/experiments/6-23-post-reinstall-live-check/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-`target/debug/spawn-at` built at commit `64faab9`, the commit of the tree. The version string is not
-recorded. After a reinstall and a new login at 22:05:22 (gnome-shell pid 245567), protocol 6, installed
-files identical to `assets/gnome/modern`, and the installed `x11_observe.js` containing
-`readTextureSize`. No code changed.
-
-## Question
+**Question**
 
 Does the corrected texture reader work, and is "the window texture has the target size" a usable signal
 that an XWayland client has painted at the target?
 
-## Setup and environment
+**Setup and environment**
 
 GNOME on Wayland. The fixture only (`--protocol x11` for XWayland); no real X11 or XWayland application.
 Phase 2: 10 runs with `--protocol x11` and 10 with `--protocol wayland`, direct `spawn-at spawn --json`
@@ -35,14 +28,10 @@ as in 6.23. Phase 3: the 6.23 method, 20 runs per spec idle (40 runs) and the sa
 "Texture match" is the first `X11_OBS_SIGNAL` whose `texture=` equals the target size; "final paint" is
 the last fixture `FIRST_PAINT` at the target size.
 
-## Commands run
+**Commands run**
 
 Direct `spawn-at spawn --json` of the fixture with `SPAWN_AT_FIXTURE_EVENT_DIR` set and
 `SetLogging(true)` for the batch; `xtask burn-cpu`. Full command lines not recorded.
-
-## Raw result location
-
-`scratch/p24r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -66,15 +55,6 @@ Direct `spawn-at spawn --json` of the fixture with `SPAWN_AT_FIXTURE_EVENT_DIR` 
 - The rule "reveal when the texture size equals the target" would have revealed before the client
   painted in 59 of 80 runs (57 clearly early; the 2 idle smaller cases are within stamp lag), by a median
   15.6 ms (idle larger) and 171.0 ms (loaded larger).
-
-## Verdict
-
-Not usable. The texture size reaches the target at the first `damaged` in 80 of 80 runs, before the
-client has painted in 59 of them, so it does not say "the client painted at the target". It is the same
-signal as the frame size and the first `damaged` of 6.23. The log names as still open whether a cloaked
-window gets `damaged` for its repaint (answered in [6.26](/spawn-at/experiments/6-26-x11-hold-damage-live/))
-and a client-side signal (the X sync counter, later tried in
-[6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/) onward).
 
 ## Not verified
 

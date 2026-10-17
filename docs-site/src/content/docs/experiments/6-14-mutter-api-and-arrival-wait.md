@@ -2,29 +2,25 @@
 title: "6.14 Mutter API leads and an arrival-wait simulation"
 ---
 
-## Title
+Mutter API leads and an "arrival wait" simulation (read-only, nothing implemented). The log advises against building the arrival wait with a cap as its only stop.
 
-Mutter API leads and an "arrival wait" simulation (read-only, nothing implemented)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.14. Follows [6.13](/spawn-at/experiments/6-13-cloak-starves-frame-callbacks/). |
+| **Date** | 2026-10-12. |
+| **Build** | Not recorded: no commit hash and no version string. Nothing was implemented. |
+| **Verdict** | "Do not build the arrival wait with the cap as the only stop." The log's recommendation: wait for equality only for requests that can be met; treat the first `size-changed` to any other size as the answer and hand over to today's quiet rule; a cap of 150 ms (102 of 134 loaded flashes avoided at a mean 33.5 ms extra with the hybrid, 0 cost at idle); a learned per-app minimum in memory. External constraints and `get_min_size` would need GNOME 50 and are to be revisited there. |
+| **Raw results** | Not in the repository (the log's header says raw results and scripts are not). |
 
-## ID
+## What was tested
 
-TEST_LOG 6.14. Follows [6.13](/spawn-at/experiments/6-13-cloak-starves-frame-callbacks/).
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Not recorded: no commit hash and no version string. Nothing was implemented.
-
-## Question
+**Question**
 
 Which Mutter APIs on GNOME 46 could tell the extension when a client's resize has arrived, or pin a
 window's anchor corner in the same operation? And would a rule that waits until the frame equals the
 requested size, with a cap, avoid more flashes per millisecond of cloak than the fixed grace of 6.12?
 
-## Setup and environment
+**Setup and environment**
 
 `Meta-14.typelib` (mutter 46.2) introspected with `gjs`; the installed `libmutter-14-dev` headers
 searched with grep; upstream files read through a fetch tool whose summaries the log calls
@@ -35,14 +31,10 @@ The log tags every statement as [typelib], [headers], [web], [sim] or [inference
 The simulated rule: instead of the 30 ms quiet rule, wait until the frame first equals the requested
 size (a `size-changed` sample at that size), with a cap C; on the cap, fall back to today's rule.
 
-## Commands run
+**Commands run**
 
 `gjs` introspection of `Meta-14.typelib`, grep of the mutter headers, and the offline simulation over
 stored `report.json` data. Exact command lines not recorded.
-
-## Raw result location
-
-Not in the repository (the log's header says raw results and scripts are not).
 
 ## Result
 
@@ -73,14 +65,6 @@ the minimum unknown costs 32 to 117 ms on the 180 below-minimum specs.
 The log lists edge cases that break "wait until frame equals target" (an app that ignores the request,
 terminals that snap to a size grid, an app that resizes twice, a request the compositor clamps,
 maximised or fullscreen windows, X11 clients, an unknown minimum) with a proposed fallback for each.
-
-## Verdict
-
-"Do not build the arrival wait with the cap as the only stop." The log's recommendation: wait for
-equality only for requests that can be met; treat the first `size-changed` to any other size as the
-answer and hand over to today's quiet rule; a cap of 150 ms (102 of 134 loaded flashes avoided at a
-mean 33.5 ms extra with the hybrid, 0 cost at idle); a learned per-app minimum in memory. External
-constraints and `get_min_size` would need GNOME 50 and are to be revisited there.
 
 ## Not verified
 

@@ -2,34 +2,26 @@
 title: "6.27 Pre-map resize and pixel probe: timeline, built"
 ---
 
-## Title
+X11 pre-map resize and pixel probe, stage 1: a timeline from existing data, and two experiments built but not run. A timeline was built from existing data and two experiments were built; nothing new was run live.
 
-X11 pre-map resize and pixel probe, stage 1: a timeline from existing data, and two experiments built
-but not run
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.27. The live runs are [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/) and [6.29](/spawn-at/experiments/6-29-pixel-probe-retry-shell-crash/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `2916599`, tree clean, extension ACTIVE, installed files identical to `assets/gnome/modern`. The output of `spawn-at --version` is not recorded for this section. |
+| **Verdict** | No verdict on the two experiments: nothing new was run live. The timeline shows that a resize at `window-created` would come before the fixture's first paint by only about 7 ms when idle, and that a resize shortly before the first paint is not enough (the app must have the configure before it first draws). The log's live-stage plan, which [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/) carried out in part, was a smoke of each value, an A/B for pre-map, and a pixel-probe batch. |
+| **Raw results** | `scratch/p28r/` (gitignored). The data of phase 1 are in the earlier scratch directories `p23r`, `p24r` and `p27r` (gitignored). None is in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.27. The live runs are [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/) and
-[6.29](/spawn-at/experiments/6-29-pixel-probe-retry-shell-crash/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: branch `refactor/v0.2.0-beta.1`, HEAD `2916599`, tree clean, extension
-ACTIVE, installed files identical to `assets/gnome/modern`. The output of `spawn-at --version` is not
-recorded for this section.
-
-## Question
+**Question**
 
 Phase 1: is the resize issued before or after the app's first paint and its `first-frame` event, what
 size is the app's first paint, and what is the earliest hook that has the window's identity? Phase 2:
 can a resize before the window is mapped (`x11-premap`), or a read of pixels from the window texture
 (`x11-pixel-probe`), tell that an X11 client has painted at its new size?
 
-## Setup and environment
+**Setup and environment**
 
 Phase 1 used no live run. It joined the extension's log (`WINDOW_CREATED`, `ACTOR_MAP`,
 `X11_OBS_MARK set_size`, first-frame, reveal) to the fixture's own events on `CLOCK_MONOTONIC` for 240
@@ -40,16 +32,11 @@ idle and loaded). S is the resize call.
 Phase 2 was build-only: node and Rust tests, nothing installed, nothing run in a Shell. Fixture only
 (`--protocol x11`).
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. The log gives the test counts after the build and says
 `cargo fmt --check` and `clippy --workspace --all-targets -D warnings` were clean. The probe's
 accessors were introspected with `gjs` outside the Shell.
-
-## Raw result location
-
-`scratch/p28r/` (gitignored). The data of phase 1 are in the earlier scratch directories `p23r`,
-`p24r` and `p27r` (gitignored). None is in the repository.
 
 ## Result
 
@@ -82,14 +69,6 @@ Phase 2, built but not run:
   and decoding it with `GdkPixbuf`; at most 16 probes per window, at least 8 ms apart.
 - Tests after: node 213 (was 188), `spawn-at` 207, `spawn-at-core` 67, `xtask` 10, `spawn-at-verify`
   `--features tui,fixture` 407 passed and 4 ignored.
-
-## Verdict
-
-No verdict on the two experiments: nothing new was run live. The timeline shows that a resize at
-`window-created` would come before the fixture's first paint by only about 7 ms when idle, and that a
-resize shortly before the first paint is not enough (the app must have the configure before it first
-draws). The log's live-stage plan, which [6.28](/spawn-at/experiments/6-28-premap-and-pixel-probe-live/)
-carried out in part, was a smoke of each value, an A/B for pre-map, and a pixel-probe batch.
 
 ## Not verified
 

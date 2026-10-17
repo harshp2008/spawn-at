@@ -2,33 +2,25 @@
 title: "6.22 Hostile apps"
 ---
 
-## Title
+Hostile apps: fixture flags, nine catalog cells and a live A/C run. The cells behave as declared except for two product findings and one fixture jitter; the hard limit ran live for the first time.
 
-Hostile apps: fixture flags, nine catalog cells and a live A/C run
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.22. Follows [6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/). |
+| **Date** | 2026-10-13. |
+| **Build** | Commit `70dc120` (code, tests and cells), plus a follow-up fixture fix and the log section (hashes of the fix not recorded). The version string is not recorded. Fixture, harness and catalog only; the product (CLI, core, extension) was not changed. The installed extension was the previous build (ready-wait present, default cap 150, hard limit 1500) and was not reinstalled; the ready-wait arm passes `--wait-cap-ms 250` explicitly, and the extension log shows `cap=250` in every C run. |
+| **Verdict** | No single verdict. The cells behave as declared except the two findings above and one fixture jitter. The two product findings are listed by the log as open: the missing min-size accessor on GNOME 46 (which the knowledge base and [6.14](/spawn-at/experiments/6-14-mutter-api-and-arrival-wait/) also note) and the +232 ms cost for an app at its minimum. |
+| **Raw results** | Not in the repository: throwaway scripts (`h22_batch.sh`, `h22_rows.jq`, `h22_rows.sh`) in `scratch/`; raw JSON stayed in the session scratchpad. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.22. Follows [6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-Commit `70dc120` (code, tests and cells), plus a follow-up fixture fix and the log section (hashes of
-the fix not recorded). The version string is not recorded. Fixture, harness and catalog only; the
-product (CLI, core, extension) was not changed. The installed extension was the previous build
-(ready-wait present, default cap 150, hard limit 1500) and was not reinstalled; the ready-wait arm
-passes `--wait-cap-ms 250` explicitly, and the extension log shows `cap=250` in every C run.
-
-## Question
+**Question**
 
 How do the legacy rule and the ready-wait behave with an app that answers slowly, refuses or clamps the
 size, snaps to a grid, is not resizable, stalls, or keeps changing its size? The expectations of the
 nine cells were written from the design and the extension source before the first live run.
 
-## Setup and environment
+**Setup and environment**
 
 New fixture flags (harness only, never in the product binary): `--resize-delay-ms N`, `--min-size WxH`
 and `--max-size WxH`, `--fixed-size`, `--resize-increment WxH` (emulated as a terminal does: the app
@@ -43,15 +35,10 @@ Live run: one login, idle, bottom-right with a 16 px margin, 10 runs per cell pe
 ready-wait with `--wait-cap-ms 1500` on `hung` only, the log author's addition, so that the 1500 ms hard
 limit could run live for the first time.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run` over the nine cells, with `ab_batch.sh` rotating the arms; four direct
 `spawn-at spawn` probes for the event check. Full command lines not recorded.
-
-## Raw result location
-
-Not in the repository: throwaway scripts (`h22_batch.sh`, `h22_rows.jq`, `h22_rows.sh`) in `scratch/`;
-raw JSON stayed in the session scratchpad.
 
 ## Result
 
@@ -77,13 +64,6 @@ refuse-grow, grid-snap, non-resizable and `hung` matched in 60 of 60 runs. Misma
   clean result.
 - `non-resizable`: the ready-wait is faster (18.9 ms against 49.7 ms cloak median).
 - Tests: fixture binary 20 (was 10); `spawn-at-verify` lib +6; `category_library_test` +1.
-
-## Verdict
-
-No single verdict. The cells behave as declared except the two findings above and one fixture jitter.
-The two product findings are listed by the log as open: the missing min-size accessor on GNOME 46
-(which the knowledge base and [6.14](/spawn-at/experiments/6-14-mutter-api-and-arrival-wait/) also
-note) and the +232 ms cost for an app at its minimum.
 
 ## Not verified
 

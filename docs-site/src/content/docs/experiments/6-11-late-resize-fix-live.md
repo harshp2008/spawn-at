@@ -2,34 +2,25 @@
 title: "6.11 Live results after the late-resize fix"
 ---
 
-## Title
+Live results after the late-resize fix. The fix removes the idle failures, but under heavy load a late resize is still corrected only after the reveal.
 
-Live results after the late-resize fix
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.11. Follows [6.10](/spawn-at/experiments/6-10-placement-resize-specs/). The log adds a correction to this section in [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/). |
+| **Date** | 2026-10-12. |
+| **Build** | Commit `c7c4084` (HEAD; `is_dirty_build: false` in every report). The fix under test is commit `9e6b65d` (modern extension tree only): a second size check in the reveal's own tick that logs `LATE_RESIZE_CORRECTED` and re-anchors. The version string is not recorded. No product code, spec, oracle, tolerance or fixture was changed for the measurements; the only new code is `cargo xtask burn-cpu`. |
+| **Verdict** | Mixed: the fix removes the idle failures (0 of 640) and re-anchors 150 windows under load, but a resize that lands after the reveal under heavy load is corrected afterwards while `spawn-at` prints the old rectangle. The log states that rows 2, 3 and 3b of its section 6.4 are fixed for a resize that lands before the reveal and not for one after it, and that the correction of this section means the "failures" counted here were judged on a stale printed rectangle ([6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/)). |
+| **Raw results** | `verify-results/gate-20261012/` and throwaway drivers in `scratch/`, both gitignored. Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.11. Follows [6.10](/spawn-at/experiments/6-10-placement-resize-specs/). The log adds a
-correction to this section in [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/).
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Commit `c7c4084` (HEAD; `is_dirty_build: false` in every report). The fix under test is commit
-`9e6b65d` (modern extension tree only): a second size check in the reveal's own tick that logs
-`LATE_RESIZE_CORRECTED` and re-anchors. The version string is not recorded. No product code, spec,
-oracle, tolerance or fixture was changed for the measurements; the only new code is
-`cargo xtask burn-cpu`.
-
-## Question
+**Question**
 
 After the late-resize fix, do the placement specs of [6.10](/spawn-at/experiments/6-10-placement-resize-specs/)
 pass when idle and when the CPU is loaded? The log's target: 0 failures in the idle gate (a) and the
 loaded gate (b).
 
-## Setup and environment
+**Setup and environment**
 
 GNOME 46 on Wayland, one machine (22 CPUs, `--virtual-monitor 1920x1080`, workarea `0,40 1920x1040`),
 4 other desktop windows open and ordinary desktop load. Load was made with `cargo xtask burn-cpu
@@ -41,7 +32,7 @@ app, `gnome-text-editor`, 10 runs per size. The step-0 check confirmed that the 
 fix: the installed `extension.js` had the same sha256 as the tree's, the Shell started after the
 log-out and log-in, and the journal held a `LATE_RESIZE_CORRECTED` line.
 
-## Commands run
+**Commands run**
 
 - `cargo xtask burn-cpu --threads N --seconds S`.
 - `spawn-at-verify run` over the 16 specs, isolated and with `--repeat 20`; `spawn-at-verify calibrate
@@ -49,11 +40,6 @@ log-out and log-in, and the journal held a `LATE_RESIZE_CORRECTED` line.
 - `spawn-at spawn --class '*' --size 500 450 --anchor center --json -- env GDK_BACKEND=wayland zenity
   --text-info`, with the window re-read by `spawn-at query windows` 1.3 s after exit.
 - `spawn-at spawn --size W H --anchor bottom-right --json gnome-text-editor`, re-read 1.5 s after exit.
-
-## Raw result location
-
-`verify-results/gate-20261012/` and throwaway drivers in `scratch/`, both gitignored. Not in the
-repository.
 
 ## Result
 
@@ -88,14 +74,6 @@ Judged on the rectangle `spawn-at` printed at exit (the numbers the log kept as 
   correct for it (10 of 10 identical); for 3000x2000 the app was limited to 1920x1040 and the
   window overflowed the work area by the 16 px margin on the right and bottom (10 of 10 identical).
   The CLI printed a warning that the window is oversized.
-
-## Verdict
-
-Mixed: the fix removes the idle failures (0 of 640) and re-anchors 150 windows under load, but a
-resize that lands after the reveal under heavy load is corrected afterwards while `spawn-at` prints
-the old rectangle. The log states that rows 2, 3 and 3b of its section 6.4 are fixed for a resize that
-lands before the reveal and not for one after it, and that the correction of this section means the
-"failures" counted here were judged on a stale printed rectangle ([6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/)).
 
 ## Not verified
 

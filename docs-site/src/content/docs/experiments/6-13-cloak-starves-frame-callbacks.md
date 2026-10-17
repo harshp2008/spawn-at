@@ -2,32 +2,25 @@
 title: "6.13 Does the cloak starve frame callbacks"
 ---
 
-## Title
+H4: does the cloak starve the app of frame callbacks? The hypothesis is not supported: the delay is in the configure and the app's own CPU time.
 
-H4: does the cloak starve the app of frame callbacks?
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.13. Follows [6.12](/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/). |
+| **Date** | 2026-10-12. |
+| **Build** | Not recorded as one hash for the whole section. The log names the instrumentation commit `fb4e082` (the fixture trace directory). It says no extension change was made, and that after new commits `spawn-at` must be rebuilt or the verify preflight reports a stale binary. The version string is not recorded. |
+| **Verdict** | "H4 is not supported." Two apps whose resize path is known show no gating by frame callbacks; Mutter delivers callbacks to a cloaked surface; the delay sits in the configure's delivery and the app's own CPU time. The log's recommendation: no cloak change; keep the late-resize check and the post-reveal anchor correction; if the flash must shrink, a bounded grace after `SIZE_SETTLED` with a learned minimum per app. |
+| **Raw results** | Not in the repository: the log's header states raw results and scripts are not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.13. Follows [6.12](/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/).
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Not recorded as one hash for the whole section. The log names the instrumentation commit `fb4e082`
-(the fixture trace directory). It says no extension change was made, and that after new commits
-`spawn-at` must be rebuilt or the verify preflight reports a stale binary. The version string is not
-recorded.
-
-## Question
+**Question**
 
 Hypothesis H4: the app applies our resize only when it gets a `wl_surface.frame` callback; the
 compositor does not paint a cloaked (opacity 0) actor, so callbacks stop, and the app resizes only
 after the reveal.
 
-## Setup and environment
+**Setup and environment**
 
 GNOME 46 on Wayland, mutter 46.2. The environment variable `SPAWN_AT_FIXTURE_TRACE_DIR=<dir>` makes the
 fixture write `fixture-<pid>.log`: its own `Resized`, `RedrawRequested` and commit lines in
@@ -43,14 +36,10 @@ interleaved, back-to-back, idle with 30 s gaps, and under 22 `burn-cpu` threads 
 and 580x380; Firefox (snap), 6 runs at 300x200; 14 editor runs under 22 threads); and a reading of
 mutter 46.2 source through a fetch tool, whose summaries the log says are indirect.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. By the log: runs through `spawn-at-verify run`, `WAYLAND_DEBUG=client`
 on the real apps, and `cargo build -p spawn-at` after commits.
-
-## Raw result location
-
-Not in the repository: the log's header states raw results and scripts are not in the repository.
 
 ## Result
 
@@ -76,14 +65,6 @@ Not in the repository: the log's header states raw results and scripts are not i
   and the extension's pre-reveal wait.
 - Expected residual under a 22-thread load: about 25% of runs corrected after the reveal in the `run`
   path (10 of 40).
-
-## Verdict
-
-"H4 is not supported." Two apps whose resize path is known show no gating by frame callbacks; Mutter
-delivers callbacks to a cloaked surface; the delay sits in the configure's delivery and the app's own
-CPU time. The log's recommendation: no cloak change; keep the late-resize check and the post-reveal
-anchor correction; if the flash must shrink, a bounded grace after `SIZE_SETTLED` with a learned
-minimum per app.
 
 ## Not verified
 

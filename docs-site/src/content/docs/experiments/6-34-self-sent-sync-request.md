@@ -2,33 +2,25 @@
 title: "6.34 Self-sent sync request"
 ---
 
-## Title
+Answering a sync request that we send ourselves: smoke (stopped after the smoke because counter A never moved). Counter A never moved, so the batches were not run.
 
-Answering a sync request that we send ourselves: smoke (stopped after the smoke because counter A never
-moved)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.34. Follows [6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `a1394ca`. Nothing in the Shell; no extension or binary change; no install. The output of `spawn-at --version` is not recorded for this section. The journal before and after showed only the 11:13:32 St/Cogl criticals described in 6.33, no stop-rule line, and the same gnome-shell process throughout. |
+| **Verdict** | "BAD for this send timing" under the decision rules fixed in the task prompt of that day ("A never moves"). The large batches (idle and loaded, the slow client, the already-painted case, the send-delay comparison) were not run, as that prompt required when counter A never changes. |
+| **Raw results** | Not recorded: the log names no results directory for this section. The sender and watcher are gitignored files in `scratch/`. Nothing of it is in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.34. Follows [6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `a1394ca`. Nothing in the Shell; no extension or binary change; no
-install. The output of `spawn-at --version` is not recorded for this section. The journal before and
-after showed only the 11:13:32 St/Cogl criticals described in 6.33, no stop-rule line, and the same
-gnome-shell process throughout.
-
-## Question
+**Question**
 
 If a watcher sends the client an `_NET_WM_SYNC_REQUEST` message itself, after the window reaches its
 target size, does the client's basic sync counter (counter A) move? The log fixed the decision rule in
 advance: "A never moves" is BAD.
 
-## Setup and environment
+**Setup and environment**
 
 The GTK4 client of 6.32 (`scratch/p33_syncclient.py`) and a throwaway C sender and watcher
 (`scratch/p35_watch.c`, gitignored, not committed). When the watcher saw the client window's
@@ -39,14 +31,9 @@ _NET_WM_SYNC_REQUEST`, `data[1] = CurrentTime`, `data[2..3]` = N split in low an
 time, every change of counters A and B, and the client's event file gave the final `FIRST_PAINT`.
 Smoke only: 2 runs per spec, idle, legacy rule, send delay 0 (4 runs).
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded.
-
-## Raw result location
-
-Not recorded: the log names no results directory for this section. The sender and watcher are
-gitignored files in `scratch/`. Nothing of it is in the repository.
 
 ## Result
 
@@ -62,12 +49,6 @@ lines and did not crash.
 | larger 2 | 1.25 ms | -5.87 ms | +4.19 ms | 0 | 4 (+12.2) |
 | smaller 1 | 0.08 ms | -2.85 ms | -3.16 ms | 0 | 2 (+5.8) |
 | smaller 2 | 0.07 ms | -3.19 ms | -2.93 ms | 0 | 2 (+6.5) |
-
-## Verdict
-
-"BAD for this send timing" under the decision rules fixed in the task prompt of that day ("A never
-moves"). The large batches (idle and loaded, the slow client, the already-painted case, the
-send-delay comparison) were not run, as that prompt required when counter A never changes.
 
 ## Not verified
 

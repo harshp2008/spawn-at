@@ -2,31 +2,24 @@
 title: "6.35 LD_PRELOAD geometry shim"
 ---
 
-## Title
+Born at the target geometry: an `LD_PRELOAD` shim on the test client. The shim worked on one toolkit, and the log does not recommend shipping it.
 
-Born at the target geometry: an `LD_PRELOAD` shim on the test client
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.35. The last of the X11 experiments in the log. |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `7954a84`. The extension and the binary were the installed, unchanged ones; no code in the tree changed. The output of `spawn-at --version` is not recorded for this section. The journal was checked before and after every batch: the same gnome-shell process throughout, no stop-rule line, no new critical. |
+| **Verdict** | "GOOD" for this toolkit and this machine, under the rules fixed up front: at least 95% of windows were mapped at the target size (80 of 80 in the S arm in the main cells, 5 of 5 in (a) and (c)), and the S arm had zero clear flashes loaded where L had 36 of 40. The log states the exceptions plainly (case (b), the extra delay) and ends: "I do not recommend shipping it." The supported route stays the extension's own resize. |
+| **Raw results** | `scratch/p36r/`, `scratch/shim/` and `scratch/p36_*` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.35. The last of the X11 experiments in the log.
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `7954a84`. The extension and the binary were the installed, unchanged
-ones; no code in the tree changed. The output of `spawn-at --version` is not recorded for this section.
-The journal was checked before and after every batch: the same gnome-shell process throughout, no
-stop-rule line, no new critical.
-
-## Question
+**Question**
 
 If a window is created at its target size and position (by rewriting the client's Xlib calls), is it
 mapped at the target, and does that remove the flash that the legacy rule shows under load?
 
-## Setup and environment
+**Setup and environment**
 
 GNOME 46 on Wayland with XWayland, one 1920x1080 virtual monitor, the legacy rule. Research only;
 nothing ships. The client is the GTK4 test program (`scratch/p33_syncclient.py`, X11 backend); no
@@ -49,7 +42,7 @@ margin 16), one run every 3.2 s. 20 runs per spec per arm idle (80 runs) and loa
 cases: 5 runs per arm each. "Clear flash" is the client's final first paint at the target size more
 than 19 ms after the reveal; this is event time, not pixels.
 
-## Commands run
+**Commands run**
 
 Exact full command lines not recorded. By the log: `gcc -shared -fPIC` for the shim; `nm -D` on
 `libgtk-4.so.1`; `spawn-at spawn ... -- env LD_PRELOAD=<shim> SPAWN_AT_GEOM=<geom>
@@ -57,10 +50,6 @@ SPAWN_AT_SHIM_LOG=<file> python3 p33_syncclient.py ...`. `ltrace` was not instal
 was used. **Gotcha recorded:** the checkout path contained a space, and the dynamic loader splits
 `LD_PRELOAD` on spaces, so the first smoke loaded nothing; the library was copied to a path without a
 space and the smoke repeated.
-
-## Raw result location
-
-`scratch/p36r/`, `scratch/shim/` and `scratch/p36_*` (gitignored). Not in the repository.
 
 ## Result
 
@@ -88,14 +77,6 @@ space and the smoke repeated.
   target and then grown to the minimum within 3.7 to 6.8 ms; the extension's later step is still
   needed. (c) A client that resizes itself at +400 ms: S 5 of 5 had no post-map change because the shim
   pinned the app's own resize back to the target, which the log calls a behaviour change of the app.
-
-## Verdict
-
-"GOOD" for this toolkit and this machine, under the rules fixed up front: at least 95% of windows were
-mapped at the target size (80 of 80 in the S arm in the main cells, 5 of 5 in (a) and (c)), and the S arm
-had zero clear flashes loaded where L had 36 of 40. The log states the exceptions plainly (case (b), the
-extra delay) and ends: "I do not recommend shipping it." The supported route stays the extension's own
-resize.
 
 ## Not verified
 

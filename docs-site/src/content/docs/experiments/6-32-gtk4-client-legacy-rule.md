@@ -2,33 +2,24 @@
 title: "6.32 Sync-capable GTK4 client, legacy rule"
 ---
 
-## Title
+A sync-capable X11 client against the winit fixture, under the legacy rule. A sync-capable client flashes as much as the fixture under load, and Mutter does not visibly wait for it.
 
-A sync-capable X11 client against the winit fixture, under the legacy rule
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.32. Between [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/) and [6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `a2f5e78` at the start. Stage A changed no extension and installed nothing; the extension in the session was the one installed after the 6.30 regression check. The output of `spawn-at --version` is not recorded for this section. Session: GNOME on Wayland, no gnome-shell or mutter assertion, crash signal, "uncatchable exception" or critical line in the journal at the start, after the smoke, after the idle batch and after the loaded batch. |
+| **Verdict** | A sync-capable GTK4 client under the legacy rule flashes as much as the fixture when loaded, and Mutter does not visibly wait for it. The fixture does not overstate the legacy rule's flashing relative to this client. The log limits this to one toolkit, one machine and a software-drawn solid colour. |
+| **Raw results** | `scratch/p33r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.32. Between [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/) and
-[6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `a2f5e78` at the start. Stage A changed no extension and installed
-nothing; the extension in the session was the one installed after the 6.30 regression check. The
-output of `spawn-at --version` is not recorded for this section. Session: GNOME on Wayland, no
-gnome-shell or mutter assertion, crash signal, "uncatchable exception" or critical line in the journal
-at the start, after the smoke, after the idle batch and after the loaded batch.
-
-## Question
+**Question**
 
 Under the legacy rule, does a client that takes part in X sync flash less than the winit fixture,
 which does not? Does Mutter appear to wait for such a client?
 
-## Setup and environment
+**Setup and environment**
 
 The client is a throwaway program, not a real X11 application: a PyGObject GTK4 app (Gtk 4.14,
 `GDK_BACKEND=x11`) with the fixture's interface (`--app-id`, `--title`, `--width/--height` 400x300,
@@ -49,17 +40,13 @@ early" is more than 19 ms before it.
 Stage B (observe-only `thawed` logging) was built and tested with node tests only; nothing was
 installed. Stage C was a plan.
 
-## Commands run
+**Commands run**
 
 Exact command line not recorded in full. The log gives the spawn method: `spawn-at spawn --json
 --class <app-id> --anchor bottom-right --size W H --margin 16 -- env GDK_BACKEND=x11 python3
 p33_syncclient.py ...` with no strategy flag, `SetLogging(true)` for the batch only. The XWayland
 window took the legacy rule (`READY_WAIT_START strategy=legacy kind=XWayland
 why=not-native-wayland`).
-
-## Raw result location
-
-`scratch/p33r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -84,13 +71,6 @@ why=not-native-wayland`).
 - Stage B code (not installed): in `x11_observe.js` only, the window actor's `thawed` signal logged as
   an ordinary `X11_OBS_SIGNAL` line. Node tests 176 to 183; `spawn-at` 205, `spawn-at-core` 64,
   `xtask` 10, `spawn-at-verify` (`tui,fixture`) 404 passed and 4 ignored.
-
-## Verdict
-
-A sync-capable GTK4 client under the legacy rule flashes as much as the fixture when loaded, and
-Mutter does not visibly wait for it. The fixture does not overstate the legacy rule's flashing
-relative to this client. The log limits this to one toolkit, one machine and a software-drawn solid
-colour.
 
 ## Not verified
 

@@ -2,34 +2,25 @@
 title: "6.26 Hold the cloak: live A/B"
 ---
 
-## Title
+`x11-hold-damage`, live A/B against the legacy rule on the XWayland fixture. The second damaged event is a shell-side event, so the method is not usable as a ready signal.
 
-`x11-hold-damage`, live A/B against the legacy rule on the XWayland fixture
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.26. Follows [6.25c](/spawn-at/experiments/6-25c-x11-hold-damage-built/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Commit: not recorded as a hash. The log says `target/debug/spawn-at` was "built at the HEAD of the previous step". The harness fix made during this section is commit `21cf0d4`. The output of `spawn-at --version` is not recorded. The extension in the session was the modern set with the hold module installed (the log checked that the installed files were identical to the tree's `assets/gnome/modern`, with `x11_hold.js` present). Extension protocol 6; a new login before the runs. |
+| **Verdict** | Not usable as a ready signal for XWayland and X11. The log names what would change that: a second `damaged`, or any shell signal, that tracks the client's commit; or a client-side signal (the X sync counter, then still untried; see [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/)). |
+| **Raw results** | `scratch/p27r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.26. Follows [6.25c](/spawn-at/experiments/6-25c-x11-hold-damage-built/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Commit: not recorded as a hash. The log says `target/debug/spawn-at` was "built at
-the HEAD of the previous step". The harness fix made during this section is commit `21cf0d4`. The
-output of `spawn-at --version` is not recorded. The extension in the session was the modern set with
-the hold module installed (the log checked that the installed files were identical to the tree's
-`assets/gnome/modern`, with `x11_hold.js` present). Extension protocol 6; a new login before the
-runs.
-
-## Question
+**Question**
 
 Does ending the wait on the second `damaged` event of a cloaked XWayland window give a usable
 ready signal, compared with the legacy rule? Is the second `damaged` the client's paint, or a
 shell-side event?
 
-## Setup and environment
+**Setup and environment**
 
 GNOME on Wayland, one login for all runs. Fixture only, started with `--protocol x11`; no real X11
 or XWayland application. Defaults unchanged. Arm A is `--wait-strategy legacy`; arm H is
@@ -40,17 +31,13 @@ ms after the `set_size` mark. "Final paint" is the last fixture `FIRST_PAINT` at
 stamp can be late by up to about 19 ms under load. "Clearly early" means a reveal more than 19 ms
 before it.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. By the log: direct `spawn-at spawn --json` of the fixture with
 `--wait-strategy legacy` or `--wait-strategy x11-hold-damage`, `--protocol x11`, and the environment
 variable `SPAWN_AT_FIXTURE_EVENT_DIR` set; `SetLogging(true)` for the smoke only; `pw-dump`,
 `gst-launch-1.0 pipewiresrc` (phase 4); `PIPEWIRE_DEBUG=4` (attempt 3). A throwaway Python Gst
 script was used for attempt 2.
-
-## Raw result location
-
-`scratch/p27r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -90,12 +77,6 @@ A/B, 160 runs, all exit 0 and all windows found:
   `pipewiresrc` all ended with `stream error: target not found`. Together with
   [6.25b](/spawn-at/experiments/6-25b-capture-rig/), every spelling of the target was refused.
 - Cleanup: no `xtask`, fixture or `gst-launch` process left; nothing was closed by hand.
-
-## Verdict
-
-Not usable as a ready signal for XWayland and X11. The log names what would change that: a second
-`damaged`, or any shell signal, that tracks the client's commit; or a client-side signal (the X sync
-counter, then still untried; see [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/)).
 
 ## Not verified
 

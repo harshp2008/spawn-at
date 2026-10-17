@@ -2,31 +2,25 @@
 title: "6.33 Does the sync counter move on repaint"
 ---
 
-## Title
+Does the X sync counter move when a client repaints? Live check with the GTK4 client. The extended sync counter is usable as an experimental signal for this GTK4 client only.
 
-Does the X sync counter move when a client repaints? Live check with the GTK4 client
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.33. Follows [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/); the next step is [6.34](/spawn-at/experiments/6-34-self-sent-sync-request/). |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `3190488`. Nothing in the Shell, no extension change, no install. The output of `spawn-at --version` is not recorded for this section. |
+| **Verdict** | Usable as an experimental signal for clients that drive an extended-sync counter on their own (confirmed for GTK4 4.14 here); not shown for any other client. The log's limits: (1) the basic counter never moved, so a client with only the basic counter (Chromium and Electron advertise one) would not give a signal unless it updates it on its own (hypothesis: it does not); (2) the counter says the client finished a frame, not that the compositor has it; (3) the extension cannot read XSync counters from GJS. The log sketches a design with the CLI watching the counter and telling the extension over D-Bus, marks it a hypothesis, and says "not shipped". |
+| **Raw results** | Not recorded: the log names no results directory for this section. The two scripts are named as gitignored files in `scratch/`. Nothing of this section is in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.33. Follows [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/); the next step is
-[6.34](/spawn-at/experiments/6-34-self-sent-sync-request/).
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `3190488`. Nothing in the Shell, no extension change, no install. The
-output of `spawn-at --version` is not recorded for this section.
-
-## Question
+**Question**
 
 When the GTK4 client repaints at a new size, does one of its sync counters step, and does a step
 arrive after the client's final paint and after the legacy reveal, so that it could serve as a ready
 signal?
 
-## Setup and environment
+**Setup and environment**
 
 GNOME on Wayland. The GTK4 client of [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/)
 (`scratch/p33_syncclient.py`) through the legacy rule, plus a throwaway C watcher
@@ -48,15 +42,10 @@ criticals from other apps are logged with their time and the run goes on. The jo
 and after each batch found only the same 5 + 5 St/Cogl lines of 11:13:32 and nothing matching the stop
 rule.
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. The spawn path is the one of 6.32 (legacy rule, `SetLogging(true)`
 for the batch only); the watcher ran for the whole batch.
-
-## Raw result location
-
-Not recorded: the log names no results directory for this section. The two scripts are named as
-gitignored files in `scratch/`. Nothing of this section is in the repository.
 
 ## Result
 
@@ -86,16 +75,6 @@ value 4 the completion of the frame that carries the repaint at the new size.
   paint by 3.4 to 5.2 ms while the legacy reveal came about 104 to 109 ms earlier.
 - In the 4-run smoke the first step of counter B came 2.7 to 5.5 ms before the final paint; the log
   reads that first step as the old-size frame still in progress.
-
-## Verdict
-
-Usable as an experimental signal for clients that drive an extended-sync counter on their own
-(confirmed for GTK4 4.14 here); not shown for any other client. The log's limits: (1) the basic counter
-never moved, so a client with only the basic counter (Chromium and Electron advertise one) would not
-give a signal unless it updates it on its own (hypothesis: it does not); (2) the counter says the
-client finished a frame, not that the compositor has it; (3) the extension cannot read XSync counters
-from GJS. The log sketches a design with the CLI watching the counter and telling the extension over
-D-Bus, marks it a hypothesis, and says "not shipped".
 
 ## Not verified
 
