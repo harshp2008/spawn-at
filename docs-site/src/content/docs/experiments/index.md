@@ -12,14 +12,17 @@ written "not recorded". Where the log gives the commands only in prose the page 
 line not recorded" and keeps the prose. Nothing was re-run to write these pages: every number comes
 from the log.
 
-**Build.** The log names the tree it ran on as a branch and a `HEAD` hash, not as a version string.
-The output of `spawn-at --version` is recorded once, in section 6.30 (a regression check, not an
-experiment), as `DEV BUILD` with the previous commit `acccca8`. The records say which hash the log
-gives and do not infer a version from it.
+**Build.** The log names the tree or binary it ran on as a commit hash (and sometimes a branch), not as
+a version string. The output of `spawn-at --version` is recorded once, in section 6.30 (a regression
+check, not an experiment), as `DEV BUILD` with the previous commit `acccca8`. Each record gives the
+hash the log gives, or says it is not recorded, and does not infer a version from a hash. The
+releases of that time (`v0.2.0-beta.1` and `v0.2.0-beta.2` were tagged on 2026-10-14) are not matched
+to any experiment, because the log does not say which build was a release.
 
-**Raw results.** Every raw result directory is under `scratch/`, which is gitignored: none is in the
-repository. The throwaway clients, watchers and shim used in the later X11 experiments are not in the
-repository either.
+**Raw results.** The header of the log says its raw results and scripts are not in the repository:
+the result directories (`scratch/p23r` to `scratch/p36r`) are archived outside it, and names such as
+`verify-results/...` are gitignored working files. The throwaway clients, watchers and the shim used
+in the X11 experiments are not in the repository either. The numbers in the log are what is kept.
 
 ## GNOME placement and the late resize (2026-10-12)
 
@@ -74,6 +77,18 @@ The question was how to tell that an X11 client has painted at its new size. The
 
 Section 6.30 of the log, "Regression after the removal of the X11 experiments", is a regression
 check and has no record here.
+
+## Proposed and not run
+
+| ID | Experiment | State |
+| :--- | :--- | :--- |
+| [P8](/spawn-at/experiments/p8-sway-flicker-not-run/) | Sway flicker experiment | Proposed in the test coverage audit; never run |
+
+## Where the code is
+
+The code of the failed X11 experiments (the hold-the-cloak, pre-map and pixel-probe modules) is not in
+the current tree. It was removed by the commit `80ced02` and is still in the history of `main`; see
+[X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
 ## Sources
 

@@ -102,6 +102,7 @@ export default defineConfig({
             'experiments/6-33-sync-counter-moves-on-repaint',
             'experiments/6-34-self-sent-sync-request',
             'experiments/6-35-ld-preload-geometry-shim',
+            'experiments/p8-sway-flicker-not-run',
           ],
         },
         {
