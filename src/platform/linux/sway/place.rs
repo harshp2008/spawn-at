@@ -1,6 +1,12 @@
 //! The write side over blocking connections: waiting for the new window, placing it, and the
 //! single-window commands. The text of the commands is in `command`, the choice of window in
 //! `matching`; this module only sequences them over a `Client`.
+//!
+//! Everything here blocks: it is called from `SwayDriver` inside `spawn_blocking`, never from
+//! async code directly. Each function takes a connection (or a socket path) and keeps no state.
+//! Placement is a short series of `RUN_COMMAND` requests (the first one chains `floating enable`,
+//! the optional resize and the move; `fit_and_anchor` and the focus command are further
+//! requests), not a single request. Experimental: checked only on a private headless Sway 1.9.
 
 use super::client::Client;
 use super::command;
@@ -14,11 +20,12 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-/// How long `post_spawn` waits for the launched application's window (the X11 driver waits the
-/// same 5 s).
+/// How long `post_spawn` waits for the launched application's window: 5 s. The X11 driver's
+/// wait is also 5000 ms (`grep -n "5000" src/platform/linux/x11/interception.rs`).
 pub const WINDOW_WAIT: Duration = Duration::from_secs(5);
 
-/// How long the placement of a window without `--size` waits for it to report a size.
+/// How long the placement of a window without `--size` waits for it to report a size: 1 s, in
+/// `settled_frame`.
 const SIZE_WAIT: Duration = Duration::from_secs(1);
 
 /// What `arm` prepares before the application starts: a connection subscribed to `window`
@@ -31,6 +38,9 @@ pub struct Pending {
 
 /// Subscribes to `window` events, then records the existing windows. Subscribing first means no
 /// window can appear unseen between the two.
+///
+/// Opens two connections: one that stays subscribed (kept in the result) and one used only for
+/// `GET_TREE`. Errors: `IpcError` when a connection, the subscription or the tree fails.
 pub fn subscribe_and_snapshot(socket: &Path) -> Result<Pending, DriverError> {
     let mut events = Client::connect(socket)?;
     let reply = events.request(MessageType::Subscribe, br#"["window"]"#)?;
@@ -43,6 +53,7 @@ pub fn subscribe_and_snapshot(socket: &Path) -> Result<Pending, DriverError> {
     })
 }
 
+/// `GET_TREE` parsed. Errors: `IpcError` for the request or for JSON that does not parse.
 pub fn fetch_tree(client: &mut Client) -> Result<Node, DriverError> {
     types::parse_tree(&client.request(MessageType::GetTree, b"")?).map_err(DriverError::IpcError)
 }
@@ -58,7 +69,11 @@ pub fn run(client: &mut Client, command: &str) -> Result<(), DriverError> {
 ///
 /// `is_descendant(window_pid, launched_pid)` is the process-tree test. A window that matches
 /// only by application id is returned after a short grace (see `matching`), or when `timeout`
-/// ends. No match is an error saying the application was started but not placed.
+/// ends. No match is a `TargetNotFound` error saying the application was started but not placed.
+///
+/// Polls the event connection in slices of at most 50 ms until `timeout`. Only `new` and
+/// `title` events are looked at; a payload that does not parse is skipped without a message.
+/// Errors from the connection (closed, malformed frame) end the wait with `IpcError`.
 pub fn wait_for_window(
     events: &mut Client,
     matcher: &mut Matcher,
@@ -183,6 +198,12 @@ fn fit_and_anchor(
 /// Makes window `id` floating and puts it where `params` say. With a size the window is
 /// resized so the whole container (what `query windows` reports) has that size, the meaning
 /// `--size` has on GNOME; without one it keeps the size its client chose.
+///
+/// With a size: one chained command, then `fit_and_anchor` (up to two more requests and some
+/// `GET_TREE` reads). Without: `floating enable`, a wait of up to 1 s for a size, then a move.
+/// `exclusive_focus` adds a `focus` command. Errors: `IpcError` when Sway refuses a command
+/// (with Sway's own text), `Execution` when the window never reports a size, `TargetNotFound`
+/// when it disappeared. A command that fails midway leaves the window as far as it got.
 pub fn place_window(
     client: &mut Client,
     id: u64,
@@ -209,7 +230,8 @@ pub fn place_window(
 }
 
 /// Moves and resizes an existing window to the rectangle `params` give for a window of the
-/// current size `current`.
+/// current size `current` (pixels). Always sends a resize to the rectangle's size, even when
+/// `params` have no size; then `fit_and_anchor` as in `place_window`.
 pub fn transform(
     client: &mut Client,
     id: u64,
@@ -224,6 +246,9 @@ pub fn transform(
 
 /// The container id for a target given as a window id, a pid or a class, the way the X11 driver
 /// resolves it: an id that exists wins, then a pid or class through the shared selector.
+/// A string that parses as a number is tried as an id first, then as a pid; anything else is a
+/// class. Errors: `TargetNotFound` with the selector's message when nothing matches. Which window
+/// wins when several match is decided by `target::resolve_target`, not here.
 pub fn resolve_window_id(windows: &[WindowMetadata], target_id: &str) -> Result<u64, DriverError> {
     if let Ok(n) = target_id.parse::<u64>() {
         if windows.iter().any(|w| w.id == Some(n)) {
