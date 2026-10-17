@@ -21,6 +21,15 @@ Rules for comments in Rust code. Comment-only commits must pass
 - A comment that contradicts the code is fixed or deleted, and listed in the PR report.
   The code is never changed to match a comment.
 
+## Public docs versus other files
+
+- `///` and `//!` appear on the public rustdoc site. They describe only the item itself and its
+  contract.
+- Statements about OTHER files ("no code under `src/` reads this", "only the Sway driver compares
+  it", "`spawn` always sets 1") go stale. Put them in a plain `//` comment next to the item,
+  worded as a fact about the code at this commit, or leave them out.
+- Mark anything you could not verify as "not verified" instead of guessing.
+
 ## Form
 
 - Keep comments short. One sentence is often enough.
