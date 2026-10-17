@@ -1,11 +1,18 @@
 //! The Linux [`Host`]: the values the installer, the update check and the launcher always used.
+//!
+//! Answers per-OS questions only: where binaries and the autostart entry go, whether a path is
+//! an executable file, and how a child is detached. It reads `$HOME` and the XDG variables and
+//! the file metadata; it writes nothing and starts no process. Each method's contract is on the
+//! [`Host`] trait.
 
 use crate::platform::host::Host;
 use crate::platform::InstallScope;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The Linux implementation of [`Host`].
+/// The Linux implementation of [`Host`]: `$HOME/.local/bin` (user) or `/usr/local/bin` (system)
+/// for the binary, the XDG autostart path for the update check, any execute bit for
+/// "executable", and `setsid` for detaching. Holds no data.
 pub struct NativeHost;
 
 impl Host for NativeHost {
@@ -29,6 +36,8 @@ impl Host for NativeHost {
         PathBuf::from("/usr/local/bin")
     }
 
+    // Reads `XDG_CONFIG_HOME` and `HOME`; the rule that picks between them is
+    // `config::autostart_path_from`.
     fn autostart_entry_path(&self) -> Result<PathBuf, String> {
         let get = |k: &str| std::env::var(k).ok();
         crate::config::autostart_path_from(
@@ -37,6 +46,8 @@ impl Host for NativeHost {
         )
     }
 
+    // `metadata()` follows symlinks. Any of the three execute bits (owner, group, other) counts;
+    // whether the current user may actually run it is not checked.
     fn is_executable_file(&self, p: &Path) -> bool {
         use std::os::unix::fs::PermissionsExt;
         p.metadata()
@@ -45,6 +56,9 @@ impl Host for NativeHost {
 
     fn detach_child(&self, cmd: &mut Command) {
         use std::os::unix::process::CommandExt;
+        // SAFETY: the hook runs between fork and exec and calls only `setsid` and `setpgid`,
+        // which are async-signal-safe. When `setsid` fails (the child is already a group leader),
+        // `setpgid(0, 0)` puts it in its own process group instead; that result is not checked.
         unsafe {
             cmd.pre_exec(|| {
                 if libc::setsid() < 0 {

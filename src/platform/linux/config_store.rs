@@ -3,19 +3,26 @@
 //! Location (pure rule in `spawn_at_core::settings::config_location`): the file named by
 //! `SPAWN_AT_CONFIG` if set, else `$XDG_CONFIG_HOME/spawn-at/config.toml` for an absolute
 //! `XDG_CONFIG_HOME`, else `$HOME/.config/spawn-at/config.toml`.
+//!
+//! This module only moves text between the file and the caller. It does not parse TOML (the
+//! settings code in `spawn-at-core` does) and it never writes except through
+//! `SettingsStore::write`, which replaces the whole file. An environment variable that is not
+//! valid UTF-8 counts as unset.
 
 use spawn_at_core::settings::{config_location, SettingsStore, ENV_CONFIG_PATH};
 use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 
-/// The user's config file.
+/// The user's config file as a [`SettingsStore`]. `path` is `None` when no location could be
+/// derived (no override, no absolute `XDG_CONFIG_HOME`, no `HOME`).
 pub struct LinuxConfigStore {
     path: Option<PathBuf>,
 }
 
 impl LinuxConfigStore {
-    /// The store for the environment of this process.
+    /// The store for the environment of this process: reads `SPAWN_AT_CONFIG`,
+    /// `XDG_CONFIG_HOME` and `HOME` once, now. Touches no file.
     pub fn from_env() -> Self {
         let get = |k: &str| std::env::var(k).ok();
         Self {
@@ -33,7 +40,8 @@ impl LinuxConfigStore {
         Self { path: Some(path) }
     }
 
-    /// The file path, or an error when neither `XDG_CONFIG_HOME` nor `HOME` is usable.
+    /// The file path, or an error when no location was derived. The error text always says
+    /// "HOME is not set", also when `XDG_CONFIG_HOME` was set but not absolute.
     pub fn path(&self) -> Result<&PathBuf, String> {
         self.path
             .as_ref()
@@ -49,7 +57,10 @@ impl SettingsStore for LinuxConfigStore {
         )
     }
 
-    /// `None` for a file that does not exist (also when its directory does not).
+    /// The file's text. `Ok(None)` for a file that does not exist (also when its directory does
+    /// not) and also when no location exists at all, so a missing `HOME` is silent on read but
+    /// an error on `write`. Any other I/O error, for example a directory at the path or a
+    /// non-UTF-8 file, is an `Err` naming the path.
     fn read(&self) -> Result<Option<String>, String> {
         let Ok(path) = self.path() else {
             return Ok(None);
@@ -63,6 +74,11 @@ impl SettingsStore for LinuxConfigStore {
 
     /// Writes a temporary file in the same directory, flushes it to disk and renames it over the
     /// target, so a reader sees the old file or the new one. The directory is created if needed.
+    ///
+    /// The temporary file is `.<file name>.tmp.<pid>` next to the target and is removed if the
+    /// write fails. The file is synced, the directory is not. The rename replaces the path
+    /// itself, so a symlink at the path becomes a regular file. Errors: no location, no parent
+    /// directory, or any I/O failure, each as a message naming the path.
     fn write(&self, text: &str) -> Result<(), String> {
         let path = self.path()?;
         let dir = path

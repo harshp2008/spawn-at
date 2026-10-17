@@ -1,32 +1,36 @@
 //! # Linux XDG Desktop Entry & Wayland App ID Resolver
 //!
-//! ## Architectural Purpose
+//! Turns the program a user types (`gnome-text-editor`) into the id a window is expected to carry
+//! (`org.gnome.TextEditor`). The rule here is: the id is the file name of the `.desktop` file
+//! whose `Exec=` program is that command, without `.desktop`. That a window really reports that
+//! id is an assumption of this module, not something it checks.
 //!
-//! In the Linux desktop ecosystem (GNOME, KDE, wlroots, X11):
-//! - Applications are launched by binary name (e.g., `gnome-text-editor`, `google-chrome-stable`,
-//!   or flatpak/snap commands).
-//! - Wayland compositors (like Mutter) track surfaces and windows via FreeDesktop `app_id`
-//!   strings (e.g., `org.gnome.TextEditor`, `com.spotify.Client`), derived from the filename
-//!   of the `.desktop` file without the `.desktop` extension.
-//!
-//! This module scans standard XDG data paths, user directories, Flatpak exports, and Snap
-//! desktop locations to resolve an executable binary to its canonical Wayland App ID.
+//! It reads `.desktop` files from the user's XDG data directory, `$XDG_DATA_DIRS`, and the Flatpak
+//! and Snap export directories. It reads only: no files are written and no process is started.
+//! It does not talk to a compositor. The GNOME, Sway and X11 drivers call it from `resolve_id`
+//! (`grep -rn resolve_linux_app_id src/`).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
-/// Resolves a Linux binary command into its canonical Wayland Application ID.
+/// The id to arm for `command_bin`: the `.desktop` file stem whose `Exec=` program has the same
+/// base name, else the base name itself. Reads the disk (directory listings and file contents)
+/// on every call; never fails.
 ///
-/// ### Search Order:
-/// 1. **Explicit Override:** If `explicit_class` is provided (`Some(...)`), it is returned immediately.
-/// 2. **XDG Applications Directories:** Scans:
-///    - `$HOME/.local/share/applications`
-///    - `$HOME/.local/share/flatpak/exports/share/applications`
-///    - `$XDG_DATA_DIRS` (defaulting to `/usr/local/share:/usr/share`) + `/applications` subpaths
-///    - System Flatpak exports (`/var/lib/flatpak/exports/share/applications`)
-///    - Snap desktop entries (`/var/lib/snapd/desktop/applications`)
-/// 3. **Desktop File Matching:** Matches the `Exec=` key against the invoked executable name.
-/// 4. **Fallback:** Returns the binary's basename or wildcard `"*"` if no `.desktop` file matches.
+/// In order, the first rule that applies wins:
+/// 1. `explicit_class`, trimmed, when it is not empty after trimming (an all-blank value is
+///    ignored). `"*"` passes through this way.
+/// 2. `"*"` when the base name of `command_bin` is `"*"`.
+/// 3. A built-in table: `gnome-terminal` gives `org.gnome.Terminal`. It is checked before any
+///    file is read.
+/// 4. The first match while scanning, in this order: `$HOME/.local/share/applications`,
+///    `$HOME/.local/share/flatpak/exports/share/applications`, each `$XDG_DATA_DIRS` entry
+///    (default `/usr/local/share:/usr/share`) plus `/applications`, then
+///    `/var/lib/flatpak/exports/share/applications` and `/var/lib/snapd/desktop/applications`
+///    when they exist. Within one directory the order is the one `read_dir` returns, which is
+///    not defined, so two `.desktop` files with the same `Exec=` program can win in either order.
+/// 5. The base name of `command_bin` (`/usr/bin/alacritty` gives `alacritty`). The wildcard is
+///    never a fallback.
 pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> String {
     // 1. Honor explicit user override
     if let Some(cls) = explicit_class {
@@ -47,8 +51,9 @@ pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> 
         return "*".to_string();
     }
 
-    // Direct mapping for daemonized/split binaries where Mutter's wm_class
-    // diverges from the .desktop filename or command binary
+    // `gnome-terminal` is mapped by hand to the id of the terminal server. The extension also
+    // pairs these ids in `_matchesArmKey`
+    // (grep -n "gnome-terminal" assets/gnome/modern/extension.js).
     const KNOWN_WM_CLASS_OVERRIDES: &[(&str, &str)] = &[("gnome-terminal", "org.gnome.Terminal")];
 
     for &(bin, target_class) in KNOWN_WM_CLASS_OVERRIDES {
@@ -80,7 +85,10 @@ pub fn resolve_linux_app_id(command_bin: &str, explicit_class: Option<&str>) -> 
     bin_name.to_string()
 }
 
-/// Collects all standard and containerized (Flatpak / Snap) application directories.
+/// The directories `resolve_linux_app_id` scans, in scan order, without duplicates of the
+/// `$XDG_DATA_DIRS` entries. The two user directories and the `$XDG_DATA_DIRS` entries are
+/// included whether or not they exist; the system Flatpak and Snap directories only if they do.
+/// An unset `HOME` drops the two user directories; an unset `XDG_DATA_DIRS` uses the default.
 fn collect_xdg_application_dirs() -> Vec<PathBuf> {
     let mut search_dirs = Vec::new();
 
@@ -120,13 +128,18 @@ fn collect_xdg_application_dirs() -> Vec<PathBuf> {
     search_dirs
 }
 
-/// Helper to parse a desktop file and check if its `Exec=` line matches the target binary.
+/// `Some(file stem of path)` for the first `Exec=` line of `content` whose program has the base
+/// name `bin_name`, else `None`. The program is the first word of the value that is not `env`
+/// and does not contain `=`, with surrounding quotes removed. The whole file is searched, not
+/// only the `[Desktop Entry]` group, so an `Exec=` of a desktop action counts too.
+// The code does not handle "flatpak run <id>": the program is then `flatpak`, so such an entry
+// matches only when the command typed is `flatpak`.
 fn match_desktop_file(content: &str, path: &Path, bin_name: &str) -> Option<String> {
     for line in content.lines() {
         let trimmed = line.trim();
         if let Some(exec_part) = trimmed.strip_prefix("Exec=") {
             let exec_cmd = exec_part.trim();
-            // Handle optional "env VAR=VAL ... <binary>" or "flatpak run <id>" prefixes
+            // Skip a leading `env` and any `VAR=VAL` words; the next word is the program.
             let mut candidate_bin = "";
             for token in exec_cmd.split_whitespace() {
                 if token == "env" || token.contains('=') {

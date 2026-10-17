@@ -1,5 +1,15 @@
 //! Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded
 //! extension files, and the session reload helpers.
+//!
+//! Contents: the two embedded file lists (modern and legacy, compiled in with `include_str!`),
+//! `log_out_wayland` and `restart_gnome_shell_x11`, the [`Provisioner`] implementation of
+//! [`GnomeWaylandDriver`] (`install`, `uninstall`, `install_notice`), and the GNOME session and
+//! update hooks.
+//!
+//! It acts on the live session: it writes under `$HOME/.local/share/gnome-shell/extensions/`,
+//! runs `gnome-extensions`, and can log the user out. The advice on whether a log-out is needed
+//! comes from `logout.rs`, and the question to the user about logging out is asked by
+//! `session::finish`, not here.
 
 use super::detect::{detect_gnome_shell_major_version, is_wayland_session};
 use super::driver::GnomeWaylandDriver;
@@ -12,10 +22,14 @@ use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::process::Command;
 
-/// Extension UUID recognized by GNOME Shell.
+/// The extension's UUID: the name of its directory under the user's extensions folder and the
+/// argument of `gnome-extensions enable` / `disable`. It equals `uuid` in both `metadata.json`
+/// files.
 const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 
-/// Bundled modern GNOME Shell extension files (GNOME 45–48).
+/// The files of `assets/gnome/modern/`, as (file name, contents), written by `install` when the
+/// detected Shell is 45 or newer or unknown. The `metadata.json` of this set lists Shell
+/// versions 45 to 48.
 pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
     (
         "extension.js",
@@ -54,8 +68,8 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
         "x11_observe.js",
         include_str!("../../../../assets/gnome/modern/x11_observe.js"),
     ),
-    // Not imported by extension.js yet: shipped only because the guard test below requires the
-    // list to equal the directory. Inert until the ready-wait machine is wired in.
+    // Not imported by extension.js itself; commit.js and validator.js import it
+    // (grep -n "ready_wait" assets/gnome/modern/*.js).
     (
         "ready_wait.js",
         include_str!("../../../../assets/gnome/modern/ready_wait.js"),
@@ -66,7 +80,9 @@ pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
     ),
 ];
 
-/// Bundled legacy GNOME Shell extension files (GNOME 42–44).
+/// The files of `assets/gnome/legacy/`, written by `install` when the detected Shell major
+/// version is below 45. Its `metadata.json` lists Shell versions 42 to 44. This set has no
+/// `ready_wait.js` and no `x11_observe.js`.
 pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
     (
         "extension.js",
@@ -110,9 +126,12 @@ pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
 // 3. Execution & Reload Helpers
 // ============================================================================
 
-/// Logs the user out of the Wayland session (`gnome-session-quit --logout --no-prompt`) in a
-/// new session group, so it survives this process. The only place that runs it; called by
-/// `session::finish()`, which is the last thing a run does.
+/// Starts `gnome-session-quit --logout --no-prompt` in a new session (`setsid`, falling back to
+/// `setpgid(0, 0)`) so it outlives this process, with stdin, stdout and stderr redirected to `/dev/null`.
+/// It does not wait for the command. A failure to start it is ignored (`let _ =`), so the user
+/// gets no message if `gnome-session-quit` is missing. Side effect: ends the user's session.
+// The only place that runs it (grep -rn gnome-session-quit src/); `GnomeSessionActions::log_out`
+// below calls it and `session::finish` calls that through the SessionActions trait.
 pub fn log_out_wayland() {
     let mut quit_cmd = Command::new("gnome-session-quit");
     quit_cmd
@@ -135,11 +154,13 @@ pub fn log_out_wayland() {
     let _ = quit_cmd.spawn();
 }
 
-/// Restarts GNOME Shell on X11 using synthetic keypresses via xdotool:
-/// Alt+F2, ~0.5s wait, type "r", press Return.
+/// Reloads GNOME Shell on X11 by sending keys with `xdotool`: `Alt+F2`, 500 ms, type `r`,
+/// 100 ms, `Return`. It needs a running X11 session; there is no check for that here.
 ///
-/// If xdotool is missing, prints a clear message telling the user to install it,
-/// and continues normally without failing the installation.
+/// If `which xdotool` fails it prints an install hint and returns. If an `xdotool` command
+/// cannot be started it prints a warning and stops; a command that starts and exits non-zero
+/// is not noticed, so the sequence goes on. Nothing is returned, so the caller cannot tell
+/// whether the Shell reloaded.
 pub fn restart_gnome_shell_x11() {
     let which_res = Command::new("which").arg("xdotool").output();
     let installed = which_res.map(|o| o.status.success()).unwrap_or(false);
@@ -177,7 +198,8 @@ pub fn restart_gnome_shell_x11() {
 }
 
 impl GnomeWaylandDriver {
-    /// Resolves the user extension directory: `~/.local/share/gnome-shell/extensions/spawn-at@harsh.local`
+    /// `$HOME/.local/share/gnome-shell/extensions/spawn-at@harsh.local`. Reads `$HOME` only
+    /// (not the XDG data dir), so with `HOME` unset it fails with [`DriverError::Execution`].
     fn extension_dir() -> Result<PathBuf, DriverError> {
         let home = std::env::var("HOME").map_err(|e| {
             DriverError::Execution(
@@ -195,8 +217,9 @@ impl GnomeWaylandDriver {
 }
 
 impl Provisioner for GnomeWaylandDriver {
-    /// The notice for the detected GNOME Shell and session: none for GNOME 46 on Wayland, the only
-    /// configuration spawn-at has been run on.
+    /// The notice for the detected GNOME Shell version and session type, from
+    /// `install_notice::gnome_notice`; `None` for Shell 46 on Wayland. Runs `gnome-shell
+    /// --version` and `loginctl` (see `detect.rs`).
     fn install_notice(&self) -> Option<String> {
         crate::platform::install_notice::gnome_notice(
             detect_gnome_shell_major_version(),
@@ -204,8 +227,22 @@ impl Provisioner for GnomeWaylandDriver {
         )
     }
 
-    /// Installs the embedded GNOME Shell extension into the user's extensions directory
-    /// using dual-mode execution (interactive TUI prompt or headless flag automation).
+    /// Writes the embedded extension files into the extension directory and, if wanted, runs
+    /// `gnome-extensions enable`.
+    ///
+    /// The file set is the legacy one when the Shell major version is below 45, else the modern
+    /// one (also when the version cannot be read). Interactive means `!args.headless` and stdout
+    /// is a terminal; then the user is asked whether to enable, otherwise
+    /// `gnome_auto_enable` decides. A file whose bytes already match is not rewritten, to keep
+    /// its modification time (`logout.rs` compares it with the Shell's start). Files in the
+    /// directory that are not in the list, for example from the other set, are left in place.
+    ///
+    /// Does not log out or reload: it records a `session::Pending` for `session::finish`.
+    ///
+    /// Errors: [`DriverError::Execution`] when `$HOME` is unset, the directory cannot be
+    /// created, a file cannot be written, the prompt fails, or `gnome-extensions` cannot be
+    /// started. A non-zero exit of `gnome-extensions enable` is only a printed note, and the
+    /// "successfully installed and enabled" line is printed after it anyway.
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
@@ -322,7 +359,16 @@ impl Provisioner for GnomeWaylandDriver {
         Ok(())
     }
 
-    /// Disables and removes the GNOME Shell extension using dual-mode execution.
+    /// Runs `gnome-extensions disable` and, if wanted, deletes the extension directory.
+    ///
+    /// The result of `disable` is dropped (`let _ =`): a missing `gnome-extensions` or a
+    /// non-zero exit is not reported, and "successfully uninstalled" is printed regardless.
+    /// Interactive runs ask whether to delete the files; otherwise `gnome_delete_files` decides.
+    /// Like `install`, it records a `session::Pending` instead of logging out. The removal phase
+    /// of a clean install passes `no_action` and records nothing.
+    ///
+    /// Errors: [`DriverError::Execution`] when `$HOME` is unset, the prompt fails, or the
+    /// directory cannot be removed.
     fn uninstall(&self, args: &UninstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
@@ -404,6 +450,8 @@ impl crate::platform::session_actions::SessionActions for GnomeSessionActions {
 pub struct GnomeUpdateHooks;
 
 impl GnomeUpdateHooks {
+    /// True when `$XDG_CURRENT_DESKTOP`, upper-cased, contains "GNOME" (so "ubuntu:GNOME" and
+    /// "GNOME-Classic" count). Unset counts as false.
     fn on_gnome() -> bool {
         std::env::var("XDG_CURRENT_DESKTOP")
             .unwrap_or_default()
@@ -413,6 +461,11 @@ impl GnomeUpdateHooks {
 }
 
 impl crate::platform::update_hooks::UpdateHooks for GnomeUpdateHooks {
+    /// On GNOME, runs the NEW binary as `install --skip-bin --headless` and waits for it, so
+    /// the extension files come from the new version.
+    ///
+    /// Only a failure to start that child is reported (as a warning). Its exit status is not
+    /// looked at, so an install that fails is silent here. Returns nothing.
     fn after_unpack(&self, new_binary: &std::path::Path) {
         if Self::on_gnome() {
             println!("Deploying GNOME Shell extension via newly unpacked binary...");

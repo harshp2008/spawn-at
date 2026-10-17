@@ -2,13 +2,29 @@
 //!
 //! Internal instruction synthesis and low-level Clutter/Mutter payload generation
 //! for the GNOME Wayland Shell extension.
+//!
+//! Turns the neutral placement types of `spawn-at-core` into the list of instructions the
+//! extension runs (`ArmSpawn` and `ExecuteBatch` take it as JSON). Pure: no D-Bus, no I/O.
+//! The driver (`driver.rs`) is the caller. The JSON shape is fixed by serde (a unit variant is
+//! a string such as `"Cloak"`, a variant with data is a one-key object such as
+//! `{"SetSize":{"w":500,"h":400}}`) and is read by `validateInstructions` in
+//! `assets/gnome/*/validator.js`, which rejects names and ranges it does not know. Renaming a
+//! variant or field here therefore breaks the extension, not the Rust build.
 
 use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::Entry;
 use spawn_at_core::geometry::{Anchor, Area, Pivot, PlacementParams};
 use spawn_at_core::wait_override::{WaitOverride, WaitStrategy};
 
-/// Raw serialization payload expected by the GNOME Shell extension for anchored positioning.
+/// The argument object of the `SetPositionAnchored` instruction. All lengths are pixels.
+///
+/// `screen_anchor_x/y` is the point on the screen the window's pivot is placed on;
+/// `pivot_u/v` says which point of the window that is, as a fraction of its size (0.0 is the
+/// left or top edge, 1.0 the right or bottom edge, 0.5 the middle); `offset_x/y` is added
+/// on top. `area` is `"workarea"` or `"screen"`, or absent. The extension's validator keeps only
+/// the fields it names, and `intended_w` and `intended_h` are not among them (no use of them
+/// in `assets/gnome/modern/*.js`; `grep -n intended_w assets/gnome/modern/*.js`), so they
+/// are sent but dropped; the window size comes from the `SetSize` instruction.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlacementPayload {
     pub intended_w: u32,
@@ -37,7 +53,16 @@ fn default_true() -> bool {
     true
 }
 
-/// Low-level micro-instructions dispatched to the GNOME Shell extension.
+/// One step of the list sent to the extension. The names are the allow-list of the extension's
+/// validator (`ALLOWED_OPS`); the extension refuses a list longer than 64 steps, empty, or
+/// with a step it does not know, and then runs none of it.
+///
+/// `Snapshot` and `DestroySnapshot` create and remove a snapshot of the window in the
+/// extension's cloak manager (`transform_window` uses them; the cold-start list from
+/// `build_instructions_for_entry` does not). The extension skips the snapshot for a minimised,
+/// covered or hidden window. `Cloak` and `Uncloak` hide and reveal the window; `SetSize` is in
+/// pixels; `WaitForCommit` waits for a commit, at most `timeout_ms` milliseconds (the validator
+/// accepts 0 to 60000). Beyond these names, the steps are not described here (not verified).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Instruction {
     Snapshot,
@@ -62,7 +87,9 @@ pub enum Instruction {
 }
 
 impl Instruction {
-    /// A `WaitForCommit` carrying `wait`. `Auto` and an absent cap add nothing to the instruction.
+    /// A `WaitForCommit` with `timeout_ms` (milliseconds) and the developer override `wait`. The
+    /// `strategy` field is set only when `wait.strategy` is not `Auto`, and `cap_ms` only when
+    /// the override has one; unset fields are left out of the JSON.
     pub fn wait_for_commit(timeout_ms: u32, wait: &WaitOverride) -> Self {
         Instruction::WaitForCommit {
             timeout_ms,
@@ -75,7 +102,20 @@ impl Instruction {
     }
 }
 
-/// Translates declarative `PlacementParams` into a low-level `PlacementPayload`.
+/// Turns `params` into the argument of `SetPositionAnchored`. Pure. `current_w` and `current_h`
+/// (pixels) fill `intended_w/h` when `params.size` is unset.
+///
+/// How the point is chosen, in order: with an anchor, `compute_screen_anchor` on the work area
+/// with the four margins; else with `pos` (or, if that is unset, `offset`), the work-area
+/// origin plus that point (the origin is `(0, 0)` for `Area::Unbounded`); else the work-area
+/// origin plus the left and top margins. Each side's margin is its own value if set, else
+/// `params.margin`. `offset_x/y` is passed on only when an anchor is set. The pivot is the
+/// explicit `pivot` if set, else the one that matches the anchor (0.0 to 1.0; `Cursor` gives
+/// the top-left), else the top-left. `Area::Unbounded` sends no `area`, zero margins and
+/// `clamp` false; otherwise `clamp` is copied.
+// The callers in this folder (`transform_window`, `build_instructions_for_entry`) call it only
+// when `anchor` or `pos` is set, so the `offset` fallback is reached only by direct calls
+// (grep -rn calculate_placement src/).
 pub fn calculate_placement(
     params: &PlacementParams,
     current_w: u32,
@@ -167,7 +207,11 @@ pub fn calculate_placement(
     }
 }
 
-/// Constructs the cold-start instruction pipeline for a given declarative entry.
+/// The instruction list armed for a window that does not exist yet: `Cloak`; if a size is
+/// requested, `SetSize` and `WaitForCommit` with a 300 ms timeout (plus the entry's wait
+/// override); if an anchor or `pos` is requested, `SetPositionAnchored` computed with a current
+/// size of 0 by 0; then `Uncloak`. There is no `Snapshot`: the window has nothing to snapshot.
+// Compare `transform_window` in driver.rs, which starts with `Snapshot` and waits 500 ms.
 pub fn build_instructions_for_entry(entry: &Entry) -> Vec<Instruction> {
     let has_move = entry.placement.anchor.is_some() || entry.placement.pos.is_some();
     let mut instructions = vec![Instruction::Cloak];
