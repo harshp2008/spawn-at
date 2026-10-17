@@ -1,11 +1,20 @@
 //! Stand-in for `platform::linux` on operating systems spawn-at does not support yet.
 //!
-//! The neutral code (`config.rs`, `commands/spawn.rs`, `commands/config.rs`) calls
-//! `crate::platform::linux::config_store::LinuxConfigStore`, and `platform/mod.rs` calls
-//! the functions this module defines. On a non-Linux target this module is
-//! mounted under the name `linux` (see `platform/mod.rs`), so those calls compile unchanged.
+//! On a non-Linux target this module is mounted under the name `linux`, so code that names
+//! `platform::linux::...` compiles unchanged. It defines only the names that code uses: the config
+//! store, the install and uninstall flag structs, a host, and the session-action and update-hook
+//! providers.
+//!
 //! Nothing here makes spawn-at work off Linux: `main` stops with a clear message first
-//! (`platform::ensure_supported_os`).
+//! (`platform::ensure_supported_os`), so these items are compile-only. The module is built only
+//! off Linux, so a Linux build and its tests never compile it; the `check-other-os` CI job only
+//! runs `cargo check` for Windows and macOS targets.
+
+// Who uses these names: `src/config.rs`, `src/commands/spawn.rs` and `src/commands/config.rs`
+// call `platform::linux::config_store::LinuxConfigStore`, and `src/platform/mod.rs` re-exports
+// the flag structs and calls `host::NativeHost`, `session_actions()` and `update_hooks()`
+// (grep `linux::` in src/platform/mod.rs). The mount is the `#[path = "non_linux.rs"]` module in
+// src/platform/mod.rs.
 
 /// The config file store. It is the real Linux file, compiled as it is; its path rule uses
 /// `XDG_CONFIG_HOME` and `HOME`, which is not right for Windows or macOS and is not meant to be
@@ -29,8 +38,13 @@ pub mod host {
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
+    /// The host of an unsupported operating system: `bin_dir` and `autostart_entry_path` return
+    /// "spawn-at does not support this operating system yet", `user_bin_dir` is `None`, and
+    /// `detach_child` does nothing.
     pub struct NativeHost;
 
+    // `is_executable_file` is the one method with real logic: it is true for any regular file and
+    // does not look at permission bits, unlike what the name suggests.
     impl Host for NativeHost {
         fn bin_dir(&self, _scope: InstallScope) -> Result<PathBuf, String> {
             Err("spawn-at does not support this operating system yet".to_string())
