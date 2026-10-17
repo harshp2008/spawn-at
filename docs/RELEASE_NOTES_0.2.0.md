@@ -2,20 +2,6 @@
 
 This is the **stable** release of the 0.2 series. It has the same code as [0.2.0-beta.6](RELEASE_NOTES_0.2.0-beta.6.md): the release changes documentation and the crate version only. Window placement, the ready-wait policy, the GNOME extension (`assets/gnome/`), `install.sh` and the command line are unchanged from beta.6. The code is the commit tagged `v0.2.0-beta.6`. Under `crates/`, the only difference besides the version lines is `crates/xtask/src/docs_check.rs`, the documentation-site check, which is not part of the release binary.
 
-## Upgrading from 0.1
-
-`spawn-at update` prints "spawn-at v0.2 CLI is not backward-compatible with v0.1 command syntax." when the update is from 0.1 to 0.2 (`src/update.rs`). What the sources say changed (checked against the pre-0.2 build for argument parsing, `--help`, config loading and the update check only, not against a real window):
-
-- `-a` is no longer a short form of `--anchor`; use `--anchor` (usage error, exit 2).
-- A word starting with `-` before the command is a usage error (exit 2); after `--` it is passed through.
-- `transform` with a target and nothing to change is an error (exit 2).
-- `update --channel` takes `stable` or `beta`; `all` is a deprecated alias of `beta`.
-- `spawn gnome-terminal` without `--class` now looks for class `org.gnome.Terminal`.
-- An old config file with an `[apps]` table still loads; `spawn-at config` warns that `apps` is ignored.
-- The notes for the first 0.2 beta say to re-run `spawn-at install` after upgrading and, on Wayland, to log out and back in.
-
-The full list is in [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md), section "Breaking changes and upgrade notes". Not found in any source: a migration guide, a list of every v0.1 command that no longer works, or a test of an upgrade from an installed 0.1 binary.
-
 To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md) and the later beta notes, and [CHANGELOG.md](../CHANGELOG.md).
 
 ## What 0.2.0 is
