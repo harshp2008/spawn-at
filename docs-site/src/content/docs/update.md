@@ -135,7 +135,7 @@ This is read from source, not run.
 ### The login entry
 
 `spawn-at install` writes an autostart entry that runs `<binary> update --check --headless` when
-you log in (`src/config.rs:184-261`).
+you log in (`src/config.rs:184-261`; the path is on [Files and paths](/spawn-at/files-and-paths/)).
 That command does not read `auto_check`, so setting `auto_check = false` does not stop the login
 check. `uninstall` removes the entry.
 

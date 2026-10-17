@@ -29,6 +29,7 @@ export default defineConfig({
             'install',
             'update',
             'installer-flags',
+            'files-and-paths',
             'quick-start',
             'concepts',
             {
