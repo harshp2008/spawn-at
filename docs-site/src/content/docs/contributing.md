@@ -90,6 +90,8 @@ These are the project's rules, written down in `CLAUDE.md` in the repository.
   the function body, not the function name; if unsure, leave it out.
 - Keep `CHANGELOG.md` current (new entries under Unreleased) and add facts that took more than a few
   tool calls to find to `docs/KNOWLEDGE.md`.
+- **A page of this book** follows the rules and the templates on
+  [Writing the docs](/spawn-at/contributing/writing-docs/); `cargo xtask docs-site` must exit 0.
 
 ## Build and test
 

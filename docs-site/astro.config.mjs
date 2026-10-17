@@ -123,7 +123,7 @@ export default defineConfig({
         {
           label: 'Developing',
           collapsed: true,
-          items: ['testing', 'contributing', 'changelog'],
+          items: ['testing', 'contributing', 'contributing/writing-docs', 'changelog'],
         },
       ],
     }),
