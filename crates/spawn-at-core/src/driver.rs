@@ -1,49 +1,67 @@
 //! # Declarative Compositor Driver Abstraction
 //!
-//! Defines the high-level declarative `Batch` intent and the asynchronous `Driver` trait.
+//! The [`Batch`] a spawn asks for and the [`Driver`] trait a compositor backend implements to
+//! receive it.
+//!
+//! `src/commands/spawn.rs` builds one `Batch` per spawn and calls [`Driver::arm`] before it
+//! launches the child; the backends under `src/platform/` (GNOME, Sway, X11, null) implement
+//! `Driver`. This module only describes the data and the error type. It does no I/O and must not
+//! name a display server.
 
 use crate::geometry::PlacementParams;
 use crate::wait_override::WaitOverride;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-/// Defines the visual presentation strategy for batched window reveals.
+/// When the windows of a batch become visible.
+///
+/// `spawn` builds `Together`; the null backend uses `Independent`. No backend under `src/` reads
+/// the field (grep of `.reveal`, not verified beyond that), so the variants below state the
+/// intended meaning only.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Reveal {
-    /// All windows in the batch are held cloaked until all are mapped, then uncloaked together.
+    /// Intended: every window stays hidden until all are mapped, then all appear together.
     Together,
-    /// Each window is uncloaked independently as soon as it completes its commit phase.
+    /// Intended: each window appears as soon as it has been placed.
     Independent,
 }
 
-/// Defines the keyboard focus allocation policy upon batch settlement.
+/// Who gets keyboard focus once the batch is placed.
+///
+/// The Sway and X11 drivers compare the field with `Exclusive`; no code under `src/` matches on
+/// `Entry`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FocusIntent {
     /// Leave current desktop focus untouched.
     Leave,
-    /// Direct focus to the entry identified by its key.
+    /// Intended: focus the entry with this [`Entry::key`].
     Entry(String),
-    /// Forcibly claim exclusive focus for the leader of the batch.
+    /// Take focus for the spawned window. `spawn` builds every batch with this value.
     Exclusive,
 }
 
-/// Scheduling urgency of the batch transaction.
+/// Scheduling urgency of the batch.
+///
+/// Only `Normal` is constructed in this tree, and no code reads the field.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Urgency {
-    /// Standard scheduling through FIFO / priority queues.
+    /// Standard scheduling.
     Normal,
-    /// Urgent out-of-band execution (--bypass-fifo) skipping barriers.
+    /// Intended: run out of band. No `--bypass-fifo` flag exists in the repository (grep).
     Express,
 }
 
 /// A declarative placement entry describing a single window within a batch.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Entry {
-    /// Unique identifier or token for deterministic identity matching.
+    /// Identifies the entry. The GNOME and X11 drivers hand it to the child as the value of
+    /// `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`; GNOME also uses it as the target id when
+    /// the batch has more than one entry.
     pub key: String,
-    /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor").
+    /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor"). GNOME
+    /// uses it as the target id of a single-entry batch, or `"*"` when it is empty.
     pub app_hint: String,
-    /// Declarative spatial geometry and alignment constraints.
+    /// Position, size and anchor to apply.
     pub placement: PlacementParams,
     /// Developer override of the resize wait for this entry only; the default changes nothing and
     /// is not serialised.
@@ -51,43 +69,51 @@ pub struct Entry {
     pub wait: WaitOverride,
 }
 
-/// A declarative batch of windows to be orchestrated and placed by the compositor driver.
+/// The windows one spawn asks the compositor driver to place, passed to [`Driver::arm`].
+///
+/// `spawn` currently builds a batch of exactly one entry.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Batch {
-    /// Unique batch identifier.
+    /// Batch identifier; `spawn` always sets 1 and no code under `src/` reads it.
     pub id: u64,
-    /// Ordered list of window entries in this batch.
+    /// The window entries, in the order given.
     pub entries: Vec<Entry>,
-    /// Visual reveal policy (simultaneous vs independent).
+    /// When the windows become visible.
     pub reveal: Reveal,
-    /// Focus arbitration policy.
+    /// Who gets focus afterwards.
     pub focus: FocusIntent,
-    /// Scheduling urgency level.
+    /// Scheduling urgency.
     pub urgency: Urgency,
-    /// Maximum allowable time for windows to map before degraded reveal.
+    /// Intended: how long to wait for the windows to map before revealing anyway. `spawn` sets
+    /// 15000 ms; no driver under `src/` reads it (not verified beyond grep).
     pub deadline: Duration,
 }
 
-/// Environment tokens and startup context returned after arming the compositor.
+/// What [`Driver::arm`] hands back to the caller before it launches the child.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Armed {
-    /// Key-value environment variables to inject into spawned child processes
-    /// (e.g. `XDG_ACTIVATION_TOKEN`, `DESKTOP_STARTUP_ID`).
+    /// Environment variables `spawn` sets on the child process (the GNOME and X11 drivers return
+    /// `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`).
     pub launch_env: Vec<(String, String)>,
-    /// Optional identifier or token corresponding to this armed registration.
+    /// Identifies the registration. `spawn` passes it to [`Driver::disarm`] if the child cannot
+    /// be started; the GNOME driver sets it to the target id of the last entry.
     pub token: Option<String>,
 }
 
-/// Error type produced by driver arming and execution.
+/// Error returned by drivers and by the backend methods built on them.
+///
+/// A `String` converts into `IpcError` through `From`.
 #[derive(Debug)]
 pub enum DriverError {
-    /// IPC failure (D-Bus, socket, protocol violation).
+    /// Talking to the compositor or helper failed (D-Bus, socket, protocol violation).
     IpcError(String),
-    /// Target window or capability not supported by the active driver.
+    /// The active backend lacks this operation. The payload names it (for example
+    /// `"get_windows"`); `Display` special-cases `"close_window"` and any text starting with
+    /// `"this backend"`.
     UnsupportedCapability(&'static str),
-    /// Window target not found during lookup.
+    /// No window matches the id or target; the payload is the message shown to the user.
     TargetNotFound(String),
-    /// Execution error.
+    /// Any other failure; [`std::error::Error::source`] returns the wrapped error.
     Execution(Box<dyn std::error::Error + Send + Sync>),
 }
 
@@ -127,13 +153,21 @@ impl From<String> for DriverError {
     }
 }
 
-/// Declarative compositor driver interface.
+/// What a compositor backend offers `spawn`: register the placement before the child exists.
+///
+/// `CompositorBackend` in `src/platform/mod.rs` has this trait as a supertrait.
 #[async_trait::async_trait]
 pub trait Driver: Send + Sync {
-    /// Arms the compositor with the declarative batch intent before processes are launched.
+    /// Registers the batch with the compositor side so the window is placed when it appears, and
+    /// returns the environment for the child. Call it before launching the child.
+    ///
+    /// Errors: [`DriverError::IpcError`] when the compositor or helper cannot be reached; the
+    /// null backend returns [`DriverError::UnsupportedCapability`].
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError>;
 
-    /// Disarms a previously armed token (best-effort, idempotent).
+    /// Withdraws a registration made by [`Driver::arm`], given [`Armed::token`]. The default does
+    /// nothing and returns `Ok(false)`; the GNOME driver forwards the call to the extension and
+    /// returns its answer.
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
         Ok(false)
     }
