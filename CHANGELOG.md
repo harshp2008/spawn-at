@@ -22,7 +22,7 @@ Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src
 - The command aliases and the hidden wait flags are documented; `--no-focus` is no longer in the README example.
 - The documentation-site check allows the extension identifier `spawn-at@harsh.local` (`crates/xtask/src/docs_check.rs`, developer tool).
 - The experiment records name the project owner where they said "the user".
-- `docs/RELEASE_NOTES_0.2.0.md`.
+- `docs/RELEASE_NOTES_0.2.0.md`, with an "Upgrading from 0.1" section that points to the beta.1 breaking-changes list.
 
 ## [0.2.0-beta.6] - 2026-10-17
 

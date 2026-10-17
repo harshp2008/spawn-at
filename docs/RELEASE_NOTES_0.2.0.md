@@ -1,6 +1,20 @@
 # spawn-at 0.2.0: release notes
 
-This is the **stable** release of the 0.2 series. It has the same code as [0.2.0-beta.6](RELEASE_NOTES_0.2.0-beta.6.md): the release changes documentation and the crate version only. Window placement, the ready-wait policy, the GNOME extension (`assets/gnome/`), `install.sh` and the command line are unchanged from beta.6. The only difference in `crates/xtask` is `docs_check.rs`, the documentation-site check, which is not part of the release binary (`git diff 75e867a..HEAD --stat` on the release branch; 75e867a is the commit of the beta.6 documentation merge).
+This is the **stable** release of the 0.2 series. It has the same code as [0.2.0-beta.6](RELEASE_NOTES_0.2.0-beta.6.md): the release changes documentation and the crate version only. Window placement, the ready-wait policy, the GNOME extension (`assets/gnome/`), `install.sh` and the command line are unchanged from beta.6. The code is the commit tagged `v0.2.0-beta.6`. Under `crates/`, the only difference besides the version lines is `crates/xtask/src/docs_check.rs`, the documentation-site check, which is not part of the release binary.
+
+## Upgrading from 0.1
+
+`spawn-at update` prints "spawn-at v0.2 CLI is not backward-compatible with v0.1 command syntax." when the update is from 0.1 to 0.2 (`src/update.rs`). What the sources say changed (checked against the pre-0.2 build for argument parsing, `--help`, config loading and the update check only, not against a real window):
+
+- `-a` is no longer a short form of `--anchor`; use `--anchor` (usage error, exit 2).
+- A word starting with `-` before the command is a usage error (exit 2); after `--` it is passed through.
+- `transform` with a target and nothing to change is an error (exit 2).
+- `update --channel` takes `stable` or `beta`; `all` is a deprecated alias of `beta`.
+- `spawn gnome-terminal` without `--class` now looks for class `org.gnome.Terminal`.
+- An old config file with an `[apps]` table still loads; `spawn-at config` warns that `apps` is ignored.
+- The notes for the first 0.2 beta say to re-run `spawn-at install` after upgrading and, on Wayland, to log out and back in.
+
+The full list is in [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md), section "Breaking changes and upgrade notes". Not found in any source: a migration guide, a list of every v0.1 command that no longer works, or a test of an upgrade from an installed 0.1 binary.
 
 To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md) and the later beta notes, and [CHANGELOG.md](../CHANGELOG.md).
 
@@ -33,7 +47,7 @@ The release workflow builds and uploads one file, `spawn-at-x86_64-unknown-linux
 
 Only what the repository records:
 
-- GNOME 46 on Wayland, one machine, one monitor, with the project's own test window: the measurements are in `docs/TEST_LOG.md` (sections 6.23 and 6.30 for the ready-wait). Under heavy load the old rule flashed in 26 of 40 runs and the ready-wait in 0 of 40, judged by wire time; nobody measured pixels on screen.
+- GNOME 46 on Wayland, one machine, one monitor, with the project's own test window: the measurements are in `docs/TEST_LOG.md` (section 6.23). With 22 CPU-burn threads running, the old rule (`--wait-strategy legacy`) flashed in 26 of 40 runs and the default ready-wait in 0 of 40, judged by the time of the window's commit on the Wayland wire. Section 6.30 repeated it after the X11 experiments were removed (27 of 40 and 0 of 40); it is a regression check, not a separate measurement of the ready-wait. No one captured the screen, so nothing says what is visible on screen ([Findings](https://harshp2008.github.io/spawn-at/findings/)).
 - Sway 1.9, headless and private, with the test window (`scripts/sway-live.sh`). Not a real Sway session.
 - The test suites, measured on 2026-10-18 on `main` at `b10ca5b` with the CI commands: `spawn-at` 447, `spawn-at-core` 64, `xtask` 54, `spawn-at-verify` 619 passed and 5 ignored (4 need a live display, 1 needs a private Sway), Node 204.
 
