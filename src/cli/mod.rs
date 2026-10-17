@@ -1,6 +1,10 @@
-//! # Command Line Interface Definitions
+//! The clap definitions of the `spawn-at` command line: the `Cli` root and the `Commands` enum.
+//! The per-subcommand argument structs and their `validate` methods live in `args`, and are
+//! re-exported from here.
 //!
-//! Defines the CLI arguments and subcommands for `spawn-at`.
+//! Parsing and validation only: this module runs nothing and touches no compositor. The help text
+//! comes from the `///` comments and `#[command]`/`#[arg]` attributes in this module and in
+//! `args`, so changing those changes `--help`.
 
 pub mod args;
 
@@ -12,6 +16,10 @@ pub use args::*;
 use crate::platform::{InstallArgs, UninstallArgs};
 use clap::{Parser, Subcommand};
 
+// Root of the command line. `disable_version_flag` removes clap's `-V`; `main` answers `-V` and
+// `--version` itself before parsing. `no_wait` is global, so it is accepted after any subcommand;
+// `main` passes it only to the spawn, transform, focus, defocus, maximize, minimize, restore and
+// close handlers.
 #[derive(Parser, Debug)]
 #[command(
     name = "spawn-at",
@@ -30,6 +38,9 @@ pub struct Cli {
 }
 
 impl Cli {
+    /// Runs the `validate` of the chosen subcommand's arguments and returns its error message.
+    /// Only `spawn`, `transform`, `focus`, `defocus`, `maximize`, `minimize`, `restore` and `close`
+    /// have checks; every other subcommand returns `Ok(())`.
     pub fn validate(&self) -> Result<(), String> {
         match &self.command {
             Commands::Spawn(s) => s.validate(),
@@ -45,6 +56,9 @@ impl Cli {
     }
 }
 
+// One variant per subcommand. The `///` on each variant is its line in `spawn-at --help`.
+// `Install`, `Uninstall` and `Update` take their argument structs from `platform` and `update`,
+// not from `args`.
 #[derive(Subcommand, Debug)]
 pub enum Commands {
     /// Install the embedded GNOME Shell extension and binary to $PATH
