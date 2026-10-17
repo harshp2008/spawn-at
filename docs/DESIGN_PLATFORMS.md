@@ -101,7 +101,7 @@ A backend is a bundle of small capabilities. A backend implements only what its 
 
 | Capability | Operations | Implemented today by |
 | :-- | :-- | :-- |
-| **Arm** (declare intent before launch) | `arm(Batch)`, `disarm` | `Driver` (`driver.rs:132`); GNOME `gnome/driver.rs:141,195` (D-Bus `ArmSpawn`); X11 `x11/mod.rs:37,52` (starts the interception loop) |
+| **Arm** (declare intent before launch) | `arm(Batch)`, `disarm` | `Driver` (`driver.rs:132`); GNOME `gnome/driver.rs:141,195` (D-Bus `ArmSpawn`); X11 `x11/mod.rs:37,52` (`arm` only returns the launch environment; the interception loop runs later, in `post_spawn`) |
 | **Launch** | start the app with the armed environment; detach it | `spawn.rs:298-307`, `configure_child_process` :582 (neutral; the detach is `Host::detach_child`, `spawn.rs:599`) |
 | **Discover** (windows, monitors, work areas, cursor) | `get_windows`, `get_monitors`, `get_workareas`, `get_layout`, `get_cursor_position` | GNOME `gnome/driver.rs:412,339,402,356,329`; X11 `x11/mod.rs:127,107,117,137,87` |
 | **Identify** (map a command to an app id; match windows to a process) | `resolve_id`, process ancestry | `xdg.rs:30` via `gnome/driver.rs:281`; `commands/mod.rs:50-92` and `/proc` helpers (leaks #3, #14) |
