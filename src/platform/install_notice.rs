@@ -4,7 +4,7 @@
 //!
 //! It only builds the text and the yes/no decision; printing, prompting and reading the GNOME
 //! version belong to the callers.
-// Callers at this commit: `gnome_notice` from the GNOME provisioner (src/platform/linux/gnome/
+// Callers: `gnome_notice` from the GNOME provisioner (src/platform/linux/gnome/
 // deploy.rs) and `gate` from `main`'s install branch.
 
 /// Where to report problems.

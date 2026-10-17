@@ -8,7 +8,7 @@
 //!
 //! It must not contain display-server code: that lives in the driver modules under `linux`.
 
-// Implementors of `CompositorBackend` at this commit (not verified for other commits): the
+// Implementors of `CompositorBackend`: the
 // `linux::LinuxBackend` adapter that wraps one of `GnomeWaylandDriver`, `SwayDriver` and
 // `X11Driver`, and `null_backend::NullBackend`. The rest are test doubles.
 pub mod capability;
@@ -166,10 +166,10 @@ pub struct UninstallArgs {
 /// when it is false and never calls the method. Failures are reported as [`DriverError`]; the
 /// defaults return [`DriverError::UnsupportedCapability`] carrying the method name, except
 /// [`CompositorBackend::close_window`] (a [`DriverError::Execution`] with a fixed message).
-// Implementors at this commit: `GnomeWaylandDriver`, `SwayDriver` and `X11Driver` (the real
+// Implementors: `GnomeWaylandDriver`, `SwayDriver` and `X11Driver` (the real
 // drivers), `linux::LinuxBackend` (forwards every method to one of them) and
 // `null_backend::NullBackend`; the rest are test doubles in test modules.
-// Callers that check a capability first, at this commit: `commands/transform.rs` (`runtime_transform`)
+// Callers that check a capability first: `commands/transform.rs` (`runtime_transform`)
 // and `commands/lifecycle.rs` (`close`). Other commands call the methods directly and handle the
 // error; `reveal_control` and `needs_helper` are read by no command.
 #[async_trait::async_trait]

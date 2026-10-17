@@ -435,7 +435,8 @@ mod autostart_file_tests {
     use super::*;
 
     const EXE: &str = "/home/u/.local/bin/spawn-at";
-    /// The entry exactly as it has been written since beta.2, byte for byte.
+    /// The entry `install_login_autostart_entry(EXE)` must write, byte for byte, whatever the
+    /// desktop, session type or backend.
     const EXPECTED: &str = "[Desktop Entry]\nType=Application\nName=spawn-at Update Check\n\
          Exec=/home/u/.local/bin/spawn-at update --check --headless\nHidden=false\nNoDisplay=true\n\
          X-GNOME-Autostart-enabled=true\nComment=Check for spawn-at updates silently on login\n";

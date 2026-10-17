@@ -10,7 +10,7 @@
 //! A reader must tolerate a kind it does not know: [`ResizeKind::from_wire`] maps it to
 //! [`ResizeKind::Unknown`] instead of failing.
 
-// Callers at this commit: src/platform/linux/gnome/driver.rs builds the report from the signal and
+// Callers: src/platform/linux/gnome/driver.rs builds the report from the signal and
 // src/commands/spawn.rs adds the requested size and prints it.
 
 use serde::{Deserialize, Serialize};

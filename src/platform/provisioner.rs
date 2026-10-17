@@ -12,7 +12,7 @@ use super::{DriverError, InstallArgs, UninstallArgs};
 ///
 /// All three methods are required; there are no defaults. An implementor reports failure as a
 /// [`DriverError`]; the caller decides what to print.
-// The only implementor at this commit is `GnomeWaylandDriver` (src/platform/linux/gnome/
+// The only implementor is `GnomeWaylandDriver` (src/platform/linux/gnome/
 // deploy.rs); the rest are test doubles.
 pub trait Provisioner: Send + Sync {
     /// A short notice to print (and confirm) before installing when this environment has not been

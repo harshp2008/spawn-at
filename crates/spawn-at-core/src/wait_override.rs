@@ -9,7 +9,7 @@
 //! This module only parses and holds the values; it must not read flags, files or the environment
 //! itself.
 
-// Callers at this commit: `settings::wait_flags` and `settings::wait_override` combine the flag
+// Callers: `settings::wait_flags` and `settings::wait_override` combine the flag
 // values with the settings file, src/commands/spawn.rs puts the result in
 // [`crate::driver::Entry::wait`], and src/platform/linux/gnome/mechanics.rs copies it into the
 // `WaitForCommit` instruction.

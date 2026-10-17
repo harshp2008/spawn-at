@@ -7,7 +7,7 @@
 //! implements `Driver`. This module only describes the data and the error type. It does no I/O
 //! and must not name a display server.
 
-// Callers at this commit: src/commands/spawn.rs builds the Batch and calls arm; the backends under
+// Callers: src/commands/spawn.rs builds the Batch and calls arm; the backends under
 // src/platform/ (GNOME, Sway, X11, null) implement Driver.
 
 use crate::geometry::PlacementParams;

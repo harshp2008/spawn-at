@@ -1,7 +1,10 @@
-//! # Window Transformation Command Handler
+//! The handler of `spawn-at transform`: moves, resizes, anchors, pivots or clamps a window that is
+//! already open.
 //!
-//! Provides the mathematical resolution and dispatch logic for moving, resizing,
-//! anchoring, pivoting, and clamping active mapped windows.
+//! `run_transform` picks the window, works out the boundary rectangle (monitor work area, monitor
+//! screen, or none for the unbounded area), fills a `PlacementParams` from the flags, hands it to
+//! the backend's `transform_window`, and then reads the window back to check and report the
+//! result. The coordinate maths itself is in `spawn_at_core::geometry`, not here.
 
 use crate::cli::TransformArgs;
 use crate::commands::focus::apply_focus_policy;
@@ -10,7 +13,18 @@ use crate::platform::{CompositorBackend, DriverError, PlacementParams};
 use crate::target;
 use spawn_at_core::geometry;
 
-/// Executes the `transform` subcommand: resolves window coordinates and transforms target geometry.
+/// Runs `spawn-at transform` on the window selected by `args`.
+///
+/// Errors: `DriverError::UnsupportedCapability` when the backend lacks `runtime_transform`
+/// (checked before the arguments are validated); invalid `args`; no matching window; the
+/// helper-status message when `--area screen` needs a helper the backend lacks; a failing
+/// monitor, work area or cursor query; an invalid `--monitor` value; a failing `transform_window`
+/// or focus call.
+///
+/// Unless `no_wait`: waits up to 2000 ms for the new geometry (for `--focus` / `--defocus`, for
+/// the focus state instead), ignoring a timeout, then reads the window rectangle for up to 300 ms
+/// (`settle_window_geometry`) and passes it to `diagnostics::verify_and_report_transform`, which
+/// reports a mismatch. A mismatch or a missed wait does not make the command fail.
 pub async fn run_transform(
     backend: &dyn CompositorBackend,
     args: TransformArgs,
@@ -25,7 +39,7 @@ pub async fn run_transform(
 
     args.validate()?;
 
-    // 1. Query active windows via backend and resolve target window using TargetResolver
+    // 1. List the windows and select one with `target::resolve_target`.
     let windows = backend.get_windows().await?;
 
     let selector = target::WindowSelector {
@@ -37,7 +51,8 @@ pub async fn run_transform(
     };
     let target_win = target::resolve_target(&windows, &selector)?;
 
-    // 2. Protocol version check and boundary resolution
+    // 2. `--area screen` needs a helper on the backend; `helper_status` says whether it is
+    // missing, and its message becomes the error. Nothing is checked for the other areas.
     if args.geometry.area == geometry::Area::Screen {
         let need = HelperNeed::ScreenArea;
         if let Some(message) = backend.helper_status(need).await.message(need) {
@@ -45,7 +60,8 @@ pub async fn run_transform(
         }
     }
 
-    // 3. Resolve target boundary from --monitor (or window's current monitor if omitted)
+    // 3. Cursor position, only when `--anchor cursor` or `--monitor cursor` needs it; (0, 0) is a
+    // placeholder otherwise. Then the boundary rectangle below.
     let is_cursor_anchor = args.geometry.anchor == Some(geometry::Anchor::Cursor);
     let is_cursor_monitor = args
         .geometry
@@ -61,6 +77,11 @@ pub async fn run_transform(
 
     let is_unbounded = args.geometry.area == geometry::Area::Unbounded;
 
+    // Boundary: an empty rectangle for the unbounded area; the monitor named by `--monitor`; or,
+    // without `--monitor`, the monitor with the largest overlap with the window, else the one at
+    // the window's monitor index, else the first. If `get_layout` fails, the monitor list or work
+    // area list is indexed by the window's monitor index (0 when unknown) and falls back to the
+    // first entry. An empty list gives an empty rectangle.
     let target_boundary = if is_unbounded {
         geometry::Rect::default()
     } else if let Some(ref mon_sel) = args.geometry.monitor {
@@ -110,7 +131,8 @@ pub async fn run_transform(
         }
     };
 
-    // 4. Calculate target position and size via geometry solver
+    // 4. Target size: the first and second `--size` values; a value that does not parse as u32, or
+    // a missing `--size`, keeps the window's current width or height.
     let target_w = args
         .geometry
         .size
@@ -128,6 +150,8 @@ pub async fn run_transform(
     let has_anchor = args.geometry.anchor.is_some();
     let has_pos_or_offset = pos_or_offset.is_some();
 
+    // Unbounded has no boundary to keep a margin from, so all four margins are 0 here and in
+    // `params` below. An edge margin falls back to the general margin when not set.
     let mt = if is_unbounded {
         0
     } else {
@@ -151,6 +175,15 @@ pub async fn run_transform(
         args.geometry.margin_right.unwrap_or(args.geometry.margin())
     };
 
+    // Which of pos/offset/anchor/pivot go to the backend:
+    // - an anchor: the position flag becomes an offset from the anchor;
+    // - a position or offset without an anchor: absolute position, pivot defaults to top-left;
+    // - only a pivot: the pivot corner of the window stays where it is while the (possibly new)
+    //   size is applied, and the result is clamped if clamping is on; a position is sent only if
+    //   it differs from the window's current one;
+    // - neither: a position is sent only when `--size` with clamping would push the window out of
+    //   the boundary.
+    // A position computed here is relative to the boundary's top-left corner (0 when unbounded).
     let (pos, offset, anchor, pivot) = if has_anchor {
         (
             None,
@@ -280,7 +313,7 @@ pub async fn run_transform(
         },
     };
 
-    // 5. Execute transform via backend
+    // 5. The backend gets the window's current width and height next to `params`.
     let target_id = target::resolve_target_id(target_win);
 
     backend
@@ -295,6 +328,8 @@ pub async fn run_transform(
     apply_focus_policy(backend, &target_id, &args.focus_modifiers, no_wait).await?;
 
     if !no_wait {
+        // With `--focus` or `--defocus` the first wait is for the focus state, not the geometry;
+        // the 300 ms geometry read below runs in every case.
         let expected = if args.focus_modifiers.focus {
             crate::commands::ExpectedState::Focused(true)
         } else if args.focus_modifiers.defocus {
@@ -342,6 +377,8 @@ pub async fn run_transform(
         .await;
 
         if let Some(actual_rect) = actual_rect_opt {
+            // `size_raised`: the window ended up strictly larger than requested in width or
+            // height.
             let (_raised_w, _raised_h, size_raised) = if let Some(req) = params.size {
                 let rw = actual_rect.width > req.0;
                 let rh = actual_rect.height > req.1;

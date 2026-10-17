@@ -5,7 +5,7 @@
 //! One implementation per OS, chosen at compile time (`NativeHost`); `platform::host()` hands it
 //! out. It reads the environment and the file system and starts no process; it does not talk to
 //! a compositor.
-// Implementors at this commit: `platform::linux::host::NativeHost`, and off Linux the
+// Implementors: `platform::linux::host::NativeHost`, and off Linux the
 // compile-only stand-in in `non_linux.rs` (spawn-at stops at `ensure_supported_os` there; its
 // values are placeholders). A test in the Linux module asserts `bin_dir(User)` equals
 // `user_bin_dir()` when that is `Some`; no such rule is checked for the stand-in.

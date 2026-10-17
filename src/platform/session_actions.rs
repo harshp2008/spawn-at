@@ -4,7 +4,7 @@
 //!
 //! The methods ask nothing and return nothing: an implementation that cannot do its action
 //! prints its own message (GNOME's reload does when `xdotool` is missing) and the run goes on.
-// Providers at this commit: on Linux `gnome::GnomeSessionActions` (src/platform/linux/gnome/
+// Providers: on Linux `gnome::GnomeSessionActions` (src/platform/linux/gnome/
 // deploy.rs); elsewhere a stand-in in `non_linux.rs` whose actions do nothing (spawn-at stops
 // at `ensure_supported_os` there). `session.rs` is the only caller found by grep.
 
