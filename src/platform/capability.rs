@@ -1,11 +1,15 @@
 //! What a backend can do, and narrow views of the backend trait.
 //!
-//! [`Capabilities`] is plain data a backend returns from `CompositorBackend::capabilities`; it
-//! replaces asking three separate `supports_*` methods. [`WindowQuery`], [`WindowControl`] and
-//! [`ReadySignal`] are the narrow parts of [`CompositorBackend`]; every `CompositorBackend` is
-//! all three through the blanket impls below, so a backend implements one trait and the test
-//! doubles of the commands keep working. Code that only reads windows can ask for
-//! `WindowQuery` and a test needs no more than that.
+//! [`Capabilities`] is plain data a backend returns from `CompositorBackend::capabilities`; the
+//! default of that method fills it from the three `supports_*` methods. [`HelperNeed`] and
+//! [`HelperStatus`] compare the protocol version a backend reports with what a command needs.
+//! [`WindowQuery`], [`WindowControl`] and [`ReadySignal`] are the narrow parts of
+//! [`CompositorBackend`]; every `CompositorBackend` is all three through the blanket impls
+//! below, so a backend implements one trait only. Code that only reads windows can take a
+//! `WindowQuery` bound and a test double needs no more than that.
+//!
+//! This module holds no I/O and no display-server code: the blanket impls only forward to
+//! `CompositorBackend`.
 //!
 //! The methods of the narrow traits have the names of the `CompositorBackend` methods they
 //! forward to; do not `use` them next to `CompositorBackend` (the call would be ambiguous), name
@@ -20,8 +24,8 @@ use spawn_at_core::geometry::PlacementParams;
 /// What a backend can do. Returned by `CompositorBackend::capabilities`; the default is built
 /// from the `supports_*` methods, so a backend that only has those keeps its behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-// `reveal_control` and `needs_helper` are declared by the GNOME driver and checked in tests; no
-// command reads them yet (the first reader comes with the next backend).
+// `reveal_control` and `needs_helper` are set by the GNOME, Sway and X11 drivers and compared in
+// tests; no command reads them (grep at this commit). That is why the `allow(dead_code)` is here.
 #[allow(dead_code)]
 pub struct Capabilities {
     /// `transform_window` works on an existing window.
@@ -76,8 +80,10 @@ impl HelperStatus {
         }
     }
 
-    /// The message for an outdated helper, word for word what the commands printed before this
-    /// type existed; `None` when it is not outdated.
+    /// The message for an outdated helper, naming the protocol found and needed and telling the
+    /// user to run `spawn-at install` and log out and back in; `None` when it is not outdated.
+    /// The text differs per [`HelperNeed`] (`MonitorAndState` adds that MON and STATE are
+    /// unavailable).
     pub fn message(&self, need: HelperNeed) -> Option<String> {
         match (*self, need) {
             (HelperStatus::Ok, _) => None,
@@ -93,9 +99,10 @@ impl HelperStatus {
     }
 }
 
-/// Reading windows, monitors and the pointer.
-// Only `get_windows` and `get_window_rect` are asked through this view so far (the wait helpers
-// in `commands/mod.rs`); the rest completes the view for the next backend.
+/// Reading windows, monitors and the pointer. The blanket impl forwards each method to the
+/// `CompositorBackend` method of the same name, defaults included.
+// Only `get_windows` and `get_window_rect` are asked through this view at this commit (the
+// wait helpers in `commands/mod.rs`); the other methods are unused through it.
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait WindowQuery: Send + Sync {
@@ -108,8 +115,9 @@ pub trait WindowQuery: Send + Sync {
     fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String;
 }
 
-/// Acting on windows: placing, state, focus, close.
-// No command asks for this narrow view yet; see the module docs.
+/// Acting on windows: placing, state, focus, close. The blanket impl forwards each method to the
+/// `CompositorBackend` method of the same name.
+// No code asks for this narrow view at this commit (grep for `WindowControl`).
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait WindowControl: Send + Sync {
@@ -135,8 +143,9 @@ pub trait WindowControl: Send + Sync {
     async fn close_window(&self, target_id: &str) -> Result<(), DriverError>;
 }
 
-/// Knowing when an armed window was placed.
-// No command asks for this narrow view yet; see the module docs.
+/// Knowing when an armed window was placed. The blanket impl forwards to
+/// `CompositorBackend::prepare_claim_wait`.
+// No code asks for this narrow view at this commit (grep for `ReadySignal`).
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait ReadySignal: Send + Sync {
