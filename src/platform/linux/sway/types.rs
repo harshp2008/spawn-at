@@ -6,6 +6,13 @@
 //! All coordinates are Sway's *logical* pixels in one global layout (an output at scale 2 reports
 //! its rect at half the mode size), the same space the placement engine works in, so no scaling
 //! is done here.
+//!
+//! Callers: `SwayDriver` (`mod.rs`), `place.rs` and `matching.rs`. Parse functions return the
+//! error as a `String` that names the reply; the caller wraps it in `DriverError::IpcError`.
+//! Fields that Sway may omit are `#[serde(default)]`, so a missing field becomes 0, `false`,
+//! `None` or an empty string rather than a parse error. The shapes were recorded from a private
+//! headless Sway 1.9 only; XWayland windows (the `window_properties` shape) were not exercised
+//! there (`docs/DESIGN_SWAY.md`, section 2), so that part is not verified.
 
 use crate::platform::{MonitorLayout, Rect, WindowMetadata};
 use serde::Deserialize;
@@ -24,6 +31,7 @@ pub struct SwayRect {
     pub height: i32,
 }
 
+/// Negative widths and heights become 0; x and y are kept.
 impl From<SwayRect> for Rect {
     fn from(r: SwayRect) -> Self {
         Rect {
@@ -115,7 +123,8 @@ pub struct Node {
     pub floating_nodes: Vec<Node>,
 }
 
-/// A `window` event: `change` is `new`, `close`, `focus`, `title`, `floating`, ...
+/// A `window` event: `change` is `new`, `close`, `focus`, `title`, `floating`, ... Of these,
+/// `place::wait_for_window` reads only `new` and `title`.
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct WindowEvent {
     pub change: String,
@@ -164,7 +173,8 @@ pub fn check_subscribe_reply(bytes: &[u8]) -> Result<(), String> {
 
 /// Checks the reply to `RUN_COMMAND`: an array with one `{"success": true}` per command, or
 /// `{"success": false, "parse_error": .., "error": ".."}` for the ones that failed. Returns the
-/// first error text.
+/// first error text. An empty array is accepted as success. A failed entry with no `error` text
+/// gives "Sway rejected the command".
 pub fn check_command_reply(bytes: &[u8]) -> Result<(), String> {
     #[derive(Deserialize)]
     struct Entry {
@@ -209,6 +219,11 @@ pub fn node_class(node: &Node) -> String {
 /// Every window under `root`, in tree order (outputs in order, tiled before floating). `outputs`
 /// gives the monitor index of each window (position among the active outputs, the index
 /// `get_layout` uses).
+///
+/// Fields Sway has no word for are fixed: `maximized` is always false, `rel` and `area` are
+/// `None`, `state` is `"fullscreen"` or `"normal"`. A window on the scratchpad pseudo output
+/// (`__i3`) is reported with `minimized: true`. The workspace is the workspace number, `None`
+/// for a negative one (the scratchpad). Width and height are cast from the container rect.
 pub fn windows_from_tree(root: &Node, outputs: &[Output]) -> Vec<WindowMetadata> {
     let active: Vec<&Output> = outputs.iter().filter(|o| o.active).collect();
     let mut out = Vec::new();
@@ -264,7 +279,8 @@ fn collect_windows(
     }
 }
 
-/// The node with `id` under `root`.
+/// The `con` or `floating_con` node with `id` under `root`, a split container included (the
+/// check is on the type, not on `is_window`). Searches tiled nodes before floating ones.
 pub fn find_node(root: &Node, id: u64) -> Option<&Node> {
     if root.id == id && (root.kind == "con" || root.kind == "floating_con") {
         return Some(root);
@@ -293,7 +309,7 @@ pub fn window_ids(root: &Node) -> Vec<u64> {
 }
 
 /// The monitors: the active outputs in the order Sway lists them. Sway has no primary monitor,
-/// so the first one is flagged primary (the X11 driver does the same); `screen` is the output
+/// so the first one is flagged primary (the X11 session code sets `primary: i == 0` too); `screen` is the output
 /// rect and `workarea` the rect of the output's visible workspace, which excludes bars (equal to
 /// `screen` when no workspace is visible there).
 pub fn layout_from(outputs: &[Output], workspaces: &[Workspace]) -> MonitorLayout {
