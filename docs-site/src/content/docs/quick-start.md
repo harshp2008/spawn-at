@@ -66,13 +66,7 @@ See [Configuration](/spawn-at/configuration/). With no config file and no flags,
 
 ## If it prints an error about the desktop
 
-:::note
-**Release status (remove after the first release newer than v0.2.0-beta.5).** This error is in the
-binary from v0.2.0-beta.5. v0.2.0-beta.4 and earlier switch to the X11 driver on a non-GNOME
-Wayland desktop without a message.
-:::
-
-From v0.2.0-beta.5, on a Wayland desktop that is not GNOME, spawn-at stops with an error and says so. See
+On a Wayland desktop that is not GNOME, spawn-at stops with an error and says so. See
 [Unsupported desktops](/spawn-at/environments/unsupported-desktops/).
 
 ## Sources

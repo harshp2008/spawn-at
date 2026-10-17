@@ -29,9 +29,8 @@ It is used when:
   sees XWayland windows only and "may or may not work";
 - a GNOME session's D-Bus connection fails: it falls back to the X11 driver.
 
-On a non-GNOME Wayland session without `SPAWN_AT_BACKEND`, spawn-at exits with an error instead, from v0.2.0-beta.5; see
-[Unsupported desktops](/spawn-at/environments/unsupported-desktops/). v0.2.0-beta.4 and
-earlier use this X11 driver there without a message.
+On a non-GNOME Wayland session without `SPAWN_AT_BACKEND`, spawn-at exits with an error instead; see
+[Unsupported desktops](/spawn-at/environments/unsupported-desktops/).
 
 ### How well it is tested
 
@@ -47,7 +46,7 @@ earlier use this X11 driver there without a message.
 
 The question was how to tell that an X11 client has painted at its new size. Between 2026-10-13 and
 2026-10-14 several signals were measured on the project's test window (160 runs idle and under
-load for the first table). Nothing from this shipped in any release up to 0.2.0-beta.6.
+load for the first table). Nothing from this ships.
 
 | Candidate | Result | Why it fails |
 | :--- | :--- | :--- |

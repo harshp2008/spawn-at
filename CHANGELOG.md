@@ -6,6 +6,24 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-18
+
+Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src`, `assets`, `scripts`, `tests`, `build.rs`, `.github`, `install.sh`, `crates/spawn-at-core` and `crates/spawn-at-verify` are unchanged since v0.2.0-beta.6; `crates/xtask` differs only in `docs_check.rs`, the documentation-site check, which is not part of the release binary (`git diff 75e867a..HEAD --stat` on the release branch). See [docs/RELEASE_NOTES_0.2.0.md](docs/RELEASE_NOTES_0.2.0.md) for what to expect and what is not verified.
+
+### Changed
+
+- The crate version is 0.2.0 (the four `Cargo.toml` files and `Cargo.lock`).
+- `README.md` and the documentation site no longer describe the release as a beta: the install command is the plain `install.sh`, which installs the latest stable release (`--version <tag>` and `--prerelease` select others), and the notes that tied the unsupported-desktop refusal to v0.2.0-beta.5 are removed.
+- The Update page, and the pages that repeat it, now say that the child `install --skip-bin --headless` that `update` runs on GNOME is awaited, sets `auto_check`, `channel` and `notify` unconditionally, and writes the login entry with the path of the temp-directory binary, which `update` deletes afterwards (read from source, not run).
+
+### Added (documentation only)
+
+- Pages: Update, Installer flags, Files and paths, Environment and exit codes, Requirements, Troubleshooting and FAQ, an Experiments section with one record per experiment of `docs/TEST_LOG.md` 6.10 to 6.35 and P8, and Writing the docs (with a page template and an experiment record template).
+- The command aliases and the hidden wait flags are documented; `--no-focus` is no longer in the README example.
+- The documentation-site check allows the extension identifier `spawn-at@harsh.local` (`crates/xtask/src/docs_check.rs`, developer tool).
+- The experiment records name the project owner where they said "the user".
+- `docs/RELEASE_NOTES_0.2.0.md`.
+
 ## [0.2.0-beta.6] - 2026-10-17
 
 Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-beta.4 and 0.2.0-beta.5 (`git diff 2e64085..main -- assets` is empty), and GNOME Wayland placement behaves as before. One change is visible to users: the PATH advice that the installer prints. Everything else since 0.2.0-beta.5 is documentation, test counts and this release's version metadata. See
@@ -313,7 +331,8 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.3...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.6...v0.2.0
 [0.2.0-beta.3]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.2...v0.2.0-beta.3
 [0.2.0-beta.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.1...v0.2.0-beta.2
 [0.2.0-beta.1]: https://github.com/harshp2008/spawn-at/releases/tag/v0.2.0-beta.1

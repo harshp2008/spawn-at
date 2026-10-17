@@ -37,8 +37,21 @@ command and one placement model, with a separate driver for each desktop underne
 
 ## Status
 
-spawn-at is in beta. The latest release is `v0.2.0-beta.6`, a prerelease. Prebuilt binaries are published for Linux x86_64 only. Windows and
-macOS builds are compile-checked in CI and have never been run.
+### Status of v0.2.0
+
+- **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
+- **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
+  Sway 1.9 with the project's test window. X11 and XWayland (the fallback driver): partly tested
+  with the test window only, no cloaking, so windows can flash.
+- **Not implemented:** KDE, Hyprland, macOS and Windows. The macOS and Windows builds are
+  compile-checked in CI and have never been run.
+- **Prebuilt binaries:** Linux x86_64 only.
+- **Not verified anywhere:** GNOME versions other than 46; real Sway sessions and Sway versions
+  other than 1.9; X11 or XWayland with real applications; more than two outputs and output scales
+  other than 1 and 2 (on Sway); removal at system scope (`--scope system`).
+
+The list of behaviours that may surprise you is on [Known limits](/spawn-at/known-limits/), and the
+unmeasured parts are on [Known shortcomings](/spawn-at/shortcomings/).
 
 A binary that is not built from a release tag prints `DEV BUILD` for `spawn-at -V`.
 
@@ -63,7 +76,7 @@ says something is "not verified", it means no test or run in the repository cove
 ## Sources
 
 - `README.md` (intro, "Support", "How well it works", "Roadmap")
-- `CHANGELOG.md` ("[0.2.0-beta.6]", "[0.2.0-beta.5]")
-- `docs/RELEASE_NOTES_0.2.0-beta.6.md`
+- `README.md` ("Support")
+- `docs/RELEASE_NOTES_0.2.0.md`
 - `Cargo.toml` (package version), `install.sh` (prebuilt target), `CLAUDE.md` ("Versions and releases")
 - `docs/DESIGN_PLATFORMS.md`, section 5 (macOS and Windows are not implemented)

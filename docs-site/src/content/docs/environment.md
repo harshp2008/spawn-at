@@ -78,10 +78,12 @@ not set through `spawn-at config`.
 | `cached_beta_version` | string, optional | absent | Newest pre-release tag the last check found |
 | `latest_cached_version` | string, optional | absent | Kept so a file written by 0.1 still reads. It is used only when the other two are absent (`src/config.rs:78-100`) |
 
-`spawn-at install` writes `auto_check`, `channel` and `notify` every time it runs. It does not
+`spawn-at install` writes `auto_check`, `channel` and `notify` every time it runs, and so does the
+`install --skip-bin --headless` that `spawn-at update` runs on GNOME (see
+[Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings)). It does not
 keep your earlier values for the three: `auto_check` becomes `true`, `channel` becomes the one you
 give or answer (`stable` without a terminal and without the flag), and `notify` becomes the one
-you give or answer (`false` without a terminal and without the flag) (`src/main.rs:282-335`; read
+you give or answer (`false` without a terminal and without the flag) (`src/main.rs:282-332`; read
 from source, not run). `spawn-at update --check` also saves the cache keys and the check time
 (`src/update.rs:788-799`). `config reset` leaves the `[update]` table alone, so nothing in
 spawn-at clears the cache keys.

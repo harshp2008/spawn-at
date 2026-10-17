@@ -35,7 +35,7 @@ The section first stopped after a 4-run smoke. The journal showed gnome-shell as
 `_st_create_shadow_pipeline_from_actor: assertion 'clutter_actor_has_allocation (actor)' failed`),
 two seconds after the first smoke spawn was armed. In the same second another application was
 launched from the Shell. The Shell kept its process id and there was no crash signal. Under the stop
-rule then in force no batch was run. **The user then changed the stop rule**: stop only on a gnome-shell
+rule then in force no batch was run. **The project owner then changed the stop rule**: stop only on a gnome-shell
 crash or restart, signal 5/6/11, an "uncatchable exception", a Mutter window or focus assertion
 (`meta_window_*`, `focus_window`), or any line naming spawn-at or the extension; harmless St/Cogl
 criticals from other apps are logged with their time and the run goes on. The journal checks before

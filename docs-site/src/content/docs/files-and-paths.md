@@ -78,7 +78,7 @@ holds the settings of [Configuration](/spawn-at/configuration/) and the `[update
 and `install --clean-install` do not delete it: the `--clean-install` help says "your configuration
 and settings are kept", and the only non-test `remove_file` in `src/config.rs` removes the login
 entry (`src/config.rs:265`; `src/main.rs` has none). The `[update]` table of the file is rewritten
-by `install` (see [Installer flags](/spawn-at/installer-flags/#headless-defaults)).
+by `install`, and so by `update` on GNOME (see [Installer flags](/spawn-at/installer-flags/#headless-defaults)).
 
 ## Login update entry
 
@@ -95,8 +95,11 @@ Comment=Check for spawn-at updates silently on login
 
 plus the header lines of a desktop entry. The path in `Exec=` must be absolute (a relative path is
 refused) and is quoted when it contains spaces or special characters. `SPAWN_AT_CONFIG` does not
-move this file. See [Update](/spawn-at/update/) for what the command does and for a consequence
-of how `update` writes the entry.
+move this file. `update` on GNOME runs `install --skip-bin --headless` from the unpacked temp
+directory, and that run writes the entry with the temp binary's path; `update` then deletes the
+directory and nothing rewrites the entry, so it points at a path that no longer exists until a
+later `install` without `--skip-bin` (read from source, not run; what GNOME does at login with a
+missing `Exec=` target is not verified). See [Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings).
 
 ## Temporary files
 
