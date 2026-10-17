@@ -13,7 +13,7 @@ title: "Testing and the verify tool"
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
-Counts measured on 2026-10-17 on the tree that v0.2.0-beta.5 is prepared from:
+Counts measured on 2026-10-17 on the tree that v0.2.0-beta.6 is prepared from:
 `spawn-at` 447, `spawn-at-core` 64, `xtask` 53, `spawn-at-verify` 619 passed and 5 ignored (with
 `--features tui,fixture`), Node 204. Five tests stay ignored: four need a live display, one needs a
 private Sway.

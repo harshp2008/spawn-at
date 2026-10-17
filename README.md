@@ -253,7 +253,7 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.5
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
 
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
