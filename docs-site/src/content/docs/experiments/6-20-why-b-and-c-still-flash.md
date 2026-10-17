@@ -8,8 +8,8 @@ Why arms B and C still flash under load: classification and a protocol-level re-
 | :-- | :-- |
 | **ID** | TEST_LOG 6.20. Follows [6.19](/spawn-at/experiments/6-19-ready-wait-abc/); the next step is [6.21](/spawn-at/experiments/6-21-default-cap-250-wire-paint-time/). |
 | **Date** | 2026-10-13. |
-| **Build** | The user's dataset was recorded with `binary_commit` `0f90bc1` (not dirty). The commit of the traced re-run's binary is not recorded in this section. The version string is not recorded. Nothing in the product, the extension, the fixture or the harness was changed; the only file written in the repository was the log section. Tests were not run. |
-| **Verdict** | The user's observation is confirmed for the 16 `reached` flashes of B and C: they are not "the app answered late"; in the traced re-run the content was committed before the reveal and the flash is the fixture's late `FIRST_PAINT` stamp. It does not hold for the 5 B timeouts. Proposals, not implemented: for class a, take the `FIRST_PAINT` time before `present()` in the harness and fixture (no product change); for class b, raise the default cap from 150 to 250 as 6.19 recommended. |
+| **Build** | The project owner's dataset was recorded with `binary_commit` `0f90bc1` (not dirty). The commit of the traced re-run's binary is not recorded in this section. The version string is not recorded. Nothing in the product, the extension, the fixture or the harness was changed; the only file written in the repository was the log section. Tests were not run. |
+| **Verdict** | The project owner's observation is confirmed for the 16 `reached` flashes of B and C: they are not "the app answered late"; in the traced re-run the content was committed before the reveal and the flash is the fixture's late `FIRST_PAINT` stamp. It does not hold for the 5 B timeouts. Proposals, not implemented: for class a, take the `FIRST_PAINT` time before `present()` in the harness and fixture (no product change); for class b, raise the default cap from 150 to 250 as 6.19 recommended. |
 | **Raw results** | Not in the repository: the throwaway scripts (`lf_rows.jq`, `lf_abs.jq`, `lf_trace.awk`, `lf_client.awk`, `lf_join.sh`, `lf_timeline.sh`, `lf_calib.sh`, `lf_trace_loaded.sh`, `mono.rs`) are not committed; the raw traced runs and the dumps stayed in the session scratchpad. |
 
 ## What was tested
@@ -17,12 +17,12 @@ Why arms B and C still flash under load: classification and a protocol-level re-
 **Question**
 
 Why do B (cap 150) and C (cap 250) still flash in 21 loaded runs, and is that the mechanism of A's
-shrink flashes? The observation to test, given by the user: the remaining flashes do not look like
+shrink flashes? The observation to test, given by the project owner: the remaining flashes do not look like
 "the app answered late".
 
 **Setup and environment**
 
-GNOME on Wayland, 22 CPUs. Two data sources. (1) The user's dataset, 150 run JSONs (`br/`:
+GNOME on Wayland, 22 CPUs. Two data sources. (1) The project owner's dataset, 150 run JSONs (`br/`:
 `bottom-right-smaller` and `-larger`, 20 per arm per spec; `tl/`: `top-left-smaller`, 10 per arm), under
 22 `burn-cpu` threads, mean load at run start A 22.62, B 22.63, C 22.62. Flashed runs: A 31, B 13, C 8.
 (2) Two live batches the log's author ran with `SPAWN_AT_FIXTURE_TRACE_DIR` set, so that the fixture

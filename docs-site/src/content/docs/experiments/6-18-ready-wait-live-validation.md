@@ -8,7 +8,7 @@ Ready-wait: live validation against the 6.17 baseline (no code change). Of the f
 | :-- | :-- |
 | **ID** | TEST_LOG 6.18. Compares with [6.17](/spawn-at/experiments/6-17-flash-baseline/); followed by [6.19](/spawn-at/experiments/6-19-ready-wait-abc/). |
 | **Date** | 2026-10-13. |
-| **Build** | Debug `spawn-at` and debug fixture at commit `6ecc537` (the ready-wait wiring). The installed extension contained `ready_wait.js`, installed at 11:18:31 IST, with the user logged back in afterwards. The version string is not recorded. Nothing in the product, extension or harness was changed; the only files written were the log section and throwaway scripts in `scratch/`. Tests were not run in this step. |
+| **Build** | Debug `spawn-at` and debug fixture at commit `6ecc537` (the ready-wait wiring). The installed extension contained `ready_wait.js`, installed at 11:18:31 IST, with the project owner logged back in afterwards. The version string is not recorded. Nothing in the product, extension or harness was changed; the only files written were the log section and throwaway scripts in `scratch/`. Tests were not run in this step. |
 | **Verdict** | By the log's own table: criterion 1 met, 2 and 3 not met, 4 not shown. The log also notes that against the design's own loaded criterion (flash at most 5 of 100, p95 cloak within the 100 ms budget) neither holds (5 of 20, p95 166.6 ms), and does not use it for the verdict. |
 | **Raw results** | Not in the repository. The scratch scripts (`rw_extract.sh`, `rw_stats.sh`, `app_survey.sh`, `baseline_batch.sh`) are throwaway and not committed; the raw per-run JSON stayed in the session scratchpad. |
 

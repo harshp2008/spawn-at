@@ -24,7 +24,7 @@ takes part in sync, to test it with?
 
 Nothing in the Shell; no code or extension change; no install. Read-only property queries and one
 fixture spawn (`--protocol x11`, class `verify.p32`, kept open for 7 s). The live Xwayland authority
-file was exported for the queries. No real X11 or XWayland application was open: the user's windows
+file was exported for the queries. No real X11 or XWayland application was open: the project owner's windows
 were native Wayland.
 
 **Commands run**
