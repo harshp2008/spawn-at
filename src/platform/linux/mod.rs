@@ -56,7 +56,7 @@ use x11rb::connection::Connection as _;
 /// Monitor rectangles from a fresh X11 connection (`DISPLAY`): the RANDR monitors if the server
 /// reports any, else one rectangle of the whole screen at (0, 0). Empty when the connection
 /// fails; there is no error value. Opens and drops a connection on every call.
-// Caller at this commit: the GNOME driver (src/platform/linux/gnome/driver.rs), which uses it
+// Caller: the GNOME driver (src/platform/linux/gnome/driver.rs), which uses it
 // next to its own layout data; the X11 driver has its own queries.
 pub fn query_x11_monitors() -> Vec<Rect> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
@@ -91,7 +91,7 @@ pub fn query_x11_monitors() -> Vec<Rect> {
 
 /// The pointer position (root x, y) from a fresh X11 connection, or `None` when the connection
 /// or the query fails. Opens and drops a connection on every call.
-// Caller at this commit: the GNOME driver, which falls back to (0, 0) on `None`.
+// Caller: the GNOME driver, which falls back to (0, 0) on `None`.
 pub fn query_x11_cursor() -> Option<(i32, i32)> {
     if let Ok((conn, screen_num)) = x11rb::rust_connection::RustConnection::connect(None) {
         let root = conn.setup().roots[screen_num].root;
@@ -113,7 +113,7 @@ pub fn query_x11_cursor() -> Option<(i32, i32)> {
 // Surprising, left as is (comment-only change): the spawn command calls `disarm` on the value
 // from `init_backend`, which is a `LinuxBackend` on Linux, so the GNOME driver's `disarm`
 // (the extension's DisarmSpawn call) and the Sway driver's are not reached from there; read
-// from src/commands/spawn.rs and the impls at this commit, not run. The driver inside is
+// from src/commands/spawn.rs and the impls, not run. The driver inside is
 // `GnomeWaylandDriver`, `SwayDriver` or `X11Driver`.
 pub struct LinuxBackend {
     driver: Box<dyn CompositorBackend>,

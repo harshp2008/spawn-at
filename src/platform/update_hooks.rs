@@ -4,7 +4,7 @@
 //!
 //! None of the methods returns an error: a failing step is reported by the implementation on
 //! its own output and the upgrade goes on.
-// Providers at this commit: `gnome::GnomeUpdateHooks` on Linux (src/platform/linux/gnome/
+// Providers: `gnome::GnomeUpdateHooks` on Linux (src/platform/linux/gnome/
 // deploy.rs) and a do-nothing stand-in in `non_linux.rs`. The only callers found by grep are in
 // `update.rs`.
 

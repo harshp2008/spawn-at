@@ -8,7 +8,7 @@
 //! install. The probing ([`find_existing`], [`query_version`], [`detect`]) reads the file
 //! system and runs the candidate binaries with `-V`; the real removal ([`RealCleanOps`]) runs
 //! the uninstall code and so touches the live install.
-// Caller at this commit: the install branch of `main` (src/main.rs), which passes the real facts
+// Caller: the install branch of `main` (src/main.rs), which passes the real facts
 // and `dialoguer` prompts.
 
 use crate::platform::installer;

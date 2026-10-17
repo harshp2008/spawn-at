@@ -4,7 +4,7 @@
 //! for a password; on Windows both helpers return an error saying it is not implemented, and on
 //! any other target one saying it is unsupported. It must not be used as a first attempt: the
 //! helpers print a "Permission denied" notice themselves and do not try the plain operation.
-// Callers at this commit: src/platform/installer.rs, only in the `PermissionDenied` arm after
+// Callers: src/platform/installer.rs, only in the `PermissionDenied` arm after
 // `fs::copy` or `fs::remove_file` failed.
 
 use std::path::Path;

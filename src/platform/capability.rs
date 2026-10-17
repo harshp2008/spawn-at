@@ -25,7 +25,7 @@ use spawn_at_core::geometry::PlacementParams;
 /// from the `supports_*` methods, so a backend that only has those keeps its behavior.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 // `reveal_control` and `needs_helper` are set by the GNOME, Sway and X11 drivers and compared in
-// tests; no command reads them (grep at this commit). That is why the `allow(dead_code)` is here.
+// tests; no command reads them (found by grep). That is why the `allow(dead_code)` is here.
 #[allow(dead_code)]
 pub struct Capabilities {
     /// `transform_window` works on an existing window.
@@ -101,8 +101,8 @@ impl HelperStatus {
 
 /// Reading windows, monitors and the pointer. The blanket impl forwards each method to the
 /// `CompositorBackend` method of the same name, defaults included.
-// Only `get_windows` and `get_window_rect` are asked through this view at this commit (the
-// wait helpers in `commands/mod.rs`); the other methods are unused through it.
+// Only `get_windows` and `get_window_rect` are asked through this view (by the wait helpers in
+// `commands/mod.rs`); the other methods are unused through it.
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait WindowQuery: Send + Sync {
@@ -117,7 +117,7 @@ pub trait WindowQuery: Send + Sync {
 
 /// Acting on windows: placing, state, focus, close. The blanket impl forwards each method to the
 /// `CompositorBackend` method of the same name.
-// No code asks for this narrow view at this commit (grep for `WindowControl`).
+// No code asks for this narrow view (grep for `WindowControl`).
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait WindowControl: Send + Sync {
@@ -145,7 +145,7 @@ pub trait WindowControl: Send + Sync {
 
 /// Knowing when an armed window was placed. The blanket impl forwards to
 /// `CompositorBackend::prepare_claim_wait`.
-// No code asks for this narrow view at this commit (grep for `ReadySignal`).
+// No code asks for this narrow view (grep for `ReadySignal`).
 #[allow(dead_code)]
 #[async_trait::async_trait]
 pub trait ReadySignal: Send + Sync {
