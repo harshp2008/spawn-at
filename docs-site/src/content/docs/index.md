@@ -46,13 +46,16 @@ A binary that is not built from a release tag prints `DEV BUILD` for `spawn-at -
 
 | If you want to | Read |
 | :--- | :--- |
-| Install it | [Install](/spawn-at/install/), then [Quick start](/spawn-at/quick-start/) |
+| Install it | [Requirements](/spawn-at/requirements/), [Install](/spawn-at/install/) and [Installer flags](/spawn-at/installer-flags/), then [Quick start](/spawn-at/quick-start/) |
+| Update it, or see what it wrote to disk | [Update](/spawn-at/update/) and [Files and paths](/spawn-at/files-and-paths/) |
 | Understand anchors, margins and the waiting rules | [Concepts](/spawn-at/concepts/) |
 | Look up a command | [Commands](/spawn-at/commands/) and the [CLI reference](/spawn-at/reference/) |
-| Change a setting | [Configuration](/spawn-at/configuration/) |
+| Change a setting | [Configuration](/spawn-at/configuration/) and [Environment and exit codes](/spawn-at/environment/) |
+| Fix a problem | [Troubleshooting and FAQ](/spawn-at/troubleshooting/) |
+| See what was tried and measured | [Experiments](/spawn-at/experiments/) |
 | Know whether your desktop works | [Environments](/spawn-at/environments/) |
 | Know what is broken or unmeasured | [Known shortcomings](/spawn-at/shortcomings/) and [Findings](/spawn-at/findings/) |
-| Work on spawn-at | [Testing and the verify tool](/spawn-at/testing/), [Architecture and contributing](/spawn-at/contributing/), [API documentation](/spawn-at/rustdoc/) |
+| Work on spawn-at | [Testing and the verify tool](/spawn-at/testing/), [Architecture and contributing](/spawn-at/contributing/), [Writing the docs](/spawn-at/contributing/writing-docs/), [API documentation](/spawn-at/rustdoc/) |
 
 Every page ends with a list of the files in the repository it was written from. Where this book
 says something is "not verified", it means no test or run in the repository covers it.
