@@ -77,7 +77,7 @@ the nested-shell trial.
   `damaged` or the texture's `size-changed` fires on a client commit after the request.
 - **Incident recorded in the log.** A nested-shell experiment wrote the `org.gnome.shell
   enabled-extensions` setting into the real dconf database, because the D-Bus-activated dconf service
-  in the private session did not inherit `XDG_CONFIG_HOME`. The value held only this extension's id
+  in the private session did not inherit `XDG_CONFIG_HOME`. The value held only `spawn-at@harsh.local`
   for a while and is back to the original 25-entry list, compared by eye against the value captured at
   the start. The log says its author did not restore it and that how it came back is not established.
   The nested shell itself started in about 1 s but the extension was not shown to load there.

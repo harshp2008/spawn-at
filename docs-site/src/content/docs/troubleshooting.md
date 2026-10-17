@@ -72,7 +72,7 @@ instead of guessing. Nothing on this page was reproduced on a live session while
 - **Cause as recorded.** `install` prints that line even when `gnome-extensions enable` exited
   non-zero (it prints a `Note:` first). It stops with an error only if `gnome-extensions` cannot be
   started.
-- **What is recorded.** The state can be read with `gnome-extensions info <extension id>`; the
+- **What is recorded.** The state can be read with `gnome-extensions info spawn-at@harsh.local`; the
   installer reads its `State:` line. No other remedy is recorded.
 - **Sources.** [Known limits](/spawn-at/known-limits/#exit-status-and-results),
   `src/platform/linux/gnome/logout.rs:100-110, 160-175`.

@@ -12,7 +12,7 @@ this page, because they act on the live session and the real home directory.
 | :--- | :--- | :--- | :--- |
 | Binary, user scope (the default) | `~/.local/bin/spawn-at` | `install`, `update` (replaces in place) | `uninstall`, `install --clean-install` |
 | Binary, system scope | `/usr/local/bin/spawn-at` | `install --scope system` | `uninstall --scope system` |
-| GNOME Shell extension | `~/.local/share/gnome-shell/extensions/<the spawn-at extension directory>/` | `install`, and the new binary's `install` during `update` | `uninstall` (unless `--gnome-delete-files=false`), `install --clean-install` |
+| GNOME Shell extension | `~/.local/share/gnome-shell/extensions/spawn-at@harsh.local/` | `install`, and the new binary's `install` during `update` | `uninstall` (unless `--gnome-delete-files=false`), `install --clean-install` |
 | Config file | `$XDG_CONFIG_HOME/spawn-at/config.toml`, else `~/.config/spawn-at/config.toml` | `install`, `update`, `config set/unset/reset` | never |
 | Login update entry | `$XDG_CONFIG_HOME/autostart/spawn-at-update-check.desktop`, else `~/.config/autostart/spawn-at-update-check.desktop` | `install` | `uninstall`, `install --clean-install` |
 | Update work directory | `<temp dir>/spawn-at-update-<tag>-<pid>` | `update` | `update`, after a successful install |
@@ -38,9 +38,12 @@ The bin directories are `$HOME/.local/bin` for user scope and `/usr/local/bin` f
 ## Extension directory
 
 The GNOME driver writes the embedded extension files into
-`$HOME/.local/share/gnome-shell/extensions/<the spawn-at extension directory>`. It reads `$HOME`
+`$HOME/.local/share/gnome-shell/extensions/spawn-at@harsh.local`. It reads `$HOME`
 only, not `XDG_DATA_HOME` (`src/platform/linux/gnome/deploy.rs:200-216`).
 
+- The directory name is the extension's identifier, the `uuid` field of both `metadata.json` files
+  (`assets/gnome/legacy/metadata.json`, `assets/gnome/modern/metadata.json`) and `EXTENSION_UUID` in
+  `deploy.rs:28`.
 - The file set is the **legacy** one when the Shell's major version is below 45, otherwise the
   **modern** one, also when the version cannot be read.
 - The modern set is the 11 files of `assets/gnome/modern`: `anchor.js`, `cloak.js`, `commit.js`,
@@ -57,12 +60,12 @@ only, not `XDG_DATA_HOME` (`src/platform/linux/gnome/deploy.rs:200-216`).
 
 ### `gnome-extensions enable` and `disable`
 
-`install` runs `gnome-extensions enable <extension id>` after writing the files, unless
+`install` runs `gnome-extensions enable spawn-at@harsh.local` after writing the files, unless
 `--gnome-auto-enable=false` (or you answered no in a terminal). `uninstall` runs
-`gnome-extensions disable <extension id>`. GNOME keeps the list of enabled extensions in the
-`org.gnome.shell enabled-extensions` setting of the user, and the repository records that this
-extension's id was seen in that value (`docs/TEST_LOG.md` line 364, from a test where it ended up
-in the real database). So these two commands are expected to change a setting of your account
+`gnome-extensions disable spawn-at@harsh.local` (`src/platform/linux/gnome/deploy.rs:28, 329, 400`).
+GNOME keeps the list of enabled extensions in the `org.gnome.shell enabled-extensions` setting of
+the user, and the repository records that `spawn-at@harsh.local` was seen in that value
+(`docs/TEST_LOG.md` line 364, from a test where it ended up in the real database). So these two commands are expected to change a setting of your account
 outside the three directories above. That the commands write exactly that key was not checked
 here: it is not verified.
 
