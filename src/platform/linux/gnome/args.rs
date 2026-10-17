@@ -1,4 +1,12 @@
 //! Command-line flags of the GNOME install and uninstall steps.
+//!
+//! The two structs are flattened into the install and uninstall arguments of the CLI. They hold
+//! only parsed flag values plus [`GnomeInstallArgs::should_restart`] and
+//! [`GnomeUninstallArgs::should_restart`], the pure rule that turns the flags and the session
+//! type into one yes/no. They do no I/O and do not detect the session themselves: the caller
+//! passes `is_wayland`.
+//!
+//! The `///` text on the fields is the `--help` text of clap, so it is not a place for notes.
 
 use clap::Args;
 
@@ -27,7 +35,15 @@ pub struct GnomeInstallArgs {
 }
 
 impl GnomeInstallArgs {
-    /// Determines whether shell reload or logout should be executed based on session type and flag precedence.
+    /// Whether the flags ask for a log-out (Wayland) or an in-place Shell reload (X11) after
+    /// the install. `no_action` wins over everything; otherwise `gnome_wayland_logout` is read
+    /// on Wayland and `gnome_x11_reload` on X11. The other session type's flag is ignored.
+    ///
+    /// Pure: no I/O, no prompt.
+    // Callers: the install and uninstall in deploy.rs pass the result to `session::decision`,
+    // which may still ask the user on an interactive run (grep -n "should_restart" src/).
+    // `gnome_auto_enable` and `gnome_delete_files` are read only on a non-interactive run
+    // (grep -n "gnome_auto_enable" src/platform/linux/gnome/deploy.rs).
     pub fn should_restart(&self, is_wayland: bool) -> bool {
         if self.no_action {
             false
@@ -60,7 +76,9 @@ pub struct GnomeUninstallArgs {
 }
 
 impl GnomeUninstallArgs {
-    /// Determines whether shell reload or logout should be executed based on session type and flag precedence.
+    /// Same rule as [`GnomeInstallArgs::should_restart`], applied to the uninstall flags:
+    /// `no_action` wins, then `gnome_wayland_logout` on Wayland or `gnome_x11_reload` on X11.
+    /// Pure: no I/O, no prompt.
     pub fn should_restart(&self, is_wayland: bool) -> bool {
         if self.no_action {
             false
