@@ -1,4 +1,9 @@
 //! # Native X11 Driver Tests
+//!
+//! Unit tests of what the X11 driver can answer without an X server: its capabilities, the
+//! launch environment `arm` returns, and the rectangle math (`calculate_rect_from_placement`,
+//! also compared with the GNOME `mechanics::calculate_placement` output). No test connects to
+//! X11, so the queries and actions in `session.rs` and `interception.rs` have no test here.
 
 use super::*;
 use std::time::Duration;
