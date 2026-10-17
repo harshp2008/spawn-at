@@ -70,6 +70,25 @@ export default defineConfig({
           ],
         },
         {
+          label: 'Experiments',
+          collapsed: true,
+          items: [
+            { slug: 'experiments', label: 'Index' },
+            'experiments/6-25a-window-ping',
+            'experiments/6-25b-capture-rig',
+            'experiments/6-25c-x11-hold-damage-built',
+            'experiments/6-26-x11-hold-damage-live',
+            'experiments/6-27-premap-and-pixel-probe-built',
+            'experiments/6-28-premap-and-pixel-probe-live',
+            'experiments/6-29-pixel-probe-retry-shell-crash',
+            'experiments/6-31-sync-counter-feasibility',
+            'experiments/6-32-gtk4-client-legacy-rule',
+            'experiments/6-33-sync-counter-moves-on-repaint',
+            'experiments/6-34-self-sent-sync-request',
+            'experiments/6-35-ld-preload-geometry-shim',
+          ],
+        },
+        {
           label: 'Reference',
           collapsed: true,
           items: [
