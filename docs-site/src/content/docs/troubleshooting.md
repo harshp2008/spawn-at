@@ -158,6 +158,14 @@ removed by any command. See [Files and paths](/spawn-at/files-and-paths/).
 
 `spawn-at config path` prints it. The rule is on [Configuration](/spawn-at/configuration/#where-the-file-is).
 
+### Why did my update channel or notice setting change after `update`?
+
+On GNOME, `update` runs `install --skip-bin --headless` from the unpacked release, and that
+install sets `auto_check = true`, `channel = "stable"` and `notify = false` in the `[update]`
+table, and writes the login entry with the temp directory path of that binary, which `update`
+then deletes. Read from source, not run. What GNOME does at login with a missing `Exec=` target
+is not verified. Details: [Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings).
+
 ### Which version am I running?
 
 `spawn-at -V` or `--version`. A build that is not on a release tag prints `DEV BUILD`, the last

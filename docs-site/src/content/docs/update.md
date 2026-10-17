@@ -80,15 +80,18 @@ When standard output is not a terminal, or with `--headless`, there is no menu.
 3. Unpacks it with `tar -xzf ... --no-same-owner`, and refuses to go on unless `spawn-at` in it is
    a regular file.
 4. On GNOME (the desktop name in `XDG_CURRENT_DESKTOP` contains GNOME), runs the **new** binary as
-   `install --skip-bin --headless`, to put the extension files from the new version in place. Only a
-   failure to start that child is reported; its exit status is not looked at
-   (`src/platform/linux/gnome/deploy.rs:463-484`).
+   `install --skip-bin --headless`, to put the extension files from the new version in place. It
+   waits for that child to exit (`.status()`, `src/platform/linux/gnome/deploy.rs:472-474`) and
+   sets no working directory and no environment for it, so it inherits both. Only a failure to start
+   the child is reported; its exit status is not looked at
+   (`src/platform/linux/gnome/deploy.rs:463-484`, called at `src/update.rs:656`).
 5. Renames the running binary to the same name with the extension `.old`, copies the new one over
    the old path, and deletes the `.old` file. If the copy fails it renames the backup back and
    returns the error. The mode is then set to 0755. The path replaced is the one the running
    binary was started from (`current_exe`), which is not necessarily one of the directories the
    installer uses.
-6. Deletes the temp directory and stores the installed tag in the config file as a cached version.
+6. Deletes the temp directory (`src/update.rs:685`, after the child of step 4 has exited) and
+   stores the installed tag in the config file as a cached version.
 7. On GNOME and in a terminal, records the end-of-run question; on Wayland that is the log-out
    question, on X11 the Shell reload (`src/session.rs`, `update_outcome`). The log-out happens only
    if you answer yes.
@@ -105,17 +108,26 @@ release asset URL that the GitHub API returns.
 ### Code finding: the child install rewrites settings
 
 Step 4 runs `install --skip-bin --headless`. By the code of `install` (`src/main.rs:283-347`) a
-headless install writes the `[update]` table (`auto_check = true`, the channel from
-`--update-channel` or `stable`, and `notify` from `--update-notify` or `false`) and writes the
-login entry with the path of the binary that is running, which for `--skip-bin` is `current_exe`.
-In this call that binary is the one in the temp directory. Two consequences follow from reading
-the code, and neither was run:
+headless install sets `auto_check`, `channel` and `notify` in the `[update]` table unconditionally
+(`src/main.rs:330-332`): `auto_check = true`, the channel from `--update-channel` or `stable`, and
+`notify` from `--update-notify` or `false`. The update passes no flags, so the values it writes are
+`true`, `stable` and `false`. The install then writes the login entry from the path of the binary
+that is running: with `--skip-bin` that is `current_exe` (`src/main.rs:341-343`), and in this call
+it is the binary in the temp directory. The `Exec=` line is built from that path and nothing else
+(`src/config.rs:252-258`). This follows from reading the code, and none of it was run:
 
-- a configured `beta` channel or `notify = true` may be reset to `stable` and `false` by an update
-  on GNOME;
-- the `Exec=` line of the login entry may point into the temp directory, which step 6 deletes.
+- an update on GNOME resets `auto_check` to `true`, a configured `beta` channel to `stable` and
+  `notify = true` to `false`. The parent reloads the file after the child exits and keeps those
+  values (`src/update.rs:688`);
+- the `Exec=` line of the login entry is written with the temp directory path
+  (`<temp dir>/spawn-at-update-<tag>-<pid>/spawn-at`). Step 6 then deletes that directory.
 
-Nothing in the update code rewrites the login entry afterwards.
+Nothing rewrites the login entry afterwards. The writer is called only at `src/main.rs:347`, and
+`update` and `update --check` never touch the entry. So after an update on GNOME the entry points
+at a path that no longer exists, until a later `spawn-at install` without `--skip-bin` writes the
+installed binary's path. What GNOME does at login with a missing `Exec=` target was not
+verified. On a desktop where `XDG_CURRENT_DESKTOP` does not contain `GNOME` the child is not run
+(`src/platform/linux/gnome/deploy.rs:455-460, 470`), so none of this happens.
 
 ## Notices and the background check
 
@@ -137,7 +149,8 @@ This is read from source, not run.
 `spawn-at install` writes an autostart entry that runs `<binary> update --check --headless` when
 you log in (`src/config.rs:184-261`; the path is on [Files and paths](/spawn-at/files-and-paths/)).
 That command does not read `auto_check`, so setting `auto_check = false` does not stop the login
-check. `uninstall` removes the entry.
+check. `uninstall` removes the entry. After an `update` on GNOME its `Exec=` path is the deleted
+temp path described in [Code finding](#code-finding-the-child-install-rewrites-settings).
 
 ## Channels and notices
 
@@ -163,6 +176,7 @@ in the `[update]` table of the config file and saves it (`src/update.rs:788-799`
 - No `update` run: the download, the replacement, the extension step, the log-out question and the
   code findings above were read from source only.
 - Behaviour on a platform other than Linux x86_64.
+- What GNOME does at login when the `Exec=` target of the autostart entry does not exist.
 - What happens when the replaced path is not writable (system scope). The code ignores the result
   of the first rename (`let _ =`), but this was not run.
 
