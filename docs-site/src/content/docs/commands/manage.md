@@ -49,7 +49,7 @@ and `uninstall`). Only GNOME has an extension to deploy.
 
 ## Sources
 
-- `CHANGELOG.md` ("[Unreleased] Changed", "[0.2.0-beta.3] Added")
+- `CHANGELOG.md` ("[0.2.0-beta.5] Changed", "[0.2.0-beta.3] Added")
 - `docs/DESIGN_PLATFORMS.md`, section 6 step 5
 - `docs/TEST_COVERAGE_AUDIT.md`, section 2 (`install`, `uninstall`, `update`)
 - `docs/KNOWLEDGE.md` ("Architecture map")

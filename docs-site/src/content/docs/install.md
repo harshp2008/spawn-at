@@ -129,7 +129,7 @@ system scope, or keep it; `src/main.rs`) and then really removes things. `uninst
 
 - `README.md` ("Install", "More install options")
 - `install.sh` (lines 1-130: platform check, flags, unsupported-desktop question)
-- `CHANGELOG.md` ("[Unreleased] Changed", "[0.2.0-beta.3] Added/Changed", "[0.2.0-beta.4] Changed")
+- `CHANGELOG.md` ("[0.2.0-beta.5] Changed", "[0.2.0-beta.3] Added/Changed", "[0.2.0-beta.4] Changed")
 - `docs/CONFIG.md` (uninstall keeps the config file; update channel)
 - `docs/KNOWLEDGE.md` ("Install and release", "Architecture map": login autostart entry)
 - `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")

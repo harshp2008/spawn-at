@@ -60,7 +60,7 @@ says something is "not verified", it means no test or run in the repository cove
 ## Sources
 
 - `README.md` (intro, "Support", "How well it works", "Roadmap")
-- `CHANGELOG.md` ("[0.2.0-beta.4]", "[0.2.0-beta.3]")
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md`
+- `CHANGELOG.md` ("[0.2.0-beta.5]", "[0.2.0-beta.4]")
+- `docs/RELEASE_NOTES_0.2.0-beta.5.md`
 - `Cargo.toml` (package version), `install.sh` (prebuilt target), `CLAUDE.md` ("Versions and releases")
 - `docs/DESIGN_PLATFORMS.md`, section 5 (macOS and Windows are not implemented)
