@@ -9,10 +9,11 @@ is chosen, so it also works on an unsupported desktop. `install` and `uninstall`
 | :--- | :--- |
 | `install` | Copies the binary to your `PATH` and, on GNOME, deploys and enables the extension |
 | `uninstall` | Removes the binary, the extension directory and the login update-check entry. Your config file stays |
-| `update` | Checks GitHub for a newer release; `--check` only looks, `--force` reinstalls |
+| `update` | Checks GitHub for a newer release; `--check` installs nothing (it still saves the result to the config file), `--force` reinstalls |
 
 The questions `install` asks and the flags that answer them in advance are on the
-[Install](/spawn-at/install/) page. The full option lists are in the reference:
+[Install](/spawn-at/install/) page. What `update` does step by step is on the
+[Update](/spawn-at/update/) page. The full option lists are in the reference:
 [`install`](/spawn-at/reference/spawn-at-install/), [`uninstall`](/spawn-at/reference/spawn-at-uninstall/),
 [`update`](/spawn-at/reference/spawn-at-update/).
 

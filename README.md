@@ -79,8 +79,8 @@ spawn-at spawn --anchor cursor --pivot center --size 400 500 gnome-calculator
 # Scratchpad terminal pinned to the top-right
 spawn-at spawn --anchor top-right --pivot top-right --size 800 500 -m 20 alacritty
 
-# Dashboard in the corner (`--no-focus` is accepted on `spawn` but currently has no effect)
-spawn-at spawn --anchor bottom-right --size 600 350 -m 16 --no-focus btop
+# Dashboard in the corner
+spawn-at spawn --anchor bottom-right --size 600 350 -m 16 btop
 ```
 
 Bind any of these to a GNOME custom shortcut and you have instant floating tools.
@@ -258,7 +258,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
 
-# Remove an existing install (binary, extension, login update check) first, without asking; your config and settings are kept
+# Remove an existing install (binary, extension, login update check) first, without asking; your config file is kept (the install that follows rewrites its [update] table)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
 
 # Headless

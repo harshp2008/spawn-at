@@ -9,6 +9,8 @@
 //! no such file; links are `/spawn-at/<slug>/`); the config does not set
 //! `markdown.smartypants: false`; or any page contains text that must not be published (AI
 //! attribution, `TODO`, `TBD`, `lorem`, an absolute home-directory path, the owner's first name).
+//! The one string allowed to contain that name is the extension identifier `spawn-at@harsh.local`
+//! (`ALLOWED`).
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -138,11 +140,46 @@ pub fn contains_text(hay: &str, needle: &str, whole_word: bool) -> bool {
     false
 }
 
+/// Strings that contain a forbidden word but are published on purpose. Only the exact text is
+/// allowed: `spawn-at@harsh.local` is the identifier of the GNOME Shell extension, so the Files
+/// and paths page has to name it. Every other `harsh` still fails.
+const ALLOWED: [&str; 1] = ["spawn-at@harsh.local"];
+
+/// `text` with each allowed string replaced by a space. An occurrence counts only when it is
+/// not part of a longer word (the characters on both sides are not letters or digits), so
+/// `xspawn-at@harsh.local` or `spawn-at@harsh.localhost` are left as they are and still fail.
+fn without_allowed(text: &str) -> String {
+    let mut out = text.to_string();
+    for allowed in ALLOWED {
+        let mut result = String::with_capacity(out.len());
+        let mut rest = out.as_str();
+        let mut before: Option<char> = None;
+        while let Some(i) = rest.find(allowed) {
+            let end = i + allowed.len();
+            let prev = rest[..i].chars().next_back().or(before);
+            let next = rest[end..].chars().next();
+            let edge = |c: Option<char>| c.is_none_or(|c| !c.is_alphanumeric());
+            if edge(prev) && edge(next) {
+                result.push_str(&rest[..i]);
+                result.push(' ');
+            } else {
+                result.push_str(&rest[..end]);
+            }
+            before = rest[..end].chars().next_back();
+            rest = &rest[end..];
+        }
+        result.push_str(rest);
+        out = result;
+    }
+    out
+}
+
 /// Reasons the text may not be published; empty when it is clean.
 pub fn forbidden_in(text: &str) -> Vec<String> {
+    let text = without_allowed(text);
     FORBIDDEN
         .iter()
-        .filter(|(needle, word, _)| contains_text(text, needle, *word))
+        .filter(|(needle, word, _)| contains_text(&text, needle, *word))
         .map(|(needle, _, why)| format!("contains `{needle}` ({why})"))
         .collect()
 }
@@ -346,6 +383,38 @@ mod tests {
             assert!(!forbidden_in(bad).is_empty(), "not caught: {bad}");
         }
         assert!(forbidden_in("spawn-at spawn --anchor center gnome-calculator").is_empty());
+    }
+
+    /// The extension identifier `spawn-at@harsh.local` passes, alone, in prose, in code spans, in
+    /// a path and twice in a line; the name `harsh` anywhere else still fails, also next to the
+    /// identifier, and so do the identifier extended by letters or digits, other casing and a
+    /// look-alike. A failure of the first group means the Files and paths page cannot name the
+    /// extension; a failure of the second means the allowance leaks.
+    #[test]
+    fn test_extension_id_is_allowed_and_nothing_else_with_harsh() {
+        for ok in [
+            "spawn-at@harsh.local",
+            "The id is `spawn-at@harsh.local`.",
+            "~/.local/share/gnome-shell/extensions/spawn-at@harsh.local/",
+            "gnome-extensions enable spawn-at@harsh.local, gnome-extensions disable spawn-at@harsh.local",
+            "(spawn-at@harsh.local)",
+        ] {
+            assert!(forbidden_in(ok).is_empty(), "wrongly rejected: {ok}");
+        }
+        for bad in [
+            "harsh",
+            "by Harsh.",
+            "spawn-at@harsh.local and harsh",
+            "harsh and spawn-at@harsh.local",
+            "xspawn-at@harsh.local",
+            "spawn-at@harsh.localhost",
+            "SPAWN-AT@HARSH.LOCAL",
+            "spawn-at@harsh.example",
+            "other@harsh.local",
+            "/home/someone/spawn-at@harsh.local",
+        ] {
+            assert!(!forbidden_in(bad).is_empty(), "wrongly accepted: {bad}");
+        }
     }
 
     /// A Sources list needs the `##` heading and at least one item; an empty heading, a deeper
