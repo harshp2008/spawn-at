@@ -2,48 +2,35 @@
 title: "6.31 X sync counter: feasibility"
 ---
 
-## Title
+The X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`) as a client-side ready signal: feasibility. The idea could not be tested with the fixture, which does not take part in X sync.
 
-The X sync counter (`_NET_WM_SYNC_REQUEST_COUNTER`) as a client-side ready signal: feasibility
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.31. Superseded by [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/) and [6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/), which tested the idea with a GTK4 client. |
+| **Date** | 2026-10-14. |
+| **Build** | Tag: none recorded. Tree: HEAD `a950022`, tree clean. The previous section (6.30, a regression check after the removal of the X11 experiments, not an experiment) recorded `spawn-at --version` as `DEV BUILD`, previous commit `acccca8`; this section does not record the version output. Session: GNOME on Wayland, no gnome-shell assertion, crash, signal, "uncatchable" or critical line in the journal at the start. |
+| **Verdict** | Inconclusive, and not testable with the fixture. The log lists what would change it: a purpose-built scratch client (raw Xlib or x11rb) that advertises `_NET_WM_SYNC_REQUEST`, sets the counter, repaints at a new size when asked and bumps the counter after the repaint; then the 6.23 method on that client. The log also sketches a design (watch the actor's `thawed` signal first; otherwise a helper process reading the counter through XSync) and marks it a hypothesis; nothing of it was built. |
+| **Raw results** | `scratch/p32r/` (gitignored). Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.31. Superseded by [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/) and
-[6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/), which tested the idea with a GTK4
-client.
-
-## Date
-
-2026-10-14.
-
-## Build
-
-Tag: none recorded. Tree: HEAD `a950022`, tree clean. The previous section (6.30, a regression check
-after the removal of the X11 experiments, not an experiment) recorded `spawn-at --version` as `DEV BUILD`, previous commit
-`acccca8`; this section does not record the version output. Session: GNOME on Wayland, no
-gnome-shell assertion, crash, signal, "uncatchable" or critical line in the journal at the start.
-
-## Question
+**Question**
 
 Does an X11 client's sync counter move when it has repainted at a new size, so that it could serve
 as a ready signal? In this section: is there an open X11 client on the machine, or the fixture, that
 takes part in sync, to test it with?
 
-## Setup and environment
+**Setup and environment**
 
 Nothing in the Shell; no code or extension change; no install. Read-only property queries and one
 fixture spawn (`--protocol x11`, class `verify.p32`, kept open for 7 s). The live Xwayland authority
 file was exported for the queries. No real X11 or XWayland application was open: the user's windows
 were native Wayland.
 
-## Commands run
+**Commands run**
 
 `xwininfo` and `xprop` (read-only), and `xdpyinfo` to list the X server's extensions. Exact command
 lines not recorded.
-
-## Raw result location
-
-`scratch/p32r/` (gitignored). Not in the repository.
 
 ## Result
 
@@ -67,14 +54,6 @@ gnome-text-editor, gnome-calculator), Chromium and two Electron apps, with one c
 Chromium/Electron and two (extended sync) for GTK4; and not advertised by the fixture, xterm, xclock
 and xcalc. The log states this as 6 of 9 measured windows; the site's X11 page notes that the table
 it comes from has 10 rows.
-
-## Verdict
-
-Inconclusive, and not testable with the fixture. The log lists what would change it: a purpose-built
-scratch client (raw Xlib or x11rb) that advertises `_NET_WM_SYNC_REQUEST`, sets the counter, repaints
-at a new size when asked and bumps the counter after the repaint; then the 6.23 method on that
-client. The log also sketches a design (watch the actor's `thawed` signal first; otherwise a helper
-process reading the counter through XSync) and marks it a hypothesis; nothing of it was built.
 
 ## Not verified
 
