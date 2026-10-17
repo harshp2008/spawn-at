@@ -6,10 +6,13 @@
 //! defaults again. Without an override nothing is serialised and the instruction bytes are the
 //! ones of a build that does not know this module.
 //!
-//! Callers: `settings::wait_flags` and `settings::wait_override` combine the flag values with the
-//! settings file, `spawn` puts the result in [`crate::driver::Entry::wait`], and the GNOME driver
-//! copies it into the `WaitForCommit` instruction. This module only parses and holds the values;
-//! it must not read flags, files or the environment itself.
+//! This module only parses and holds the values; it must not read flags, files or the environment
+//! itself.
+
+// Callers at this commit: `settings::wait_flags` and `settings::wait_override` combine the flag
+// values with the settings file, src/commands/spawn.rs puts the result in
+// [`crate::driver::Entry::wait`], and src/platform/linux/gnome/mechanics.rs copies it into the
+// `WaitForCommit` instruction.
 
 use crate::ready_wait::Policy;
 use serde::{Deserialize, Serialize};

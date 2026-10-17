@@ -3,10 +3,12 @@
 //! The [`Batch`] a spawn asks for and the [`Driver`] trait a compositor backend implements to
 //! receive it.
 //!
-//! `src/commands/spawn.rs` builds one `Batch` per spawn and calls [`Driver::arm`] before it
-//! launches the child; the backends under `src/platform/` (GNOME, Sway, X11, null) implement
-//! `Driver`. This module only describes the data and the error type. It does no I/O and must not
-//! name a display server.
+//! A caller builds a `Batch` and calls [`Driver::arm`] before it launches the child; each backend
+//! implements `Driver`. This module only describes the data and the error type. It does no I/O
+//! and must not name a display server.
+
+// Callers at this commit: src/commands/spawn.rs builds the Batch and calls arm; the backends under
+// src/platform/ (GNOME, Sway, X11, null) implement Driver.
 
 use crate::geometry::PlacementParams;
 use crate::wait_override::WaitOverride;
@@ -15,9 +17,9 @@ use std::time::Duration;
 
 /// When the windows of a batch become visible.
 ///
-/// `spawn` builds `Together`; the null backend uses `Independent`. No backend under `src/` reads
-/// the field (grep of `.reveal`, not verified beyond that), so the variants below state the
-/// intended meaning only.
+/// The variants state the intended meaning.
+// At this commit src/commands/spawn.rs builds `Together` and src/platform/null_backend.rs builds
+// `Independent`. A grep of `.reveal` under src/ finds no reader; not verified beyond that grep.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Reveal {
     /// Intended: every window stays hidden until all are mapped, then all appear together.
@@ -28,38 +30,40 @@ pub enum Reveal {
 
 /// Who gets keyboard focus once the batch is placed.
 ///
-/// The Sway and X11 drivers compare the field with `Exclusive`; no code under `src/` matches on
-/// `Entry`.
+// At this commit src/platform/linux/sway/mod.rs and src/platform/linux/x11/interception.rs compare
+// the field with `Exclusive`; a grep finds no code under src/ that matches on `Entry`.
+// src/commands/spawn.rs builds `Exclusive`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum FocusIntent {
     /// Leave current desktop focus untouched.
     Leave,
     /// Intended: focus the entry with this [`Entry::key`].
     Entry(String),
-    /// Take focus for the spawned window. `spawn` builds every batch with this value.
+    /// Take focus for the spawned window.
     Exclusive,
 }
 
 /// Scheduling urgency of the batch.
 ///
-/// Only `Normal` is constructed in this tree, and no code reads the field.
+// At this commit only `Normal` is constructed under src/ and a grep finds no reader of the field.
+// No `--bypass-fifo` flag exists in the repository (grep).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Urgency {
     /// Standard scheduling.
     Normal,
-    /// Intended: run out of band. No `--bypass-fifo` flag exists in the repository (grep).
+    /// Intended: run out of band, without waiting behind other batches.
     Express,
 }
 
 /// A declarative placement entry describing a single window within a batch.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Entry {
-    /// Identifies the entry. The GNOME and X11 drivers hand it to the child as the value of
-    /// `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`; GNOME also uses it as the target id when
-    /// the batch has more than one entry.
+    /// Identifies the entry within its batch.
+    // At this commit the GNOME and X11 drivers return it as the value of XDG_ACTIVATION_TOKEN and
+    // DESKTOP_STARTUP_ID, and GNOME uses it as the target id when the batch has several entries.
     pub key: String,
-    /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor"). GNOME
-    /// uses it as the target id of a single-entry batch, or `"*"` when it is empty.
+    /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor").
+    // At this commit GNOME uses it as the target id of a single-entry batch, or "*" when empty.
     pub app_hint: String,
     /// Position, size and anchor to apply.
     pub placement: PlacementParams,
@@ -70,11 +74,11 @@ pub struct Entry {
 }
 
 /// The windows one spawn asks the compositor driver to place, passed to [`Driver::arm`].
-///
-/// `spawn` currently builds a batch of exactly one entry.
+// At this commit src/commands/spawn.rs builds a batch of exactly one entry with id 1 and a grep
+// finds no reader of `id` under src/.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Batch {
-    /// Batch identifier; `spawn` always sets 1 and no code under `src/` reads it.
+    /// Batch identifier.
     pub id: u64,
     /// The window entries, in the order given.
     pub entries: Vec<Entry>,
@@ -84,19 +88,22 @@ pub struct Batch {
     pub focus: FocusIntent,
     /// Scheduling urgency.
     pub urgency: Urgency,
-    /// Intended: how long to wait for the windows to map before revealing anyway. `spawn` sets
-    /// 15000 ms; no driver under `src/` reads it (not verified beyond grep).
+    /// Intended: how long to wait for the windows to map before revealing anyway.
+    // At this commit spawn.rs sets 15000 ms and a grep finds no driver under src/ reading it;
+    // not verified beyond the grep.
     pub deadline: Duration,
 }
 
 /// What [`Driver::arm`] hands back to the caller before it launches the child.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Armed {
-    /// Environment variables `spawn` sets on the child process (the GNOME and X11 drivers return
-    /// `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`).
+    /// Environment variables the caller sets on the child process.
+    // At this commit the GNOME and X11 drivers return XDG_ACTIVATION_TOKEN and
+    // DESKTOP_STARTUP_ID, and spawn.rs applies them with `cmd.env`.
     pub launch_env: Vec<(String, String)>,
-    /// Identifies the registration. `spawn` passes it to [`Driver::disarm`] if the child cannot
-    /// be started; the GNOME driver sets it to the target id of the last entry.
+    /// Identifies the registration; the value to pass to [`Driver::disarm`].
+    // At this commit the GNOME driver sets it to the target id of the last entry and spawn.rs
+    // passes it to disarm when the child cannot be started.
     pub token: Option<String>,
 }
 
@@ -153,21 +160,22 @@ impl From<String> for DriverError {
     }
 }
 
-/// What a compositor backend offers `spawn`: register the placement before the child exists.
-///
-/// `CompositorBackend` in `src/platform/mod.rs` has this trait as a supertrait.
+/// What a compositor backend offers a caller: register the placement before the child exists.
+// At this commit `CompositorBackend` in src/platform/mod.rs has this trait as a supertrait.
 #[async_trait::async_trait]
 pub trait Driver: Send + Sync {
     /// Registers the batch with the compositor side so the window is placed when it appears, and
     /// returns the environment for the child. Call it before launching the child.
     ///
-    /// Errors: [`DriverError::IpcError`] when the compositor or helper cannot be reached; the
-    /// null backend returns [`DriverError::UnsupportedCapability`].
+    /// Errors: [`DriverError`]; which variant depends on the implementation.
+    // At this commit the GNOME driver returns IpcError when the D-Bus call fails and the null
+    // backend returns UnsupportedCapability.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError>;
 
     /// Withdraws a registration made by [`Driver::arm`], given [`Armed::token`]. The default does
-    /// nothing and returns `Ok(false)`; the GNOME driver forwards the call to the extension and
-    /// returns its answer.
+    /// nothing and returns `Ok(false)`.
+    // At this commit the GNOME driver overrides it and returns the answer of the extension's
+    // DisarmSpawn call.
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
         Ok(false)
     }
