@@ -11,16 +11,24 @@
 //! A rule 1 or 2 match is taken at once. A rule 3 match is remembered and taken only if no
 //! stronger match arrives within [`APP_ID_GRACE`], so a stray window of the same application
 //! (a second `gnome-terminal` window, say) does not win over the real one.
+//!
+//! Rule 3 uses `commands::match_window_app_hint` with an empty title, so its title rule never
+//! applies here: only the class or app id is compared. The caller is `place::wait_for_window`.
+//! This module reads no clock, no `/proc` and no socket. The rules are checked only by unit
+//! tests on recorded JSON and, for the Sway backend as a whole, on a private headless Sway 1.9;
+//! the backend is experimental.
 
 use super::types::{is_window, node_class, Node};
 use crate::commands::match_window_app_hint;
 use std::collections::HashSet;
 use std::time::Duration;
 
-/// How long a rule 3 match waits for a pid match before it is accepted.
+/// How long a rule 3 match waits for a pid match before it is accepted: 300 ms, counted from the
+/// time the candidate was first offered.
 pub const APP_ID_GRACE: Duration = Duration::from_millis(300);
 
-/// Which rule matched, strongest first.
+/// Which rule matched. The variants are declared strongest first, so the derived ordering puts
+/// `Pid` before `Descendant` before `AppId`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Rule {
     Pid,
@@ -29,7 +37,8 @@ pub enum Rule {
 }
 
 /// Applies the rules to one window. `is_descendant(window_pid, launched_pid)` answers rule 2.
-/// An empty or `*` hint never matches by rule 3 (it would match every window).
+/// An empty or `*` hint never matches by rule 3 (it would match every window). `None` for a node
+/// that is not a window (`types::is_window`). A window with no pid can still match by rule 3.
 pub fn classify(
     node: &Node,
     launched_pid: u32,
@@ -75,7 +84,9 @@ impl Matcher {
     }
 
     /// Looks at a window (from a `new` or `title` event, or a tree scan) seen `at` after the
-    /// start. Returns its id if it is the window to place right now.
+    /// start. Returns its id if it is the window to place right now: a rule 1 or 2 match that
+    /// is not in the snapshot. A rule 3 match returns `None` and is remembered, but only the
+    /// FIRST one; later rule 3 windows are ignored.
     pub fn offer(
         &mut self,
         node: &Node,
