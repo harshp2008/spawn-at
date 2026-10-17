@@ -57,7 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.4
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.5
 
 # Remove an existing install first, without asking; your config and settings are kept
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
@@ -73,11 +73,11 @@ cargo build --release && ./target/release/spawn-at install
 ## Unsupported desktops
 
 :::note
-**Release status (remove after the first release newer than v0.2.0-beta.4).** `install.sh` is
-fetched from `main`, so the question below is asked today. The binary that the v0.2.0-beta.4
-release installs does not refuse a non-GNOME Wayland desktop: it switches to the X11 driver
-without a message. The refusal is on `main` only. The `install.sh` inside the beta.4 tag has no
-such question and is byte-identical to beta.3's (`CHANGELOG.md`).
+**Release status (remove after the first release newer than v0.2.0-beta.5).** `install.sh` is
+fetched from `main`, so the question below is asked whichever version it installs. The binary that
+the v0.2.0-beta.4 release installs does not refuse a non-GNOME Wayland desktop: it switches to the
+X11 driver without a message. The refusal is in the binary from v0.2.0-beta.5. The `install.sh`
+inside the beta.4 tag has no such question and is byte-identical to beta.3's (`CHANGELOG.md`).
 :::
 
 On a Wayland desktop that is not GNOME, `install.sh` prints a notice and asks

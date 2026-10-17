@@ -208,7 +208,7 @@ On an untested GNOME version the installer prints this before it installs anythi
 
 ## Sway (experimental)
 
-An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error on `main` and in the next release after v0.2.0-beta.4 (in v0.2.0-beta.4 and earlier it falls back to the X11 driver without a message; `SPAWN_AT_BACKEND=x11` opts in to that on `main`). Nothing needs installing; `spawn-at install` has nothing to do for it.
+An opt-in backend for [Sway](https://swaywm.org/) that talks to its IPC socket. It is **never chosen automatically**: a Sway session without the variable below gets an "unsupported desktop" error from v0.2.0-beta.5 (in v0.2.0-beta.4 and earlier it falls back to the X11 driver without a message; from v0.2.0-beta.5, `SPAWN_AT_BACKEND=x11` opts in to that). Nothing needs installing; `spawn-at install` has nothing to do for it.
 
 ```bash
 # inside a Sway session ($SWAYSOCK is set by Sway)
@@ -231,7 +231,7 @@ Tested: a private headless Sway 1.9 and the repo's own test window, with `script
 
 ## Roadmap
 
-v0.2.0-beta.4 restructures the code for other platforms and adds an experimental, opt-in Sway backend; it changes no GNOME placement behavior. Groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
+v0.2.0-beta.4 restructures the code for other platforms and adds an experimental, opt-in Sway backend; it changes no GNOME placement behavior. v0.2.0-beta.5 makes a non-GNOME Wayland session an error instead of a silent fall back to X11. Groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
 
 ## Contributing a backend
 
@@ -253,7 +253,7 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.4
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.5
 
 # Skip the confirmation shown on an untested GNOME version (the notice is still printed)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --yes
