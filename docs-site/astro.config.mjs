@@ -75,6 +75,7 @@ export default defineConfig({
             // The page is `rustdoc`, not `api`: the rustdoc output is copied to /api/, so a page
             // at /api/ would collide with it.
             { slug: 'rustdoc', label: 'API documentation (rustdoc)' },
+            'known-limits',
           ],
         },
         {
