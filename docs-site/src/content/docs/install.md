@@ -67,8 +67,10 @@ git clone https://github.com/harshp2008/spawn-at.git && cd spawn-at
 cargo build --release && ./target/release/spawn-at install
 ```
 
-`--version` takes a release tag. `--scope` is `user` (the default) or `system`. All flags of
-`spawn-at install` are listed on [its reference page](/spawn-at/reference/spawn-at-install/).
+`--version` takes a release tag. `--scope` is `user` (the default) or `system`. Every flag of
+`install.sh`, `spawn-at install` and `spawn-at uninstall`, with its default, is on
+[Installer flags](/spawn-at/installer-flags/). The raw `--help` is on
+[the reference page](/spawn-at/reference/spawn-at-install/).
 
 ## Unsupported desktops
 

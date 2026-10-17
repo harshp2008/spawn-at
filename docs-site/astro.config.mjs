@@ -28,6 +28,7 @@ export default defineConfig({
           items: [
             'install',
             'update',
+            'installer-flags',
             'quick-start',
             'concepts',
             {
