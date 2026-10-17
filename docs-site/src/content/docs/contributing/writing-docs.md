@@ -154,55 +154,53 @@ The body. Quote exact strings, flags and paths in backticks. Give line numbers f
 
 ## Experiment record template
 
-One page per experiment, under `experiments/`, with these headings in this order. A field the source
-does not record is written "not recorded"; never infer a build, a date or a command.
+One page per experiment, under `experiments/`. It reads as a short report: an opening paragraph, a
+table of fields with the verdict in it, then three `##` sections. The verdict comes first, in the
+table, because a reader wants the outcome before the method. A field the source does not record is
+written "not recorded"; never infer a build, a date or a command.
 
 ````markdown
 ---
 title: "ID Short name"
 ---
 
-## Title
+One to three sentences: what was tested, and the outcome in plain words. Include the full title of the
+experiment if it says more than the page title.
 
-The full title of the experiment.
+| Field | Value |
+| :-- | :-- |
+| **ID** | The id in the source (for example TEST_LOG 6.30), with links to the record before and after it |
+| **Date** | The date the source gives, as YYYY-MM-DD |
+| **Build** | The tag, or "DEV BUILD" with the commit; if only a tree or commit is recorded say so and infer no version; otherwise "not recorded" |
+| **Verdict** | The source's verdict, in its words; if it gives none, say so |
+| **Raw results** | Where they are; "not in the repository" if they are in a gitignored directory |
 
-## ID
+## What was tested
 
-The id in the source (for example TEST_LOG 6.30) and a link to the record before and after it.
-
-## Date
-
-The date the source gives, in YYYY-MM-DD form.
-
-## Build
-
-The tag, or "DEV BUILD" with the commit. If only a tree or a commit is recorded, say that and do not
-infer a version. If nothing is recorded, write "not recorded".
-
-## Question
+**Question**
 
 What the experiment was meant to find out, in the source's words.
 
-## Setup and environment
+**Setup and environment**
 
 The session, the machine, the load, the sample sizes, the arms.
 
-## Commands run
+**Commands run**
 
-The commands. If the source gives only prose, write "exact command line not recorded" and keep the
-prose.
-
-## Raw result location
-
-Where the raw results are. If they are in a gitignored directory, say "not in the repository".
+The commands, or "Exact command lines not recorded." followed by the prose the source gives.
 
 ## Result
 
-The numbers and observations, as the source gives them.
+The numbers and observations, as the source gives them. Use `###` or bold lead-ins for phases.
 
-## Verdict
+## Not verified
 
-The source's verdict, in its words. If it gives none, say so.
+What the experiment did not cover.
+
+## Sources
+
+- `path/to/log` (section and lines)
+````
 
 ## Not verified
 

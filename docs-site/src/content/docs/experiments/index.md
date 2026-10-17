@@ -6,11 +6,11 @@ One record for each experiment the project ran, written from `docs/TEST_LOG.md`.
 long dated notebook that is not published here: it names the owner and local paths, and its raw
 results live in directories under `scratch/` that git ignores. These pages are written, not copied.
 
-Each record has the same headings: Title, ID, Date, Build, Question, Setup and environment, Commands
-run, Raw result location, Result, Verdict, Not verified, Sources. A field the log does not record is
-written "not recorded". Where the log gives the commands only in prose the page says "exact command
-line not recorded" and keeps the prose. Nothing was re-run to write these pages: every number comes
-from the log.
+Each record opens with a short paragraph and a table (ID, date, build, verdict, raw results), then
+has the sections What was tested, Result, Not verified and Sources. A field the log does not record
+is written "not recorded". Where the log gives the commands only in prose the page says "exact
+command line not recorded" and keeps the prose. Nothing was re-run to write these pages: every
+number comes from the log.
 
 **Build.** The log names the tree or binary it ran on as a commit hash (and sometimes a branch), not as
 a version string. The output of `spawn-at --version` is recorded once, in section 6.30 (a regression
