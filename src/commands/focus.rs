@@ -1,13 +1,19 @@
-//! # Window Focus Command Handlers
+//! Handlers for the `focus` and `defocus` subcommands, and `apply_focus_policy`, which applies the
+//! `--focus` / `--no-focus` / `--defocus` flags after another command has changed a window.
 //!
-//! Provides handlers for focusing, defocusing, and enforcing focus modifier policies
-//! across window management operations.
+//! Each handler resolves one window from the current window list, then calls the backend's
+//! `focus_window` or `defocus_window`. It does not decide how a compositor moves focus.
 
 use crate::cli::{DefocusArgs, FocusModifierArgs, WindowTargetArgs};
 use crate::platform::CompositorBackend;
 use crate::target::{self, WindowSelector};
 
-/// Evaluates and applies the requested `FocusModifierArgs` policy to the target window.
+/// Applies the focus flag in `modifiers` to the window `target_id`.
+///
+/// `--defocus` calls `defocus_window(target_id, "mru", "")`; `--no-focus` does nothing; with
+/// `--focus` or neither flag it calls `focus_window`. Unless `no_wait`, it then waits up to
+/// 2000 ms for the window to report the new focus state; a timeout there is ignored, so the result
+/// does not say whether focus really changed. Errors are those of the backend call.
 pub async fn apply_focus_policy(
     backend: &dyn CompositorBackend,
     target_id: &str,
@@ -15,7 +21,8 @@ pub async fn apply_focus_policy(
     no_wait: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     if modifiers.defocus {
-        // Active eviction: strip focus and yield to previous window
+        // "mru" is the mode `defocus` also uses when neither --to-desktop nor --to-window is
+        // given; what a backend does with it is not verified here.
         backend.defocus_window(target_id, "mru", "").await?;
         if !no_wait {
             let _ = crate::commands::wait_for_state_change(
@@ -27,9 +34,9 @@ pub async fn apply_focus_policy(
             .await;
         }
     } else if modifiers.no_focus {
-        // Passive: leave compositor focus state untouched
+        // --no-focus: no backend call and no wait.
     } else {
-        // Default (or explicit --focus): ensure target window gets focus
+        // --focus, or no flag at all (the default for the commands that call this).
         backend.focus_window(target_id).await?;
         if !no_wait {
             let _ = crate::commands::wait_for_state_change(
@@ -44,7 +51,11 @@ pub async fn apply_focus_policy(
     Ok(())
 }
 
-/// Executes the `focus` subcommand: identifies target window and transfers input focus to it.
+/// Runs `spawn-at focus`: resolves the window from `args` and calls `focus_window` on it.
+///
+/// Unless `no_wait`, waits up to 2000 ms for the window to report `focused`; a timeout is
+/// ignored and the command still returns `Ok`. Errors: invalid `args`, no matching window, or a
+/// failing backend call.
 pub async fn run_focus(
     backend: &dyn CompositorBackend,
     args: WindowTargetArgs,
@@ -72,7 +83,13 @@ pub async fn run_focus(
     Ok(())
 }
 
-/// Executes the `defocus` subcommand: evicts input focus from the target window to desktop or previous window.
+/// Runs `spawn-at defocus`: resolves the window from `args` (the focused window when no selector
+/// is given) and calls `defocus_window` with the mode from `args.mode_and_destination()`.
+///
+/// If the window is already not focused it prints a line to stdout and returns `Ok` without
+/// calling the backend. Otherwise, unless `no_wait`, it waits up to 2000 ms for `focused` to
+/// become false (a timeout is ignored) and prints "Defocused window ..." whether or not that
+/// happened. Errors: invalid `args`, no matching window, or a failing backend call.
 pub async fn run_defocus(
     backend: &dyn CompositorBackend,
     args: DefocusArgs,
