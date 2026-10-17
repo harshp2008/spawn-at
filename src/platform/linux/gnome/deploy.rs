@@ -130,7 +130,7 @@ pub const EMBEDDED_EXTENSION_FILES_LEGACY: &[(&str, &str)] = &[
 /// `setpgid(0, 0)`) so it outlives this process, with stdin, stdout and stderr redirected to `/dev/null`.
 /// It does not wait for the command. A failure to start it is ignored (`let _ =`), so the user
 /// gets no message if `gnome-session-quit` is missing. Side effect: ends the user's session.
-// The only place that runs it (grep -n "gnome-session-quit" src/); `GnomeSessionActions::log_out`
+// The only place that runs it (grep -rn gnome-session-quit src/); `GnomeSessionActions::log_out`
 // below calls it and `session::finish` calls that through the SessionActions trait.
 pub fn log_out_wayland() {
     let mut quit_cmd = Command::new("gnome-session-quit");
