@@ -1,5 +1,11 @@
 //! A blocking connection to the Sway IPC socket. The framing is in `ipc`; this adds the socket,
 //! the timeouts and the error messages that name `$SWAYSOCK`.
+//!
+//! Callers: `SwayDriver` and `place.rs`. Every error is a [`DriverError::IpcError`] whose text
+//! names `$SWAYSOCK` and, for the connection errors, `SPAWN_AT_BACKEND=sway`, because this
+//! backend is only used when the user forced it. It never falls back to another backend and
+//! never reconnects. Experimental: tested only against a private headless Sway 1.9 and the
+//! scripted fake in `fake.rs`.
 
 use super::ipc::{self, Frame, FrameError, MessageType};
 use crate::platform::DriverError;
@@ -8,11 +14,12 @@ use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-/// How long a request waits for its reply. Sway answers in milliseconds; this only bounds a
-/// socket that accepts and then says nothing.
+/// The read and the write timeout `connect` sets on the socket: 5 s. It bounds a socket that
+/// accepts and then says nothing. The "answers in milliseconds" figure is an expectation, not
+/// something this code measures.
 pub const REPLY_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Where the rest of a frame may take once its first byte has arrived.
+/// The read timeout for the rest of a frame once its first byte has arrived in `next_frame`: 5 s.
 const FRAME_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// The socket path from the value of `$SWAYSOCK` (`None` when the variable is unset).
@@ -33,6 +40,7 @@ pub fn socket_path(value: Option<std::ffi::OsString>) -> Result<PathBuf, DriverE
     }
 }
 
+/// `$SWAYSOCK (<path>): <what>: <cause>` as an `IpcError`.
 fn frame_error(path: &Path, what: &str, e: FrameError) -> DriverError {
     DriverError::IpcError(format!("$SWAYSOCK ({}): {}: {}", path.display(), what, e))
 }
@@ -45,7 +53,9 @@ pub struct Client {
 }
 
 impl Client {
-    /// Connects to the socket at `path`.
+    /// Connects to the socket at `path` and sets the 5 s read and write timeouts. Errors: `IpcError`
+    /// when the connection or a timeout setting fails. It does not check that the peer is Sway;
+    /// `SwayDriver::connect` does that with one `GET_OUTPUTS`.
     pub fn connect(path: &Path) -> Result<Client, DriverError> {
         let stream = UnixStream::connect(path).map_err(|e| {
             DriverError::IpcError(format!(
@@ -64,7 +74,10 @@ impl Client {
     }
 
     /// Sends one request and returns the payload of its reply. A reply of another type than the
-    /// request is a protocol error (it means the stream is out of step).
+    /// request is a protocol error (it means the stream is out of step). An event frame that
+    /// arrives first on a subscribed connection counts as such a reply. The read timeout in
+    /// force is whatever the last call set: 5 s after `connect`, but `next_frame` changes it and
+    /// does not restore it, so do not call `request` after `next_frame` on the same connection.
     pub fn request(&mut self, kind: MessageType, payload: &[u8]) -> Result<Vec<u8>, DriverError> {
         ipc::write_frame(&mut self.stream, kind, payload)
             .map_err(|e| frame_error(&self.path, "cannot send the request", e))?;
@@ -83,7 +96,9 @@ impl Client {
 
     /// Waits up to `wait` for the next frame (an event, on a subscribed connection). `None` when
     /// nothing arrived in time. Once the first byte of a frame has arrived the rest is read with
-    /// the longer frame timeout, so a timeout never leaves half a frame behind.
+    /// the longer frame timeout (5 s), so a timeout never leaves half a frame behind. `wait` is
+    /// raised to at least 1 ms. Errors: `IpcError` when Sway closed the connection, a read
+    /// fails, or the frame is malformed or does not finish within 5 s.
     pub fn next_frame(&mut self, wait: Duration) -> Result<Option<Frame>, DriverError> {
         let wait = wait.max(Duration::from_millis(1));
         let io =

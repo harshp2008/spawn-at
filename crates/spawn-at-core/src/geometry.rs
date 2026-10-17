@@ -132,7 +132,7 @@ impl MonitorInfo {
 }
 
 /// The monitors of the desktop, as a serialisable schema.
-// At this commit every constructor under src/ sets schema_version to 1.
+// Every constructor under src/ sets schema_version to 1 (grep -rn "schema_version: " src/).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct MonitorLayout {
     /// Version of this schema.

@@ -1,4 +1,14 @@
 //! # X11 Spawn Interception Pipeline
+//!
+//! The one function that places a window after the program was started: `X11Driver::post_spawn`
+//! calls [`X11Session::handle_spawn_interception`] on a fresh session. It finds the new window by
+//! polling events, sets size hints, waits for the window to map, and then moves it. It runs
+//! blocking, with timeouts of 5 s (find the window) and 3 s (wait for the map).
+//!
+//! It must not be treated as flicker-free by itself: it reacts to a window it has found, so it
+//! can be late. Flash measurements for X11 and XWayland windows from the test harness are in
+//! `docs/TEST_LOG.md` (sections 6.15 and 6.17); nothing here measures it. Results of
+//! most X11 requests are ignored (`let _ =`), and a window that is never found is not an error.
 
 use super::atoms::x11_debug;
 use super::calculate_rect_from_placement;
@@ -15,13 +25,26 @@ use x11rb::protocol::xproto::{
 use x11rb::wrapper::ConnectionExt as _;
 
 impl X11Session {
-    /// Intercepts a freshly spawned process's window natively on X11:
-    /// 1. Subscribes root window to `EventMask::SUBSTRUCTURE_NOTIFY`.
-    /// 2. Records pre-existing windows to avoid false positives.
-    /// 3. Intercepts incoming events (`CreateNotify`, `MapNotify`, `PropertyNotify`) with non-busy polling.
-    /// 4. Injects `WM_NORMAL_HINTS` with `USPosition | PPosition` and `_NET_WM_USER_TIME = 0` before map.
-    /// 5. Awaits natural toolkit dimension negotiation.
-    /// 6. Reads final geometry and applies precise anchor coordinate positioning.
+    /// Finds the window of a just-started process and places it, using the first entry of `batch`
+    /// (the other entries are ignored).
+    ///
+    /// 1. Selects `SUBSTRUCTURE_NOTIFY` on the root window and records the existing top-level
+    ///    windows. No `SUBSTRUCTURE_REDIRECT` is selected, so no map request is intercepted.
+    /// 2. Looks for a match among the existing windows, then polls events (`CreateNotify`,
+    ///    `MapRequest`, `MapNotify`, `ConfigureNotify`, `PropertyNotify`) every 15 ms for up to
+    ///    5000 ms, re-checking new candidates each round (matching rules: `check_single_window_match`).
+    /// 3. On a match: writes `WM_NORMAL_HINTS` (`USPosition | PPosition`, plus `USSize | PSize`
+    ///    when a size is requested), sets `_NET_WM_USER_TIME` to 0, and configures the window to
+    ///    the provisional position. The provisional size is the requested size, or 800x600 when
+    ///    none is given. Whether the window is still unmapped at that moment is not checked.
+    /// 4. Waits up to 3000 ms for the window to be viewable and, without a requested size, for
+    ///    a geometry above 50x50 (then 40 ms more). Below that it uses the provisional size.
+    /// 5. Computes the final rectangle for the settled size and sends the move/resize
+    ///    (`move_resize`), then activates the window if `batch.focus` is `Exclusive`.
+    ///
+    /// Always returns `Ok(())` for a batch with no entries, for no matching window within 5 s (a
+    /// message appears only with `SPAWN_AT_DEBUG=1`), or if the final geometry cannot be read.
+    /// Errors from the X11 requests are ignored.
     pub fn handle_spawn_interception(
         &self,
         child_pid: u32,
@@ -43,7 +66,8 @@ impl X11Session {
         let (prov_w, prov_h) = entry.placement.size.unwrap_or((800, 600));
         let prov_rect = calculate_rect_from_placement(&entry.placement, prov_w, prov_h);
 
-        // Step 2: Register SubstructureNotify on the root window to capture window lifecycle events
+        // Step 2: Select SubstructureNotify on the root window (notifications only; without
+        // SubstructureRedirect a MapRequest is not delivered to this client)
         let aux = ChangeWindowAttributesAux::new().event_mask(EventMask::SUBSTRUCTURE_NOTIFY);
         let _ = self.conn.change_window_attributes(self.root, &aux);
         let _ = self.conn.flush();
@@ -78,7 +102,8 @@ impl X11Session {
             }
         }
 
-        // Step 3: Event-driven interception loop using non-busy polling
+        // Step 3: Poll for events (`poll_for_event`, not a blocking wait) until a window matches or
+        // 5000 ms have passed. A polling error ends the inner drain loop silently.
         while target_win.is_none() && start_time.elapsed() < timeout {
             while let Ok(Some(event)) = self.conn.poll_for_event() {
                 let win_id = match &event {
@@ -139,7 +164,7 @@ impl X11Session {
                 break;
             }
 
-            // Kernel sleep to avoid CPU busy-polling (0% CPU impact)
+            // 15 ms sleep between polling rounds, so the loop does not spin.
             std::thread::sleep(Duration::from_millis(15));
         }
 
@@ -154,8 +179,9 @@ impl X11Session {
             }
         };
 
-        // Step 4: Inject WM_NORMAL_HINTS (ICCCM XSizeHints) with USPosition | PPosition flags
-        // before the window maps to eliminate the default top-left flash.
+        // Step 4: Write WM_NORMAL_HINTS (ICCCM XSizeHints) with USPosition | PPosition flags.
+        // The aim is for a window manager that has not mapped the window yet to use that position;
+        // the code does not check that the window is still unmapped.
         x11_debug!(
             "[spawn-at-x11] Setting WM_NORMAL_HINTS to x={}, y={}, w={}, h={}",
             prov_rect.x,

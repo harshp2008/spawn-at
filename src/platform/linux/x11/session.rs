@@ -1,4 +1,15 @@
 //! # X11 Display Session and Window Operations
+//!
+//! [`X11Session`] is one blocking x11rb connection plus the interned atoms, with the queries
+//! (monitors, work areas, windows) and the EWMH actions (move/resize, activate) the X11 driver
+//! needs. `X11Driver` (`mod.rs`) opens a fresh session per call inside `spawn_blocking`, and
+//! `interception.rs` adds the spawn loop on top. Nothing here is async and nothing keeps a
+//! session between calls.
+//!
+//! Under XWayland the same code sees only XWayland windows. Most actions are sent as EWMH client
+//! messages and their result is not read back: a window manager that ignores them gives `Ok`.
+//! Flash behaviour of X11 and XWayland windows is recorded in `docs/TEST_LOG.md` (sections 6.15
+//! and 6.17), not in this file.
 
 use super::atoms::{x11_debug, Atoms};
 use crate::platform::linux::process_tree::is_process_descendant;
@@ -12,7 +23,9 @@ use x11rb::protocol::xproto::{
 };
 use x11rb::rust_connection::RustConnection;
 
-/// Encapsulates an active, dedicated connection to the X11 display server.
+/// One connection to the X11 display (`$DISPLAY`), its default screen's root window and the
+/// interned atoms. The fields are crate-visible for `X11Driver`, which sends a few client
+/// messages itself.
 pub struct X11Session {
     pub(crate) conn: RustConnection,
     pub(crate) screen_num: usize,
@@ -25,7 +38,8 @@ impl X11Session {
     // Block 1: Connection & Initialization
     // ------------------------------------------------------------------------
 
-    /// Establishes a connection to the X11 display and interns all required EWMH/ICCCM atoms.
+    /// Connects with `RustConnection::connect(None)` (so `$DISPLAY` decides) and interns the atoms
+    /// in `atoms.rs`. Errors: `DriverError::Execution` if the connection or the interning fails.
     pub fn connect() -> Result<Self, DriverError> {
         let (conn, screen_num) = RustConnection::connect(None).map_err(|e| {
             DriverError::Execution(format!("Cannot connect to X11 display: {}", e).into())
@@ -49,7 +63,9 @@ impl X11Session {
     // Block 2: Query Methods
     // ------------------------------------------------------------------------
 
-    /// Queries connected monitor rectangles using RANDR extension protocol, falling back to screen size.
+    /// Monitor rectangles in pixels. Tries RANDR `GetMonitors`, then the RANDR CRTCs that have a
+    /// nonzero size, then the root screen as one rectangle at (0, 0). A failing RANDR request is
+    /// not reported; it falls to the next source, so this never returns `Err`.
     pub fn fetch_monitors(&self) -> Result<Vec<Rect>, DriverError> {
         x11_debug!("[spawn-at-x11] Querying monitors via RANDR protocol...");
 
@@ -105,7 +121,11 @@ impl X11Session {
         }])
     }
 
-    /// Queries desktop workareas using `_NET_WORKAREA` property, falling back to physical monitors.
+    /// Work areas from the root window's `_NET_WORKAREA` (up to 1024 32-bit values, entries with a
+    /// zero width or height dropped); when that is missing or empty, the monitors from
+    /// `fetch_monitors`. `_NET_WORKAREA` is one rectangle per virtual desktop in the EWMH
+    /// convention, so the entries are not necessarily one per monitor (not verified per window
+    /// manager).
     pub fn fetch_workareas(&self) -> Result<Vec<Rect>, DriverError> {
         x11_debug!("[spawn-at-x11] Querying workareas via _NET_WORKAREA property...");
 
@@ -141,7 +161,11 @@ impl X11Session {
         self.fetch_monitors()
     }
 
-    /// Queries comprehensive monitor layout: RANDR screen rectangles and _NET_WORKAREA per-monitor approximations.
+    /// The monitors of `fetch_monitors` with a work area each. The work area is the intersection of
+    /// the screen rectangle with the FIRST rectangle of `_NET_WORKAREA`; where they do not overlap
+    /// (or the property is missing) the work area is the whole screen. `primary` is set for index
+    /// 0, and `name` and `scale` are `None`. The returned `note` says the work area is an
+    /// approximation. Never returns `Err` in practice, since `fetch_monitors` does not.
     pub fn fetch_layout(&self) -> Result<MonitorLayout, DriverError> {
         let screens = self.fetch_monitors()?;
         let global_wa = if let Ok(cookie) = self.conn.get_property(
@@ -220,7 +244,9 @@ impl X11Session {
         })
     }
 
-    /// Queries all open windows on the X11 server via `_NET_CLIENT_LIST`.
+    /// The windows in the root's `_NET_CLIENT_LIST` (the first 4096 entries), each described by
+    /// `get_window_metadata`. A window whose metadata cannot be read (for example it closed since)
+    /// is left out without a message. Errors: `Execution` if the list itself cannot be read.
     pub fn fetch_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
         x11_debug!("[spawn-at-x11] Querying windows via _NET_CLIENT_LIST...");
 
@@ -263,7 +289,14 @@ impl X11Session {
         Ok(windows)
     }
 
-    /// Introspects an individual window's properties: PID, titles, class names, geometry, and focus.
+    /// One window as `WindowMetadata`. `pid` is `_NET_WM_PID`; the title is `_NET_WM_NAME`, else
+    /// `WM_NAME`; `class` is the SECOND string of `WM_CLASS` (the class, not the instance), or
+    /// the first if there is only one. `x`/`y` are the client area's position in root
+    /// coordinates (`translate_coordinates`, else the plain geometry) and `w`/`h` the client
+    /// size, without any frame. `focused` compares with `active_win`. `maximized` needs both
+    /// maximize atoms; `minimized` is the `_NET_WM_STATE_HIDDEN` atom. `app_id`, `monitor` and
+    /// `workspace` are always `None`. Errors: `Execution` if the geometry request fails; the
+    /// other properties fail soft to empty or `None`.
     pub fn get_window_metadata(
         &self,
         win: Window,
@@ -399,8 +432,11 @@ impl X11Session {
     // Block 3: Window Matching & Selection
     // ------------------------------------------------------------------------
 
-    /// Resolves a user-provided target identifier (numeric hex/decimal ID, PID, or app class name)
-    /// to a concrete X11 Window handle.
+    /// Turns a target string into a window id. A `0x` hex number or a decimal number is tried as
+    /// a window id first (it counts if the server answers `GetGeometry` for it); otherwise a
+    /// decimal number is a pid and anything else a class, matched by `target::resolve_target`
+    /// over `fetch_windows`. A pid that happens to equal an existing window id is therefore
+    /// taken as that window. Errors: `TargetNotFound`.
     pub fn resolve_target_window(&self, target_id: &str) -> Result<Window, DriverError> {
         let parsed_id = if let Some(hex) = target_id.strip_prefix("0x") {
             u32::from_str_radix(hex, 16).ok()
@@ -438,7 +474,12 @@ impl X11Session {
         Ok(win_num as Window)
     }
 
-    /// Checks whether an individual window matches the target PID, Startup ID, or Class hint.
+    /// True when `win` belongs to the launched program. Checks, in order: (1) `_NET_WM_PID` equals
+    /// `child_pid` or descends from it (this check also applies to `is_preexisting` windows);
+    /// (2) `_NET_STARTUP_ID` contains `startup_id` as a substring (when `startup_id` is not
+    /// empty); (3) only when `!is_preexisting` and `app_hint` is neither empty nor `*`: the raw
+    /// `WM_CLASS` text, lower-cased, contains the lower-cased hint as a substring. Rule 3 is a
+    /// plain substring test, looser than `commands::match_window_app_hint`.
     pub fn check_single_window_match(
         &self,
         win: Window,
@@ -517,7 +558,8 @@ impl X11Session {
         false
     }
 
-    /// Resolves a matching client window from `win`, checking children in case `win` is a window manager frame.
+    /// `win` if it matches (see `check_single_window_match`), else the first direct child of
+    /// `win` that matches (one level only: the client inside a window-manager frame), else `None`.
     pub fn find_matching_window(
         &self,
         win: Window,
@@ -554,8 +596,11 @@ impl X11Session {
     // Block 4: Window Actions & Management
     // ------------------------------------------------------------------------
 
-    /// Moves and/or resizes a target window using EWMH `_NET_MOVERESIZE_WINDOW` ClientMessage,
-    /// falling back to core X11 `configure_window`.
+    /// Moves and/or resizes `win` (pixels; `pos` is the top-left corner). It sends BOTH an EWMH
+    /// `_NET_MOVERESIZE_WINDOW` client message (gravity NorthWest) and a core `configure_window`
+    /// with the same values, one after the other; the second is not a fallback for a failure of
+    /// the first. The results of both requests are ignored and only the final flush can fail
+    /// (`Execution`), so a window manager that refuses is not reported.
     pub fn move_resize(
         &self,
         win: Window,
@@ -613,7 +658,9 @@ impl X11Session {
         Ok(())
     }
 
-    /// Activates and raises a window using EWMH `_NET_ACTIVE_WINDOW` ClientMessage.
+    /// Asks for `win` to be activated: an EWMH `_NET_ACTIVE_WINDOW` client message with source
+    /// indication 2, then also `SetInputFocus` on the window. Both results are ignored; only the
+    /// flush can fail (`Execution`).
     pub fn activate_window(&self, win: Window) -> Result<(), DriverError> {
         x11_debug!(
             "[spawn-at-x11] Sending _NET_ACTIVE_WINDOW ClientMessage for win={:?}",

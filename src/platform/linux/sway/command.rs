@@ -4,6 +4,10 @@
 //! A leading `[con_id=N]` selects the container; Sway keeps the criteria across the commas of
 //! one command string (`man 5 sway`, "COMMAND CONVENTIONS"), so one `RUN_COMMAND` can change
 //! several things on the same window.
+//!
+//! Callers: `place.rs` and `SwayDriver` (`grep -rn "command::" src/platform/linux/sway/`). The
+//! strings were checked only against a private headless Sway 1.9 (`docs/DESIGN_SWAY.md`,
+//! section 2); other Sway or i3 versions are not verified. Nothing here sends anything.
 
 /// Makes the window floating, optionally resizes it, and moves it so its top-left corner is at
 /// (`x`, `y`) in the global layout (`move absolute position`; `move position` would be relative
@@ -42,19 +46,22 @@ pub fn move_to(id: u64, x: i32, y: i32) -> String {
     format!("[con_id={id}] move absolute position {x} {y}")
 }
 
+/// Focuses the container `id`.
 pub fn focus(id: u64) -> String {
     format!("[con_id={id}] focus")
 }
 
-/// Asks the client to close (an `xdg_toplevel` close request, or `WM_DELETE_WINDOW` for an
-/// XWayland window), as `kill` does for a container.
+/// `kill` on the container: asks the client to close. Observed with a Wayland client on Sway
+/// 1.9 (the fixture exited and the node left the tree); how an XWayland window reacts is not
+/// verified.
 pub fn kill(id: u64) -> String {
     format!("[con_id={id}] kill")
 }
 
 /// The content size to ask for so that the whole container (border and title bar included) ends
 /// up `frame` large, given the container's current `rect` size and its current `window_rect`
-/// size. At least 1x1.
+/// size. At least 1x1. Pure arithmetic: each side is `frame - (rect - content)`, with
+/// subtractions that would go below zero stopping at 0 before the 1 minimum applies.
 pub fn content_size_for_frame(
     frame: (u32, u32),
     current_rect: (u32, u32),

@@ -5,6 +5,11 @@
 //! use the same frame. Event frames have the high bit of the type set (`0x80000003` is a
 //! `window` event). The bytes in the tests were read from a private headless Sway 1.9
 //! (`scripts/sway-headless.sh`) with `socat`.
+//!
+//! Used by `client.rs` (sockets) and the fake server in `fake.rs`. It does no I/O of its own
+//! beyond the `Read` and `Write` it is handed, and it does not know what any message means.
+//! The Sway backend is experimental and was tested only on that private Sway 1.9; frames from
+//! other Sway or i3 versions are not verified.
 
 use std::io::{Read, Write};
 
@@ -12,11 +17,13 @@ use std::io::{Read, Write};
 pub const MAGIC: &[u8; 6] = b"i3-ipc";
 /// Magic + length + type.
 pub const HEADER_LEN: usize = 14;
-/// Largest payload accepted from the socket. The biggest real reply is `GET_TREE`; a few hundred
-/// kilobytes on a busy desktop. A larger length is a corrupt stream, not a reply to wait for.
+/// Largest payload accepted from the socket: 64 MiB (67,108,864 bytes). A larger announced
+/// length is treated as a corrupt stream instead of allocating for it. The size of a real
+/// `GET_TREE` reply on a busy desktop is not verified here.
 pub const MAX_PAYLOAD: u32 = 64 * 1024 * 1024;
 
-/// The request types spawn-at sends.
+/// The request types spawn-at sends, with their numbers on the wire. `GET_MARKS` and
+/// `GET_BAR_CONFIG` exist in Sway but are not sent.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MessageType {
     RunCommand = 0,
@@ -72,7 +79,8 @@ pub struct Frame {
     pub payload: Vec<u8>,
 }
 
-/// The bytes of a request frame.
+/// The bytes of a request frame: magic, payload length, type, payload. The length is cast to
+/// `u32` with `as`, so a payload over 4 GiB would wrap (no caller sends one).
 pub fn encode_frame(kind: MessageType, payload: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(HEADER_LEN + payload.len());
     out.extend_from_slice(MAGIC);
@@ -82,7 +90,10 @@ pub fn encode_frame(kind: MessageType, payload: &[u8]) -> Vec<u8> {
     out
 }
 
-/// Splits a 14-byte header into (payload length, type).
+/// Splits a 14-byte header into (payload length, type), both in bytes / raw numbers.
+///
+/// Errors: [`FrameError::BadMagic`] when the first 6 bytes are not `i3-ipc`;
+/// [`FrameError::TooLarge`] when the length is over [`MAX_PAYLOAD`]. The type is not checked.
 pub fn decode_header(header: &[u8; HEADER_LEN]) -> Result<(u32, u32), FrameError> {
     let mut magic = [0u8; 6];
     magic.copy_from_slice(&header[..6]);
@@ -97,7 +108,11 @@ pub fn decode_header(header: &[u8; HEADER_LEN]) -> Result<(u32, u32), FrameError
     Ok((len, kind))
 }
 
-/// Reads one frame (blocking until it is complete).
+/// Reads one frame, blocking until it is complete. How long that can take is up to the reader's
+/// own timeout (`client.rs` sets one on the socket).
+///
+/// Errors: any of [`FrameError`]; a short read (closed socket) is `Io`. A payload is allocated
+/// at its announced length, after the [`MAX_PAYLOAD`] check.
 pub fn read_frame<R: Read>(reader: &mut R) -> Result<Frame, FrameError> {
     let mut header = [0u8; HEADER_LEN];
     reader.read_exact(&mut header)?;
@@ -107,7 +122,7 @@ pub fn read_frame<R: Read>(reader: &mut R) -> Result<Frame, FrameError> {
     Ok(Frame { kind, payload })
 }
 
-/// Writes one request frame.
+/// Writes one request frame and flushes. Errors: `Io` when the write fails.
 pub fn write_frame<W: Write>(
     writer: &mut W,
     kind: MessageType,

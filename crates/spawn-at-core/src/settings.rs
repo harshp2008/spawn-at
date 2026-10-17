@@ -17,8 +17,8 @@
 //! bytes of the arming instruction are those of a build without this module (see
 //! [`wait_override`]).
 
-// At this commit the Linux store is src/platform/linux/config_store.rs, and src/commands/config.rs
-// and src/commands/spawn.rs are the callers. The `update` table belongs to the update checker in
+// The Linux store is src/platform/linux/config_store.rs, and src/commands/config.rs and
+// src/commands/spawn.rs are the callers. The `update` table belongs to the update checker in
 // src/config.rs (not verified beyond the FOREIGN_TABLES constant below).
 
 use crate::ready_wait::Policy;
@@ -28,8 +28,9 @@ use std::path::PathBuf;
 /// Name of the environment variable that replaces the config file location with the path it
 /// holds ([`config_location`] uses it as given). A [`SettingsStore`] should treat a path that does
 /// not exist as "no config file": defaults only.
-// At this commit the Linux store reads it, and crates/spawn-at-verify/src/no_config.rs sets it to
-// a path that does not exist (it keeps its own copy of the name).
+// The Linux store reads it (src/platform/linux/config_store.rs), and
+// crates/spawn-at-verify/src/no_config.rs sets it to a path that does not exist (it keeps its own
+// copy of the name).
 pub const ENV_CONFIG_PATH: &str = "SPAWN_AT_CONFIG";
 
 /// Smallest accepted `spawn.window_timeout_ms`, in milliseconds.
@@ -38,9 +39,9 @@ pub const WINDOW_TIMEOUT_MIN_MS: u32 = 200;
 pub const WINDOW_TIMEOUT_MAX_MS: u32 = 60_000;
 /// Default of `spawn.window_timeout_ms`, in milliseconds: how long `spawn` waits for the window of
 /// the command it started.
-// At this commit src/commands/spawn.rs passes the value to wait_claim (line 372) and also to
-// wait_for_spawn (line 411), the poll that runs when the claim gave no window. When the claim wait
-// times out, both run, so the total wait can be up to twice the setting.
+// src/commands/spawn.rs passes the value to `wait_claim` and also to `wait_for_spawn`, the poll
+// that runs when the claim gave no window (grep -n "window_timeout" src/commands/spawn.rs). When
+// the claim wait times out, both run, so the total wait can be up to twice the setting.
 pub const WINDOW_TIMEOUT_DEFAULT_MS: u32 = 2000;
 
 /// A setting the user can change. The dotted names (`wait.cap_ms`, ...) are what the user types
@@ -92,8 +93,8 @@ impl Key {
     }
 
     /// What the setting does, in one line.
-    // At this commit a grep finds no caller of `about` in src/ or crates/ (`config show` prints
-    // `allowed`, not this text).
+    // `grep -rn "\.about()" src/ crates/` finds no caller (`config show` prints `allowed`, not
+    // this text).
     pub fn about(self) -> &'static str {
         match self {
             Key::WaitCapMs => "longest the extension waits for the app to answer a size request",
@@ -126,7 +127,7 @@ impl Key {
 
     /// True for the settings that are sent to the extension (`wait.cap_ms`, `wait.strategy`): when
     /// they are not set, nothing is sent and the extension's own default applies.
-    // At this commit only render_show in this file calls it, to add the "(not sent...)" note.
+    // Only render_show in this file calls it, to add the "(not sent...)" note.
     pub fn sent_to_extension(self) -> bool {
         matches!(self, Key::WaitCapMs | Key::WaitStrategy)
     }
@@ -373,7 +374,7 @@ pub trait SettingsStore {
     fn read(&self) -> Result<Option<String>, String>;
     /// Replaces the whole text. An implementation should make the replacement all-or-nothing, so
     /// that a reader sees the old or the new file and never half of one.
-    // At this commit the Linux store writes a temporary file and renames it over the target
+    // The Linux store writes a temporary file and renames it over the target
     // (src/platform/linux/config_store.rs).
     fn write(&self, text: &str) -> Result<(), String>;
 }

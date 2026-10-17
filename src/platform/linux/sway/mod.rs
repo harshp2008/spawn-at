@@ -11,8 +11,22 @@
 //! The driver is reached only by `SPAWN_AT_BACKEND=sway`; no environment selects it on its own.
 //!
 //! Placement is event driven: `arm` subscribes to `window` events before the application starts,
-//! `post_spawn` waits for the window and sends one chained command. Sway cannot hold a window
-//! invisible, so it may show one frame at its tiled position first (`reveal_control` is false).
+//! `post_spawn` waits for the window and sends a chained command (floating, size, position),
+//! followed by correction and focus requests where needed (see `place.rs`). This driver does not
+//! hide the window, so it may show a frame at its tiled position first (`reveal_control` is
+//! false); whether that happens was not measured (`docs/DESIGN_SWAY.md`, section 5).
+//!
+//! Status: experimental, tested only on a private headless Sway 1.9 and only with
+//! `SPAWN_AT_BACKEND=sway` (the harness is `scripts/sway-headless.sh`; it ran with the repo's own
+//! fixture window as the only client). XWayland windows, other Sway versions and i3 are not
+//! verified.
+//!
+//! What is not implemented here: pointer position (`get_cursor_position` is the trait default and
+//! returns `UnsupportedCapability`; `spawn` turns that into `(0, 0)` for a cursor anchor, whereas
+//! `query pointer` and `transform` with a cursor anchor report the error), `move_window`,
+//! `set_window_state` (maximize, minimize) and `defocus_window`; those are trait defaults that
+//! return `UnsupportedCapability`. Nor is a multi-entry `Batch`: `post_spawn` places only the
+//! first entry and ignores the rest without a message.
 
 pub mod client;
 pub mod command;
@@ -37,7 +51,7 @@ use std::sync::Mutex;
 
 /// The Sway driver: every call opens its own short connection to `$SWAYSOCK` (the way the X11
 /// driver connects per call). The only state is the event subscription `arm` leaves for
-/// `post_spawn`.
+/// `post_spawn`; a second `arm` replaces it (the first connection is dropped).
 pub struct SwayDriver {
     socket: PathBuf,
     pending: Mutex<Option<Pending>>,
@@ -86,7 +100,8 @@ fn to_error(e: String) -> DriverError {
     DriverError::IpcError(e)
 }
 
-/// `GET_OUTPUTS` and `GET_WORKSPACES` as the monitor layout.
+/// `GET_OUTPUTS` and `GET_WORKSPACES` as the monitor layout (logical pixels). Blocking: opens its
+/// own connection. Errors: `IpcError` for the connection, a request or unparsable JSON.
 pub fn fetch_layout(socket: &Path) -> Result<MonitorLayout, DriverError> {
     let mut client = Client::connect(socket)?;
     let outputs =
@@ -96,7 +111,8 @@ pub fn fetch_layout(socket: &Path) -> Result<MonitorLayout, DriverError> {
     Ok(types::layout_from(&outputs, &workspaces))
 }
 
-/// `GET_TREE` and `GET_OUTPUTS` as the window list.
+/// `GET_TREE` and `GET_OUTPUTS` as the window list (see `types::windows_from_tree`). Blocking:
+/// opens its own connection. Errors as for `fetch_layout`.
 pub fn fetch_windows(socket: &Path) -> Result<Vec<WindowMetadata>, DriverError> {
     let mut client = Client::connect(socket)?;
     let outputs =
@@ -115,7 +131,10 @@ impl Driver for SwayDriver {
         Ok(Armed::default())
     }
 
-    /// Drops the subscription (best-effort, idempotent).
+    /// Drops the subscription `arm` left; `Ok(true)` if there was one. `token` is ignored. Never
+    /// fails.
+    // `LinuxBackend` does not forward `disarm` (grep -n "fn disarm" src/platform/linux/mod.rs), so
+    // the spawn command does not reach this function.
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
         Ok(self.pending.lock().unwrap().take().is_some())
     }
@@ -217,7 +236,12 @@ impl CompositorBackend for SwayDriver {
     }
 
     /// Waits for the window of the process just launched (events from the subscription `arm`
-    /// opened) and places the first entry of the batch on it.
+    /// opened) and places the first entry of the batch on it. Waits up to 5 s
+    /// (`place::WINDOW_WAIT`). An empty batch returns `Ok` at once.
+    ///
+    /// Errors: `IpcError` when called without a prior `arm`; `TargetNotFound` when no window
+    /// matched in time (the application keeps running, unplaced); and the errors of
+    /// `place::place_window`. The subscription is consumed whether or not it succeeds.
     async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
         let Some(entry) = batch.entries.first().cloned() else {
             return Ok(());

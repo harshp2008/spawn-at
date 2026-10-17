@@ -3,6 +3,12 @@
 //! It listens on a unix socket in a temporary directory, answers each request with the next
 //! payload scripted for its type (the last one repeats), records every request, and after a
 //! `SUBSCRIBE` pushes the scripted events on that connection. No Sway is involved.
+//!
+//! What it does not do: it does not parse a request payload (so `RUN_COMMAND` always gets the
+//! scripted reply, whatever the command), it does not change its tree after a command, and a
+//! request type with no scripted reply gets `[]`. Reply queues are shared by all connections;
+//! the events are pushed to every connection that subscribes. It is not a statement about how
+//! a real Sway behaves; that is in `docs/DESIGN_SWAY.md`.
 
 use super::ipc::{self, MessageType, EVENT_WINDOW};
 use std::collections::HashMap;
@@ -25,6 +31,7 @@ pub struct Script {
 }
 
 impl Script {
+    /// Adds a reply for `kind`; replies for one type are served in the order added.
     pub fn reply(mut self, kind: MessageType, payload: &[u8]) -> Self {
         self.replies
             .entry(kind as u32)
@@ -33,13 +40,17 @@ impl Script {
         self
     }
 
+    /// Adds a `window` event payload, sent `after` the previous event (or the subscribe reply).
+    /// The delay sleeps the serving thread of that connection, so it answers nothing else meanwhile.
     pub fn event(mut self, after: Duration, payload: &str) -> Self {
         self.events.push((after, payload.as_bytes().to_vec()));
         self
     }
 }
 
+/// A running fake. Dropping it stops the accept loop and removes the socket file.
 pub struct FakeSway {
+    /// The socket path: `<temp dir>/spawn-at-fake-sway-<pid>-<n>.sock`.
     pub path: PathBuf,
     requests: Arc<Mutex<Vec<(u32, String)>>>,
     stop: Arc<AtomicBool>,
@@ -48,6 +59,8 @@ pub struct FakeSway {
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 impl FakeSway {
+    /// Binds a new socket and serves `script` on a background thread, one thread per connection.
+    /// Panics if the socket cannot be bound.
     pub fn start(script: Script) -> FakeSway {
         let path = std::env::temp_dir().join(format!(
             "spawn-at-fake-sway-{}-{}.sock",

@@ -4,6 +4,17 @@
 //! - `atoms`: X11 atom manager and diagnostic logging macros.
 //! - `session`: Dedicated X11 connection, window queries, and basic EWMH operations.
 //! - `interception`: Spawn interception event loop and geometry negotiation.
+//!
+//! [`X11Driver`] is the backend for an X11 session and, through XWayland, for the X11 windows of
+//! a Wayland session. It is chosen by `registry.rs` when GNOME is not available, and when
+//! `SPAWN_AT_BACKEND=x11` forces it. Every method opens its own `X11Session` inside
+//! `spawn_blocking` and keeps no state. Placement happens in `post_spawn`, after the program has
+//! started; `arm` only prepares the launch environment. Under XWayland the driver sees only
+//! XWayland windows. Flash measurements for X11 and XWayland windows are in `docs/TEST_LOG.md`
+//! (sections 6.15 and 6.17).
+//!
+//! It must not name a Wayland compositor. Most actions are EWMH client messages whose result is
+//! not read back, so `Ok` means the request was sent, not that the window manager obeyed.
 
 pub mod atoms;
 pub mod interception;
@@ -23,17 +34,22 @@ use x11rb::protocol::xproto::{
     ClientMessageEvent, ConnectionExt as _, EventMask, InputFocus, Window,
 };
 
-/// Resolves a full-screen bounding rectangle from placement parameters and actual/target dimensions.
+/// The rectangle `params` give for a window of `win_w` x `win_h` pixels; a call to
+/// `spawn_at_core::geometry::calculate_rect_from_placement`, kept so the X11 files and their
+/// tests have one local name for it. Pure.
 pub fn calculate_rect_from_placement(params: &PlacementParams, win_w: u32, win_h: u32) -> Rect {
     spawn_at_core::geometry::calculate_rect_from_placement(params, win_w, win_h)
 }
 
-/// Native X11 Compositor Driver implementing `Driver` and `CompositorBackend`.
+/// The X11 driver; a unit struct with no state.
 pub struct X11Driver;
 
 #[async_trait::async_trait]
 impl Driver for X11Driver {
-    /// Arms launch environment variables (`DESKTOP_STARTUP_ID`, `XDG_ACTIVATION_TOKEN`).
+    /// Returns the launch environment only: `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`, both
+    /// set to each entry's `key`, one pair per entry; `token` is the last entry's key. Nothing is
+    /// sent to the X server and it never fails. The window is found later by `post_spawn`, which
+    /// matches `_NET_STARTUP_ID` against the first entry's key among other rules.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
         let mut launch_env = Vec::new();
         let mut armed_token = None;
@@ -48,7 +64,9 @@ impl Driver for X11Driver {
         })
     }
 
-    /// Disarm is a no-op on X11 as startup IDs are handled statelessly.
+    /// Does nothing (there is nothing registered to remove) and returns `Ok(true)`, which here
+    /// does not mean something was disarmed. `LinuxBackend` does not forward `disarm` anyway
+    /// (grep -n "fn disarm" src/platform/linux/mod.rs).
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
         Ok(true)
     }
@@ -83,7 +101,8 @@ impl CompositorBackend for X11Driver {
         crate::platform::linux::xdg::resolve_linux_app_id(bin, explicit_class)
     }
 
-    /// Queries pointer position natively from the X11 root window.
+    /// Pointer position in root coordinates (pixels) from `QueryPointer` on a new connection.
+    /// Errors: `Execution` if the connection or the query fails.
     async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError> {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
@@ -103,7 +122,7 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Queries monitor rectangles using RANDR extension protocol.
+    /// Monitor rectangles (see `X11Session::fetch_monitors` for the fallbacks).
     async fn get_monitors(&self) -> Result<Vec<Rect>, DriverError> {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
@@ -113,7 +132,7 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Queries usable desktop workareas using `_NET_WORKAREA`.
+    /// Work areas from `_NET_WORKAREA`, else the monitors (see `X11Session::fetch_workareas`).
     async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
@@ -123,7 +142,7 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Queries active managed windows on the X11 server.
+    /// The windows in `_NET_CLIENT_LIST` (see `X11Session::fetch_windows`).
     async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
@@ -133,7 +152,8 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Queries monitor layout: screen rectangles from RANDR and approximate per-monitor work areas from _NET_WORKAREA.
+    /// Monitor layout: screen rectangles, and per-monitor work areas that are an approximation
+    /// derived from `_NET_WORKAREA` (see `X11Session::fetch_layout`).
     async fn get_layout(&self) -> Result<MonitorLayout, DriverError> {
         tokio::task::spawn_blocking(|| {
             let session = X11Session::connect()?;
@@ -143,7 +163,10 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Repositions and resizes a target window according to placement parameters.
+    /// Moves and resizes the target window to the rectangle `params` give for a window of
+    /// `current_w` x `current_h` pixels. The size is always sent, also when `params` have none
+    /// (it is then the current size). Errors: `TargetNotFound` for an unknown target; the move
+    /// itself reports no refusal (see `X11Session::move_resize`).
     async fn transform_window(
         &self,
         target_id: &str,
@@ -193,7 +216,12 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Modifies window state via EWMH `_NET_WM_STATE` and ICCCM `WM_CHANGE_STATE`.
+    /// Sends the state change as client messages to the root window: maximize and restore add
+    /// or remove both `_NET_WM_STATE_MAXIMIZED_*` atoms (restore also maps the window),
+    /// minimize sends `WM_CHANGE_STATE` (iconic) and a `_NET_WM_STATE` add of `_HIDDEN`, and
+    /// unminimize maps and activates the window. The results of the sends are ignored; only
+    /// the target lookup, the activation and the flush can fail. Whether a window manager
+    /// honours the `_HIDDEN` add from a client is not verified.
     async fn set_window_state(
         &self,
         target_id: &str,
@@ -287,7 +315,8 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Gives input focus to the specified target window via `_NET_ACTIVE_WINDOW`.
+    /// Activates the target window (`X11Session::activate_window`: `_NET_ACTIVE_WINDOW` plus
+    /// `SetInputFocus`).
     async fn focus_window(&self, target_id: &str) -> Result<(), DriverError> {
         let target_id = target_id.to_string();
         tokio::task::spawn_blocking(move || {
@@ -299,7 +328,11 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Evicts focus from the target window to desktop, previous window, or destination.
+    /// Moves input focus away from the target. `mode` `"desktop"` sets the focus to the root
+    /// window; otherwise a non-empty `destination` that resolves is activated (and the root gets
+    /// the focus if it does not resolve); with no destination the first window of
+    /// `_NET_CLIENT_LIST` other than the target is activated, and the root gets the focus if
+    /// there is none. The target must resolve first (`TargetNotFound` otherwise).
     async fn defocus_window(
         &self,
         target_id: &str,
@@ -359,7 +392,9 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Requests graceful window closure via `_NET_CLOSE_WINDOW`.
+    /// Sends `_NET_CLOSE_WINDOW` (timestamp `CURRENT_TIME`, source indication 2) to the root
+    /// window: a close request, not a kill. Errors: `TargetNotFound`, or `Execution` if the send
+    /// or the flush fails; whether the window closed is not checked.
     async fn close_window(&self, target_id: &str) -> Result<(), DriverError> {
         let target_id = target_id.to_string();
         tokio::task::spawn_blocking(move || {
@@ -390,7 +425,9 @@ impl CompositorBackend for X11Driver {
         .map_err(|e| DriverError::Execution(e.into()))?
     }
 
-    /// Post-spawn interception hook implementing zero-flicker X11 placement.
+    /// Finds the new window and places it (`X11Session::handle_spawn_interception`): waits up to
+    /// 5 s to find it and up to 3 s for it to map, so the call can block that long. Whether the
+    /// result is flicker-free is not claimed here; see the module header.
     async fn post_spawn(&self, child_pid: u32, batch: &Batch) -> Result<(), DriverError> {
         let batch = batch.clone();
         tokio::task::spawn_blocking(move || {
