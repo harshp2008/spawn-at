@@ -79,8 +79,8 @@ spawn-at spawn --anchor cursor --pivot center --size 400 500 gnome-calculator
 # Scratchpad terminal pinned to the top-right
 spawn-at spawn --anchor top-right --pivot top-right --size 800 500 -m 20 alacritty
 
-# Dashboard in the corner (`--no-focus` is accepted on `spawn` but currently has no effect)
-spawn-at spawn --anchor bottom-right --size 600 350 -m 16 --no-focus btop
+# Dashboard in the corner
+spawn-at spawn --anchor bottom-right --size 600 350 -m 16 btop
 ```
 
 Bind any of these to a GNOME custom shortcut and you have instant floating tools.

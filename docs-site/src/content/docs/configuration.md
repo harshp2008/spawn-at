@@ -81,6 +81,27 @@ login autostart entry.
   when it saves.
 - `spawn-at uninstall` and `install --clean-install` never delete this file.
 
+## Hidden flags for one run
+
+`spawn` has two flags that `--help` does not list (`hide = true`, `src/cli/args.rs:259-268`). The
+code comment calls them developer switches for A/B runs in the same login. They exist for
+comparing wait rules, not for daily use; the settings above are the supported way.
+
+| Flag | Value | Effect for that one `spawn` | Source |
+| :--- | :--- | :--- | :--- |
+| `--wait-strategy` | `auto`, `legacy` or `ready-wait` | The same choice as `wait.strategy`, for this spawn only | `src/cli/args.rs:259-263` |
+| `--wait-cap-ms` | `1` to `1500` | The same choice as `wait.cap_ms`, for this spawn only | `args.rs:265-268` |
+
+Both are read as text so that a bad value does not fail the spawn: it is ignored with a warning
+(`args.rs:259-268`). The warning for a bad strategy, as recorded when it was tried, reads
+`[spawn-at] WARNING: ignoring --wait-strategy '<value>' (expected auto, legacy or ready-wait)` and
+the spawn goes on with the default (`docs/TEST_LOG.md` section 6.30). The exact warning for a bad
+cap was not recorded.
+
+`spawn-at config`, `config show` and `config get` take the same two flags, also hidden
+(`args.rs:709-716`), to show what a spawn with them would use; the source column then says `flag`.
+Their values are not stored by anything.
+
 ## On a slow or busy machine
 
 - Windows that still appear at the wrong size or jump just after they appear: raise `wait.cap_ms`

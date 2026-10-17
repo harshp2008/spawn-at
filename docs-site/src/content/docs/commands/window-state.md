@@ -7,12 +7,16 @@ These commands act on a window that is already open. Each takes a window selecto
 
 | Command | What it does |
 | :--- | :--- |
-| `focus` | Raises and activates a window; unminimizes it if needed |
-| `defocus` | Takes keyboard focus away from a window |
-| `maximize` | Maximizes |
-| `minimize` | Minimizes |
+| `focus` (aliases: `raise`, `activate`) | Raises and activates a window; unminimizes it if needed |
+| `defocus` (aliases: `unfocus`, `blur`) | Takes keyboard focus away from a window |
+| `maximize` (alias: `maximise`) | Maximizes |
+| `minimize` (alias: `minimise`) | Minimizes |
 | `restore` | Unmaximizes and unminimizes (aliases: `unmaximize`, `unmaximise`, `unminimize`, `unminimise`) |
 | `close` | Asks the window to close gracefully |
+
+The aliases are accepted in place of the command name and are not shown in `spawn-at --help`
+(`src/cli/mod.rs:82-94`; `test_lifecycle_and_focus_subcommands_parsing` in `src/cli/tests.rs:514`
+parses `raise` and `activate` as `focus`).
 
 ```bash
 spawn-at focus --class org.gnome.Calculator
