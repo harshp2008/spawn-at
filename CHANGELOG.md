@@ -6,6 +6,13 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0-beta.6] - 2026-10-17
+
+Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-beta.4 and 0.2.0-beta.5 (`git diff 2e64085..main -- assets` is empty), and GNOME Wayland placement behaves as before. One change is visible to users: the PATH advice that the installer prints. Everything else since 0.2.0-beta.5 is documentation, test counts and this release's version metadata. See
+[docs/RELEASE_NOTES_0.2.0-beta.6.md](docs/RELEASE_NOTES_0.2.0-beta.6.md) for what to expect and what is not verified.
+
+### Changed
+
 - Installer: the PATH advice is now idempotent and mentions logging out; it no longer suggests appending to a shell file.
 
 ## [0.2.0-beta.5] - 2026-10-17
