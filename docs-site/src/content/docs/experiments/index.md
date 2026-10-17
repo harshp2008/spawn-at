@@ -39,6 +39,15 @@ repository either.
 | [6.15](/spawn-at/experiments/6-15-flash-aware-verdict/) | Flash-aware verdict (harness) | The extension cannot see a slow client's late paint |
 | [6.16](/spawn-at/experiments/6-16-flash-numeric-headline/) | Flash: numeric headline and visibility label | 19 of 20 numeric flashes; model 55 to 57% against about 70% by eye |
 
+## The ready-wait (2026-10-13)
+
+| ID | Experiment | Verdict |
+| :--- | :--- | :--- |
+| [6.17](/spawn-at/experiments/6-17-flash-baseline/) | Flash baseline before the ready-wait change | Baseline: idle 0 of 80; loaded 15 of 20; XWayland 1 of 10 |
+| [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/) | Ready-wait: live validation | Criteria 2 and 3 not met, 4 not shown |
+| [6.19](/spawn-at/experiments/6-19-ready-wait-abc/) | Same-session A/B/C with the override | Cap 250 recommended; B and C not separable |
+| [6.20](/spawn-at/experiments/6-20-why-b-and-c-still-flash/) | Why B and C still flash under load | `reached` flashes are a late stamp; B timeouts are real |
+
 ## X11 and XWayland investigation (2026-10-14)
 
 The question was how to tell that an X11 client has painted at its new size. The summary table is on
