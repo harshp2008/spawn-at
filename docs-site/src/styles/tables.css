@@ -1,0 +1,25 @@
+/* Table layout for the markdown content area. Starlight sets `display: block; overflow: auto` on
+   every table, so a table with short cells shrinks to its content and sits at the left edge while
+   one with long text fills the column. These rules make both centered: the table is as wide as its
+   content, never wider than the column, wraps long cell text inside the column, and scrolls inside
+   its own box when a row cannot wrap (a long unbroken path or flag). Colors and borders are left to
+   Starlight and custom.css; markdown column alignment (`align` attribute) is not touched. */
+.sl-markdown-content table:not(:where(.not-content *)) {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+
+/* Starlight drops the padding on the outer edge of the first and last column, which looks lopsided
+   once the table is centered. The same padding on every cell keeps a 2rem gap between columns and
+   the same inset on both sides. */
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  padding: 0.5rem 1rem;
+  overflow-wrap: break-word;
+}
+.sl-markdown-content :is(th:first-child, td:first-child):not(:where(.not-content *)) {
+  padding-inline-start: 1rem;
+}
+.sl-markdown-content :is(th:last-child, td:last-child):not(:where(.not-content *)) {
+  padding-inline-end: 1rem;
+}

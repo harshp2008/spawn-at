@@ -91,6 +91,20 @@ prose into an en dash and `...` into an ellipsis. `docs-check-html` fails if a d
 of a word appears in the built text. Write flags and paths in backticks anyway, and write the long form
 of a flag (`--margin-top`) the way `--help` prints it.
 
+## Tables
+
+The site style (`src/styles/tables.css`) centers every table and makes it as wide as its content, up
+to the width of the column; a table that is too wide scrolls inside its own box. Keep header cells
+short, because a header never wraps.
+
+## Sources section style
+
+The site style (`src/styles/custom.css`) shows the `## Sources` heading and its list smaller and
+muted, under a thin rule. The heading and the list stay in the page source and `cargo xtask
+docs-check-src` still requires them; the style only changes how they look. The list is not
+collapsed, because the site's Markdown processor does not run rehype plugins without a new
+dependency.
+
 ## Generated and hand-written pages
 
 - The CLI reference (`reference/spawn-at*.md`) is generated from the built binary's `--help` at build time
