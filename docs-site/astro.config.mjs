@@ -74,6 +74,10 @@ export default defineConfig({
           collapsed: true,
           items: [
             { slug: 'experiments', label: 'Index' },
+            'experiments/6-10-placement-resize-specs',
+            'experiments/6-11-late-resize-fix-live',
+            'experiments/6-11-1-final-state-oracle',
+            'experiments/6-12-why-revealed-at-pre-resize-size',
             'experiments/6-25a-window-ping',
             'experiments/6-25b-capture-rig',
             'experiments/6-25c-x11-hold-damage-built',

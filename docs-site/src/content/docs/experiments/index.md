@@ -21,6 +21,15 @@ gives and do not infer a version from it.
 repository. The throwaway clients, watchers and shim used in the later X11 experiments are not in the
 repository either.
 
+## GNOME placement and the late resize (2026-10-12)
+
+| ID | Experiment | Verdict |
+| :--- | :--- | :--- |
+| [6.10](/spawn-at/experiments/6-10-placement-resize-specs/) | Placement resize specs | 29.7% and 99.4% in two isolated batches; late-resize bug |
+| [6.11](/spawn-at/experiments/6-11-late-resize-fix-live/) | Live results after the late-resize fix | Idle 100%; loaded 66% on the printed rectangle |
+| [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/) | Final-state oracle and re-measure | 0 of 640 fail on the final rectangle; stale printed rectangle remains |
+| [6.12](/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/) | Why the window is revealed at its old size | Mechanism found; "accept" recommended; no fix built |
+
 ## X11 and XWayland investigation (2026-10-14)
 
 The question was how to tell that an X11 client has painted at its new size. The summary table is on
