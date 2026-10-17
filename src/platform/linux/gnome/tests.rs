@@ -1,3 +1,14 @@
+//! Unit tests of the GNOME backend: the install and uninstall flag defaults, the Shell version
+//! parser, the embedded extension file lists against `assets/gnome`, the legacy and modern D-Bus
+//! XML, and `GnomeWaylandDriver` against stub services on the session bus (close, layout,
+//! windows, claims, capabilities, provisioner).
+//!
+//! The stubs implement only the methods a test needs, on a connection the test opened with
+//! `Connection::session()` (so a session bus must be reachable), and each proxy is aimed at that
+//! connection's unique name, so the real `org.gnome.Shell` service is never called. `test_is_wayland_session` runs the real
+//! `loginctl` and asserts nothing about the result, only that it does not panic. The window
+//! control wrappers are in `tests_control.rs`.
+
 use super::dbus;
 use super::deploy::{EMBEDDED_EXTENSION_FILES_LEGACY, EMBEDDED_EXTENSION_FILES_MODERN};
 use super::detect::{is_wayland_session, parse_gnome_shell_major_version};
