@@ -2,30 +2,25 @@
 title: "6.12 Why the window is revealed at its old size"
 ---
 
-## Title
+Why the window is revealed at its pre-resize size: an investigation (read-only, nothing implemented). The mechanism was found; the log recommends accepting the residual and no fix was built.
 
-Why the window is revealed at its pre-resize size: an investigation (read-only, nothing implemented)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.12. Follows [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/). |
+| **Date** | 2026-10-12. |
+| **Build** | Not recorded: the section gives no commit hash and no version string. The log says no product code changed. It used stored runs from the batch of 6.11.1 ("g3") and new live sampling. |
+| **Verdict** | Decision by the log's own rule (short tail: options B + C; long tail: option E if validated, else accept): the loaded p99 is 150 to 370 ms, option E (a scheduler-aware settle) is not validated, so "D, accept" was the recommendation, with the residual being the post-reveal warning already shown by the verify tool. Simulated cost of a bounded grace: fixing 83 to 130 of the 134 loaded flashes would add 25.9 to 35.1 ms median extra cloak (p95 77.8 to 230 ms) and would break the provisional 100 ms budget on an app that never answers. No fix was implemented. The user stopped the run at about 19:3x; no phase was rerun. |
+| **Raw results** | `scratch/` and `verify-results/` (gitignored); the sampler is not committed. Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.12. Follows [6.11.1](/spawn-at/experiments/6-11-1-final-state-oracle/).
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Not recorded: the section gives no commit hash and no version string. The log says no product code
-changed. It used stored runs from the batch of 6.11.1 ("g3") and new live sampling.
-
-## Question
+**Question**
 
 Why is the window revealed at its pre-resize size, with the app's resize landing after the reveal? The
 log's hypotheses: H1, the 30 ms quiet clock starts at the first sample, not at an answer; H2, a request
 below the app's minimum is slower than a legal one; H3, shrink against grow is the discriminator.
 
-## Setup and environment
+**Setup and environment**
 
 GNOME 46 on Wayland, mutter 46.2. Three data sources: (1) 640 stored runs from 6.11.1 (320 idle, 320
 loaded); (2) live sampling with a throwaway Rust program in `scratch/` that read `/proc/<pid>/stat`
@@ -34,16 +29,12 @@ and `schedstat` about every 1 ms, with the clock tied to the journal by 16 `SetL
 idle (84 runs), 1 busy thread (32), 11 threads (120), 22 threads (120). Real apps, 3 runs each, idle and
 11 threads: `gnome-text-editor` (30x20), `nautilus`, `gnome-terminal` and `firefox` (snap).
 
-## Commands run
+**Commands run**
 
 Exact command lines not recorded. By the log: `gjs` introspection of the `Meta-14` typelib and
 `Meta-14.gir`; the `/proc` sampler; `burn-cpu` for the thread levels; `gnome-shell --headless
 --wayland --no-x11 --wayland-display=NAME --virtual-monitor 1920x1080` inside `dbus-run-session` for
 the nested-shell trial.
-
-## Raw result location
-
-`scratch/` and `verify-results/` (gitignored); the sampler is not committed. Not in the repository.
 
 ## Result
 
@@ -81,16 +72,6 @@ the nested-shell trial.
   for a while and is back to the original 25-entry list, compared by eye against the value captured at
   the start. The log says its author did not restore it and that how it came back is not established.
   The nested shell itself started in about 1 s but the extension was not shown to load there.
-
-## Verdict
-
-Decision by the log's own rule (short tail: options B + C; long tail: option E if validated, else
-accept): the loaded p99 is 150 to 370 ms, option E (a scheduler-aware settle) is not validated, so
-"D, accept" was the recommendation, with the residual being the post-reveal warning already shown by
-the verify tool. Simulated cost of a bounded grace: fixing 83 to 130 of the 134 loaded flashes would
-add 25.9 to 35.1 ms median extra cloak (p95 77.8 to 230 ms) and would break the provisional 100 ms
-budget on an app that never answers. No fix was implemented. The user stopped the run at about
-19:3x; no phase was rerun.
 
 ## Not verified
 

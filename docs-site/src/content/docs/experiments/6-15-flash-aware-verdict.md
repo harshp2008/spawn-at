@@ -2,32 +2,24 @@
 title: "6.15 Flash-aware verdict"
 ---
 
-## Title
+Flash-aware verdict: audit, ground truth from the client, validation on X11 (harness only). The harness now judges flashes from the client's own paint events; the extension cannot see a slow client's late paint.
 
-Flash-aware verdict: audit, ground truth from the client, validation on X11 (harness only)
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.15. Follows [6.14](/spawn-at/experiments/6-14-mutter-api-and-arrival-wait/); refined by [6.16](/spawn-at/experiments/6-16-flash-numeric-headline/). |
+| **Date** | 2026-10-13. |
+| **Build** | Harness commits `199a6d5` (fixture events), `2abd62e` (detector), `c00ddd6` (runner), `1dc2752` (UI, report, `--strict-flash`), `27a7303` (a fix found by the first live run) and `1da549d` (frame note). Debug `spawn-at` and fixture unless noted (one batch used a release fixture). The version string is not recorded. No extension change; no setting, `/sys`, `/proc` write or nested shell was used. |
+| **Verdict** | PASS/FAIL of placement is unchanged; a pass with a certain flash is shown as "PASS (flash)", and `run --strict-flash` (default off) turns a flashing pass into a failure. The log's finding is that the extension cannot see a slow client's late paint at all. |
+| **Raw results** | Not in the repository (the log's header says raw results and scripts are not). |
 
-## ID
+## What was tested
 
-TEST_LOG 6.15. Follows [6.14](/spawn-at/experiments/6-14-mutter-api-and-arrival-wait/); refined by
-[6.16](/spawn-at/experiments/6-16-flash-numeric-headline/).
-
-## Date
-
-2026-10-13.
-
-## Build
-
-Harness commits `199a6d5` (fixture events), `2abd62e` (detector), `c00ddd6` (runner), `1dc2752` (UI,
-report, `--strict-flash`), `27a7303` (a fix found by the first live run) and `1da549d` (frame note).
-Debug `spawn-at` and fixture unless noted (one batch used a release fixture). The version string is
-not recorded. No extension change; no setting, `/sys`, `/proc` write or nested shell was used.
-
-## Question
+**Question**
 
 What counts as a flash today, and what cannot the existing checks see? Can the test fixture's own
 paint events give a ground truth that the extension's log cannot?
 
-## Setup and environment
+**Setup and environment**
 
 An audit of the signals in the trace analyser and runner. Then a change to `spawn-at-verify`: the
 fixture writes `fixture-<pid>.events` when `SPAWN_AT_FIXTURE_EVENT_DIR` is set (`FIRST_PAINT WxH`,
@@ -43,14 +35,10 @@ Validation on an X11 session (`XDG_SESSION_TYPE=x11`, GNOME Shell 46.0, gjs 1.80
 top-left shrink spec and the control (the fixture with `--paint-delay-ms 400`) were throwaway specs in
 `scratch/`.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run` per spec (the debug build), and `cargo test -p spawn-at-verify --features
 tui,fixture`. Full command lines not recorded.
-
-## Raw result location
-
-Not in the repository (the log's header says raw results and scripts are not).
 
 ## Result
 
@@ -82,12 +70,6 @@ Not in the repository (the log's header says raw results and scripts are not).
   median / p75 / p90 / max), all `AT_TARGET`, with no timer, wait or log line in between. The log's
   reading (a hypothesis, not profiled) is that native code that emitted the signal keeps running for 9
   to 24 ms before control reaches the main loop.
-
-## Verdict
-
-PASS/FAIL of placement is unchanged; a pass with a certain flash is shown as "PASS (flash)", and
-`run --strict-flash` (default off) turns a flashing pass into a failure. The log's finding is that the
-extension cannot see a slow client's late paint at all.
 
 ## Not verified
 

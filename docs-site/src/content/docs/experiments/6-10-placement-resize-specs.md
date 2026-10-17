@@ -2,30 +2,25 @@
 title: "6.10 Placement resize specs"
 ---
 
-## Title
+Placement resize specs: the spec set, the loader rule and live results. The log reports no single pass rate for these placement specs, because two isolated batches gave very different results.
 
-Placement resize specs: the spec set, the loader rule and live results
+| Field | Value |
+| :-- | :-- |
+| **ID** | TEST_LOG 6.10. |
+| **Date** | 2026-10-12. |
+| **Build** | Tag: none recorded. Commit: not recorded in this section. The section says the first batch "started minutes after `cargo build`"; no hash and no `spawn-at --version` output is given. |
+| **Verdict** | The log gives no single verdict. It reports that there is no single "isolated" rate, because 29.7% and 99.4% were both measured on different minutes, and that failures are reported as they came, with no expectation changed. |
+| **Raw results** | Report files of the runs were read from "the 16 stored `report.json` files". The log's own header says raw results and scripts are not in the repository. Not in the repository. |
 
-## ID
+## What was tested
 
-TEST_LOG 6.10.
-
-## Date
-
-2026-10-12.
-
-## Build
-
-Tag: none recorded. Commit: not recorded in this section. The section says the first batch "started
-minutes after `cargo build`"; no hash and no `spawn-at --version` output is given.
-
-## Question
+**Question**
 
 Does `spawn-at` place a window correctly when the requested size is smaller than, larger than, or
 below the application's own minimum size, for several anchors? The log compared two regimes:
 isolated runs and a `--repeat 20` batch.
 
-## Setup and environment
+**Setup and environment**
 
 17 specs in the `placement` category, written for `spawn-at-verify`. Every spec states `margin = 16` and
 its fixture minimum size (`--min-width`, `--min-height`); the expected rectangle comes from an
@@ -45,15 +40,10 @@ Regime (a), isolated: 20 separate `spawn-at-verify run --glob placement/<id>` in
 starts with `verify.` and running `fixture` processes. Regime (b): `--repeat 20`, earlier windows
 alive until the end.
 
-## Commands run
+**Commands run**
 
 `spawn-at-verify run --glob placement/<id>` (isolated) and with `--repeat 20`; `spawn-at query
 windows --json` and `ps -eo comm=` for the isolation check. Full command lines not recorded.
-
-## Raw result location
-
-Report files of the runs were read from "the 16 stored `report.json` files". The log's own header says
-raw results and scripts are not in the repository. Not in the repository.
 
 ## Result
 
@@ -83,12 +73,6 @@ raw results and scripts are not in the repository. Not in the repository.
   average (10.3 and 9.7 ms against 8.3 ms). `center-1200x800` via `run` passed 20 of 20, mean 28.1 ms,
   the closest approach to the 30 ms limit of any measured group.
 - Recorded only, not asserted: the raised flags (`size_raised`, `raised_w`, `raised_h`).
-
-## Verdict
-
-The log gives no single verdict. It reports that there is no single "isolated" rate, because 29.7%
-and 99.4% were both measured on different minutes, and that failures are reported as they came, with
-no expectation changed.
 
 ## Not verified
 
