@@ -1,0 +1,68 @@
+# spawn-at 0.2.0-beta.6: release notes
+
+This is a **prerelease** (beta). **On GNOME Wayland nothing visible changes.** Window placement, the ready-wait policy and the GNOME extension (`assets/gnome/`) are byte-identical to 0.2.0-beta.4 and 0.2.0-beta.5 (`git diff 2e64085..main -- assets` is empty; 2e64085 is the commit the v0.2.0-beta.4 tag points at). GNOME Wayland was last verified live by the maintainer on GNOME 46, Wayland, one monitor, the only configuration ever tested; no live run was made while preparing this release. The known limits of beta.1 to beta.5 still apply: read [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md), "What is measured, and the caveats" and "What is untested".
+
+## What is new since beta.5
+
+- **The PATH advice printed by the installer is idempotent and mentions logging out.** It used to print `echo 'export PATH=...' >> ~/.bashrc`, which appends another line each time it is followed. It no longer suggests appending to a file. It now prints an `export PATH=...` line for the current terminal, and a guarded `case ":$PATH:"` line with the exact install directory to add with an editor to `~/.profile`, `~/.bashrc` or `~/.zshrc` ("safe to run more than once"). Only when the directory is `<home>/.local/bin` does it add a note that on Debian and Ubuntu `~/.profile` adds that directory once it exists, so logging out and back in (or `. ~/.profile`) is usually enough. A directory with a space or a quote is single-quoted. It is printed only when the install directory is not already in `PATH`. This is the only change in the `spawn-at` binary (`src/platform/installer.rs`); 4 unit tests were added for it (447 `spawn-at` tests, up from 443).
+- **Nothing else.** The rest of the commits since beta.5 are documentation, the test-count tables and this release's version metadata. No command-line flag, config key or D-Bus member was added or removed, and `install.sh` changes only the example tag in two error hints.
+
+Details in [CHANGELOG.md](../CHANGELOG.md).
+
+## Known limits
+
+Unchanged from [beta.5](RELEASE_NOTES_0.2.0-beta.5.md). The same content, longer, is on the docs site page "Known limits". Everything below was read from the code, not run on a live session unless stated.
+
+- **`spawn` exits 0 when no window appears**, on GNOME, Sway and X11. It exits non-zero only for an empty command, invalid options, `--area screen` without the helper it needs, or a program that cannot be started. `spawn --json` then prints `window_id` `null` with zero position and size.
+- **The state commands exit 0 when the state does not change.** `focus`, `defocus`, `maximize`, `minimize`, `restore` and `transform` wait up to 2 seconds, drop the result and exit 0. `defocus` prints `Defocused window ...` either way. `close` is the exception: it fails with `did not close within ...` after 1500 ms. This is pinned by tests and is not fixed, because it would change an exit code.
+- **`install` and `uninstall` banners.** After a non-zero `gnome-extensions enable`, `install` prints a note and then `successfully installed and enabled`. `uninstall` ignores the result of `gnome-extensions disable` and always prints `successfully uninstalled`.
+- **A stale registration after a failed `spawn` on GNOME.** The extension's disarm call is never sent on Linux. A registration with a name lasts 15 seconds, a wildcard one 1.2 seconds, and in that time an unrelated window that the extension matches to the name can be placed.
+- **Matching is not strict.** `spawn --class` and the name `spawn` derives from the command match the whole class, its last dot part, hyphenated tails, daemon suffixes and, loosely, any title containing the name. The GNOME extension accepts a name that contains, or is contained in, a window identifier. Selectors on existing windows (`-c`, `-t`) are the whole class or last dot part, and a title substring.
+- **"Reached" geometry is approximate.** Position within 1 px; size at least the request; after 300 ms `spawn` reports the last rectangle it read.
+- **Sway is experimental**, opt-in only (`SPAWN_AT_BACKEND=sway`), and tested only on a private headless Sway 1.9 with the repo's own test window. `--anchor cursor` and `--monitor cursor` use (0, 0) in `spawn` without a message and fail in `transform`; `defocus`, `maximize`, `minimize`, `restore` and `query pointer` are unsupported; the window can flash for one frame.
+- **X11 and XWayland can flicker.** The native X11 driver has no cloak, and no test talks to an X server. On XWayland the project's test window flashed in 1, 9 and 10 of 10 runs in different logins. See `docs/TEST_LOG.md`, sections 6.16 to 6.18, and the X11 page of the docs site.
+- **GNOME 46 is the only version tested.** Other GNOME versions, more than one monitor, fractional scaling and Qt or Electron apps are untested.
+- **Windows and macOS:** the crate compiles for them in CI; nothing was run there.
+
+## How to install
+
+```bash
+# beta.6 is a prerelease, so --prerelease is needed to pick it as "latest"
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
+
+# or pin this version
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
+```
+
+Without `--prerelease` or `--version`, `install.sh` asks GitHub for the latest stable release, which does not include a prerelease.
+
+## Upgrade notes
+
+- No extension reinstall is needed: no file under `assets/gnome/` changed since beta.4.
+- The only behavior change in the binary is the PATH advice above. Unsupported desktops behave as in beta.5 (an error unless `SPAWN_AT_BACKEND` is set; `SPAWN_AT_BACKEND=x11` keeps the old X11 fallback).
+
+## Tests (this tree)
+
+Measured on 2026-10-17 on the tree this release is prepared from, with the CI commands.
+
+| Suite | Passed |
+| :-- | --: |
+| `spawn-at` | 447 |
+| `spawn-at-core` | 64 |
+| `xtask` | 53 |
+| `spawn-at-verify` (`--features tui,fixture`) | 619, 5 ignored (4 need a live display, 1 needs a private Sway) |
+| Rust total | 1183, 5 ignored |
+| Node (`node --test tests/*.js`) | 204 |
+
+## What was NOT verified
+
+- Everything listed under Known limits as read from the code only.
+- The new PATH advice on a real login: it is covered by unit tests of the text, not by logging out and in on a desktop.
+- GNOME versions other than 46 on Wayland, and X11 sessions with real applications.
+- Real Sway sessions and Sway other than 1.9.
+- Windows and macOS runs.
+- The release workflow on this tag has not run yet.
+
+## How to report a problem
+
+Open an issue at <https://github.com/harshp2008/spawn-at/issues> with your GNOME Shell (or Sway) version, session type, `spawn-at config show`, the exact command, and what was printed.

@@ -47,7 +47,7 @@ earlier use this X11 driver there without a message.
 
 The question was how to tell that an X11 client has painted at its new size. Between 2026-10-13 and
 2026-10-14 several signals were measured on the project's test window (160 runs idle and under
-load for the first table). Nothing from this shipped in any release up to 0.2.0-beta.5.
+load for the first table). Nothing from this shipped in any release up to 0.2.0-beta.6.
 
 | Candidate | Result | Why it fails |
 | :--- | :--- | :--- |

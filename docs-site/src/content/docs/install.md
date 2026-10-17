@@ -57,7 +57,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.5
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0-beta.6
 
 # Remove an existing install first, without asking; your config and settings are kept
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install
