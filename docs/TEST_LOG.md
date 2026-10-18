@@ -1823,3 +1823,82 @@ wl_pointer@20.set_cursor(8857, wl_surface@19, 7, 4)
 - The legacy-rule figures of 6.23 ("26 of 40") and 6.30 ("27 of 40") could include false flashes. Read them as upper bounds. They were not re-measured.
 - The strict-flash run of 2026-10-18 (22 burn threads, 6 of 28 specs failed 5 of 5) was NOT re-run after the fix, so what it shows once the cursor is excluded is not known.
 - Not run live: the fix is covered by unit tests on dump text only.
+
+### 6.37 Strict-flash re-run after the 6.36 fix: default against legacy under load (2026-10-18)
+
+Labels: CONFIRMED = read from the two saved `report.json` files (folders `20261018-073535` and `20261018-074332` under the gitignored `verify-results/`); not verified = not read from them. Docs only; this section was written afterwards from the saved results, nothing was run live for it.
+
+**Runs (CONFIRMED from the reports unless marked).** Both were attended runs of the harness on one machine, built from `244b339` (the merge of the 6.36 fix; `binary_commit: 244b339`, `is_dirty_build: false` in both), with `cargo xtask burn-cpu --threads 22 --seconds 1500` going in another terminal. The first is the default (ready-wait), the second the legacy rule:
+
+```
+target/debug/spawn-at-verify run --suite release-gate --repeat 5 --strict-flash
+target/debug/spawn-at-verify run --suite release-gate --repeat 5 --strict-flash --wait-strategy legacy
+```
+
+Reports were generated at 07:35:35Z and 07:43:32Z. The saved `load_avg_start` / `load_avg_end` (1 minute) are 21.48 / 22.85 for the default run and 23.09 / 23.48 for the legacy run. The owner reported the end values as 22.96 and 23.63; those two figures are not in the saved reports (not verified, probably read at a later moment). The exit codes (0 for the default run, 1 for the legacy run) are also not in the saved reports (not verified). Each report has 36 specs times 5 runs = 180 runs; `cpu_count` 22, GNOME 46, `wayland`, 1 monitor, 60 Hz.
+
+**Where the flash verdict is stored.** In `report.json`, `repeat_runs[].runs[]` holds one record per run (36 specs times 5). Its fields `flash` (boolean), `flash_certain`, `flash_possible`, `flash_events`, `paint_source` (`wire` in 170 of 180 runs, absent in the 10 runs of `placement/invalid-size-zero` and `preflight/binary-head`, which paint no window), `final_status` and `message` give the per-run verdict. Under `--strict-flash` a run with `flash: true` has `final_status: fail` with a message starting `Flash (--strict-flash): ...` (36 of 36 flashed runs in the legacy report; no failed run without a flash). The top-level `results[]` holds one record per spec with the verdict shown in the report (`pass`, `pending`, `flaky`, `fail`). `flash: false` with a non-empty `flash_events` is possible: the default run has 22 such runs, each a `size-change-after-reveal` event with `numeric: false` and a negative lead (the client's commit came 1.6 to 10.4 ms before the reveal), which the harness does not count as a flash.
+
+**Per-spec table (CONFIRMED).** Cells are `flashed / passed / pending` runs out of 5; a flashed run is a failed run, and a run of a `both` spec that did not flash stays `pending` because the human review was not done. Verdict is the `results[]` value.
+
+| Spec | Kind | Default F/P/Pend | Default verdict | Legacy F/P/Pend | Legacy verdict |
+| :-- | :-: | :-: | :-: | :-: | :-: |
+| `cloak/delayed-paint/delay-0` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `cloak/delayed-paint/delay-50` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `cloak/delayed-paint/delay-150` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `cloak/delayed-paint/delay-500` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/bottom-below-min-both` | auto | 0/5/0 | pass | 4/1/0 | flaky |
+| `placement/bottom-left-below-min-both` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/bottom-left-smaller` | auto | 0/5/0 | pass | 2/3/0 | flaky |
+| `placement/bottom-left` | both | 0/0/5 | pending | 0/0/5 | pending |
+| `placement/bottom-right-below-min-both` | both | 0/0/5 | pending | 1/0/4 | flaky |
+| `placement/bottom-right-below-min-height` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/bottom-right-below-min-width` | auto | 0/5/0 | pass | 4/1/0 | flaky |
+| `placement/bottom-right-far-below-min` | auto | 0/5/0 | pass | 2/3/0 | flaky |
+| `placement/bottom-right-larger` | auto | 0/5/0 | pass | 5/0/0 | fail |
+| `placement/bottom-right-minsize-at-min` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/bottom-right-smaller` | both | 0/0/5 | pending | 1/0/4 | flaky |
+| `placement/bottom-right` | both | 0/0/5 | pending | 0/0/5 | pending |
+| `placement/bottom-smaller` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/bottom` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/center-1200x800` | auto | 0/5/0 | pass | 5/0/0 | fail |
+| `placement/center-200x150` | both | 0/0/5 | pending | 1/0/4 | flaky |
+| `placement/center` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/invalid-size-zero` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/left` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/margin-0` | both | 0/0/5 | pending | 0/0/5 | pending |
+| `placement/margin-64` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/right-below-min-both` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/right-smaller` | auto | 0/5/0 | pass | 2/3/0 | flaky |
+| `placement/right` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `placement/top-left-below-min-both` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/top-left-smaller` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/top-left` | both | 0/0/5 | pending | 0/0/5 | pending |
+| `placement/top-right-below-min-both` | auto | 0/5/0 | pass | 1/4/0 | flaky |
+| `placement/top-right-smaller` | auto | 0/5/0 | pass | 2/3/0 | flaky |
+| `placement/top-right` | both | 0/0/5 | pending | 0/0/5 | pending |
+| `placement/top` | auto | 0/5/0 | pass | 0/5/0 | pass |
+| `preflight/binary-head` | auto | 0/5/0 | pass | 0/5/0 | pass |
+
+Spec verdicts: default 28 pass, 8 pending, 0 fail (the report prints Total 36, Passed 28, Failed 0; its qualification block says "8 failed required" and "NOT QUALIFIED", which counts the 8 pending specs, not failures). Legacy 13 pass, 5 pending, 16 flaky, 2 fail, so "Failed 18" is 16 flaky plus 2 fail. The 2 fails are `placement/bottom-right-larger` ("position corrected 1504,764 -> 1104,464 61.2 ms after the reveal; first paint at 800x600 (wire commit) came 62.9 ms after the reveal (content was 400x300)" in the saved message) and `placement/center-1200x800` (53.6 ms and 48.9 ms in its saved message); both flashed in 5 of 5 runs.
+
+**Totals over everything judged (CONFIRMED).** Counted over every run record, 36 specs times 5 = 180 runs per arm.
+
+| Arm | Flashed runs / all runs | Flashed runs / runs with a wire paint | Runs with a certain flash event | Flash events (all kinds) | Run verdicts |
+| :-- | :-: | :-: | :-: | :-: | :-- |
+| Default (ready-wait) | 0 / 180 | 0 / 170 | 0 | 22 (none counted as a flash) | pass 140, pending 40, fail 0 |
+| Legacy | 36 / 180 | 36 / 170 | 26 | 79 | pass 107, pending 37, fail 36 |
+
+The 170 are the runs whose `paint_source` is `wire` (the other 10 paint no window). The 40 (default) and 37 (legacy) pending runs were flash-checked like all others but the human-review part was not judged. Of the 36 legacy flashed runs, 33 are in the 28 `auto` specs' runs (140 runs) and 3 in `both` specs (the other 40 runs, of which 37 are pending); 10 of the 36 had only `possible` events (no `certain` one).
+
+**Comparison with 6.23 and 6.30 (CONFIRMED from the text of those sections).** "26 of 40" (6.23) and "27 of 40" (6.30) are the loaded legacy arm "A", and "0 of 40" the loaded default arm "D", over exactly two specs, `placement/bottom-right-smaller` and `placement/bottom-right-larger`, 20 runs per arm per spec = 40 per arm, under 22 burn threads, with the "numeric wire-time flash" of 6.16 (the reveal came before the client's commit at the final size) and without `--strict-flash` (one `run` per spec and arm, arms rotated). **The new data cannot be matched to that**: it has 5 runs per spec, so the same two specs give 10 runs per arm, not 40; the flash rule printed in the report is the strict one (a position correction or a wrong-size first paint after the reveal); and the paint now comes from the fixed `parse_wire_paints` (6.36). So no "N of 40" is given for the new data and no comparison is made. For the record only, not as a comparison, the same two specs in the new data: legacy 6 of 10 runs flashed (`bottom-right-smaller` 1 of 5, `bottom-right-larger` 5 of 5), default 0 of 10. Whether the harness' `flash` field is the same number as the 6.16 numeric flash in a non-strict run is not verified here.
+
+**What this shows (CONFIRMED, within the scope below).** In these two runs the default rule had no flashed run in 170 runs with a wire paint, and the legacy rule flashed in 36 of 170; 18 of the 36 specs had at least one flashed run (2 in all 5 runs, 16 in 1 to 4). The 36 are counted with the 6.36 fix in place, so they are not cursor-surface artefacts: all 36 flashed legacy runs carry `paint_source: wire`, and the two fail messages name 800x600 and 1200x800 paints, not 24x24.
+
+**Scope (what this does not show).**
+- One machine, one monitor at 60 Hz, GNOME 46 only; native Wayland with the project's own fixture. No other GNOME version, no X11 or XWayland, no real application, no fractional scaling.
+- 22 burn threads (load average about 21 to 24); one pair of runs, 5 repeats per spec. No repeat of the pair, so the run-to-run spread is not known.
+- Judged by Wayland wire time (the client's `wl_surface.commit` from the protocol dump). No screen capture: nothing here says what was visible on screen. `--strict-flash` means a position correction or a wrong-size first paint after the reveal makes the run fail.
+- The PENDING tests (8 specs in the default run, 5 in the legacy run) were not judged by a human, so no claim is made about how those windows looked.
+- Not verified: the exit codes and the two "after" load figures quoted by the owner (see above); the cause of any single legacy flash; that the legacy rule is what 0.1.0 did.
+- Effect on 6.36: its open point (what a strict-flash run shows once the cursor surface is excluded) is answered for this pair of runs: legacy flashes remain, the default has none. The earlier run of 6.36 (6 of 28 specs failed 5 of 5) is a different run and is not compared here.
