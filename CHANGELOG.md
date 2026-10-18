@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-18
+
+Patch release. Since v0.2.0, `git diff v0.2.0..HEAD --stat -- src crates assets scripts install.sh build.rs .github tests` shows changes only in `src` (`config.rs`, `main.rs`, `session.rs`, `update.rs`, `platform/installer.rs`, `platform/linux/gnome/deploy.rs`), `install.sh` and `crates/spawn-at-verify` (the developer tool); `assets` (the GNOME extension), `scripts`, `build.rs`, `.github`, `tests`, `crates/spawn-at-core` and `crates/xtask` are unchanged. See [docs/RELEASE_NOTES_0.2.1.md](docs/RELEASE_NOTES_0.2.1.md) for what to expect and what is not verified.
+
 None of this was run on a live GNOME session. The GNOME extension (`assets/gnome/`) is unchanged.
 
 ### Fixed
@@ -344,7 +348,8 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/harshp2008/spawn-at/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.6...v0.2.0
 [0.2.0-beta.3]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.2...v0.2.0-beta.3
 [0.2.0-beta.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.1...v0.2.0-beta.2
