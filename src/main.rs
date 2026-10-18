@@ -278,8 +278,11 @@ async fn main() {
                 std::process::exit(1);
             }
 
-            // Configure update settings
-            let (channel, notify) = if !args.headless && std::io::stdout().is_terminal() {
+            // Configure update settings. Interactive runs (a terminal, no --headless) choose all
+            // three values and write them. Other runs keep what the file already has unless
+            // --update-channel / --update-notify is given (see `apply_headless_install`).
+            let interactive_update = !args.headless && std::io::stdout().is_terminal();
+            let (channel, notify) = if interactive_update {
                 let ch = if let Some(ref c) = args.update_channel {
                     if crate::update::is_deprecated_channel_alias(c) {
                         crate::ui::block_start();
@@ -310,7 +313,7 @@ async fn main() {
                         .interact();
                     n_sel.unwrap_or(true)
                 };
-                (ch, notif)
+                (Some(ch), Some(notif))
             } else {
                 if args
                     .update_channel
@@ -320,16 +323,25 @@ async fn main() {
                     crate::ui::block_start();
                     println!("{}", crate::update::CHANNEL_ALL_NOTICE);
                 }
-                (
-                    crate::update::channel_to_write(args.update_channel.as_deref()).to_string(),
-                    args.update_notify.unwrap_or(false),
-                )
+                (None, None)
             };
 
             let mut cfg = crate::config::Config::load_or_default();
-            cfg.update.auto_check = true;
-            cfg.update.channel = channel;
-            cfg.update.notify = notify;
+            if interactive_update {
+                cfg.update.auto_check = true;
+                if let Some(channel) = channel {
+                    cfg.update.channel = channel;
+                }
+                if let Some(notify) = notify {
+                    cfg.update.notify = notify;
+                }
+            } else {
+                cfg.update.apply_headless_install(
+                    crate::config::Config::update_keys_present(),
+                    args.update_channel.as_deref(),
+                    args.update_notify,
+                );
+            }
             if let Err(e) = cfg.save() {
                 crate::diagnostics::render_warning(&format!(
                     "Failed to save update configuration: {}",
