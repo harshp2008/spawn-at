@@ -65,7 +65,8 @@ fn call_args<'a>(s: &'a str, name: &str) -> Option<Vec<&'a str>> {
 /// A paint is a `wl_surface.commit` that follows a `wl_surface.attach` of a buffer whose size is
 /// known from `wl_shm_pool.create_buffer`; it is listed when that size differs from the one the
 /// same surface committed before (the first commit with a buffer always is). A commit without an
-/// attach shows the buffer already there and is not a paint. Empty when the text has no
+/// attach shows the buffer already there and is not a paint. When the dump has
+/// `xdg_wm_base.get_xdg_surface`, only the surfaces it names (the windows) count. Empty when the text has no
 /// `TRACE_START` line, because then the dump's clock cannot be related to the monotonic one.
 pub fn parse_wire_paints(text: &str) -> Vec<WirePaint> {
     let mut origin: Option<(u64, u64)> = None;
@@ -86,6 +87,26 @@ pub fn parse_wire_paints(text: &str) -> Vec<WirePaint> {
     let Some((mono0, real_mod_us)) = origin else {
         return Vec::new();
     };
+
+    // Surfaces handed to `xdg_wm_base.get_xdg_surface(new id xdg_surface@N, wl_surface@M)` are the
+    // windows; any other surface in the dump (the 24x24 pointer cursor set by `wl_pointer.set_cursor`)
+    // is not, and its commits after the window's last size change would otherwise be taken as the
+    // paint. A dump with no `get_xdg_surface` at all (a client that is not an xdg toplevel) keeps
+    // counting every surface, as before.
+    let mut windows: Vec<u32> = Vec::new();
+    for line in text.lines() {
+        let Some(body) = line.split_once("-> ").map(|(_, b)| b) else {
+            continue;
+        };
+        if let Some((_, rest)) = object_id(body, "xdg_wm_base") {
+            if let Some(args) = call_args(rest, "get_xdg_surface") {
+                // get_xdg_surface(new id xdg_surface@N, wl_surface@M)
+                if let Some((surface, _)) = args.get(1).and_then(|a| object_id(a, "wl_surface")) {
+                    windows.push(surface);
+                }
+            }
+        }
+    }
 
     let mut sizes: HashMap<u32, (u32, u32)> = HashMap::new();
     let mut pending: HashMap<u32, (u32, u32)> = HashMap::new();
@@ -127,6 +148,9 @@ pub fn parse_wire_paints(text: &str) -> Vec<WirePaint> {
                     }
                 }
             } else if call_args(rest, "commit").is_some() {
+                if !windows.is_empty() && !windows.contains(&surface) {
+                    continue;
+                }
                 let Some(sz) = pending.remove(&surface) else {
                     continue;
                 };
@@ -252,6 +276,69 @@ mod tests {
                 h: 300
             }]
         );
+    }
+
+    /// The window (wl_surface@22, 500x350) and the pointer cursor (wl_surface@19, 24x24) as the
+    /// fixture's dump showed them, with the cursor committing after the window's last commit.
+    const WINDOW_AND_CURSOR: &str = "\
+         [1000000.100]  -> xdg_wm_base@12.get_xdg_surface(new id xdg_surface@23, wl_surface@22)\n\
+         [1000000.110]  -> xdg_surface@23.get_toplevel(new id xdg_toplevel@24)\n\
+         [1000000.200]  -> wl_shm_pool@38.create_buffer(new id wl_buffer@36, 0, 500, 350, 2000, 1)\n\
+         [1000000.210]  -> wl_surface@22.attach(wl_buffer@36, 0, 0)\n\
+         [1000000.220]  -> wl_surface@22.commit()\n\
+         [1000000.300]  -> wl_shm_pool@35.create_buffer(new id wl_buffer@32, 1024, 24, 24, 96, 0)\n\
+         [1000000.310]  -> wl_surface@19.attach(wl_buffer@32, 0, 0)\n\
+         [1000000.320]  -> wl_pointer@20.set_cursor(8857, wl_surface@19, 7, 4)\n\
+         [1000000.330]  -> wl_surface@19.commit()\n";
+
+    /// The cursor's 24x24 commit comes after the window's last one and is not a paint, so the last
+    /// paint stays the window's 500x350. Failing this makes the flash check read 24x24 as the paint.
+    #[test]
+    fn test_a_cursor_commit_after_the_windows_last_commit_is_not_a_paint() {
+        let paints = parse_wire_paints(&format!("{START}{WINDOW_AND_CURSOR}"));
+        assert_eq!(
+            paints,
+            vec![WirePaint {
+                t_ns: 1_000_220_000,
+                w: 500,
+                h: 350
+            }]
+        );
+    }
+
+    /// The window's own commits are counted as before: a second size on wl_surface@22 is a paint.
+    #[test]
+    fn test_the_windows_own_commits_are_still_counted() {
+        let text = format!(
+            "{START}{WINDOW_AND_CURSOR}\
+             [1000001.000]  -> wl_shm_pool@38.create_buffer(new id wl_buffer@40, 0, 800, 600, 3200, 1)\n\
+             [1000001.010]  -> wl_surface@22.attach(wl_buffer@40, 0, 0)\n\
+             [1000001.020]  -> wl_surface@22.commit()\n"
+        );
+        let sizes: Vec<(u32, u32)> = parse_wire_paints(&text)
+            .iter()
+            .map(|p| (p.w, p.h))
+            .collect();
+        assert_eq!(sizes, vec![(500, 350), (800, 600)]);
+    }
+
+    /// With no `get_xdg_surface` in the dump every surface still counts, so the cursor-shaped
+    /// surface is a paint exactly as before the filter existed.
+    #[test]
+    fn test_a_dump_without_get_xdg_surface_counts_every_surface() {
+        let text = format!(
+            "{START}{}",
+            WINDOW_AND_CURSOR
+                .lines()
+                .filter(|l| !l.contains("get_xdg_surface"))
+                .map(|l| format!("{l}\n"))
+                .collect::<String>()
+        );
+        let sizes: Vec<(u32, u32)> = parse_wire_paints(&text)
+            .iter()
+            .map(|p| (p.w, p.h))
+            .collect();
+        assert_eq!(sizes, vec![(500, 350), (24, 24)]);
     }
 
     /// Without the `TRACE_START` line the dump cannot be put on the monotonic clock: nothing is
