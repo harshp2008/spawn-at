@@ -349,12 +349,16 @@ async fn main() {
                 ));
             }
 
-            // The binary this run installed; with the binary step skipped, the one running now.
-            let autostart_exe = if args.skip_bin {
-                std::env::current_exe().map_err(|e| e.to_string())
-            } else {
-                crate::platform::installer::installed_binary_path(args.scope)
-            };
+            // The binary this run installed; with the binary step skipped, the installed copy
+            // if there is one (`spawn-at update` runs this from a temp dir it then deletes),
+            // else the one running now.
+            let autostart_exe = crate::platform::installer::login_entry_exe(
+                args.skip_bin,
+                args.scope,
+                crate::platform::installer::installed_binary_path,
+                |p| p.is_file(),
+                || std::env::current_exe().map_err(|e| e.to_string()),
+            );
             if let Err(e) =
                 autostart_exe.and_then(|exe| crate::config::install_login_autostart_entry(&exe))
             {
