@@ -49,6 +49,36 @@ pub fn installed_binary_path(scope: InstallScope) -> Result<PathBuf, String> {
     Ok(get_target_dir(scope)?.join("spawn-at"))
 }
 
+/// The binary the login update-check entry must run.
+///
+/// Without `--skip-bin` that is the binary this run installed (`installed(scope)`). With
+/// `--skip-bin` the running binary is not necessarily the one that stays: `spawn-at update` runs
+/// the new binary from a temp directory as `install --skip-bin --headless` and deletes that
+/// directory afterwards. So the installed copy is used if there is one: the `scope` path first,
+/// then the other scope's. Only when neither is a file does it fall back to `current_exe`.
+///
+/// `installed`, `is_file` and `current_exe` are passed in so a test needs no real home directory.
+pub fn login_entry_exe(
+    skip_bin: bool,
+    scope: InstallScope,
+    installed: impl Fn(InstallScope) -> Result<PathBuf, String>,
+    is_file: impl Fn(&std::path::Path) -> bool,
+    current_exe: impl FnOnce() -> Result<PathBuf, String>,
+) -> Result<PathBuf, String> {
+    if !skip_bin {
+        return installed(scope);
+    }
+    let other = match scope {
+        InstallScope::User => InstallScope::System,
+        InstallScope::System => InstallScope::User,
+    };
+    [scope, other]
+        .into_iter()
+        .filter_map(|s| installed(s).ok())
+        .find(|p| is_file(p))
+        .map_or_else(current_exe, Ok)
+}
+
 /// True if `dir` equals an entry of this process's `PATH` as written, or after both are
 /// canonicalized. False when `PATH` is unset.
 fn is_in_path(dir: &PathBuf) -> bool {
@@ -321,6 +351,74 @@ mod tests {
         assert!(a.contains("*\":\"'/opt/my tools/bin'\":\"*"), "{a}");
         let b = path_advice(Path::new("/o'p/$x"), None);
         assert!(b.contains("'/o'\\''p/$x'"), "{b}");
+    }
+
+    /// Stand-ins for the two scopes' install paths and the updater's temp directory.
+    fn fake_installed(s: InstallScope) -> Result<PathBuf, String> {
+        Ok(match s {
+            InstallScope::User => PathBuf::from("/home/u/.local/bin/spawn-at"),
+            InstallScope::System => PathBuf::from("/usr/local/bin/spawn-at"),
+        })
+    }
+    const TMP_EXE: &str = "/tmp/spawn-at-update-v0.2.1-4242/spawn-at";
+
+    /// `spawn-at update` on GNOME runs `install --skip-bin --headless` from the temp directory.
+    /// With an installed copy the entry's `Exec=` names that copy, never the temp path (the
+    /// updater deletes the directory right after), in either scope.
+    #[test]
+    fn test_login_entry_skip_bin_uses_installed_copy_not_temp_dir() {
+        for (on_disk, want) in [
+            ("/home/u/.local/bin/spawn-at", "/home/u/.local/bin/spawn-at"),
+            ("/usr/local/bin/spawn-at", "/usr/local/bin/spawn-at"),
+        ] {
+            let exe = login_entry_exe(
+                true,
+                InstallScope::User,
+                fake_installed,
+                |p| p == Path::new(on_disk),
+                || Ok(PathBuf::from(TMP_EXE)),
+            )
+            .unwrap();
+            assert_eq!(exe, PathBuf::from(want));
+            let entry = crate::config::autostart_entry_content(&exe);
+            assert!(!entry.contains("spawn-at-update-"), "{entry}");
+            assert!(!entry.contains("/tmp/"), "{entry}");
+            assert!(entry.contains(&format!("\nExec={want} update --check --headless\n")));
+        }
+    }
+
+    /// With both copies present the requested scope wins; with none, `current_exe` is the
+    /// fallback (what `install --skip-bin` did before); without `--skip-bin` the installed path
+    /// is used whether or not the file exists yet, and an error from it is passed on.
+    #[test]
+    fn test_login_entry_exe_order_and_fallbacks() {
+        let cur = || Ok(PathBuf::from(TMP_EXE));
+        let both = login_entry_exe(true, InstallScope::System, fake_installed, |_| true, cur);
+        assert_eq!(both.unwrap(), PathBuf::from("/usr/local/bin/spawn-at"));
+        let none = login_entry_exe(true, InstallScope::User, fake_installed, |_| false, cur);
+        assert_eq!(none.unwrap(), PathBuf::from(TMP_EXE));
+        let noskip = login_entry_exe(false, InstallScope::User, fake_installed, |_| false, cur);
+        assert_eq!(
+            noskip.unwrap(),
+            PathBuf::from("/home/u/.local/bin/spawn-at")
+        );
+        let err = login_entry_exe(
+            false,
+            InstallScope::User,
+            |_| Err("no HOME".to_string()),
+            |_| true,
+            cur,
+        );
+        assert_eq!(err.unwrap_err(), "no HOME");
+        // --skip-bin where the installed paths cannot even be worked out: current_exe.
+        let unknown = login_entry_exe(
+            true,
+            InstallScope::User,
+            |_| Err("no HOME".to_string()),
+            |_| true,
+            cur,
+        );
+        assert_eq!(unknown.unwrap(), PathBuf::from(TMP_EXE));
     }
 
     #[test]

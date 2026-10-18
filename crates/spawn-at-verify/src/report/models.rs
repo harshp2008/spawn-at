@@ -87,8 +87,13 @@ pub struct QualificationReport {
     pub total_required: usize,
     /// Number of required test cases that passed.
     pub passed_required: usize,
-    /// Number of required test cases that failed.
+    /// Number of required test cases that failed (fail, error, flaky, blocked, or a pass whose
+    /// geometry or trace was not verified). Pending cases are not counted here.
     pub failed_required: usize,
+    /// Number of required test cases still pending (not run, or waiting for a human verdict).
+    /// They keep `supported` false but are not failures. Absent in older reports (read as 0).
+    #[serde(default)]
+    pub pending_required: usize,
     /// Required tests that were skipped due to environment filters.
     pub skipped_required: Vec<RequiredSkippedItem>,
 }

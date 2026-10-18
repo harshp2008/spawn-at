@@ -131,8 +131,8 @@ This is the short list. Every variable the code reads (`SWAYSOCK`, `XDG_CONFIG_H
 offers pre-releases), whether to check at login and whether to show notices. `all` is a deprecated
 name for `beta` and is read as `beta`. These are not yet set through `spawn-at config`; use
 `spawn-at update --channel` or `spawn-at install --update-channel`. The key names (`auto_check`,
-`channel`, `notify` and the four cache keys), their defaults, and the fact that `spawn-at install`
-rewrites three of them are on [Environment and exit codes](/spawn-at/environment/#the-update-table).
+`channel`, `notify` and the four cache keys), their defaults, and when `spawn-at install` writes
+three of them are on [Environment and exit codes](/spawn-at/environment/#the-update-table).
 
 ## Not configurable yet
 

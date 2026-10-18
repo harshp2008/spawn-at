@@ -712,6 +712,67 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether the candidate found by an interactive-path `update` run is saved to the config file.
+/// `update --check` only looks, so it saves nothing; the silent `--check --headless` mode (see
+/// [`headless_check`]) is the one that keeps the cache the update banner reads.
+fn lookup_is_cached(args: &UpdateArgs) -> bool {
+    !args.check
+}
+
+/// Stores `rel`'s tag as the cached beta (a pre-release) or stable version, and the time `now`.
+fn cache_candidate(config: &mut Config, rel: &GitHubRelease, now: u64) {
+    if rel.prerelease {
+        config.update.cached_beta_version = Some(rel.tag_name.clone());
+    } else {
+        config.update.cached_stable_version = Some(rel.tag_name.clone());
+    }
+    config.update.last_check_time = now;
+}
+
+/// The silent `update --check --headless` (the login entry and the 24-hour background check):
+/// stores the newest stable and the newest pre-release tag in `config` and the time `now`.
+///
+/// Does nothing, and does not call `fetch`, when `update.auto_check` is false. A failed `fetch`
+/// changes nothing. Returns true when `config` changed and has to be saved.
+fn headless_check(
+    config: &mut Config,
+    fetch: impl FnOnce() -> Result<Vec<GitHubRelease>, String>,
+    now: u64,
+) -> bool {
+    if !config.update.auto_check {
+        return false;
+    }
+    let Ok(releases) = fetch() else {
+        return false;
+    };
+    let mut highest_stable: Option<(String, semver::Version)> = None;
+    let mut highest_beta: Option<(String, semver::Version)> = None;
+
+    for r in releases {
+        if r.draft {
+            continue;
+        }
+        if let Some(v) = parse_semver(&r.tag_name) {
+            if r.prerelease {
+                if highest_beta.as_ref().is_none_or(|(_, bv)| v > *bv) {
+                    highest_beta = Some((r.tag_name, v));
+                }
+            } else if highest_stable.as_ref().is_none_or(|(_, sv)| v > *sv) {
+                highest_stable = Some((r.tag_name, v));
+            }
+        }
+    }
+
+    if let Some((stable_tag, _)) = highest_stable {
+        config.update.cached_stable_version = Some(stable_tag);
+    }
+    if let Some((beta_tag, _)) = highest_beta {
+        config.update.cached_beta_version = Some(beta_tag);
+    }
+    config.update.last_check_time = now;
+    true
+}
+
 /// The items of the `spawn-at update` menu.
 fn update_menu_options(upgrade: bool, tag: &str, channel: &str) -> Vec<String> {
     vec![
@@ -742,33 +803,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     let channel = normalize_channel(raw_channel);
 
     if args.headless && args.check {
-        // Background check: update cached stable and beta versions silently
-        if let Ok(releases) = fetch_github_releases() {
-            let mut highest_stable: Option<(String, semver::Version)> = None;
-            let mut highest_beta: Option<(String, semver::Version)> = None;
-
-            for r in releases {
-                if r.draft {
-                    continue;
-                }
-                if let Some(v) = parse_semver(&r.tag_name) {
-                    if r.prerelease {
-                        if highest_beta.as_ref().is_none_or(|(_, bv)| v > *bv) {
-                            highest_beta = Some((r.tag_name, v));
-                        }
-                    } else if highest_stable.as_ref().is_none_or(|(_, sv)| v > *sv) {
-                        highest_stable = Some((r.tag_name, v));
-                    }
-                }
-            }
-
-            if let Some((stable_tag, _)) = highest_stable {
-                config.update.cached_stable_version = Some(stable_tag);
-            }
-            if let Some((beta_tag, _)) = highest_beta {
-                config.update.cached_beta_version = Some(beta_tag);
-            }
-            config.update.last_check_time = current_timestamp_secs();
+        if headless_check(&mut config, fetch_github_releases, current_timestamp_secs()) {
             let _ = config.save();
         }
         return Ok(());
@@ -789,13 +824,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if let Some(ref rel) = candidate_opt {
-        if rel.prerelease {
-            config.update.cached_beta_version = Some(rel.tag_name.clone());
-        } else {
-            config.update.cached_stable_version = Some(rel.tag_name.clone());
+        if lookup_is_cached(&args) {
+            cache_candidate(&mut config, rel, current_timestamp_secs());
+            let _ = config.save();
         }
-        config.update.last_check_time = current_timestamp_secs();
-        let _ = config.save();
     }
 
     if args.check {
@@ -930,6 +962,85 @@ pub mod tests {
             draft,
             assets: vec![],
         }
+    }
+
+    /// `update --check` saves nothing to the config file; `update` and `update --headless`, which
+    /// may go on to install, still record the candidate they found.
+    #[test]
+    fn test_check_does_not_cache_the_lookup() {
+        let check = UpdateArgs {
+            check: true,
+            ..Default::default()
+        };
+        assert!(!lookup_is_cached(&check));
+        assert!(lookup_is_cached(&UpdateArgs::default()));
+        let headless = UpdateArgs {
+            headless: true,
+            ..Default::default()
+        };
+        assert!(lookup_is_cached(&headless));
+    }
+
+    /// A pre-release goes to the beta slot only, a release to the stable slot only.
+    #[test]
+    fn test_cache_candidate_picks_the_slot_by_prerelease() {
+        let mut cfg = Config::default();
+        cache_candidate(&mut cfg, &mock_release("v0.2.1-beta.1", true, false), 7);
+        assert_eq!(
+            cfg.update.cached_beta_version.as_deref(),
+            Some("v0.2.1-beta.1")
+        );
+        assert!(cfg.update.cached_stable_version.is_none());
+        cache_candidate(&mut cfg, &mock_release("v0.2.1", false, false), 8);
+        assert_eq!(cfg.update.cached_stable_version.as_deref(), Some("v0.2.1"));
+        assert_eq!(cfg.update.last_check_time, 8);
+    }
+
+    /// With `auto_check = false` the login entry's `update --check --headless` must not even ask
+    /// GitHub (`fetch` is not called) and must leave the cache and the check time as they were.
+    #[test]
+    fn test_headless_check_honours_auto_check_false() {
+        let mut cfg = Config::default();
+        cfg.update.auto_check = false;
+        cfg.update.cached_stable_version = Some("v0.1.0".to_string());
+        let changed = headless_check(
+            &mut cfg,
+            || panic!("fetch must not run when auto_check is false"),
+            1000,
+        );
+        assert!(!changed);
+        assert_eq!(cfg.update.last_check_time, 0);
+        assert_eq!(cfg.update.cached_stable_version.as_deref(), Some("v0.1.0"));
+        assert!(cfg.update.cached_beta_version.is_none());
+    }
+
+    /// With `auto_check = true` it stores the newest stable and newest pre-release tag (drafts
+    /// and non-semver tags skipped) and the time; a failed lookup changes nothing.
+    #[test]
+    fn test_headless_check_caches_newest_tags_when_enabled() {
+        let mut cfg = Config::default();
+        let releases = vec![
+            mock_release("v0.2.0", false, false),
+            mock_release("v0.3.0", false, true),
+            mock_release("v0.2.1-beta.1", true, false),
+            mock_release("v0.2.1-beta.2", true, false),
+            mock_release("nightly", false, false),
+        ];
+        assert!(headless_check(&mut cfg, || Ok(releases), 1000));
+        assert_eq!(cfg.update.cached_stable_version.as_deref(), Some("v0.2.0"));
+        assert_eq!(
+            cfg.update.cached_beta_version.as_deref(),
+            Some("v0.2.1-beta.2")
+        );
+        assert_eq!(cfg.update.last_check_time, 1000);
+
+        let mut cfg = Config::default();
+        assert!(!headless_check(
+            &mut cfg,
+            || Err("offline".to_string()),
+            1000
+        ));
+        assert_eq!(cfg.update.last_check_time, 0);
     }
 
     #[test]

@@ -67,11 +67,14 @@ instead of guessing. Nothing on this page was reproduced on a live session while
 - **Sources.** [Install](/spawn-at/install/), `src/platform/linux/gnome/driver.rs:211-216`,
   `src/commands/mod.rs:888`, `src/platform/linux/gnome/logout.rs`, `src/session.rs:41-42`.
 
-### `install` said "successfully installed and enabled" but the extension is not enabled
+### `install` said the extension was deployed but not confirmed enabled
 
-- **Cause as recorded.** `install` prints that line even when `gnome-extensions enable` exited
-  non-zero (it prints a `Note:` first). It stops with an error only if `gnome-extensions` cannot be
-  started.
+- **Cause as recorded.** `gnome-extensions enable` exited non-zero, so `install` printed a note
+  (`Note: 'gnome-extensions enable' exited with code N. The extension files were deployed, but the
+  extension is not confirmed enabled. If GNOME Shell has not loaded the new files yet, it may only
+  be enabled after you log out and back in ...`) instead of `successfully installed and enabled`, and exited
+  0. It stops with an error only if `gnome-extensions` cannot be started. Builds before this
+  version printed the success line even then.
 - **What is recorded.** The state can be read with `gnome-extensions info spawn-at@harsh.local`; the
   installer reads its `State:` line. No other remedy is recorded.
 - **Sources.** [Known limits](/spawn-at/known-limits/#exit-status-and-results),
@@ -160,11 +163,12 @@ removed by any command. See [Files and paths](/spawn-at/files-and-paths/).
 
 ### Why did my update channel or notice setting change after `update`?
 
-On GNOME, `update` runs `install --skip-bin --headless` from the unpacked release, and that
-install sets `auto_check = true`, `channel = "stable"` and `notify = false` in the `[update]`
-table, and writes the login entry with the temp directory path of that binary, which `update`
-then deletes. Read from source, not run. What GNOME does at login with a missing `Exec=` target
-is not verified. Details: [Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings).
+On GNOME, `update` runs `install --skip-bin --headless` from the unpacked release. By the code that
+install no longer overwrites `auto_check`, `channel` or `notify` when the config file already has
+them, and writes the login entry from the installed binary instead of the temp directory. A key the
+file lacks gets the headless default. An earlier build overwrote the three values and wrote the temp
+directory path; an update done by such a build may have left that behind. Read from source, not run.
+Details: [Update](/spawn-at/update/#the-child-install-and-your-settings).
 
 ### Which version am I running?
 

@@ -66,7 +66,58 @@ impl Default for UpdateConfig {
     }
 }
 
+/// Which of the three keys `install` owns (`auto_check`, `channel`, `notify`) the `[update]`
+/// table of the config file already has. [`Config::load`] cannot say: a missing key and a key
+/// set to its default both read back as the default.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct UpdateKeysPresent {
+    pub auto_check: bool,
+    pub channel: bool,
+    pub notify: bool,
+}
+
+impl UpdateKeysPresent {
+    /// Reads the keys out of the text of the config file. `None`, text that is not TOML and a
+    /// file without an `[update]` table all give "no key present".
+    pub fn from_toml(text: Option<&str>) -> Self {
+        let table = text
+            .and_then(|t| t.parse::<toml::Table>().ok())
+            .and_then(|t| t.get("update").and_then(|u| u.as_table()).cloned())
+            .unwrap_or_default();
+        Self {
+            auto_check: table.contains_key("auto_check"),
+            channel: table.contains_key("channel"),
+            notify: table.contains_key("notify"),
+        }
+    }
+}
+
 impl UpdateConfig {
+    /// What `install` stores when it runs without a terminal (`--headless`, or stdout is not a
+    /// TTY). A flag that was given (`--update-channel`, `--update-notify`) always sets its key.
+    /// Without the flag a key the file already has is left alone, and a missing key gets the
+    /// headless default: `auto_check = true`, `channel = "stable"`, `notify = false`.
+    pub fn apply_headless_install(
+        &mut self,
+        present: UpdateKeysPresent,
+        channel_flag: Option<&str>,
+        notify_flag: Option<bool>,
+    ) {
+        if !present.auto_check {
+            self.auto_check = true;
+        }
+        match channel_flag {
+            Some(c) => self.channel = crate::update::channel_to_write(Some(c)).to_string(),
+            None if !present.channel => self.channel = "stable".to_string(),
+            None => {}
+        }
+        match notify_flag {
+            Some(n) => self.notify = n,
+            None if !present.notify => self.notify = false,
+            None => {}
+        }
+    }
+
     /// Returns the cached version tag for the specified channel ("stable" or "beta").
     pub fn cached_version_for_channel(&self, channel: &str) -> Option<&str> {
         if channel == "beta" {
@@ -141,6 +192,16 @@ impl Config {
     /// Loads the configuration from disk, falling back to default values.
     pub fn load_or_default() -> Self {
         Self::load().unwrap_or_default()
+    }
+
+    /// Which `[update]` keys the config file on disk has now (none when it cannot be read).
+    pub fn update_keys_present() -> UpdateKeysPresent {
+        use spawn_at_core::settings::SettingsStore;
+        let text = crate::platform::linux::config_store::LinuxConfigStore::from_env()
+            .read()
+            .ok()
+            .flatten();
+        UpdateKeysPresent::from_toml(text.as_deref())
     }
 
     /// Persists the update preferences to the config file. Only the `[update]` table is
@@ -351,6 +412,71 @@ mod tests {
         }
         assert!(!text.contains("stable"), "{text}");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A headless `install` without flags on a file that has all three keys changes none of them
+    /// (`auto_check = false`, `channel = "beta"`, `notify = true` all differ from the headless
+    /// defaults); the pre-fix code wrote `true` / `stable` / `false` over them.
+    #[test]
+    fn test_headless_install_keeps_existing_update_values() {
+        let text = "[update]\nauto_check = false\nchannel = \"beta\"\nnotify = true\n";
+        let present = UpdateKeysPresent::from_toml(Some(text));
+        assert_eq!(
+            present,
+            UpdateKeysPresent {
+                auto_check: true,
+                channel: true,
+                notify: true
+            }
+        );
+        let mut cfg: Config = toml::from_str(text).unwrap();
+        cfg.update.apply_headless_install(present, None, None);
+        assert!(!cfg.update.auto_check);
+        assert_eq!(cfg.update.channel, "beta");
+        assert!(cfg.update.notify);
+    }
+
+    /// Keys the file lacks get the headless defaults, key by key: here only `channel` exists, so
+    /// `auto_check` becomes true and `notify` false (not the `Config` default of true).
+    #[test]
+    fn test_headless_install_fills_only_missing_keys() {
+        let text = "[update]\nchannel = \"beta\"\n";
+        let present = UpdateKeysPresent::from_toml(Some(text));
+        let mut cfg: Config = toml::from_str(text).unwrap();
+        assert!(cfg.update.notify, "serde default for a missing notify");
+        cfg.update.apply_headless_install(present, None, None);
+        assert!(cfg.update.auto_check);
+        assert_eq!(cfg.update.channel, "beta");
+        assert!(!cfg.update.notify);
+
+        // No file, a file without [update], and text that is not TOML: nothing is present.
+        for none in [None, Some("[wait]\ncap_ms = 1\n"), Some("not = [toml")] {
+            let present = UpdateKeysPresent::from_toml(none);
+            assert_eq!(present, UpdateKeysPresent::default(), "{none:?}");
+            let mut cfg = Config::default();
+            cfg.update.apply_headless_install(present, None, None);
+            assert!(cfg.update.auto_check && !cfg.update.notify);
+            assert_eq!(cfg.update.channel, "stable");
+        }
+    }
+
+    /// An explicit flag still wins over the file, for its own key only; `all` is written as
+    /// `beta`.
+    #[test]
+    fn test_headless_install_flags_override_their_own_key() {
+        let text = "[update]\nauto_check = false\nchannel = \"beta\"\nnotify = true\n";
+        let present = UpdateKeysPresent::from_toml(Some(text));
+        let mut cfg: Config = toml::from_str(text).unwrap();
+        cfg.update
+            .apply_headless_install(present, Some("stable"), None);
+        assert_eq!(cfg.update.channel, "stable");
+        assert!(cfg.update.notify && !cfg.update.auto_check);
+
+        let mut cfg: Config = toml::from_str(text).unwrap();
+        cfg.update
+            .apply_headless_install(present, Some("all"), Some(false));
+        assert_eq!(cfg.update.channel, "beta");
+        assert!(!cfg.update.notify);
     }
 
     #[test]

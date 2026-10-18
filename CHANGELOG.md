@@ -6,6 +6,19 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+None of this was run on a live GNOME session. The GNOME extension (`assets/gnome/`) is unchanged.
+
+### Fixed
+
+- `install` without a terminal (`--headless`, or stdout not a terminal), including the `install --skip-bin --headless` that `update` runs on GNOME, no longer overwrites `update.auto_check`, `update.channel` and `update.notify`. A key the config file already has is kept unless its own flag (`--update-channel`, `--update-notify`) is given; a missing key gets the old headless default. Interactive installs behave as before (#47).
+- `install --skip-bin` writes the login entry's `Exec=` from the installed binary (the requested scope, else the other scope) and falls back to the running binary only when none is installed, so an update no longer leaves the entry pointing into its deleted temp directory (#48).
+- `update --check` in a terminal no longer writes the check result into the config file. `update`, `update --headless` and the silent `update --check --headless` still do; the cache keys stay in the config file (#49).
+- The silent `update --check --headless`, which the login entry runs, returns before asking GitHub when `update.auto_check` is false (#50).
+- `install.sh --help` (and `-h`) prints the script's own flags and exits 0 before any platform check or network call (#51).
+- `spawn-at-verify`: required tests that are still pending are counted as `pending_required`, not as failed, and `report.md` shows a PENDING badge instead of NOT QUALIFIED when nothing failed and no required test was skipped. Older `report.json` files still load (#56).
+- `uninstall`: the line after saying No to the log-out question no longer names `--gnome-wayland-logout=false` or `--gnome-x11-reload=false` (#57).
+- `install` and `uninstall` on GNOME no longer print the success line when `gnome-extensions enable` or `disable` fails: `install` prints a plain note (a freshly copied extension may only load after the next login), `uninstall` a warning. Exit statuses are unchanged (#58).
+
 ## [0.2.0] - 2026-10-18
 
 Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src`, `assets`, `scripts`, `tests`, `build.rs`, `.github`, `install.sh`, `crates/spawn-at-core` and `crates/spawn-at-verify` are unchanged since v0.2.0-beta.6; `crates/xtask` differs only in `docs_check.rs`, the documentation-site check, which is not part of the release binary (`git diff 75e867a..HEAD --stat` on the release branch). See [docs/RELEASE_NOTES_0.2.0.md](docs/RELEASE_NOTES_0.2.0.md) for what to expect and what is not verified.

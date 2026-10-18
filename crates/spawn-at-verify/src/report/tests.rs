@@ -263,6 +263,85 @@ fn test_old_report_without_repeat_runs_loads_and_new_round_trips() {
     assert!(old.repeat_runs.is_empty());
 }
 
+/// A required result of `status` (auto result and message left at their pass-test values).
+fn required_result(id: &str, status: FinalStatus) -> TestResult {
+    TestResult {
+        required: true,
+        final_status: status,
+        ..run_result(id, "", 1)
+    }
+}
+
+/// Pending required tests (waiting for a human verdict) are counted apart from failures: a fake
+/// run with 0 failures and 8 pending reports `failed_required` 0, `pending_required` 8, is not
+/// `supported`, and its markdown says PENDING, not NOT QUALIFIED. The old code counted the 8
+/// as failed and printed NOT QUALIFIED.
+#[test]
+fn test_pending_required_is_not_failed_and_not_not_qualified() {
+    let mut results = vec![required_result("basics/a", FinalStatus::Pass)];
+    for i in 0..8 {
+        results.push(required_result(
+            &format!("cloak/p{i}"),
+            FinalStatus::Pending,
+        ));
+    }
+    let report = report_with_runs(&results, &[]);
+    let q = &report.qualification;
+    assert_eq!(
+        (
+            q.total_required,
+            q.passed_required,
+            q.failed_required,
+            q.pending_required
+        ),
+        (9, 1, 0, 8)
+    );
+    assert!(!q.supported);
+    let md = render_markdown_report(&report);
+    assert!(md.contains("- **Required Tests Failed:** 0\n"), "{md}");
+    assert!(md.contains("- **Required Tests Pending:** 8\n"), "{md}");
+    assert!(md.contains("PENDING (8 required test(s) await a verdict; none failed)"));
+    assert!(!md.contains("NOT QUALIFIED"), "{md}");
+}
+
+/// A real failure still gives NOT QUALIFIED when tests are also pending, and a required skip
+/// does too; all passing still gives SUPPORTED.
+#[test]
+fn test_failure_or_skip_still_not_qualified_with_pending() {
+    let results = vec![
+        required_result("basics/a", FinalStatus::Fail),
+        required_result("cloak/p", FinalStatus::Pending),
+    ];
+    let report = report_with_runs(&results, &[]);
+    assert_eq!(report.qualification.failed_required, 1);
+    assert_eq!(report.qualification.pending_required, 1);
+    assert!(render_markdown_report(&report).contains("NOT QUALIFIED"));
+
+    let results = vec![
+        required_result("basics/a", FinalStatus::Skipped),
+        required_result("cloak/p", FinalStatus::Pending),
+    ];
+    let report = report_with_runs(&results, &[]);
+    assert!(render_markdown_report(&report).contains("NOT QUALIFIED"));
+
+    let report = report_with_runs(&[required_result("basics/a", FinalStatus::Pass)], &[]);
+    assert!(report.qualification.supported);
+    assert!(render_markdown_report(&report).contains("SUPPORTED"));
+}
+
+/// A `report.json` from before `pending_required` existed still loads, with 0 pending.
+#[test]
+fn test_old_report_without_pending_required_loads() {
+    let report = report_with_runs(&[required_result("basics/a", FinalStatus::Pass)], &[]);
+    let mut value = serde_json::to_value(&report).unwrap();
+    value["qualification"]
+        .as_object_mut()
+        .unwrap()
+        .remove("pending_required");
+    let old: SessionReport = serde_json::from_value(value).unwrap();
+    assert_eq!(old.qualification.pending_required, 0);
+}
+
 /// A required test that passed with its trace unchecked does not qualify the platform: it is
 /// counted as failed-required, like a geometry-unchecked pass.
 #[test]

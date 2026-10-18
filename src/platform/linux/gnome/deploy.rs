@@ -197,6 +197,47 @@ pub fn restart_gnome_shell_x11() {
     }
 }
 
+/// `Some(how it ended)` when a `gnome-extensions` call that was started did not exit with 0:
+/// `exited with code N`, or `was ended by a signal` when there is no code.
+fn exit_failure(status: &std::process::ExitStatus) -> Option<String> {
+    exit_failure_from(status.success(), status.code())
+}
+
+/// The pure part of [`exit_failure`].
+fn exit_failure_from(success: bool, code: Option<i32>) -> Option<String> {
+    if success {
+        return None;
+    }
+    Some(match code {
+        Some(c) => format!("exited with code {c}"),
+        None => "was ended by a signal".to_string(),
+    })
+}
+
+/// The plain note (not a warning) printed by `install` instead of the success line when
+/// `gnome-extensions enable` did not exit with 0. The files are on disk, but the extension is
+/// not confirmed enabled; a shell that has not loaded the new files yet may only enable it
+/// after the next login.
+fn enable_note_text(why: &str) -> String {
+    format!(
+        "Note: 'gnome-extensions enable' {why}. The extension files were deployed, but the extension is not confirmed enabled. If GNOME Shell has not loaded the new files yet, it may only be enabled after you log out and back in; 'gnome-extensions list --enabled' shows the state."
+    )
+}
+
+/// The warning printed by `uninstall` instead of the success line when `gnome-extensions
+/// disable` could not be run or did not exit with 0. `files_removed` says whether the extension
+/// directory was deleted by this run.
+fn disable_warning_text(why: &str, files_removed: bool) -> String {
+    format!(
+        "'gnome-extensions disable' {why}. The extension may still be enabled. {}",
+        if files_removed {
+            "Its files were removed."
+        } else {
+            "Its files were not removed."
+        }
+    )
+}
+
 impl GnomeWaylandDriver {
     /// `$HOME/.local/share/gnome-shell/extensions/spawn-at@harsh.local`. Reads `$HOME` only
     /// (not the XDG data dir), so with `HOME` unset it fails with [`DriverError::Execution`].
@@ -241,8 +282,9 @@ impl Provisioner for GnomeWaylandDriver {
     ///
     /// Errors: [`DriverError::Execution`] when `$HOME` is unset, the directory cannot be
     /// created, a file cannot be written, the prompt fails, or `gnome-extensions` cannot be
-    /// started. A non-zero exit of `gnome-extensions enable` is only a printed note, and the
-    /// "successfully installed and enabled" line is printed after it anyway.
+    /// started. A non-zero exit of `gnome-extensions enable` is not an error: a note says the
+    /// files were deployed but the extension is not confirmed enabled, the "successfully
+    /// installed and enabled" line is not printed, and the run goes on and returns `Ok`.
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
         let is_wayland = is_wayland_session();
 
@@ -335,12 +377,11 @@ impl Provisioner for GnomeWaylandDriver {
                     )
                 })?;
 
-            if !status.success() {
-                println!(
-                    "Note: 'gnome-extensions enable' returned a non-zero exit code (the extension might already be enabled or pending reload)."
-                );
+            if let Some(why) = exit_failure(&status) {
+                println!("{}", enable_note_text(&why));
+            } else {
+                println!("Spawn-At GNOME extension successfully installed and enabled.");
             }
-            println!("Spawn-At GNOME extension successfully installed and enabled.");
         } else {
             println!("Extension files deployed. Skipping automatic enablement (--gnome-auto-enable=false).");
         }
@@ -361,8 +402,9 @@ impl Provisioner for GnomeWaylandDriver {
 
     /// Runs `gnome-extensions disable` and, if wanted, deletes the extension directory.
     ///
-    /// The result of `disable` is dropped (`let _ =`): a missing `gnome-extensions` or a
-    /// non-zero exit is not reported, and "successfully uninstalled" is printed regardless.
+    /// A missing `gnome-extensions` or a non-zero exit of `disable` does not stop the run: it
+    /// goes on to delete the files and returns `Ok`, but a warning replaces the "successfully
+    /// uninstalled" line and says whether the files were removed.
     /// Interactive runs ask whether to delete the files; otherwise `gnome_delete_files` decides.
     /// Like `install`, it records a `session::Pending` instead of logging out. The removal phase
     /// of a clean install passes `no_action` and records nothing.
@@ -397,11 +439,16 @@ impl Provisioner for GnomeWaylandDriver {
         crate::ui::block_start();
         println!("Disabling GNOME extension: {}", EXTENSION_UUID);
 
-        let _ = Command::new("gnome-extensions")
+        let disable_failure = match Command::new("gnome-extensions")
             .args(["disable", EXTENSION_UUID])
-            .status();
+            .status()
+        {
+            Ok(status) => exit_failure(&status),
+            Err(e) => Some(format!("could not be run: {e}")),
+        };
 
-        if delete_files && ext_dir.exists() {
+        let removing = delete_files && ext_dir.exists();
+        if removing {
             println!("Removing extension files from: {}", ext_dir.display());
             fs::remove_dir_all(&ext_dir).map_err(|e| {
                 DriverError::Execution(
@@ -415,7 +462,12 @@ impl Provisioner for GnomeWaylandDriver {
             })?;
         }
 
-        println!("Spawn-At extension successfully uninstalled.");
+        match disable_failure {
+            Some(why) => {
+                crate::diagnostics::render_warning(&disable_warning_text(&why, removing));
+            }
+            None => println!("Spawn-At extension successfully uninstalled."),
+        }
 
         // Recorded, not asked or performed: session::finish() ends the run (see session.rs).
         // The removal phase of a clean install passes no_action, so it records nothing at all.
@@ -487,5 +539,56 @@ impl crate::platform::update_hooks::UpdateHooks for GnomeUpdateHooks {
 
     fn session_is_wayland(&self) -> bool {
         is_wayland_session()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Exit 0 is no failure; a code and a signal are told apart. The last two are what
+    /// `gnome-extensions` returns when it exits 2 and when it is killed.
+    #[test]
+    fn test_exit_failure_text() {
+        assert_eq!(exit_failure_from(true, Some(0)), None);
+        assert_eq!(
+            exit_failure_from(false, Some(2)).as_deref(),
+            Some("exited with code 2")
+        );
+        assert_eq!(
+            exit_failure_from(false, None).as_deref(),
+            Some("was ended by a signal")
+        );
+    }
+
+    /// After a failed `enable` the note says the files are there but the extension is not
+    /// confirmed enabled, never contains the success wording the old code printed anyway, and
+    /// is a plain "Note:" line (install prints it with `println!`, not `render_warning`).
+    #[test]
+    fn test_enable_note_does_not_claim_success() {
+        let text = enable_note_text("exited with code 1");
+        assert!(text.starts_with("Note: 'gnome-extensions enable' exited with code 1."));
+        assert!(text.contains("files were deployed"));
+        assert!(text.contains("not confirmed enabled"));
+        assert!(text.contains("log out and back in"));
+        assert!(!text.contains("successfully"), "{text}");
+        assert!(!text.to_lowercase().contains("warning"), "{text}");
+    }
+
+    /// After a failed `disable` the warning says the extension may still be enabled and tells
+    /// whether the files went; it never says "uninstalled".
+    #[test]
+    fn test_disable_warning_says_what_happened() {
+        let removed = disable_warning_text("could not be run: No such file or directory", true);
+        assert!(removed.contains("may still be enabled"));
+        assert!(removed.ends_with("Its files were removed."), "{removed}");
+        let kept = disable_warning_text("exited with code 1", false);
+        assert!(kept.ends_with("Its files were not removed."), "{kept}");
+        for t in [&removed, &kept] {
+            assert!(
+                !t.contains("uninstalled") && !t.contains("successfully"),
+                "{t}"
+            );
+        }
     }
 }

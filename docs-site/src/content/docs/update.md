@@ -19,14 +19,15 @@ spawn-at update --headless         # never ask; install if a newer release exist
 
 | Flag | What it does |
 | :--- | :--- |
-| `--check` | Looks for a candidate and prints `An update is available: <current> → <tag>` or `spawn-at is up to date (<current>).` It installs nothing. It does write to the config file, see [Check also writes the cache](#check-also-writes-the-cache) |
+| `--check` | Looks for a candidate and prints `An update is available: <current> → <tag>` or `spawn-at is up to date (<current>).` It installs nothing and saves nothing to the config file, see [What `--check` saves](#what---check-saves) |
 | `--channel <stable\|beta>` | Overrides the configured channel for this run only. `all` is accepted, prints `'all' is deprecated and now means 'beta'.`, and is read as `beta` |
 | `--force` | Installs the newest release of the channel even if it is not newer than the running one |
 | `--headless` | Does not show the menu. Without `--check` it installs when a newer release exists (or with `--force`), and otherwise prints `Already up to date. Use --force to reinstall.` |
 
 `--headless --check` together is a different, silent mode: it prints nothing, stores the newest
 stable and the newest pre-release tag it finds in the config file, and returns. A failed lookup is
-ignored there. The login entry and the background check use this mode (see below).
+ignored there. With `update.auto_check = false` it returns at once, before the lookup, and stores
+nothing. The login entry and the background check use this mode (see below).
 
 ## What a check does
 
@@ -105,29 +106,36 @@ src/update.rs install.sh` printed nothing. The only checks are that the download
 exit 0 and that the unpacked `spawn-at` is a regular file. The download is over HTTPS from the
 release asset URL that the GitHub API returns.
 
-### Code finding: the child install rewrites settings
+### The child install and your settings
 
-Step 4 runs `install --skip-bin --headless`. By the code of `install` (`src/main.rs:283-347`) a
-headless install sets `auto_check`, `channel` and `notify` in the `[update]` table unconditionally
-(`src/main.rs:330-332`): `auto_check = true`, the channel from `--update-channel` or `stable`, and
-`notify` from `--update-notify` or `false`. The update passes no flags, so the values it writes are
-`true`, `stable` and `false`. The install then writes the login entry from the path of the binary
-that is running: with `--skip-bin` that is `current_exe` (`src/main.rs:341-343`), and in this call
-it is the binary in the temp directory. The `Exec=` line is built from that path and nothing else
-(`src/config.rs:252-258`). This follows from reading the code, and none of it was run:
+Step 4 runs `install --skip-bin --headless`. By the code, that install does two things that matter
+after an update. Neither was run: this is read from `install` in `src/main.rs`, `UpdateConfig::apply_headless_install`
+in `src/config.rs` and `login_entry_exe` in `src/platform/installer.rs`.
 
-- an update on GNOME resets `auto_check` to `true`, a configured `beta` channel to `stable` and
-  `notify = true` to `false`. The parent reloads the file after the child exits and keeps those
-  values (`src/update.rs:688`);
-- the `Exec=` line of the login entry is written with the temp directory path
-  (`<temp dir>/spawn-at-update-<tag>-<pid>/spawn-at`). Step 6 then deletes that directory.
+- **The `[update]` values stay.** An install without a terminal (`--headless`, or stdout not a
+  terminal) writes a key of `[update]` only in two cases. The key is missing from the config file:
+  it then gets the headless default (`auto_check = true`, `channel = "stable"`, `notify =
+  false`). Or its own flag was given: `--update-channel` sets `channel`, `--update-notify` sets
+  `notify`. A key the file already has, and no flag for it, is left as it is. `update` passes no
+  flags, so an update on GNOME keeps your `auto_check`, `channel` and `notify`. An install in a
+  terminal without `--headless` still asks for the channel and for `notify`, and writes
+  `auto_check = true` together with them.
+- **The login entry points at the installed binary.** With `--skip-bin` the entry's `Exec=` is the
+  installed copy: the file at the bin directory of the requested scope (user, unless
+  `--scope system`), or else the one at the other scope's. Only if neither exists is it the running
+  binary (`current_exe`), as before. In the update's child that running binary is the one in the
+  temp directory that step 6 deletes, so a machine that has an installed copy never gets that path
+  in the entry.
 
-Nothing rewrites the login entry afterwards. The writer is called only at `src/main.rs:347`, and
-`update` and `update --check` never touch the entry. So after an update on GNOME the entry points
-at a path that no longer exists, until a later `spawn-at install` without `--skip-bin` writes the
-installed binary's path. What GNOME does at login with a missing `Exec=` target was not
-verified. On a desktop where `XDG_CURRENT_DESKTOP` does not contain `GNOME` the child is not run
-(`src/platform/linux/gnome/deploy.rs:455-460, 470`), so none of this happens.
+What is left: when the installed copy is in neither bin directory (for example a binary that was
+copied by hand elsewhere, and `update` was started from it), the entry gets the temp directory path
+as before, and nothing rewrites it after the update. What GNOME does at login with a missing
+`Exec=` target was not verified. On a desktop where `XDG_CURRENT_DESKTOP` does not contain `GNOME`
+the child is not run (`src/platform/linux/gnome/deploy.rs`, `on_gnome`), so none of this happens.
+
+A build from before this change overwrote the three values and wrote the temp directory path. If
+`update` was run with such a build, check `spawn-at config path` and the entry (see
+[Files and paths](/spawn-at/files-and-paths/)).
 
 ## Notices and the background check
 
@@ -148,9 +156,10 @@ This is read from source, not run.
 
 `spawn-at install` writes an autostart entry that runs `<binary> update --check --headless` when
 you log in (`src/config.rs:184-261`; the path is on [Files and paths](/spawn-at/files-and-paths/)).
-That command does not read `auto_check`, so setting `auto_check = false` does not stop the login
-check. `uninstall` removes the entry. After an `update` on GNOME its `Exec=` path is the deleted
-temp path described in [Code finding](#code-finding-the-child-install-rewrites-settings).
+With `update.auto_check = false` that command returns before it asks GitHub and stores nothing, so
+the login check does nothing (the entry stays in place; `uninstall` removes it). After an `update`
+on GNOME its `Exec=` path is the installed binary, see
+[The child install and your settings](#the-child-install-and-your-settings).
 
 ## Channels and notices
 
@@ -165,16 +174,19 @@ install path print `Note: spawn-at v0.2 CLI is not backward-compatible with v0.1
 (`src/update.rs:131-133, 805, 851`), and the notice box adds a line about it. The code does not say
 what changed. See the changelog for that.
 
-## Check also writes the cache
+## What `--check` saves
 
-`update --check` is not read-only: when it finds a candidate it stores that tag and the check time
-in the `[update]` table of the config file and saves it (`src/update.rs:788-799`). The silent
-`--headless --check` mode does the same (`src/update.rs:744-775`).
+`update --check` in a terminal looks, prints and saves nothing: it does not touch the config file
+(`lookup_is_cached` in `src/update.rs`). `update` without `--check` (and `update --headless`)
+stores the candidate it found, as the cached stable or beta tag, plus the check time, in the
+`[update]` table before it goes on. The silent `--headless --check` mode stores the newest stable
+and newest pre-release tag and the check time, unless `auto_check` is false (`headless_check`).
+The cache keys stay in the config file; they are not moved to a separate cache file.
 
 ## Not verified
 
-- No `update` run: the download, the replacement, the extension step, the log-out question and the
-  code findings above were read from source only.
+- No `update` run: the download, the replacement, the extension step, the log-out question, the
+  child install and the `--check` behaviour above were read from source and unit-tested only.
 - Behaviour on a platform other than Linux x86_64.
 - What GNOME does at login when the `Exec=` target of the autostart entry does not exist.
 - What happens when the replaced path is not writable (system scope). The code ignores the result
@@ -184,7 +196,9 @@ in the `[update]` table of the config file and saves it (`src/update.rs:788-799`
 
 - `src/update.rs` (lines cited above)
 - `src/platform/update_hooks.rs`, `src/platform/linux/gnome/deploy.rs:463-484`
-- `src/session.rs` (`update_outcome`), `src/main.rs:283-347, 461`
-- `src/config.rs:18-44, 184-261`, `src/prompts.rs:54-77`
+- `src/session.rs` (`update_outcome`), `src/main.rs` (the `Commands::Install` arm and the update
+  notice at the end of `main`)
+- `src/config.rs` (`UpdateConfig`, `apply_headless_install`, the autostart entry),
+  `src/platform/installer.rs` (`login_entry_exe`), `src/prompts.rs:54-77`
 - the output of `spawn-at update --help`
 - `grep -n -i "sha256\|checksum\|signature\|gpg\|minisign" src/update.rs install.sh` (no output)

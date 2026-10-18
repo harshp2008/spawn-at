@@ -52,6 +52,7 @@
 
 ## Testing and fixtures
 
+- `node --test tests/*.js` includes `tests/install_unsupported_test.js`, which runs `install.sh` against a stand-in curl and a stand-in `spawn-at`. A rule of "never execute `install.sh`" therefore also rules out running that node file locally; CI runs it. Evidence: `tests/install_unsupported_test.js:14,48`. Recorded 2026-10-18.
 - Run the proof suite per binary, not a bare workspace number: `cargo test -p spawn-at-verify --features tui,fixture` (4 tests stay ignored, they need a live display). Counts and the table: `docs/TEST_PLAN.md`, "1.1" rows. Source: `CLAUDE.md`, "Tests".
 - Refactor proof set: sorted test names per binary, `--help` of every subcommand, sha256 of goldens and vectors, the 48-case fake-curl installer matrix. Source: `docs/REFACTOR_PROOFS.md`, "What is captured" and "Commands". If `compare.sh` does not print PASS, the step is not behavior-preserving.
 - A split is a pure move if a normalised `comm -23` / `comm -13` of old and new lines shows only re-wrapped lines, imports, `mod` lines and new headers. Source: `docs/REFACTOR_PROOFS.md`, "Proving a split is a pure move".
@@ -74,6 +75,8 @@
 
 ## Gotchas
 
+- `spawn-at update` on GNOME runs the new binary from a temp dir as `install --skip-bin --headless` and deletes the dir afterwards, so `current_exe()` in that child is a path that disappears. The login entry's `Exec=` therefore comes from `platform::installer::login_entry_exe` (installed copy first, `current_exe` last). Residual: an updater started from a binary outside both bin dirs still gets the temp path. Evidence: `src/update.rs` `perform_upgrade`, `src/platform/linux/gnome/deploy.rs` `after_unpack`, `src/main.rs` (`login_entry_exe` call). Fixed in the 0.2.1 batch (#48), unverified live. Recorded 2026-10-18.
+- The update cache (`last_check_time`, `cached_*_version`) lives in the `[update]` table of the user's config file, so moving it to a separate file would change where config keys live (a contract item). `update --check` in a terminal no longer saves it (#49); only `update`, `update --headless` and the silent `--check --headless` do. Evidence: `src/update.rs` `lookup_is_cached`, `headless_check`. Recorded 2026-10-18.
 - The binary embeds its commit (or tag); after every commit `cargo build -p spawn-at` must run before a verify batch, or preflight blocks it as stale. Source: `docs/TEST_LOG.md`, "6.23 Post-reinstall live check" (Process finding); `verify/README.md`, "4. Preflight Gate & Binary Freshness".
 - Plain `cargo build` / `cargo test` at the root cover only the `spawn-at` package; name the other crates. Source: `CLAUDE.md`, "Build and test commands".
 - `run_spawn_with` is one function of about 524 lines at the time of writing (`spawn.rs`); splitting it was a prerequisite for a second ready-signal model. Source: `docs/DESIGN_PLATFORMS.md`, "8. Findings worth remembering".

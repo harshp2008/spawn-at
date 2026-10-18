@@ -16,6 +16,7 @@ pub fn evaluate_qualification(results: &[TestResult]) -> QualificationReport {
     let mut total_required = 0;
     let mut passed_required = 0;
     let mut failed_required = 0;
+    let mut pending_required = 0;
     let mut skipped_required = Vec::new();
 
     for r in results {
@@ -37,6 +38,8 @@ pub fn evaluate_qualification(results: &[TestResult]) -> QualificationReport {
                             .unwrap_or_else(|| "Requirement unmet".into()),
                     });
                 }
+                // Waiting for a human verdict (or not run yet): neither a pass nor a failure.
+                FinalStatus::Pending => pending_required += 1,
                 _ => failed_required += 1,
             }
         }
@@ -50,6 +53,7 @@ pub fn evaluate_qualification(results: &[TestResult]) -> QualificationReport {
         total_required,
         passed_required,
         failed_required,
+        pending_required,
         skipped_required,
     }
 }

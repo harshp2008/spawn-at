@@ -9,6 +9,7 @@ set -euo pipefail
 #   - Default: Latest STABLE release
 #   - Pinning: --version <tag> or -v <tag>
 #   - Prerelease: --prerelease (latest release including beta/alphas)
+#   - Help: --help / -h prints the script's own flags and exits before any network call
 #   - Unsupported desktop: --allow-unsupported installs without asking (see below)
 #   - Execution: Pass-through of flags to 'spawn-at install "$@"'
 #
@@ -36,6 +37,45 @@ yellow() { echo -e "\x1b[1;33m$1\x1b[0m"; }
 error_headline() { { echo; echo -e "\x1b[1;31mError\x1b[0m: $1"; } >&2; }
 error_help_heading() { { echo; echo "What you can do:"; } >&2; }
 error_end() { echo >&2; }
+
+# --help / -h: print this script's own flags and exit 0. Scanned for before the platform
+# check, the desktop check, the temp dir and every network call, so nothing is resolved or
+# downloaded. (The flags spawn-at itself takes are shown by 'spawn-at install --help'.)
+usage() {
+    cat <<EOF
+spawn-at installer (install.sh)
+
+Usage: bash install.sh [options]
+
+Options handled by this script:
+  -v, --version <tag>   Install the release with this tag, e.g. v0.2.0.
+                        '--version=<tag>' also works.
+  --prerelease          Install the newest release including pre-releases
+                        (the default is the latest stable release).
+  --allow-unsupported   On a desktop that is not GNOME and not X11, install
+                        without asking (the X11 fallback may not work there).
+  -h, --help            Print this help and exit.
+
+Every other option is passed on to 'spawn-at install' after the download, for
+example --clean-install, --headless, --yes or --update-channel. Once spawn-at
+is installed, 'spawn-at install --help' lists them.
+
+Environment:
+  GITHUB_TOKEN             optional; raises the GitHub API rate limit
+  SPAWN_AT_RESOLVE_ONLY=1  print the resolved release tag and exit (no download)
+
+https://github.com/${REPO}
+EOF
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help)
+            usage
+            exit 0
+            ;;
+    esac
+done
 
 OS="$(uname -s)"
 ARCH="$(uname -m)"
