@@ -4,6 +4,24 @@ use super::models::*;
 use crate::runner::TestResult;
 use crate::trace::flash::Visibility;
 
+/// The qualification badge. Pending required tests alone (no failure, no required skip) give a
+/// "pending" badge: the platform is not qualified yet, but nothing has failed.
+fn qualification_badge(qual: &QualificationReport) -> String {
+    if qual.supported {
+        "✅ **SUPPORTED (100% Required Passed)**".to_string()
+    } else if qual.failed_required == 0
+        && qual.skipped_required.is_empty()
+        && qual.pending_required > 0
+    {
+        format!(
+            "⏳ **PENDING ({} required test(s) await a verdict; none failed)**",
+            qual.pending_required
+        )
+    } else {
+        "❌ **NOT QUALIFIED / UNSUPPORTED**".to_string()
+    }
+}
+
 /// Formats the markdown report.
 pub fn render_markdown_report(report: &SessionReport) -> String {
     let env = &report.environment;
@@ -15,11 +33,7 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         "Clean"
     };
 
-    let qual_badge = if qual.supported {
-        "✅ **SUPPORTED (100% Required Passed)**"
-    } else {
-        "❌ **NOT QUALIFIED / UNSUPPORTED**"
-    };
+    let qual_badge = qualification_badge(qual);
 
     let mut md = format!(
         "# Verification Session Report\n\n\
@@ -38,6 +52,7 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
          - **Required Tests Total:** {}\n\
          - **Required Tests Passed:** {}\n\
          - **Required Tests Failed:** {}\n\
+         - **Required Tests Pending:** {}\n\
          - **Required Tests Skipped:** {}\n\
          - **Tests Passed With Flash:** {} ({} with a certain flash, {} with only possible ones; display {})\n\n",
         env.hostname,
@@ -54,6 +69,7 @@ pub fn render_markdown_report(report: &SessionReport) -> String {
         qual.total_required,
         qual.passed_required,
         qual.failed_required,
+        qual.pending_required,
         qual.skipped_required.len(),
         report.results.iter().filter(|r| r.is_flash_pass()).count(),
         report
