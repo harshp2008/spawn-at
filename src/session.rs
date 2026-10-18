@@ -284,12 +284,10 @@ impl Session {
                     ops.say("GNOME Shell reload skipped (--gnome-x11-reload=false).");
                     ops.say("You can reload the shell anytime on X11 by pressing Alt+F2, typing 'r', and pressing Enter.");
                 }
-                Advice::LogoutSkipped => {
-                    ops.say("Wayland session logout skipped (--gnome-wayland-logout=false).")
-                }
-                Advice::ReloadSkipped => {
-                    ops.say("GNOME Shell reload skipped (--gnome-x11-reload=false).")
-                }
+                // No flag is named: the same advice follows a "No" at the question and a headless
+                // run whose flag is only the default, so the user may have passed none.
+                Advice::LogoutSkipped => ops.say("Wayland session logout skipped."),
+                Advice::ReloadSkipped => ops.say("GNOME Shell reload skipped."),
             }
         }
         match action {
@@ -657,10 +655,7 @@ mod tests {
     fn test_standalone_uninstall() {
         for (answer, last) in [
             (Some(true), "LOG OUT"),
-            (
-                Some(false),
-                "say Wayland session logout skipped (--gnome-wayland-logout=false).",
-            ),
+            (Some(false), "say Wayland session logout skipped."),
         ] {
             let mut rec = Recorder::new(answer);
             let mut session = Session::new();
@@ -680,6 +675,26 @@ mod tests {
                     == 3
             );
             assert_eq!(rec.last(), last);
+        }
+    }
+
+    /// After "No" at the question (or a headless run), uninstall says it skipped the log-out or
+    /// reload without naming a `--gnome-*` flag the user never passed.
+    #[test]
+    fn test_uninstall_skipped_line_names_no_flag() {
+        for (is_wayland, want) in [
+            (true, "say Wayland session logout skipped."),
+            (false, "say GNOME Shell reload skipped."),
+        ] {
+            for (decision, answer) in [(Decision::Ask, Some(false)), (Decision::Flag(false), None)]
+            {
+                let mut rec = Recorder::new(answer);
+                let mut session = Session::new();
+                session.record(uninstall_pending(is_wayland, decision, false).unwrap());
+                session.finish(&mut rec);
+                assert_eq!(rec.last(), want);
+                assert!(!rec.text().contains("--gnome"), "{}", rec.text());
+            }
         }
     }
 
