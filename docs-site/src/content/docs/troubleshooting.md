@@ -69,9 +69,10 @@ instead of guessing. Nothing on this page was reproduced on a live session while
 
 ### `install` said the extension was deployed but not confirmed enabled
 
-- **Cause as recorded.** `gnome-extensions enable` exited non-zero, so `install` printed a warning
-  (`'gnome-extensions enable' exited with code N. The extension files were deployed, but the
-  extension is not confirmed enabled ...`) instead of `successfully installed and enabled`, and exited
+- **Cause as recorded.** `gnome-extensions enable` exited non-zero, so `install` printed a note
+  (`Note: 'gnome-extensions enable' exited with code N. The extension files were deployed, but the
+  extension is not confirmed enabled. If GNOME Shell has not loaded the new files yet, it may only
+  be enabled after you log out and back in ...`) instead of `successfully installed and enabled`, and exited
   0. It stops with an error only if `gnome-extensions` cannot be started. Builds before this
   version printed the success line even then.
 - **What is recorded.** The state can be read with `gnome-extensions info spawn-at@harsh.local`; the

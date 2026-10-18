@@ -17,7 +17,7 @@ None of this was run on a live GNOME session. The GNOME extension (`assets/gnome
 - `install.sh --help` (and `-h`) prints the script's own flags and exits 0 before any platform check or network call (#51).
 - `spawn-at-verify`: required tests that are still pending are counted as `pending_required`, not as failed, and `report.md` shows a PENDING badge instead of NOT QUALIFIED when nothing failed and no required test was skipped. Older `report.json` files still load (#56).
 - `uninstall`: the line after saying No to the log-out question no longer names `--gnome-wayland-logout=false` or `--gnome-x11-reload=false` (#57).
-- `install` and `uninstall` on GNOME print a warning, not the success line, when `gnome-extensions enable` or `disable` fails. Exit statuses are unchanged (#58).
+- `install` and `uninstall` on GNOME no longer print the success line when `gnome-extensions enable` or `disable` fails: `install` prints a plain note (a freshly copied extension may only load after the next login), `uninstall` a warning. Exit statuses are unchanged (#58).
 
 ## [0.2.0] - 2026-10-18
 

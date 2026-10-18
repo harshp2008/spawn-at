@@ -34,9 +34,10 @@ On GNOME, the closing line reports the result of `gnome-extensions`, but a failu
 does not change the exit status:
 
 - `install` prints `Spawn-At GNOME extension successfully installed and enabled.` only when `gnome-extensions
-  enable` exits 0. When it exits non-zero, `install` prints a warning instead (`'gnome-extensions enable'
+  enable` exits 0. When it exits non-zero, `install` prints a note instead (`Note: 'gnome-extensions enable'
   exited with code N. The extension files were deployed, but the extension is not confirmed
-  enabled ...`) and still exits 0. It stops with an error only when `gnome-extensions` cannot be
+  enabled. If GNOME Shell has not loaded the new files yet, it may only be enabled after you log
+  out and back in ...`) and still exits 0. It stops with an error only when `gnome-extensions` cannot be
   started.
 - `uninstall` prints `Spawn-At extension successfully uninstalled.` only when `gnome-extensions
   disable` exits 0. When it cannot be started or exits non-zero, `uninstall` still deletes the files

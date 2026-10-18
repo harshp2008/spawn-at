@@ -214,11 +214,13 @@ fn exit_failure_from(success: bool, code: Option<i32>) -> Option<String> {
     })
 }
 
-/// The warning printed by `install` instead of the success line when `gnome-extensions enable`
-/// did not exit with 0. The files are on disk, but the extension is not confirmed enabled.
-fn enable_warning_text(why: &str) -> String {
+/// The plain note (not a warning) printed by `install` instead of the success line when
+/// `gnome-extensions enable` did not exit with 0. The files are on disk, but the extension is
+/// not confirmed enabled; a shell that has not loaded the new files yet may only enable it
+/// after the next login.
+fn enable_note_text(why: &str) -> String {
     format!(
-        "'gnome-extensions enable' {why}. The extension files were deployed, but the extension is not confirmed enabled (it might already be enabled or pending reload)."
+        "Note: 'gnome-extensions enable' {why}. The extension files were deployed, but the extension is not confirmed enabled. If GNOME Shell has not loaded the new files yet, it may only be enabled after you log out and back in; 'gnome-extensions list --enabled' shows the state."
     )
 }
 
@@ -280,7 +282,7 @@ impl Provisioner for GnomeWaylandDriver {
     ///
     /// Errors: [`DriverError::Execution`] when `$HOME` is unset, the directory cannot be
     /// created, a file cannot be written, the prompt fails, or `gnome-extensions` cannot be
-    /// started. A non-zero exit of `gnome-extensions enable` is not an error: a warning says the
+    /// started. A non-zero exit of `gnome-extensions enable` is not an error: a note says the
     /// files were deployed but the extension is not confirmed enabled, the "successfully
     /// installed and enabled" line is not printed, and the run goes on and returns `Ok`.
     fn install(&self, args: &InstallArgs) -> Result<(), DriverError> {
@@ -376,7 +378,7 @@ impl Provisioner for GnomeWaylandDriver {
                 })?;
 
             if let Some(why) = exit_failure(&status) {
-                crate::diagnostics::render_warning(&enable_warning_text(&why));
+                println!("{}", enable_note_text(&why));
             } else {
                 println!("Spawn-At GNOME extension successfully installed and enabled.");
             }
@@ -559,15 +561,18 @@ mod tests {
         );
     }
 
-    /// After a failed `enable` the warning says the files are there but the extension is not
-    /// confirmed enabled, and never contains the success wording the old code printed anyway.
+    /// After a failed `enable` the note says the files are there but the extension is not
+    /// confirmed enabled, never contains the success wording the old code printed anyway, and
+    /// is a plain "Note:" line (install prints it with `println!`, not `render_warning`).
     #[test]
-    fn test_enable_warning_does_not_claim_success() {
-        let text = enable_warning_text("exited with code 1");
-        assert!(text.starts_with("'gnome-extensions enable' exited with code 1."));
+    fn test_enable_note_does_not_claim_success() {
+        let text = enable_note_text("exited with code 1");
+        assert!(text.starts_with("Note: 'gnome-extensions enable' exited with code 1."));
         assert!(text.contains("files were deployed"));
         assert!(text.contains("not confirmed enabled"));
+        assert!(text.contains("log out and back in"));
         assert!(!text.contains("successfully"), "{text}");
+        assert!(!text.to_lowercase().contains("warning"), "{text}");
     }
 
     /// After a failed `disable` the warning says the extension may still be enabled and tells
