@@ -70,7 +70,7 @@ not set through `spawn-at config`.
 
 | Key | Type | Default when absent | Meaning |
 | :--- | :--- | :--- | :--- |
-| `auto_check` | boolean | `true` | Allows the in-process background check (the 24 hour rule). It has no effect on the login entry, and only matters when `notify` is true. See [Update](/spawn-at/update/#notices-and-the-background-check) |
+| `auto_check` | boolean | `true` | Allows the in-process background check (the 24 hour rule) and the silent `update --check --headless` that the login entry runs: with `false` that command returns before it asks GitHub. The in-process check only happens when `notify` is true. See [Update](/spawn-at/update/#notices-and-the-background-check) |
 | `channel` | string | `"stable"` | `"stable"` or `"beta"`. `all` is read as `beta`; any other value is read as `stable` |
 | `notify` | boolean | `true` | Whether the terminal update notice is shown |
 | `last_check_time` | whole number | `0` | Unix time in seconds of the last check, set by the checks and by a successful upgrade |
@@ -78,15 +78,17 @@ not set through `spawn-at config`.
 | `cached_beta_version` | string, optional | absent | Newest pre-release tag the last check found |
 | `latest_cached_version` | string, optional | absent | Kept so a file written by 0.1 still reads. It is used only when the other two are absent (`src/config.rs:78-100`) |
 
-`spawn-at install` writes `auto_check`, `channel` and `notify` every time it runs, and so does the
-`install --skip-bin --headless` that `spawn-at update` runs on GNOME (see
-[Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings)). It does not
-keep your earlier values for the three: `auto_check` becomes `true`, `channel` becomes the one you
-give or answer (`stable` without a terminal and without the flag), and `notify` becomes the one
-you give or answer (`false` without a terminal and without the flag) (`src/main.rs:282-332`; read
-from source, not run). `spawn-at update --check` also saves the cache keys and the check time
-(`src/update.rs:788-799`). `config reset` leaves the `[update]` table alone, so nothing in
-spawn-at clears the cache keys.
+`spawn-at install` in a terminal asks for the channel and `notify` (unless `--update-channel` and
+`--update-notify` are given) and writes them with `auto_check = true`. Without a terminal
+(`--headless`, or stdout not a terminal), including the `install --skip-bin --headless` that
+`spawn-at update` runs on GNOME, it keeps a key the file already has unless its own flag is given,
+and writes the default for a missing key: `auto_check = true`, `channel = "stable"`, `notify =
+false` (`src/main.rs:281-347`, `UpdateConfig::apply_headless_install`; read from source and
+unit-tested, not run; see [Update](/spawn-at/update/#the-child-install-and-your-settings)).
+`spawn-at update` without `--check` saves the cache keys and the check time, and the silent
+`update --check --headless` does too unless `auto_check` is false; `update --check` in a terminal
+saves nothing (`src/update.rs`, `headless_check`, `lookup_is_cached`). `config reset` leaves the
+`[update]` table alone, so nothing in spawn-at clears the cache keys.
 
 ## Not verified
 

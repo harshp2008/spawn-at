@@ -13,10 +13,11 @@ title: "Testing and the verify tool"
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
-Counts measured on 2026-10-18 on `main` at commit `b10ca5b`:
-`spawn-at` 447, `spawn-at-core` 64, `xtask` 54 (52 unit tests and 2 in `burn_cpu_test.rs`),
-`spawn-at-verify` 619 passed and 5 ignored (with `--features tui,fixture`), Node 204. Five tests
-stay ignored: four need a live display, one needs a private Sway.
+Counts measured on 2026-10-18 on the branch `fix/v0-2-1-batch` (the 0.2.1 fixes, before merge):
+`spawn-at` 460, `spawn-at-core` 64, `xtask` 54 (52 unit tests and 2 in `burn_cpu_test.rs`),
+`spawn-at-verify` 625 passed and 5 ignored (with `--features tui,fixture`), Node 204. Five tests
+stay ignored: four need a live display, one needs a private Sway. The Node figure is 201 run plus the
+3 tests of `tests/install_unsupported_test.js`, which execute `install.sh` and were left to CI.
 
 ## What `spawn-at-verify` checks
 
@@ -69,6 +70,13 @@ scripts/verify-sway.sh                               # unattended, private headl
 its only file is the drawer text saved with `w`. Window titles are redacted unless
 `--include-titles` is given. A build from uncommitted changes is flagged dirty, and a dirty build
 can never qualify an environment.
+
+The qualification block of the report counts the required tests as passed, failed, pending and
+skipped, apart from each other (`pending_required` in `report.json`; an older report without it
+reads as 0). Pending means still waiting for a human verdict. `supported` is true only when every
+required test passed. When nothing failed and no required test was skipped, but some are pending,
+`report.md` shows a PENDING badge instead of NOT QUALIFIED; a failure or a required skip still
+shows NOT QUALIFIED. This is checked with fake reports in unit tests, not on a live session.
 
 ## The TUI keys
 

@@ -9,7 +9,7 @@ is chosen, so it also works on an unsupported desktop. `install` and `uninstall`
 | :--- | :--- |
 | `install` | Copies the binary to your `PATH` and, on GNOME, deploys and enables the extension |
 | `uninstall` | Removes the binary, the extension directory and the login update-check entry. Your config file stays |
-| `update` | Checks GitHub for a newer release; `--check` installs nothing (it still saves the result to the config file), `--force` reinstalls |
+| `update` | Checks GitHub for a newer release; `--check` installs nothing and saves nothing to the config file, `--force` reinstalls |
 
 The questions `install` asks and the flags that answer them in advance are on the
 [Install](/spawn-at/install/) page. What `update` does step by step is on the
@@ -30,14 +30,18 @@ Two options are worth knowing before you run them:
   closes your applications; it defaults to `false`. Use `--skip-bin --headless` to leave the binary
   alone and not be asked.
 
-On GNOME, the closing line does not report the result of `gnome-extensions`:
+On GNOME, the closing line reports the result of `gnome-extensions`, but a failure is a warning and
+does not change the exit status:
 
-- `install` prints `Note: 'gnome-extensions enable' returned a non-zero exit code ...` when the
-  enable command exits non-zero, and then still prints `Spawn-At GNOME extension successfully
-  installed and enabled.` It stops with an error only when `gnome-extensions` cannot be started.
-- `uninstall` runs `gnome-extensions disable` and ignores the outcome, including a missing
-  `gnome-extensions`. `Spawn-At extension successfully uninstalled.` is printed whatever happened;
-  an error is raised only if deleting the extension directory fails.
+- `install` prints `Spawn-At GNOME extension successfully installed and enabled.` only when `gnome-extensions
+  enable` exits 0. When it exits non-zero, `install` prints a warning instead (`'gnome-extensions enable'
+  exited with code N. The extension files were deployed, but the extension is not confirmed
+  enabled ...`) and still exits 0. It stops with an error only when `gnome-extensions` cannot be
+  started.
+- `uninstall` prints `Spawn-At extension successfully uninstalled.` only when `gnome-extensions
+  disable` exits 0. When it cannot be started or exits non-zero, `uninstall` still deletes the files
+  if asked to, prints a warning that the extension may still be enabled and whether its files were
+  removed, and exits 0. An error is raised only if deleting the extension directory fails.
 
 Read from the code (`src/platform/linux/gnome/deploy.rs`), not run, because running them would
 change the live session.

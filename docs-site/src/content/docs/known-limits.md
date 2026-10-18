@@ -27,11 +27,14 @@ the project as a whole, see [Known shortcomings](/spawn-at/shortcomings/).
 - **`close` is the exception.** It polls for up to 1500 ms and fails with `did not close within ...`
   if the window is still listed. A window list that cannot be read counts as closed. `--no-wait`
   skips the check.
-- **`install` and `uninstall` report success regardless of `gnome-extensions`.** After a non-zero
-  `gnome-extensions enable`, `install` prints a note and then `successfully installed and enabled`.
-  `uninstall` ignores the result of `gnome-extensions disable` and always prints `successfully
-  uninstalled` once it gets there. `install` stops with an error when a file cannot be written or
-  `gnome-extensions` cannot be started; `uninstall` when the extension directory cannot be deleted.
+- **A failed `gnome-extensions` call is a warning, not an error status.** After a non-zero
+  `gnome-extensions enable`, `install` prints a warning (files deployed, extension not confirmed
+  enabled) instead of `successfully installed and enabled`, and still exits 0. If
+  `gnome-extensions disable` cannot be started or exits non-zero, `uninstall` prints a warning (the
+  extension may still be enabled; the files were removed or not) instead of `successfully
+  uninstalled`, carries on, and still exits 0. `install` stops with an error when a file cannot be
+  written or `gnome-extensions` cannot be started; `uninstall` when the extension directory cannot
+  be deleted. Read from source, not run.
 
 ## Matching a window by name
 
