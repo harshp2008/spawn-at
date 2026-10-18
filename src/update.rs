@@ -712,6 +712,23 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     Ok(())
 }
 
+/// Whether the candidate found by an interactive-path `update` run is saved to the config file.
+/// `update --check` only looks, so it saves nothing; the silent `--check --headless` mode (see
+/// [`headless_check`]) is the one that keeps the cache the update banner reads.
+fn lookup_is_cached(args: &UpdateArgs) -> bool {
+    !args.check
+}
+
+/// Stores `rel`'s tag as the cached beta (a pre-release) or stable version, and the time `now`.
+fn cache_candidate(config: &mut Config, rel: &GitHubRelease, now: u64) {
+    if rel.prerelease {
+        config.update.cached_beta_version = Some(rel.tag_name.clone());
+    } else {
+        config.update.cached_stable_version = Some(rel.tag_name.clone());
+    }
+    config.update.last_check_time = now;
+}
+
 /// The silent `update --check --headless` (the login entry and the 24-hour background check):
 /// stores the newest stable and the newest pre-release tag in `config` and the time `now`.
 ///
@@ -807,13 +824,10 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if let Some(ref rel) = candidate_opt {
-        if rel.prerelease {
-            config.update.cached_beta_version = Some(rel.tag_name.clone());
-        } else {
-            config.update.cached_stable_version = Some(rel.tag_name.clone());
+        if lookup_is_cached(&args) {
+            cache_candidate(&mut config, rel, current_timestamp_secs());
+            let _ = config.save();
         }
-        config.update.last_check_time = current_timestamp_secs();
-        let _ = config.save();
     }
 
     if args.check {
@@ -948,6 +962,38 @@ pub mod tests {
             draft,
             assets: vec![],
         }
+    }
+
+    /// `update --check` saves nothing to the config file; `update` and `update --headless`, which
+    /// may go on to install, still record the candidate they found.
+    #[test]
+    fn test_check_does_not_cache_the_lookup() {
+        let check = UpdateArgs {
+            check: true,
+            ..Default::default()
+        };
+        assert!(!lookup_is_cached(&check));
+        assert!(lookup_is_cached(&UpdateArgs::default()));
+        let headless = UpdateArgs {
+            headless: true,
+            ..Default::default()
+        };
+        assert!(lookup_is_cached(&headless));
+    }
+
+    /// A pre-release goes to the beta slot only, a release to the stable slot only.
+    #[test]
+    fn test_cache_candidate_picks_the_slot_by_prerelease() {
+        let mut cfg = Config::default();
+        cache_candidate(&mut cfg, &mock_release("v0.2.1-beta.1", true, false), 7);
+        assert_eq!(
+            cfg.update.cached_beta_version.as_deref(),
+            Some("v0.2.1-beta.1")
+        );
+        assert!(cfg.update.cached_stable_version.is_none());
+        cache_candidate(&mut cfg, &mock_release("v0.2.1", false, false), 8);
+        assert_eq!(cfg.update.cached_stable_version.as_deref(), Some("v0.2.1"));
+        assert_eq!(cfg.update.last_check_time, 8);
     }
 
     /// With `auto_check = false` the login entry's `update --check --headless` must not even ask
