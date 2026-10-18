@@ -1,11 +1,13 @@
 # spawn-at 0.2.1: release notes
 
-This is a patch release of the 0.2 series: it fixes eight issues found after 0.2.0 and changes no window-placement behaviour. `spawn-at` places windows on GNOME Shell on Wayland, and only GNOME 46 has been tested.
+This is a patch release of the 0.2 series: it fixes eight issues, several of which were listed under Known limits in the 0.2.0 notes, and changes no window-placement behaviour. `spawn-at` places windows on GNOME Shell on Wayland, and only GNOME 46 has been tested.
 
 ## What changed
 
 - **#47:** `install` without a terminal (`--headless`, or stdout not a terminal), which includes the `install --skip-bin --headless` that `update` runs on GNOME, no longer overwrites `update.auto_check`, `update.channel` and `update.notify`. A key the config file already has is kept unless its own flag is given.
-- **#48:** `install --skip-bin` writes the login entry's `Exec=` from the installed binary, not from the running one, so an update no longer leaves the entry pointing into a deleted temp directory.
+
+- **#48:** `install --skip-bin` writes the login entry's `Exec=` from the installed binary when there is one (the running binary is used only if none is installed, as before), so an update no longer leaves the entry pointing into a deleted temp directory. If `update` is started from a binary that is in neither bin directory, the entry can still point at the temp directory.
+
 - **#49:** `update --check` in a terminal no longer writes its result into the config file.
 - **#50:** the silent `update --check --headless`, which the login entry runs, returns before asking GitHub when `update.auto_check` is false.
 - **#51:** `install.sh --help` (and `-h`) prints the script's own flags and exits 0 before any platform check or network call.
@@ -21,6 +23,8 @@ The GNOME extension (`assets/gnome/`) is unchanged since 0.2.0. The full list is
 - **#53:** there is still no checksum or signature check in `update` or `install.sh`; it needs release tooling that does not exist yet.
 - **#54:** `spawn --focus`, `--no-focus` and `--defocus` are still accepted and ignored; changing them changes the help-text contract.
 - **#55:** on GNOME 46 the extension still cannot read a window's minimum size; fixing it means changing the extension, which stays byte-for-byte as in 0.2.0.
+
+The other limits listed in the 0.2.0 notes still apply; see [Known limits](https://harshp2008.github.io/spawn-at/known-limits/).
 
 ## How to install and update
 
