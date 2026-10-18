@@ -1794,3 +1794,32 @@ Labels: CONFIRMED = measured in this section; HYPOTHESIS = not tested. Research 
 - *Product concerns of injecting a library into arbitrary apps (not tested, stated for the record, not a recommendation):* it widens the security surface (code of ours runs inside every launched app, and anything that can set `LD_PRELOAD` in the spawn environment can run code); it can break apps (symbol interposition on Xlib calls, the unconditional pinning seen in (c), sandboxes and hardened binaries that refuse or strip the variable); distributions and enterprise policies often forbid or audit `LD_PRELOAD`; and it only helps toolkits that call the Xlib functions. **I do not recommend shipping it.** The supported route stays the extension's own resize.
 
 No code in the tree changed; test counts unchanged (Rust 683 and node 183, 866 together; last measured, not re-run for this docs-only change). Leftover scratch: `scratch/shim/`, `scratch/p36_*`, results in `scratch/p36r/` (gitignored); no process left running.
+
+### 6.36 The 24x24 "first paint" under `--strict-flash` is the Wayland cursor surface (2026-10-18)
+
+Labels: CONFIRMED = read in a live `WAYLAND_DEBUG` dump of the fixture or in the code; harness only, no product change.
+
+**Finding (CONFIRMED).** A strict-flash run of the fixture reported a 24x24 first paint. A `WAYLAND_DEBUG=client` dump of the fixture shows that 24x24 buffer belongs to the pointer cursor, not the window:
+
+```
+xdg_wm_base@12.get_xdg_surface(new id xdg_surface@23, wl_surface@22)
+xdg_surface@23.get_toplevel(new id xdg_toplevel@24)
+wl_shm_pool@38.create_buffer(new id wl_buffer@36, 0, 500, 350, 2000, 1)
+wl_surface@22.attach(wl_buffer@36, 0, 0)
+wl_shm_pool@35.create_buffer(new id wl_buffer@32, 1024, 24, 24, 96, 0)
+wl_surface@19.attach(wl_buffer@32, 0, 0)
+wl_pointer@20.set_cursor(8857, wl_surface@19, 7, 4)
+```
+
+`wl_surface@22` is the surface given to `get_xdg_surface`, so it is the window (500x350). `wl_surface@19` is the cursor surface (24x24) passed to `wl_pointer.set_cursor`.
+
+**Cause (CONFIRMED, code).** `parse_wire_paints` (`crates/spawn-at-verify/src/trace/wire.rs`) listed a paint for every `wl_surface` commit that put a new buffer size on any surface, and `trace/flash.rs` takes `wire_paints.last()`. A cursor commit after the window's last size change therefore became "the paint", with the cursor's 24x24 size and time.
+
+**Fix.** `parse_wire_paints` now collects the surfaces named in `xdg_wm_base.get_xdg_surface` and counts commits on those only. If the dump has no `get_xdg_surface`, every surface is counted as before. Signature and `flash.rs` are unchanged. Three unit tests built from the dump lines above: a cursor commit after the window's last commit is not a paint, the window's own commits are still counted, and a dump without `get_xdg_surface` behaves as before.
+
+**Scope (what this does and does not change).**
+- The bug could only add false flashes (a cursor commit after the window's last paint). It could not hide a real one, because the window's own commits were always counted.
+- The default ready-wait results of 6.23 and 6.30 ("0 of 40") are therefore unaffected.
+- The legacy-rule figures of 6.23 ("26 of 40") and 6.30 ("27 of 40") could include false flashes. Read them as upper bounds. They were not re-measured.
+- The strict-flash run of 2026-10-18 (22 burn threads, 6 of 28 specs failed 5 of 5) was NOT re-run after the fix, so what it shows once the cursor is excluded is not known.
+- Not run live: the fix is covered by unit tests on dump text only.
