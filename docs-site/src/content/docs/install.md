@@ -61,7 +61,7 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.1
 
 # Remove an existing install first, without asking; your config file is kept (an install in a terminal asks for and writes the [update] choices; one without a terminal keeps the keys the file has)
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install

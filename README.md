@@ -187,7 +187,7 @@ A value on the command line beats the file, and the file beats the default; `sho
 
 ## Support
 
-**Status of v0.2.0.** Only one configuration has been tested: GNOME Shell 46 on Wayland, on one machine with one monitor. Sway is experimental and was run only against a private headless Sway 1.9 with the project's test window. X11 and the legacy GNOME 42-44 extension have not been thoroughly tested, and everything marked untested below may not work. Prebuilt binaries are published for Linux x86_64 only; Windows and macOS builds are compile-checked in CI and have never been run. Not verified anywhere: GNOME versions other than 46, real Sway sessions and Sway versions other than 1.9, X11 or XWayland with real applications, more than two outputs and output scales other than 1 and 2 (on Sway), and removal at system scope. The behaviours that may surprise you are listed under [Known limits](https://harshp2008.github.io/spawn-at/known-limits/). Bug reports are welcome: [issues](https://github.com/harshp2008/spawn-at/issues).
+**Status of v0.2.1.** Only one configuration has been tested: GNOME Shell 46 on Wayland, on one machine with one monitor. Sway is experimental and was run only against a private headless Sway 1.9 with the project's test window. X11 and the legacy GNOME 42-44 extension have not been thoroughly tested, and everything marked untested below may not work. Prebuilt binaries are published for Linux x86_64 only; Windows and macOS builds are compile-checked in CI and have never been run. Not verified anywhere: GNOME versions other than 46, real Sway sessions and Sway versions other than 1.9, X11 or XWayland with real applications, more than two outputs and output scales other than 1 and 2 (on Sway), and removal at system scope. The behaviours that may surprise you are listed under [Known limits](https://harshp2008.github.io/spawn-at/known-limits/). Bug reports are welcome: [issues](https://github.com/harshp2008/spawn-at/issues).
 
 | Environment | Status |
 | :--- | :--- |
@@ -254,7 +254,7 @@ Add a module under `src/platform/linux/` and register it in `LinuxBackend::boots
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.0
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.1
 
 # Newest release including pre-releases
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --prerelease
