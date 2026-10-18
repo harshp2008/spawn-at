@@ -37,7 +37,7 @@ command and one placement model, with a separate driver for each desktop underne
 
 ## Status
 
-### Status of v0.2.0
+### Status of v0.2.1
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
 - **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
