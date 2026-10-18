@@ -46,7 +46,7 @@ journal showed `SET_LOGGING enabled=true`, `ARM_SPAWN`, `WINDOW_CREATED`, then
 `Call to function "_addTimer/id<" (GLib.SourceFunc) terminated with uncatchable exception` and
 `GNOME Shell crashed with signal 5`. systemd reported the Shell's main process exited with
 `code=dumped, status=5/TRAP`. **The session was restarted (a new gnome-shell pid 558192 at
-09:59:18/19) and the user's session applications were lost.**
+09:59:18/19) and the project owner's session applications were lost.**
 
 The cause, from the log: the probe's timer callback called `WindowActor.get_image(clip)`, which
 returned a NULL `cairo_surface_t` (`may_return_null=true` in the typelib). GJS asserts and aborts on a

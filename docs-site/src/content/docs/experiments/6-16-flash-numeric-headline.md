@@ -9,7 +9,7 @@ Flash: numeric headline, per-screen visibility label (harness only). The flash v
 | **ID** | TEST_LOG 6.16. Follows [6.15](/spawn-at/experiments/6-15-flash-aware-verdict/). |
 | **Date** | 2026-10-13. |
 | **Build** | Harness commit `1de817f`. Debug `spawn-at` and fixture. The version string is not recorded. No extension change. The only things read from the system were `xrandr --query` and one read-only `GetCurrentState` call to check its output format. |
-| **Verdict** | The headline stays numeric; visibility is a label. Against the observation of about 70%, the model expects 55% to 57% of these runs to show the flash: the same range, not the same number. The log says the 70% is "an impression by eye, not a measurement", that the model's own spread at 19 runs is about 10 points, and that the probability model is a hypothesis. Two readings are open and not separated: the real exposure is longer than the lead, or the user counts a milder artefact as a flash. |
+| **Verdict** | The headline stays numeric; visibility is a label. Against the observation of about 70%, the model expects 55% to 57% of these runs to show the flash: the same range, not the same number. The log says the 70% is "an impression by eye, not a measurement", that the model's own spread at 19 runs is about 10 points, and that the probability model is a hypothesis. Two readings are open and not separated: the real exposure is longer than the lead, or the project owner counts a milder artefact as a flash. |
 | **Raw results** | Not in the repository (the log's header says raw results and scripts are not). |
 
 ## What was tested

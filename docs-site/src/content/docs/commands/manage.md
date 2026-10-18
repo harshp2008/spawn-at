@@ -21,11 +21,10 @@ Two options are worth knowing before you run them:
 
 - `install --dry-run` prints the notice and what would be installed, then stops without changing
   anything.
-- From v0.2.0-beta.5, on a desktop that is not supported, `install` and `uninstall`
+- On a desktop that is not supported, `install` and `uninstall`
   print the same error as every other command and change nothing. Run `install.sh` with
   `--allow-unsupported` instead (see
-  [Unsupported desktops](/spawn-at/environments/unsupported-desktops/)). In v0.2.0-beta.4 and earlier the
-  binary does not refuse.
+  [Unsupported desktops](/spawn-at/environments/unsupported-desktops/)).
 - **`uninstall` run bare, in a terminal, asks what to do with the binary** (user scope, system scope
   or keep it), and it has no `--dry-run`. On GNOME Wayland, `--gnome-wayland-logout` logs you out and
   closes your applications; it defaults to `false`. Use `--skip-bin --headless` to leave the binary

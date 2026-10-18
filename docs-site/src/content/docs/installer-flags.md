@@ -42,7 +42,7 @@ The script stops at once with a message when the machine is not Linux x86_64
 | Flag | Default | What it does | Source |
 | :--- | :--- | :--- | :--- |
 | `--scope <user\|system>` | `user` | Where the binary goes: `user` is `~/.local/bin/spawn-at`, `system` is `/usr/local/bin/spawn-at` | `src/platform/mod.rs:109-120`, `src/platform/installer.rs:20-21` |
-| `--skip-bin` | off | Does not install the binary. The login update entry then points at the binary that is running | `src/main.rs:136-141, 337-343` |
+| `--skip-bin` | off | Does not install the binary. The login update entry then points at the binary that is running. `update` runs the new binary from its temp directory this way, so on GNOME the entry it writes points into that directory, which `update` deletes (see [Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings)) | `src/main.rs:136-141, 341-343` |
 | `--headless` | off | Never asks. The flags decide. See [Headless defaults](#headless-defaults) | `src/main.rs:106, 282` |
 | `-y`, `--yes` | off | Goes on after the notice printed for an untested platform without asking. The notice is still printed | `src/platform/mod.rs:121-124`, `src/main.rs:106-118` |
 | `--dry-run` | off | Prints the notice (if any) and `Dry run: would install the binary (<scope> scope...) and the <driver> extension; nothing was changed.`, then stops | `src/main.rs:126-134` |
@@ -67,8 +67,10 @@ of `src/main.rs:283-336`:
 - the channel written is `stable` unless `--update-channel` is given;
 - `update.notify` is written as `false` unless `--update-notify` is given;
 - `update.auto_check` is always written as `true`;
-- these three overwrite the `[update]` values already in the config file. The same happens in a
-  terminal after you answer the two questions or pass the two flags.
+- these three overwrite the `[update]` values already in the config file, unconditionally
+  (`src/main.rs:330-332`). The same happens in a terminal after you answer the two questions or
+  pass the two flags, and in the `install --skip-bin --headless` that `update` runs on GNOME (see
+  [Update](/spawn-at/update/#code-finding-the-child-install-rewrites-settings)).
 
 This is read from source, not run. It differs from the sentences in `install.md` and the README
 that say your configuration is kept: the file is kept, but these three keys are rewritten.

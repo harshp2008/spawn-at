@@ -29,9 +29,8 @@ evidence first and style second.
 - `CLAUDE.md` ("Working style") has the same rules for reports: never claim something is verified
   unless it was run, and always list what could not be run (a real GNOME Wayland session, X11, other
   GNOME versions, macOS, Windows).
-- State no release status ("in beta", "from v0.x") in new text. Status notes that already exist, such as
-  the box on the Install page that says when it can be removed, are left to the release that
-  outdates them.
+- State no release status ("in beta", "from v0.x") in a timeless page. The changelog, the release
+  notes and the Build field of an experiment record are history and keep their version words.
 
 ## Anatomy of a page
 
