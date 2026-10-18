@@ -1,10 +1,12 @@
 # spawn-at 0.2.0: release notes
 
-This is the **stable** release of the 0.2 series. It has the same code as [0.2.0-beta.6](RELEASE_NOTES_0.2.0-beta.6.md): the release changes documentation and the crate version only. Window placement, the ready-wait policy, the GNOME extension (`assets/gnome/`), `install.sh` and the command line are unchanged from beta.6. The code is the commit tagged `v0.2.0-beta.6`. Under `crates/`, the only difference besides the version lines is `crates/xtask/src/docs_check.rs`, the documentation-site check, which is not part of the release binary.
-
-To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md) and the later beta notes, and [CHANGELOG.md](../CHANGELOG.md).
+`spawn-at` is one command and one placement model, with a driver per desktop underneath. This is the **stable** release of the 0.2 series. GNOME Shell on Wayland is the supported target, and only GNOME 46 has been tested.
 
 ## Main changes since 0.1.0
+
+- A command (`spawn-at`) that places a window at an anchor, margin and size with one placement model, and a driver per desktop underneath.
+- **GNOME Shell on Wayland** is the supported target: the window is kept invisible until it is placed and the app has had time to draw at the new size. Only GNOME 46 has been tested.
+- **X11 and XWayland** go through a native X11 driver without cloaking, so windows can flash.
 
 - On GNOME 46 Wayland the extension keeps a resized window hidden until the app has answered the size request or a cap runs out (default 250 ms, hard limit 1500 ms).
 - New placement options: `--area`, `--pivot`, `--clamp`, `--monitor`.
@@ -15,9 +17,11 @@ To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOT
 - An experimental Sway backend, off unless `SPAWN_AT_BACKEND=sway` is set.
 - A non-GNOME Wayland session is now an error unless `SPAWN_AT_BACKEND` is set; 0.1.0 used the X11 backend without saying so.
 - `install.sh` resolves releases with retries, has `--version` and `--prerelease`, and `spawn-at install` can do `--clean-install`.
-- A documentation site, CI on pull requests, and test suites (counts below).
+- A documentation site, CI on pull requests, and test suites (counts below). The documentation site (`docs-site/`) has an update page, installer flags, files and paths, environment, requirements, troubleshooting, experiment records and a writing guide.
 
 ## What changed (technical)
+
+To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOTES_0.2.0-beta.1.md) and the later beta notes, and [CHANGELOG.md](../CHANGELOG.md).
 
 Each row gives what 0.1.0 did, what 0.2.0 does, and where the proof is. The 0.1.0 column comes from `git show v0.1.0:<path>`; "not verified" means the sources do not establish it. CHANGELOG headings are the version headings in [CHANGELOG.md](../CHANGELOG.md).
 
@@ -56,7 +60,7 @@ Each row gives what 0.1.0 did, what 0.2.0 does, and where the proof is. The 0.1.
 | Commands | `install`, `uninstall`, `spawn` | Adds `config`, `update`, `close`, `query` (`windows`, `layout`), `transform`, and window-state commands | `v0.1.0:src/main.rs` (`Commands`); CHANGELOG 0.2.0-beta.1, Added; command pages in `docs-site/src/content/docs/commands/` |
 | Selecting and scripting | `--class` | Adds `--id` (numeric id from `query windows`), `spawn --json`, `install --yes` and `--dry-run` | CHANGELOG 0.2.0-beta.1, Added |
 | `-a` | not verified | Rejected; use `--anchor` (exit 2) | CHANGELOG 0.2.0-beta.1, Breaking changes |
-| Word starting with `-` before the command | Tried to run it as a program | Usage error: `unknown option '-x'; to run a command that starts with '-', put it after --` (exit 2) | CHANGELOG 0.2.0-beta.1, Breaking changes (checked against `pre-cleanup-beta`, not against v0.1.0) |
+| Word starting with `-` before the command | The trailing arguments accept words starting with `-`, so such a word is taken as part of the program and its arguments | Usage error: `unknown option '-x'; to run a command that starts with '-', put it after --` (exit 2) | `v0.1.0:src/main.rs` (the `command` argument); CHANGELOG 0.2.0-beta.1, Breaking changes (the 0.2.0 message checked against `pre-cleanup-beta`) |
 | `spawn --focus`, `--no-focus`, `--defocus` | not verified | Accepted and ignored | CHANGELOG 0.2.0-beta.5, Tests; this file, Known limits |
 
 ### Installer and update
@@ -81,15 +85,6 @@ Each row gives what 0.1.0 did, what 0.2.0 does, and where the proof is. The 0.1.
 | Release workflow | Copied `README.md` and `LICENSE` with errors hidden | Fails if a packaged file is missing and checks the tarball lists `./spawn-at` | `v0.1.0:.github/workflows/release.yml`; CHANGELOG 0.2.0-beta.2, Fixed |
 | Tests | no test files; 10 inline `#[test]` functions in src (geometry.rs 4, installer.rs 2, xdg.rs 4) | Suites listed under "What was verified" | `git ls-tree -r v0.1.0` has no path containing `test`; `git grep -c "#\[test\]" v0.1.0 -- src` prints 4, 2, 4; counts below |
 | Verification tool | not present | `spawn-at-verify` (developer tool, not in the release binary) | `git ls-tree v0.1.0`; `crates/spawn-at-verify` |
-
-## What 0.2.0 is
-
-- A command (`spawn-at`) that places a window at an anchor, margin and size with one placement model, and a driver per desktop underneath.
-- **GNOME Shell on Wayland** is the supported target: the window is kept invisible until it is placed and the app has had time to draw at the new size. Only GNOME 46 has been tested.
-- **Sway** is an experimental, opt-in backend (`SPAWN_AT_BACKEND=sway`).
-- **X11 and XWayland** go through a native X11 driver without cloaking, so windows can flash.
-- A non-GNOME Wayland session is an error unless `SPAWN_AT_BACKEND` is set.
-- Documentation site (`docs-site/`), with an update page, installer flags, files and paths, environment, requirements, troubleshooting, experiment records and a writing guide.
 
 ## How to install and update
 
@@ -131,6 +126,10 @@ Short list; the full text is on the docs site page [Known limits](https://harshp
 - Everything listed under Known limits as read from the code only.
 - GNOME versions other than 46, real Sway sessions and Sway versions other than 1.9, X11 or XWayland with real applications, more than two outputs and output scales other than 1 and 2 (on Sway), removal at system scope.
 - Windows and macOS runs.
+
+## About this release
+
+It has the same code as [0.2.0-beta.6](RELEASE_NOTES_0.2.0-beta.6.md): the release changes documentation and the crate version only. Window placement, the ready-wait policy, the GNOME extension (`assets/gnome/`), `install.sh` and the command line are unchanged from beta.6. The code is the commit tagged `v0.2.0-beta.6`. Under `crates/`, the only difference besides the version lines is `crates/xtask/src/docs_check.rs`, the documentation-site check, which is not part of the release binary.
 
 ## How to report a problem
 
