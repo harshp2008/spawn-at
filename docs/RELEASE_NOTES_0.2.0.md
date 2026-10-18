@@ -7,8 +7,10 @@ To read what 0.2 added over 0.1, see [RELEASE_NOTES_0.2.0-beta.1.md](RELEASE_NOT
 ## Main changes since 0.1.0
 
 - On GNOME 46 Wayland the extension keeps a resized window hidden until the app has answered the size request or a cap runs out (default 250 ms, hard limit 1500 ms).
-- New placement options: `--area`, `--pivot`, `--clamp`, `--monitor`, `-o` as an alias of `-p`.
-- New commands: `config`, `update`, `close`, `query`, `transform`, and `spawn --json`.
+- New placement options: `--area`, `--pivot`, `--clamp`, `--monitor`.
+- Changed: `-o/--offset` meant an offset from the cursor in 0.1.0; in 0.2.0 it is an alias of `-p/--pos`.
+- New commands: `config`, `update`, `close`, `query`, `transform`.
+- New scripting flags: `--id`, `spawn --json`, `install --yes`, `--dry-run`.
 - A second extension tree for GNOME 42 to 44 (never run on a real GNOME 42 to 44), and a D-Bus protocol with a version.
 - An experimental Sway backend, off unless `SPAWN_AT_BACKEND=sway` is set.
 - A non-GNOME Wayland session is now an error unless `SPAWN_AT_BACKEND` is set; 0.1.0 used the X11 backend without saying so.
@@ -45,7 +47,7 @@ Each row gives what 0.1.0 did, what 0.2.0 does, and where the proof is. The 0.1.
 | GNOME Wayland | Driver for GNOME Wayland | Same driver, plus the ready-wait above | `v0.1.0:src/drivers/mod.rs` (`get_active_driver`) |
 | Other Wayland desktops | Used the X11 driver without a message | Exit 1 with an error naming `XDG_CURRENT_DESKTOP` and `XDG_SESSION_TYPE`, unless `SPAWN_AT_BACKEND` is set | `v0.1.0:src/drivers/mod.rs`; CHANGELOG 0.2.0-beta.5, Changed, "Unsupported desktops" |
 | Sway | README: "In Development" | Experimental, opt-in with `SPAWN_AT_BACKEND=sway`; tested on a private headless Sway 1.9 only | `v0.1.0:README.md` (Platform Support); CHANGELOG 0.2.0-beta.4, Added; `docs/DESIGN_SWAY.md` |
-| Windows and macOS | README: "Planned" | The crate compiles for them in CI; running it there prints "spawn-at does not support this operating system yet" and exits 1 | `v0.1.0:README.md`; CHANGELOG 0.2.0-beta.3, Changed |
+| Windows and macOS | README: "Planned" | The crate compiles for them in CI; running it there prints "spawn-at does not support this operating system yet" and exits 1 (not run) | `v0.1.0:README.md`; CHANGELOG 0.2.0-beta.3, Changed |
 
 ### Command line
 
@@ -77,7 +79,7 @@ Each row gives what 0.1.0 did, what 0.2.0 does, and where the proof is. The 0.1.
 | Documentation | `README.md`, `CONTRIBUTING.md` | Documentation site in `docs-site/` (Starlight), `docs/` design notes, test plan and log, release notes | `git ls-tree v0.1.0`; CHANGELOG 0.2.0-beta.5, Added |
 | CI | `release.yml` only (it ran `cargo test --verbose`) | Adds `ci.yml` (fmt, clippy, tests, Node tests) and `docs.yml` | `git ls-tree v0.1.0 .github/workflows`; `ls .github/workflows`; CHANGELOG 0.2.0-beta.2 and 0.2.0-beta.5 |
 | Release workflow | Copied `README.md` and `LICENSE` with errors hidden | Fails if a packaged file is missing and checks the tarball lists `./spawn-at` | `v0.1.0:.github/workflows/release.yml`; CHANGELOG 0.2.0-beta.2, Fixed |
-| Tests | no test files in the tree | Suites listed under "What was verified" | `git ls-tree -r v0.1.0` has no path containing `test`; counts below |
+| Tests | no test files; 10 inline `#[test]` functions in src (geometry.rs 4, installer.rs 2, xdg.rs 4) | Suites listed under "What was verified" | `git ls-tree -r v0.1.0` has no path containing `test`; `git grep -c "#\[test\]" v0.1.0 -- src` prints 4, 2, 4; counts below |
 | Verification tool | not present | `spawn-at-verify` (developer tool, not in the release binary) | `git ls-tree v0.1.0`; `crates/spawn-at-verify` |
 
 ## What 0.2.0 is
