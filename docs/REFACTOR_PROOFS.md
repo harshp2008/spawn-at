@@ -33,9 +33,9 @@ The matrix needs the fake-curl helpers in `scratch/b2/` (`matrix.sh`, `fakebin/`
 ```bash
 cargo fmt --check
 cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
-cargo test --locked -p spawn-at -p spawn-at-core -p xtask          # 273 / 64 / 10 (at beta.3)
-cargo test --locked -p spawn-at-verify --features tui,fixture      # 404 passed, 4 ignored (at beta.3)
-node --test tests/*.js                                             # 183 (at beta.3)
+cargo test --locked -p spawn-at -p spawn-at-core -p xtask          # 273 / 64 / 10 (as first recorded, in v0.2.0-beta.4)
+cargo test --locked -p spawn-at-verify --features tui,fixture      # 404 passed, 4 ignored (as first recorded, in v0.2.0-beta.4)
+node --test tests/*.js                                             # 183 (as first recorded, in v0.2.0-beta.4)
 cargo build --release --locked
 cargo check --locked -p spawn-at --target x86_64-pc-windows-gnu
 cargo check --locked -p spawn-at --target x86_64-apple-darwin

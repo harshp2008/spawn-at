@@ -13,7 +13,7 @@ To provide seamless backward compatibility without compromising the clean ESM ar
 - `assets/gnome/modern/` (GNOME Shell 45, 46, 47, 48) — Native ESM modules.
 - `assets/gnome/legacy/` (GNOME Shell 42, 43, 44) — Legacy GJS `imports` architecture.
 
-Both implementations adhere to the same D-Bus interface specification, except that the modern tree reports `ProtocolVersion = 6` and the legacy tree `ProtocolVersion = 5`: protocol 6 adds the `ResizeOutcome` signal (emitted before `SpawnClaimed` for native Wayland windows), which the legacy tree does not have. Both emit the **identical `SpawnClaimed` D-Bus signal**, and enforce the **identical zero-flicker cloaking and unmaximize pipeline**.
+Both implementations adhere to the same D-Bus interface specification, except that the modern tree reports `ProtocolVersion = 6` and the legacy tree `ProtocolVersion = 5`: protocol 6 adds the `ResizeOutcome` signal (emitted before `SpawnClaimed` for native Wayland windows), which the legacy tree does not have. Both emit the **identical `SpawnClaimed` D-Bus signal** and run the same step sequence for a spawn (set size, wait for commit, set position, uncloak; the `switch` in each `extension.js`). The modern tree also has the ready-wait (`ready_wait.js`), a re-anchor right before the reveal (`_reanchorLateResize`), a per-spawn wait override and X11 observation logging (`x11_observe.js`); the legacy tree has none of these, and its wait is the 30 ms quiet rule only (`commit.js`). Whether the cloak and unmaximize code behave the same in both trees is not verified; a line-by-line comparison of the two `cloak.js` files and a run on GNOME 42 to 44 would settle it.
 
 ---
 
