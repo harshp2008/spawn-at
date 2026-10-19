@@ -12,7 +12,7 @@ The changelog is `CHANGELOG.md` in the repository. It follows
 
 | Version | Date | Release notes |
 | :--- | :--- | :--- |
-| Unreleased | | (empty) |
+| Unreleased | | Documentation site changes only |
 | 0.2.1 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.1.md): fixes for #47, #48, #49, #50, #51, #56, #57 and #58; the GNOME extension is unchanged |
 | 0.2.0 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0.md): the same code as 0.2.0-beta.6; documentation and version only |
 | 0.2.0-beta.6 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.6.md): the installer's PATH advice is idempotent and mentions logging out; otherwise docs and tests |

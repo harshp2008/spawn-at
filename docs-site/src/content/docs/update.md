@@ -40,7 +40,7 @@ nothing. The login entry and the background check use this mode (see below).
    answer is "up to date".
 
 If the lookup fails, `update` prints `Error checking updates: ...` through the error renderer and
-returns without an error status (`src/update.rs:786`, then `return Ok(())`). The process therefore
+returns without an error status (`src/update.rs`, `run_update`: the error is rendered, then `return Ok(())`). The process therefore
 exits 0 on a failed lookup. This is read from source, not run.
 
 ### A build that is not a release
@@ -51,14 +51,14 @@ prints `DEV BUILD`). For such a build:
 - `update --check` finds no candidate and prints `spawn-at is up to date (dev).`
 - `update` without `--check` prints `Running build does not have a parseable release version (dev
   build).` and `spawn-at update refuses to upgrade without an eligible candidate. Use --force to
-  override.` and stops (`src/update.rs:833-834`).
+  override.` and stops (`src/update.rs`, `run_update`).
 - `--force` skips that refusal.
 
 Both are read from source, not run.
 
 ## The menu
 
-In a terminal, without `--headless`, `update` shows four choices (`src/update.rs:716-727`):
+In a terminal, without `--headless`, `update` shows four choices (`src/update.rs`, `update_menu_options`):
 
 | Item | Does |
 | :--- | :--- |

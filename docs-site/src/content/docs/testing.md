@@ -125,4 +125,4 @@ These come from the project rules and the harness design.
 - `docs/TEST_PLAN.md`, section 7 and the suite counts
 - `docs/KNOWLEDGE.md` ("Testing and fixtures")
 - `docs/CODE_LAYOUT.md` ("Facts that constrain moving files")
-- the counts come from `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`, `cargo test --locked -p spawn-at-verify --features tui,fixture` and `node --test tests/*.js`, run on 2026-10-17
+- the counts come from `cargo test --locked -p spawn-at -p spawn-at-core -p xtask`, `cargo test --locked -p spawn-at-verify --features tui,fixture` and `node --test tests/*.js`, run on 2026-10-19 on the branch `docs-records-cards`
