@@ -78,6 +78,14 @@ header.header {
      line itself; a plain inline piece would also break after its hyphens. */
   display: inline-block;
   max-width: 100%;
+  /* The chip of the parent <code> (background and 2px 6px padding) is painted only behind the
+     line the inline-block sits on, its last one, so the other lines had no chip. The same colour
+     is painted behind every line of the piece, and the 6px at each end are box-shadows, which take
+     no room: a cell does not get wider. */
+  background-color: var(--sl-color-bg-inline-code);
+  box-shadow:
+    -6px 0 var(--sl-color-bg-inline-code),
+    6px 0 var(--sl-color-bg-inline-code);
 }
 /* The underline of a link does not reach into an inline-block, so it is drawn again. */
 .sl-markdown-content a:not(:where(.not-content *)) > code .code-any {
