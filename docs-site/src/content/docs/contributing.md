@@ -71,13 +71,13 @@ The GNOME Wayland contract, from `DESIGN_PLATFORMS.md` section 7:
 
 ## How a change is made
 
-These are the project's rules, written down in `CLAUDE.md` in the repository.
+These are the project's contributor rules.
 
-- Start every task from an up-to-date `main`. One commit per step, with a conventional message
+- Start every change from an up-to-date `main`. One commit per step, with a conventional message
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`). Update doc counts in the same
   commit that changes them.
 - Run `cargo fmt --check`, clippy and the tests after every commit, not only at the end.
-- **Pull requests:** push the branch you created, open a draft pull request, and never merge, tag or
+- **Pull requests:** push your branch, open a draft pull request, and do not merge, tag or
   push `main` yourself. The order for a release is: pull request, merge, pull `main`, then tag. The
   version comes from the git tag at build time; a build that is not on a tag prints `DEV BUILD`.
   `install.sh` is fetched from `main`, so a merge ships changes to it at once; changes to the binary
@@ -89,7 +89,7 @@ These are the project's rules, written down in `CLAUDE.md` in the repository.
   `scripts/check-comment-only-product.sh <rev>` runs it over the product code. Write comments from
   the function body, not the function name; if unsure, leave it out.
 - Keep `CHANGELOG.md` current (new entries under Unreleased) and add facts that took more than a few
-  tool calls to find to `docs/KNOWLEDGE.md`.
+  steps to find to `docs/KNOWLEDGE.md`.
 - **A page of this book** follows the rules and the templates on
   [Writing the docs](/spawn-at/contributing/writing-docs/); `cargo xtask docs-site` must exit 0.
 
@@ -135,7 +135,7 @@ site is served under `/spawn-at/`. The pieces:
 
 ## Sources
 
-- `CONTRIBUTING.md` and `CLAUDE.md`
+- `CONTRIBUTING.md` and the repository's contributor rules
 - `docs/CODE_LAYOUT.md` ("Workspace")
 - `docs/DESIGN_PLATFORMS.md`, sections 2, 4 and 7
 - `docs/REFACTOR_PROOFS.md`

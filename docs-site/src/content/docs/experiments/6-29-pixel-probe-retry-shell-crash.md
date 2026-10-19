@@ -58,6 +58,8 @@ a fresh window before its texture had content.
 runs 1 to 4 went to a dead Shell and the rest to the new session, where no extension-claimed window was
 found. None is data. The loaded batch never started.
 
+### Process note
+
 **A process slip, recorded by the log's author.** Before the first spawn the journal of that Shell held
 one Mutter line, `surface_state_changed: assertion 'wl_window->has_last_sent_configuration' failed`, 6 s
 after the Shell started. The author called it a baseline and went on; the log says that under the rule

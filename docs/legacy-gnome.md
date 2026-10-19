@@ -1,6 +1,5 @@
 # Legacy GNOME (42–44) Differences & Compatibility Analysis
 
-**Author:** Antigravity (Advanced Agentic Coding)  
 **Date:** 2026-10-09  
 **Status:** Implemented and checked with the test harness only. **UNTESTED on a real GNOME 42-44 session**: it may not work. The installer says so before it installs (see the README, "Support").
 
@@ -8,13 +7,13 @@
 
 ## 1. Executive Summary
 
-Beginning with GNOME Shell 45, the GNOME project migrated its JavaScript runtime from legacy GJS `imports` (SpiderMonkey global object sharing) to standard ECMAScript Modules (ESM). GNOME Shell 42, 43, and 44 (standard on Ubuntu 22.04 LTS and Debian 12) require legacy GJS conventions and specific Mutter/Clutter API calls.
+Beginning with GNOME Shell 45, the GNOME project migrated its JavaScript runtime from legacy GJS `imports` (SpiderMonkey global object sharing) to standard ECMAScript Modules (ESM). GNOME Shell 42, 43, and 44 (standard on Ubuntu 22.04 LTS and Debian 12; not verified) require legacy GJS conventions and specific Mutter/Clutter API calls.
 
 To provide seamless backward compatibility without compromising the clean ESM architecture of modern GNOME (45–48), `spawn-at` maintains two parallel asset trees:
 - `assets/gnome/modern/` (GNOME Shell 45, 46, 47, 48) — Native ESM modules.
 - `assets/gnome/legacy/` (GNOME Shell 42, 43, 44) — Legacy GJS `imports` architecture.
 
-Both implementations adhere to the **identical D-Bus interface specification (`ProtocolVersion = 5`)**, emit the **identical `SpawnClaimed` D-Bus signal**, and enforce the **identical zero-flicker cloaking and unmaximize pipeline**.
+Both implementations adhere to the same D-Bus interface specification, except that the modern tree reports `ProtocolVersion = 6` and the legacy tree `ProtocolVersion = 5`: protocol 6 adds the `ResizeOutcome` signal (emitted before `SpawnClaimed` for native Wayland windows), which the legacy tree does not have. Both emit the **identical `SpawnClaimed` D-Bus signal** and run the same step sequence for a spawn (set size, wait for commit, set position, uncloak; the `switch` in each `extension.js`). The modern tree also has the ready-wait (`ready_wait.js`), a re-anchor right before the reveal (`_reanchorLateResize`), a per-spawn wait override and X11 observation logging (`x11_observe.js`); the legacy tree has none of these, and its wait is the 30 ms quiet rule only (`commit.js`). Whether the cloak and unmaximize code behave the same in both trees is not verified; a line-by-line comparison of the two `cloak.js` files and a run on GNOME 42 to 44 would settle it.
 
 ---
 
@@ -35,9 +34,9 @@ Both implementations adhere to the **identical D-Bus interface specification (`P
 
 ## 3. Protocol & Signal Parity Guarantee
 
-Both trees implement the exact same D-Bus contract:
+Both trees implement the same D-Bus contract, apart from the protocol-6 `ResizeOutcome` signal that only the modern tree has:
 - **Interface:** `org.gnome.Shell.Extensions.SpawnAt`
-- **ProtocolVersion:** `5` (uint32 property; bumped from 2 to 3 for CloseWindow, 3 to 4 for GetLayout, and 4 to 5 for monitor/state/workspace in GetWindows)
+- **ProtocolVersion:** `6` in the modern tree, `5` in the legacy tree (uint32 property; bumped from 2 to 3 for CloseWindow, 3 to 4 for GetLayout, and 4 to 5 for monitor/state/workspace in GetWindows; 5 to 6 adds the `ResizeOutcome` signal, modern tree only)
 - **Signal:** `SpawnClaimed(target_id: s, success: b, window_id: t, x: i, y: i, w: u, h: u, size_raised: b, error: s)`
 - **Methods:** `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `SetLogging`, `CloseWindow`.
 
@@ -82,5 +81,5 @@ When deploying the extension via `spawn-at install`, the installer:
 ## 5. Verification Status
 
 - **Node.js Test Suite:** Fully verified with mock Mutter/Clutter/D-Bus environments.
-- **Contract Tests:** Verified interface XML and protocol version parity in `cargo test`.
+- **Contract Tests:** Verified in `cargo test` that the interface XML of the two trees is the same, apart from the `ResizeOutcome` signal of protocol 6.
 - **Live Hardware Status:** Verified on live GNOME Shell 46 (Ubuntu 24.04). GNOME 42–44 compatibility has been verified with static analysis and mock harness, but **has NOT yet been verified on a physical GNOME 42 session or VM**.

@@ -37,7 +37,7 @@ command and one placement model, with a separate driver for each desktop underne
 
 ## Status
 
-### Status of v0.2.1
+This is the status of v0.2.1.
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
 - **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
@@ -76,7 +76,6 @@ says something is "not verified", it means no test or run in the repository cove
 ## Sources
 
 - `README.md` (intro, "Support", "How well it works", "Roadmap")
-- `README.md` ("Support")
 - `docs/RELEASE_NOTES_0.2.0.md`
-- `Cargo.toml` (package version), `install.sh` (prebuilt target), `CLAUDE.md` ("Versions and releases")
+- `Cargo.toml` (package version), `install.sh` (prebuilt target), the contributor rules ("Versions and releases")
 - `docs/DESIGN_PLATFORMS.md`, section 5 (macOS and Windows are not implemented)

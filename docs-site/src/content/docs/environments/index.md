@@ -45,7 +45,7 @@ Sway is never chosen automatically.
 
 - `README.md` ("Support", "Sway (experimental)")
 - `docs/KNOWLEDGE.md` ("Architecture map")
-- `docs/DESIGN_PLATFORMS.md`, section 3 row 11 (backend choice)
+- `docs/DESIGN_PLATFORMS.md`, section 3, Leak 11 (backend choice)
 - `docs/DESIGN_SWAY.md`, sections 7 and 12
 - `docs/TEST_PLAN.md`, section 7.3 ("Not verified")
 - `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")

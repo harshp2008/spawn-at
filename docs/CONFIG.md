@@ -1,4 +1,4 @@
-# Settings (`spawn-at config`)
+# Settings (spawn-at config)
 
 Labels: CONFIRMED = read in the code or run; HYPOTHESIS = not tested.
 

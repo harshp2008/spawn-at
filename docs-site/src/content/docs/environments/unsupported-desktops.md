@@ -57,7 +57,7 @@ with status 1. The code compiles for them in CI; it has never been run there.
 ## Sources
 
 - `CHANGELOG.md` ("[0.2.0-beta.5] Changed": unsupported desktops, `install.sh`; "[0.2.0-beta.3] Changed")
-- `docs/DESIGN_PLATFORMS.md`, section 3 row 11
+- `docs/DESIGN_PLATFORMS.md`, section 3, Leak 11
 - `docs/KNOWLEDGE.md` ("Architecture map")
 - `install.sh` (lines 91-130)
 - `tests/unsupported_desktop_cli_test.rs`

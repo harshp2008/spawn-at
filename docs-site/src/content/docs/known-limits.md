@@ -79,8 +79,8 @@ There is no single matching rule, and none of the rules is strict.
   before the program starts. On Linux the extension's disarm call is never sent, not even when the
   program fails to start. The registration ends on its own: after 15
   seconds when it has a name, after 1.2 seconds when it has none (`--class '*'` or an empty name).
-- **In that time an unrelated window can be placed.** A window the extension matches to the name
-  (see above) opens inside the 15 seconds gets the placement meant for the program that failed.
+- **In that time an unrelated window can be placed.** A window that the extension matches to the name
+  (see above) and that opens within those 15 seconds gets the placement meant for the program that failed.
   With the 1.2 second wildcard, the next window that opens is taken.
 - **Registrations under one name queue up to 16**; adding a 17th drops the oldest.
 

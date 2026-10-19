@@ -17,7 +17,7 @@ The questions `install` asks and the flags that answer them in advance are on th
 [`install`](/spawn-at/reference/spawn-at-install/), [`uninstall`](/spawn-at/reference/spawn-at-uninstall/),
 [`update`](/spawn-at/reference/spawn-at-update/).
 
-Two options are worth knowing before you run them:
+Three things to know before you run them:
 
 - `install --dry-run` prints the notice and what would be installed, then stops without changing
   anything.

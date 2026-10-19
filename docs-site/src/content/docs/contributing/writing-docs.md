@@ -26,7 +26,7 @@ evidence first and style second.
 - If a page has to describe behavior that looks like a bug, it describes what the code does, says so,
   and the finding is reported to the owner; the page does not hide it and the code is not changed in a
   docs change.
-- `CLAUDE.md` ("Working style") has the same rules for reports: never claim something is verified
+- The repository's contributor rules ("Working style") say the same for reports: never claim something is verified
   unless it was run, and always list what could not be run (a real GNOME Wayland session, X11, other
   GNOME versions, macOS, Windows).
 - State no release status ("in beta", "from v0.x") in a timeless page. The changelog, the release
@@ -118,8 +118,8 @@ still shows a table.
 When every key starts with a whole number (`1`, `2 (fixed in step 1)`, `12 files`; not `6.22` or
 `A1`), the list is a list of steps instead: the gutter holds the number in large type, with the rest
 of the key as a note under it (one pair of parentheses around the note is dropped). If only some of
-the keys start with a number, the list is a normal list of cards. A numbered table whose numbers are
-only labels, not an order, should say `style=cards`.
+the keys start with a number, the list is a normal list of cards. When the numbers are labels and
+not an order, write them with a word ("Leak 1"), or use `style=cards`.
 
 A comment on the line directly above the table, before its header row, chooses the layout by hand.
 GitHub shows nothing for it, and the page shows nothing for it:
@@ -222,7 +222,7 @@ The checks above are listed in `docs/CODE_LAYOUT.md` ("Documentation site").
 - Links are `/spawn-at/<slug>/`, none ends in `.md`, and the anchors exist.
 - No forbidden text, no home path, no first name, no placeholder words.
 - Numbers (test counts, line counts, versions) are from a run, with the date; counts that changed are
-  updated in the same commit that changed them (`CLAUDE.md`, "Git and PRs").
+  updated in the same commit that changed them (the contributor rules, "Git and PRs").
 - `cargo xtask docs-site` exits 0.
 
 ## Page template
@@ -302,15 +302,6 @@ What the experiment did not cover.
 
 ## Not verified
 
-What the experiment did not cover.
-
-## Sources
-
-- `path/to/log` (section and lines)
-````
-
-## Not verified
-
 - The CI job `docs.yml` was read, not run, for this page. The commands in the build section were taken
   from `docs/CODE_LAYOUT.md` and `crates/xtask/src/main.rs`.
 - Whether the sidebar check accepts a page nested in a new folder without a folder entry: this page is
@@ -323,4 +314,4 @@ What the experiment did not cover.
 - `docs/CODE_LAYOUT.md` ("Documentation site")
 - `docs-site/astro.config.mjs` (sidebar, `markdown.smartypants`)
 - `docs-site/src/content/docs/index.md` (the "not verified" definition and the Sources convention)
-- `docs/COMMENT_STYLE.md` ("Truth rule") and `CLAUDE.md` ("Working style", "Git and PRs")
+- `docs/COMMENT_STYLE.md` ("Truth rule") and the contributor rules ("Working style", "Git and PRs")

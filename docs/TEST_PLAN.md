@@ -54,7 +54,7 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ## 2. 59-Case Test Catalog across 8 Categories
 
-The 59 rows are the planned catalogue: 36 are **Covered** (a spec file exists and `spawn-at-verify list` shows it: 36 tests) and 23 are **Not written** (the spec file named in the last column does not exist; checked for all 23). Nothing here was dropped by a decision; the rows are simply not written. The last 18 Covered rows are the placement resize specs of section 6.10. Since 6.22 `spawn-at-verify list` shows 45 tests: these 36 plus the nine `hostile/` cells, which are not rows of the 59.
+The 59 rows are the planned catalogue: 47 are **Covered** (the spec file named in the last column exists; 36 say only Covered and 11 add a note on where they run) and 12 are **Not written** (that spec file does not exist). Counted from the table on 2026-10-19, with a file-exists check on all 59 paths. Nothing here was dropped by a decision; the rows are simply not written. The last 18 Covered rows are the placement resize specs of section 6.10. `spawn-at-verify list` prints 67 tests (run on 2026-10-19 with the debug binary built on 2026-10-18, newer than every source file under `crates/spawn-at-verify/src` and `verify/`). That is more than the 47 Covered rows because specs added since, such as the `hostile/` cells of 6.22, are not rows of the 59; I did not count the others one by one.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -398,7 +398,7 @@ These statements in section 2.1 were wrong or too strong. They have been correct
 
 ### 6.1 Contract search
 
-Searched: `README.md`, `docs/behavior-notes.md`, `docs/legacy-gnome.md`, `AI_DEV/*.md` (since deleted; see git history), `scripts/smoke-live.sh`, `spawn-at spawn --help`, code comments, tests and `git log -S` for: min size, minimum, clamp, raised, size_raised, raised_w, raised_h, clampedSafeSize, reportedMinSize, "min size unreported". There is no CHANGELOG file in the repo. `git log -S` found no commit message that states a rule beyond the ones quoted below (`4ae8f97` added the README text, `39470eb` added the per-axis flags, `bdedd3e` added the sub-minimum smoke cases, `0c548c7` is "wip: fix sub-minimum geometry overshoot centering for legacy GTK3/VTE clients").
+Searched: `README.md`, `docs/behavior-notes.md`, `docs/legacy-gnome.md`, `AI_DEV/*.md` (since deleted; see git history), `scripts/smoke-live.sh`, `spawn-at spawn --help`, code comments, tests and `git log -S` for: min size, minimum, clamp, raised, size_raised, raised_w, raised_h, clampedSafeSize, reportedMinSize, "min size unreported". `CHANGELOG.md` was added on 2026-10-13 (commit `c1a34fa`) and this search did not cover it; checked on 2026-10-19, its matches for min size, clamp and raised (lines 288 and 350-351) are about the ready-wait, not about this contract. `git log -S` found no commit message that states a rule beyond the ones quoted below (`4ae8f97` added the README text, `39470eb` added the per-axis flags, `bdedd3e` added the sub-minimum smoke cases, `0c548c7` is "wip: fix sub-minimum geometry overshoot centering for legacy GTK3/VTE clients").
 
 <!-- site: records style=cards -->
 | # | Behaviour | Stated contract (quote and citation) | Status |

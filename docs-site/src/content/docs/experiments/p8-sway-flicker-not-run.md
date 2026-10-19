@@ -2,7 +2,7 @@
 title: "P8 Sway flicker experiment (not run)"
 ---
 
-Sway flicker experiment, proposed as P8 in the test coverage audit. It was not run. This experiment was proposed and never run.
+Sway flicker experiment, proposed as P8 in the test coverage audit. It was never run.
 
 | Field | Value |
 | :-- | :-- |
@@ -12,7 +12,7 @@ Sway flicker experiment, proposed as P8 in the test coverage audit. It was not r
 | **Verdict** | Not run. The audit orders it after the headless Sway test proposal P4: "P8 is research and should come after P4". |
 | **Raw results** | None. No result exists. |
 
-## What was tested
+## What was proposed
 
 **Question**
 
