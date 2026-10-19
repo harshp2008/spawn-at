@@ -9,7 +9,7 @@ Born at the target geometry: an `LD_PRELOAD` shim on the test client. The shim w
 | **ID** | TEST_LOG 6.35. The last of the X11 experiments in the log. |
 | **Date** | 2026-10-14. |
 | **Build** | Tag: none recorded. Tree: HEAD `7954a84`. The extension and the binary were the installed, unchanged ones; no code in the tree changed. The output of `spawn-at --version` is not recorded for this section. The journal was checked before and after every batch: the same gnome-shell process throughout, no stop-rule line, no new critical. |
-| **Verdict** | "GOOD" for this toolkit and this machine, under the rules fixed up front: at least 95% of windows were mapped at the target size (80 of 80 in the S arm in the main cells, 5 of 5 in (a) and (c)), and the S arm had zero clear flashes loaded where L had 36 of 40. The log states the exceptions plainly (case (b), the extra delay) and ends: "I do not recommend shipping it." The supported route stays the extension's own resize. |
+| **Verdict** | "GOOD" for this toolkit and this machine, under the rules fixed up front: at least 95% of windows were mapped at the target size (80 of 80 in the S arm (with the shim) in the main cells, 5 of 5 in (a) and (c)), and the S arm had zero clear flashes loaded where L (without the shim) had 36 of 40. The log states the exceptions plainly (case (b), the extra delay) and ends: "I do not recommend shipping it." The supported route stays the extension's own resize. |
 | **Raw results** | `scratch/p36r/`, `scratch/shim/` and `scratch/p36_*` (gitignored). Not in the repository. |
 
 ## What was tested

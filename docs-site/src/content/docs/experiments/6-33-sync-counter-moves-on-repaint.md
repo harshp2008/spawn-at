@@ -30,6 +30,8 @@ repository. Idle: 20 runs per spec (40 runs). Loaded: 22 `xtask burn-cpu` thread
 20 per spec (40 runs). Slow client: `--paint-delay-ms 100`, 10 per spec idle (20 runs). 100 runs, all
 exit 0, all windows found.
 
+**Process note**
+
 The section first stopped after a 4-run smoke. The journal showed gnome-shell assertions at 11:13:32
 (5 pairs of `cogl_framebuffer_set_viewport: assertion 'width > 0 && height > 0' failed` and
 `_st_create_shadow_pipeline_from_actor: assertion 'clutter_actor_has_allocation (actor)' failed`),

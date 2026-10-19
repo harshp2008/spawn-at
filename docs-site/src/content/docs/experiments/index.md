@@ -5,6 +5,7 @@ title: "Experiments"
 One record for each experiment the project ran, written from `docs/TEST_LOG.md`. The log itself is a
 long dated notebook that is not published here: it names the owner and local paths, and its raw
 results live in directories under `scratch/` that git ignores. These pages are written, not copied.
+"6.x" in an ID or a link is the section number in the experiment log (`docs/TEST_LOG.md`).
 
 Each record opens with a short paragraph and a table (ID, date, build, verdict, raw results), then
 has the sections What was tested, Result, Not verified and Sources. A field the log does not record
@@ -90,7 +91,29 @@ The code of the failed X11 experiments (the hold-the-cloak, pre-map and pixel-pr
 the current tree. It was removed by the commit `80ced02` and is still in the history of `main`; see
 [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
+## Log tags
+
+The records quote lines of the extension's log and of the test window's event file. What the code
+that writes each tag records:
+
+| Tag | What it records |
+| :--- | :--- |
+| `COMMIT_RESOLVED` | The end of the wait for a window's size after a resize request. `reason=` is `AT_TARGET`, `SIZE_SETTLED`, `TIMEOUT_NO_CHANGE`, `HARD_CAP` or `SKIPPED`; the line also gives the final frame, the target and the safe size. |
+| `AT_TARGET` | A `COMMIT_RESOLVED` reason: the frame reached the requested size. |
+| `SIZE_SETTLED` | A `COMMIT_RESOLVED` reason: the frame stopped changing for the quiet period without being at the requested size. |
+| `UNCLOAK_4B` | The start of the reveal step, with `wantWake`, `clamped` and `isVte`. |
+| `UNCLOAK_4C` | A check before the reveal: the size the window was positioned at against its size now (`needsReanchor=true` when they differ). |
+| `ANCHOR_CORRECTION` | A window moved to keep its anchor after its size changed (`from` and `to` positions). |
+| `LATE_RESIZE_CORRECTED` | The same kind of move made right before the reveal, when the frame size differs from the size it was positioned at. |
+| `ANCHOR_RELEASED` | The extension stopped tracking the anchor of a window; `reason=` says why. |
+| `ARM_SPAWN` | The extension received a registration of a placement for a target name, before the program starts. |
+| `READY_WAIT_START`, `READY_WAIT_RESOLVED` | The start and the end of the wait for a window to be ready, with `strategy=ready-wait` or `legacy`; the end gives `outcome`, `elapsed_ms` and `reason`. |
+| `X11_OBS_START`, `X11_OBS_MARK`, `X11_OBS_SIGNAL`, `X11_OBS_END` | Observation-only lines for X11 and XWayland windows: the window kind and which signals exist; a point of the spawn (`set_size`, `commit_resolved`, reveal); one `damaged`, `first-frame` or `thawed` emission with the sizes at that moment; why the watch ended and how many signals it saw. |
+| `FIRST_PAINT` | Written by the test window, not the extension: `FIRST_PAINT WxH` the first time it paints a buffer of that size, stamped after `present()` returns. |
+
 ## Sources
 
 - `docs/TEST_LOG.md` (sections 6.25 to 6.35)
+- `assets/gnome/modern/commit.js`, `assets/gnome/modern/extension.js`, `assets/gnome/modern/x11_observe.js` (the log tags)
+- `crates/spawn-at-verify/src/bin/fixture/trace.rs` (`FIRST_PAINT`)
 - `docs/KNOWLEDGE.md` ("Dead ends")
