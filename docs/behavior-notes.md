@@ -1,6 +1,6 @@
 # Behavior Notes: Coordinate Model, Reference Areas, and Monitor Defaults
 
-This document describes the placement coordinate model, reference areas, unbounded mode rules, and monitor selection defaults implemented in `spawn-at` v0.2.0.
+This document describes the placement coordinate model, reference areas, unbounded mode rules, and monitor selection defaults implemented in `spawn-at` since v0.2.0.
 
 ---
 
