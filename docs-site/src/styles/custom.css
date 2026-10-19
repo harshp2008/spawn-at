@@ -59,9 +59,30 @@ header.header {
   border-bottom-color: var(--sl-color-hairline-light);
 }
 
-/* Inline code that is long (a path, a flag list) wraps instead of widening the page. */
+/* Inline code breaks only where src/integrations/code-breaks.mjs put a <wbr> (after `/`, `::`, `,`)
+   and at spaces. `break-word` is the last resort for a piece longer than a whole line; it is not
+   `anywhere`, which lets the browser cut between any two characters and makes the smallest width
+   of a table cell one character. A browser also breaks after a hyphen and before a bracket that
+   follows a symbol, so the integration wraps every piece that holds such a character in
+   .code-nb (no break at all). A piece of more than 20 characters is wrapped in .code-any, which
+   may be cut anywhere, so that a 50-character test name does not force a table column that wide. */
 .sl-markdown-content :not(pre) > code {
+  overflow-wrap: break-word;
+}
+.sl-markdown-content :not(pre) > code .code-nb {
+  white-space: nowrap;
+}
+.sl-markdown-content :not(pre) > code .code-any {
   overflow-wrap: anywhere;
+  /* An inline-block moves to the next line as a whole and is cut only when it is wider than the
+     line itself; a plain inline piece would also break after its hyphens. */
+  display: inline-block;
+  max-width: 100%;
+}
+/* The underline of a link does not reach into an inline-block, so it is drawn again. */
+.sl-markdown-content a:not(:where(.not-content *)) > code .code-any {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 /* Code blocks keep their own horizontal scroll; the page never scrolls sideways. A long
