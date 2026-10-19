@@ -207,6 +207,7 @@ It sees the *client's* drawing, independent of the compositor, which is what is 
 
 ### 4.1 Rust core versus a backend
 
+<!-- site: table -->
 | Belongs in `spawn-at-core` (new `ready_wait` module) | Belongs in a backend |
 | :--- | :--- |
 | `Policy` (all numbers), `ResizeOutcome`, `Evidence`, `WindowKind`, `Capabilities` | how to hide, how to request, which signals exist, how to read a minimum |

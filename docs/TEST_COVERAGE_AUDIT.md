@@ -35,6 +35,7 @@ Global option on every subcommand: `--no-wait` ("Do not wait for compositor to a
 
 Window selection (every command that targets an existing window): `--id`, `-c/--class`, `-t/--title`, `--pid`, `--focused` (`WindowTargetArgs`, resolved by `src/target.rs`; tests such as `target::tests::test_match_by_focused` at `src/target.rs:344`). `--focus`, `--no-focus`, `--defocus` ("focus modifiers", `src/cli/args.rs:415`) exist on `spawn`, `transform`, `maximize` and `restore`.
 
+<!-- site: table -->
 | Command | What it does | Main flags | Changes window state? | GNOME | X11 | Sway (experimental) |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | `spawn` | Launches an app and places its window | `-c`, `--area`, `--monitor`, `--anchor`, `--pivot`, `-p/-o`, `-s`, `--clamp`, `-m` and per-side margins, `--focus/--no-focus/--defocus`, `--json`, hidden wait flags | Yes (creates and places) | Yes, cloaked until placed (`src/platform/linux/gnome/driver.rs:225`) | Yes, no cloak (`src/platform/linux/x11/mod.rs:71`) | Yes, in `post_spawn`, can flash once (`src/platform/linux/sway/mod.rs:140`) |
@@ -200,6 +201,7 @@ Sizes: small = under a day; medium = a few days; large = needs harness changes. 
 
 For each proposal "TUI" says how it shows up. Tests that are Rust or node tests do not appear in the TUI at all.
 
+<!-- site: table -->
 | # | Test | Backend, tier | Asserts | Cleanup | Human? | Safe unattended? | Size | TUI |
 | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- | :-- |
 | P1 | Unit tests for `run_focus`, `run_defocus` (including the "already not focused" no-op, `--to-desktop`, `--to-window`), `run_maximize`, `run_minimize`, `run_restore`, `apply_focus_policy` with a recording mock backend | any, (a) | Right driver call and arguments; `TargetNotFound`, unsupported-capability and driver errors reach the user; the 2 s state wait does not turn a timeout into a failure (document the current `let _ =` behavior, `src/commands/focus.rs:21`) | none needed (no windows) | no | yes | small | None (cargo test). |
