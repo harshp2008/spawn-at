@@ -11,7 +11,9 @@
 //! `markdown.smartypants: false`; or any page contains text that must not be published (AI
 //! attribution, `TODO`, `TBD`, `lorem`, an absolute home-directory path, the owner's first name).
 //! The one string allowed to contain that name is the extension identifier `spawn-at@harsh.local`
-//! (`ALLOWED`).
+//! (`ALLOWED`). It also checks the `<!-- site: ... -->` comments above tables (see
+//! `directive_problems`); the mirrored `project/` pages carry the comments of `docs/`, so the
+//! sources of `docs/` are checked through them.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -203,6 +205,143 @@ pub fn has_sources_list(text: &str) -> bool {
     false
 }
 
+/// Cells of one table row as GFM splits them: at every `|` that is not preceded by a backslash
+/// (code spans do not protect a pipe), after dropping one leading and one trailing pipe.
+fn split_cells(line: &str) -> Vec<&str> {
+    let mut t = line.trim();
+    t = t.strip_prefix('|').unwrap_or(t);
+    if t.ends_with('|') && !t.ends_with("\\|") {
+        t = &t[..t.len() - 1];
+    }
+    let bytes = t.as_bytes();
+    let mut cells = Vec::new();
+    let (mut start, mut i) = (0, 0);
+    while i < bytes.len() {
+        match bytes[i] {
+            b'\\' => i += 1,
+            b'|' => {
+                cells.push(t[start..i].trim());
+                start = i + 1;
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    cells.push(t[start..].trim());
+    cells
+}
+
+/// The column count if `header` and `delimiter` are the first two lines of a GFM table (a delimiter
+/// row of `:?-+:?` cells with as many cells as the header row), else `None`.
+fn table_columns(header: &str, delimiter: &str) -> Option<usize> {
+    if !header.contains('|') || !delimiter.contains('-') {
+        return None;
+    }
+    let cols = split_cells(header).len();
+    let delim = split_cells(delimiter);
+    let ok = delim.len() == cols
+        && delim.iter().all(|c| {
+            let c = c.strip_prefix(':').unwrap_or(c);
+            let c = c.strip_suffix(':').unwrap_or(c);
+            !c.is_empty() && c.bytes().all(|b| b == b'-')
+        });
+    ok.then_some(cols)
+}
+
+/// Problems with the `<!-- site: ... -->` comments of one page body, as (1-based line in `body`,
+/// message). The comments choose how the site shows the table on the next line
+/// (`docs-site/src/integrations/records.mjs` reads them from the built page): `site: records`,
+/// `site: records key=N` (column N, counted from 1, is the key) and `site: table`. A comment must
+/// be alone on its line, directly above a table; `records` needs at least 2 columns; N must not be
+/// larger than the column count. Comments inside code fences and other comments are ignored.
+pub fn directive_problems(body: &str) -> Vec<(usize, String)> {
+    let lines: Vec<&str> = body.lines().collect();
+    let mut problems = Vec::new();
+    let mut in_fence = false;
+    for (i, line) in lines.iter().enumerate() {
+        let t = line.trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        let Some(inner) = t
+            .trim_end()
+            .strip_prefix("<!--")
+            .and_then(|r| r.strip_suffix("-->"))
+            .map(str::trim)
+        else {
+            continue;
+        };
+        if inner.split(|c: char| c == ':' || c.is_whitespace()).next() != Some("site") {
+            continue;
+        }
+        let mut err = |msg: String| problems.push((i + 1, msg));
+        let Some(rest) = inner.strip_prefix("site:") else {
+            err(format!(
+                "`{inner}` needs a colon: `site: records`, `site: records key=N` or `site: table`"
+            ));
+            continue;
+        };
+        let mut words = rest.split_whitespace();
+        let mode = words.next().unwrap_or("");
+        if mode != "records" && mode != "table" {
+            err(format!(
+                "unknown directive `{inner}` (use `site: records`, `site: records key=N` or `site: table`)"
+            ));
+            continue;
+        }
+        let mut key = None;
+        let mut bad = false;
+        for opt in words {
+            match opt.strip_prefix("key=") {
+                Some(_) if mode == "table" => {
+                    err("`site: table` takes no key".to_string());
+                    bad = true;
+                }
+                Some(v) => match v.parse::<usize>() {
+                    Ok(0) => {
+                        err("key=0: the columns are numbered from 1".to_string());
+                        bad = true;
+                    }
+                    Ok(n) => key = Some(n),
+                    Err(_) => {
+                        err(format!("key=`{v}` is not a whole number"));
+                        bad = true;
+                    }
+                },
+                None => {
+                    err(format!("unknown option `{opt}` in `{inner}`"));
+                    bad = true;
+                }
+            }
+        }
+        if bad {
+            continue;
+        }
+        let table = match (lines.get(i + 1), lines.get(i + 2)) {
+            (Some(h), Some(d)) if !h.trim_start().starts_with("```") => table_columns(h, d),
+            _ => None,
+        };
+        let Some(cols) = table else {
+            err(format!(
+                "`{inner}` must be on the line directly above a table"
+            ));
+            continue;
+        };
+        if mode == "records" && cols < 2 {
+            err(format!(
+                "`{inner}`: records need a table with at least 2 columns, this one has {cols}"
+            ));
+        } else if let Some(n) = key.filter(|&n| n > cols) {
+            err(format!("key={n} but the table has {cols} columns"));
+        }
+    }
+    problems
+}
+
 /// The sidebar name of a page file: `install.md` is `install`, `commands/index.md` is `commands`,
 /// and the top-level `index.md` is `index`.
 pub fn page_slug(rel: &str) -> String {
@@ -311,6 +450,16 @@ pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
             problems.push(format!(
                 "{rel}: empty page (fewer than 2 lines of body text)"
             ));
+        }
+        // Lines of `body` are counted from the end of the front matter; the report uses page lines.
+        let front_lines = text[..text.len() - body.len()].matches('\n').count();
+        for (line, why) in directive_problems(body) {
+            let origin = crate::docs_mirror::MIRRORED
+                .iter()
+                .find(|e| rel == format!("project/{}.md", e.slug))
+                .map(|e| format!(" (generated from docs/{})", e.file))
+                .unwrap_or_default();
+            problems.push(format!("{rel}:{}{origin}: {why}", front_lines + line));
         }
         for target in md_links(body) {
             problems.push(format!(
@@ -475,6 +624,152 @@ mod tests {
         let body = "[a](findings.md) [b](../x/y.md#frag) [c](/spawn-at/findings/) \
                     [d](https://example.org/readme.md)\n```\n[e](hidden.md)\n```\n";
         assert_eq!(md_links(body), vec!["findings.md", "../x/y.md#frag"]);
+    }
+
+    const TABLE3: &str = "| a | b | c |\n| :-- | --: | :-: |\n| 1 | 2 | 3 |\n";
+
+    /// The three forms in the docs, with and without a blank line above, with spaces inside the
+    /// comment varied, on a 1-column table for `table`, and key = the last column, are accepted;
+    /// ordinary comments and a directive inside a code fence are not looked at.
+    #[test]
+    fn test_directives_valid_forms_pass() {
+        for text in [
+            "<!-- site: records -->",
+            "<!--site:records-->",
+            "<!-- site: records key=3 -->",
+            "<!-- site:   records   key=1 -->",
+            "<!-- site: table -->",
+        ] {
+            let body = format!("Text\n\n{text}\n{TABLE3}");
+            assert!(directive_problems(&body).is_empty(), "{text}");
+        }
+        assert!(directive_problems("<!-- site: table -->\n| a |\n| - |\n| 1 |\n").is_empty());
+        assert!(directive_problems("<!-- a note -->\n<!-- sitemap -->\ntext\n").is_empty());
+        let fenced = "```\n<!-- site: bogus -->\n```\n";
+        assert!(directive_problems(fenced).is_empty());
+    }
+
+    /// Each kind of mistake is reported once, with the 1-based line of the comment.
+    #[test]
+    fn test_directives_each_error() {
+        let cases: [(&str, &str); 9] = [
+            ("<!-- site: record -->", "unknown directive `site: record`"),
+            ("<!-- site: -->", "unknown directive `site:`"),
+            ("<!-- site records -->", "needs a colon"),
+            (
+                "<!-- site: records key=x -->",
+                "key=`x` is not a whole number",
+            ),
+            (
+                "<!-- site: records key=-1 -->",
+                "key=`-1` is not a whole number",
+            ),
+            ("<!-- site: records key=0 -->", "numbered from 1"),
+            (
+                "<!-- site: records key=4 -->",
+                "key=4 but the table has 3 columns",
+            ),
+            ("<!-- site: table key=2 -->", "`site: table` takes no key"),
+            ("<!-- site: records wide -->", "unknown option `wide`"),
+        ];
+        for (comment, expected) in cases {
+            let body = format!("intro\n{comment}\n{TABLE3}");
+            let found = directive_problems(&body);
+            assert_eq!(found.len(), 1, "{comment}: {found:?}");
+            assert_eq!(found[0].0, 2, "{comment}");
+            assert!(found[0].1.contains(expected), "{comment}: {}", found[0].1);
+        }
+    }
+
+    /// The comment must be on the line right above the table header: a blank line, text, a
+    /// non-table line pair, a code fence or the end of the page after it is an error, and so is a
+    /// table whose delimiter row has another cell count than the header.
+    #[test]
+    fn test_directives_must_sit_above_a_table() {
+        for body in [
+            format!("<!-- site: records -->\n\n{TABLE3}"),
+            "<!-- site: records -->\nplain text\nmore text\n".to_string(),
+            "<!-- site: table -->\n```\n| a | b |\n| - | - |\n```\n".to_string(),
+            "<!-- site: table -->".to_string(),
+            "<!-- site: records -->\n| a | b |\n| - | - | - |\n".to_string(),
+        ] {
+            let found = directive_problems(&body);
+            assert_eq!(found.len(), 1, "{body:?}: {found:?}");
+            assert!(found[0].1.contains("directly above a table"), "{found:?}");
+        }
+    }
+
+    /// `records` and `key` on a table with one column are errors, `table` is not; a pipe inside
+    /// code or escaped with a backslash does not add a column.
+    #[test]
+    fn test_directives_need_two_columns_for_records() {
+        let one = "| a |\n| - |\n| 1 |\n";
+        for text in ["<!-- site: records -->", "<!-- site: records key=1 -->"] {
+            let found = directive_problems(&format!("{text}\n{one}"));
+            assert_eq!(found.len(), 1, "{text}");
+            assert!(found[0].1.contains("at least 2 columns"), "{found:?}");
+        }
+        let escaped = "<!-- site: records key=2 -->\n| `a\\|b` | c |\n| - | - |\n| 1 | 2 |\n";
+        assert!(directive_problems(escaped).is_empty());
+        let unescaped = "<!-- site: records key=3 -->\n| a | b |\n| - | - |\n";
+        assert_eq!(directive_problems(unescaped).len(), 1);
+    }
+
+    /// GFM cell splitting: leading and trailing pipes are optional, `\|` stays in the cell, and
+    /// a pipe inside a code span still splits.
+    #[test]
+    fn test_split_cells() {
+        assert_eq!(split_cells("| a | b |"), vec!["a", "b"]);
+        assert_eq!(split_cells("a | b"), vec!["a", "b"]);
+        assert_eq!(split_cells("| `x\\|y` | z |"), vec!["`x\\|y`", "z"]);
+        assert_eq!(split_cells("| `x|y` | z |"), vec!["`x", "y`", "z"]);
+        assert_eq!(split_cells("| a | |"), vec!["a", ""]);
+    }
+
+    /// `check` reports a directive error with the page line (the front matter counts) and, for a
+    /// mirrored page, the `docs/` file the page comes from.
+    #[test]
+    fn test_check_reports_directive_errors_with_origin() {
+        let body = format!("---\ntitle: \"P\"\n---\n\nText\n<!-- site: records key=9 -->\n{TABLE3}\n## Sources\n\n- [s](https://example.org/x)\n");
+        let mut files: Vec<(&str, &str)> = vec![
+            ("index.md", GOOD_PAGE),
+            ("project/design-platforms.md", body.as_str()),
+        ];
+        for p in ENVIRONMENT_PAGES {
+            files.push((p, GOOD_PAGE));
+        }
+        let (docs, config) = site("directive-origin", &files);
+        let mut names: Vec<String> = vec!["index".to_string()];
+        names.extend(env_slugs());
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let with_project = format!(
+            "{}\n{{ autogenerate: {{ directory: 'project' }} }}",
+            config_for(&refs)
+        );
+        fs::write(&config, with_project).unwrap();
+        let problems = check(&docs, &config).unwrap().join("\n");
+        assert!(
+            problems.contains(
+                "project/design-platforms.md:6 (generated from docs/DESIGN_PLATFORMS.md): \
+                 key=9 but the table has 3 columns"
+            ),
+            "{problems}"
+        );
+        let _ = fs::remove_dir_all(docs.parent().unwrap());
+    }
+
+    /// Every directive in the real `docs/` files, as written into the mirrored pages, is valid.
+    /// A typo in a comment would otherwise only show as a table that is not converted.
+    #[test]
+    fn test_real_docs_directives_are_valid() {
+        let docs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+        for entry in &crate::docs_mirror::MIRRORED {
+            let text = fs::read_to_string(docs.join(entry.file)).unwrap();
+            let page = crate::docs_mirror::render(entry, &text).unwrap();
+            let (_, body) = split_front_matter(&page).unwrap();
+            let found = directive_problems(body);
+            assert!(found.is_empty(), "docs/{}: {found:?}", entry.file);
+        }
     }
 
     /// File names map to the name the sidebar uses: folder index pages take the folder name.
