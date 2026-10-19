@@ -51,7 +51,6 @@ header.header {
 }
 .sl-markdown-content thead th:not(:where(.not-content *)) {
   border-bottom: 2px solid var(--sl-color-gray-4);
-  white-space: nowrap;
 }
 .sl-markdown-content tbody tr:last-child :is(td):not(:where(.not-content *)) {
   border-bottom: 0;
@@ -63,9 +62,6 @@ header.header {
 /* Inline code that is long (a path, a flag list) wraps instead of widening the page. */
 .sl-markdown-content :not(pre) > code {
   overflow-wrap: anywhere;
-}
-.sl-markdown-content table :not(pre) > code {
-  overflow-wrap: normal;
 }
 
 /* Code blocks keep their own horizontal scroll; the page never scrolls sideways. A long
