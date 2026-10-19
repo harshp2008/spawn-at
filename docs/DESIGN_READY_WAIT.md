@@ -1,6 +1,6 @@
 # Design: "wait until the window is ready before placing and revealing it"
 
-Status: design only, 2026-10-13. No product code changed; the only commit is this file. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
+Status: implemented in part. Written as a design on 2026-10-13; sections 8 to 12 record what was built (the ready-wait for native Wayland windows and its wiring, a per-spawn override, the default cap of 250 ms, and X11 observation logging). The probe, the learned-minimum cache and the strategies for X11, XWayland and other systems are not implemented (section 8). Sections 1 to 7 describe the code as it was when the design was written. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
 
 ## 0. Reading guide
 
@@ -13,7 +13,7 @@ Every claim carries a tag. Evidence classes:
 | **CONFIRMED (typelib / symbols)** | read from the installed `Meta-14.typelib`, `libmutter-14.so`, or vendored crates on this machine (mutter 46.2, gjs 1.80.2) |
 | **CONFIRMED (docs)** | stated in this repository's docs; the underlying evidence is cited there |
 | **HYPOTHESIS (inference)** | my reasoning from the above; not tested |
-| **UNVERIFIED (web)** | a WebFetch summary written by a small model; treat as a lead |
+| **UNVERIFIED (web)** | a secondhand summary of a web page, not checked against the original; treat as a lead |
 | **UNVERIFIED (knowledge)** | from general knowledge of the platform; not checked here |
 
 Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME Shell 46.0, mutter 46.2, gjs 1.80.2, 60.00 Hz display (CONFIRMED (measured), `xrandr`). Nothing in a Wayland session, on GNOME 50, on KDE/wlroots, Windows or macOS was run.
@@ -153,7 +153,7 @@ Columns: **hide** / **request size** / **detect "presented"** / **minimum knowab
 
 **Does `_NET_WM_SYNC_REQUEST` apply to XWayland windows?** HYPOTHESIS (inference): yes, because it is an X11 client protocol and mutter freezes and thaws commits for these windows (`xwayland_window->freeze_count`, `meta_window_xwayland_thaw_commits`, `meta_window_actor_can_freeze_commits`: CONFIRMED (symbols) that they exist). Whether a given XWayland client answers it depends on the client (3.2 data comes from a native X11 session).
 
-**Which popular apps run as XWayland on a GNOME 46 Wayland session by default** (UNVERIFIED (knowledge), version dependent, none checked here): Electron apps (VS Code, Slack, Discord, Teams, Claude desktop, Obsidian) unless started with an Ozone Wayland flag; Chrome/Chromium unless the Ozone hint is set; Steam and most games via SDL2/Proton; Wine; JetBrains IDEs; Java Swing/AWT; Zoom; some Qt5 apps. Native Wayland by default: GTK3/GTK4 apps, Firefox (since 121), Qt6 apps, most GNOME apps.
+**Which popular apps run as XWayland on a GNOME 46 Wayland session by default** (UNVERIFIED (knowledge), version dependent, none checked here): Electron apps (VS Code, Slack, Discord, Teams, Obsidian) unless started with an Ozone Wayland flag; Chrome/Chromium unless the Ozone hint is set; Steam and most games via SDL2/Proton; Wine; JetBrains IDEs; Java Swing/AWT; Zoom; some Qt5 apps. Native Wayland by default: GTK3/GTK4 apps, Firefox (since 121), Qt6 apps, most GNOME apps.
 
 **Consequence for strategy order.** On the default Ubuntu session (Wayland) a large share of the windows users place with this tool are X11-kind. So "X11/XWayland" is not a legacy path that can wait for Stage 4: the strategy engine must select per window from day one, and the beta must at least keep X11-kind windows on the old path **explicitly** (by kind), rather than accidentally by an unknown-API fallthrough. Order by kind:
 
@@ -175,8 +175,8 @@ Columns: **hide** / **request size** / **detect "presented"** / **minimum knowab
 | gnome-text-editor | GTK4 | yes | two counters | 513x222; `_GTK_FRAME_EXTENTS` 61,61,55,67 (large client-side shadow) |
 | gnome-calculator | GTK4 | yes | two counters | not read |
 | Google Chrome (running) | Chromium | yes | one counter | 849x193 |
-| Claude desktop (running) | Electron | yes | one counter | 790x553 |
-| Antigravity IDE (running) | Electron | yes | one counter | 500x338 |
+| Electron app A (running) | Electron | yes | one counter | 790x553 |
+| Electron app B (running) | Electron | yes | one counter | 500x338 |
 | xterm, xclock, xcalc | Xt/Xaw | **no** (only `WM_DELETE_WINDOW`) | not set | not read |
 
 Two facts follow. (1) **The fixture is a worst-case client on X11**: it does not take part in sync, and winit 0.29.15 contains no sync-request code at all (CONFIRMED (symbols), grep of the vendored crate). That matches the measurement of 6.15 (X11, debug fixture: flash 19 of 20, release fixture: 0 of 10); GTK4, Chromium and Electron clients take part, so the X11 flash seen with the fixture may be much rarer with them. That last sentence is a HYPOTHESIS: no flash measurement exists for a sync-capable X11 client. (2) **The minimum size is knowable before map on X11** from `WM_NORMAL_HINTS` for every toolkit above; on native Wayland it is not (the matrix row for GNOME 46). With a caveat: GTK4's hint is for the client area while the window has a 61/55 px invisible shadow, so frame and buffer rectangles differ (`_GTK_FRAME_EXTENTS`); a wait that compares sizes must say which rectangle.
@@ -340,7 +340,7 @@ The fixture answers every request (at the target or at its minimum) and is a win
 | gnome-text-editor, Nautilus | GTK4, remembers its size | min-bound (30x20 request); persistence side effects of the probe |
 | gnome-terminal | GTK3, size increments | `AdjustedTo{Increment}` |
 | a Qt6 app (e.g. KDE app) | Qt, native Wayland | different configure/ack timing; not yet traced at all |
-| Chrome / Electron (VS Code, Claude desktop) | Chromium, XWayland by default (UNVERIFIED) and native with the Ozone flag | the X11-kind path, sync single counter |
+| Chrome / Electron (VS Code) | Chromium, XWayland by default (UNVERIFIED) and native with the Ozone flag | the X11-kind path, sync single counter |
 | GTK4 app with `GDK_BACKEND=x11` | GTK4 over XWayland | sync client in the X11-kind path (`thawed` question) |
 | an SDL/Wine/Steam window | XWayland | no sync (3.2: Xt-style clients do not advertise it) |
 
@@ -401,7 +401,7 @@ Read-only commands only; nothing was written to settings, `/sys`, `/proc`, or dc
 - `strings`/`nm -D` on `libmutter-14.so.0` (46.2): sync-request, freeze/thaw and XWayland-thaw symbols listed in 3.2.
 - Vendored sources: `x11rb 0.14.0` has `damage` and `sync` features; `winit 0.29.15` contains neither `_NET_WM_SYNC_REQUEST` handling nor `WINIT_UNIX_BACKEND`.
 - Repository reads: the files and lines in section 1; `verify-results/` protocol census (local, gitignored, not in the repository) (`proto=Wayland` 230 732, `proto=X11` 5 132, no `XWayland`).
-- Unverified leads, summarised by a small model and therefore not relied on: mutter NEWS on the X11 backend (49.alpha.0, 50.alpha) and the 6.14 summaries for GNOME 50 APIs.
+- Unverified leads, taken from secondhand summaries and therefore not relied on: mutter NEWS on the X11 backend (49.alpha.0, 50.alpha) and the 6.14 summaries for GNOME 50 APIs.
 
 ## 8. Status: core machine, golden scripts and JS port (2026-10-13)
 
