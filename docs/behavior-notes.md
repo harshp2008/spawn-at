@@ -8,7 +8,7 @@ This document describes the placement coordinate model, reference areas, unbound
 
 In `spawn-at`, coordinates are evaluated relative to a chosen reference space:
 
-$$\text{Final Window Rect} = f(\text{Area}, \text{Anchor}, \text{Pivot}, \text{Offset/Pos}, \text{Size}, \text{Margins}, \text{Clamp})$$
+`Final Window Rect = f(Area, Anchor, Pivot, Offset/Pos, Size, Margins, Clamp)`
 
 The `--area` option selects the coordinate space:
 
@@ -101,7 +101,7 @@ When `--monitor` is omitted:
 *(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero` and `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back`)*
 
 2. **`transform` Command**:
-   - Defaults to the window's **current monitor**—specifically the monitor with the largest pixel overlap area with the window's current rectangle.
+   - Defaults to the window's **current monitor**, specifically the monitor with the largest pixel overlap area with the window's current rectangle.
    - If the window does not overlap any monitor (e.g. positioned off-screen), falls back to the primary monitor.
 *(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_find_monitor_with_largest_overlap`)*
 
