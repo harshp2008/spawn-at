@@ -1,15 +1,26 @@
-/* Records: a table with long cells shown as one block per row (src/integrations/records.mjs writes
+/* Records: a table with long cells shown as one card per row (src/integrations/records.mjs writes
    the markup):
-     ol.records[.records-stack] > li.record > div.record-key + dl.record-fields > div.field > dt + dd
-   The key sits in a gutter at the left with a thin vertical line, and the other columns are fields:
-   the column header as a small muted label, the cell as text. Every field of a block shares one
-   label column, so the texts start at the same x. Colours are Starlight tokens only, so light and
-   dark need no rules of their own. */
+     ul.records[.records-stack] > li.record > div.record-key + dl.record-fields
+                                              > div.field.field-short|field-long > dt + dd
+     ol.records.records-steps: the same, and the key is span.record-num + span.record-note.
+   A card has the key in a gutter at the left and the other columns in the body: a short cell is a
+   small label over its value, side by side with the others in a wrapping row; a long cell is a label
+   over full-width text. The fields are in the column order of the table in the HTML (copy-paste,
+   screen readers) and `order` shows the short ones first. Colours are Starlight tokens, mixed: the
+   same rule gives a tinted card on the white page of the light theme and on the dark page. */
 .sl-markdown-content .records {
+  --rec-card: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-black));
+  --rec-line: color-mix(in srgb, var(--sl-color-gray-5) 45%, var(--sl-color-gray-6));
+  /* Starlight's inline-code background (gray-6 in the light theme) is the same colour as the card
+     there; a little darker keeps the chips visible on it. The .code-any chip and its two
+     box-shadows read this variable, so they stay in step. */
+  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-5) 40%, var(--sl-color-gray-6));
   list-style: none;
   padding: 0;
   margin-block: 1.5rem;
-  border-block-start: 1px solid var(--sl-color-hairline-light);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   font-size: var(--sl-text-sm);
   /* The list is the container of the narrow-layout query below: the content column is narrower
      than the screen once the sidebar is open, so a screen width would be the wrong measure. */
@@ -30,76 +41,154 @@
 
 .sl-markdown-content .records .record {
   display: grid;
-  grid-template-columns: 11rem minmax(0, 1fr);
-  padding-block: 1rem;
-  border-block-end: 1px solid var(--sl-color-hairline-light);
+  grid-template-columns: minmax(8rem, 12.5rem) minmax(0, 1fr);
+  column-gap: 1.25rem;
+  padding: 1.3rem 1.4rem;
+  border: 1px solid var(--rec-line);
+  border-radius: 0.6rem;
+  background: var(--rec-card);
 }
+
+/* The key: monospace, no chip. A path breaks after a `/` (the <wbr> of code-breaks.mjs) and only
+   as a last resort inside a piece longer than the column. */
 .sl-markdown-content .records .record-key {
-  padding-inline-end: 1rem;
+  min-width: 0;
+  font-family: var(--sl-font-system-mono);
+  font-size: 0.85rem;
   font-weight: 600;
   color: var(--sl-color-white);
   overflow-wrap: break-word;
 }
+.sl-markdown-content .records .record-key code {
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+.sl-markdown-content .records .record-key code :is(.code-any, .code-nb) {
+  background: none;
+  box-shadow: none;
+}
+.sl-markdown-content .records .record-key code .code-any {
+  display: inline;
+  max-width: none;
+  overflow-wrap: break-word;
+}
 
-/* The thin vertical line is the left border of the fields. The label column is the first column
-   of this grid and `.field` is `display: contents`, so all labels of a block have one width. */
+/* The body: a hairline at the left of the fields. */
 .sl-markdown-content .records .record-fields {
-  display: grid;
-  grid-template-columns: 7rem minmax(0, 1fr);
-  column-gap: 1rem;
-  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem 2rem;
   min-width: 0;
   padding-inline-start: 1.25rem;
-  border-inline-start: 2px solid var(--sl-color-gray-5);
+  border-inline-start: 1px solid var(--rec-line);
 }
 .sl-markdown-content .records .field {
-  display: contents;
+  min-width: 0;
 }
-.sl-markdown-content .records :is(dt, dd) {
-  padding: 0 0 0.7rem;
+.sl-markdown-content .records .field-short {
+  order: 0;
 }
-.sl-markdown-content .records .field:last-child :is(dt, dd) {
-  padding-block-end: 0;
+.sl-markdown-content .records .field-long {
+  order: 1;
+  flex-basis: 100%;
 }
 .sl-markdown-content .records dt {
-  font-size: var(--sl-text-xs);
+  margin-bottom: 0.35rem;
+  font-size: 0.68rem;
   font-weight: 400;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
   color: var(--sl-color-gray-3);
   overflow-wrap: break-word;
 }
 .sl-markdown-content .records dd {
   min-width: 0;
+  padding: 0; /* Starlight indents a <dd> by 1rem */
   overflow-wrap: break-word;
-  line-height: 1.55;
+  line-height: 1.75;
+}
+.sl-markdown-content .records .field-long dd {
+  max-width: 70ch;
+}
+
+/* Steps: a big number, with the rest of the key as a note under it. The number is not monospace and
+   has the accent colour; a piece of code in the note keeps the code font. */
+.sl-markdown-content .records.records-steps .record-key {
+  font-family: inherit;
+  font-weight: inherit;
+  color: inherit;
+}
+.sl-markdown-content .records .record-num {
+  display: block;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--sl-color-text-accent);
+}
+.sl-markdown-content .records .record-note {
+  display: block;
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--sl-color-gray-3);
+}
+.sl-markdown-content .records .record-note code {
+  font-family: var(--sl-font-system-mono);
 }
 
 /* custom.css gives a piece of code longer than 20 characters (.code-any) `max-width: 100%`, but
    the chip of its parent <code> adds 6px of padding on each side, so a 60-character test name was
-   12px wider than its column. A table cell hides that behind its own padding; a record has none. */
-.sl-markdown-content .records :not(pre) > code .code-any {
+   12px wider than its column. A table cell hides that behind its own padding; a field has none. */
+.sl-markdown-content .records .field :not(pre) > code .code-any {
   max-width: calc(100% - 0.75rem);
 }
 
-/* A list whose keys are sentences (records-stack), and any list narrower than 36rem: the key goes
-   above the fields, and in the narrow case the label goes above its text. */
+/* A list whose keys are sentences (records-stack), and any list narrower than 36rem: one column,
+   the key above the fields, a hairline above the body instead of at its left. */
 .sl-markdown-content .records.records-stack .record {
   grid-template-columns: minmax(0, 1fr);
+  row-gap: 0.6rem;
 }
-.sl-markdown-content .records.records-stack .record-key {
-  padding: 0 0 0.6rem;
+.sl-markdown-content .records.records-stack .record-fields {
+  padding-inline-start: 0;
+  padding-top: 0.7rem;
+  border-inline-start: 0;
+  border-top: 1px solid var(--rec-line);
+}
+.sl-markdown-content .records.records-stack.records-steps .record-key {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+.sl-markdown-content .records.records-stack .record-num {
+  font-size: 1.4rem;
+}
+.sl-markdown-content .records.records-stack .record-note {
+  margin-top: 0;
 }
 @container (max-width: 36rem) {
   .sl-markdown-content .records .record {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .sl-markdown-content .records .record-key {
-    padding: 0 0 0.6rem;
+    row-gap: 0.6rem;
   }
   .sl-markdown-content .records .record-fields {
-    grid-template-columns: minmax(0, 1fr);
-    padding-inline-start: 0.9rem;
+    padding-inline-start: 0;
+    padding-top: 0.7rem;
+    border-inline-start: 0;
+    border-top: 1px solid var(--rec-line);
   }
-  .sl-markdown-content .records dt {
-    padding-block-end: 0.1rem;
+  .sl-markdown-content .records.records-steps .record-key {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+  }
+  .sl-markdown-content .records .record-num {
+    font-size: 1.4rem;
+  }
+  .sl-markdown-content .records .record-note {
+    margin-top: 0;
   }
 }

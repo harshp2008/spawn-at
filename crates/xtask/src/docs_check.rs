@@ -248,12 +248,18 @@ fn table_columns(header: &str, delimiter: &str) -> Option<usize> {
     ok.then_some(cols)
 }
 
+const DIRECTIVE_FORMS: &str =
+    "use `site: records`, `site: records key=N`, `site: records style=steps`, `site: records style=cards` or `site: table`";
+
 /// Problems with the `<!-- site: ... -->` comments of one page body, as (1-based line in `body`,
 /// message). The comments choose how the site shows the table on the next line
 /// (`docs-site/src/integrations/records.mjs` reads them from the built page): `site: records`,
-/// `site: records key=N` (column N, counted from 1, is the key) and `site: table`. A comment must
-/// be alone on its line, directly above a table; `records` needs at least 2 columns; N must not be
-/// larger than the column count. Comments inside code fences and other comments are ignored.
+/// `site: records key=N` (column N, counted from 1, is the key), `site: records style=steps` or
+/// `style=cards` (the two options combine, each once) and `site: table`, which takes no option. A
+/// comment must be alone on its line, directly above a table; `records` needs at least 2 columns; N
+/// must not be larger than the column count. That every key of a `style=steps` table starts with a
+/// number is checked by the build, which reads the cells. Comments inside code fences and other
+/// comments are ignored.
 pub fn directive_problems(body: &str) -> Vec<(usize, String)> {
     let lines: Vec<&str> = body.lines().collect();
     let mut problems = Vec::new();
@@ -280,42 +286,54 @@ pub fn directive_problems(body: &str) -> Vec<(usize, String)> {
         }
         let mut err = |msg: String| problems.push((i + 1, msg));
         let Some(rest) = inner.strip_prefix("site:") else {
-            err(format!(
-                "`{inner}` needs a colon: `site: records`, `site: records key=N` or `site: table`"
-            ));
+            err(format!("`{inner}` needs a colon: {DIRECTIVE_FORMS}"));
             continue;
         };
         let mut words = rest.split_whitespace();
         let mode = words.next().unwrap_or("");
         if mode != "records" && mode != "table" {
-            err(format!(
-                "unknown directive `{inner}` (use `site: records`, `site: records key=N` or `site: table`)"
-            ));
+            err(format!("unknown directive `{inner}` ({DIRECTIVE_FORMS})"));
             continue;
         }
         let mut key = None;
+        let mut style_seen = false;
         let mut bad = false;
         for opt in words {
-            match opt.strip_prefix("key=") {
-                Some(_) if mode == "table" => {
+            if let Some(v) = opt.strip_prefix("key=") {
+                if mode == "table" {
                     err("`site: table` takes no key".to_string());
                     bad = true;
+                } else if key.is_some() {
+                    err(format!("key given twice in `{inner}`"));
+                    bad = true;
+                } else {
+                    match v.parse::<usize>() {
+                        Ok(0) => {
+                            err("key=0: the columns are numbered from 1".to_string());
+                            bad = true;
+                        }
+                        Ok(n) => key = Some(n),
+                        Err(_) => {
+                            err(format!("key=`{v}` is not a whole number"));
+                            bad = true;
+                        }
+                    }
                 }
-                Some(v) => match v.parse::<usize>() {
-                    Ok(0) => {
-                        err("key=0: the columns are numbered from 1".to_string());
-                        bad = true;
-                    }
-                    Ok(n) => key = Some(n),
-                    Err(_) => {
-                        err(format!("key=`{v}` is not a whole number"));
-                        bad = true;
-                    }
-                },
-                None => {
-                    err(format!("unknown option `{opt}` in `{inner}`"));
+            } else if let Some(v) = opt.strip_prefix("style=") {
+                if mode == "table" {
+                    err("`site: table` takes no style".to_string());
+                    bad = true;
+                } else if !matches!(v, "steps" | "cards") {
+                    err(format!("unknown style `{v}` (style=steps or style=cards)"));
+                    bad = true;
+                } else if style_seen {
+                    err(format!("style given twice in `{inner}`"));
                     bad = true;
                 }
+                style_seen = true;
+            } else {
+                err(format!("unknown option `{opt}` in `{inner}`"));
+                bad = true;
             }
         }
         if bad {
@@ -639,6 +657,10 @@ mod tests {
             "<!-- site: records key=3 -->",
             "<!-- site:   records   key=1 -->",
             "<!-- site: table -->",
+            "<!-- site: records style=steps -->",
+            "<!-- site: records style=cards -->",
+            "<!-- site: records key=2 style=cards -->",
+            "<!-- site: records style=steps key=3 -->",
         ] {
             let body = format!("Text\n\n{text}\n{TABLE3}");
             assert!(directive_problems(&body).is_empty(), "{text}");
@@ -652,7 +674,7 @@ mod tests {
     /// Each kind of mistake is reported once, with the 1-based line of the comment.
     #[test]
     fn test_directives_each_error() {
-        let cases: [(&str, &str); 9] = [
+        let cases: [(&str, &str); 15] = [
             ("<!-- site: record -->", "unknown directive `site: record`"),
             ("<!-- site: -->", "unknown directive `site:`"),
             ("<!-- site records -->", "needs a colon"),
@@ -671,6 +693,27 @@ mod tests {
             ),
             ("<!-- site: table key=2 -->", "`site: table` takes no key"),
             ("<!-- site: records wide -->", "unknown option `wide`"),
+            (
+                "<!-- site: records style=rail -->",
+                "unknown style `rail` (style=steps or style=cards)",
+            ),
+            (
+                "<!-- site: records style= -->",
+                "unknown style `` (style=steps or style=cards)",
+            ),
+            (
+                "<!-- site: table style=steps -->",
+                "`site: table` takes no style",
+            ),
+            (
+                "<!-- site: records style=steps style=cards -->",
+                "style given twice",
+            ),
+            ("<!-- site: records key=1 key=2 -->", "key given twice"),
+            (
+                "<!-- site: records style=steps key=2 key=3 -->",
+                "key given twice",
+            ),
         ];
         for (comment, expected) in cases {
             let body = format!("intro\n{comment}\n{TABLE3}");
@@ -679,6 +722,42 @@ mod tests {
             assert_eq!(found[0].0, 2, "{comment}");
             assert!(found[0].1.contains(expected), "{comment}: {}", found[0].1);
         }
+    }
+
+    /// `style=` is a records option: both values pass in either order with `key=N`, a bad value is
+    /// reported once (and not also as a key problem), and on `site: table` it is an error whatever
+    /// its value, with or without a key beside it.
+    #[test]
+    fn test_directive_style_option() {
+        for text in [
+            "<!-- site: records style=steps key=2 -->",
+            "<!-- site: records key=2 style=steps -->",
+            "<!-- site: records key=3 style=cards -->",
+        ] {
+            let body = format!("{text}\n{TABLE3}");
+            assert!(directive_problems(&body).is_empty(), "{text}");
+        }
+        for (text, expected) in [
+            (
+                "<!-- site: records key=2 style=Steps -->",
+                "unknown style `Steps`",
+            ),
+            (
+                "<!-- site: table style=cards -->",
+                "`site: table` takes no style",
+            ),
+            (
+                "<!-- site: table style=bogus -->",
+                "`site: table` takes no style",
+            ),
+        ] {
+            let found = directive_problems(&format!("{text}\n{TABLE3}"));
+            assert_eq!(found.len(), 1, "{text}: {found:?}");
+            assert!(found[0].1.contains(expected), "{text}: {}", found[0].1);
+        }
+        let found =
+            directive_problems(&format!("<!-- site: table key=2 style=cards -->\n{TABLE3}"));
+        assert_eq!(found.len(), 2, "{found:?}");
     }
 
     /// The comment must be on the line right above the table header: a blank line, text, a
