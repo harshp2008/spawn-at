@@ -56,7 +56,7 @@ The zero-flicker transformation pipeline introduced gating for snapshot generati
 | :--- | :--- | :--- | :--- | :--- |
 | `window.is_hidden()` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46 (`Meta.Window.is_hidden`). | Guarded via `typeof window.is_hidden === 'function'`. Fallback evaluates `Boolean(window.minimized)`. If absent, minimized state is still detected via the `minimized` property. |
 | `window.located_on_workspace(ws)` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** | Present in Mutter 46. | Guarded via `typeof window.located_on_workspace === 'function'`. If absent or returning false, checks `window.is_on_all_workspaces()`. If the method is missing entirely, workspace filtering safely defaults to passing the window. |
-| `Main.wm.skipNextEffect(actor)` / `_skippedActors` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** (internal Shell implementation details) | Present in GNOME Shell 46 `windowManager.js` (`skipNextEffect(actor)` backed by `_skippedActors` Set). | Guarded with: (1) `typeof Main.wm.skipNextEffect === 'function'`, (2) fallback to `Main.wm._skippedActors?.add(actor)`, (3) duplicate checks on `global.window_manager`, (4) explicit defensive removal via `_clearSkippedEffects`, and (5) an outer `try { ... } catch (_e) {}`. If missing, **only the animation suppression fails**—the window is still placed, sized, and uncloaked correctly. |
+| `Main.wm.skipNextEffect(actor)` / `_skippedActors` | **UNVERIFIED on 42–44** | **UNVERIFIED on 45, 47–48** (internal Shell implementation details) | Present in GNOME Shell 46 `windowManager.js` (`skipNextEffect(actor)` backed by `_skippedActors` Set). | Guarded with: (1) `typeof Main.wm.skipNextEffect === 'function'`, (2) fallback to `Main.wm._skippedActors?.add(actor)`, (3) duplicate checks on `global.window_manager`, (4) explicit defensive removal via `_clearSkippedEffects`, and (5) an outer `try { ... } catch (_e) {}`. If missing, **only the animation suppression fails**, and the window is still placed, sized, and uncloaked correctly. |
 
 An automated contract parity test (`test_legacy_and_modern_dbus_xml_parity`) verifies character-for-character equivalence of the XML interface definition.
 
@@ -68,11 +68,12 @@ When deploying the extension via `spawn-at install`, the installer:
 1. Inspects `gnome-shell --version`.
 2. Extracts the major version number.
 3. If version is 42, 43, or 44:
-   - Deploys `assets/gnome/legacy/`.
-   - Emits the mandatory experimental notice:
+   - Before anything is written, prints this notice in yellow (text: `src/platform/install_notice.rs:27-29`, printed at `src/main.rs:109`), with 43 or 44 in place of 42 as detected, and asks "Install anyway?" (default no) unless `--yes`, `--headless` or no terminal is used:
      ```text
-     [spawn-at] WARNING: Support for GNOME Shell 42-44 is experimental and has NOT been tested on a real session yet. It may not work at all. Please report problems at https://github.com/harsh/spawn-at/issues.
+     NOTICE: GNOME Shell 42 uses the legacy extension, which is UNTESTED: it has never been run on a real GNOME 42-44.
+     It may not work. Bug reports are welcome: https://github.com/harshp2008/spawn-at/issues
      ```
+   - Deploys `assets/gnome/legacy/` and prints `Deploying legacy GNOME (42-44) extension to: <dir>` (`src/platform/linux/gnome/deploy.rs:333-338`).
 4. If version is >= 45:
    - Deploys `assets/gnome/modern/`.
 
