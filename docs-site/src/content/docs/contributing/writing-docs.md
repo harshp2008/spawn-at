@@ -118,8 +118,8 @@ still shows a table.
 When every key starts with a whole number (`1`, `2 (fixed in step 1)`, `12 files`; not `6.22` or
 `A1`), the list is a list of steps instead: the gutter holds the number in large type, with the rest
 of the key as a note under it (one pair of parentheses around the note is dropped). If only some of
-the keys start with a number, the list is a normal list of cards. A numbered table whose numbers are
-only labels, not an order, should say `style=cards`.
+the keys start with a number, the list is a normal list of cards. When the numbers are labels and
+not an order, write them with a word ("Leak 1"), or use `style=cards`.
 
 A comment on the line directly above the table, before its header row, chooses the layout by hand.
 GitHub shows nothing for it, and the page shows nothing for it:
@@ -290,15 +290,6 @@ The commands, or "Exact command lines not recorded." followed by the prose the s
 ## Result
 
 The numbers and observations, as the source gives them. Use `###` or bold lead-ins for phases.
-
-## Not verified
-
-What the experiment did not cover.
-
-## Sources
-
-- `path/to/log` (section and lines)
-````
 
 ## Not verified
 
