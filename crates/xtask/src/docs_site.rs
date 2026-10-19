@@ -1,7 +1,8 @@
 //! `docs-site`: builds the whole documentation site the way CI does, and checks it.
 //!
 //! Steps, in order, each of which stops the run on failure: build the `spawn-at` binary; write
-//! the CLI reference from its `--help`; check the site's markdown and Starlight config; install
+//! the CLI reference from its `--help`; write the "Project documents" pages from `docs/`
+//! (`docs_mirror`); check the site's markdown and Starlight config; install
 //! the npm packages (`npm ci`, or reuse `docs-site/node_modules` when it is newer than
 //! `package.json` and `package-lock.json`); `astro build` (Starlight, with Pagefind search);
 //! `cargo doc` with warnings as errors; copy the Astro output and the rustdoc output (under
@@ -13,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
 
-use crate::{docs_check, docs_cli, docs_html};
+use crate::{docs_check, docs_cli, docs_html, docs_mirror};
 
 /// Warnings are errors, except one lint. The help text of `--monitor` is the doc comment
 /// `Target monitor selector (<INDEX>, 'cursor', or 'primary')` in `src/cli/args.rs`; clap prints
@@ -128,6 +129,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
 
     step("generate the CLI reference");
     docs_cli::run(&["--bin".to_string(), bin.display().to_string()])?;
+
+    step("mirror docs/ pages into the project section");
+    docs_mirror::run(&[])?;
 
     step("check the site source");
     docs_check::run(&[])?;

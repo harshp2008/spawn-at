@@ -112,6 +112,16 @@ dependency.
   the source; the reference follows. A wording problem in a generated page (for example a flag whose
   `--help` text differs from its verified behavior) is explained on a hand-written page that links to
   it.
+- The "Project documents" pages (`project/<name>.md`) are written by `cargo xtask docs-mirror` from
+  13 files of `docs/`, listed in `crates/xtask/src/docs_mirror.rs` with their page name and sidebar
+  order. `docs/` is the source: edit the file there, never the page. The pages are not committed
+  (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
+  into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,
+  sends links to files it does not mirror (`TEST_LOG.md`, `RELEASE_NOTES_*.md`, `../CHANGELOG.md`)
+  to GitHub, and appends a `## Sources` section. A new file in `docs/` fails the build until it is
+  added to the mirrored list or the excluded list. The site rules still apply to the result, so a
+  `docs/` file that is mirrored cannot contain a home path, the owner's name or the other forbidden
+  text.
 - Everything else is hand-written and must follow the anatomy above.
 
 ## Building and checking
@@ -120,6 +130,7 @@ dependency.
 cargo xtask docs-site                       # everything, in CI order; site in target/docs-site/site/
 cargo xtask docs-check-src                  # markdown, sidebar, Sources, forbidden text
 cargo xtask docs-cli-reference --bin target/debug/spawn-at   # only the generated reference
+cargo xtask docs-mirror                     # only the Project documents pages, from docs/
 cargo xtask docs-check-html target/docs-site/site --generated-dir api/   # links, ids, dashes, requests
 ```
 
