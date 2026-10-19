@@ -98,6 +98,40 @@ Every column keeps a floor of 12 characters, so a table with many columns, or wi
 to 20 characters in several of them, scrolls sideways instead of squeezing a column; keep the columns
 of a table few and the cells short.
 
+## Long tables as records
+
+A table with a long cell cannot be read in a 45rem column, because each cell gets about 25
+characters. On the pages under `project/` (the pages written from `docs/`), a table whose longest
+body cell has 240 characters or more is shown as records instead: one block per row, in the order of
+the rows, with the first column as the key in a gutter on the left, and the other columns as labelled
+fields (the label is the column header; empty cells are left out). When the keys are sentences (the
+median key is longer than 48 characters), the key stands above the fields for the whole list, and on
+a narrow column every block stacks. `src/integrations/records.mjs` rewrites the table in the built
+page and `src/styles/records.css` draws it. The page text, links, ids and inline code are the same
+as in the table, and the search index is made from the text as written. The source stays a table, so
+GitHub still shows a table.
+
+A comment on the line directly above the table, before its header row, chooses the layout by hand.
+GitHub shows nothing for it, and the page shows nothing for it:
+
+```markdown
+<!-- site: records -->
+<!-- site: records key=2 -->
+<!-- site: table -->
+```
+
+- `site: records` shows the table as records on any page, hand-written ones included. Hand-written
+  pages are never converted without it.
+- `site: records key=N` does the same with column N (counted from 1) as the key instead of column 1.
+- `site: table` keeps a plain table where the length rule would convert it; use it for a matrix
+  whose columns are read side by side.
+
+A table with one column is never converted. `cargo xtask docs-check-src` fails, with the file and
+line, on a comment that is not one of the three forms, on `key=N` with N that is not a whole number,
+is 0 or is larger than the number of columns, on a comment that is not directly above a table, and on
+`records` for a table with fewer than 2 columns. The check reads the mirrored `project/` pages, so
+it covers the comments written in `docs/`.
+
 ## Line breaks in inline code
 
 Inline code breaks after a `/`, after `::`, after a `,` and at spaces, and nowhere else: not inside a

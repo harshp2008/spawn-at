@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation site only (nothing in `spawn-at`, the extension or `install.sh` changed): a table with a long cell (240 characters or more) on the pages written from `docs/` is shown as records, one block per row with the key on the left and the other columns as labelled fields, instead of as a table with 25-character cells. `<!-- site: records -->`, `<!-- site: records key=N -->` and `<!-- site: table -->` above a table choose the layout by hand; `cargo xtask docs-check-src` checks them. The step 11 row of the migration table in `docs/DESIGN_PLATFORMS.md` has its Proof text in the Proof column again.
+
 ## [0.2.1] - 2026-10-18
 
 Patch release. Since v0.2.0, `git diff v0.2.0..HEAD --stat -- src crates assets scripts install.sh build.rs .github tests` shows changes only in `src` (`config.rs`, `main.rs`, `session.rs`, `update.rs`, `platform/installer.rs`, `platform/linux/gnome/deploy.rs`), `install.sh` and `crates/spawn-at-verify` (the developer tool); `assets` (the GNOME extension), `scripts`, `build.rs`, `.github`, `tests`, `crates/spawn-at-core` and `crates/xtask` are unchanged. See [docs/RELEASE_NOTES_0.2.1.md](docs/RELEASE_NOTES_0.2.1.md) for what to expect and what is not verified.
