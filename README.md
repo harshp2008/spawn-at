@@ -28,7 +28,7 @@ Only GNOME Shell 46 on Wayland has been tested; see [Support](#support). On Wayl
 
 ## Documentation
 
-The user guide and the API documentation are published at <https://harshp2008.github.io/spawn-at/> (the site goes live once GitHub Pages is enabled for the repository). The guide covers install, concepts, every command, configuration, each environment with what was and was not tested, the known shortcomings, and the measurements. The CLI reference is generated from the binary's `--help`, and the Rust API docs from the source comments.
+The user guide and the API documentation are published at <https://harshp2008.github.io/spawn-at/>. The guide covers install, concepts, every command, configuration, each environment with what was and was not tested, the known shortcomings, and the measurements. The CLI reference is generated from the binary's `--help`, and the Rust API docs from the source comments.
 
 To build the site locally you need Node.js and npm (the major version CI uses is in `docs-site/.nvmrc`); the site is built with [Starlight](https://starlight.astro.build/), whose pinned versions are in `docs-site/package.json`:
 
@@ -157,7 +157,7 @@ Measured on one machine (GNOME 46, Wayland, one monitor, the project's own test 
 - **XWayland, X11 and GNOME 42-44 still use the old rule**, and flash. Only the test window has been tried there, not real X11 apps.
 - **An app already at its minimum size** (so it cannot answer a resize) makes the ready-wait run for the full `wait.cap_ms` (about +230 ms in our test). The same goes for an app that never answers (a hung one).
 
-The numbers and method are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (the measurements are in [docs/TEST_LOG.md](docs/TEST_LOG.md) sections 6.23 and 6.30; the plan only links there).
+The numbers and method are on the [Findings](https://harshp2008.github.io/spawn-at/findings/) page of the documentation site (the measurements are in [docs/TEST_LOG.md](docs/TEST_LOG.md) sections 6.23 and 6.30).
 
 ## Settings
 
@@ -197,7 +197,7 @@ A value on the command line beats the file, and the file beats the default; `sho
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**: never run on a real GNOME 42-44, it may not work at all |
 | GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 48, but only 46 has been run) |
 | Multi-monitor, fractional scaling | Untested |
-| Real GTK apps | A few runs each, Wayland only: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 (the toolkit version was not checked). Firefox flashed in 6 of 6 runs under the old rule (TEST_PLAN 6.12). Chrome was never matched |
+| Real GTK apps | A few runs each, Wayland only: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 (the toolkit version was not checked). Firefox flashed in 6 of 6 runs under the old rule ([experiment 6.12](https://harshp2008.github.io/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/)). Chrome was never matched |
 | Qt and Electron apps | Untested |
 | Other X11 desktops | Experimental native driver, untested. No cloaking, so you'll see the flash. |
 | Sway (**experimental**, opt-in with `SPAWN_AT_BACKEND=sway`, see [below](#sway-experimental)) | Run only against a private headless Sway 1.9 with the test window: no real Sway session, no real apps, and a window can flash once |
@@ -205,7 +205,7 @@ A value on the command line beats the file, and the file beats the default; `sho
 
 On an untested GNOME version the installer prints this before it installs anything and asks you to confirm; in a headless or non-interactive run it prints the notice and goes on. Apps that refuse a requested size can still end up larger than you asked for, but they're positioned using their final size, so anchors land correctly.
 
-**X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size and tried several signals on the test window. Most were not usable. The only leads are narrow: the X sync counter works as an experimental signal for GTK4-style clients only, and an `LD_PRELOAD` shim made one GTK4 test client map at the target size on one machine, with security and compatibility costs. No screen-capture measurement of what is visible has been made. **None of this ships:** XWayland and X11 windows keep the old 30 ms rule and can still flash. Every number, what was tried and the caveats are in [docs/TEST_PLAN.md](docs/TEST_PLAN.md) 6.23 to 6.35 and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) sections 12 to 15.
+**X11/XWayland: investigated, no reliable signal.** We looked for a way to tell when an X11 client has painted at its new size and tried several signals on the test window. Most were not usable. The only leads are narrow: the X sync counter works as an experimental signal for GTK4-style clients only, and an `LD_PRELOAD` shim made one GTK4 test client map at the target size on one machine, with security and compatibility costs. No screen-capture measurement of what is visible has been made. **None of this ships:** XWayland and X11 windows keep the old 30 ms rule and can still flash. Every number, what was tried and the caveats are in the [experiment records](https://harshp2008.github.io/spawn-at/experiments/) 6.23 to 6.35 and [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) sections 12 to 15.
 
 ## Sway (experimental)
 
@@ -241,9 +241,9 @@ Compositors sit behind the `CompositorBackend` trait in [`src/platform/mod.rs`](
 ```rust
 pub trait CompositorBackend: Driver + Send + Sync {
     fn name(&self) -> &'static str;
-    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError>;
-    async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError>;
-    async fn transform_window(&self, target_id: &str, params: PlacementParams, w: u32, h: u32) -> Result<(), DriverError>;
+    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError>;  // has a default
+    async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError>;  // has a default
+    async fn transform_window(&self, target_id: &str, params: PlacementParams, w: u32, h: u32) -> Result<(), DriverError>;  // has a default
     // ...plus focus, state, query and post_spawn methods
 }
 ```
