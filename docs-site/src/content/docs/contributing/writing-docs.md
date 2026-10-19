@@ -93,10 +93,22 @@ of a flag (`--margin-top`) the way `--help` prints it.
 ## Tables
 
 The site style (`src/styles/tables.css`) centers every table and makes it as wide as its content, up
-to the width of the column; a table that is too wide scrolls inside its own box. Header cells wrap,
-and inline code in a cell may break anywhere when its column is narrow. Every column keeps a floor
-of 12 characters (18 when the cell holds inline code), so a table with many columns scrolls sideways
-instead of squeezing a column; keep the columns of a table few and the cells short.
+to the width of the column; a table that is too wide scrolls inside its own box. Header cells wrap.
+Every column keeps a floor of 12 characters, so a table with many columns, or with code pieces of up
+to 20 characters in several of them, scrolls sideways instead of squeezing a column; keep the columns
+of a table few and the cells short.
+
+## Line breaks in inline code
+
+Inline code breaks after a `/`, after `::`, after a `,` and at spaces, and nowhere else: not inside a
+name, not at `_`, `.` or `-`, not in a line reference such as `session.rs:279-291`, not between `(`
+and `)`. A piece between two break points that is longer than 20 characters is the exception: it moves
+to the next line whole, and is cut anywhere only when it is wider than its line (a table column can be
+narrower than a 50-character test name). The break points are added to the built pages by
+`src/integrations/code-breaks.mjs`, an Astro integration that runs after Starlight, as `<wbr>`
+elements and as spans around the pieces that must not break; they add no characters, so copying code
+gives the text as written and the search index is made from the text as written. The page source needs
+nothing special, and a page served by `astro dev` does not have the break points.
 
 ## Hiding the table of contents
 
