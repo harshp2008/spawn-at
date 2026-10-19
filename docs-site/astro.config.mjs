@@ -1,8 +1,13 @@
 // Config of the documentation site. Served from https://harshp2008.github.io/spawn-at/ .
 // The site makes no third-party request: system fonts, no analytics, no CDN, and the search is
 // Pagefind, which runs from files in the build output.
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+
+// Inline script for the <head> of every page: the button that hides the "On this page" column.
+// It is inline so the saved choice is applied before the first paint.
+const tocToggle = readFileSync(new URL('./src/scripts/toc-toggle.js', import.meta.url), 'utf8');
 
 export default defineConfig({
   site: 'https://harshp2008.github.io',
@@ -17,7 +22,12 @@ export default defineConfig({
       social: [
         { icon: 'github', label: 'GitHub', href: 'https://github.com/harshp2008/spawn-at' },
       ],
-      customCss: ['./src/styles/custom.css', './src/styles/tables.css'],
+      customCss: [
+        './src/styles/custom.css',
+        './src/styles/tables.css',
+        './src/styles/toc-toggle.css',
+      ],
+      head: [{ tag: 'script', content: tocToggle }],
       // Same order and groups as the mdBook table of contents this replaces. The CLI reference
       // group is filled from the folder `reference`, so a new command needs no entry here.
       sidebar: [

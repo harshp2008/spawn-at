@@ -93,8 +93,17 @@ of a flag (`--margin-top`) the way `--help` prints it.
 ## Tables
 
 The site style (`src/styles/tables.css`) centers every table and makes it as wide as its content, up
-to the width of the column; a table that is too wide scrolls inside its own box. Keep header cells
-short, because a header never wraps.
+to the width of the column; a table that is too wide scrolls inside its own box. Header cells wrap,
+and inline code in a cell may break anywhere when its column is narrow. Every column keeps a floor
+of 12 characters (18 when the cell holds inline code), so a table with many columns scrolls sideways
+instead of squeezing a column; keep the columns of a table few and the cells short.
+
+## Hiding the table of contents
+
+On a screen at least 72rem wide, a button in the header (a script in `src/scripts/toc-toggle.js`,
+added to every page by `astro.config.mjs`) hides the "On this page" column and widens tables and code
+blocks from 45rem to 60rem. Text keeps its 45rem measure. The choice is kept in the browser's
+`localStorage`. Without JavaScript the button does not exist and the column stays.
 
 ## Sources section style
 

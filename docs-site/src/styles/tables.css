@@ -23,3 +23,22 @@
 .sl-markdown-content :is(th:last-child, td:last-child):not(:where(.not-content *)) {
   padding-inline-end: 1rem;
 }
+
+/* Column floors. A table is laid out by the browser's automatic algorithm: when the cells want
+   more than the column offers, each column gets its smallest width plus a share of the rest in
+   proportion to what it wants. A cell that may break anywhere (inline code, see custom.css) has a
+   smallest width of one character, so a short numbers column was squeezed to a few characters.
+   Before custom.css let code break inside a table, the opposite happened: one unbreakable path
+   such as `src/platform/linux/x11/{mod,session,...}.rs` set a 606px floor, the table grew to
+   1278px and scrolled, and the other columns got what was left. A floor of 12 characters keeps
+   every column readable; a cell with inline code gets 18, so a path like `src/cli/args.rs` stays
+   whole and only longer ones break. The 2rem is the cell padding. Header cells wrap too (they
+   were set to `nowrap` in custom.css): the header "First step with value >= 4, vs the final
+   paint: before / median after / worst after" (experiments page 6.33) kept its whole width, 580px,
+   as a floor, which alone made that table scroll. */
+.sl-markdown-content :is(th, td):not(:where(.not-content *)) {
+  min-width: calc(12ch + 2rem);
+}
+.sl-markdown-content :is(th, td):has(code):not(:where(.not-content *)) {
+  min-width: calc(18ch + 2rem);
+}
