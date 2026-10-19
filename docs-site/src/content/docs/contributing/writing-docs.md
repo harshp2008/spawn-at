@@ -26,7 +26,7 @@ evidence first and style second.
 - If a page has to describe behavior that looks like a bug, it describes what the code does, says so,
   and the finding is reported to the owner; the page does not hide it and the code is not changed in a
   docs change.
-- `CLAUDE.md` ("Working style") has the same rules for reports: never claim something is verified
+- The repository's contributor rules ("Working style") say the same for reports: never claim something is verified
   unless it was run, and always list what could not be run (a real GNOME Wayland session, X11, other
   GNOME versions, macOS, Windows).
 - State no release status ("in beta", "from v0.x") in a timeless page. The changelog, the release
@@ -222,7 +222,7 @@ The checks above are listed in `docs/CODE_LAYOUT.md` ("Documentation site").
 - Links are `/spawn-at/<slug>/`, none ends in `.md`, and the anchors exist.
 - No forbidden text, no home path, no first name, no placeholder words.
 - Numbers (test counts, line counts, versions) are from a run, with the date; counts that changed are
-  updated in the same commit that changed them (`CLAUDE.md`, "Git and PRs").
+  updated in the same commit that changed them (the contributor rules, "Git and PRs").
 - `cargo xtask docs-site` exits 0.
 
 ## Page template
@@ -314,4 +314,4 @@ What the experiment did not cover.
 - `docs/CODE_LAYOUT.md` ("Documentation site")
 - `docs-site/astro.config.mjs` (sidebar, `markdown.smartypants`)
 - `docs-site/src/content/docs/index.md` (the "not verified" definition and the Sources convention)
-- `docs/COMMENT_STYLE.md` ("Truth rule") and `CLAUDE.md` ("Working style", "Git and PRs")
+- `docs/COMMENT_STYLE.md` ("Truth rule") and the contributor rules ("Working style", "Git and PRs")

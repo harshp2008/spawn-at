@@ -29,4 +29,4 @@ contains a `-` is published as a pre-release.
 
 - `CHANGELOG.md` (the headings and dates above)
 - `docs/RELEASE_NOTES_0.2.0-beta.1.md` to `docs/RELEASE_NOTES_0.2.0-beta.6.md`, `docs/RELEASE_NOTES_0.2.0.md`, `docs/RELEASE_NOTES_0.2.1.md`
-- `.github/workflows/release.yml` (pre-release rule), `CLAUDE.md` ("Versions and releases")
+- `.github/workflows/release.yml` (pre-release rule), the contributor rules ("Versions and releases")

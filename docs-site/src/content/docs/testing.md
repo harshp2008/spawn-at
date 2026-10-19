@@ -120,7 +120,7 @@ These come from the project rules and the harness design.
 ## Sources
 
 - `verify/README.md` (sections 1 to 10)
-- `CLAUDE.md` ("Hard safety rules", "Tests", "Build and test commands")
+- the contributor rules ("Hard safety rules", "Tests", "Build and test commands")
 - `docs/TEST_COVERAGE_AUDIT.md`, sections 1, 4 and 5
 - `docs/TEST_PLAN.md`, section 7 and the suite counts
 - `docs/KNOWLEDGE.md` ("Testing and fixtures")

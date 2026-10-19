@@ -439,7 +439,7 @@ Docs in the same commits; `docs/KNOWLEDGE.md` and `CHANGELOG.md` per the repo ru
 | Make `[action]` an array (`[[action]]`) | Changes the meaning and the type of a required v1 field; every v1 spec would need touching or an untagged enum. `[[then]]` adds without changing. |
 | Judge every command only by its exit code | `transform` and the state commands return 0 when the state never changed (audit gap 6, pinned by `src/commands/state_command_tests.rs`), so a query after is the only honest check. |
 | One shared fixture for the whole suite | Faster, but one test's state (focus, maximized) leaks into the next and a failure strands later tests. Possible later as an opt-in. |
-| Real apps (gnome-calculator, terminal) as targets | The incident; `CLAUDE.md` forbids it; their windows are shared or slow. |
+| Real apps (gnome-calculator, terminal) as targets | The incident; the repository's contributor rules forbid it; their windows are shared or slow. |
 | Read capabilities from the binary's `Capabilities` | Not reachable from the verify crate and incomplete (4.2). |
 | Screen capture for flicker | No capture path exists (`docs/DESIGN_READY_WAIT.md` section 12, the ScreenCast attempt); out of scope. |
 | Run Sway tests in CI now | No Sway in the workflows; availability on the runner is unverified. |
