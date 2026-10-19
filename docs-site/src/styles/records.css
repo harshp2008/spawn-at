@@ -1,0 +1,105 @@
+/* Records: a table with long cells shown as one block per row (src/integrations/records.mjs writes
+   the markup):
+     ol.records[.records-stack] > li.record > div.record-key + dl.record-fields > div.field > dt + dd
+   The key sits in a gutter at the left with a thin vertical line, and the other columns are fields:
+   the column header as a small muted label, the cell as text. Every field of a block shares one
+   label column, so the texts start at the same x. Colours are Starlight tokens only, so light and
+   dark need no rules of their own. */
+.sl-markdown-content .records {
+  list-style: none;
+  padding: 0;
+  margin-block: 1.5rem;
+  border-block-start: 1px solid var(--sl-color-hairline-light);
+  font-size: var(--sl-text-sm);
+  /* The list is the container of the narrow-layout query below: the content column is narrower
+     than the screen once the sidebar is open, so a screen width would be the wrong measure. */
+  container-type: inline-size;
+}
+
+/* Starlight puts a 1rem top margin on every block that follows another block, 0.25rem on `li + li`
+   and `dt + dd`, and 1.25rem under the last child of a list item. The blocks below set their own
+   spacing, so those margins are reset. */
+.sl-markdown-content .records .record,
+.sl-markdown-content .records .record-key,
+.sl-markdown-content .records .record-fields,
+.sl-markdown-content .records .field,
+.sl-markdown-content .records dt,
+.sl-markdown-content .records dd {
+  margin: 0;
+}
+
+.sl-markdown-content .records .record {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+  padding-block: 1rem;
+  border-block-end: 1px solid var(--sl-color-hairline-light);
+}
+.sl-markdown-content .records .record-key {
+  padding-inline-end: 1rem;
+  font-weight: 600;
+  color: var(--sl-color-white);
+  overflow-wrap: break-word;
+}
+
+/* The thin vertical line is the left border of the fields. The label column is the first column
+   of this grid and `.field` is `display: contents`, so all labels of a block have one width. */
+.sl-markdown-content .records .record-fields {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  column-gap: 1rem;
+  align-items: baseline;
+  min-width: 0;
+  padding-inline-start: 1.25rem;
+  border-inline-start: 2px solid var(--sl-color-gray-5);
+}
+.sl-markdown-content .records .field {
+  display: contents;
+}
+.sl-markdown-content .records :is(dt, dd) {
+  padding: 0 0 0.7rem;
+}
+.sl-markdown-content .records .field:last-child :is(dt, dd) {
+  padding-block-end: 0;
+}
+.sl-markdown-content .records dt {
+  font-size: var(--sl-text-xs);
+  font-weight: 400;
+  color: var(--sl-color-gray-3);
+  overflow-wrap: break-word;
+}
+.sl-markdown-content .records dd {
+  min-width: 0;
+  overflow-wrap: break-word;
+  line-height: 1.55;
+}
+
+/* custom.css gives a piece of code longer than 20 characters (.code-any) `max-width: 100%`, but
+   the chip of its parent <code> adds 6px of padding on each side, so a 60-character test name was
+   12px wider than its column. A table cell hides that behind its own padding; a record has none. */
+.sl-markdown-content .records :not(pre) > code .code-any {
+  max-width: calc(100% - 0.75rem);
+}
+
+/* A list whose keys are sentences (records-stack), and any list narrower than 36rem: the key goes
+   above the fields, and in the narrow case the label goes above its text. */
+.sl-markdown-content .records.records-stack .record {
+  grid-template-columns: minmax(0, 1fr);
+}
+.sl-markdown-content .records.records-stack .record-key {
+  padding: 0 0 0.6rem;
+}
+@container (max-width: 36rem) {
+  .sl-markdown-content .records .record {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sl-markdown-content .records .record-key {
+    padding: 0 0 0.6rem;
+  }
+  .sl-markdown-content .records .record-fields {
+    grid-template-columns: minmax(0, 1fr);
+    padding-inline-start: 0.9rem;
+  }
+  .sl-markdown-content .records dt {
+    padding-block-end: 0.1rem;
+  }
+}
