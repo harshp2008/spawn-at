@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import codeBreaks from './src/integrations/code-breaks.mjs';
 
 // Inline script for the <head> of every page: the button that hides the "On this page" column.
 // It is inline so the saved choice is applied before the first paint.
@@ -144,5 +145,8 @@ export default defineConfig({
         },
       ],
     }),
+    // After Starlight on purpose: its build-done step makes the Pagefind index, and this one then
+    // rewrites the pages, so the search index is made from the text as written.
+    codeBreaks(),
   ],
 });
