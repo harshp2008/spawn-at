@@ -102,14 +102,24 @@ of a table few and the cells short.
 
 A table with a long cell cannot be read in a 45rem column, because each cell gets about 25
 characters. On the pages under `project/` (the pages written from `docs/`), a table whose longest
-body cell has 240 characters or more is shown as records instead: one block per row, in the order of
-the rows, with the first column as the key in a gutter on the left, and the other columns as labelled
-fields (the label is the column header; empty cells are left out). When the keys are sentences (the
-median key is longer than 48 characters), the key stands above the fields for the whole list, and on
-a narrow column every block stacks. `src/integrations/records.mjs` rewrites the table in the built
-page and `src/styles/records.css` draws it. The page text, links, ids and inline code are the same
-as in the table, and the search index is made from the text as written. The source stays a table, so
-GitHub still shows a table.
+body cell has 240 characters or more is shown as records instead: one card per row, in the order of
+the rows. The first column is the key, in a gutter at the left of the card. The other columns are
+fields in the body of the card, labelled with the column header (empty cells are left out). A field
+whose text is 40 characters or fewer is a short fact: a small label over its value, side by side with
+the other short ones. A longer one is a label over full-width text. The short fields are shown first,
+but they stay in the order of the table in the page itself, so copying a card and reading it with a
+screen reader give the table's order. When the keys are sentences (the median key is longer than 48
+characters), the key stands above the fields for the whole list, and on a narrow column every card
+stacks. `src/integrations/records.mjs` rewrites the table in the built page and
+`src/styles/records.css` draws it. The page text, links, ids and inline code are the same as in the
+table, and the search index is made from the text as written. The source stays a table, so GitHub
+still shows a table.
+
+When every key starts with a whole number (`1`, `2 (fixed in step 1)`, `12 files`; not `6.22` or
+`A1`), the list is a list of steps instead: the gutter holds the number in large type, with the rest
+of the key as a note under it (one pair of parentheses around the note is dropped). If only some of
+the keys start with a number, the list is a normal list of cards. A numbered table whose numbers are
+only labels, not an order, should say `style=cards`.
 
 A comment on the line directly above the table, before its header row, chooses the layout by hand.
 GitHub shows nothing for it, and the page shows nothing for it:
@@ -117,20 +127,29 @@ GitHub shows nothing for it, and the page shows nothing for it:
 ```markdown
 <!-- site: records -->
 <!-- site: records key=2 -->
+<!-- site: records style=steps -->
+<!-- site: records style=cards -->
+<!-- site: records key=2 style=cards -->
 <!-- site: table -->
 ```
 
 - `site: records` shows the table as records on any page, hand-written ones included. Hand-written
   pages are never converted without it.
 - `site: records key=N` does the same with column N (counted from 1) as the key instead of column 1.
+- `site: records style=steps` makes steps. The build fails, naming the page, the table and the row,
+  when a key does not start with a number.
+- `site: records style=cards` makes cards even where every key starts with a number.
+- `key=N` and `style=...` can be given together, each once, in any order. Only `records` takes them.
 - `site: table` keeps a plain table where the length rule would convert it; use it for a matrix
-  whose columns are read side by side.
+  whose columns are read side by side. It takes no option.
 
 A table with one column is never converted. `cargo xtask docs-check-src` fails, with the file and
-line, on a comment that is not one of the three forms, on `key=N` with N that is not a whole number,
-is 0 or is larger than the number of columns, on a comment that is not directly above a table, and on
+line, on a comment that is not one of these forms, on `key=N` with N that is not a whole number, is 0
+or is larger than the number of columns, on a `style` other than `steps` or `cards`, on an option
+repeated, on an option after `site: table`, on a comment that is not directly above a table, and on
 `records` for a table with fewer than 2 columns. The check reads the mirrored `project/` pages, so
-it covers the comments written in `docs/`.
+it covers the comments written in `docs/`. That the keys of a `style=steps` table are numbers is
+checked by the site build, which reads the cells.
 
 ## Line breaks in inline code
 
