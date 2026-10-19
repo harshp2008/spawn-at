@@ -219,7 +219,7 @@ Setup launches the fixture **directly** (`std::process::Command`), not through `
 | panic | Rust unwinds (no `panic = "abort"`, **(ran)**), so `Drop` runs. A test injects a panic and asserts the fake fixture was killed. |
 | SIGKILL of the runner | cannot be handled; the fixture's `--exit-after-ms` ends the process, and the window goes with it. |
 
-After teardown the runner re-reads `query windows` and records "left behind: <id>" in the result message if the recorded id is still there (audit P12). It is a warning in the first version, not a failure (open question 9.9).
+After teardown the runner re-reads `query windows` and records "left behind: `<id>`" in the result message if the recorded id is still there (audit P12). It is a warning in the first version, not a failure (open question 9.9).
 
 ### 3.5 Setup that fails halfway
 

@@ -119,7 +119,7 @@ fn fence_for(text: &str) -> String {
 }
 
 /// `text` as a double-quoted YAML scalar: backslash and double quote are escaped.
-fn yaml_quote(text: &str) -> String {
+pub fn yaml_quote(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 

@@ -4,7 +4,8 @@
 //! It fails when: a page has no front matter or no non-empty `title`; a page repeats its title as
 //! a `# ` heading (Starlight prints the title as the heading); a page has fewer than 2 lines of
 //! body text; a page is not named in the sidebar of `astro.config.mjs` (the generated CLI
-//! reference is covered by an `autogenerate` entry instead); one of the four environment pages is
+//! reference and the mirrored `project/` pages are covered by an `autogenerate` entry instead);
+//! one of the four environment pages is
 //! missing; a hand-written page has no `## Sources` list; a link ends in `.md` (Starlight serves
 //! no such file; links are `/spawn-at/<slug>/`); the config does not set
 //! `markdown.smartypants: false`; or any page contains text that must not be published (AI
@@ -244,6 +245,13 @@ fn is_generated(rel: &str) -> bool {
     rel.starts_with("reference/") && rel != "reference/index.md"
 }
 
+/// A page written by `docs-mirror` from a file of `docs/`. Unlike a generated reference page it
+/// has a `## Sources` list (the mirror appends one) and every other rule applies; only the
+/// sidebar-name rule is replaced by the `autogenerate` entry for the folder `project`.
+fn is_mirrored(rel: &str) -> bool {
+    rel.starts_with("project/") && rel != "project/index.md"
+}
+
 /// All problems found under `docs` (the content folder) with the sidebar config at `config`,
 /// one line each. Empty means the site source passes.
 pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
@@ -313,7 +321,8 @@ pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
             if !has_sources_list(body) {
                 problems.push(format!("{rel}: no `## Sources` heading with a list"));
             }
-            if !sidebar_names(&config_text, &page_slug(&rel)) {
+            let covered = is_mirrored(&rel) && sidebar_autogenerates(&config_text, "project");
+            if !covered && !sidebar_names(&config_text, &page_slug(&rel)) {
                 problems.push(format!(
                     "{rel}: page `{}` is not named in the sidebar of {}",
                     page_slug(&rel),
@@ -607,6 +616,80 @@ mod tests {
         assert!(is_generated("reference/spawn-at-spawn.md"));
         assert!(!is_generated("reference/index.md"));
         assert!(!is_generated("environments/sway.md"));
+    }
+
+    /// Only `project/<page>.md` counts as mirrored; the hand-written `project/index.md` and the
+    /// generated reference pages do not.
+    #[test]
+    fn test_is_mirrored() {
+        assert!(is_mirrored("project/test-plan.md"));
+        assert!(!is_mirrored("project/index.md"));
+        assert!(!is_mirrored("reference/spawn-at-spawn.md"));
+        assert!(!is_mirrored("install.md"));
+    }
+
+    /// A mirrored page needs no sidebar entry of its own when the config autogenerates the
+    /// `project` folder, and fails the sidebar rule when it does not.
+    #[test]
+    fn test_mirrored_page_is_covered_by_the_project_autogenerate_entry() {
+        let mut files: Vec<(&str, &str)> =
+            vec![("index.md", GOOD_PAGE), ("project/test-plan.md", GOOD_PAGE)];
+        for p in ENVIRONMENT_PAGES {
+            files.push((p, GOOD_PAGE));
+        }
+        let (docs, config) = site("mirrored-sidebar", &files);
+        let mut names: Vec<String> = vec!["index".to_string()];
+        names.extend(env_slugs());
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+
+        fs::write(&config, config_for(&refs)).unwrap();
+        let problems = check(&docs, &config).unwrap().join("\n");
+        assert!(
+            problems.contains("project/test-plan.md: page `project/test-plan` is not named"),
+            "{problems}"
+        );
+
+        let with_project = format!(
+            "{}\n{{ autogenerate: {{ directory: 'project' }} }}",
+            config_for(&refs)
+        );
+        fs::write(&config, with_project).unwrap();
+        assert_eq!(check(&docs, &config).unwrap(), Vec::<String>::new());
+        let _ = fs::remove_dir_all(docs.parent().unwrap());
+    }
+
+    /// The `autogenerate` exemption covers the sidebar rule only: a mirrored page with a `# `
+    /// heading, a `.md` link, no Sources list or forbidden text still fails.
+    #[test]
+    fn test_mirrored_page_still_obeys_every_other_rule() {
+        let bad = "---\ntitle: \"P\"\n---\n\n# P\n\nSee [x](CONFIG.md)\nTODO\n";
+        let mut files: Vec<(&str, &str)> = vec![("index.md", GOOD_PAGE), ("project/bad.md", bad)];
+        for p in ENVIRONMENT_PAGES {
+            files.push((p, GOOD_PAGE));
+        }
+        let (docs, config) = site("mirrored-rules", &files);
+        let mut names: Vec<String> = vec!["index".to_string()];
+        names.extend(env_slugs());
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let with_project = format!(
+            "{}\n{{ autogenerate: {{ directory: 'project' }} }}",
+            config_for(&refs)
+        );
+        fs::write(&config, with_project).unwrap();
+        let problems = check(&docs, &config).unwrap().join("\n");
+        for expected in [
+            "project/bad.md: has a `# ` heading",
+            "project/bad.md: link to `CONFIG.md` ends in .md",
+            "project/bad.md: no `## Sources`",
+            "project/bad.md: contains `todo`",
+        ] {
+            assert!(
+                problems.contains(expected),
+                "missing `{expected}` in:\n{problems}"
+            );
+        }
+        assert!(!problems.contains("not named in the sidebar"), "{problems}");
+        let _ = fs::remove_dir_all(docs.parent().unwrap());
     }
 
     /// A generated page with front matter and body passes without a Sources list or a sidebar

@@ -7,9 +7,12 @@ verify-results/
 scratch/
 scratch/
 
-# Documentation site (docs-site/). The CLI reference is generated at build time and never committed.
+# Documentation site (docs-site/). The CLI reference and the Project documents pages (written from
+# docs/) are generated at build time and never committed.
 /docs-site/src/content/docs/reference/*
 !/docs-site/src/content/docs/reference/index.md
+/docs-site/src/content/docs/project/*
+!/docs-site/src/content/docs/project/index.md
 # Starlight build: installed packages, the built site, Astro's generated types and cache.
 /docs-site/node_modules/
 /docs-site/dist/

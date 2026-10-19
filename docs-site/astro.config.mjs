@@ -120,6 +120,13 @@ export default defineConfig({
             'known-limits',
           ],
         },
+        // Written from docs/ at build time by `cargo xtask docs-mirror`; the order comes from the
+        // `sidebar.order` of each page.
+        {
+          label: 'Project documents',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'project' } }],
+        },
         {
           label: 'Developing',
           collapsed: true,
