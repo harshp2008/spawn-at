@@ -113,7 +113,7 @@ variables for apps that can run on Wayland.
 - `README.md` ("Support", "X11/XWayland: investigated, no reliable signal")
 - `docs/DESIGN_READY_WAIT.md`, sections 12 to 15 (the candidate table, the status after 6.31 to 6.35, the future direction)
 - `docs/TEST_LOG.md`, sections 6.16 to 6.18 (flash counts on X11 and XWayland), 6.23 to 6.35 (the experiments; 6.29 for the crash, 6.33 and 6.34 for the sync counter, 6.35 for the shim)
-- `docs/DESIGN_PLATFORMS.md`, sections 3 (row 11) and 5 ("X11")
+- `docs/DESIGN_PLATFORMS.md`, sections 3 (Leak 11) and 5 ("X11")
 - `docs/TEST_COVERAGE_AUDIT.md`, section 3 and gap 3, section 4.2 and gap 10
 - `src/platform/linux/x11/` (file list, `atoms.rs`, `session.rs`, `mod.rs`)
 - `git merge-base --is-ancestor archive/x11-experiments origin/main` (true), `git branch -r --contains 673e6f2`, `git diff --stat 673e6f2 origin/main -- assets` (read only; nothing pushed)
