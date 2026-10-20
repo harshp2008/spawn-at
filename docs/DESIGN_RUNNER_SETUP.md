@@ -1,5 +1,7 @@
 # Design: tests of an existing window in the verify runner
 
+**Status:** implemented. Version 2 specs run through `execute_v2_test` in `runner/executor_v2.rs` and `SetupSession` in `runner/owned.rs` (section 11); 18 spec files under `verify/` use `schema_version = 2`.
+
 Status: **approved and implemented, 2026-10-15 (see section 11 for what was built, where, and what differs).** Sections 1 to 10 are the design as it was approved, written when `main` was at `6d232c1` and describing the code at `ca11523`; they are kept as written, so their statements about "the current model" are about that code. Claims marked **(read)** come from reading the cited code, **(ran)** from running a command for this document (only `--help` and `list` style reads, and the existing test suites; nothing live), **(unverified)** from neither.
 
 This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE_AUDIT.md` (section 7 item 8, section 6 rows P6 and P7).
