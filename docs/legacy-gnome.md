@@ -1,5 +1,7 @@
 # Legacy GNOME (42–44) Differences & Compatibility Analysis
 
+**Status:** implemented. The legacy extension is `assets/gnome/legacy/` (8 JavaScript files and `metadata.json`); it has not been run on a real GNOME 42-44 session.
+
 **Date:** 2026-10-09  
 **Status:** Implemented and checked with the test harness only. **UNTESTED on a real GNOME 42-44 session**: it may not work. The installer says so before it installs (see the README, "Support").
 
