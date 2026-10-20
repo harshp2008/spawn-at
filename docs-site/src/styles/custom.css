@@ -122,6 +122,14 @@ header.header {
      line itself; a plain inline piece would also break after its hyphens. */
   display: inline-block;
   max-width: 100%;
+  /* The chip is as high as the one of the plain code next to it: the font's own height plus the
+     0.1em block padding of the parent <code> (a 13.6px piece: 15px + 2 x 1.36px = 17.72px). With
+     the line height of the text around it (1.8, 24.48px) the piece was the whole line high and
+     stood out from its neighbours. `normal` gives the font's height at once, but also packs the
+     lines of a piece that wraps; the @supports rule below keeps the line height and trims the
+     space above the first line and below the last instead, so that nothing around the piece moves. */
+  line-height: normal;
+  padding-block: 0.1em;
   /* The chip of the parent <code> (background and 0.1em 0.3em padding) is painted only behind the
      line the inline-block sits on, its last one, so the other lines had no chip. The same colour
      is painted behind every line of the piece, and the 0.3em at each end are box-shadows (em of
@@ -131,6 +139,12 @@ header.header {
   box-shadow:
     -0.3em 0 var(--sl-color-bg-inline-code),
     0.3em 0 var(--sl-color-bg-inline-code);
+}
+@supports (text-box: trim-both text) {
+  .sl-markdown-content :not(pre) > code .code-any {
+    line-height: inherit;
+    text-box: trim-both text;
+  }
 }
 /* The underline of a link does not reach into an inline-block, so it is drawn again. */
 .sl-markdown-content a:not(:where(.not-content *)) > code .code-any {
