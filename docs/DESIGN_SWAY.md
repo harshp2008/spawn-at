@@ -345,12 +345,11 @@ has no access to `window_timeout`.
 
 ## 7. Selection: never automatic
 
-`LinuxBackend::bootstrap` walks `registry::candidates`. Before this backend, `SPAWN_AT_BACKEND` was
-compared to `x11` only, and any other value was ignored.
+`LinuxBackend::bootstrap` walks `registry::candidates`. `SPAWN_AT_BACKEND` is compared, lowercased
+and not trimmed, to `x11` and `sway`, and any other value is ignored.
 
-The only behaviour change is that `SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`)
-selects Sway. If the value is `sway`, `candidates` returns Sway alone. Every other input returns what
-it returned before.
+`SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`) selects Sway. If the value is `sway`,
+`candidates` returns Sway alone. Every other input returns what it returned before Sway was added.
 
 `XDG_CURRENT_DESKTOP=sway` without the variable **no longer gets X11 silently**. `registry::unsupported`
 refuses it with the "not supported" error (Leak 11 in DESIGN_PLATFORMS.md), unless the session type is
@@ -407,8 +406,7 @@ with `cargo add --dry-run` and `cargo tree` before reconsidering.
   `post_spawn` matching by pid, by descendant and by app id, the timeout, `close`, `focus`.
 - 19 tests that run the built binary against a recording stand-in socket.
 - `scripts/sway-live.sh`: live checks on a private headless Sway, run by hand. The last recorded run
-  passed 62 checks and failed none ([TEST_PLAN.md](TEST_PLAN.md) section 7.2). It was not re-run for
-  this page.
+  passed 62 checks and failed none ([TEST_PLAN.md](TEST_PLAN.md) section 7.2).
 - No live test is gated by an environment variable, and no CI job installs `sway`.
 - Flash measurement is out of scope for the first version (section 5).
 
@@ -426,9 +424,6 @@ implementation.
 | 5. May CI install `sway`? | No CI job installs it. |
 | 6. Map maximize and minimize? | No. They are unsupported in the first version. |
 | 7. An i3 backend? | No. |
-
-The design had proposed the content size for question 3 and the focused workspace's output for
-question 4. The owner's answers replaced both.
 
 ## 11. The harness
 
@@ -451,7 +446,7 @@ question 4. The owner's answers replaced both.
 The author's recorded checks: a recorded PID that was a `sleep` was refused and left alive;
 `stop --dir /tmp` was refused; a normal `stop` left no sway, swaybar or fixture process and no
 directory; `gnome-shell` kept its PID and command line; no journal line mentioned spawn-at, sway or an
-assertion during the runs. These were not repeated for this page.
+assertion during the runs.
 
 To try it yourself (not run in your session by the author):
 

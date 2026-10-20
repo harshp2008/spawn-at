@@ -630,17 +630,15 @@ All `path:line` references in sections 1 to 10 were checked by a script (`scratc
 
 ## 11. Implementation status
 
-Implemented on branch `feat/runner-existing-window-setup`, 2026-10-15, as approved (the owner's decisions on section 9 are in 11.3). The line citations of this section are checked against the tree at the time of each update. The citations of sections 1 to 10 are for `ca11523`.
+Implemented as approved (the owner's decisions on section 9 are in 11.3). The line citations of this section are checked against the tree at the time of each update. The citations of sections 1 to 10 are for `ca11523`. The dates and branches of the later changes are in [Project history](HISTORY.md).
 
-### Updates after the first implementation
+### The focus return and the TUI queue, as built
 
-| Date | Branch | What changed |
-| :-- | :-- | :-- |
-| 2026-10-16 | `feat/trace-existing-window` | Section 5 is implemented (5.5). `runner/flash.rs` gained about 70 lines (`evaluate_action`, `env_pairs`) and `trace/flash.rs` one field, so the `runner/flash.rs` and `trace/flash.rs` line numbers of sections 5.1 to 5.4 are those of the code as designed. Then: `FlashCapture::apply` `runner/flash.rs:77`, `read_events` `:114`, `wants_flash_capture` `:141`, `apply_flash_policy` `:153`, `run_flash_check` `:348`, `detect_flash` `trace/flash.rs:472`, `label_visibility` `:619`. Open question 9.11 (the journal check) is answered by the owner's sample. |
-| 2026-10-16 | `fix/tui-order-and-focus-return` | The focus return did not work on the owner's GNOME run (reasons below). Now `TuiApp::return_focus_to_terminal` (`runner/focus_return.rs`) does the return after the automatic part of every judged test and again after the verdict, with a settle, up to three sends and a polled check after each. A `FocusReport` (recorded terminal, each command's exit code and message, what had focus afterwards) is shown in the Result box. `RunOptions::caller_returns_focus` stops the executor from doing its own unrecorded return. Covered on a private headless Sway (`scripts/focus-chain-sway.sh`); the GNOME-only reasons (focus-stealing prevention, the terminal missing from the extension's list) are shown by the report but cannot be tested here. |
-| 2026-10-16 | `fix/tui-verdict-feedback` | The TUI no longer runs a test or the verdict teardown inside the key handler. `TuiApp::handle_key` queues a `Pending` step that the event loop runs after the next redraw (`tui/app/queue.rs`), so the "synchronously on the UI thread" statements of sections 1 to 6 describe the code as it was when the design was written. The focus memory (`remember_focus`) is now also used after the automatic part of a Both or Human test (`SetupSession::restore_focus`). |
-
-Why the focus return did not work: it existed only for version 2 specs, so version 1 `Both` specs (all of placement and cloak) never got focus back after the automatic part. The TUI's own refocus used an id read once at start through a 500 ms query whose failure was swallowed, then a fire-and-forget `focus --no-wait` that was never checked or retried and was sent right after an asynchronous close.
+- `TuiApp::return_focus_to_terminal` (`runner/focus_return.rs`) returns focus to the recorded terminal after the automatic part of every judged test, for version 1 and version 2 specs, and again after the verdict. It settles, sends `focus` up to three times, and polls the window list after each send. A `FocusReport` (recorded terminal, each command's exit code and message, what had focus afterwards) is shown in the Result box. `RunOptions::caller_returns_focus` stops the executor from doing its own unrecorded return.
+- It is covered on a private headless Sway (`scripts/focus-chain-sway.sh`). The GNOME-only reasons it can fail (focus-stealing prevention, the terminal missing from the extension's list) are shown by the report but cannot be tested here.
+- `TuiApp::handle_key` does not run a test or the verdict teardown. It queues a `Pending` step that the event loop runs after the next redraw (`tui/app/queue.rs`). The statements of sections 1 to 6 that a test runs synchronously on the UI thread describe the code as designed.
+- The focus memory (`remember_focus`) is also used after the automatic part of a Both or Human test (`SetupSession::restore_focus`).
+- The line numbers of `runner/flash.rs` and `trace/flash.rs` in sections 5.1 to 5.4 are those of the code as designed. Open question 9.11 (the journal check) is answered by the owner's sample.
 
 ### 11.1 Commits, in order
 

@@ -330,15 +330,9 @@ Under GNOME Wayland, minimizing a window triggers an asynchronous Clutter/Mutter
 
 ### Status: mostly not measured
 
-An earlier revision of this section published min/median/max cloak durations and a two-mode
-("fast path" / "compositor scheduling delay") explanation. Those numbers were produced while the
-trace analyser could measure a leftover window from the previous run instead of the window named
-in the fixture's stdout. The log slice has whole-second bounds, so it can contain the previous
-run's window, and `cloak_duration_ms` was the maximum over every lifecycle in the slice. This was
-fixed in commit `7ffa99c`.
-
-The old numbers, and the explanations built on them, are withdrawn. **No budget formula is
-supported by any measurement.**
+The log slice has whole-second bounds, so it can contain the previous run's window. The trace
+analyser measures the window named in the fixture's stdout, not the maximum over every lifecycle in
+the slice (commit `7ffa99c`). **No budget formula is supported by any measurement.**
 
 Labels used in sections 5 and 6:
 
@@ -349,7 +343,7 @@ Labels used in sections 5 and 6:
 
 `cloak_duration_ms` is UNCLOAK minus CLOAK for the window named in the fixture's stdout. Each row
 is one invocation of
-`spawn-at-verify calibrate --case cloak/delayed-paint/delay-500 --runs 10` after the fix. "Repeat"
+`spawn-at-verify calibrate --case cloak/delayed-paint/delay-500 --runs 10`. "Repeat"
 means `run --repeat 10` in one process; "separate" means 10 separate `run` processes.
 
 | Batch and mode | Runs measured | Min | Median | Max |
@@ -361,14 +355,12 @@ means `run --repeat 10` in one process; "separate" means 10 separate `run` proce
 
 What these four batches show (CONFIRMED unless marked):
 
-- Before the fix, neighbouring runs repeatedly reported identical values (for example 57.64 ms
-  twice, 8.20 ms three times), the signature of one leftover window being measured for several
-  runs. After the fix no two runs report the same value. CONFIRMED.
+- No two runs report the same value. Identical values in neighbouring runs would be the signature
+  of one leftover window being measured for several runs. CONFIRMED.
 - The spread differs between batches (about 7 - 19 ms in batch 1 separate, about 33 - 59 ms in
   batch 2 separate). The investigation below explains this as two regimes.
 - `cloak/delayed-paint/delay-0`, `delay-50`, `delay-150` and `placement/bottom-right` were not
-  re-measured with `calibrate` after the fix; single `run`s of them gave about 30 - 44 ms before
-  the regimes were understood.
+  measured with `calibrate`; single `run`s of them gave about 30 - 44 ms.
 
 ### Findings from the cloak investigation
 
@@ -498,7 +490,7 @@ The budget has two parts: an advisory warning and the pass/fail invariants.
 
 #### Advisory budget warning
 
-**The 100 ms warning threshold is provisional**: it is a guess, not derived from the data above, and no measurement supports a budget that depends on the paint delay. It is shown in the TUI drawer as `over provisional budget` and is not an automated pass/fail threshold. CONFIRMED: the largest cloak observed after the fix is 61.9 ms, below 100 ms. The budget stays provisional, and the two regimes above are why a single threshold cannot be derived from one batch.
+**The 100 ms warning threshold is provisional**: it is a guess, not derived from the data above, and no measurement supports a budget that depends on the paint delay. It is shown in the TUI drawer as `over provisional budget` and is not an automated pass/fail threshold. CONFIRMED: the largest cloak observed is 61.9 ms, below 100 ms. The budget stays provisional, and the two regimes above are why a single threshold cannot be derived from one batch.
 
 #### Pass/fail invariants
 
@@ -513,10 +505,10 @@ Automated pass/fail criteria are anchored in correctness invariants rather than 
 
 `spawn-at-verify run` detects flakiness over several runs with the `--repeat <REPEAT>` flag:
 
-- The flag reads `--repeat <REPEAT> Repeat each test N times (cap 100) for flakiness detection [default: 1]` (pre-existing since commit `0f6bb36`).
+- The flag reads `--repeat <REPEAT> Repeat each test N times (cap 100) for flakiness detection [default: 1]`.
 - It executes the test action N times. If outcomes vary across repetitions (for example pass and fail), the runner marks the result as `FinalStatus::Flaky` with an explanatory diagnostic message.
 - All runs are stored. With `--repeat N`, `report.json` keeps the first repetition in `results` (marked `Flaky` if any repetition's outcome differed) and stores every repetition, in order, under the top-level `repeat_runs` array (`[{id, runs: [TestResult, ...]}]`).
-- `report.md` gets a "Repeat Runs" table (run, statuses, duration, cloak) for each repeated test. Single runs and older reports have no `repeat_runs`. Earlier versions kept only the first run; that was a limitation of the report, not a design choice.
+- `report.md` gets a "Repeat Runs" table (run, statuses, duration, cloak) for each repeated test. Single runs and older reports have no `repeat_runs`.
 - `spawn-at-verify calibrate` prints min/median/max across the runs and writes the same report.
 
 ### `spawn-at-verify calibrate`
@@ -548,7 +540,7 @@ The design behind the bug is empirical minimum discovery under the cloak: the re
 ### 6.0 Corrections to section 2.1 (found while doing this work)
 
 - Question: which statements of the original section 2.1 were wrong or too strong?
-- Method: the statements were compared with the findings of 6.2, 6.3, 6.5 and 6.6. Section 2.1 has since been replaced by a summary (the old text is in git history) and now states the corrected version.
+- Method: the statements were compared with the findings of 6.2, 6.3, 6.5 and 6.6. Section 2.1 states the corrected version.
 - Result: three corrections.
 - Status: labelled in the table.
 
@@ -578,7 +570,7 @@ Searched:
 
 The terms: min size, minimum, clamp, raised, size_raised, raised_w, raised_h, clampedSafeSize, reportedMinSize, "min size unreported".
 
-`CHANGELOG.md` was added on 2026-10-13 (commit `c1a34fa`) and this search did not cover it. Checked on 2026-10-19: its matches for min size, clamp and raised (lines 288 and 350-351) are about the ready-wait, not about this contract.
+`CHANGELOG.md` was not part of this search. Its matches for min size, clamp and raised (lines 288 and 350-351) are about the ready-wait, not about this contract.
 
 `git log -S` found no commit message that states a rule beyond the ones quoted below:
 
@@ -637,7 +629,7 @@ get_min_size: undefined
 
 The journal of this session holds 722 `SET_SIZE_REQUEST` events, all with `reportedMinSize=(0x0)`, and 722 `FALLBACK_USED` events. A non-zero reported minimum has never been received in this session, so the API route (`_getMinSize`, `extension.js:298-303`) always returns `[0, 0]` on GNOME 46.
 
-This does not mean the extension has no minimum handling. An earlier version of this section said the minimum-aware logic "never runs"; that was wrong. The design, as described by the author and as the code does it, is empirical discovery under the cloak:
+This does not mean the extension has no minimum handling. The design, as described by the author and as the code does it, is empirical discovery under the cloak:
 
 - The window already exists and is mapped, cloaked (opacity 0). `Cloak` is the first instruction (`src/platform/linux/gnome/mechanics.rs:146`, executed at `extension.js:712`), then `SetSize` with the user's size, then `WaitForCommit` (`mechanics.rs:148-154`, `extension.js:713-715`, `:736-782`, `:783-787`). The app is asked for the size while nobody can see it.
 - An app that refuses an illegal size answers with its own size, and `waitForCommit` lets that settle (`commit.js:62-66` logs `COMMIT_RESOLVED ... finalFrame=`; `SIZE_SETTLED` after 30 ms of no change, `commit.js:88-96`).

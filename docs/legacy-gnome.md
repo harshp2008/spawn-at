@@ -2,7 +2,7 @@
 
 Status: implemented and checked with the test harness only. This page compares source only: the legacy extension has never been run on a real GNOME 42-44 session, and **it may not work at all**.
 
-The installer says so before it installs (see the README, "Support"). The legacy extension is `assets/gnome/legacy/`: 8 JavaScript files and `metadata.json`. Written 2026-10-09; the two trees were compared again with a read-only `diff` on 2026-10-21.
+The installer says so before it installs (see the README, "Support"). The legacy extension is `assets/gnome/legacy/`: 8 JavaScript files and `metadata.json`. The two trees were compared with a read-only `diff` on 2026-10-21.
 
 ---
 
@@ -10,7 +10,7 @@ The installer says so before it installs (see the README, "Support"). The legacy
 
 From GNOME Shell 45 on, extensions are ECMAScript modules (ESM). GNOME Shell 42, 43 and 44 need the older GJS `imports` style and a few different Mutter and Clutter calls. These are the versions on Ubuntu 22.04 LTS and Debian 12 (not verified).
 
-So spawn-at keeps two **asset trees**, and the installer picks one from the Shell's major version:
+So spawn-at keeps two asset trees, and the installer picks one from the Shell's major version:
 
 | Tree | Path | Shell versions | ProtocolVersion | JavaScript files |
 | :-- | :-- | :-- | :-- | :-- |
@@ -63,7 +63,7 @@ Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.Spawn
 | ProtocolVersion 5 | monitor and state columns of `GetWindows` | `src/platform/capability.rs` |
 | ProtocolVersion 6 | the `ResizeOutcome` signal, modern tree only | the D-Bus XML of the two trees |
 
-Protocol 3 added `CloseWindow` according to the earlier text of this page; this was not re-checked.
+**Not verified.** Protocol 3 added `CloseWindow`.
 
 The methods are `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `CloseWindow` and `SetLogging`.
 
@@ -91,7 +91,7 @@ The zero-flicker transformation path gates snapshots and suppresses the unminimi
 | `window.located_on_workspace(ws)` | `typeof` check, then `window.is_on_all_workspaces()` | workspace filtering passes the window |
 | `Main.wm.skipNextEffect(actor)` and `_skippedActors` | `typeof` check, then `Main.wm._skippedActors?.add(actor)`, then the same on `global.window_manager`, then `_clearSkippedEffects` to remove, all inside `try { ... } catch (_e) {}` | only the animation suppression fails; the window is still placed, sized and uncloaked |
 
-The earlier text of this page said all three calls exist in Mutter 46 and Shell 46 (`windowManager.js` for `skipNextEffect`). That was not re-checked.
+**Not verified.** All three calls exist in Mutter 46 and Shell 46 (`windowManager.js` for `skipNextEffect`).
 
 ---
 
