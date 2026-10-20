@@ -210,11 +210,11 @@ Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify 
 **`spawn-at-verify --features tui,fixture`, breakdown:**
 
 - 625 measured 2026-10-18 on `fix/v0-2-1-batch` (622 on `main` before it: 3 added by `6f02fba`, then 3 here in `report/tests.rs`: pending required tests are not failed and give a PENDING badge, a failure or required skip still gives NOT QUALIFIED, an old `report.json` without `pending_required` loads)
-- the per-binary breakdown after this is from the earlier measure:
+- the per-binary breakdown below was corrected on 2026-10-20 to `cargo test -p spawn-at-verify --features tui,fixture -- --list` (lib was stated as 335, which is the bare-default count; with `tui` the lib has 341); its Tests column sums to 625 and its Ignored column to 5:
 
 | Binary | Tests | Ignored |
 | :--- | ---: | ---: |
-| lib | 335 | 0 |
+| lib | 341 | 0 |
 | fixture binary (`src/bin/fixture.rs`) | 22 | 0 |
 | main | 0 | 0 |
 | `action_trace_test` | 12 | 0 |
