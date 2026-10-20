@@ -10,7 +10,7 @@ is a plan. How each command behaves (exit codes, waits, how windows are matched)
 
 ### spawn ignores the focus flags
 
-`spawn --focus`, `--no-focus` and `--defocus` are accepted and do nothing. A test pins this. What the
+`spawn --focus`, `--no-focus` and `--defocus` are **accepted and do nothing**. A test pins this. What the
 code does is on [spawn](/spawn-at/commands/spawn/).
 
 ### Some GNOME commands see only the active workspace
@@ -23,7 +23,7 @@ then fails with an error that says the compositor failed.
 
 The ready-wait holds a new window hidden until the app answers the resize request. See
 [Concepts](/spawn-at/concepts/#cloak-and-waiting-for-the-app). An app already at its minimum size, or
-a hung app, never answers. The window then stays hidden until the cap, `wait.cap_ms`, which is 250 ms
+a hung app, never answers. The window then **stays hidden until the cap**, `wait.cap_ms`, which is 250 ms
 by default. The README reports about 230 ms extra in one test.
 
 ### Under load the window is hidden longer
@@ -51,7 +51,7 @@ The exit status of the state commands and the cursor options on Sway are covered
 | Area | Status |
 | :-- | :-- |
 | GNOME 46 on Wayland | The only setup tested in earnest: one machine, one monitor. |
-| GNOME 42 to 44 | The legacy extension was never run on a real GNOME 42 to 44. It may not work at all. |
+| GNOME 42 to 44 | The legacy extension was never run on a real GNOME 42 to 44. It **may not work at all**. |
 | GNOME 45, 47 and later | The extension's metadata lists 45 to 48, but only 46 has been run. |
 | GNOME layouts and apps | Multi-monitor, fractional scaling, Qt and Electron apps: untested. |
 | X11 and XWayland | Test window only, no real apps. No test touches an X server. |
@@ -67,7 +67,7 @@ More on each environment: [GNOME on Wayland](/spawn-at/environments/gnome-waylan
 
 ## Limits of the flash measurement
 
-- No pixels are captured. Nobody has measured what was on screen.
+- **No pixels are captured.** Nobody has measured what was on screen.
 - A clean result is not a guarantee. It means no late paint or move was found in the runs made.
 - "Flash" is computed from the Wayland protocol: the window was revealed before the app's first
   commit at its final size. That is the optimistic bound. It says nothing about what a frame showed.
