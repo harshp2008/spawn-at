@@ -17,11 +17,11 @@ Automated test execution across the workspace is partitioned by crate and featur
 | Target / Feature Set | Tests Passed | Tests Ignored | Breakdown by Target / Binary |
 | :--- | :---: | :---: | :--- |
 | **Workspace: `spawn-at` CLI** | 460 | 0 | breakdown by batch of additions below the table |
-| **Workspace: `spawn-at-core`** | 64 | 0 | 60 unit tests (`lib.rs`: 21 geometry/driver + 9 `ready_wait` + 4 `resize_report` + 9 `wait_override` + 17 `settings`) + 2 golden placement integration tests (`tests/golden_placement.rs`) + 2 `tests/ready_wait_vectors.rs` (20 shared golden scripts in one test, plus the policy check) |
+| **Workspace: `spawn-at-core`** | 64 | 0 | 60 in `lib.rs`, 2 in `golden_placement`, 2 in `ready_wait_vectors`; per-binary table below the table |
 | **Workspace: `xtask`** | 96 | 0 | 94 unit tests + 2 `burn_cpu_test`; breakdown below the table |
 | **Workspace: Node.js (Extension)** | 242 | 0 | 38 in `tests/records_test.js`; the rest in the other files of `tests/`; breakdown below the table |
-| **`spawn-at-verify` (bare default)** | 434 | 0 | 335 lib + 0 main + 12 `action_trace_test` + 1 `catalog_golden_test` + 5 `category_library_test` + 6 `suite_wiring_test` + 5 `run_signal_test` + 4 `run_sway_guard_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` (+ 0 `panic_hook_test`, which needs `feature = "tui"`). The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify` on 2026-10-19 at `34983d5`. |
-| **`spawn-at-verify --features tui`** | 599 | 1 | 341 lib + 0 main + 12 `action_trace_test` + 1 `catalog_golden_test` + 5 `category_library_test` + 6 `suite_wiring_test` + 5 `run_signal_test` + 4 `run_sway_guard_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 145 `tui_test` (+ 1 ignored) + 1 `panic_hook_test`. Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify --features tui` on 2026-10-19 at `34983d5`. |
+| **`spawn-at-verify` (bare default)** | 434 | 0 | per-binary table below the table |
+| **`spawn-at-verify --features tui`** | 599 | 1 | per-binary table below the table |
 | **`spawn-at-verify --features tui,fixture`** | 625 | 5 | 625 measured 2026-10-18 on `fix/v0-2-1-batch`; per-binary breakdown below the table |
 | **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 1245 | 5 | 460 + 64 + 96 + 625; with the 242 Node tests: 1487; breakdown and older detail below the table |
 
@@ -104,6 +104,26 @@ Automated test execution across the workspace is partitioned by crate and featur
   - 4 unit tests in `platform/install_notice.rs` (46 on Wayland silent, 42-44 legacy notice, other versions and X11, the confirmation gate)
   - and 4 in `tests/install_notice_cli_test.rs` (the built binary with a stand-in `gnome-shell`, `install --dry-run --headless`; they return early on a machine without a GNOME session)
 
+**Workspace: `spawn-at-core`, breakdown:**
+
+| Binary | Tests |
+| :--- | ---: |
+| `lib.rs` (unit tests) | 60 |
+| `tests/golden_placement.rs` (golden placement integration tests) | 2 |
+| `tests/ready_wait_vectors.rs` | 2 |
+| Total | 64 |
+
+The 2 in `tests/ready_wait_vectors.rs` are 20 shared golden scripts in one test, plus the policy check. The 60 unit tests of `lib.rs` by module:
+
+| Module of `lib.rs` | Tests |
+| :--- | ---: |
+| geometry/driver | 21 |
+| `ready_wait` | 9 |
+| `resize_report` | 4 |
+| `wait_override` | 9 |
+| `settings` | 17 |
+| Total | 60 |
+
 **Workspace: `xtask`, breakdown:**
 
 - 94 unit tests (`src/main.rs`):
@@ -133,30 +153,85 @@ Automated test execution across the workspace is partitioned by crate and featur
   - the rest as before: Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`), 31 in `tests/ready_wait_test.js` (the same 20 golden scripts one test each, the presence and policy checks, 8 mirrored unit cases, 1 portability check), and 33 of the 44 in `tests/ready_wait_wiring_test.js` (the 20 golden scripts again through `CommitLatch.waitForReady` on a virtual clock, plus 13 extension scenarios through `_runBatch`; the other 11 are the override tests above) (`node --test tests/*.js`)
   - 17 added for the observe-only X11 logging (DESIGN_READY_WAIT section 12): 11 in `tests/x11_observe_test.js` (formats, default-off does no work, handler set empty after the window ends, damaged unavailable noted once) and 6 in `tests/ready_wait_wiring_test.js` (the same through the extension: logging off adds no handler or line, logging on gives the joinable lines and the same outcome, disable ends a watch)
 
+**`spawn-at-verify` (bare default), breakdown:**
+
+| Binary | Tests |
+| :--- | ---: |
+| lib | 335 |
+| main | 0 |
+| `action_trace_test` | 12 |
+| `catalog_golden_test` | 1 |
+| `category_library_test` | 5 |
+| `suite_wiring_test` | 6 |
+| `run_signal_test` | 5 |
+| `run_sway_guard_test` | 4 |
+| `cli_exit_codes_test` | 7 |
+| `flash_test` | 20 |
+| `oracle_cross_check` | 5 |
+| `preflight_tools_test` | 1 |
+| `trace_analyser_test` | 21 |
+| `trace_state_test` | 6 |
+| `trace_window_scope_test` | 6 |
+| `panic_hook_test`, which needs `feature = "tui"` | 0 |
+| Total | 434 |
+
+Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify` on 2026-10-19 at `34983d5`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled.
+
+**`spawn-at-verify --features tui`, breakdown:**
+
+| Binary | Tests | Ignored |
+| :--- | ---: | ---: |
+| lib | 341 | 0 |
+| main | 0 | 0 |
+| `action_trace_test` | 12 | 0 |
+| `catalog_golden_test` | 1 | 0 |
+| `category_library_test` | 5 | 0 |
+| `suite_wiring_test` | 6 | 0 |
+| `run_signal_test` | 5 | 0 |
+| `run_sway_guard_test` | 4 | 0 |
+| `cli_exit_codes_test` | 7 | 0 |
+| `flash_test` | 20 | 0 |
+| `oracle_cross_check` | 5 | 0 |
+| `preflight_tools_test` | 1 | 0 |
+| `render_test` | 13 | 0 |
+| `trace_analyser_test` | 21 | 0 |
+| `trace_state_test` | 6 | 0 |
+| `trace_window_scope_test` | 6 | 0 |
+| `tui_test` | 145 | 1 |
+| `panic_hook_test` | 1 | 0 |
+| Total | 599 | 1 |
+
+Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify --features tui` on 2026-10-19 at `34983d5`.
+
 **`spawn-at-verify --features tui,fixture`, breakdown:**
 
 - 625 measured 2026-10-18 on `fix/v0-2-1-batch` (622 on `main` before it: 3 added by `6f02fba`, then 3 here in `report/tests.rs`: pending required tests are not failed and give a PENDING badge, a failure or required skip still gives NOT QUALIFIED, an old `report.json` without `pending_required` loads)
 - the per-binary breakdown after this is from the earlier measure:
-  - 335 lib
-  - 22 fixture binary (`src/bin/fixture.rs`)
-  - 0 main
-  - 12 `action_trace_test`
-  - 1 `catalog_golden_test`
-  - 5 `category_library_test`
-  - 5 `run_signal_test`
-  - 4 `run_sway_guard_test`
-  - 6 `suite_wiring_test` (every category a suite names has specs or is in a commented known-empty list; every spec is selected by some suite; the unreachable categories `focus` and `platform` are pinned)
-  - 7 `cli_exit_codes_test`
-  - 4 `fixture_test` (+ 4 ignored)
-  - 20 `flash_test`
-  - 5 `oracle_cross_check`
-  - 1 `preflight_tools_test`
-  - 13 `render_test`
-  - 21 `trace_analyser_test`
-  - 6 `trace_state_test`
-  - 6 `trace_window_scope_test`
-  - 145 `tui_test` (+ 1 ignored)
-  - 1 `panic_hook_test`
+
+| Binary | Tests | Ignored |
+| :--- | ---: | ---: |
+| lib | 335 | 0 |
+| fixture binary (`src/bin/fixture.rs`) | 22 | 0 |
+| main | 0 | 0 |
+| `action_trace_test` | 12 | 0 |
+| `catalog_golden_test` | 1 | 0 |
+| `category_library_test` | 5 | 0 |
+| `run_signal_test` | 5 | 0 |
+| `run_sway_guard_test` | 4 | 0 |
+| `suite_wiring_test` | 6 | 0 |
+| `cli_exit_codes_test` | 7 | 0 |
+| `fixture_test` | 4 | 4 |
+| `flash_test` | 20 | 0 |
+| `oracle_cross_check` | 5 | 0 |
+| `preflight_tools_test` | 1 | 0 |
+| `render_test` | 13 | 0 |
+| `trace_analyser_test` | 21 | 0 |
+| `trace_state_test` | 6 | 0 |
+| `trace_window_scope_test` | 6 | 0 |
+| `tui_test` | 145 | 1 |
+| `panic_hook_test` | 1 | 0 |
+
+`suite_wiring_test`: every category a suite names has specs or is in a commented known-empty list; every spec is selected by some suite; the unreachable categories `focus` and `platform` are pinned.
 
 **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`), breakdown:**
 
