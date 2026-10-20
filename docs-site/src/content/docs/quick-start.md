@@ -67,7 +67,7 @@ the command to run.
 What you should see: the window opens in that corner at that size, and `spawn` prints one line on
 stderr, `Window mapped at final size (700x450) and positioned at (<x>, <y>).`, with the window's
 real numbers. If the app ends up larger than asked, the line says so instead. This text is read from
-the code (`Diagnostic::PlacedSuccess` and the size-raised messages in `src/diagnostics.rs`), not run.
+the code (see Sources), not run.
 
 To check it, list the windows and find the row of the new one:
 
