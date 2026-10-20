@@ -9,8 +9,8 @@ settings existed.
 
 | Key | Default | Allowed | What it does |
 | :--- | :--- | :--- | :--- |
-| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (it was 150 ms in development builds, `CHANGELOG.md`) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway |
-| `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the original 30 ms quiet rule; `ready-wait` is the newer wait on GNOME Wayland |
+| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (it was 150 ms in development builds) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway |
+| `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the 30 ms quiet rule; `ready-wait` is the newer wait on GNOME Wayland |
 | `spawn.window_timeout_ms` | 2000 | whole milliseconds, 200 to 60000 | How long `spawn` waits for the new window to appear before it warns that it did not (applies to the extension's claim and again to the fallback poll) |
 
 ## The `config` command
@@ -53,6 +53,15 @@ The file it wrote contained:
 cap_ms = 400
 ```
 
+### Check that a setting took effect
+
+Run `spawn-at config` again. In the output above, the `wait.cap_ms` row shows `400` and its `SOURCE`
+column shows `file`, where it showed `default` before. If the `SOURCE` column still says `default`,
+check which file is read ([Where the file is](#where-the-file-is)) and the warnings under
+[Rules](#rules). A value outside the allowed range is refused with the `ERROR` line shown above.
+For windows that still misbehave after a change, see
+[Troubleshooting](/spawn-at/troubleshooting/#windows-appear-at-the-wrong-size-or-jump-just-after-they-appear).
+
 ## Where the file is
 
 `$XDG_CONFIG_HOME/spawn-at/config.toml` if `XDG_CONFIG_HOME` is an absolute path, else
@@ -83,24 +92,23 @@ login autostart entry.
 
 ## Hidden flags for one run
 
-`spawn` has two flags that `--help` does not list (`hide = true`, `src/cli/args.rs:259-268`). The
-code comment calls them developer switches for A/B runs in the same login. They exist for
-comparing wait rules, not for daily use; the settings above are the supported way.
+`spawn` has two flags that `--help` does not list. The code comment calls them developer switches
+for A/B runs in the same login. They exist for comparing wait rules, not for daily use; the
+settings above are the supported way.
 
-| Flag | Value | Effect for that one `spawn` | Source |
-| :--- | :--- | :--- | :--- |
-| `--wait-strategy` | `auto`, `legacy` or `ready-wait` | The same choice as `wait.strategy`, for this spawn only | `src/cli/args.rs:259-263` |
-| `--wait-cap-ms` | `1` to `1500` | The same choice as `wait.cap_ms`, for this spawn only | `args.rs:265-268` |
+| Flag | Value | Effect for that one `spawn` |
+| :--- | :--- | :--- |
+| `--wait-strategy` | `auto`, `legacy` or `ready-wait` | The same choice as `wait.strategy`, for this spawn only |
+| `--wait-cap-ms` | `1` to `1500` | The same choice as `wait.cap_ms`, for this spawn only |
 
-Both are read as text so that a bad value does not fail the spawn: it is ignored with a warning
-(`args.rs:259-268`). The warning for a bad strategy, as recorded when it was tried, reads
+Both are read as text so that a bad value does not fail the spawn: it is ignored with a warning.
+The warning for a bad strategy, as recorded when it was tried, reads
 `[spawn-at] WARNING: ignoring --wait-strategy '<value>' (expected auto, legacy or ready-wait)` and
-the spawn goes on with the default (`docs/TEST_LOG.md` section 6.30). The exact warning for a bad
-cap was not recorded.
+the spawn goes on with the default. The exact warning for a bad cap was not recorded.
 
-`spawn-at config`, `config show` and `config get` take the same two flags, also hidden
-(`args.rs:709-716`), to show what a spawn with them would use; the source column then says `flag`.
-Their values are not stored by anything.
+`spawn-at config`, `config show` and `config get` take the same two flags, also hidden, to show what
+a spawn with them would use; the source column then says `flag`. Their values are not stored by
+anything.
 
 ## On a slow or busy machine
 
@@ -114,15 +122,8 @@ Their values are not stored by anything.
 
 ## Environment variables
 
-| Variable | Effect |
-| :--- | :--- |
-| `SPAWN_AT_BACKEND` | `x11` forces the X11 driver, `sway` the experimental Sway driver. See [Environments](/spawn-at/environments/) |
-| `SPAWN_AT_CONFIG` | Path of the config file |
-| `SPAWN_AT_DEBUG` | `1` or `true` turns on debug output |
-| `NO_COLOR` | Plain output |
-
-This is the short list. Every variable the code reads (`SWAYSOCK`, `XDG_CONFIG_HOME`, `TERM`,
-`COLORTERM`, `LC_ALL`, `LANG`, `COLUMNS` and the rest) and the exit statuses are on
+`SPAWN_AT_CONFIG` (the config file path, above), `SPAWN_AT_BACKEND`, `SPAWN_AT_DEBUG` and `NO_COLOR`
+are the ones you are most likely to set. Every variable the code reads and the exit statuses are on
 [Environment and exit codes](/spawn-at/environment/).
 
 ## Update preferences
@@ -145,4 +146,7 @@ commands and the X11 timeouts are fixed in code. A per-application override does
 - `docs/CONFIG.md` ("First slice", "Design", "Later", update channel paragraph)
 - `docs/KNOWLEDGE.md` ("Install and release": channel `all`)
 - `CHANGELOG.md` ("[0.2.0-beta.1] Changed": "Default `wait.cap_ms` is 250 ms (it was 150 ms in development builds)")
+- `src/cli/args.rs`: lines 259-268 (`--wait-strategy` and `--wait-cap-ms`: `hide = true`, read as text,
+  a bad value ignored with a warning) and 709-716 (the same flags on `config`)
+- `docs/TEST_LOG.md`, section 6.30 (the warning for a bad strategy)
 - the output of `spawn-at config`, `config set`, `config get`, `config unset` and `config reset`, run in a temporary directory with `env -i`, including the file with comments described under Rules

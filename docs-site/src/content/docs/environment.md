@@ -3,32 +3,37 @@ title: "Environment and exit codes"
 ---
 
 The environment variables spawn-at reads, the exit statuses it returns, and the keys of the
-`[update]` table of the config file. Each row names the line it was read from. The only command run
-for this page was `spawn-at --no-such-flag`, which gave exit status 2 (below).
+`[update]` table of the config file. The files each row was read from are in Sources. The only
+command run for this page was `spawn-at --no-such-flag`, which gave exit status 2 (below).
 
 ## Environment variables
 
-| Variable | Effect | Source |
-| :--- | :--- | :--- |
-| `SPAWN_AT_BACKEND` | `x11` forces the X11 driver and `sway` the Sway driver; read in any letter case. See [Environments](/spawn-at/environments/) | `src/platform/linux/registry.rs:52-58` |
-| `SPAWN_AT_CONFIG` | Path of the config file. A path that does not exist means "no config". It does not move the login update entry | `src/platform/linux/config_store.rs:24-34` |
-| `SPAWN_AT_DEBUG` | `1` or `true` prints extra lines on stderr from the X11 driver and from the update code. Any other value, or none, prints nothing. It is read on every call | `src/update.rs:13-19`, `src/platform/linux/x11/atoms.rs:5-16` |
-| `SWAYSOCK` | The Sway IPC socket. Required when the Sway driver is chosen: if it is unset, empty or not a Sway socket the command fails and does not fall back to another backend | `src/platform/linux/sway/mod.rs:60-66`, `sway/client.rs:29-41` |
-| `XDG_CURRENT_DESKTOP` | Chooses the driver (a value containing `GNOME`, case-insensitive) and decides the unsupported-desktop refusal. `update` also checks it for GNOME to deploy the extension and offer the log-out question | `registry.rs:52-58`, `src/platform/linux/gnome/deploy.rs:456-460` |
-| `XDG_SESSION_TYPE` | Read for the unsupported-desktop test: an X11 session counts as supported on any desktop | `registry.rs:56` |
-| `XDG_SESSION_ID` | First source for the session id passed to `loginctl show-session` to find out whether the session is Wayland or X11 | `src/platform/linux/gnome/detect.rs:52-60` |
-| `WAYLAND_DISPLAY` | Fallback for "is this a Wayland session": any value counts as yes when `loginctl` did not say `wayland` or `x11` | `detect.rs:104-136` |
-| `XDG_CONFIG_HOME` | Used when it is an absolute path: the config file and the login entry go under it. Otherwise `$HOME/.config` | `config_store.rs:24-34`, `src/config.rs:184-203` |
-| `XDG_DATA_DIRS` | Directories searched for `.desktop` files to find the application id of the program you spawn. Default `/usr/local/share:/usr/share` | `src/platform/linux/xdg.rs:92-118` |
-| `HOME` | Binary directory (`~/.local/bin`), extension directory, application directories, config fallback. An unset `HOME` makes the user-scope install fail | `src/platform/linux/host.rs:19-33`, `deploy.rs:200-216` |
-| `PATH` | `install` checks whether the binary's directory is in it and prints advice if not; it also looks for other installed copies | `src/platform/installer.rs:52-70`, `src/main.rs:145-152` |
-| `NO_COLOR` | Any non-empty value turns colour off | `src/diagnostics.rs:30` |
-| `TERM` | `dumb` turns colour off; a value containing `256color` selects 256-colour output | `diagnostics.rs:33, 39` |
-| `COLORTERM` | `truecolor` or `24bit` selects 24-bit colour | `diagnostics.rs:36` |
-| `LC_ALL`, `LC_CTYPE`, `LANG` | The first one that is set is read. If it is `C` or `POSIX` (any case) the update notice box is drawn without UTF-8 box characters | `src/update.rs:338-345, 521` |
-| `COLUMNS` | A positive whole number is used as the terminal width for the update notice box; otherwise the width of stderr, then stdout, from the terminal | `src/update.rs:348-372, 521` |
+| Variable | Effect |
+| :--- | :--- |
+| `SPAWN_AT_BACKEND` | `x11` forces the X11 backend and `sway` the Sway backend; read in any letter case. See [Environments](/spawn-at/environments/) |
+| `SPAWN_AT_CONFIG` | Path of the config file. A path that does not exist means "no config". It does not move the login update entry |
+| `SPAWN_AT_DEBUG` | `1` or `true` prints extra lines on stderr from the X11 backend and from the update code. Any other value, or none, prints nothing. It is read on every call |
+| `SWAYSOCK` | The Sway IPC socket. Required when the Sway backend is chosen: if it is unset, empty or not a Sway socket the command fails and does not fall back to another backend |
+| `XDG_CURRENT_DESKTOP` | Chooses the backend (a value containing `GNOME`, case-insensitive) and decides the unsupported-desktop refusal. `update` also checks it for GNOME to deploy the extension and offer the log-out question |
+| `XDG_SESSION_TYPE` | Read for the unsupported-desktop test: an X11 session counts as supported on any desktop |
+| `XDG_SESSION_ID` | First source for the session id passed to `loginctl show-session` to find out whether the session is Wayland or X11 |
+| `WAYLAND_DISPLAY` | Fallback for "is this a Wayland session": any value counts as yes when `loginctl` did not say `wayland` or `x11` |
+| `XDG_CONFIG_HOME` | Used when it is an absolute path: the config file and the login entry go under it. Otherwise `$HOME/.config` |
+| `XDG_DATA_DIRS` | Directories searched for `.desktop` files to find the application id of the program you spawn. Default `/usr/local/share:/usr/share` |
+| `HOME` | Binary directory (`~/.local/bin`), extension directory, application directories, config fallback. An unset `HOME` makes the user-scope install fail |
+| `PATH` | `install` checks whether the binary's directory is in it and prints advice if not; it also looks for other installed copies |
+| `NO_COLOR` | Any non-empty value turns colour off |
+| `TERM` | `dumb` turns colour off; a value containing `256color` selects 256-colour output |
+| `COLORTERM` | `truecolor` or `24bit` selects 24-bit colour |
+| `LC_ALL`, `LC_CTYPE`, `LANG` | The first one that is set is read. If it is `C` or `POSIX` (any case) the update notice box is drawn without UTF-8 box characters |
+| `COLUMNS` | A positive whole number is used as the terminal width for the update notice box; otherwise the width of stderr, then stdout, from the terminal |
 
-Colour is also off whenever the stream is not a terminal (`diagnostics.rs:27-29`).
+Colour is also off whenever the stream is not a terminal.
+
+To see the effect of the three that choose the config file (`SPAWN_AT_CONFIG`, `XDG_CONFIG_HOME`,
+`HOME`), run `spawn-at config path`: by the code it prints the file those variables lead to (read
+from source, not run). If a variable does not seem to do anything, see
+[Troubleshooting](/spawn-at/troubleshooting/).
 
 Two more variables belong to `install.sh` only: `GITHUB_TOKEN` and `SPAWN_AT_RESOLVE_ONLY`; see
 [Installer flags](/spawn-at/installer-flags/). `build.rs` sets `SPAWN_AT_VERSION`,
@@ -38,11 +43,13 @@ Two more variables belong to `install.sh` only: `GITHUB_TOKEN` and `SPAWN_AT_RES
 
 ## Exit codes
 
-| Status | When | Source |
-| :--- | :--- | :--- |
-| 0 | The command succeeded. Also: `spawn` when the program started but no window appeared in time; the state commands when the state was not reached; `update` when the lookup of releases failed (it prints `Error checking updates: ...` and returns normally) | [Known limits](/spawn-at/known-limits/), `src/update.rs:786-788` |
-| 1 | A command failed after the arguments were accepted: the driver could not start (including an unsupported desktop), a command returned an error, `install` or `uninstall` failed, or you answered no to "Install anyway?". Messages are printed as `[spawn-at] ERROR: ...` | `src/main.rs:67, 76, 98, 123, 210, 229, 267, 278, 373-454` (each a `std::process::exit(1)`) |
-| 2 | The arguments were refused: a validation error of spawn-at itself (`cli.validate()`), or a parse error of the command line | `src/main.rs:56-59` |
+| Status | When |
+| :--- | :--- |
+| 0 | The command succeeded. Also: `spawn` when the program started but no window appeared in time; the state commands when the state was not reached; `update` when the lookup of releases failed (it prints `Error checking updates: ...` and returns normally). See [Known limits](/spawn-at/known-limits/#exit-status-and-results) |
+| 1 | A command failed after the arguments were accepted: the backend could not start (including an unsupported desktop), a command returned an error, `install` or `uninstall` failed, or you answered no to "Install anyway?". Messages are printed as `[spawn-at] ERROR: ...` |
+| 2 | The arguments were refused: a validation error of spawn-at itself (`cli.validate()`), or a parse error of the command line |
+
+To check a status yourself, run the command and then `echo "exit=$?"`, as in the example below.
 
 For status 2 the check run for this page was:
 
@@ -57,14 +64,14 @@ exit=2
 ```
 
 That is a parse error printed by the command-line parser. The validation errors of spawn-at itself
-(`src/main.rs:56-59`, printed as `[spawn-at] ERROR: ...`) were not run; they exit 2 by the source.
+(printed as `[spawn-at] ERROR: ...`) were not run; they exit 2 by the source.
 `install.sh` returns the status of `spawn-at install`, and exits 1 on its own errors and when you
 decline the unsupported-desktop question (`install.sh`). A run killed by a signal, or a Rust panic,
 is not covered by this table: not verified.
 
 ## The `[update]` table
 
-The update checker keeps its own table in the config file (`src/config.rs:12-44`). The settings of
+The update checker keeps its own table in the config file. The settings of
 [Configuration](/spawn-at/configuration/) (`wait.*`, `spawn.*`) are in other tables. These keys are
 not set through `spawn-at config`.
 
@@ -76,31 +83,39 @@ not set through `spawn-at config`.
 | `last_check_time` | whole number | `0` | Unix time in seconds of the last check, set by the checks and by a successful upgrade |
 | `cached_stable_version` | string, optional | absent | Newest stable release tag the last check found |
 | `cached_beta_version` | string, optional | absent | Newest pre-release tag the last check found |
-| `latest_cached_version` | string, optional | absent | Kept so a file written by 0.1 still reads. It is used only when the other two are absent (`src/config.rs:78-100`) |
+| `latest_cached_version` | string, optional | absent | Kept so a file written by 0.1 still reads. It is used only when the other two are absent |
 
-`spawn-at install` in a terminal asks for the channel and `notify` (unless `--update-channel` and
-`--update-notify` are given) and writes them with `auto_check = true`. Without a terminal
-(`--headless`, or stdout not a terminal), including the `install --skip-bin --headless` that
-`spawn-at update` runs on GNOME, it keeps a key the file already has unless its own flag is given,
-and writes the default for a missing key: `auto_check = true`, `channel = "stable"`, `notify =
-false` (`src/main.rs:281-347`, `UpdateConfig::apply_headless_install`; read from source and
-unit-tested, not run; see [Update](/spawn-at/update/#the-child-install-and-your-settings)).
-`spawn-at update` without `--check` saves the cache keys and the check time, and the silent
-`update --check --headless` does too unless `auto_check` is false; `update --check` in a terminal
-saves nothing (`src/update.rs`, `headless_check`, `lookup_is_cached`). `config reset` leaves the
-`[update]` table alone, so nothing in spawn-at clears the cache keys.
+When `spawn-at install` writes these keys, and what it writes without a terminal, is decided key by
+key and is explained once, on [Installer flags](/spawn-at/installer-flags/#headless-defaults); the
+`install --skip-bin --headless` that `update` runs on GNOME is on
+[Update](/spawn-at/update/#the-child-install-and-your-settings). What the commands save to the cache
+keys is on [Update](/spawn-at/update/#what---check-saves). `config reset` leaves the `[update]`
+table alone, so nothing in spawn-at clears the cache keys.
 
 ## Not verified
 
 - Only the parse-error exit status was run. Every other status in the table is read from
-  `std::process::exit` calls and from the `Result` handling in `src/main.rs`.
-- Which validation errors reach `src/main.rs:56-59` was not enumerated.
+  `std::process::exit` calls and from the `Result` handling in `main`.
+- Which validation errors reach the exit-2 branch of `main` was not enumerated.
 - The terminal width and colour rows were read, not tried in a terminal.
 
 ## Sources
 
-- `src/main.rs:56-152, 282-335`
-- `src/platform/linux/registry.rs:52-58`, `config_store.rs`, `host.rs`, `xdg.rs`, `sway/mod.rs`,
-  `gnome/detect.rs`, `gnome/deploy.rs`
-- `src/diagnostics.rs:25-40`, `src/update.rs`, `src/config.rs`, `build.rs`
+- `src/main.rs`: lines 56-59 (exit 2: `cli.validate()` and the parse error), 67, 76, 98, 123, 210, 229,
+  267, 278 and 373-454 (each a `std::process::exit(1)`), 145-152 (`PATH`), 56-152 and 282-335
+- `src/platform/linux/registry.rs`: lines 52-58 and 56 (`SPAWN_AT_BACKEND`, `XDG_CURRENT_DESKTOP`,
+  `XDG_SESSION_TYPE`)
+- `src/platform/linux/config_store.rs`: lines 24-34 (`SPAWN_AT_CONFIG`, `XDG_CONFIG_HOME`);
+  `src/config.rs`: lines 184-203 (`XDG_CONFIG_HOME`), 12-44 (the `[update]` table), 78-100
+  (`latest_cached_version`)
+- `src/update.rs`: lines 13-19 (`SPAWN_AT_DEBUG`), 338-372 and 521 (`LC_*`, `COLUMNS`), 786-788 (exit 0
+  on a failed lookup)
+- `src/platform/linux/x11/atoms.rs`: lines 5-16 (`SPAWN_AT_DEBUG`); `src/platform/linux/sway/mod.rs`:
+  lines 60-66 and `sway/client.rs`: lines 29-41 (`SWAYSOCK`)
+- `src/platform/linux/gnome/deploy.rs`: lines 200-216 (`HOME`) and 456-460 (`XDG_CURRENT_DESKTOP`
+  in `update`); `gnome/detect.rs`: lines 52-60 (`XDG_SESSION_ID`) and 104-136 (`WAYLAND_DISPLAY`)
+- `src/platform/linux/xdg.rs`: lines 92-118 (`XDG_DATA_DIRS`); `host.rs`: lines 19-33 (`HOME`);
+  `src/platform/installer.rs`: lines 52-70 (`PATH`)
+- `src/diagnostics.rs`: lines 25-40 (`NO_COLOR`, `TERM`, `COLORTERM`, streams that are not terminals)
+- `build.rs` (the compile-time `SPAWN_AT_*` values)
 - the command shown above, run on the binary built from this tree
