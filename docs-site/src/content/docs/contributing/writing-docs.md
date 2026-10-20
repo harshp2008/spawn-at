@@ -255,6 +255,27 @@ The three pages the maintainer called readable (`quick-start`, `concepts`, `comm
 0.0 to 1.4 bold spans and 7.9 to 9.7 code marks per 100 words, which is why the code target for user
 pages is 10, not lower. The whole tree has 1.2 bold spans and 9.2 code marks per 100 words.
 
+## History stays out of reference pages
+
+A statement that helps someone doing future work stays on its page as a plain present-tense fact. It
+says how something works, why it is this way, or what to watch for. A statement that only records
+what changed, or what was measured at a time, does not belong there. Examples: "added for X", "was 5,
+now 6", a branch name, "re-measured on", "the earlier text of this page said", a note for each
+commit. Do not delete such a note. Move it.
+
+| Kind of note | Where it goes |
+| :-- | :-- |
+| A change a user can see | `CHANGELOG.md` |
+| A dated measurement or an experiment | `docs/TEST_LOG.md` and the experiment pages |
+| A change to the documents or the tests, a superseded plan, "was X, now Y" | `docs/HISTORY.md`, shown as "Project history" at the end of "Project documents" |
+
+An entry in `docs/HISTORY.md` is one line: the date, what changed, and a link to the pull request or
+the commit when it is known. A claim that was not checked again is written as "Not verified." and
+the claim itself. It does not say that an earlier version of the page made it.
+
+To find history in a page, search it for "earlier text of this page", "this page said", "was not
+re-checked", "re-measured", "was added", "previously", "branch" and "after the rewrite".
+
 ## Links
 
 Link to other pages as `/spawn-at/<slug>/`, with the base written out and a trailing slash, for
