@@ -142,8 +142,10 @@
   max-width: calc(100% - 0.75rem);
 }
 
-/* A list whose keys are sentences (records-stack), and any list narrower than 36rem: one column,
-   the key above the fields, a hairline above the body instead of at its left. */
+/* A list whose keys are sentences or that has a field longer than 400 characters (titled cards,
+   records.mjs; both are `records-stack`), and any list narrower than 36rem: one column, the key
+   as the title of the card, a hairline under it instead of at the left of the body, then the
+   short fields in a wrapping row and each long field as a label over full-width text. */
 .sl-markdown-content .records.records-stack .record {
   grid-template-columns: minmax(0, 1fr);
   row-gap: 0.6rem;

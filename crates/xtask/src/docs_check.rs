@@ -13,7 +13,9 @@
 //! The one string allowed to contain that name is the extension identifier `spawn-at@harsh.local`
 //! (`ALLOWED`). It also checks the `<!-- site: ... -->` comments above tables (see
 //! `directive_problems`); the mirrored `project/` pages carry the comments of `docs/`, so the
-//! sources of `docs/` are checked through them.
+//! sources of `docs/` are checked through them. A table cell of more than `MAX_CELL_CHARS`
+//! (1200) characters of text fails too (see `long_cell_problems`), on every page except the
+//! `experiments/` pages, which are evidence.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -248,14 +250,102 @@ fn table_columns(header: &str, delimiter: &str) -> Option<usize> {
     ok.then_some(cols)
 }
 
+/// A table cell may have at most this many characters of text (link targets, tags and the marks
+/// of code and emphasis not counted). A longer cell is a paragraph that wants a list after the
+/// table; `experiments/` pages are evidence and are not checked.
+pub const MAX_CELL_CHARS: usize = 1200;
+
+/// Characters of text in a table cell: `\|` is one `|`, a link counts its text and not its target,
+/// a tag and the marks `` ` `` and `*` count nothing.
+fn cell_text_len(cell: &str) -> usize {
+    let cell = cell.replace("\\|", "|");
+    let mut text = String::with_capacity(cell.len());
+    let mut rest = cell.as_str();
+    while let Some(c) = rest.chars().next() {
+        if c == '<' {
+            if let Some(end) = rest.find('>') {
+                rest = &rest[end + 1..];
+                continue;
+            }
+        }
+        if c == ']' && rest[1..].starts_with('(') {
+            if let Some(end) = rest.find(')') {
+                rest = &rest[end + 1..];
+                continue;
+            }
+        }
+        if c != '`' && c != '*' && c != '[' {
+            text.push(c);
+        }
+        rest = &rest[c.len_utf8()..];
+    }
+    text.trim().chars().count()
+}
+
+/// Cells over `MAX_CELL_CHARS` characters of text in the tables of one page body, as (1-based line
+/// in `body`, message with the table, the row key, the column and the length). Tables in code
+/// fences are not tables.
+pub fn long_cell_problems(body: &str) -> Vec<(usize, String)> {
+    let lines: Vec<&str> = body.lines().collect();
+    let mut problems = Vec::new();
+    let mut in_fence = false;
+    let mut i = 0;
+    while i < lines.len() {
+        let t = lines[i].trim_start();
+        if t.starts_with("```") || t.starts_with("~~~") {
+            in_fence = !in_fence;
+        }
+        let is_table = !in_fence
+            && lines
+                .get(i + 1)
+                .is_some_and(|d| table_columns(lines[i], d).is_some());
+        if !is_table {
+            i += 1;
+            continue;
+        }
+        let header: Vec<String> = split_cells(lines[i])
+            .iter()
+            .map(|h| h.replace('`', ""))
+            .collect();
+        let mut j = i + 2;
+        while j < lines.len() && lines[j].trim_start().starts_with('|') {
+            let cells = split_cells(lines[j]);
+            for (c, cell) in cells.iter().enumerate() {
+                let len = cell_text_len(cell);
+                if len > MAX_CELL_CHARS {
+                    let key = row_label(cells[0]);
+                    problems.push((
+                        j + 1,
+                        format!(
+                            "table `{}`: the cell of row `{key}`, column `{}`, has {len} characters of text (at most {MAX_CELL_CHARS}); keep a short version in the cell and move the full text into a list after the table",
+                            header.first().map(String::as_str).unwrap_or(""),
+                            header.get(c).map(String::as_str).unwrap_or("?")
+                        ),
+                    ));
+                }
+            }
+            j += 1;
+        }
+        i = j;
+    }
+    problems
+}
+
+/// The first cell of a row as a short label for a message: marks removed, at most 40 characters.
+fn row_label(cell: &str) -> String {
+    let plain: String = cell.chars().filter(|c| *c != '`' && *c != '*').collect();
+    plain.chars().take(40).collect()
+}
+
 const DIRECTIVE_FORMS: &str =
-    "use `site: records`, `site: records key=N`, `site: records style=steps`, `site: records style=cards` or `site: table`";
+    "use `site: records`, `site: records key=N`, `site: records style=steps`, `site: records style=cards`, `site: records style=titled` or `site: table`";
 
 /// Problems with the `<!-- site: ... -->` comments of one page body, as (1-based line in `body`,
 /// message). The comments choose how the site shows the table on the next line
 /// (`docs-site/src/integrations/records.mjs` reads them from the built page): `site: records`,
-/// `site: records key=N` (column N, counted from 1, is the key), `site: records style=steps` or
-/// `style=cards` (the two options combine, each once) and `site: table`, which takes no option. A
+/// `site: records key=N` (column N, counted from 1, is the key), `site: records style=steps`,
+/// `style=cards` or `style=titled` (`key=N` and one style combine, each once) and `site: table`,
+/// which takes no option. A
 /// comment must be alone on its line, directly above a table; `records` needs at least 2 columns; N
 /// must not be larger than the column count. That every key of a `style=steps` table starts with a
 /// number is checked by the build, which reads the cells. Comments inside code fences and other
@@ -323,8 +413,10 @@ pub fn directive_problems(body: &str) -> Vec<(usize, String)> {
                 if mode == "table" {
                     err("`site: table` takes no style".to_string());
                     bad = true;
-                } else if !matches!(v, "steps" | "cards") {
-                    err(format!("unknown style `{v}` (style=steps or style=cards)"));
+                } else if !matches!(v, "steps" | "cards" | "titled") {
+                    err(format!(
+                        "unknown style `{v}` (style=steps, style=cards or style=titled)"
+                    ));
                     bad = true;
                 } else if style_seen {
                     err(format!("style given twice in `{inner}`"));
@@ -471,13 +563,18 @@ pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
         }
         // Lines of `body` are counted from the end of the front matter; the report uses page lines.
         let front_lines = text[..text.len() - body.len()].matches('\n').count();
+        let origin = crate::docs_mirror::MIRRORED
+            .iter()
+            .find(|e| rel == format!("project/{}.md", e.slug))
+            .map(|e| format!(" (generated from docs/{})", e.file))
+            .unwrap_or_default();
         for (line, why) in directive_problems(body) {
-            let origin = crate::docs_mirror::MIRRORED
-                .iter()
-                .find(|e| rel == format!("project/{}.md", e.slug))
-                .map(|e| format!(" (generated from docs/{})", e.file))
-                .unwrap_or_default();
             problems.push(format!("{rel}:{}{origin}: {why}", front_lines + line));
+        }
+        if !rel.starts_with("experiments/") {
+            for (line, why) in long_cell_problems(body) {
+                problems.push(format!("{rel}:{}{origin}: {why}", front_lines + line));
+            }
         }
         for target in md_links(body) {
             problems.push(format!(
@@ -659,7 +756,9 @@ mod tests {
             "<!-- site: table -->",
             "<!-- site: records style=steps -->",
             "<!-- site: records style=cards -->",
+            "<!-- site: records style=titled -->",
             "<!-- site: records key=2 style=cards -->",
+            "<!-- site: records key=2 style=titled -->",
             "<!-- site: records style=steps key=3 -->",
         ] {
             let body = format!("Text\n\n{text}\n{TABLE3}");
@@ -674,7 +773,7 @@ mod tests {
     /// Each kind of mistake is reported once, with the 1-based line of the comment.
     #[test]
     fn test_directives_each_error() {
-        let cases: [(&str, &str); 15] = [
+        let cases: [(&str, &str); 20] = [
             ("<!-- site: record -->", "unknown directive `site: record`"),
             ("<!-- site: -->", "unknown directive `site:`"),
             ("<!-- site records -->", "needs a colon"),
@@ -695,19 +794,39 @@ mod tests {
             ("<!-- site: records wide -->", "unknown option `wide`"),
             (
                 "<!-- site: records style=rail -->",
-                "unknown style `rail` (style=steps or style=cards)",
+                "unknown style `rail` (style=steps, style=cards or style=titled)",
             ),
             (
                 "<!-- site: records style= -->",
-                "unknown style `` (style=steps or style=cards)",
+                "unknown style `` (style=steps, style=cards or style=titled)",
+            ),
+            (
+                "<!-- site: records style=Titled -->",
+                "unknown style `Titled` (style=steps, style=cards or style=titled)",
             ),
             (
                 "<!-- site: table style=steps -->",
                 "`site: table` takes no style",
             ),
             (
+                "<!-- site: table style=titled -->",
+                "`site: table` takes no style",
+            ),
+            (
                 "<!-- site: records style=steps style=cards -->",
                 "style given twice",
+            ),
+            (
+                "<!-- site: records style=cards style=titled -->",
+                "style given twice",
+            ),
+            (
+                "<!-- site: records style=titled style=titled -->",
+                "style given twice",
+            ),
+            (
+                "<!-- site: records style=titled key=2 key=3 -->",
+                "key given twice",
             ),
             ("<!-- site: records key=1 key=2 -->", "key given twice"),
             (
@@ -733,6 +852,8 @@ mod tests {
             "<!-- site: records style=steps key=2 -->",
             "<!-- site: records key=2 style=steps -->",
             "<!-- site: records key=3 style=cards -->",
+            "<!-- site: records style=titled key=2 -->",
+            "<!-- site: records key=3 style=titled -->",
         ] {
             let body = format!("{text}\n{TABLE3}");
             assert!(directive_problems(&body).is_empty(), "{text}");
@@ -835,6 +956,122 @@ mod tests {
             "{problems}"
         );
         let _ = fs::remove_dir_all(docs.parent().unwrap());
+    }
+
+    fn table_with_cell(n: usize) -> String {
+        format!(
+            "| Key | Text |\n| :-- | :-- |\n| `row one` | {} |\n",
+            "x".repeat(n)
+        )
+    }
+
+    /// A cell counts its text: a link counts its words and not its target, a tag and the marks of
+    /// code and emphasis count nothing, and `\|` is one character.
+    #[test]
+    fn test_cell_text_len_counts_text_only() {
+        assert_eq!(cell_text_len("abc"), 3);
+        assert_eq!(
+            cell_text_len("[abc](https://example.org/a/very/long/target)"),
+            3
+        );
+        assert_eq!(cell_text_len("`ab` **cd** <wbr>e"), 7); // "ab cd e"
+        assert_eq!(cell_text_len("a\\|b"), 3);
+        assert_eq!(cell_text_len("  padded  "), 6);
+        assert_eq!(cell_text_len("é€漢"), 3);
+    }
+
+    /// A cell of 1200 characters passes and one of 1201 fails, naming the table, the row key, the
+    /// column header and the length; a cell in a second column and a second table are found too.
+    #[test]
+    fn test_long_cell_limit_is_1200_characters() {
+        assert_eq!(MAX_CELL_CHARS, 1200);
+        assert!(long_cell_problems(&table_with_cell(1200)).is_empty());
+        let found = long_cell_problems(&format!("intro\n\n{}", table_with_cell(1201)));
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert_eq!(found[0].0, 5, "the line of the row, counted from 1");
+        for part in [
+            "table `Key`",
+            "row `row one`",
+            "column `Text`",
+            "has 1201 characters of text (at most 1200)",
+            "list after the table",
+        ] {
+            assert!(found[0].1.contains(part), "{part}: {}", found[0].1);
+        }
+        let two = format!(
+            "{}\n| Key | A | B |\n| - | - | - |\n| k | {} | short |\n| k2 | x | {} |\n",
+            table_with_cell(10),
+            "y".repeat(1300),
+            "z".repeat(1500)
+        );
+        let found = long_cell_problems(&two);
+        assert_eq!(found.len(), 2, "{found:?}");
+        assert!(found[0].1.contains("column `A`") && found[1].1.contains("column `B`"));
+    }
+
+    /// A table inside a code fence, and lines with pipes that are not a table (no delimiter
+    /// row), are not looked at.
+    #[test]
+    fn test_long_cells_ignore_fences_and_non_tables() {
+        let long = "x".repeat(1500);
+        let fenced = format!("```\n| a | b |\n| - | - |\n| 1 | {long} |\n```\n");
+        assert!(long_cell_problems(&fenced).is_empty());
+        let not_table = format!("| a | b |\n| 1 | {long} |\n");
+        assert!(long_cell_problems(&not_table).is_empty());
+        let tilde = format!("~~~\n{}~~~\n", table_with_cell(1500));
+        assert!(long_cell_problems(&tilde).is_empty());
+    }
+
+    /// `check` reports a long cell with the page line and, for a mirrored page, the `docs/` file; the
+    /// same cell on an `experiments/` page (evidence) is not reported.
+    #[test]
+    fn test_check_reports_long_cells_but_not_on_experiments() {
+        let page = |table: &str| {
+            format!("---\ntitle: \"P\"\n---\n\nText\n\n{table}\n## Sources\n\n- [s](https://example.org/x)\n")
+        };
+        let long = page(&table_with_cell(1300));
+        let mut files: Vec<(&str, &str)> = vec![
+            ("index.md", GOOD_PAGE),
+            ("project/test-plan.md", long.as_str()),
+            ("experiments/6-99-x.md", long.as_str()),
+        ];
+        for p in ENVIRONMENT_PAGES {
+            files.push((p, GOOD_PAGE));
+        }
+        let (docs, config) = site("long-cells", &files);
+        let mut names: Vec<String> = vec!["index".to_string()];
+        names.extend(env_slugs());
+        names.push("experiments/6-99-x".to_string());
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        let with_project = format!(
+            "{}\n{{ autogenerate: {{ directory: 'project' }} }}",
+            config_for(&refs)
+        );
+        fs::write(&config, with_project).unwrap();
+        let problems = check(&docs, &config).unwrap().join("\n");
+        assert!(
+            problems
+                .contains("project/test-plan.md:9 (generated from docs/TEST_PLAN.md): table `Key`"),
+            "{problems}"
+        );
+        assert!(
+            problems.contains("has 1300 characters of text"),
+            "{problems}"
+        );
+        assert!(!problems.contains("experiments/6-99-x.md"), "{problems}");
+        let _ = fs::remove_dir_all(docs.parent().unwrap());
+    }
+
+    /// The real mirrored documents have no cell over the limit (the same check as `check` on the
+    /// generated pages, so a long cell fails `cargo test` and not only the site build).
+    #[test]
+    fn test_real_docs_have_no_cell_over_the_limit() {
+        let docs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+        for entry in &crate::docs_mirror::MIRRORED {
+            let text = fs::read_to_string(docs.join(entry.file)).unwrap();
+            let found = long_cell_problems(&text);
+            assert!(found.is_empty(), "docs/{}: {found:?}", entry.file);
+        }
     }
 
     /// Every directive in the real `docs/` files, as written into the mirrored pages, is valid.

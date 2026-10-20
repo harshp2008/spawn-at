@@ -16,6 +16,12 @@
 // of steps: an <ol class="records records-steps"> whose key is
 // `<span class="record-num">2</span><span class="record-note">fixed in step 1</span>`.
 //
+// A list whose longest field (a cell outside the key column) has more than TITLED_MIN characters of
+// text is a list of titled cards: the key is the title at the top of the card, then the short fields
+// in a wrapping row, then each long field as a label over full-width text, with no gutter. That is
+// the layout of `records-stack` (below), so the list gets that class. The rule is per list, not per
+// card, so the cards of one list look alike. Steps are never changed by it.
+//
 // The layout is src/styles/records.css. The cells keep their inner HTML, so links, ids, inline code
 // and the break points of code-breaks.mjs come along; the text of the page does not change. The
 // short fields come first in the HTML, then the long ones, each group in the column order of the
@@ -29,16 +35,21 @@
 //       <!-- site: table -->                   a plain table, even where the rule above would convert it
 //       <!-- site: records key=N -->           records with column N (1-based) as the key; default 1
 //       <!-- site: records style=steps -->     steps; the build fails unless every key starts with a number
-//       <!-- site: records style=cards -->     cards, even where the keys are numbers
-//     key=N and style=... can be combined, each once. Without style, the keys decide.
+//       <!-- site: records style=cards -->     cards with the key in a gutter, even where the keys are
+//                                              numbers or a field is longer than TITLED_MIN
+//       <!-- site: records style=titled -->    titled cards, even where every field is short and where
+//                                              the keys are numbers
+//     key=N and style=... can be combined, each once. Without style, the keys and the length of the
+//     fields decide.
 //   GitHub shows the comment as nothing, so docs/ still renders as a normal table there.
 // A directive that is not one of these, an option on `site: table`, or a key outside the columns
 // fails the build; so does `cargo xtask docs-check-src`, which reads the same comments in the sources.
 //
 // Empty cells are left out. A cell of SHORT_FIELD characters or fewer is a field-short, else a
-// field-long. When the median key is longer than STACK_KEY characters, the key goes above the
-// fields in the whole list (a gutter of 12.5rem cannot hold a sentence), for steps as well: there
-// the number and the note sit in one row. The style also stacks below 36rem. The integration runs
+// field-long. When the median key is longer than STACK_KEY characters, or the list is titled (see
+// above), the key goes above the fields in the whole list (a gutter of 12.5rem cannot hold a
+// sentence, and wastes the width beside a long body), for steps as well where the key is long:
+// there the number and the note sit in one row. The style also stacks below 36rem. The integration runs
 // after Starlight, whose build step makes the Pagefind index from the tables as written, and before
 // code-breaks.mjs, which then sees the records. Node built-ins only.
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -57,6 +68,11 @@ export const STACK_KEY = 48;
 // its value, side by side with the others); a longer one is a label over full-width text.
 export const SHORT_FIELD = 40;
 
+// A list in which a field has more than this many characters of text is a list of titled cards (the
+// key above the fields, no gutter): a gutter of 12.5rem beside a 400-character paragraph is mostly
+// empty space. A field of exactly this many characters does not trigger it.
+export const TITLED_MIN = 400;
+
 // A directive comment (the only comments that start with `site:`) followed by the table. The
 // `(?!-->)` keeps a comment from reaching past its own `-->` to a later table.
 const TABLE =
@@ -73,9 +89,9 @@ const decode = (s) =>
 // Characters of text in a piece of cell HTML: tags (and so <wbr> and the code-break spans) add none.
 const textLength = (html) => [...decode(html.replace(/<[^>]+>/g, ''))].length;
 
-const USAGE = 'use records, table, records key=N or records style=steps|cards';
+const USAGE = 'use records, table, records key=N or records style=steps|cards|titled';
 
-// { mode: 'records' | 'table', key, style: 'steps' | 'cards' | null } from the comment text; throws
+// { mode: 'records' | 'table', key, style: 'steps' | 'cards' | 'titled' | null } from the comment text; throws
 // on anything else.
 export function parseDirective(comment) {
   const m = /^<!--\s*site:\s*(.*?)\s*-->/s.exec(comment.trim());
@@ -96,8 +112,10 @@ export function parseDirective(comment) {
       if (key !== null) throw new Error(`key given twice in \`site: ${m[1]}\``);
       key = Number(k[1]);
     } else if (s) {
-      if (s[1] !== 'steps' && s[1] !== 'cards') {
-        throw new Error(`unknown style \`${s[1]}\` in \`site: ${m[1]}\` (style=steps or style=cards)`);
+      if (s[1] !== 'steps' && s[1] !== 'cards' && s[1] !== 'titled') {
+        throw new Error(
+          `unknown style \`${s[1]}\` in \`site: ${m[1]}\` (style=steps, style=cards or style=titled)`,
+        );
       }
       if (style !== null) throw new Error(`style given twice in \`site: ${m[1]}\``);
       style = s[1];
@@ -166,7 +184,15 @@ export function recordsHtml({ header, body }, key, style = null) {
     );
   }
   const steps = style === 'steps' || (style === null && allSteps);
-  const stack = median(keys.map(textLength)) > STACK_KEY;
+  // The longest field of the whole list (a cell outside the key column, empty ones count as 0)
+  const longest = Math.max(
+    0,
+    ...body.flatMap((row) => header.map((_, i) => (i === k ? 0 : textLength(row[i] ?? '')))),
+  );
+  // Titled: forced by style=titled, automatic when a field is over TITLED_MIN; never for steps, and
+  // style=cards keeps the gutter. It is the stacked layout, so it shares the class.
+  const titled = !steps && (style === 'titled' || (style === null && longest > TITLED_MIN));
+  const stack = titled || median(keys.map(textLength)) > STACK_KEY;
   const tag = steps ? 'ol' : 'ul';
   const cls = `records${stack ? ' records-stack' : ''}${steps ? ' records-steps' : ''}`;
   const out = [`<${tag} class="${cls}" role="list">`];

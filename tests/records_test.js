@@ -8,6 +8,7 @@ import records, {
     AUTO_MIN,
     SHORT_FIELD,
     STACK_KEY,
+    TITLED_MIN,
     convertTables,
     parseDirective,
     stepKey,
@@ -339,14 +340,22 @@ test('style options: parsing, errors, and style on site: table', () => {
     assert.deepEqual(parseDirective('<!-- site: records style=steps -->'), { mode: 'records', key: 1, style: 'steps' });
     assert.deepEqual(parseDirective('<!-- site: records key=2 style=cards -->'), { mode: 'records', key: 2, style: 'cards' });
     assert.deepEqual(parseDirective('<!-- site: records style=cards key=3 -->'), { mode: 'records', key: 3, style: 'cards' });
+    assert.deepEqual(parseDirective('<!-- site: records style=titled -->'), { mode: 'records', key: 1, style: 'titled' });
+    assert.deepEqual(parseDirective('<!-- site: records key=2 style=titled -->'), { mode: 'records', key: 2, style: 'titled' });
+    assert.deepEqual(parseDirective('<!-- site: records style=titled key=3 -->'), { mode: 'records', key: 3, style: 'titled' });
     for (const [comment, why] of [
-        ['<!-- site: records style=rail -->', /unknown style `rail`/],
+        ['<!-- site: records style=rail -->', /unknown style `rail` .*style=titled/],
         ['<!-- site: records style= -->', /unknown style ``/],
         ['<!-- site: records style=Steps -->', /unknown style `Steps`/],
+        ['<!-- site: records style=Titled -->', /unknown style `Titled`/],
         ['<!-- site: table style=steps -->', /takes no options/],
         ['<!-- site: table style=cards -->', /takes no options/],
+        ['<!-- site: table style=titled -->', /takes no options/],
         ['<!-- site: records style=steps style=cards -->', /style given twice/],
         ['<!-- site: records style=cards style=cards -->', /style given twice/],
+        ['<!-- site: records style=cards style=titled -->', /style given twice/],
+        ['<!-- site: records style=titled style=titled -->', /style given twice/],
+        ['<!-- site: records style=titled key=2 key=3 -->', /key given twice/],
         ['<!-- site: records key=1 key=2 -->', /key given twice/],
     ]) {
         assert.throws(() => parseDirective(comment), why, comment);
@@ -368,6 +377,92 @@ test('the stacked key rule applies to steps as well, counting the whole key cell
     assert.match(cards(['k', 'v'], [[long(48), 'v']]), /^<ul class="records" /);
 });
 
+// ---- titled cards: a list with a field longer than TITLED_MIN, or style=titled ----
+
+const TITLED = /^<ul class="records records-stack" role="list">/;
+const GUTTER = /^<ul class="records" role="list">/;
+
+test('a field of 400 characters keeps the gutter, one of 401 makes the list titled', () => {
+    assert.equal(TITLED_MIN, 400);
+    const h = ['k', 'a'];
+    assert.match(cards(h, [['one', long(400)]]), GUTTER);
+    assert.match(cards(h, [['one', long(401)]]), TITLED);
+    // the key does not count: a long key stacks by its own rule, a 401-character key with a
+    // short body is not "a long field"
+    assert.match(cards(h, [['k'.repeat(47), 'short']]), GUTTER);
+});
+
+test('titled counts the text of a field, not its markup, and not empty cells', () => {
+    const marked = `<a href="/spawn-at/${long(300)}/" id="${long(300)}"><code>${long(250)}</code></a>`;
+    assert.match(cards(['k', 'a'], [['one', marked]]), GUTTER, '250 characters of text in 900 of markup');
+    const entity = `${long(399)}&lt;`;
+    assert.match(cards(['k', 'a'], [['one', entity]]), GUTTER, 'an entity is one character: 400');
+    assert.match(cards(['k', 'a'], [['one', `${long(400)}&lt;`]]), TITLED, '401');
+    assert.match(cards(['k', 'a', 'b'], [['one', '', '<em></em>']]), GUTTER);
+});
+
+test('the rule is per list: one long field in one row titles every card of the list', () => {
+    const r = cards(['k', 'a'], [['one', 'short'], ['two', long(500)], ['three', 'short']]);
+    assert.match(r, TITLED);
+    assert.equal(items(r).length, 3);
+    // the long field may be in any column but the key's
+    assert.match(cards(['k', 'a', 'b'], [['one', 'x', long(401)]]), TITLED);
+    // the key column is not a field: a long cell there does not count, it stacks by the key rule
+    assert.match(cards(['k', 'a'], [[long(500), 'x']]), TITLED, 'a 500-character key stacks (median > 48)');
+    assert.match(cards(['k', 'a'], [[long(40), 'x']]), GUTTER);
+});
+
+test('short bodies are unchanged: no field over 400 characters, no stacked class', () => {
+    const r = cards(['k', 'a', 'b'], [['one', long(300), 'x'], ['two', long(400), 'y']]);
+    assert.match(r, GUTTER);
+    assert.ok(!r.includes('records-stack'));
+});
+
+test('titled markup is the stacked markup: key first, short fields, then long fields', () => {
+    const r = cards(['Title', 'Long', 'Short'], [['one', long(401), 's']]);
+    assert.match(r, TITLED);
+    const [card] = items(r);
+    assert.match(card, /^<li class="record"><div class="record-key">one<\/div><dl class="record-fields"><div class="field field-short"><dt>Short<\/dt><dd>s<\/dd><\/div><div class="field field-long"><dt>Long<\/dt>/);
+});
+
+test('steps are never titled by length, and style=steps wins over a long field', () => {
+    const rows = [['1', long(500)], ['2', 'b'], ['3', 'c']];
+    assert.match(cards(['#', 'What'], rows), /^<ol class="records records-steps" role="list">/);
+    assert.match(cards(['#', 'What'], rows, '<!-- site: records style=steps -->'), /^<ol class="records records-steps" role="list">/);
+});
+
+test('style=cards keeps the gutter for a long body, style=titled forces the title for short ones', () => {
+    const longRows = [['one', long(900)]];
+    assert.match(cards(['k', 'a'], longRows, '<!-- site: records style=cards -->'), GUTTER);
+    assert.match(cards(['k', 'a'], longRows, '<!-- site: records style=titled -->'), TITLED);
+    assert.match(cards(['k', 'a'], [['one', 'short']], '<!-- site: records style=titled -->'), TITLED);
+    // style=cards does not undo the stacked key of sentence keys
+    assert.match(cards(['k', 'a'], [[long(60), long(900)]], '<!-- site: records style=cards -->'), /^<ul class="records records-stack"/);
+});
+
+test('style=titled on numbered keys is titled cards, not steps; with key=N it names the title column', () => {
+    const nums = [['1', 'a'], ['2', 'b'], ['3', 'c']];
+    const r = cards(['#', 'What'], nums, '<!-- site: records style=titled -->');
+    assert.match(r, TITLED);
+    assert.ok(!r.includes('record-num') && !r.includes('<ol'));
+    // key=2: the second column is the title, the first is a field
+    const k2 = cards(['A', 'Name'], [['x', 'first'], ['y', 'second']], '<!-- site: records key=2 style=titled -->');
+    assert.match(k2, TITLED);
+    assert.match(k2, /<div class="record-key">first<\/div><dl class="record-fields"><div class="field field-short"><dt>A<\/dt><dd>x<\/dd>/);
+    // key=N alone with a long field in the other column
+    assert.match(cards(['A', 'Name'], [['x'.repeat(401), 'first']], '<!-- site: records key=2 -->'), TITLED);
+    assert.throws(() => cards(['A', 'B'], nums, '<!-- site: records key=3 style=titled -->'), /key=3/);
+});
+
+test('titled applies by itself under project/ too, once the table converts', () => {
+    const t = table(['k', 'v'], [['a', long(300)], ['b', long(401)]]);
+    const r = convertTables(t, project);
+    assert.equal(r.converted, 1);
+    assert.match(r.html, TITLED);
+    const t2 = table(['k', 'v'], [['a', long(300)], ['b', long(240)]]);
+    assert.match(convertTables(t2, project).html, GUTTER);
+});
+
 test('the build hook converts under project/ only, skips project/index.html, and reports a bad page', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'records-test-'));
     try {
@@ -381,7 +476,8 @@ test('the build hook converts under project/ only, skips project/index.html, and
         const hook = records().hooks['astro:build:done'];
         await hook({ dir: pathToFileURL(dir + '/'), logger: { info: (m) => logs.push(m) } });
         const read = (rel) => readFile(path.join(dir, rel), 'utf8');
-        assert.ok((await read('project/design.html')).includes('class="records"'));
+        // the 500-character body is over TITLED_MIN, so the list is the titled (stacked) layout
+        assert.ok((await read('project/design.html')).includes('class="records records-stack"'));
         for (const rel of ['project/index.html', 'install/index.html', 'index.html']) {
             assert.ok((await read(rel)).includes('<table>'), rel);
         }
