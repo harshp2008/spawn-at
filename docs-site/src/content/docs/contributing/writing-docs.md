@@ -98,6 +98,11 @@ Every column keeps a floor of 12 characters, so a table with many columns, or wi
 to 20 characters in several of them, scrolls sideways instead of squeezing a column; keep the columns
 of a table few and the cells short.
 
+A table or a code block that scrolls sideways shows a soft shadow (`src/styles/scroll-hints.css`) at
+the edge that has more content behind it, and none at an edge that has been reached or when nothing
+overflows. It is CSS only (`background-attachment: local`) and reads in both themes. A table shown as
+records has no such hint, because it is not a table any more.
+
 ## Long tables as records
 
 A table with a long cell cannot be read in a 45rem column, because each cell gets about 25

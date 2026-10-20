@@ -28,6 +28,7 @@ export default defineConfig({
         './src/styles/custom.css',
         './src/styles/tables.css',
         './src/styles/records.css',
+        './src/styles/scroll-hints.css',
         './src/styles/toc-toggle.css',
       ],
       head: [{ tag: 'script', content: tocToggle }],
