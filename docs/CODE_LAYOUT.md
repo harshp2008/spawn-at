@@ -29,6 +29,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### spawn-at (the CLI, `src/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `src/cli/args.rs` | CLI Argument Structs and Definitions |
@@ -93,6 +94,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### spawn-at-core (`crates/spawn-at-core/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `crates/spawn-at-core/src/driver.rs` | Declarative Compositor Driver Abstraction |
@@ -108,6 +110,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### xtask (`crates/xtask/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `crates/xtask/src/burn_cpu.rs` | `burn-cpu`: keeps N threads of this process spinning for S seconds, to put the machine under a known CPU load while a live measurement runs. |
@@ -123,6 +126,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### spawn-at-verify, library and binaries (`crates/spawn-at-verify/src/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `crates/spawn-at-verify/src/bin/fixture.rs` | Standalone GUI test fixture window application (`winit` + `softbuffer`). |
@@ -232,6 +236,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### spawn-at-verify, integration tests (`crates/spawn-at-verify/tests/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `crates/spawn-at-verify/tests/category_library_test.rs` | Headless test verifying category schema, loader validation, and library coverage. |
@@ -263,6 +268,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### GNOME extension (`assets/gnome/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `assets/gnome/legacy/anchor.js` | spawn-at — pure anchor and bounding box calculation (Legacy GNOME 42-44). |
@@ -286,6 +292,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 
 ### Node tests (`tests/`)
 
+<!-- site: table -->
 | File | Module doc (first `//!` line of the file) |
 | :--- | :--- |
 | `tests/cloak_test.js` | no module header |
