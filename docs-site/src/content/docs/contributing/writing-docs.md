@@ -191,7 +191,7 @@ nothing special, and a page served by `astro dev` does not have the break points
 
 On a screen at least 72rem wide, a button in the header (a script in `src/scripts/toc-toggle.js`,
 added to every page by `astro.config.mjs`) hides the "On this page" column and widens the content
-from 45rem to 56rem: text, lists, tables, code blocks and asides all use that one width (set once, in
+from 45rem to 50rem: text, lists, tables, code blocks and asides all use that one width (set once, in
 `src/styles/toc-toggle.css`). The choice is kept in the browser's
 `localStorage`. Without JavaScript the button does not exist and the column stays.
 
