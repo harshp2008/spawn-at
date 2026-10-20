@@ -3,14 +3,16 @@
    content (measured: `width: 100%` on such a table gives a 600px box with columns of 27px), so a
    table with short cells only fills the column if it is a real table. Two states:
    - `data-fit` (set by src/scripts/toc-toggle.js on a table whose content fits the column):
-     `display: table; width: 100%`. It starts at the left edge of the text, takes the column width
-     and wraps long cell text inside it.
+     `display: table; width: fit-content`, centered in the column (inside a list item, in the
+     item's text column). It is as wide as its content, at least 16rem (the narrowest table on the
+     site measured 293px, so the floor changes nothing today), and a table with long cell text grows
+     up to the column and wraps there. A 3-column table of labels and numbers thus keeps its
+     columns together instead of spreading them across the column.
    - otherwise (and without JavaScript): Starlight's `display: block` box, as wide as the column
      and left-aligned, scrolling inside itself when a row cannot wrap (a long unbroken path or
      flag). The scroll hint of scroll-hints.css needs this box, which is why a table that
      overflows is never made a real table.
-   There is no centering: before, `width: fit-content; margin-inline: auto` centered every table
-   narrower than the column, so its left edge was not the text's. Colors and borders are left to
+   Only the fit tables are centered; the scrolling block starts at the text's left edge. Colors and borders are left to
    Starlight and custom.css; markdown column alignment (`align` attribute) is not touched. */
 .sl-markdown-content table:not(:where(.not-content *)) {
   width: 100%;
@@ -19,6 +21,9 @@
 }
 .sl-markdown-content table[data-fit]:not(:where(.not-content *)) {
   display: table;
+  width: fit-content;
+  min-width: min(16rem, 100%);
+  margin-inline: auto;
 }
 
 /* Starlight drops the padding on the outer edge of the first and last column, which looks lopsided
