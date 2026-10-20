@@ -28,9 +28,10 @@
 
 /* Starlight drops the padding on the outer edge of the first and last column, which looks lopsided
    in a table with a border. The same padding on every cell keeps a 2rem gap between columns and
-   the same inset on both sides. */
+   the same inset on both sides. The block padding is 0.625rem (it was 0.5rem), so a cell of two or
+   more lines has room above and below its text. */
 .sl-markdown-content :is(th, td):not(:where(.not-content *)) {
-  padding: 0.5rem 1rem;
+  padding: 0.625rem 1rem;
   overflow-wrap: break-word;
 }
 .sl-markdown-content :is(th:first-child, td:first-child):not(:where(.not-content *)) {
