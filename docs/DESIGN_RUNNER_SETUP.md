@@ -2,7 +2,7 @@
 
 Status: approved and implemented on 2026-10-15. Version 2 specs run through `execute_v2_test` in `runner/executor_v2.rs` and `SetupSession` in `runner/owned.rs`. 18 spec files under `verify/` use `schema_version = 2`.
 
-**Sections 1 to 10 are the design as approved. They describe the code at `ca11523`, before the implementation, and were not rewritten to match the tree: only section 5.5 and section 11 describe what was built.** Where the tree has since overtaken a statement of those sections, the text says so or the statement was removed.
+**Sections 1 to 10 are the design as approved.** They describe the code at `ca11523`, before the implementation, and were not rewritten to match the tree: only section 5.5 and section 11 describe what was built. Where the tree has since overtaken a statement of those sections, the text says so or the statement was removed.
 
 This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE_AUDIT.md` (section 7 item 8, section 6 rows P6 and P7).
 
@@ -45,7 +45,7 @@ This is the model as it was at `ca11523`. The implementation of section 11 chang
 | A test in the TUI | run synchronously inside the key handler | a queued `Pending` step that `run_pending` runs after the next redraw (`tui/app/queue.rs`); it still runs on the UI thread |
 | `RunOptions::test_timeout` | no reader | still no reader (only its definition and default match, 2026-10-21) |
 
-Every other statement of this section is not verified against the current tree.
+Every other statement of this section is **not verified against the current tree**.
 
 ### Defined
 
@@ -241,7 +241,7 @@ The design listed 8 allowed flags and "the hostile flags of `bin/fixture.rs:39-1
 
 ## 3. Safety
 
-**The rule: the runner acts only on windows and processes it created itself in this test, identified by data it recorded itself, and refuses to act on anything else.**
+The rule: the runner **acts only on windows and processes it created itself in this test**, identified by data it recorded itself, and refuses to act on anything else.
 
 ### 3.1 What the smoke-live.sh incident was, and which guards are copied
 
@@ -264,7 +264,7 @@ Setup launches the fixture directly (`std::process::Command`), not through `spaw
 | Unique title | One per run and per setup: `verify-<run-uuid>-<test-index>-<name>`. The run id is the process id plus a start timestamp plus a counter, as `DIR_SEQ` does for the flash directory (`runner/flash.rs:39`, `:63-67`). The same string is the fixture's `--title` and the suffix of its `--app-id`. |
 | Backstop | The runner always passes `--exit-after-ms` (10000 for Auto, 300000 for Both), as `validation.rs:70-81` does, so a SIGKILLed runner leaves a fixture that ends itself. |
 | Process group | Its own, as `process.rs:57-63` does. A terminal `Ctrl+C` (SIGINT to the foreground group) is then not the only signal path, and the group id equals the child pid we created. |
-| Signals | Only through the handle: `Child::kill()` (SIGKILL) or `libc::kill(child.id(), SIGTERM)`, and only while `child.try_wait()` returns `Ok(None)`, that is, before the child is reaped, so the PID cannot have been recycled. Never `kill` by a PID read from `query windows`, `/proc`, `pgrep` or a title. |
+| Signals | Only through the handle: `Child::kill()` (SIGKILL) or `libc::kill(child.id(), SIGTERM)`, and only while `child.try_wait()` returns `Ok(None)`, that is, before the child is reaped, so the PID cannot have been recycled. **Never `kill` by a PID** read from `query windows`, `/proc`, `pgrep` or a title. |
 | Window id | Recorded only when the window with `title == unique title` and `pid == child.id()` appears in `query windows --json` exactly once. The extension reports the fixture's own pid for its window (the harness already relies on this: `window_pid`, `runner/flash.rs:173-177`). |
 
 On Sway the pid field is the window's pid, which for a directly launched native Wayland client is its own (unverified; one look at `swaymsg -t get_tree` in a private headless Sway settles it). If the pid check cannot be made on a backend, the unique title alone is used and the spec's tag records it.
@@ -290,10 +290,10 @@ On Sway the pid field is the window's pid, which for a directly launched native 
 | Normal end, assertion failure, setup error | The session is dropped at the end of the v2 branch of `execute_single_test`. Auto tests tear down there. |
 | Action timeout | `execute_with_timeout` kills only the action's own process group (`process.rs:95-101`) and the session is then dropped normally. The target fixture has its own group and is not in it. |
 | Both or Human test | The test must keep its window until the verdict, so the session is moved into the tracker instead of dropped. `record_verdict` and `close_test_windows` (`queue.rs:184`, `tui/app/state.rs:372`) drop it. |
-| TUI `Ctrl+C`, quit, SIGTERM, SIGHUP | The existing paths call `cleanup_test_windows` (`input.rs:10-15`, `tui/mod.rs:140-149`), which is extended to drop the session too. The event loop is blocked during a test, so the delay is bounded by setup (5 s) + action (5 s) + settle (1.3 s) + teardown (about 3 s): about 15 s worst case, stated in the docs. |
+| TUI `Ctrl+C`, quit, SIGTERM, SIGHUP | The existing paths call `cleanup_test_windows` (`input.rs:10-15`, `tui/mod.rs:140-149`), which is extended to drop the session too. The event loop is blocked during a test, so the delay is bounded by setup (5 s) + action (5 s) + settle (1.3 s) + teardown (about 3 s): **about 15 s worst case**, stated in the docs. |
 | `spawn-at-verify run` with `Ctrl+C` or SIGTERM | New in this design: a `signal-hook` flag checked between steps and inside the setup wait. `signal-hook` was an optional dependency (feature `fixture` or `tui`) and becomes a normal one. Without the flag a killed `run` leaves a window until the fixture's `--exit-after-ms` ends it (10 s). Implemented, see 11.2. |
 | Panic | Rust unwinds (no `panic = "abort"`, ran), so `Drop` runs. A test injects a panic and asserts the fake fixture was killed. |
-| SIGKILL of the runner | Cannot be handled. The fixture's `--exit-after-ms` ends the process and the window goes with it. |
+| SIGKILL of the runner | **Cannot be handled.** The fixture's `--exit-after-ms` ends the process and the window goes with it. |
 
 After teardown the runner re-reads `query windows` and records "left behind: `<id>`" in the result message if the recorded id is still there (audit P12). In the first version this is a warning, not a failure (open question 9.9).
 
@@ -315,7 +315,7 @@ Some tests need an id that must not exist (a clean error for a missing window, `
 
 ### 3.6 The user's focus
 
-A freshly mapped fixture takes focus on GNOME (Mutter's default for new windows; the runner does not change any GNOME setting). Launched directly, it does so without the cloak that `spawn` uses. The design does this about it:
+A freshly mapped fixture **takes focus on GNOME** (Mutter's default for new windows; the runner does not change any GNOME setting). Launched directly, it does so without the cloak that `spawn` uses. The design does this about it:
 
 - Every v2 spec that launches a window or acts on focus carries the tag `moves-focus` (audit gap 18: no such tag existed). The `quick` suite gets `!moves-focus` added to its tags when the first such spec lands, so a quick run never steals focus by accident. `full` runs them.
 - Before the first setup of a run the runner records the id of the focused window (the TUI already does this for the terminal, `tui/app/state.rs:197-214`). Teardown refocuses it with `spawn-at focus --id <recorded> --no-wait` only if that window still exists and is not focused, as `close_test_windows` does (`tui/app/state.rs:372-380`). This is best effort and is stated as such.
@@ -350,7 +350,7 @@ The `Capabilities` struct cannot be used by the runner. It lives in the binary c
 - A spec run on a backend not in its list ends `Skipped` with the fixed message "unsupported on this backend (sway): spec requires gnome". There is no special status: `Skipped` already exists everywhere (`runner/models.rs:32`, `resolve_final_status` at `:251-269`).
 - If a spec lists a backend and the command still answers "does not support this feature", that is a failure, not a skip: the spec claims support.
 - The unsupported behavior itself is tested as a positive. Contract specs for Sway (`backend = ["sway"]`) assert exit 1 and `stderr_present = ["does not support this feature: defocus_window"]` (section 7).
-- For qualification, a required test that is skipped makes `supported` false (`report/builder.rs:30-48`). v2 specs must therefore be `required = false` at first, as the nine hostile specs are, or a per-backend requirement notion must be added (open question 9.5).
+- For qualification, **a required test that is skipped makes `supported` false** (`report/builder.rs:30-48`). v2 specs must therefore be `required = false` at first, as the nine hostile specs are, or a per-backend requirement notion must be added (open question 9.5).
 
 ### 4.3 Running on headless Sway, unattended
 
@@ -359,7 +359,7 @@ In principle yes. `scripts/sway-headless.sh` starts a private, headless Sway in 
 What the runner needs, and the traps found while reading:
 
 1. A thin wrapper, `scripts/verify-sway.sh` (allowed: it only calls binaries). It runs `sway-headless.sh start`, runs the verify binary in a subshell with `SPAWN_AT_BACKEND=sway`, `SWAYSOCK` and `WAYLAND_DISPLAY` from the harness and `DISPLAY` and `XDG_CURRENT_DESKTOP` unset, then runs `sway-headless.sh stop` in a trap. `sway-live.sh` sets the variables on each `spawn-at` call only (`sway-live.sh:133`); the wrapper does it on the one child process.
-2. The log source trap. `TestRunner::new` chose the GNOME journal source and the GNOME `SetLogging` control from `XDG_CURRENT_DESKTOP` alone (`engine.rs:49-58`). Run from a GNOME user's shell, a "Sway" run would still call `gdbus` on the live GNOME session's extension. The runner must pick the no-op source when the backend is not GNOME (decided in commit 6), and the wrapper unsets the variable as a second guard.
+2. The log source trap. `TestRunner::new` chose the GNOME journal source and the GNOME `SetLogging` control from `XDG_CURRENT_DESKTOP` alone (`engine.rs:49-58`). Run from a GNOME user's shell, a "Sway" run would **still call `gdbus` on the live GNOME session's extension**. The runner must pick the no-op source when the backend is not GNOME (decided in commit 6), and the wrapper unsets the variable as a second guard.
 3. A private-session guard in the runner. For `backend = sway`, a v2 spec runs only if `SWAYSOCK` is inside a directory that holds the `.spawn-at-sway-harness` marker, is owned by the user and is not `XDG_RUNTIME_DIR` (the checks of `check_dir`, `scripts/sway-headless.sh:52-60`). Otherwise the result is `Blocked` with that reason. This makes "never point the runner at the owner's real Sway session" a property of the runner, not of the wrapper.
 4. No flash and no trace on Sway. Specs that assert them are skipped with "not measurable on this backend" (section 5).
 
@@ -480,7 +480,7 @@ Lines of any other window, and lines without a window, are dropped before anythi
 
 #### Limits
 
-No pixels are captured. A clean flash result means no late paint or move was found in the runs made, on one machine and one compositor version, with the fixture and not a real app; it is not a guarantee. The `possible` bucket (a lead below one frame period) has a known noise level (`docs/TEST_COVERAGE_AUDIT.md` gap 10). Unverified on real GNOME: that a real run of the new capture produces the timelines the unit tests build from the owner's sample lines.
+No pixels are captured. A clean flash result means no late paint or move was found in the runs made, on one machine and one compositor version, with the fixture and not a real app; it is not a guarantee. The `possible` bucket (a lead below one frame period) has a known noise level (`docs/TEST_COVERAGE_AUDIT.md` gap 10). **Unverified on real GNOME**: that a real run of the new capture produces the timelines the unit tests build from the owner's sample lines.
 
 ## 6. The TUI and reports
 
@@ -728,4 +728,4 @@ All the specs of section 7 exist under `verify/queries/`, `verify/transforms/`, 
 | `queries/query-layout-json`, `robustness/nonexistent-window-id` | They launch no window and carry no `moves-focus` tag. | The loader requires the tag only for specs with a `[[setup]]`. |
 | The tag `visual` | No spec carries it, so the `visual` suite is unchanged. The four Both specs carry `human-review` (`spawn-at-verify tui --tag human-review`). | |
 | The `lifecycle` to `focus` alias | Added to both copies of the alias list (`schema/suite.rs`, `loader/registry.rs`). `focus` is reachable and the known-empty list of `suite_wiring_test` shrank from eight names to four. | |
-| Not done, as asked | No flash measurement (`resize-flash` and `move-flash` only ask the human), no spec that depends on `spawn --no-focus`, no GNOME run. | |
+| Not done, as asked | No flash measurement (`resize-flash` and `move-flash` only ask the human), no spec that depends on `spawn --no-focus`, **no GNOME run**. | |

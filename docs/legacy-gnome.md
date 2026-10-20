@@ -1,6 +1,6 @@
 # Legacy GNOME (42–44) Differences & Compatibility Analysis
 
-Status: implemented and checked with the test harness only. **This page compares source only: the legacy extension has never been run on a real GNOME 42-44 session, and it may not work at all.**
+Status: implemented and checked with the test harness only. This page compares source only: the legacy extension has never been run on a real GNOME 42-44 session, and **it may not work at all**.
 
 The installer says so before it installs (see the README, "Support"). The legacy extension is `assets/gnome/legacy/`: 8 JavaScript files and `metadata.json`. Written 2026-10-09; the two trees were compared again with a read-only `diff` on 2026-10-21.
 
@@ -10,7 +10,7 @@ The installer says so before it installs (see the README, "Support"). The legacy
 
 From GNOME Shell 45 on, extensions are ECMAScript modules (ESM). GNOME Shell 42, 43 and 44 need the older GJS `imports` style and a few different Mutter and Clutter calls. These are the versions on Ubuntu 22.04 LTS and Debian 12 (not verified).
 
-So spawn-at keeps two asset trees, and the installer picks one from the Shell's major version:
+So spawn-at keeps two **asset trees**, and the installer picks one from the Shell's major version:
 
 | Tree | Path | Shell versions | ProtocolVersion | JavaScript files |
 | :-- | :-- | :-- | :-- | :-- |
@@ -120,4 +120,4 @@ The earlier text of this page said all three calls exist in Mutter 46 and Shell 
 | `cargo test` | the two XML interfaces match, apart from `ResizeOutcome` |
 | Live GNOME Shell 46 (Ubuntu 24.04) | the modern tree, verified |
 | GNOME 42–44, static analysis and the mock harness | the legacy tree |
-| GNOME 42–44 on a physical session or a VM | not verified |
+| GNOME 42–44 on a physical session or a VM | **not verified** |

@@ -32,7 +32,7 @@ Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]
 ### Without an anchor
 
 - The origin is the area's raw top-left corner.
-- Margins are not added to the requested position. They only set the clamp bounds.
+- **Margins are not added to the requested position.** They only set the clamp bounds.
 - The default pivot is `top-left`.
 
 Example: a work area of 1920x1040 at (0, 40) and a margin of 16.
@@ -84,8 +84,8 @@ part stays visible. The CLI reports the real final position and says the composi
 INFO: Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility.
 ```
 
-This was reported as observed on GNOME Shell 46, Wayland, one monitor, but the repository holds no
-log of that run. In the example above 75 px stay visible (the window is 367 px wide and ends at
+This was reported as observed on GNOME Shell 46, Wayland, one monitor, but **the repository holds no
+log of that run**. In the example above 75 px stay visible (the window is 367 px wide and ends at
 x = 75). Whether 75 px is Mutter's fixed limit is not verified. X11 and other GNOME versions are
 unknown.
 
@@ -97,7 +97,7 @@ unknown.
 | `transform` | The monitor with the largest pixel overlap with the window. If the window overlaps none, the monitor at the window's own monitor index, else the first one. |
 
 `--monitor cursor` picks the monitor under the pointer, and falls back to the primary monitor when
-the pointer is outside all monitors. `--anchor cursor` alone does not change the monitor: with a
+the pointer is outside all monitors. **`--anchor cursor` alone does not change the monitor**: with a
 readable layout, `spawn` still clamps to the primary monitor's area. This is read from the code, not
 run.
 
@@ -129,8 +129,8 @@ clamped by `transform`.
 ## 6. Window animation per command
 
 The GNOME extension keeps the desktop's own animations where it can and suppresses them where a
-glide would look like a flicker. This is read from the extension code; the animations were not
-observed on screen.
+glide would look like a flicker. This is read from the extension code; the animations were **not
+observed on screen**.
 
 | Command | Animation | Reason |
 | :-- | :-- | :-- |

@@ -340,8 +340,10 @@ fixed in commit `7ffa99c`.
 The old numbers, and the explanations built on them, are withdrawn. **No budget formula is
 supported by any measurement.**
 
-Labels used in sections 5 and 6: CONFIRMED means a quoted line, a count, raw output, or code that
-was read. HYPOTHESIS means consistent with the evidence but not demonstrated.
+Labels used in sections 5 and 6:
+
+- **CONFIRMED** means a quoted line, a count, raw output, or code that was read.
+- **HYPOTHESIS** means consistent with the evidence but not demonstrated.
 
 ### Measured data (`spawn-at-verify calibrate`, GNOME 46 Wayland, one machine)
 
@@ -489,14 +491,14 @@ Status: CONFIRMED. The last point (two TUIs) was read in the code and not run.
 - A trace-dependent test that otherwise passes with no trace ends as `Pass (trace unchecked)` (`AutoPassTraceUnchecked` / `FinalStatus::PassTraceUnchecked`): orange, not counted as a passed required test, and a required platform test with this status fails qualification. If its geometry was also unchecked the status stays "geometry unchecked" and the message names both.
 - Exit codes: 0 no failure; 1 any failure, error, flaky or blocked; 2 nothing failed but a REQUIRED test passed with its geometry or its trace unchecked. Optional unchecked passes keep exit 0 and are listed in the summary.
 
-Not verified: the fixes are covered by unit and integration tests with a fake extension and by a live `run` on the recording machine. The interactive TUI itself was not driven by a script, and no extension reload (`gnome-extensions disable/enable`) was performed.
+**Not verified**: the fixes are covered by unit and integration tests with a fake extension and by a live `run` on the recording machine. The interactive TUI itself was not driven by a script, and no extension reload (`gnome-extensions disable/enable`) was performed.
 
 ### Budget Policy
 The budget has two parts: an advisory warning and the pass/fail invariants.
 
 #### Advisory budget warning
 
-The 100 ms warning threshold is provisional: it is a guess, not derived from the data above, and no measurement supports a budget that depends on the paint delay. It is shown in the TUI drawer as `over provisional budget` and is not an automated pass/fail threshold. CONFIRMED: the largest cloak observed after the fix is 61.9 ms, below 100 ms. The budget stays provisional, and the two regimes above are why a single threshold cannot be derived from one batch.
+**The 100 ms warning threshold is provisional**: it is a guess, not derived from the data above, and no measurement supports a budget that depends on the paint delay. It is shown in the TUI drawer as `over provisional budget` and is not an automated pass/fail threshold. CONFIRMED: the largest cloak observed after the fix is 61.9 ms, below 100 ms. The budget stays provisional, and the two regimes above are why a single threshold cannot be derived from one batch.
 
 #### Pass/fail invariants
 
@@ -552,7 +554,7 @@ The design behind the bug is empirical minimum discovery under the cloak: the re
 
 | Topic | What 2.1 said | Correction | Status |
 | :--- | :--- | :--- | :--- |
-| `zenity` minimum | `zenity --text-info` "has a 300x400 minimum". | 300x400 is its default size. Its real minimum is about 300 wide and 201 high: requests of 200x150 and 50x50 settle at 300x201 (6.3). The CLI text "window minimum is 300x400" for it was the size at the moment spawn-at read the window, while it was still shrinking to 300x201 (6.2 item 9, 6.4 row 3). It is a symptom of the late-resize bug, not a separate bug. | Wrong, CONFIRMED |
+| `zenity` minimum | `zenity --text-info` "has a 300x400 minimum". | 300x400 is its default size. Its real minimum is about 300 wide and 201 high: requests of 200x150 and 50x50 settle at 300x201 (6.3). The CLI text "window minimum is 300x400" for it was the size at the moment spawn-at read the window, while it was still shrinking to 300x201 (6.2 item 9, 6.4 row 3). It is a symptom of the late-resize bug, not a separate bug. | **Wrong**, CONFIRMED |
 | Idle failures | The fixture failed 0 of 80 runs at idle. | Later idle batches failed: 1 of 50 (6.5) and 4 of 40 in the isolated regime (6.6). The 40 `--repeat` runs had earlier windows alive by design (`runner/engine.rs:131-132`, section 5). For the 40 separate `verify run` invocations 1.1 s apart, earlier windows may also have been alive (the fixture's backstop lifetime for automatic tests is 10 s, `runner/validation.rs:48-57`). Whether `run` closes its window when it exits was not checked. Both would be the fast regime of section 5. | Superseded; the last point is a HYPOTHESIS |
 | CPU load | CPU load is the confirmed cause of the failures. | Load does raise the failure rate (12 of 20 in 2.1), but idle runs also fail, so load is a sufficient trigger, not the only one. | corrected |
 
@@ -599,10 +601,10 @@ The rows keep their numbers because 6.2 and 6.4 cite them ("6.1 row 13").
 | Geometry floor before asking the compositor | 7 | "Enforces a minimum geometry floor of 100x60px before passing dimensions to Mutter" (`AI_DEV/system_survey_and_understanding.md:223` (file no longer in the repository; deleted in `1806eb7`); constants `assets/gnome/modern/extension.js:33-34`) | stated (internal) |
 | Exit code when the size was raised | 8 | `scripts/smoke-live.sh` sub-minimum cases (30x20 at bottom-right) "Assert zero exit code, no false timeout warnings, and workarea bounds" (commit `bdedd3e` message) | stated (test and commit message only) |
 | What the CLI prints for a raised size | 9 | Diagnostic enum doc: "The requested size was below toolkit minimums and was expanded." (`src/diagnostics.rs:149`); per-axis wording at `src/diagnostics.rs:240-257`, unit-tested at `:654-726` | stated; the number in it is the size when spawn-at read the window, wrong only while the window is still resizing (6.2 item 9, 6.4 row 4) |
-| Default margin when `--margin` is omitted | 10 | `--help` says only "Universal margin in pixels applied to all boundaries". Code: `self.margin.unwrap_or(16)` (`src/cli/args.rs:134`). An example in `docs/behavior-notes.md:19` shows "clamped to (16, 16)" | UNDEFINED in user docs |
-| Window larger than the workarea | 11 | blueprint formula clamps the size to workarea minus margins (row 5); CLI only warns (row 6). Observed: the window is not clamped by spawn-at (6.3) | UNDEFINED for the size itself |
+| Default margin when `--margin` is omitted | 10 | `--help` says only "Universal margin in pixels applied to all boundaries". Code: `self.margin.unwrap_or(16)` (`src/cli/args.rs:134`). An example in `docs/behavior-notes.md:19` shows "clamped to (16, 16)" | **UNDEFINED** in user docs |
+| Window larger than the workarea | 11 | blueprint formula clamps the size to workarea minus margins (row 5); CLI only warns (row 6). Observed: the window is not clamped by spawn-at (6.3) | **UNDEFINED** for the size itself |
 | Request below the app minimum with the app's minimum unknown to the extension | 12 | `FALLBACK_USED reason="min size unreported" usingFrame=` (`extension.js:1002-1007`) is the empirical path of 6.2 item 3: the settled frame is used. No user document describes it | stated in code and by the author; not in user docs |
-| Which size an anchor uses while the app has not yet answered | 13 | none | UNDEFINED (the code uses the current frame, 6.2) |
+| Which size an anchor uses while the app has not yet answered | 13 | none | **UNDEFINED** (the code uses the current frame, 6.2) |
 | Resize arriving more than 1 s after the last correction | 14 | README said "1-second listener" (`:110`; it now says the listener is dropped "one second after the last correction if the size then stays quiet", `README.md:124`); `ANCHOR_RETIRE_QUIET_MS = 1000` (`extension.js:35`) | stated, limits not documented |
 
 ### 6.2 Code path of a request below the app's minimum
@@ -684,7 +686,7 @@ The JSON output carries all three (`:499-513`). `verify_and_report_placement` is
 | Mis-positioned | `WARNING: Window mapped at (810, 360) [300x500] but expected position was (810, 310). Final size differs from the requested size (200x500); window was not positioned at target.` |
 | Oversized | `WARNING: Window is oversized (3000x2000); bottom and right margins ignored.` |
 
-The exit code was 0 in all 60 probe runs, including every WARNING (6.3). A mis-positioned window is therefore invisible to a script that checks only the exit code.
+The exit code was 0 in all 60 probe runs, including every WARNING (6.3). A mis-positioned window is therefore **invisible to a script that checks only the exit code**.
 
 #### Item 9: where the two INFO texts come from
 
@@ -749,10 +751,10 @@ Observations:
 | Behaviour | Row | Class | Why |
 | :--- | :-: | :---: | :--- |
 | Window ends larger than requested when the app has a minimum | 1 | INTENDED | `README.md:149-150` |
-| Final position is correct for the final size | 2 | BUG when violated (centre 3/25, bottom-right 5/25 in 6.3; fixture 12 of 20 under load, 1 of 50 and 4 of 40 at idle) | violates `README.md:150` "positioned using their final size, so anchors land correctly" |
-| Late resize (arriving after the 30 ms settle) leaves the window mis-centred | 3 | BUG for centre | violates `README.md:110` (the listener "re-applies your anchor so the window doesn't drift") in the cases where the resize lands between `UNCLOAK_4C` and `ANCHOR_ARMED` (`extension.js:913-936` and `:1025-1034`); the same reactive anchor corrected zenity 500x450 in 16 of 20 and 19 of 20 runs in two batches (section 2.1) and missed it in the rest |
-| Late resize leaves the window mis-anchored at bottom-right | 3b | BUG for bottom-right | same promises; and the damage is larger: the corner is missed by the size difference (199 px in 6.3) and the window can overflow the workarea |
-| Text "window minimum is WxH" | 4 | BUG symptom of row 3 (not a separate wording bug) | the number is the window's size when spawn-at read it (6.2 item 9); it matched the final size in 7 of 14 probe cases and all 7 mismatches were windows still resizing (300x400 printed, 300x201 final). When the size is stable it is correct. Fixing row 3 fixes this text |
+| Final position is correct for the final size | 2 | **BUG** when violated (centre 3/25, bottom-right 5/25 in 6.3; fixture 12 of 20 under load, 1 of 50 and 4 of 40 at idle) | violates `README.md:150` "positioned using their final size, so anchors land correctly" |
+| Late resize (arriving after the 30 ms settle) leaves the window mis-centred | 3 | **BUG** for centre | violates `README.md:110` (the listener "re-applies your anchor so the window doesn't drift") in the cases where the resize lands between `UNCLOAK_4C` and `ANCHOR_ARMED` (`extension.js:913-936` and `:1025-1034`); the same reactive anchor corrected zenity 500x450 in 16 of 20 and 19 of 20 runs in two batches (section 2.1) and missed it in the rest |
+| Late resize leaves the window mis-anchored at bottom-right | 3b | **BUG** for bottom-right | same promises; and the damage is larger: the corner is missed by the size difference (199 px in 6.3) and the window can overflow the workarea |
+| Text "window minimum is WxH" | 4 | **BUG** symptom of row 3 (not a separate wording bug) | the number is the window's size when spawn-at read it (6.2 item 9); it matched the final size in 7 of 14 probe cases and all 7 mismatches were windows still resizing (300x400 printed, 300x201 final). When the size is stable it is correct. Fixing row 3 fixes this text |
 | INFO "Requested size (WxH) is below toolkit minimums; window will expand." | 4b | UNDEFINED (threshold) | static `w < 100 \|\| h < 80` on the requested size (`geometry.rs:744-745`); differs from the extension's 100x60 floor and ignores the app |
 | Exit code 0 when the window ended mis-positioned (WARNING printed) | 5 | UNDEFINED | only the sub-minimum smoke assertion (`bdedd3e`) says "zero exit code"; nothing says a WARNING about a mis-positioned window must exit 0 |
 | Oversized request: anchored edge keeps its margin, opposite edge overflows | 6 | INTENDED | blueprint 9.4 conflict rule and the CLI message "bottom and right margins ignored" |
@@ -765,7 +767,7 @@ Observations:
 
 The `README.md` line numbers in this table are those of the README when the table was written; the current places of the quoted sentences are in the table of 6.1.
 
-**The late-resize mis-centre of section 2.1 is a BUG, for centre and for bottom-right.** Reason: the README promises correct anchoring for the final size and a one-second corrector; the logs show the window's final size is known to the extension (the `UNCLOAK` event reports `frame=(760,410,200x150)` before `ANCHOR_ARMED`) yet nothing re-anchors it. It is not "intended behaviour for a resize that arrives late", because the corrector exists exactly for that case and works when the resize lands after it is armed.
+The late-resize mis-centre of section 2.1 **is a BUG, for centre and for bottom-right**. Reason: the README promises correct anchoring for the final size and a one-second corrector; the logs show the window's final size is known to the extension (the `UNCLOAK` event reports `frame=(760,410,200x150)` before `ANCHOR_ARMED`) yet nothing re-anchors it. It is not "intended behaviour for a resize that arrives late", because the corrector exists exactly for that case and works when the resize lands after it is armed.
 
 ### 6.5 Margin to the 30 ms quiet window, `placement/center-1200x800`
 
@@ -793,7 +795,7 @@ Where the timer starts: CONFIRMED (code).
 - In `check()` (`commit.js:68-97`) the `initial` sample starts no timer. The quiet timer is started on the first `allocation` sample whose size is unchanged while the idle timer is still active (`commit.js:93-96`). It runs 30 ms from that allocation sample, not from the initial one.
 - In the failing run 30 the allocation sample was at +51.14 ms and `COMMIT_RESOLVED SIZE_SETTLED` at +81.99 ms (30.85 ms later), as the code predicts.
 
-Is about 26 ms safe? By luck, not by design. CONFIRMED that it is not enforced; mechanism HYPOTHESIS.
+Is about 26 ms safe? **By luck, not by design.** CONFIRMED that it is not enforced; mechanism HYPOTHESIS.
 
 - Nothing in the code orders a pending `size-changed` ahead of an expired timer: whichever the main loop dispatches first wins.
 - A sample at 26 ms leaves 4 ms of slack, 16 of 49 samples were in 25 to 35 ms, and two samples at 30.8 and 32.8 ms were still processed before the 30 ms timer fired. That shows the timer callback itself can run late.
@@ -857,7 +859,7 @@ Per-run values:
   - No test was run with a real non-zero minimum reported by the Shell (none exists on GNOME 46).
   - Only zenity (GTK4) and the winit fixture were probed; GTK3, Qt and Electron apps were not.
   - 6.5 and 6.6 were measured with the fixture started through `spawn-at` rather than through `spawn-at-verify run`.
-- Status: not verified.
+- Status: **not verified**.
 
 ### 6.10 Placement resize specs: set, loader rule and live results (2026-10-12)
 

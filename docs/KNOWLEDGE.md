@@ -21,8 +21,8 @@ Last reorganised: 2026-10-21.
 ### Backends
 
 - The neutral command layer talks only to `CompositorBackend`. `gnome::mechanics` is used from production code only inside the GNOME driver. Source: `docs/DESIGN_PLATFORMS.md`, "8. Findings worth remembering".
-- Backend choice: a forced `SPAWN_AT_BACKEND=x11` or `sway`; otherwise GNOME if `XDG_CURRENT_DESKTOP` has GNOME and D-Bus connects; otherwise X11. Sway is never selected automatically. Source: `docs/DESIGN_SWAY.md`, "7. Selection: never automatic".
-- Non-GNOME Wayland, or an unknown session, with no forced backend is an error (`registry::unsupported`, `src/platform/linux/registry.rs:83`). It first shipped in v0.2.0-beta.5: `git show v0.2.0-beta.4:src/platform/linux/registry.rs` has no `unsupported`, beta.5 has it (checked 2026-10-21). A real X11 session on any desktop still gets X11. Source: `CHANGELOG.md`, "[0.2.0-beta.5] Changed".
+- Backend choice: a forced `SPAWN_AT_BACKEND=x11` or `sway`; otherwise GNOME if `XDG_CURRENT_DESKTOP` has GNOME and D-Bus connects; otherwise X11. **Sway is never selected automatically.** Source: `docs/DESIGN_SWAY.md`, "7. Selection: never automatic".
+- Non-GNOME Wayland, or an unknown session, with no forced backend **is an error** (`registry::unsupported`, `src/platform/linux/registry.rs:83`). It first shipped in v0.2.0-beta.5: `git show v0.2.0-beta.4:src/platform/linux/registry.rs` has no `unsupported`, beta.5 has it (checked 2026-10-21). A real X11 session on any desktop still gets X11. Source: `CHANGELOG.md`, "[0.2.0-beta.5] Changed".
 - `install.sh` asks first on an unsupported desktop and sets `SPAWN_AT_BACKEND=x11` on the installer child only. Source: `docs/DESIGN_PLATFORMS.md`, "3. Where platform assumptions leak", Leak 11.
 - The login autostart entry runs `<binary> update --check --headless`. `main.rs` returns from `Commands::Update` before `init_backend()`, so it needs no backend and its content does not depend on the desktop. Evidence: `src/config.rs` (`autostart_entry_content`), `tests/unsupported_desktop_cli_test.rs`. Recorded 2026-10-15.
 - The Sway backend is `src/platform/linux/sway/` (`ipc`, `types`, `command`, `matching`, `client`, `place`, `mod`). It uses `std` sockets and the `serde_json` already present, no new dependency. Source: `docs/DESIGN_SWAY.md`, "8. IPC" and "12. Implementation status".
@@ -54,7 +54,7 @@ Last reorganised: 2026-10-21.
 ## Install and release
 
 - The version comes from the git tag at build time (`build.rs`, `git describe --tags --exact-match`). An exact tag prints `spawn-at <version>`; otherwise the binary prints `DEV BUILD`. Source: the contributor rules, "Versions and releases".
-- `install.sh` is fetched from `main`, so a merge ships it at once. Binary changes ship with the next tag. Source: `CHANGELOG.md`, "[0.2.0-beta.3]" intro.
+- `install.sh` is fetched from `main`, so **a merge ships it at once**. Binary changes ship with the next tag. Source: `CHANGELOG.md`, "[0.2.0-beta.3]" intro.
 - A tag containing `-` makes `release.yml` publish a pre-release.
 - `spawn-at update` picks the release asset named for its own target triple (`SPAWN_AT_TARGET`, `src/update.rs:585`). Source: `CHANGELOG.md`, "[0.2.0-beta.4] Changed".
 - The update channel `all` is a deprecated alias of `beta` (`src/update.rs:106`).
@@ -73,7 +73,7 @@ Last reorganised: 2026-10-21.
 
 ### Running and counting
 
-- `node --test tests/*.js` includes the installer test that runs `install.sh` against a stand-in curl and `spawn-at`. A rule of "never execute `install.sh`" therefore also rules out running that file locally. CI runs it. Recorded 2026-10-18.
+- `node --test tests/*.js` includes the installer test that runs `install.sh` against a stand-in curl and `spawn-at`. A rule of "never execute `install.sh`" therefore also **rules out running that file locally**. CI runs it. Recorded 2026-10-18.
 - Run `spawn-at-verify` per binary, not as a bare workspace number: `cargo test -p spawn-at-verify --features tui,fixture` (5 tests stay ignored). Counts: `docs/TEST_PLAN.md`, section 1.1.
 - Count tests with `cargo test --locked -p <crate> [--features ...] -- --list`, which runs nothing (`--ignored` lists the ignored ones). For Node, run one `node --test` per `tests/*_test.js`, because `node --test tests/*.js` also counts the helper `tests/gi_loader.js` as 1 test. Recorded 2026-10-20.
 - The test counts appear in `docs/TEST_PLAN.md` section 1.1 and in `docs-site/src/content/docs/testing.md`. Nothing else should quote them.
@@ -82,7 +82,7 @@ Last reorganised: 2026-10-21.
 
 - A proof set is: sorted test names per binary, `--help` of every subcommand, sha256 of goldens and vectors, and the 48-case fake-curl installer matrix. If `scratch/baseline_platform/compare.sh` (gitignored, on the author's machine) does not print PASS, the step is not behavior-preserving. Source: `docs/REFACTOR_PROOFS.md`.
 - A split is a pure move if a normalised `comm -23` and `comm -13` of old and new lines show only re-wrapped lines, imports, `mod` lines and new headers. Source: `docs/REFACTOR_PROOFS.md`, "Proving a split is a pure move".
-- The live GNOME suites and the ignored tests are not covered by the proofs. The owner must run them before a release that contains a refactor.
+- The live GNOME suites and the ignored tests are **not covered by the proofs**. The owner must run them before a release that contains a refactor.
 
 ### Sway tests
 
@@ -120,11 +120,11 @@ Last reorganised: 2026-10-21.
 - The update cache (`last_check_time`, `cached_*_version`) lives in the `[update]` table of the user's config file, so moving it would change where config keys live. `update --check` in a terminal no longer saves it (#49); `update`, `update --headless` and the silent `--check --headless` do. Recorded 2026-10-18.
 - The binary embeds its commit or tag. After every commit run `cargo build -p spawn-at` before a verify batch, or preflight blocks it as `Stale binary`. Source: `verify/README.md`, "4. Preflight Gate & Binary Freshness".
 - Spawning a GNOME D-Bus stub on the same zbus connection as the client hangs unless `ProtocolVersion` is read before the first method call (`gnome/tests_control.rs`, `driver_for`).
-- `spawn --focus`, `--no-focus` and `--defocus` are parsed but never read: `run_spawn_with` always uses `FocusIntent::Exclusive`, pinned by `test_spawn_focus_modifiers_have_no_effect_today`.
+- `spawn --focus`, `--no-focus` and `--defocus` are **parsed but never read**: `run_spawn_with` always uses `FocusIntent::Exclusive`, pinned by `test_spawn_focus_modifiers_have_no_effect_today`.
 - Bash holds a trap back while a foreground child runs, so a wrapper script must run the child in the background and `wait`.
 - `run_spawn_with` is one function of about 550 lines (`src/commands/spawn.rs:90-642`, 2026-10-21). Splitting it was a prerequisite for a second ready-signal model. Source: `docs/DESIGN_PLATFORMS.md`, "8. Findings worth remembering".
-- Sway `--no-wait` still waits for the placement, because the pipeline awaits `post_spawn` in every mode, and `post_spawn` waits a fixed 5 s. Only the first entry of a batch is placed (the X11 driver does the same). Source: `docs/DESIGN_SWAY.md`, "12. Implementation status".
-- `escalate.rs` has macOS and Windows branches that have never been run. They are compiled: CI `check-other-os` runs `cargo check --locked --workspace` for `x86_64-pc-windows-gnu`, `x86_64-apple-darwin` and `aarch64-apple-darwin`. Corrected 2026-10-16: an older entry said "never been compiled".
+- Sway `--no-wait` **still waits for the placement**, because the pipeline awaits `post_spawn` in every mode, and `post_spawn` waits a fixed 5 s. Only the first entry of a batch is placed (the X11 driver does the same). Source: `docs/DESIGN_SWAY.md`, "12. Implementation status".
+- `escalate.rs` has macOS and Windows branches that **have never been run**. They are compiled: CI `check-other-os` runs `cargo check --locked --workspace` for `x86_64-pc-windows-gnu`, `x86_64-apple-darwin` and `aarch64-apple-darwin`. Corrected 2026-10-16: an older entry said "never been compiled".
 - xtask tests that write a script and then run it must not run in parallel: a child forked while the script is still open for writing gives "Text file busy" (os error 26) on exec. `docs_cli.rs` serializes them with `SCRIPT_LOCK` (2026-10-16).
 
 ### rustdoc
@@ -138,7 +138,7 @@ Last reorganised: 2026-10-21.
 - `autogenerate` cannot sit on a group directly (since Starlight 0.39): use `items: [{ autogenerate: { directory } }]`.
 - `markdown.smartypants: false` still works in Astro 7.4.0 but prints a deprecation warning. With it on, the two hyphens of `--pivot` become an en dash, which `docs-check-html` catches.
 - `npm ci --ignore-scripts` is enough to build. mdBook has no link checker, so `docs-check-html` checks internal links and `#id`s without network.
-- GFM splits a table cell at every `|` without a backslash, even inside a code span, so write `\|` in code in a table row. Three rows of `docs/` lost cells this way until PR 67 (2026-10-19), and `docs-check-src` does not catch it.
+- GFM splits a table cell at every `|` without a backslash, even inside a code span, so write `\|` in code in a table row. Three rows of `docs/` lost cells this way until PR 67 (2026-10-19), and **`docs-check-src` does not catch it**.
 - Markdown inside raw HTML renders only when blank lines surround it. Converting a table in the built HTML, as `records.mjs` does, avoids writing such wrappers from the mirror.
 
 ### Documentation site: styling
@@ -163,7 +163,7 @@ Measured with Chrome 153 and Linux fallback fonts, 2026-10-19 to 2026-10-21.
 - Release binary size as a refactor gate: moving code changes codegen units and inlining, so size moves by bytes to kilobytes with no behavior change (step 2: +21,792 bytes in `.text`; one comment line: 264 bytes). It is informational only. Source: `docs/REFACTOR_PROOFS.md`, "The release binary size is not a gate".
 - Reading "the crate cannot compile off Linux" from code alone was history. Migration step 1 fixed it, and `cargo check` for three targets checks it. Source: `docs/DESIGN_PLATFORMS.md`, "8. Findings worth remembering" (stale on this point); `CHANGELOG.md`, "[0.2.0-beta.3] Changed".
 - The X11 flicker experiments (pixel probe, pre-map resize, hold-the-cloak, sync counter, `LD_PRELOAD` shim) are not in the tree, but the commits are in the history of `main`. `archive/x11-experiments` (tip `673e6f2`, 2026-10-14) is an ancestor of `origin/main` (`git merge-base --is-ancestor`, checked 2026-10-21), and `x11_probe.js` and `x11_premap.js` are deleted from `assets`. Only the branch name is local and unpushed. Data: `docs/TEST_LOG.md`, 6.23 to 6.35.
-- The XWayland flash rate of the old rule on the test window depends on the login: 1 of 10 (`TEST_LOG.md` 6.17), 9 of 10 and 10 of 10 (6.18). The log's explanation is a hypothesis, and it says to treat XWayland as flashing. Do not quote 1 of 10 alone.
+- The XWayland flash rate of the old rule on the test window depends on the login: 1 of 10 (`TEST_LOG.md` 6.17), 9 of 10 and 10 of 10 (6.18). The log's explanation is a hypothesis, and it says to treat XWayland as flashing. **Do not quote 1 of 10 alone.**
 
 ## Open questions
 
