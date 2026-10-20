@@ -93,6 +93,24 @@ header.header {
   text-underline-offset: 0.2em;
 }
 
+/* Code in a heading. Starlight sets `font-size: inherit` there, so a piece of code is as many pixels
+   as the heading text; but a monospace face is wider (the code in a 35px heading was 4% to 13%
+   wider per character than the text next to it, measured with Chrome 153 and the fallback fonts of
+   a Linux machine) and the chip adds 2px and 6px of padding, so it looked larger than the words
+   around it. 0.9em makes the code about 7% narrower per character than the heading text and about
+   10% lower in x-height there, so it is never larger; a monospace face with a wider advance than
+   that one still comes out near the width of the text. A long heading is balanced so that it does
+   not leave one short word on the last line, and may break inside a piece that is longer than the
+   line; nothing is inserted, so what a reader copies is the heading as written. */
+.sl-markdown-content :is(h1, h2, h3, h4) code {
+  font-size: 0.9em;
+}
+.sl-markdown-content :is(h1, h2, h3, h4),
+h1#_top {
+  text-wrap: balance;
+  overflow-wrap: break-word;
+}
+
 /* Code blocks keep their own horizontal scroll; the page never scrolls sideways. A long
    `curl ... | bash` line scrolls inside the block. */
 .expressive-code,
