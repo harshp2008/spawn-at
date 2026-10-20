@@ -71,7 +71,9 @@ The GNOME Wayland contract, from `DESIGN_PLATFORMS.md` section 7:
 
 ## How a change is made
 
-These are the project's contributor rules.
+These are the project's contributor rules. They are written in `CLAUDE.md` in the repository root;
+`CONTRIBUTING.md` holds the architecture reference, a guide to adding a backend, and the cargo
+commands, not these rules.
 
 - Start every change from an up-to-date `main`. One commit per step, with a conventional message
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`). Update doc counts in the same
