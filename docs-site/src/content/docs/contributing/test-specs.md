@@ -89,9 +89,11 @@ A `[matrix]` block makes several tests from one file. Each combination gets the 
 
 A spec with `schema_version = 2` can start its own fixture windows with `[[setup]]`, run more actions
 with `[[then]]`, and assert with `[[check]]`. It names a window only as `--id ${name}`, where `name`
-is a setup it declared. A spec with a `[[setup]]` must carry the tag `moves-focus`, because a new
-window takes focus. The `quick` suite leaves that tag out. The loader refuses a literal id, `-c`, `-t`, `--pid` and
-`--focused`, so a spec cannot name a window the runner did not create. The full example and the list of rules are in
+is a setup it declared. The loader refuses a literal id, `-c`, `-t`, `--pid` and `--focused`, so a
+spec cannot name a window the runner did not create.
+
+A spec with a `[[setup]]` must carry the tag `moves-focus`, because a new window takes focus. The
+`quick` suite leaves that tag out. The full example and the list of rules are in
 `verify/README.md` (section 2, "Version 2 specs"), and the reasons are in
 [Design: tests of an existing window](/spawn-at/project/design-runner-setup/).
 

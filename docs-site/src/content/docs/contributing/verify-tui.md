@@ -116,18 +116,18 @@ A test that is not `both` closes its window when its automatic part ends.
 
 ## Read a result
 
-- **Geometry.** GEOMETRY compares the expected rectangle from the oracle with the actual one. The
+- Geometry. GEOMETRY compares the expected rectangle from the oracle with the actual one. The
   oracle is an independent arithmetic model of anchor, pivot and margin.
-- **Trace.** The Trace row says `clean, no violations` when the extension's log shows one reveal, the
+- Trace. The Trace row says `clean, no violations` when the extension's log shows one reveal, the
   cloak before it, and no size or position change after it. When the log holds no event for the
   window, it says `not analysed (no trace captured)`, with a Reason row, and the test ends as
   `Pass (trace unchecked)`. That is not a clean pass.
-- **Flash.** A placement that is right but showed the window before the app had painted its final
+- Flash. A placement that is right but showed the window before the app had painted its final
   size ends as `PASS (flash)`. No pixels are captured, so a clean result means no late paint or move
   was found. See [Findings](/spawn-at/findings/).
-- **Cloak and Budget.** The cloak time is the extension's reveal minus its cloak. The budget row
+- Cloak and Budget. The cloak time is the extension's reveal minus its cloak. The budget row
   compares it with a provisional 100 ms and is advice, not a pass or fail rule.
-- **Timeline.** For the specs of existing windows, the extension's own log lines for the windows the
+- Timeline. For the specs of existing windows, the extension's own log lines for the windows the
   run opened, with the milliseconds since the first line of each action. Lines of other windows are
   dropped.
 

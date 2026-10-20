@@ -31,10 +31,11 @@ preflight check blocks the run as a stale binary.
 
 The first four `cargo` rows are what CI runs. The `node --test` row lists the 12 `*_test.js` files by
 name. CI runs `node --test tests/*.js` instead, which also runs the 3 tests of
-`tests/install_unsupported_test.js`. These **run only in CI**: they execute `install.sh` against a
-stand-in `curl`, a stand-in `spawn-at` and a temporary `HOME`, and the project does not run the
-installer script on a development machine. That glob also counts the helper `tests/gi_loader.js` as
-one more test.
+`tests/install_unsupported_test.js`.
+
+Those 3 tests **run only in CI**. They execute `install.sh` against a stand-in `curl`, a stand-in
+`spawn-at` and a temporary `HOME`, and the project does not run the installer script on a
+development machine. The glob also counts the helper `tests/gi_loader.js` as one more test.
 
 ## What is tested, in layers
 
@@ -83,17 +84,17 @@ The counts per binary and per module are in [Test plan](/spawn-at/project/test-p
 `spawn-at-verify` is a developer-only crate, never in the release package. It drives the built
 `spawn-at` binary through its command line only. A test is a TOML file under `verify/<category>/`.
 
-- **Placement.** The expected rectangle comes from an independent arithmetic oracle that follows the
+- Placement. The expected rectangle comes from an independent arithmetic oracle that follows the
   documented meaning of anchor, pivot and margin, not the implementation. If the oracle and
   `spawn-at` disagree, the failure is reported; the oracle is not changed to fit.
-- **Cloak and trace.** From the extension's structured log: the window stays invisible between its
+- Cloak and trace. From the extension's structured log: the window stays invisible between its
   map and its reveal, the reveal happens once, and no cloak lingers. These checks read the GNOME
   extension's log and do not exist on Sway or X11. The cloak is explained in
   [Concepts](/spawn-at/concepts/#cloak-and-waiting-for-the-app).
-- **Flash.** Computed from the test window's own paint events against the extension's reveal. No
+- Flash. Computed from the test window's own paint events against the extension's reveal. No
   pixels are captured. See [Findings](/spawn-at/findings/) for what it can and cannot say.
-- **Resize outcomes** for awkward apps: `reached`, `adjusted`, `timed-out`, `skipped`.
-- **Existing windows** (`schema_version = 2` specs): the runner starts its own test window, acts on
+- Resize outcomes for awkward apps: `reached`, `adjusted`, `timed-out`, `skipped`.
+- Existing windows (`schema_version = 2` specs): the runner starts its own test window, acts on
   it by the id it recorded, checks the result, and tears everything down.
 
 A test's `kind` is `auto` (automated assertions), `human` (a person looks) or `both`. A `both` test
@@ -120,6 +121,7 @@ is given.
 A build from uncommitted changes is flagged dirty, and **a dirty build can never qualify an
 environment**. The qualification block of the report counts the required tests as passed, failed,
 pending and skipped, apart from each other. Pending means still waiting for a human verdict.
+
 `supported` is true only when every required test passed. When nothing failed and no required test
 was skipped, but some are pending, `report.md` shows a PENDING badge. A failure or a required skip
 still shows NOT QUALIFIED.
