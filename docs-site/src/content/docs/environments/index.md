@@ -13,7 +13,7 @@ everyone. The exact limits of each row are on its own page.
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**; never run on a real GNOME 42 to 44 |
 | GNOME 45 and 47 or later | Untested. The extension's metadata lists 45 to 48, but only 46 has been run |
 | [Sway](/spawn-at/environments/sway/) | **Experimental**, opt-in with `SPAWN_AT_BACKEND=sway`. Run only against a private headless Sway 1.9 with the test window |
-| [X11 and XWayland (fallback)](/spawn-at/environments/x11-xwayland/) | Experimental driver, untested with real apps. No cloaking, so windows flash |
+| [X11 and XWayland (fallback)](/spawn-at/environments/x11-xwayland/) | Experimental backend, untested with real apps. No cloaking, so windows flash |
 | [Other Wayland desktops](/spawn-at/environments/unsupported-desktops/) (KDE, Hyprland, unknown) | Not supported. spawn-at exits with an error unless you opt in to the X11 fallback |
 | macOS, Windows | Not implemented. The code compiles for them in CI and has never been run |
 | Multi-monitor, fractional scaling | Untested on GNOME |
@@ -23,10 +23,10 @@ everyone. The exact limits of each row are on its own page.
 On Linux, in this order:
 
 1. `SPAWN_AT_BACKEND=x11` or `SPAWN_AT_BACKEND=sway` (any letter case, nothing trimmed) forces that
-   driver. Forcing Sway without a usable `$SWAYSOCK` is an error; it does not fall back.
-2. If `XDG_CURRENT_DESKTOP` contains `GNOME` and the D-Bus connection works, the GNOME driver. A
-   GNOME session whose D-Bus connection fails falls back to the X11 driver.
-3. A real X11 session on any desktop gets the X11 driver.
+   backend. Forcing Sway without a usable `$SWAYSOCK` is an error; it does not fall back.
+2. If `XDG_CURRENT_DESKTOP` contains `GNOME` and the D-Bus connection works, the GNOME backend. A
+   GNOME session whose D-Bus connection fails falls back to the X11 backend.
+3. A real X11 session on any desktop gets the X11 backend.
 4. Anything else, a non-GNOME Wayland session or an unknown session type, is an error that says the
    desktop is not supported.
 

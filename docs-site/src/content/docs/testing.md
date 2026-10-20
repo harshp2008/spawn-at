@@ -9,7 +9,7 @@ title: "Testing and the verify tool"
 | Rust unit and integration tests | Placement arithmetic, the CLI, command handlers against mock backends, the config commands, the installer logic | `cargo test`, in CI |
 | Golden vectors | `verify/golden/placement.json` and `tests/ready_wait_vectors/`, read by both Rust and JavaScript tests so the two implementations agree | in CI |
 | Node tests (`tests/*.js`) | The GNOME extension, loaded with mocked GNOME objects | `node --test tests/*.js`, in CI |
-| Scripted-server tests | The Sway driver against a scripted fake of Sway's IPC socket, and the GNOME driver against D-Bus stubs | in CI |
+| Scripted-server tests | The Sway backend against a scripted fake of Sway's IPC socket, and the GNOME backend against D-Bus stubs | in CI |
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 

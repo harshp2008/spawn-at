@@ -38,7 +38,7 @@ it is then placed using the size it ended up with.
 
 - **It can flash.** Sway has no way to hold a new window invisible until it is placed, so the window
   may show for one frame at its tiled position first. That one-frame flash is accepted for this
-  release and **has not been measured**. The design says why a flicker-free placement cannot be
+  release and **has not been measured**. The design says why a flash-free placement cannot be
   promised: a command sent from another process may land after the first frame.
 - **Unsupported commands:** `defocus`, `maximize`, `minimize`, `restore` and `query pointer` exit 1
   with a "does not support this feature" error and send nothing to Sway.

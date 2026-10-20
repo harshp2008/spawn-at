@@ -19,11 +19,11 @@ place and jump.
 Every desktop places windows its own way. On X11 any program can move any window, but only after
 the window is visible, so it flashes. On Wayland an application cannot place itself, and there is no
 standard way for another program to do it: each compositor has its own mechanism. spawn-at is one
-command and one placement model, with a separate driver for each desktop underneath.
+command and one placement model, with a separate backend for each desktop underneath.
 
 ## What it is not
 
-- **Not a guarantee of no flicker.** The GNOME driver removes most flashes in the measurements
+- **Not a guarantee of no flash.** The GNOME backend removes most flashes in the measurements
   that were made, not all of them. See [Findings](/spawn-at/findings/) for the numbers and their limits.
 - **Not tested widely.** Only GNOME Shell 46 on Wayland has been tested in earnest, on one machine.
   Everything else is untested or experimental. See [Environments](/spawn-at/environments/) and
@@ -41,7 +41,7 @@ This is the status of v0.2.1.
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
 - **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
-  Sway 1.9 with the project's test window. X11 and XWayland (the fallback driver): partly tested
+  Sway 1.9 with the project's test window. X11 and XWayland (the fallback backend): partly tested
   with the test window only, no cloaking, so windows can flash.
 - **Not implemented:** KDE, Hyprland, macOS and Windows. The macOS and Windows builds are
   compile-checked in CI and have never been run.
@@ -71,7 +71,7 @@ A binary that is not built from a release tag prints `DEV BUILD` for `spawn-at -
 | Know what is broken or unmeasured | [Known shortcomings](/spawn-at/shortcomings/) and [Findings](/spawn-at/findings/) |
 | Work on spawn-at | [Testing and the verify tool](/spawn-at/testing/), [Architecture and contributing](/spawn-at/contributing/), [Writing the docs](/spawn-at/contributing/writing-docs/), [API documentation](/spawn-at/rustdoc/) |
 
-Every page ends with a list of the files in the repository it was written from. Where this book
+Every page ends with a list of the files in the repository it was written from. Where this guide
 says something is "not verified", it means no test or run in the repository covers it.
 
 ## Sources

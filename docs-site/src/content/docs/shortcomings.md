@@ -29,7 +29,7 @@ Nothing here is a plan.
   and Electron apps:** untested. See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
 - **Sway:** a private headless 1.9 only; `defocus`, `maximize`, `minimize`, `restore`,
   `query pointer` unsupported; no i3. See [Sway](/spawn-at/environments/sway/).
-- **X11 driver:** no test touches an X server, and the tests named "supported on X11" pass on a
+- **X11 backend:** no test touches an X server, and the tests named "supported on X11" pass on a
   connection error. See [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 - **Windows, macOS:** not implemented; `cargo check` only. The macOS and Windows branches of the
   privilege-escalation code have never been run.
@@ -49,7 +49,7 @@ Nothing here is a plan.
 
 Test tooling reads the extension's timing log. A trace inventory of the extension
 (`docs/DESIGN_RUNNER_SETUP.md` section 5.5; the call sites were re-opened in
-`assets/gnome/modern/extension.js` for this book, for example `RAISE` and `ACTIVATE` at lines 1469
+`assets/gnome/modern/extension.js` for this guide, for example `RAISE` and `ACTIVATE` at lines 1469
 and 1472, `MINIMIZE` at 1756, `UNMINIMIZE` at 1763 and 1771, `WINDOW_CREATED` at 486 and `ACTOR_MAP`
 at 531; the `legacy/` extension has them at other lines) found:
 
@@ -60,7 +60,7 @@ at 531; the `legacy/` extension has them at other lines) found:
 - `WINDOW_CREATED` and `ACTOR_MAP` are logged for **every** window on the desktop, so anything that
   reads the log must filter by window id.
 
-So a flicker or ordering check can be made for `spawn` and `transform` on GNOME, only partly for
+So a flash or ordering check can be made for `spawn` and `transform` on GNOME, only partly for
 `focus` and `minimize`, and not at all for the rest.
 
 ## Limits of the flash measurement
