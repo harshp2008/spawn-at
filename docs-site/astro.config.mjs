@@ -147,7 +147,14 @@ export default defineConfig({
         {
           label: 'Developing',
           collapsed: true,
-          items: ['testing', 'contributing', 'contributing/writing-docs', 'changelog'],
+          items: [
+            'testing',
+            'contributing/verify-tui',
+            'contributing/test-specs',
+            'contributing',
+            'contributing/writing-docs',
+            'changelog',
+          ],
         },
       ],
     }),
