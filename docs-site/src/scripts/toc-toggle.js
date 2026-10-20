@@ -3,6 +3,8 @@
 // is applied before the first paint (no flash of the wrong layout). The layout itself is the CSS
 // in src/styles/toc-toggle.css, keyed on the attribute `data-toc-hidden` of <html>.
 // Without JavaScript nothing here runs: the attribute is never set and the button is never made.
+// The same file marks tables that fit their column with `data-fit` (src/styles/tables.css), because
+// CSS alone cannot make the grid of a `display: block` table fill its box.
 (function () {
   var KEY = 'spawn-at:toc-hidden';
   var root = document.documentElement;
@@ -28,6 +30,43 @@
   }
 
   apply(read());
+
+  // A table whose content fits its column becomes a real table at the column width. Tables start
+  // as Starlight's scrolling block; one whose content is not wider than its box (scrollWidth) is
+  // marked. All reads happen before all writes. A marked table that turns out wider than its
+  // parent is unmarked again, so it keeps its scrolling box and its scroll hint.
+  function fitTables() {
+    var tables = [].slice.call(document.querySelectorAll('.sl-markdown-content table'));
+    tables = tables.filter(function (t) {
+      return !t.closest('.not-content');
+    });
+    tables.forEach(function (t) {
+      t.removeAttribute('data-fit');
+    });
+    var fits = tables.filter(function (t) {
+      return t.scrollWidth <= t.clientWidth + 1;
+    });
+    fits.forEach(function (t) {
+      t.setAttribute('data-fit', '');
+    });
+    fits.forEach(function (t) {
+      if (t.parentElement && t.getBoundingClientRect().width > t.parentElement.clientWidth + 1) {
+        t.removeAttribute('data-fit');
+      }
+    });
+  }
+  var queued = false;
+  function queueFit() {
+    if (queued) return;
+    queued = true;
+    window.requestAnimationFrame(function () {
+      queued = false;
+      fitTables();
+    });
+  }
+  document.addEventListener('DOMContentLoaded', fitTables);
+  window.addEventListener('load', fitTables);
+  window.addEventListener('resize', queueFit);
 
   document.addEventListener('DOMContentLoaded', function () {
     var column = document.querySelector('.right-sidebar-container');
@@ -57,6 +96,7 @@
       apply(hidden);
       write(hidden);
       sync();
+      queueFit();
     });
     host.insertBefore(button, host.firstChild);
   });
