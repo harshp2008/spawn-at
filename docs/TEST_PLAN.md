@@ -1,5 +1,7 @@
 # spawn-at Test Library & Verification Plan
 
+**Status:** reference. The Rust counts of section 1.1 agree with `cargo test -- --list` per test binary on 2026-10-20; sections 5 to 7 are dated measurements.
+
 > Sections 6.10 to 6.35 (the dated experiment log) moved to [TEST_LOG.md](TEST_LOG.md). Every old heading stays below as a stub that links to its new place, so "TEST_PLAN 6.x" citations keep working.
 >
 > Paths under `scratch/` or `verify-results/` cited in this plan and in TEST_LOG.md are gitignored working files of the author's machine and are **not in the repository**: the numbers in the text are what is kept.
