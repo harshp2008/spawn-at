@@ -1,147 +1,165 @@
 # Behavior Notes: Coordinate Model, Reference Areas, and Monitor Defaults
 
-**Status:** reference. The tests and error messages it cites were checked against `src/` and `crates/spawn-at-core/` on 2026-10-20.
+Status: reference. Checked on 2026-10-20 against `src/`, `crates/spawn-at-core/`, the GNOME extension
+and `--help`. The tests it cites exist. Nothing here was run on a live session unless a line says so.
 
-This document describes the placement coordinate model, reference areas, unbounded mode rules, and monitor selection defaults implemented in `spawn-at` since v0.2.0.
+How spawn-at turns the placement options into a window rectangle, which monitor it uses when you do
+not name one, and when the extension animates a window.
 
----
+## 1. Reference areas
 
-## 1. Coordinate Model and Reference Areas
+The `--area` option picks the space that positions, margins and clamping refer to.
 
-In `spawn-at`, coordinates are evaluated relative to a chosen reference space:
+| `--area` | Coordinate space | `-p` / `-o` is relative to | Clamped | Diagnostic wording |
+| :-- | :-- | :-- | :-- | :-- |
+| `workarea` (default) | The target monitor's usable area, without panels, docks and top bars | The top-left corner of that area | Yes | "in the work area" |
+| `screen` | The whole target monitor | The top-left corner of the monitor | Yes | "on the screen" |
+| `unbounded` | The whole multi-monitor desktop, as in `GEOMETRY` of `query windows` | The desktop origin (0, 0) | Never; no margins | "on the desktop" |
 
-`Final Window Rect = f(Area, Anchor, Pivot, Offset/Pos, Size, Margins, Clamp)`
+With `--clamp true` (the default), the window's top-left corner is kept inside the area. The lowest
+allowed value is the area's top-left corner moved in by the left and top margins. The highest is the
+bottom-right corner moved in by the right and bottom margins, less the window's own size. The window
+is never resized.
 
-The `--area` option selects the coordinate space:
+A clamped request is reported like this:
 
-### `--area workarea` (Default)
-- **Coordinate Space**: The usable work area of the target monitor, excluding panels, docks, and top bars (e.g. Mutter `get_work_area_for_monitor`).
-- **Position (`-p` / `-o`)**: Relative to the raw top-left origin `(wa.x, wa.y)` of the target monitor's work area. No margins are added to the requested position.
-- **Clamping**: By default (`--clamp true`), the resulting window is clamped inside `[wa.x + ml, wa.y + mt]` to `[wa.x + wa.w - mr - win_w, wa.y + wa.h - mb - win_h]`.
-- **Diagnostics**: Reported as `"in the work area"` with corresponding screen coordinates in brackets (e.g., `Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]`).
+```text
+Requested (0, 0) in the work area; clamped to (16, 16) [screen (16, 56)]
+```
 
-### `--area screen`
-- **Coordinate Space**: The full physical boundary of the target monitor `(screen.x, screen.y, screen.w, screen.h)`.
-- **Position (`-p` / `-o`)**: Relative to the target monitor's raw top-left corner `(screen.x, screen.y)`.
-- **Clamping**: By default (`--clamp true`), the resulting window is clamped inside the physical screen minus margins `[screen.x + ml, screen.y + mt]` to `[screen.x + screen.w - mr - win_w, screen.y + screen.h - mb - win_h]`.
-- **Diagnostics**: Reported as `"on the screen"` with screen coordinates.
+## 2. Position flags and anchors
 
-### `--area unbounded`
-- **Coordinate Space**: The global multi-monitor desktop layout (the exact same global coordinates as reported by `GEOMETRY` in `spawn-at query windows`).
-- **Position (`-p` / `-o`)**: Absolute desktop coordinates `(X, Y)`.
-- **Clamping & Margins**: Disabled completely. No margin, no border, and no clamp are applied by `spawn-at`.
-- **Diagnostics**: Reported as `"on the desktop"`.
+### Without an anchor
 
----
-
-## 2. `-p` / `-o` vs. Anchors
-
-### Without `--anchor`
-- The reference origin is the chosen area's **raw top-left corner** (`wa.x, wa.y` for workarea, `screen.x, screen.y` for screen, `(0, 0)` for unbounded).
-- Margins (`-m`, `--mt`, etc.) are **not** added to the requested position. They only define the bounds if clamping occurs.
+- The origin is the area's raw top-left corner.
+- Margins are not added to the requested position. They only set the clamp bounds.
 - The default pivot is `top-left`.
-- Example: With work area `1920x1040@(0,40)` and margin 16:
-  - `-p 700 300` &rarr; screen position `(700, 340)`.
-  - `-p 0 0` &rarr; requested `(0, 0)` in work area; clamped to margin 16 &rarr; screen position `(16, 56)`.
 
-### With `--anchor`
-- The anchor point itself accounts for directional margins (e.g., `top-left` is `(wa.x + ml, wa.y + mt)`).
-- `-p` / `-o` acts as an offset delta relative to that anchored point.
-- The pivot defaults to the anchor's natural alignment (e.g., `center` &rarr; `center`, `bottom-right` &rarr; `bottom-right`, `cursor` &rarr; `top-left`).
-- Existing anchor test vectors remain completely preserved and backward-compatible.
+Example: a work area of 1920x1040 at (0, 40) and a margin of 16.
 
----
+| Flags | Screen position |
+| :-- | :-- |
+| `-p 700 300` | (700, 340) |
+| `-p 0 0` | (16, 56): the request (0, 0) is clamped to the margin |
 
-## 3. Unbounded Mode Rules and Validation
+### With an anchor
 
-Unbounded mode provides raw coordinate access across the multi-monitor desktop.
+- The anchor point already includes the directional margins. `top-left` is the area's corner moved in
+  by the left and top margins.
+- `-p` / `-o` is an offset from that point.
+- The pivot defaults to the anchor's own alignment: `center` gives `center`, `bottom-right` gives
+  `bottom-right`, and `cursor` gives `top-left`.
 
-### Allowed Arguments
-- `-p, --pos <X> <Y>` / `-o, --offset <X> <Y>`
-- `--pivot <PIVOT>`
-- `-s, --size <W> <H>`
-- `--anchor cursor` (places relative to cursor coordinates)
+## 3. Unbounded mode
 
-### Disallowed Arguments (Immediate Validation Errors)
-- Any other `--anchor` (e.g. `--anchor center`, `--anchor top-left`):
-  `"Cannot specify --anchor (except --anchor cursor) with --area unbounded."`
-- `--clamp`:
-  `"Cannot specify --clamp with --area unbounded: unbounded mode is never clamped."`
-- Margins (`-m`, `--margin-top`, `--margin-bottom`, `--margin-left`, `--margin-right`):
-  `"Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded: unbounded mode has no margins."`
-- `--monitor`:
-  `"Cannot specify --monitor with --area unbounded: unbounded mode uses global desktop coordinates."`
-*(Pinned by: `src/cli/tests.rs::test_unbounded_allowed_and_rejected_options`)*
+Unbounded mode gives raw coordinates across the whole desktop.
 
-### Batch Dispatch and Extension Parity
-- Unbounded mode is expressed on the wire (D-Bus instruction payload) as `area` omitted (`None`) plus `clamp: false`. This avoids unknown-area validation rejections in existing extensions while ensuring `anchor.js` completely bypasses bounds checking and margin clamping (`x = rawX`, `y = rawY`).
-*(Pinned by: Rust golden test `src/platform/linux/gnome/mechanics.rs::test_golden_transform_batch_unbounded_instructions` and Node dispatcher test `tests/dispatcher_test.js::"dispatcher: executes Rust golden unbounded transform instruction pipeline without clamp"`)*
+Allowed options: `-p` / `-o`, `--pivot`, `-s` / `--size`, and `--anchor cursor`.
 
-### Straddling Monitors
-When a window's target geometry spans multiple monitors in unbounded mode:
-- `spawn-at` prints an `INFO` diagnostic indicating that the window straddles monitors (naming the intersecting monitors).
-- Coordinates are never altered or snapped.
-*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_window_straddles_monitors_helper`)*
+Every other option that bounds the window is refused before anything runs:
 
-### Mutter Compositor Boundaries
-- Mutter enforces an internal minimum visibility constraint (approximately 75px of the window surface must remain on an active monitor). If an unbounded coordinate places a window almost entirely off-screen, Mutter snaps the window back just enough to maintain this minimum visible handle.
-- **Observed on**: GNOME Shell 46, Wayland, single monitor.
-- **Other environments**: X11 and other GNOME/Mutter versions are unknown.
-- The CLI reports the real final position and explains that the compositor adjusted it (`INFO: Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility.`).
-*(Pinned by: `src/diagnostics.rs::test_diagnostic_unbounded_compositor_adjustment`)*
+| Option | Error |
+| :-- | :-- |
+| Any other `--anchor` | `Cannot specify --anchor (except --anchor cursor) with --area unbounded.` |
+| `--clamp` | `Cannot specify --clamp with --area unbounded: unbounded mode is never clamped.` |
+| Margins | `Cannot specify margins (-m, --mt, --mb, --ml, --mr) with --area unbounded: unbounded mode has no margins.` |
+| `--monitor` | `Cannot specify --monitor with --area unbounded: unbounded mode uses global desktop coordinates.` |
 
----
+### On the wire
 
-## 4. Monitor Selection Defaults
+The instruction sent to the extension has no `area`, zero margins and `clamp: false`. The extension's
+anchor code then skips its bounds check and uses the raw coordinates.
 
-When `--monitor` is omitted:
+### Straddling monitors
 
-1. **`spawn` Command**:
-   - Defaults to the primary monitor (the monitor flagged `primary: true` in `MonitorLayout`).
-   - If no monitor is flagged primary, falls back to index `0` and prints a `DEBUG` line on stderr (`src/commands/spawn.rs`, `render_debug`): `[spawn-at] DEBUG: No monitor flagged primary; falling back to monitor index 0.`.
-   - If `--anchor cursor` is specified, uses the monitor containing the current cursor position.
-*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero` and `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back`)*
+If the final rectangle overlaps two or more monitors, `spawn` and `transform` print the INFO line
+`Window straddles monitors.` They never move or snap the window.
 
-2. **`transform` Command**:
-   - Defaults to the window's **current monitor**, specifically the monitor with the largest pixel overlap area with the window's current rectangle.
-   - If the window does not overlap any monitor (e.g. positioned off-screen), falls back to the primary monitor.
-*(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_find_monitor_with_largest_overlap`)*
+### Mutter keeps part of the window visible
 
----
+If an unbounded coordinate puts a window almost entirely off-screen, Mutter moves it back so a small
+part stays visible. The CLI reports the real final position and says the compositor adjusted it:
 
-## 5. Query Windows and Round-Trip Equivalence
+```text
+INFO: Window at (-292, 100) [367x514]; compositor adjusted position from requested (-320, 100) to maintain visibility.
+```
 
-In `spawn-at query windows`:
-- `GEOMETRY` always displays global screen coordinates `(X, Y)`.
-- `REL` displays the position relative to the window's current monitor's work area by default.
-- `query windows --area screen`: `REL` displays the position relative to the window's current monitor's full screen rectangle.
-- `query windows --area unbounded`: `REL` repeats the `GEOMETRY` desktop coordinates.
-- JSON output includes `x`, `y`, `rel: { x, y }`, and `"area"`.
-*(Pinned by: `src/commands/query.rs::test_query_windows_json_rel_and_area_fields` and `src/commands/query.rs::test_query_windows_unbounded_repeats_geometry`)*
+This was reported as observed on GNOME Shell 46, Wayland, one monitor, but the repository holds no
+log of that run. In the example above 75 px stay visible (the window is 367 px wide and ends at
+x = 75). Whether 75 px is Mutter's fixed limit is not verified. X11 and other GNOME versions are
+unknown.
 
-### Round-Trip Guarantee
-Reading the `REL` values from `query windows` and passing them to `transform -p X Y` reproduces the exact same screen position:
-1. **Workarea Mode**: `query windows` (REL `(X, Y)`) &rarr; `transform -p X Y` &rarr; same position.
-2. **Screen Mode**: `query windows --area screen` (REL `(X, Y)`) &rarr; `transform --area screen -p X Y` &rarr; same position.
-3. **Unbounded Mode**: `query windows --area unbounded` (REL / GEOMETRY `(X, Y)`) &rarr; `transform --area unbounded -p X Y` &rarr; same position.
-*(Pinned by: `src/commands/query.rs::test_query_windows_round_trip_all_area_modes` and `crates/spawn-at-verify/tests/oracle_cross_check.rs::test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check`)*
+## 4. Monitor choice without `--monitor`
 
----
+| Command | Monitor used |
+| :-- | :-- |
+| `spawn` | The monitor flagged primary. If none is flagged, monitor index 0, and a `DEBUG` line on stderr: `No monitor flagged primary; falling back to monitor index 0.` |
+| `transform` | The monitor with the largest pixel overlap with the window. If the window overlaps none, the monitor at the window's own monitor index, else the first one. |
 
-## 6. Window Animation Behavior per Command
+`--monitor cursor` picks the monitor under the pointer, and falls back to the primary monitor when
+the pointer is outside all monitors. `--anchor cursor` alone does not change the monitor: with a
+readable layout, `spawn` still clamps to the primary monitor's area. This is read from the code, not
+run.
 
-The GNOME Shell extension manages window transitions to balance native desktop feel with flicker-free programmatic placement:
+## 5. `query windows` and the round trip
 
-| Command / Operation | Animation Behavior | Code Mechanism & Rationale |
-| :--- | :--- | :--- |
-| `spawn-at minimize` | **Plays normal animation** (shrinks into dock / panel) | Invokes `MetaWindow.minimize()` without adding the actor to the window manager's skipped-effects set (`Main.wm.skipNextEffect` / `_skippedActors`), allowing Clutter/Mutter animation transitions to run smoothly. |
-| `spawn-at restore` / `unminimize` | **Plays normal animation** (zooms back from dock) | Invokes `MetaWindow.unminimize()` without animation suppression. |
-| `spawn-at transform` on minimized window | **Animation deliberately suppressed** (no jump / dock glide) | Deliberately calls `_skipWindowEffects(ctx.actor)` prior to `unminimize()`. This adds the actor to `Main.wm._skippedActors` and resets transitions/scale/pivot, ensuring the window appears directly at the newly computed target geometry without visual gliding. The skip entry is consumed on unminimize and defensively cleaned via `_clearSkippedEffects` in unminimize, batch error, and `disable()` paths, ensuring `_skippedActors` is never poisoned for subsequent commands. |
-| `spawn-at transform` on covered window | **Plays normal focus transitions** | Covered windows are raised and focused while cloaked (`_focusWindowObject`) without suppressing animations. |
-| Window resizes (`SetSize` / `transform -s`) | **Plays normal resize transitions** | Normal resizing animation behavior is preserved; `_skipWindowEffects` is not invoked. |
+`GEOMETRY` is always the global screen position. `REL` depends on `--area`:
 
-### Logging Parity Invariant
-- Actor operations and window animations are **strictly identical** whether telemetry logging is enabled (`SetLogging(true)`) or disabled (`SetLogging(false)`).
-- Trace hooks (`_logActorTrace`, `logTime`) are strictly read-only observers that inspect properties without altering transitions, scale, opacity, or the compositor's skipped-effects set.
-*(Pinned by: Node parity tests `tests/dispatcher_test.js::"dispatcher (modern): actor operation sequences are identical with logging on and off across all scenarios"` and `tests/legacy_dispatcher_test.js::"dispatcher (legacy): actor operation sequences are identical with logging on and off across all scenarios"`)*
+| `--area` | `REL` |
+| :-- | :-- |
+| `workarea` (default) | Position relative to the work area of the window's monitor |
+| `screen` | Position relative to the whole monitor |
+| `unbounded` | The same as `GEOMETRY` |
 
+The JSON has `x`, `y`, `rel` (with `x` and `y`) and `area` for each window. A window with no monitor
+gets `null` for `rel` and `area`.
+
+Passing the `REL` values of a window that lies inside its area back to `transform` reproduces its
+position, in all three modes:
+
+| Mode | Steps |
+| :-- | :-- |
+| Work area | `query windows`, then `transform -p X Y` |
+| Screen | `query windows --area screen`, then `transform --area screen -p X Y` |
+| Unbounded | `query windows --area unbounded`, then `transform --area unbounded -p X Y` |
+
+The test uses one window at (700, 300) on one monitor. A window partly outside its area would be
+clamped by `transform`.
+
+## 6. Window animation per command
+
+The GNOME extension keeps the desktop's own animations where it can and suppresses them where a
+glide would look like a flicker. This is read from the extension code; the animations were not
+observed on screen.
+
+| Command | Animation | Reason |
+| :-- | :-- | :-- |
+| `minimize` | Normal (the window shrinks to the dock) | A plain minimize, with no effects skipped |
+| `restore`, `unminimize` | Normal (the window grows back) | A plain unminimize |
+| `transform` on a minimized window | Suppressed: the window appears at its target | Effects are skipped around the unminimize |
+| `transform` on a covered window | Normal focus transition | The window is raised and focused while cloaked |
+| `transform -s` | Normal resize transition | Effects are not skipped |
+
+To suppress the animation, the extension adds the window's actor to the window manager's
+skipped-effects set and resets its transitions, scale and pivot. The entry is removed right after the
+unminimize. It is also cleared when a batch fails and when the extension is disabled, so the set never
+keeps an actor for a later command.
+
+### Logging does not change the animation
+
+The actor operations are the same whether telemetry logging is on or off. The trace calls only read
+properties. They never change transitions, scale, opacity or the skipped-effects set.
+
+## 7. Where each rule is tested
+
+| Rule | Test |
+| :-- | :-- |
+| Options refused with `--area unbounded` | `src/cli/tests.rs`, `test_unbounded_allowed_and_rejected_options` |
+| Unbounded instruction on the wire | `src/platform/linux/gnome/mechanics.rs`, `test_golden_transform_batch_unbounded_instructions`; `tests/dispatcher_test.js` (the golden unbounded pipeline test) |
+| Straddling check | `crates/spawn-at-core/src/geometry.rs`, `test_window_straddles_monitors_helper` |
+| Compositor adjustment message | `src/diagnostics.rs`, `test_diagnostic_unbounded_compositor_adjustment` |
+| `spawn` monitor default | `crates/spawn-at-core/src/geometry.rs`, `test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero` and `test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back` |
+| `transform` monitor default | `crates/spawn-at-core/src/geometry.rs`, `test_find_monitor_with_largest_overlap` |
+| `query windows` JSON fields | `src/commands/query.rs`, `test_characterization_query_windows_json_schema` |
+| Round trip in all three modes | `src/commands/query.rs`, `test_query_windows_round_trip_all_area_modes`; `crates/spawn-at-verify/tests/oracle_cross_check.rs`, `test_oracle_vs_core_explicit_pos_all_three_area_modes_cross_check` |
+| Logging does not change actor operations | `tests/dispatcher_test.js` and `tests/legacy_dispatcher_test.js` (the tests that compare actor operations with logging on and off) |
