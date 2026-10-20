@@ -6,6 +6,8 @@ Status: **approved and implemented, 2026-10-15 (see section 11 for what was buil
 
 This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE_AUDIT.md` (section 7 item 8, section 6 rows P6 and P7).
 
+Line numbers in this document are as of commit `ca11523`, except those in section 11, which were checked against the tree at the time of that section.
+
 ## Table of contents
 
 1. [Current model](#1-current-model)
@@ -22,6 +24,8 @@ This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE
 
 ## 1. Current model
 
+This section is the model as it was at `ca11523`, before the implementation of section 11. Changed since, checked in the tree on 2026-10-20: a spec can now have `[[setup]]`, `[[then]]` and `[[check]]` (the fields `setup`, `then` and `check` of `SpecV2` in `crates/spawn-at-verify/src/schema/types.rs`), so the four needs listed at the end of this section now exist for version 2 specs; there are `stdout` expectations (`stdout_present`, `stdout_lists_window`); `deny_unknown_fields` is set on `TestSetup` and `TestCheck`; the runner holds the `Child` of a `[[setup]]` fixture (`SetupSession` in `runner/owned.rs`); `run` registers handlers for SIGINT, SIGTERM and SIGHUP (`cli/run.rs`) and the TUI sets a panic hook (`tui/mod.rs`); the TUI queues a `Pending` step that `run_pending` runs after the next redraw instead of running the test inside the key handler (`tui/app/queue.rs`). `RunOptions::test_timeout` still has no reader (only its definition and default match, 2026-10-20). Every other statement below is **not verified** against the current tree.
+
 **Defined.** A spec is one TOML file, deserialized into `TestDefinition` (`crates/spawn-at-verify/src/schema/types.rs:218`). The parts that matter here:
 
 - `subject: Option<TestSubject>`: at most one app to launch, `app = "fixture"` or `"system:<app>"` (`crates/spawn-at-verify/src/schema/types.rs:246`, `crates/spawn-at-verify/src/schema/types.rs:72`).
@@ -29,7 +33,7 @@ This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE
 - `expect: TestExpect` (`crates/spawn-at-verify/src/schema/types.rs:176`): `exit_code`, `stderr_absent`, `stderr_present`, `diagnostics`, `never_visible_off_target`, `rect` (oracle), `resize`. There is **no `stdout` expectation** at all, so even `query layout --json` cannot be asserted on today.
 - No struct has `deny_unknown_fields` (searched **(ran)**: no match in `src/`), so a key a binary does not know is silently dropped.
 
-**Loaded.** `TestRegistry::load_from_dir` scans `verify/**.toml` except `suites/` (`crates/spawn-at-verify/src/loader/registry.rs:20`, `crates/spawn-at-verify/src/loader/registry.rs:212-229`). The id must equal the path without extension (`crates/spawn-at-verify/src/loader/registry.rs:50`), an `[expect.rect]` must give its margin (`crates/spawn-at-verify/src/loader/registry.rs:61-73`), and the category must be in `VALID_CATEGORIES` (`crates/spawn-at-verify/src/loader/registry.rs:75`, `crates/spawn-at-verify/src/schema/matrix.rs:156`). A `[matrix]` expands into several tests and substitutes `{key}` in title, description, subject and action strings (`crates/spawn-at-verify/src/schema/matrix.rs:67-150`); an unknown `{name}` is left as it is.
+**Loaded.** `TestRegistry::load_from_dir` scans `verify/**.toml` except `suites/` (`crates/spawn-at-verify/src/loader/registry.rs`: `load_from_dir`, and the directory walk at `:212-229`). The id must equal the path without extension (`crates/spawn-at-verify/src/loader/registry.rs:50`), an `[expect.rect]` must give its margin (`crates/spawn-at-verify/src/loader/registry.rs:61-73`), and the category must be in `VALID_CATEGORIES` (`crates/spawn-at-verify/src/loader/registry.rs:75`, `crates/spawn-at-verify/src/schema/matrix.rs:156`). A `[matrix]` expands into several tests and substitutes `{key}` in title, description, subject and action strings (`crates/spawn-at-verify/src/schema/matrix.rs:67-150`); an unknown `{name}` is left as it is.
 
 **Selected.** Suites are `verify/suites/*.toml`: `categories`, `tags` (with `!tag`), `required_only` (`crates/spawn-at-verify/src/schema/suite.rs:6-52`). A suite category name is mapped to a real one by an alias list inside `SuiteDefinition::matches` (`suite.rs:36-41`), and the same list is copied a second time in `TestRegistry::filter` (`crates/spawn-at-verify/src/loader/registry.rs:150-155`). The report maps ids to categories a third time (`crates/spawn-at-verify/src/runner/models.rs:227-247`). The alias list has no `lifecycle` to `focus` entry, which `crates/spawn-at-verify/tests/suite_wiring_test.rs` records as a known gap.
 
@@ -42,7 +46,7 @@ This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE
 | enable the extension's timing log; start the flash capture (**only `spawn` of the fixture**) | `executor.rs:201-211`, `crates/spawn-at-verify/src/runner/flash.rs:126-130` |
 | build the command line; the fixture is passed to `spawn-at spawn` after `--` with `--exit-after-ms` 10000 (Auto) or 300000 (Human, Both) as a crash backstop | `crates/spawn-at-verify/src/runner/validation.rs:17-92` (backstop `:70-81`) |
 | snapshot window ids, run **one** `Command` with the step timeout (5 s) | `executor.rs:213-228`, `crates/spawn-at-verify/src/runner/models.rs:367` |
-| attribute windows, **only for `spawn`** | `executor.rs:274` (calls `tracker.attribute_action_windows`, `crates/spawn-at-verify/src/tracker/state.rs:76`) |
+| attribute windows, **only for `spawn`** | `executor.rs:274` (calls `tracker.attribute_action_windows`, in `crates/spawn-at-verify/src/tracker/state.rs`) |
 | the target of a `transform` is a literal `--id` in the spec args | `executor.rs:327-338` |
 | re-read the window 1300 ms later when the printed rectangle fails | `executor.rs:345-353`, `crates/spawn-at-verify/src/oracle/check.rs:96` and `:312` |
 | flash check, wait-rule info, trace assessment, validation, flash policy | `executor.rs:370`, `:378`, `:386`, `:401`, `:505` |
@@ -51,7 +55,7 @@ This document answers audit gap 8 and proposals P6 and P7 of `docs/TEST_COVERAGE
 
 **Reported.** `spawn-at-verify run` and `calibrate` write `report.json`, `report.md` and `slices/` (`crates/spawn-at-verify/src/cli/run.rs:126`). A required test that ends `Skipped` makes the qualification report say "not supported" (`crates/spawn-at-verify/src/report/builder.rs:30-38`, `:45`).
 
-**Shown in the TUI.** `TuiApp::execute_test` builds a runner and calls `execute_single_test` **synchronously on the UI thread** (`crates/spawn-at-verify/src/tui/app/queue.rs:86-117`). An Auto test then closes the tracked windows (`queue.rs:66-69`); a Both or Human test leaves its window up and waits for a verdict (`queue.rs:70-76`), and `record_verdict` closes them (`queue.rs:184`). The drawer's SPEC section prints the action and the subject (`crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:81-128`).
+**Shown in the TUI.** `TuiApp::execute_test` builds a runner and calls `execute_single_test` **synchronously on the UI thread** (the body of `execute_test` in `crates/spawn-at-verify/src/tui/app/queue.rs`). An Auto test then closes the tracked windows (`queue.rs:66-69`); a Both or Human test leaves its window up and waits for a verdict (`queue.rs:70-76`), and `record_verdict` closes them (`queue.rs:184`). The drawer's SPEC section prints the action and the subject (`crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:81-128`).
 
 **Process facts that the design depends on.**
 
@@ -166,7 +170,7 @@ New `[expect]` keys (v2 only): `stdout_present` (substrings, `${w}` allowed), `s
 ### 2.4 Proof that existing specs keep their exact meaning
 
 1. **No field of an existing struct changes.** `TestDefinition` gains `schema_version` (default 1), `setup`, `then`, `check`, all `#[serde(default)]`; `TestExpect` gains defaulted keys. A v1 file parses to the same values for every field it can set.
-2. **Golden of the whole catalog.** Before the first commit, record `sha256` of `serde_json::to_string_pretty` of the registry (all 45 tests, expanded) and of `spawn-at-verify list` and `list --suite <each of the five>`; after each commit the digests must be equal. New fields serialize as their defaults, so the check is made with those fields skipped (`skip_serializing_if` for default values, as `Entry.wait` already does, `crates/spawn-at-core/src/driver.rs`), or the golden is taken over the v1 fields only. Either way a run that differs fails the commit.
+2. **Golden of the whole catalog.** Before the first commit, record `sha256` of `serde_json::to_string_pretty` of the registry (all 45 tests, expanded; the catalog has 67 tests now, `spawn-at-verify list` on 2026-10-20) and of `spawn-at-verify list` and `list --suite <each of the five>`; after each commit the digests must be equal. New fields serialize as their defaults, so the check is made with those fields skipped (`skip_serializing_if` for default values, as `Entry.wait` already does, `crates/spawn-at-core/src/driver.rs`), or the golden is taken over the v1 fields only. Either way a run that differs fails the commit.
 3. **Executor path.** A v1 test never enters the new code: `execute_single_test` branches once at the top on `test.schema_version`, and the v1 body is untouched (the new v2 path lives in a new file). `crates/spawn-at-verify/src/runner/tests.rs`, `trace_capture_tests.rs` and `crates/spawn-at-verify/tests/tui/` must pass unedited.
 4. **Old binary, new spec.** Because unknown keys are ignored today, an *old* `spawn-at-verify` reading a v2 file would drop `[[setup]]` and run `transform --id ${w}`. The literal `${w}` is not a number, so `spawn-at` rejects it with exit 2 and the test fails loudly instead of passing. A stale verify binary is otherwise not detected (preflight checks `spawn-at`, not the verify binary: `crates/spawn-at-verify/src/preflight.rs`); the two are built from one commit by CI.
 
@@ -490,7 +494,7 @@ Update 2026-10-16 (`fix/tui-verdict-feedback`): the TUI no longer runs a test or
 | 7 TUI, moves-focus | `38d3c46` | `crates/spawn-at-verify/src/tui/views/drawer/info_sections.rs:102`, `verify/suites/quick.toml`, `crates/spawn-at-verify/tests/tui/v2_flow.rs:217` |
 | 9 wrapper | `63b9772`, `4c6c2b0` | `scripts/verify-sway.sh:101` |
 | (added) repeat after a signal | `ee56044` | `crates/spawn-at-verify/src/runner/engine.rs:197` |
-| 8 flash for transform, 10 catalog specs | not done | the next steps; no catalog spec was added |
+| 8 flash for transform, 10 catalog specs | not done when this table was written (2026-10-15); both done on 2026-10-16 | the next steps; no catalog spec was added then. Flash for transform: the update of 2026-10-16 at the top of this section. Catalog specs: section 11.5 |
 
 ### 11.2 Deviations from the design, and why
 
@@ -509,7 +513,7 @@ Update 2026-10-16 (`fix/tui-verdict-feedback`): the TUI no longer runs a test or
 
 ### 11.3 Owner decisions applied (section 9)
 
-1 launch directly, the runner holds the `Child`; 2 the TUI still writes no `report.md` (not part of this work); 3 `Skipped` with the fixed message, no new status; 4 `SPAWN_AT_BACKEND` is mirrored, no `query backend`; 5 version 2 specs stay `required = false` (none exist yet); 6 the tag `moves-focus`, excluded from `quick`; 7 `run` handles Ctrl-C, SIGTERM and SIGHUP; 8 no Sway in CI; 9 a window left after teardown is a warning; 10 up to 3 setups; 11 the journal check for the transform trace is deferred to the flash commit; 12 nothing depends on `spawn --no-focus`.
+1 launch directly, the runner holds the `Child`; 2 the TUI still writes no `report.md` (not part of this work); 3 `Skipped` with the fixed message, no new status; 4 `SPAWN_AT_BACKEND` is mirrored, no `query backend`; 5 version 2 specs stay `required = false` (none existed when this was written; the 18 spec files with `schema_version = 2` of 2026-10-20 are all `required = false`); 6 the tag `moves-focus`, excluded from `quick`; 7 `run` handles Ctrl-C, SIGTERM and SIGHUP; 8 no Sway in CI; 9 a window left after teardown is a warning; 10 up to 3 setups; 11 the journal check for the transform trace is deferred to the flash commit (answered by the owner's sample, see the update of 2026-10-16 at the top of this section); 12 nothing depends on `spawn --no-focus`.
 
 ### 11.4 The safety guarantees and their tests
 
