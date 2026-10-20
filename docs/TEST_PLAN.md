@@ -1,10 +1,10 @@
 # spawn-at Test Library & Verification Plan
 
-**Status:** reference. The Rust counts of section 1.1 agree with `cargo test -- --list` per test binary on 2026-10-20; sections 5 to 7 are dated measurements.
+Status: reference. The counts of section 1.1 were measured on 2026-10-20 (the commands are given there). Sections 5 to 7 are dated measurements.
 
-> Sections 6.10 to 6.35 (the dated experiment log) moved to [TEST_LOG.md](TEST_LOG.md). Every old heading stays below as a stub that links to its new place, so "TEST_PLAN 6.x" citations keep working.
->
-> Paths under `scratch/` or `verify-results/` cited in this plan and in TEST_LOG.md are gitignored working files of the author's machine and are **not in the repository**: the numbers in the text are what is kept.
+Sections 6.10 to 6.35 (the dated experiment log) moved to [TEST_LOG.md](TEST_LOG.md). Every old heading stays below as a stub that links to its new place, so "TEST_PLAN 6.x" citations keep working.
+
+Paths under `scratch/` or `verify-results/` cited in this plan and in TEST_LOG.md are gitignored working files of the author's machine and are not in the repository. The numbers in the text are what is kept.
 
 ## 1. Overview & Architecture
 
@@ -12,268 +12,167 @@
 
 Tests are defined declaratively in `verify/<category>/<test-id>.toml` specifications, executed against a real Wayland GNOME session, and presented via both an automated CLI runner and a headless/interactive Terminal User Interface (TUI).
 
-### 1.1 Test Suite Counts & Feature Gates Baseline
+### 1.1 Test counts
 
-Automated test execution across the workspace is partitioned by crate and feature flags:
+Counted on 2026-10-20, on the branch `docs-rewrite-1`:
 
-| Target / Feature Set | Tests Passed | Tests Ignored | Breakdown by Target / Binary |
-| :--- | :---: | :---: | :--- |
-| **Workspace: `spawn-at` CLI** | 460 | 0 | breakdown by batch of additions below the table |
-| **Workspace: `spawn-at-core`** | 64 | 0 | 60 in `lib.rs`, 2 in `golden_placement`, 2 in `ready_wait_vectors`; per-binary table below the table |
-| **Workspace: `xtask`** | 96 | 0 | 94 unit tests + 2 `burn_cpu_test`; breakdown below the table |
-| **Workspace: Node.js (Extension)** | 244 | 0 | 40 in `tests/records_test.js`; the rest in the other files of `tests/`; breakdown below the table |
-| **`spawn-at-verify` (bare default)** | 434 | 0 | per-binary table below the table |
-| **`spawn-at-verify --features tui`** | 599 | 1 | per-binary table below the table |
-| **`spawn-at-verify --features tui,fixture`** | 625 | 5 | 625 measured 2026-10-18 on `fix/v0-2-1-batch`; per-binary breakdown below the table |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 1245 | 5 | 460 + 64 + 96 + 625; with the 244 Node tests: 1489; breakdown and older detail below the table |
+- Rust: `cargo test --locked -p <crate> [--features ...] -- --list` lists the tests of each test
+  binary without running them. The ignored ones come from the same command with `--ignored`. A count
+  is the listed tests minus the ignored ones. `spawn-at-verify` is counted three times, because its
+  features change the set of tests. Do not quote a bare `cargo test --workspace` number for it: that
+  builds the crate without features.
+- Node: `node --test` on each `tests/*_test.js` file except `install_unsupported_test.js`, which runs
+  `install.sh` against a stand-in `curl` and is left to CI. Its 3 tests were counted with `grep`,
+  not run. `tests/gi_loader.js` is a helper. `node --test tests/*.js` counts it as one more test.
 
-The parts of a breakdown that read "N added for X" are additions made since a baseline, not the whole count of the row, so the parts do not add up to the row (counted on 2026-10-20: the 27 bullets of the `spawn-at` CLI breakdown that start with a number and "added" add up to 289, against the row's 460).
+| Target | Run | Ignored | Note |
+| :-- | --: | --: | :-- |
+| `spawn-at` | 460 | 0 | 422 unit tests and 4 integration binaries |
+| `spawn-at-core` | 64 | 0 | |
+| `xtask` | 96 | 0 | 94 unit tests and 2 in `burn_cpu_test` |
+| `spawn-at-verify` (no features) | 434 | 0 | |
+| `spawn-at-verify --features tui` | 599 | 1 | |
+| `spawn-at-verify --features tui,fixture` | 625 | 5 | The set CI runs |
+| Node, 12 `*_test.js` files | 240 | 0 | |
+| Node, `install_unsupported_test.js` | 3 | 0 | Not run here |
+| Rust total (`spawn-at-verify` with `tui,fixture`) | 1245 | 5 | 460 + 64 + 96 + 625 |
+| Total run here | 1485 | 5 | Rust total and the 240 Node tests |
+| Total with the Node tests left to CI | 1488 | 5 | |
 
-**Workspace: `spawn-at` CLI, breakdown:**
+### 1.2 Counts per binary
 
-- 13 added for the 0.2.1 fixes (measured 2026-10-18 on `fix/v0-2-1-batch`):
-  - 3 in `config.rs` (headless install keeps existing `[update]` values, fills only missing keys, flags override their own key)
-  - 2 in `platform/installer.rs` (the login entry's `Exec=` with `--skip-bin` is the installed copy, never the update's temp dir; the order and fallbacks)
-  - 4 in `update.rs` (`update --check` caches nothing; the cache slot by pre-release; the silent check honours `auto_check = false`; it caches the newest tags otherwise)
-  - 1 in `session.rs` (the skipped log-out line names no flag)
-  - 3 in `platform/linux/gnome/deploy.rs` (the warnings after a failed `gnome-extensions enable` / `disable` do not claim success)
-- 4 added for the PATH advice (`platform/installer.rs`: the guarded `case ":$PATH:"` line with the exact directory, no `>>` in the text, the `~/.profile` hint only for `<home>/.local/bin`, a directory with a space or quote single-quoted)
-- 53 added for command coverage batch 1 (audit proposals P1, P2, P5 and gap 5, `docs/TEST_COVERAGE_AUDIT.md`):
-  - 31 in `commands/state_command_tests.rs` (`run_focus`, `run_defocus`, `run_maximize`, `run_minimize`, `run_restore`, `apply_focus_policy` against a recording backend and a default-methods backend: the driver call and its arguments, window not found, no selector, the unsupported-capability text, driver errors, and 5 characterization tests that pin the dropped 2 s state wait: the command returns Ok when the window never reaches the state)
-  - 11 in `platform/linux/gnome/tests_control.rs` (D-Bus stub service on the session bus, like the close stubs: exact method names and arguments of `FocusWindow`, `DefocusWindow`, `SetWindowState` for all four states, `MoveWindow`, the exact `ExecuteBatch` JSON of a size-only transform, a `false` reply giving `TargetNotFound`, a missing method giving `IpcError`)
-  - 10 in `tests/sway_backend_cli_test.rs` (the built binary against a recording stand-in socket: `focus` and `close` by id and class, `transform` command text with and without the default focus, unknown id exits 1 and sends nothing, `query layout|windows --json`, and `defocus`, `maximize`, `minimize`, `restore`, `query pointer` exiting 1 with the "does not support this feature" text)
-  - and 1 in `commands/spawn.rs` (characterization: `spawn --focus/--no-focus/--defocus` arm the same batch as no flag, see gap 5)
-- 4 added for the login autostart entry on unsupported desktops:
-  - 3 in `config.rs` (`autostart_file_tests`, temporary `XDG_CONFIG_HOME`: the entry is byte-identical on GNOME Wayland, a KDE X11 session and KDE Wayland with `SPAWN_AT_BACKEND=x11`, with no backend variable in it; uninstall removes it on each and is harmless when it is gone; a reinstall overwrites a stale file and follows a new binary path)
-  - and 1 in `tests/unsupported_desktop_cli_test.rs` (the built binary, `update --check --headless` on KDE Wayland with a cleared environment, empty `PATH` and temporary `HOME`: exit 0, silent, no unsupported-desktop error)
-- 6 added for the unsupported-desktop check:
-  - 4 in `platform/linux/registry.rs` (GNOME supported in every session type; non-GNOME Wayland or no session type without an override is unsupported and the message names the desktop, the session, GNOME, `SPAWN_AT_BACKEND=sway` and `SPAWN_AT_BACKEND=x11` with "may or may not work"; a non-GNOME X11 session is supported; forced `x11` and `sway` are supported and their candidates unchanged)
-  - and 2 in `tests/unsupported_desktop_cli_test.rs` (the built binary, display variables removed: KDE or sway Wayland and an unset desktop exit 1 with the message and an empty stdout; an X11 session and a forced `x11` on Wayland are not refused)
-- 12 added for selecting Sway:
-  - 3 in `platform/linux/registry.rs` (forced `sway` in any case selects Sway for every desktop and D-Bus result and never asks for the GNOME connection, written as a separate test because the old-selection copy knows no `sway`; near values such as ` sway`, `sway `, `swayx` are ignored exactly as before, compared against the old copy; Sway is never a candidate without the variable, and the `sway` desktop alone still gets X11)
-  - and 9 in `tests/sway_backend_cli_test.rs` (the built binary against a stand-in IPC socket in a temporary directory, `DISPLAY` and `WAYLAND_DISPLAY` removed: forced Sway with `SWAYSOCK` unset, empty, missing, a plain file, or a socket that answers like HTTP exits 1 with a message naming `$SWAYSOCK` and no X11 words; `query layout` and `query windows` read the recorded replies, also for `SWAY`; ` sway`, `sway `, `swayx` and the `sway` desktop alone never connect to the socket)
-- 35 added for Sway placement, close, focus and transform (EXPERIMENTAL):
-  - 5 in `platform/linux/sway/command.rs` (the exact command strings, negative coordinates, zero sizes, the content size that makes the whole container the requested size)
-  - 9 in `sway/matching.rs` (launched pid, descendant pid, app id and X11 class by the shared hint rules, empty and `*` hints never match, non-windows never match, windows from before `arm` never chosen, the 300 ms grace for an app id match, first candidate kept)
-  - and 21 in `sway/tests_write.rs` against the scripted fake IPC server (`arm` subscribes before the snapshot; one chained command for top-left, bottom-right and centre anchors with a size; a work area away from the origin gives a global position; no `resize` without `--size`; a border and title bar corrected once; a window raised to its minimum size re-anchored with its real size; exclusive focus; a refused command carries Sway's text; `post_spawn` without `arm` is an error; `disarm`; skipped old windows, other windows and garbage events; close, focus and transform by id, pid or class; an unknown target sends nothing; declared capabilities; maximize, minimize, defocus and pointer unsupported)
-- 10 added for the read-only Sway driver (`platform/linux/sway/client.rs` and `mod.rs`, against a scripted fake IPC server in a temporary directory, `sway/fake.rs`): the `$SWAYSOCK` messages for unset, empty and missing sockets, layout and window list over the socket, cursor position unsupported, a socket that is not Sway (wrong magic, or JSON that is not outputs) refused, `connect` sends only `GET_OUTPUTS`, name and capabilities
-- 25 added for the Sway backend, IPC codec and types (EXPERIMENTAL, `docs/DESIGN_SWAY.md`):
-  - 12 in `platform/linux/sway/ipc.rs` (the i3-ipc frame: golden bytes for `GET_WORKSPACES` and `SUBSCRIBE` requests and for the subscribe, command and workspaces replies and a window event frame, all read from a private headless Sway 1.9; round trip of every request type; the type numbers; a stream with the wrong magic, a length over the limit and truncated frames are errors)
-  - and 13 in `platform/linux/sway/types.rs` (monitor layout of one output, of a scale-2 output with a 30 px bar and of two outputs, inactive outputs skipped; window metadata of a tiled and of a floating window from recorded `GET_TREE` JSON in `tests/fixtures/sway/`, scratchpad, XWayland and fullscreen windows; the four recorded `window` events; command and subscribe reply checking; parse errors name the reply)
-- 4 added for the backend registry (step 10):
-  - 3 in `platform/linux/registry.rs` (every combination equals the old selection; the candidate table; GNOME is only tried when it is a candidate)
-  - and 1 in `platform/null_backend.rs`
-- 3 added for the update hooks (step 9): `platform/update_hooks.rs` (the asset name follows the target triple, update.rs reads no desktop variable, the provider exists)
-- 2 added for the session actions (step 8): `platform/session_actions.rs` (session.rs names no compositor module; the provider exists)
-- 4 added for the host (step 7): `platform/linux/host.rs` (the bin dirs, the autostart path, the executable test, and that a detached child leads its own session)
-- 3 added for the helper status (step 6): `platform/capability.rs` thresholds, messages byte for byte, and the default `helper_status` reading the reported protocol
-- 4 added for the provisioner (step 5):
-  - 3 in `platform/provisioner.rs` (a backend without one needs nothing, X11 has none, the backend methods forward to a provisioner)
-  - and 1 in `gnome/tests.rs` (the GNOME driver is its own provisioner)
-- 5 added for the capabilities (step 4 of the platform refactor):
-  - 4 in `platform/capability.rs` (the default follows the `supports_*` methods, X11 reports them, `LinuxBackend` forwards them, the narrow views forward to the backend)
-  - and 1 in `gnome/tests.rs` (the GNOME driver reports them and needs the helper)
-- 6 added for prompt width:
-  - 4 in `prompts.rs` (every prompt and item fits 70 columns and has no trailing colon; the check refuses the old 81-character question; the registry lists every constant; no prompt literal is left outside prompts.rs)
-  - 1 in `session.rs` (the end-of-run question)
-  - and 1 in `update.rs` (the update menu items), and the existing-install question test now uses the same check
-- 3 more session.rs tests for the log-out question asked last (14 in all: the question is the last prompt in install, clean install, update, uninstall and X11; No leaves the warning last; skip and headless ask nothing; a failing step asks nothing; a source guard that the question text is only in session.rs)
-- 2 added for the existing-install prompt (items short enough for an 80-column terminal; one clear "Existing: ... Installing: ..." line)
-- 11 added for the end-of-run session action: 11 in `session.rs` (interactive Yes, headless true and false, "no log-out needed", an explicit request beating it, X11, the clean-install removal phase, standalone uninstall, a failing step, finish runs once, source guards), all with a recorder that asserts the order of steps, advice and the log-out
-- 18 added for the existing-install flow:
-  - 15 in `platform/upgrade.rs` (finding binaries, `-V` with failure and timeout, version parsing, the plan for the flag with and without an install, non-interactive, interactive default, prompt failure, same, newer and pre-release versions, the removal order and that the config file survives)
-  - 2 in `ui.rs` (no hand-printed headings; a clean-install run has single blank lines)
-  - and 1 in `tests/install_notice_cli_test.rs` (`--clean-install` in the help)
-- 13 added for skipping the log-out advice:
-  - 12 in `platform/linux/gnome/logout.rs` (one per row of the decision: first install, changed file, installed after the Shell started, inside the 2 s margin, not active, extra or missing file, read errors, plus parsers and a temporary-directory read)
-  - and 1 green-line colour test in `ui.rs`
-- 9 added for the installer output:
-  - 8 unit tests in `ui.rs` (first section has no leading blank line, one blank line between blocks, no double blank line for any sequence of 8 blocks, heading colour, and the log-out warning: no escape codes piped, none with NO_COLOR, bold yellow when colour is on, exact sentence printed)
-  - and 1 in `tests/install_notice_cli_test.rs` (dry-run output has single blank lines)
-- 2 added for the autostart path (`config.rs`: `XDG_CONFIG_HOME` set, and unset/empty/relative giving the unchanged `~/.config` path)
-- CLI flag parsing, IPC client, fallback, and reposition tests
-- 6 added for extension protocol 6:
-  - 3 `--json` `resize` shape/compatibility tests (`commands/spawn.rs`)
-  - and 3 claim tests against protocol 5 and 6 stub services on the session bus (`platform/linux/gnome/mod.rs`)
-- 11 added for the per-spawn wait override:
-  - 4 flag tests (`cli/tests.rs`: parse before the command, default absent, bad text still parses, hidden from short and long help)
-  - 3 `run_spawn` tests with a recording backend (`commands/spawn.rs`: flags reach the armed entry, no flags leave no override and no `wait` key, bad values dropped with one warning each)
-  - and 4 instruction tests (`platform/linux/gnome/mechanics.rs`: default bytes unchanged, override fields only when set, independent fields, old JSON still reads)
-- 16 added for `spawn-at config` (docs/CONFIG.md):
-  - 10 in `tests/config_cli_test.rs` (the built binary with a temporary `XDG_CONFIG_HOME`)
-  - 3 `run_spawn` tests (`commands/spawn.rs`: default instruction bytes unchanged, file values reach the instruction and flags win, a bad config warns and the spawn goes on)
-  - 1 `config.rs` (the update checker keeps settings and unknown keys)
-  - and 2 `platform/linux/config_store.rs`
-- 8 added for the untested-platform install notice:
-  - 4 unit tests in `platform/install_notice.rs` (46 on Wayland silent, 42-44 legacy notice, other versions and X11, the confirmation gate)
-  - and 4 in `tests/install_notice_cli_test.rs` (the built binary with a stand-in `gnome-shell`, `install --dry-run --headless`; they return early on a machine without a GNOME session)
-
-**Workspace: `spawn-at-core`, breakdown:**
+`spawn-at`:
 
 | Binary | Tests |
-| :--- | ---: |
-| `lib.rs` (unit tests) | 60 |
-| `tests/golden_placement.rs` (golden placement integration tests) | 2 |
+| :-- | --: |
+| Unit tests (`src/main.rs`) | 422 |
+| `tests/config_cli_test.rs` | 10 |
+| `tests/install_notice_cli_test.rs` | 6 |
+| `tests/sway_backend_cli_test.rs` | 19 |
+| `tests/unsupported_desktop_cli_test.rs` | 3 |
+| Total | 460 |
+
+The 422 unit tests by module:
+
+| Module | Tests |
+| :-- | --: |
+| `platform::linux` | 159 |
+| `commands` (`state_command_tests` 31, `tests` 20, `spawn` 16, `query` 7) | 74 |
+| `update` | 31 |
+| `cli` | 29 |
+| `diagnostics` | 22 |
+| `platform::upgrade` | 17 |
+| `session` | 16 |
+| `target` | 15 |
+| `config` (`tests` 13, `autostart_file_tests` 3) | 16 |
+| `ui` | 11 |
+| `platform` (`installer` 8, `capability` 7, `install_notice` 4, `provisioner` 3, `update_hooks` 3, `session_actions` 2, `null_backend` 1) | 28 |
+| `prompts` | 4 |
+| Total | 422 |
+
+The 159 of `platform::linux` are `sway` 70, `gnome` 59, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
+`config_store` 2 and `tests` 2.
+
+`spawn-at-core`:
+
+| Binary | Tests |
+| :-- | --: |
+| Unit tests (`src/lib.rs`) | 60 |
+| `tests/golden_placement.rs` | 2 |
 | `tests/ready_wait_vectors.rs` | 2 |
 | Total | 64 |
 
-The 2 in `tests/ready_wait_vectors.rs` are 20 shared golden scripts in one test, plus the policy check. The 60 unit tests of `lib.rs` by module:
+The 60 unit tests are `geometry` 21, `settings` 17, `ready_wait` 9, `wait_override` 9 and
+`resize_report` 4. The 2 of `ready_wait_vectors.rs` are one test over the 20 shared golden scripts and
+the policy check.
 
-| Module of `lib.rs` | Tests |
-| :--- | ---: |
-| geometry/driver | 21 |
-| `ready_wait` | 9 |
-| `resize_report` | 4 |
-| `wait_override` | 9 |
-| `settings` | 17 |
-| Total | 60 |
+`xtask`:
 
-**Workspace: `xtask`, breakdown:**
+| Module (`src/main.rs`) | Tests |
+| :-- | --: |
+| `docs_check` | 32 |
+| `docs_mirror` | 23 |
+| `docs_cli` | 17 |
+| `docs_html` | 11 |
+| `burn_cpu` | 6 |
+| `docs_site` | 3 |
+| `compiler_docs` | 2 |
+| Unit tests | 94 |
+| `tests/burn_cpu_test.rs` (runs the built binary) | 2 |
+| Total | 96 |
 
-- 94 unit tests (`src/main.rs`):
-  - 6 `burn_cpu`
-  - 2 `compiler_docs`
-  - 32 `docs_check` (8 added for the `site:` directives above tables: the valid forms, each error, the comment above a table, two columns for records, the cell splitting, the origin in `check`, every directive in the real `docs/` files, and the `style=` option: both values with `key=N`, an unknown value, `style` on `site: table`; the tests of the valid forms and of each error also cover `style=` and a repeated option; the tests of the valid forms, of each error and of the style option also cover `style=titled`; 5 added on 2026-10-20 for the table cell limit: what a cell's text counts, 1200 passes and 1201 fails with the table, row key, column and length named, fences and non-tables ignored, `check` reporting the page line and the `docs/` origin and skipping `experiments/`, and the real mirrored documents)
-  - 17 `docs_cli` (3 added on 2026-10-20 for the reference pages: the description is the first line of each command's help and is YAML-quoted, the sidebar label drops `spawn-at ` and the title stays, and the pointer to the hand-written page is built from the files that exist, with the Commands index for a command without one and the help text under it unchanged)
-  - 11 `docs_html`
-  - 23 `docs_mirror` (2 added on 2026-10-20 for the sidebar labels: the label is its own front-matter key and the title keeps following the heading; every label is filled in, at most 24 characters, starts with a capital and is used once; 9 more for the links to experiment pages: numbers read from file names, the forms that become links, the forms that do not (`0.6.12`, `v6.12`, `16.12`, `6.123`, `6.12.1`, `6.12 ms`, `6.4`), code spans, links, tags and URLs left alone, numbers without a page counted, a page with fences, headings and `Moved to TEST_LOG.md` stubs, no experiment folder, `generate_linked` over a temporary folder, and the real documents against the real experiment files)
-  - 3 `docs_site`
-  - counted 2026-10-20 on `docs-batch-4a` with `cargo test --locked -p xtask` (89 on `docs-batch-3`, before the 5 for the cell limit), and 2026-10-19 on `docs-records-cards` before the 2
-- 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary)
+`spawn-at-verify`, by binary and feature set (a dash means the binary is not built with that set):
 
-**Workspace: Node.js (Extension), breakdown:**
+| Binary | No features | `tui` | `tui,fixture` |
+| :-- | --: | --: | --: |
+| Unit tests (`src/lib.rs`) | 335 | 341 | 341 |
+| Fixture binary (`src/bin/fixture.rs`) | - | - | 22 |
+| `src/main.rs` | 0 | 0 | 0 |
+| `tests/action_trace_test.rs` | 12 | 12 | 12 |
+| `tests/catalog_golden_test.rs` | 1 | 1 | 1 |
+| `tests/category_library_test.rs` | 5 | 5 | 5 |
+| `tests/cli_exit_codes_test.rs` | 7 | 7 | 7 |
+| `tests/fixture_test.rs` | - | - | 4 (and 4 ignored) |
+| `tests/flash_test.rs` | 20 | 20 | 20 |
+| `tests/oracle_cross_check.rs` | 5 | 5 | 5 |
+| `tests/panic_hook_test.rs` | 0 | 1 | 1 |
+| `tests/preflight_tools_test.rs` | 1 | 1 | 1 |
+| `tests/render_test.rs` | - | 13 | 13 |
+| `tests/run_signal_test.rs` | 5 | 5 | 5 |
+| `tests/run_sway_guard_test.rs` | 4 | 4 | 4 |
+| `tests/suite_wiring_test.rs` | 6 | 6 | 6 |
+| `tests/trace_analyser_test.rs` | 21 | 21 | 21 |
+| `tests/trace_state_test.rs` | 6 | 6 | 6 |
+| `tests/trace_window_scope_test.rs` | 6 | 6 | 6 |
+| `tests/tui_test.rs` | - | 145 (and 1 ignored) | 145 (and 1 ignored) |
+| Total run | 434 | 599 | 625 |
+| Ignored | 0 | 1 | 5 |
 
-- 40 in `tests/records_test.js`:
-  - 2 added on 2026-10-20 for the sentence keys (`records-sentence`): the 48 and 49 character median, one long key among short ones, `style=cards`, `key=N`, and the short keys, titled cards with short keys and steps that stay identifiers; 4 older tests now expect the class on a list with a long key
-  - 9 added on 2026-10-20 for the titled layout: a field of 400 and of 401 characters, markup and entities not counted, the rule per list, short bodies unchanged, the stacked markup, steps never titled, `style=cards` and `style=titled` forced, `style=titled` on numbered keys and with `key=N`, and `project/` pages
-  - not the extension: the docs site's records integration, `docs-site/src/integrations/records.mjs`
-  - 9 of them added for the card layout: a field of 40 and of 41 characters, the order of the fields (the short ones first, then the long ones, each group in column order; 4 more tests for that order were added on 2026-10-20: a row of only short or only long fields, an order per card, links and ids in a short field that moves, empty cells), steps detected from keys such as `1`, `2 (fixed in step 1)` and `12 files`, keys such as `6.22` and `A1` and a mixed list not detected, the number and the note with code, a link or bold text in it, `style=steps` and `style=cards` with `key=N`, the failure of `style=steps`, `style` on `site: table`, and the stacked key for steps
-  - the other 16 are from the records build: the 239 and 240 character threshold, text rather than markup counted, `project/` pages only, each `site:` directive, `key=N`, bad directives, empty cells, the stacked key at median 48 and 49, links, ids and code kept, the list semantics, a page without a table, and the build hook over a temporary folder
-- 241 ran on 2026-10-20 on `docs-style-look` (239 on `docs-batch-4a` and on `main` before the 2 tests for the sentence keys; 230 ran on 2026-10-20 on `docs-batch-3`, before the 9 tests for the titled layout; 226 ran on 2026-10-19 on `docs-records-cards`, before the 4 tests for the field order), with an explicit list of the 13 other files of `tests/` (`node --test` on every `tests/*.js` except `install_unsupported_test.js`)
-- the 3 of `tests/install_unsupported_test.js`, which run `install.sh` against a stand-in `curl`, a stand-in `spawn-at` and a temporary `HOME`, were not run on this branch and are left to CI (their count is from the run on `docs-records-build`)
-- The 204 before the records build were:
-  - 18 added in `tests/window_control_test.js` (the extension's `DefocusWindow` modes `desktop`, `window` and the most-recently-used fallback, windows skipped when minimized or `skip_taskbar`, the unset-input-focus fallback; `SetWindowState` `maximize`, `unmaximize`, `minimize`, `unminimize`, `restore` in its three cases, unknown state and target return false; a window on another workspace is not found by `FocusWindow`, `DefocusWindow` or `SetWindowState`)
-  - 3 in `tests/install_unsupported_test.js` (`install.sh` with a stand-in curl and spawn-at and no terminal: non-GNOME Wayland prints the notice, exits 1 and downloads nothing; `--allow-unsupported` installs, runs the installer with `SPAWN_AT_BACKEND=x11` and does not forward the flag; supported environments print nothing new, with and without the flag)
-  - 9 in `tests/wait_override_test.js` (the validator's reading of the per-spawn override: absent adds nothing, `auto` adds nothing, bounds 1 to 1500, bad values named and cut to 32 characters, legacy validator drops the fields) and 11 more in `tests/ready_wait_wiring_test.js` (44 there now: override honoured, invalid ignored, default unchanged line for line, scoped to one spawn on one extension instance)
-  - the rest as before: Golden anchor math, extension characterization, legacy/modern dispatchers, late-resize re-anchor (`tests/late_resize_test.js`), 31 in `tests/ready_wait_test.js` (the same 20 golden scripts one test each, the presence and policy checks, 8 mirrored unit cases, 1 portability check), and 33 of the 44 in `tests/ready_wait_wiring_test.js` (the 20 golden scripts again through `CommitLatch.waitForReady` on a virtual clock, plus 13 extension scenarios through `_runBatch`; the other 11 are the override tests above) (`node --test tests/*.js`)
-  - 17 added for the observe-only X11 logging (DESIGN_READY_WAIT section 12): 11 in `tests/x11_observe_test.js` (formats, default-off does no work, handler set empty after the window ends, damaged unavailable noted once) and 6 in `tests/ready_wait_wiring_test.js` (the same through the extension: logging off adds no handler or line, logging on gives the joinable lines and the same outcome, disable ends a watch)
+The 341 unit tests of the library, counted with `tui`, by area: `runner` 135, `oracle` 43, `schema`
+41, `report` 21, `trace` 19, `preflight` 12, `cli` 11, `tracker` 10, `backend` 8, `ext_logging` 8,
+`loader` 7, `tui` 6, `probe` 5, `display` 4, `loadavg` 4, `log_source` 3, `no_config` 2 and `process` 2.
+Without `tui` the library has 6 fewer (the 5 of `tui::app` and the 1 of `tui::logging`).
 
-**`spawn-at-verify` (bare default), breakdown:**
+`suite_wiring_test` checks that every category a suite names has specs or is in a commented
+known-empty list, and that every spec is selected by some suite. The unreachable categories `focus`
+and `platform` are pinned.
 
-| Binary | Tests |
-| :--- | ---: |
-| lib | 335 |
-| main | 0 |
-| `action_trace_test` | 12 |
-| `catalog_golden_test` | 1 |
-| `category_library_test` | 5 |
-| `suite_wiring_test` | 6 |
-| `run_signal_test` | 5 |
-| `run_sway_guard_test` | 4 |
-| `cli_exit_codes_test` | 7 |
-| `flash_test` | 20 |
-| `oracle_cross_check` | 5 |
-| `preflight_tools_test` | 1 |
-| `trace_analyser_test` | 21 |
-| `trace_state_test` | 6 |
-| `trace_window_scope_test` | 6 |
-| `panic_hook_test`, which needs `feature = "tui"` | 0 |
-| Total | 434 |
+Node, 12 files:
 
-Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify` on 2026-10-19 at `34983d5`. The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled.
+| File | Tests |
+| :-- | --: |
+| `tests/ready_wait_wiring_test.js` | 52 |
+| `tests/records_test.js` (the docs site's records integration, not the extension) | 40 |
+| `tests/ready_wait_test.js` | 31 |
+| `tests/dispatcher_test.js` | 28 |
+| `tests/legacy_dispatcher_test.js` | 22 |
+| `tests/x11_observe_test.js` | 21 |
+| `tests/window_control_test.js` | 18 |
+| `tests/wait_override_test.js` | 9 |
+| `tests/extension_test.js` | 8 |
+| `tests/cloak_test.js` | 5 |
+| `tests/late_resize_test.js` | 5 |
+| `tests/golden_anchor_test.js` | 1 |
+| Total | 240 |
 
-**`spawn-at-verify --features tui`, breakdown:**
+### 1.3 Live checks and measurements that are still open
 
-| Binary | Tests | Ignored |
-| :--- | ---: | ---: |
-| lib | 341 | 0 |
-| main | 0 | 0 |
-| `action_trace_test` | 12 | 0 |
-| `catalog_golden_test` | 1 | 0 |
-| `category_library_test` | 5 | 0 |
-| `suite_wiring_test` | 6 | 0 |
-| `run_signal_test` | 5 | 0 |
-| `run_sway_guard_test` | 4 | 0 |
-| `cli_exit_codes_test` | 7 | 0 |
-| `flash_test` | 20 | 0 |
-| `oracle_cross_check` | 5 | 0 |
-| `preflight_tools_test` | 1 | 0 |
-| `render_test` | 13 | 0 |
-| `trace_analyser_test` | 21 | 0 |
-| `trace_state_test` | 6 | 0 |
-| `trace_window_scope_test` | 6 | 0 |
-| `tui_test` | 145 | 1 |
-| `panic_hook_test` | 1 | 0 |
-| Total | 599 | 1 |
+| Item | State | Where |
+| :-- | :-- | :-- |
+| Sway: does a window show at its tiled position before it floats? | Not measured. Nothing records `window::new` events or frames. | [DESIGN_SWAY.md](DESIGN_SWAY.md) section 5; `TEST_COVERAGE_AUDIT.md` P8 |
+| `scripts/sway-live.sh`: `focus` and failure paths | Not written. | `TEST_COVERAGE_AUDIT.md` P4 |
+| X11 driver against an X server | No test touches one, and there is no `Xvfb` job. Four tests named "supported on X11" pass on a connection error. | `TEST_COVERAGE_AUDIT.md` P11, gap 3 |
+| The 22 catalog specs for existing windows, on GNOME | Not run. 15 passed on a private headless Sway and 7 were skipped. | Section 7.5 |
+| Any setup other than GNOME 46 on Wayland | GNOME 42 to 45 and 47 or later, real XWayland and X11 apps, real Sway sessions, more than two outputs and scales other than 1 and 2 have never been run. | Section 7.3; README "Support" |
+| Wiring test for `spawn --focus`, `--no-focus`, `--defocus` | Blocked: nothing reads the flags yet. | `TEST_COVERAGE_AUDIT.md` P10 |
+| A cloak budget | No budget is supported by a measurement. The 100 ms warning is provisional. | Section 5 |
+| The Shell stall after a window maps | The probe of section 5 was not repeated, so its link to the late-resize failures is a hypothesis. | Section 6.9 |
+| Real non-zero minimum size from the Shell; GTK3, Qt and Electron apps | Never probed. Only zenity and the winit fixture were. | Section 6.9 |
+| Product decisions of the min-size contract | Open: the anchor and the final size, the "below toolkit minimums" threshold, the exit code, oversized requests, the default margin. | Section 6.7 |
 
-Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify --features tui` on 2026-10-19 at `34983d5`.
+### 1.4 The ignored `fixture_test` tests
 
-**`spawn-at-verify --features tui,fixture`, breakdown:**
-
-- 625 measured 2026-10-18 on `fix/v0-2-1-batch` (622 on `main` before it: 3 added by `6f02fba`, then 3 here in `report/tests.rs`: pending required tests are not failed and give a PENDING badge, a failure or required skip still gives NOT QUALIFIED, an old `report.json` without `pending_required` loads)
-- the per-binary breakdown below was corrected on 2026-10-20 to `cargo test -p spawn-at-verify --features tui,fixture -- --list` (lib was stated as 335, which is the bare-default count; with `tui` the lib has 341); its Tests column sums to 625 and its Ignored column to 5:
-
-| Binary | Tests | Ignored |
-| :--- | ---: | ---: |
-| lib | 341 | 0 |
-| fixture binary (`src/bin/fixture.rs`) | 22 | 0 |
-| main | 0 | 0 |
-| `action_trace_test` | 12 | 0 |
-| `catalog_golden_test` | 1 | 0 |
-| `category_library_test` | 5 | 0 |
-| `run_signal_test` | 5 | 0 |
-| `run_sway_guard_test` | 4 | 0 |
-| `suite_wiring_test` | 6 | 0 |
-| `cli_exit_codes_test` | 7 | 0 |
-| `fixture_test` | 4 | 4 |
-| `flash_test` | 20 | 0 |
-| `oracle_cross_check` | 5 | 0 |
-| `preflight_tools_test` | 1 | 0 |
-| `render_test` | 13 | 0 |
-| `trace_analyser_test` | 21 | 0 |
-| `trace_state_test` | 6 | 0 |
-| `trace_window_scope_test` | 6 | 0 |
-| `tui_test` | 145 | 1 |
-| `panic_hook_test` | 1 | 0 |
-
-`suite_wiring_test`: every category a suite names has specs or is in a commented known-empty list; every spec is selected by some suite; the unreachable categories `focus` and `platform` are pinned.
-
-**Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`), breakdown:**
-
-- 460 + 64 + 96 + 625 (`spawn-at`, `spawn-at-core` and `spawn-at-verify` counted again on 2026-10-19 on `docs-records-cards`: 460, 64 and 625 passed with 5 ignored, unchanged; `xtask` 77 then, 91 on 2026-10-20 on `docs-batch-3` (1226 in total on 2026-10-19), 96 on `docs-batch-4a` (1240 in total on `docs-batch-3`); the earlier totals used 10, 54, 69 and then 76 for `xtask`)
-- with the 244 Node tests: 1489 (1486 run on 2026-10-20 on `docs-style-look`, the 3 of `install_unsupported_test.js` left to CI; 1484 on `docs-batch-4a` before the 2 tests for the sentence keys; 1473 on `docs-batch-3` before the 9 tests for the titled layout, 1470 of them run; 1455 on 2026-10-19 before the 4 tests for the field order, 1452 of them run; the total before the card layout was 1225 + 220 = 1445, before the records build 1218 + 204 = 1422)
-- Older detail follows, measured before: 1140 = 447 + 64 + 10 + 619; with the 204 Node tests: 1344 passed:
-  - the 6 added by the scroll smoothing, all in `tests/tui/scroll_work.rs`: 1000 queued events are 2 draws and no rebuild with the offset equal to the clamped sum of the accelerated steps and no movement afterwards, one slow notch moves the base rows, mixed events and a resize keep their order, the ends clamp, Escape after a burst, the content cache rebuilds only on resize / raw toggle / new result / invalidation; the three end-marker tests were updated for the extra blank row below the rule (`rows[len-2]` is the rule, `base + 3` rows, the content-height test looks for the rule and `external close`)
-  - before that, the 3 added by the centred end marker, in `tests/tui/drawer_scroll.rs`: centred and exactly the inner width at 60/61/80/119/200 with the odd fill on the right and the cut below the text width, the drawn marker row at the supported widths with the row count unchanged, rebuilt on resize; the two marker tests of the previous change were updated for the new text (`last.contains(" end of details ")` instead of an exact left-aligned line)
-  - before that, the 4 added by the end-of-details marker, in `tests/tui/drawer_scroll.rs`: blank row then marker at the end, the arrows follow the position, content that fits shows the marker and no arrow, copy and save carry neither marker nor arrows; no existing test changed and no golden changed, as the goldens are built from the content without the marker
-  - before that, the 9 added by the drawer scroll fix: 7 in `tests/tui/drawer_scroll.rs` (End and held PageDown past the end at four sizes, scroll back and Escape, Escape from any scroll state, a resize while scrolled, the maximum against the drawn frame, the details pane, the draw alone with a huge stored offset), 1 in `tests/tui/action_trace_render.rs` (one reason worded alike on every event), 1 `tests/panic_hook_test.rs`; no existing test changed
-  - before that, the 7 added by the shared timeline renderer, all in `tests/tui/action_trace_render.rs`: golden text of the real transform and focus lines, spawn and action blocks identical to the column, humanised values and nothing dropped, missing pid left out, blank rows and wrapping, Trace-row wording; seven assertions in `tests/tui/action_trace_display.rs` that pinned the old noisy format were updated deliberately (`event(s)` count, `+0.57 ms` offsets, the `Extension logs` and `Flash note` rows, the panel and markdown text)
-  - before that, the 33 added by the extension trace of actions on top of the order and focus-return fix, all in `spawn-at-verify`: 12 in `tests/action_trace_test.rs` (the owner's real transform and focus journal lines into a timeline, cloak to reveal 7.03 ms, another window's lines excluded, the window of an action, every reason string, the inventory classes), 14 in `runner/action_trace_tests.rs` (a fake journal and a stand-in fixture: boundaries, two consecutive actions, a failing action, queries, failures, no extension, off by default, the `SetLogging` call count, transform flash certain / possible / clean) and 7 in `tests/tui/action_trace_display.rs` (drawer rows, timeline, Result panel, markdown and JSON report, and one screen with both the trace and the focus-return lines); counts re-measured after merging main
-  - before that, the 14 added by the order and focus-return fix: 2 in `tests/tui/sidebar_order.rs` (the sidebar order built from the real catalog, as a list and as drawn), 9 in `runner/focus_return_tests.rs` (scripted compositor: already focused, retried, never lands, refused with exit code and message, no terminal, owned or vanished window never targeted, failed list is unknown), 3 in `tests/tui/verdict_feedback.rs` (the Result box chain, a failed return, no terminal found), plus 1 ignored `tests/tui/focus_chain_sway.rs` run by `scripts/focus-chain-sway.sh` on a private headless Sway; no existing test changed
-  - before that, the 14 added by the verdict-feedback fix, all in `tests/tui/verdict_feedback.rs` against stand-in scripts: the selected-row marker in nine states, a verdict key in the next frame while the teardown is pending, each of `p x s k`, a teardown problem as a warning with the verdict kept, Esc records nothing, `r` resets, one verdict per run, "Running" shown before the work starts, an idle app has nothing pending, focus returned before the prompt with only `focus` sent to the terminal's id, a failed return as a warning, nothing sent when no window was focused, Auto unchanged, the guard refusing any other command on the user's window; one existing test, `app_flow::test_queue_pauses_on_human_case_and_resumes_only_after_verdict`, gained a `run_all_pending()` call because the key no longer runs the teardown itself
-  - before that, the 5 added by the catalog specs: 1 matrix test of `expect.rect.anchor` in `schema/v2_tests.rs` and 4 in `tests/tui/v2_flow.rs`: the 22 catalog entries listed and grouped, the drawer lines of a real spec, a Both spec's confirmation flow, a Skipped spec; the catalog now loads 67 specs, the original 45 pinned by `catalog_golden_test` (re-measured on the branch `feat/runner-existing-window-setup`; per-binary sums of the `test result:` lines)
-  - The 110 added since command coverage batch 1 are all in `spawn-at-verify`: 1 `catalog_golden_test`, 1 in `suite_wiring_test` (`quick` leaves out `moves-focus`), 36 `schema/v2_tests.rs` (every load rule of design 2.3, run-time substitution, matrix substitution), 26 `runner/owned_tests.rs` (ownership by recorded `Child`, ambiguous and foreign windows untouched, close by id only while the title is ours, SIGTERM then SIGKILL through the handle, teardown on drop and on panic), 25 `runner/executor_v2_tests.rs` (the executor with a fake compositor and fake actions: recorded id substituted, setup failure is `Error` and runs no action, a changed target stops the run, checks, `${nonexistent}`, Both keeps the window, interrupt, backend skip, refocus), 8 `backend.rs` (backend mirror, journal rule, requirement, private-Sway guard), 5 `run_signal_test` and 4 `run_sway_guard_test` (the real `run` binary against stand-in scripts), 4 `tui/v2_flow.rs`
-
-**Re-measured 2026-10-14 after the update-channel fix** (`all` is a deprecated alias of `beta`; section 1.1 rows above updated), 0 failures, summed per binary from the `test result:` lines: `spawn-at` 209 (was 205: 195 unit tests in `src/main.rs` + 10 `config_cli_test` + 4 `install_notice_cli_test`; 4 new in `update.rs`: `all` in a config file offers pre-releases, beta and stable offer what they should, `install` writes only `stable` or `beta`, only `all` is an alias; the `install --update-channel` parse check was added to an existing CLI test), `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` `--features tui,fixture` 404 passed and 4 ignored (unchanged), node 183; Rust total 687, with node 870.
-
-**Re-measured 2026-10-13 after the autostart path fix and the texture reader** (commits `f77b415`, `dddc95e`), 0 failures, summed per binary from the `test result:` lines: `spawn-at` 202 (was 199; 3 new in `config.rs`: absolute `Exec=` path, quoting of a path with a space, `$` and `"`, refusal of a relative path), `spawn-at-core` 64, `xtask` 10 (unchanged); `spawn-at-verify` `--features tui,fixture` 402 passed and 4 ignored (unchanged; bare and `tui` rows not re-run); node 176 (was 171; 5 new in `tests/x11_observe_test.js` for `readTextureSize` and its log fields). Total with `tui,fixture`: 678 Rust, 854 with node. Nothing ran in a GNOME Shell.
-
-**Re-measured 2026-10-13 after the hostile-app fixture flags and cells** (commit `70dc120`, section 6.22), 0 failures, summed per binary: `spawn-at` 199, `spawn-at-core` 64, `xtask` 10 (unchanged); `spawn-at-verify` bare 276 (was 269), `--features tui` 378 (371), `--features tui,fixture` 402 passed and 4 ignored (385); node 171 (unchanged). The 17 new tests: 10 in the fixture binary (7 `fixture/behaviour.rs`, 3 flag parsing), 6 in `runner/resize_expect_tests.rs`, 1 in `category_library_test`. Total with `tui,fixture`: 675 Rust, 846 with node.
-
-**Re-measured 2026-10-13 after the observe-only X11 logging**, 0 failures, summed per binary: `spawn-at` 199, `spawn-at-core` 64, `xtask` 10 (unchanged); `spawn-at-verify` bare 269 (was 267), `--features tui` 371 (369), `--features tui,fixture` 385 passed and 4 ignored (383; the 2 new tests are in `log_source.rs` and `runner/wire_paint_tests.rs`); node 171 (154). Total with `tui,fixture`: 658 Rust, 829 with node. Nothing ran in a GNOME Shell; the extension code is exercised against mocks only.
-
-**Re-measured 2026-10-13 after the untested-platform install notice**, 0 failures, summed per binary from the `test result:` lines: `spawn-at` 199 (was 191), `spawn-at-core` 64, `xtask` 10, `spawn-at-verify` `tui,fixture` 383 passed and 4 ignored (bare 267, `tui` 369); node 154. Total with `tui,fixture`: 656 Rust, 810 with node. Run here: GNOME Shell 46.0 on Wayland, where the real `install --dry-run --headless` prints no notice; the 42-44, 45 and 47 cases run against a stand-in `gnome-shell` on `PATH`, never on a real GNOME of those versions.
-
-**Re-measured 2026-10-13 after `spawn-at config`** (`docs/CONFIG.md`), 0 failures, summed per binary from the `test result:` lines: `spawn-at` 191 (was 175), `spawn-at-core` 64 (47), `xtask` 10; `spawn-at-verify` bare 267 (265), `--features tui` 369 (367), `--features tui,fixture` 383 passed and 4 ignored (381; the 2 new tests are in `no_config.rs`); node 154 unchanged. Total with `tui,fixture`: 648 Rust, 802 with node. No new live section: the one live check (a harness run and a direct spawn under a user config of `cap_ms = 7`) is recorded in `docs/CONFIG.md`.
-
-**Re-measured 2026-10-13 after the default cap 250 and the wire paint time** (commits `e9d5c77`, `8d65a48`; section 6.21), 0 failures: `cargo test -p spawn-at-verify` 265 (was 252), `--features tui` 367 (354), `--features tui,fixture` 381 passed and 4 ignored (368); `spawn-at` 175, `spawn-at-core` 47, `xtask` 10 unchanged; `node --test tests/*.js` 154 unchanged. Total with `tui,fixture`: 613 Rust, 767 with node. The 13 new verify tests are 5 in `trace/wire.rs`, 6 in `runner/wire_paint_tests.rs`, 1 in `report/tests.rs` and 1 in `cli_exit_codes_test`. Summed per binary from the `test result:` lines; the bare `cargo test --workspace` (497, default features) is not quoted for `spawn-at-verify`.
-
-**Re-measured 2026-10-13 after the per-spawn wait override** (section 10 of `DESIGN_READY_WAIT.md`; commits `44ee6b7`, `a1bb985`, `8edebca`, `80ef74a`), all on the new tree, 0 failures: `cargo test -p spawn-at-verify` 252 (was 236), `--features tui` 354 (338), `--features tui,fixture` 368 passed and 4 ignored (352); `spawn-at` 175 (164), `spawn-at-core` 47 (38), `xtask` 10 (10); `cargo test -p spawn-at -p spawn-at-core -p xtask` plus the `tui,fixture` run summed per binary with a throwaway local script (not in the repository): **600 passed, 4 ignored**; `node --test tests/*.js` 154 (134). The 16 new verify tests are 9 in `trace/wait.rs`, 4 in `runner/tests.rs`, 1 in `report/tests.rs` and 2 in `cli_exit_codes_test`. Not re-run: a bare `cargo test --workspace` number (it builds `spawn-at-verify` without features; do not quote it for that crate). Nothing here ran in a GNOME Shell.
-
-The three `spawn-at-verify` rows and the total were re-measured on 2026-10-13 at commit `1de817f` (`cargo test -p spawn-at-verify` bare, `--features tui`, `--features tui,fixture`, summed with `awk` over the `test result:` lines; `cargo test --workspace` 427 = 158 + 23 + 10 + 236); 0 failures. The `spawn-at-core` (34), `spawn-at` (158), `xtask` (10) and Node (101) rows were re-measured on 2026-10-13 at commit `902dff3` after the ready-wait core and its JS port (section 8 of `DESIGN_READY_WAIT.md`): `cargo test --workspace` 438 = 158 + 34 + 10 + 236, `node --test tests/*.js` 101 pass, 0 failures; the verify rows did not change (352 / 338 / 236). A bare `cargo test --workspace` builds `spawn-at-verify` without features, so its number for that crate is the 236 row, not 352; do not quote it for the verify crate. The `spawn-at` (164), `spawn-at-core` (38), `xtask` (10) and Node (134) rows and the total were re-measured on 2026-10-13 after the ready-wait wiring (section 8 and 9 of `DESIGN_READY_WAIT.md`): `cargo test --workspace --features spawn-at-verify/tui,spawn-at-verify/fixture` 564 passed, 4 ignored (164 + 38 + 352 + 10), `node --test tests/*.js` 134 pass, 0 failures; the `spawn-at-verify` count with `tui,fixture` is unchanged at 352 (the bare 236 and `tui` 338 rows were not re-run). Baseline before section 6.15 (`7400e57`): 305 with `tui,fixture`; section 6.15 took it to 341 (`1da549d`), section 6.16 to 352.
-
-#### `fixture_test` Ignored Tests Documentation
-The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` require a live graphical display session (compositor) to execute:
+The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs` need a live graphical display session (a compositor) to run. The fifth ignored test is in `crates/spawn-at-verify/tests/tui/focus_chain_sway.rs`. It needs a private headless Sway (`scripts/focus-chain-sway.sh`).
 1. `test_fixture_clean_exit_timeout`: Opens a live test window with softbuffer/winit event loop and verifies timing-based self-termination. Requires an active Wayland compositor or X11 display server.
 2. `test_fixture_print_ready_output`: Spawns the GUI fixture process and waits for synchronization handshake token `[fixture] READY` emitted once the window surface renders. Requires live display server connection.
 3. `test_fixture_signal_termination`: Spawns a live graphical test window and tests asynchronous SIGTERM handling during the active event loop. Requires live display server connection.
@@ -283,7 +182,9 @@ The 4 tests marked `#[ignore]` in `crates/spawn-at-verify/tests/fixture_test.rs`
 
 ## 2. 59-Case Test Catalog across 8 Categories
 
-The 59 rows are the planned catalogue: 47 are **Covered** (the spec file named in the last column exists; 36 say only Covered and 11 add a note on where they run) and 12 are **Not written** (that spec file does not exist). Counted from the table on 2026-10-19, with a file-exists check on all 59 paths. Nothing here was dropped by a decision; the rows are simply not written. The last 18 Covered rows are the placement resize specs of section 6.10. `spawn-at-verify list` prints 67 tests (run on 2026-10-19 with the debug binary built on 2026-10-18, newer than every source file under `crates/spawn-at-verify/src` and `verify/`). That is more than the 47 Covered rows because specs added since, such as the `hostile/` cells of 6.22, are not rows of the 59; I did not count the others one by one.
+The 59 rows are the planned catalogue. 47 are Covered: the spec file named in the last column exists. 12 are Not written: that spec file does not exist. Both counts come from the table, with a file-exists check on all 59 paths (2026-10-20). No row was dropped by a decision. The last 18 Covered rows are the placement resize specs of section 6.10.
+
+`spawn-at-verify list` prints 67 tests (55 auto and 12 both; run on 2026-10-20 with the debug binary built on 2026-10-18, which is newer than every file under `crates/spawn-at-verify/src` and `verify/`). That is more than the 47 Covered rows because specs added later are not rows of the 59, such as the `hostile/` cells of 6.22 and the specs for existing windows (7.5). The others were not matched to rows one by one.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |
@@ -304,8 +205,8 @@ The 59 rows are the planned catalogue: 47 are **Covered** (the spec file named i
 | `placement/center` | Window centered inside display workarea (400x300, margin 16) | Auto | **Covered** | `verify/placement/center.toml` |
 | `placement/margin-0` | Bottom-right anchor with 0 px margin | Both | **Covered** | `verify/placement/margin-0.toml` |
 | `placement/margin-64` | Bottom-right anchor with 64 px margin | Auto | **Covered** | `verify/placement/margin-64.toml` |
-| `placement/center-200x150` | 200x150 window centered (**flaky live**: fails in about 2 of 5 runs, see 2.1) | Both | **Covered** | `verify/placement/center-200x150.toml` |
-| `placement/center-1200x800` | 1200x800 window centered (**flaky live**: fails in about 1 of 6 runs, see 2.1) | Auto | **Covered** | `verify/placement/center-1200x800.toml` |
+| `placement/center-200x150` | 200x150 window centered (**flaky live**, see 2.1) | Both | **Covered** | `verify/placement/center-200x150.toml` |
+| `placement/center-1200x800` | 1200x800 window centered (**flaky live**, see 2.1) | Auto | **Covered** | `verify/placement/center-1200x800.toml` |
 | `placement/bottom-right-smaller` | 200x150 at bottom-right, fixture minimum 100x100 (real shrink) | Both | **Covered** | `verify/placement/bottom-right-smaller.toml` |
 | `placement/bottom-right-larger` | 800x600 at bottom-right, fixture minimum 100x100 (real grow) | Auto | **Covered** | `verify/placement/bottom-right-larger.toml` |
 | `placement/bottom-right-minsize-at-min` | exactly the fixture minimum 300x200, bottom-right | Auto | **Covered** | `verify/placement/bottom-right-minsize-at-min.toml` |
@@ -359,62 +260,17 @@ The 59 rows are the planned catalogue: 47 are **Covered** (the spec file named i
 
 ### 2.1 Known flaky: placement size variants (investigated 2026-10-12)
 
-**Status after the late-resize fix (commit `9e6b65d`, live-measured later the same day): see 6.11.** Idle: 0 failures in 640 runs of the 16 resize specs. Under all-CPU load: still failing (212 of 320 passed), by a different mechanism than the one described below (the resize arrives after the reveal, not between `UNCLOAK_4C` and `ANCHOR_ARMED`). The text below is the pre-fix investigation and is left as written.
+`placement/center-200x150` and `placement/center-1200x800` are the first specs that force a real resize. The fixture opens at 400x300 and neither spec passes `--width` or `--height`, so the window is resized after it maps. The two specs stay required.
 
-`placement/center-200x150` and `placement/center-1200x800` are the first specs that force a real resize: the fixture opens at its default 400x300 (`--width`/`--height` default to 400/300, `crates/spawn-at-verify/src/bin/fixture.rs:46-51`, used for the initial size at `bin/fixture/window.rs:48,61`) and neither spec passes `--width`/`--height` (`verify/placement/center-200x150.toml`, `center-1200x800.toml`). Nothing was changed to investigate: no product code, spec, fixture or budget. The specs stay failing when they fail. Each claim is labelled **CONFIRMED** (shown by a log, a count or a line of code) or **HYPOTHESIS**.
+Where the details are: the mechanism and the corrected frequencies are in 6.0, 6.5 and 6.6, and the results after the late-resize fix are in 6.11 (a stub that links to [TEST_LOG.md](TEST_LOG.md)). The pre-fix investigation that stood here was removed from this page; it is in git history.
 
-**Symptom (CONFIRMED).** On a failing run spawn-at logs `[spawn-at] WARNING: Window mapped at (760, 410) [WxH] but expected position was (X, Y)`. (760, 410) is where a 400x300 window is centred in the workarea `0,40 1920x1040`. The window does end up WxH (the `UNCLOAK` event shows `frame=(760,410,WxH)`), it just keeps the top-left chosen for 400x300. Recorded failing run: `crates/spawn-at-verify/tests/fixtures/real_placement_center_200x150_fail_run.json`.
+What was found, and how it is known:
 
-**Frequency (CONFIRMED, counts from `verify-results/`).**
-
-| Condition | center-200x150 | center-1200x800 |
-| :--- | :---: | :---: |
-| Idle, `run --repeat 20` (all 20 runs stored, binary at HEAD) | 0/20 fail | 0/20 fail |
-| Idle, 20 separate `run` invocations 1.1 s apart | 0/20 fail | 0/20 fail |
-| All 22 CPUs busy (22 `while :; do :; done` loops), 20 separate invocations | **12/20 fail** | not run |
-| The 03:16-03:17 batch that first showed the failures (stored reports only; same-second runs overwrote each other before the directory-name fix, so the real run count was higher) | 3 fails in 7 stored runs | 2 fails in 7 stored runs |
-
-All failing runs show the same signature (`COMMIT_RESOLVED reason=SIZE_SETTLED finalFrame=(400x300)`, `APPLY_ANCHOR eff=(400x300)`, final `760,410`). So the failure rate is not a constant 30%: it was 0/80 in the first idle batches and 12/20 with every CPU busy. **Corrected later (section 6.0, 6.5, 6.6): idle runs also fail** (1 of 50 with another window alive; 4 of 40 with no other window), so the "0/80 at idle" above is not a safe rate. That CPU load can cause it is **CONFIRMED** for this machine (same binary, same spec, only the load changed): load is a sufficient trigger, not the only one. That the earlier 03:16-03:17 failures were also caused by load is **HYPOTHESIS** (they all fall inside about 70 s, and nothing else about the machine was recorded).
-
-**Where a failing run and a passing run diverge (CONFIRMED, window-scoped events, ms from the window's first event).** `center-200x150`, failing (`verify-results/20261012-031711-<user>`) against passing:
-
-| Event | Failing | Passing |
-| :--- | :--- | :--- |
-| `SET_SIZE_REQUEST` requested (200x150), frame (50,90,400x300) | +43.60 | +49.95 |
-| `COMMIT_SAMPLE source=allocation frame=(400x300)` | +45.40 | +51.90 |
-| `COMMIT_SAMPLE source=size-changed frame=(200x150)` | **never sampled** | +61.07 (9.2 ms after the allocation sample) |
-| `COMMIT_RESOLVED` | +76.86 `SIZE_SETTLED finalFrame=(400x300)` (31.5 ms after the allocation sample) | +61.15 `AT_TARGET finalFrame=(200x150)` |
-| `FALLBACK_USED "min size unreported"` | +77.22 usingFrame=(400x300) | +61.48 usingFrame=(200x150) |
-| `APPLY_ANCHOR` | `eff=(400x300)` final=(760,410) | `eff=(200x150)` final=(860,485) |
-| `UNCLOAK_4C` | `positioned=(400x300) actual=(400x300) needsReanchor=false` | `positioned=(200x150) actual=(200x150) needsReanchor=false` |
-| `UNCLOAK` (reveal) | +81.44 `frame=(760,410,200x150)` | +69.26 `frame=(860,485,200x150)` |
-| `ANCHOR_ARMED` | +81.51 (after the resize) | +69.37 |
-
-`center-1200x800` diverges at the same step: failing run (`20261012-031622-<user>`) has no `size-changed` sample, resolves `SIZE_SETTLED (400x300)` 32.5 ms after the allocation sample and anchors with `eff=(400x300)`; the passing run gets `size-changed (1200x800)` and `AT_TARGET`.
-
-**The three mechanisms, from the code (all CONFIRMED by reading; none edited).**
-
-1. *Size used by the anchor.* `computeAnchoredPosition` takes the window's **current** frame size, `Math.max(frame.width, minW)` (`assets/gnome/modern/anchor.js:19-20`), and `_computeAnchoredPosition` passes `window.get_frame_rect()` (`assets/gnome/modern/extension.js:985`). It never uses the requested size (`ctx.targetW/H`, `ctx.safeW/H`). When `COMMIT_RESOLVED` is not at target, the anchor therefore uses whatever size the window has at that instant, here 400x300. `FALLBACK_USED reason="min size unreported"` only means the toolkit reported a 0x0 minimum (`extension.js:1003`); it is logged on every passing run too (80 of 80 idle runs), so it does not distinguish failing from passing.
-2. *The settle rule gives up after 30 ms.* `waitForCommit` resolves `AT_TARGET` as soon as a sample matches the target, but on the first `allocation` sample with an unchanged size it replaces the idle timer with a 30 ms quiet timer that finishes `SIZE_SETTLED` (`assets/gnome/modern/commit.js:11,88-96`, `COMMIT_QUIET_MS = 30`). If the client has not committed the new size within about 30 ms of that sample, the step ends with the old size and the anchor is computed from it (mechanism 1). Failing runs resolve 31.5 and 32.5 ms after the allocation sample.
-3. *The late resize is missed by the reanchor logic.* `_reanchorIfResized` compares the size at `UNCLOAK_4C` with the size positioned (`extension.js:913-936`); a resize that lands after that check is only noticed by the reactive anchor, which is armed at the end of the reveal (`_armAnchor`, `ANCHOR_ARMED`, `extension.js:1025-1034`). In the failing run the resize happened between `UNCLOAK_4C` (+77.72) and `ANCHOR_ARMED` (+81.51): `UNCLOAK` already shows `200x150`, so no `size-changed` reached an armed anchor and no `ANCHOR_CORRECTION` was issued.
-
-**Margin to the 30 ms limit at idle (CONFIRMED, 20 runs each, allocation sample to `size-changed` sample, ms).** `center-200x150`: 6.0 to 9.9 (median 7.6). `center-1200x800`: 19.1 to 33.6 (median 24.3). The 1200x800 client is much closer to the limit. One idle run measured 33.6 ms and still resolved `AT_TARGET`, so the 30 ms timer does not fire at exactly 30 ms; why (timer lateness or dispatch order in the shell main loop) is **HYPOTHESIS**, not examined.
-
-**Fixture or product? (CONFIRMED that it is not only the fixture.)** `zenity --text-info` (GTK, `GDK_BACKEND=wayland`) opens at 300x400. **Corrected later (section 6.0, 6.3): 300x400 is its default size, not its minimum; its minimum is about 300x201** (requests of 200x150 and 50x50 settle at 300x201). The original sentence here said 200x150 "only gets raised to 300x400" and so cannot test this, which was wrong for that reason. The sizes below were still resizes away from 300x400. At sizes it can take, 20 runs each, `spawn-at spawn --class '*' --size W H --anchor center --json -- zenity ...`:
-
-| Client / size | Mis-centred (final position = centre of the pre-resize 300x400 frame, 810,360) |
-| :--- | :---: |
-| zenity 500x450, run 1 | 4/20 |
-| zenity 500x450, run 2 | 1/20 |
-| zenity 1200x800 | 2/20 |
-
-zenity never reaches the target inside the 30 ms window: all 60 runs resolved `SIZE_SETTLED (300x400)` and anchored with `eff=(300x400)`. Mis-centred and centred runs differ only in when the resize lands: centred runs resize after `ANCHOR_ARMED` and the reactive anchor corrects them (`ANCHOR_CORRECTION size=(500x450) from=(810,360) to=(710,335)`); mis-centred runs resize between `UNCLOAK_4C` and `ANCHOR_ARMED`, as in the fixture. So mechanisms 2 and 3 are in the extension, not in the fixture.
-
-**Does the fixture ack the configure promptly? (HYPOTHESIS.)** `Resized` redraws immediately when the window has painted (`bin/fixture/window.rs:195-208`), and the event loop wakes at least every 16 ms (`window.rs:226`). At idle the fixture delivers the new size 6 to 10 ms (200x150) or 19 to 34 ms (1200x800) after the first allocation sample, and slower under load; the request-to-`COMMIT_RESOLVED` time was 33 to 213 ms in the 12 loaded failing runs. That the delay is dominated by the fixture's debug-build software drawing, rather than compositor scheduling, was not measured.
-
-**Should the specs pass `--width`/`--height`? (opinion, HYPOTHESIS about intent.)** Not these two: if the fixture started at 200x150 or 1200x800 the `SetSize` would be a no-op and the spec would no longer exercise a resize, which is what they were added for. A pair of "already the right size" specs would be a separate, additional test. The specs are required, so until the extension is fixed they fail under load.
-
-**Not done / not known.** The extension was not changed, so no fix is verified. The load test was run only for `center-200x150`. Whether the 03:16-03:17 failures were load is unproven.
+- Symptom (confirmed): on a failing run spawn-at warns that the window mapped at (760, 410), the position that centres a 400x300 window in the work area, although it ends up 200x150 or 1200x800. The window keeps the top-left chosen for 400x300.
+- Mechanism (confirmed by reading the code, nothing was edited): the anchor uses the window's current frame size, never the requested size. The settle rule gives up after a 30 ms quiet period. A resize that lands after the check at `UNCLOAK_4C` and before `ANCHOR_ARMED` is missed by both the re-anchor check and the reactive anchor.
+- Frequency (confirmed, corrected in 6.0): idle runs fail too, 1 of 50 with another window alive and 4 of 40 with none. With every CPU busy, 12 of 20 runs of `center-200x150` failed. Load is a sufficient trigger, not the only one.
+- After the late-resize fix (6.11): 0 failures in 640 idle runs of the 16 resize specs, and under all-CPU load still failing (212 of 320 passed), by a different mechanism: the resize arrives after the reveal.
+- Not known: whether the very first failures were caused by load, and whether the fixture's slow software drawing or the compositor dominates the delay of the new size. No fix of the extension is verified here.
 
 ## 3. CLI Coverage Matrix (`spawn-at --help`)
 
@@ -619,7 +475,7 @@ Investigation of 2026-10-12. No code, spec or budget was changed. All live numbe
 
 ### 6.0 Corrections to section 2.1 (found while doing this work)
 
-These statements in section 2.1 were wrong or too strong. They have been corrected in place in 2.1 (with a pointer here); this list records what changed.
+These statements in the original section 2.1 (since replaced by a summary; the old text is in git history) were wrong or too strong. Section 2.1 now states the corrected version. This list records what changed.
 
 1. 2.1 said `zenity --text-info` "has a 300x400 minimum". **Wrong, CONFIRMED.** 300x400 is its default size. Its real minimum is about 300 wide and 201 high: requests of 200x150 and 50x50 settle at 300x201 (6.3). The CLI text "window minimum is 300x400" for it was the size at the moment spawn-at read the window, while it was still shrinking to 300x201 (6.2 item 9, 6.4 row 3); it is a symptom of the late-resize bug, not a separate bug.
 2. 2.1 says the fixture failed 0 of 80 runs at idle. **Superseded.** Later idle batches failed: 1 of 50 (6.5) and 4 of 40 in the isolated regime (6.6). The 40 `--repeat` runs had earlier windows alive by design (`runner/engine.rs:131-132`, section 5). For the 40 separate `verify run` invocations 1.1 s apart, earlier windows may also have been alive (the fixture's backstop lifetime for automatic tests is 10 s, `runner/validation.rs:48-57`); whether `run` closes its window when it exits was not checked, so that is a HYPOTHESIS. Both would be the fast regime of section 5.

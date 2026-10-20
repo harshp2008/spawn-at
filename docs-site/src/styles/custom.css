@@ -61,10 +61,11 @@
   margin-top: 1.8em;
 }
 
-/* Bold is 600, not Starlight's browser default 700 (`bolder`): a lead-in or a warning is still
-   marked, but a paragraph with three of them is not a wall of black. Headings keep their weight. */
+/* Bold is 500, not Starlight's browser default 700 (`bolder`) and not the 600 set earlier: a
+   warning is still marked, but a paragraph with three of them is not a wall of black. Headings keep
+   their weight. A font that has no 500 face draws it as 400 or 600, whichever the browser picks. */
 .sl-markdown-content strong:not(:where(.not-content *)) {
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* The header line is lighter than the default. */
