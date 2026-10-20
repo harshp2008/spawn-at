@@ -1,5 +1,7 @@
 # Settings (spawn-at config)
 
+**Status:** reference. The keys, defaults and ranges are in `crates/spawn-at-core/src/settings.rs` and `src/platform/linux/config_store.rs`; checked on 2026-10-20.
+
 Labels: CONFIRMED = read in the code or run; HYPOTHESIS = not tested.
 
 ## Inventory before this change (CONFIRMED, read from the source)
