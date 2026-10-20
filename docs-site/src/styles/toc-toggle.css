@@ -37,15 +37,12 @@
 
   /* The column is removed, and the main pane takes the whole width right of the left sidebar
      (Starlight keeps room for the column in its width formula). The content column grows from
-     45rem to 60rem (720px to 960px): tables, code blocks and asides use it. Paragraphs, lists
-     and quotes keep 45rem, because a line of body text is already about 93 characters there and
-     wider lines are hard to follow; the extra width is for the parts that were cramped. On a
-     pane narrower than 60rem the column simply fills it. */
+     45rem to 56rem (720px to 896px) and everything in it uses that one width: paragraphs, lists,
+     quotes, tables, code blocks, asides and records. This is the only place the width is set.
+     (It was 60rem for tables, code and asides and 45rem for text, so the former stuck out to the
+     right of the latter.) On a pane narrower than 56rem the column simply fills it. */
   :root[data-toc-hidden] {
-    --sl-content-width: 60rem;
-  }
-  :root[data-toc-hidden] .sl-markdown-content > :is(p, ul, ol, blockquote):not(:where(.not-content *)) {
-    max-width: 45rem;
+    --sl-content-width: 56rem;
   }
   :root[data-toc-hidden] .right-sidebar-container {
     display: none;
