@@ -131,18 +131,7 @@ Three details do most of the work:
 
 The geometry model (10 anchors, 5 pivots, margins, workarea clamping) is shared. A driver only has to answer: where are the screens, where is the cursor, and how do I place and reveal a window.
 
-```mermaid
-sequenceDiagram
-    participant CLI as spawn-at
-    participant Ext as GNOME extension
-    participant App as your app
-    CLI->>Ext: 1. Here's where the next window goes
-    CLI->>App: 2. Launch it
-    App->>Ext: 3. Window created
-    Note over Ext: 4. Hide it (opacity 0)
-    Note over Ext,App: 5. Resize, wait for the app to finish drawing, position
-    Ext->>App: 6. Reveal
-```
+The sequence on GNOME is the diagram under [How it works](#how-it-works).
 
 Wayland is the worst case: no client-side placement, no global window API, and the compositor has to do everything. If one command can place a window with few or no flashes there, the same model should carry to the easier platforms.
 
@@ -234,22 +223,6 @@ Tested: a private headless Sway 1.9 and the repo's own test window, with `script
 
 **Done in v0.2.0:** the code is restructured for other platforms, there is an experimental, opt-in Sway backend, and a non-GNOME Wayland session is an error instead of a silent fall back to X11. None of this changes GNOME placement behavior. **Next:** groundwork for other platforms is still to come. No dates and no promises: other compositors (Hyprland, KDE) are not implemented, Sway is experimental and opt-in, and support only gets claimed for an environment once its live test suite passes there. Ideas for choosing the wait method per app are in [docs/DESIGN_READY_WAIT.md](docs/DESIGN_READY_WAIT.md) section 15; they need real-app testing that has not been done.
 
-## Contributing a backend
-
-Compositors sit behind the `CompositorBackend` trait in [`src/platform/mod.rs`](src/platform/mod.rs). The core of it:
-
-```rust
-pub trait CompositorBackend: Driver + Send + Sync {
-    fn name(&self) -> &'static str;
-    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError>;  // has a default
-    async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError>;  // has a default
-    async fn transform_window(&self, target_id: &str, params: PlacementParams, w: u32, h: u32) -> Result<(), DriverError>;  // has a default
-    // ...plus focus, state, query and post_spawn methods
-}
-```
-
-Add a module under `src/platform/linux/` and register it in `LinuxBackend::bootstrap()`.
-
 ## More install options
 
 ```bash
@@ -272,6 +245,26 @@ curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh
 git clone https://github.com/harshp2008/spawn-at.git && cd spawn-at
 cargo build --release && ./target/release/spawn-at install
 ```
+
+## Contributing a backend
+
+Compositors sit behind the `CompositorBackend` trait in [`src/platform/mod.rs`](src/platform/mod.rs). The core of it:
+
+```rust
+#[async_trait::async_trait]
+pub trait CompositorBackend: Driver + Send + Sync {
+    fn name(&self) -> &'static str;  // required, no default
+    fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String;  // required, no default
+    async fn get_cursor_position(&self) -> Result<(i32, i32), DriverError>;  // has a default
+    async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError>;  // has a default
+    async fn transform_window(&self, target_id: &str, params: PlacementParams, current_w: u32, current_h: u32) -> Result<(), DriverError>;  // has a default
+    // ...plus focus, state, query and post_spawn methods, all with defaults
+}
+```
+
+The required methods are `name`, `resolve_id` and `Driver::arm` (from `spawn-at-core`). Every other method has a default, and most defaults report the operation as unsupported, so a backend overrides only what it can do.
+
+Add a module under `src/platform/linux/` and register it in `LinuxBackend::bootstrap()`.
 
 <details>
 <summary><strong>CLI reference</strong></summary>
