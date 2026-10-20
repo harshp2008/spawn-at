@@ -6,9 +6,13 @@
 //! binary. The walk starts at the root command and follows every `Commands:` list it prints, so
 //! nested commands (`query layout`, `config set`) get a page too. The built-in `help` entry that
 //! clap adds to every list is skipped: it is not a command of its own. Each page starts with a
-//! front-matter block (`title`, `description`) and has no `# ` heading, because Starlight prints
-//! the title as the page heading. The sidebar lists them through an `autogenerate` entry for the
-//! folder `reference` in `docs-site/astro.config.mjs`, which this module checks for.
+//! front-matter block (`title`, `description`, `sidebar.label`) and has no `# ` heading, because
+//! Starlight prints the title as the page heading. The `description` is the first line of that
+//! command's `--help`; the sidebar label is the command without `spawn-at `; the first line of the
+//! body points to the hand-written page of the command (`COMMAND_PAGES`, checked against the files
+//! that exist) or, for a command without one, to the Commands index. The text from `--help` itself
+//! is never changed. The sidebar lists the pages through an `autogenerate` entry for the folder
+//! `reference` in `docs-site/astro.config.mjs`, which this module checks for.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -123,16 +127,101 @@ pub fn yaml_quote(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// The markdown of one page: front matter, the command that produced the text, and the text.
-/// There is no `# ` heading; Starlight prints `title` as the heading.
-pub fn render_page(path: &[String], help: &str, version: Option<&str>) -> String {
+/// The hand-written page of each command that has one, as the file name under `commands/`
+/// (without `.md`). A command that is not listed, or whose file is missing, has none and the
+/// reference page points to the Commands index instead. Nested commands (`query layout`) use the
+/// page of their first word.
+const COMMAND_PAGES: [(&str, &str); 12] = [
+    ("spawn", "spawn"),
+    ("transform", "transform"),
+    ("focus", "window-state"),
+    ("defocus", "window-state"),
+    ("maximize", "window-state"),
+    ("minimize", "window-state"),
+    ("restore", "window-state"),
+    ("close", "window-state"),
+    ("query", "query"),
+    ("install", "manage"),
+    ("uninstall", "manage"),
+    ("update", "manage"),
+];
+
+/// Where the hand-written text of a command is: a site path such as `/spawn-at/commands/spawn/`
+/// and the title of that page.
+#[derive(Debug, PartialEq)]
+pub struct HandWritten {
+    pub url: String,
+    pub title: String,
+}
+
+/// The hand-written page of the command at `path`, if `COMMAND_PAGES` lists one and its file
+/// exists in `content_dir` (the `docs-site/src/content/docs` folder) with a title. The title
+/// is read from the page, so the link text cannot drift from it.
+pub fn hand_written_page(path: &[String], content_dir: &Path) -> Option<HandWritten> {
+    let first = path.first()?;
+    let (_, page) = COMMAND_PAGES.iter().find(|(name, _)| name == first)?;
+    let text = fs::read_to_string(content_dir.join("commands").join(format!("{page}.md"))).ok()?;
+    let (front, _) = crate::docs_check::split_front_matter(&text)?;
+    let title = crate::docs_check::front_matter_title(front);
+    if title.is_empty() {
+        return None;
+    }
+    Some(HandWritten {
+        url: format!("/spawn-at/commands/{page}/"),
+        title,
+    })
+}
+
+/// The one line under the title that sends a reader to the hand-written text.
+pub fn pointer_line(page: Option<&HandWritten>) -> String {
+    match page {
+        Some(p) => format!(
+            "Hand-written page for this command: [{}]({}).",
+            p.title, p.url
+        ),
+        None => "The hand-written pages for each command are on [Commands](/spawn-at/commands/)."
+            .to_string(),
+    }
+}
+
+/// The first non-empty line of a `--help` text: the short description of the command.
+pub fn first_help_line(help: &str) -> Option<&str> {
+    help.lines().map(str::trim).find(|l| !l.is_empty())
+}
+
+/// The name of the page in the sidebar: the command without the leading `spawn-at ` (`spawn`,
+/// `query windows`); the root command keeps `spawn-at`. The title stays the full command line.
+pub fn sidebar_label(path: &[String]) -> String {
+    if path.is_empty() {
+        "spawn-at".to_string()
+    } else {
+        path.join(" ")
+    }
+}
+
+/// The markdown of one page: front matter, the line that points to the hand-written page, the
+/// command that produced the text, and the text. `description` is the first line of the help
+/// text, `sidebar.label` the command without `spawn-at `. There is no `# ` heading; Starlight
+/// prints `title` as the heading.
+pub fn render_page(
+    path: &[String],
+    help: &str,
+    version: Option<&str>,
+    hand_written: Option<&HandWritten>,
+) -> String {
     let line = command_line(path);
+    let description = first_help_line(help)
+        .map(str::to_string)
+        .unwrap_or_else(|| format!("Output of {line} --help, unchanged."));
     let mut page = format!(
-        "---\ntitle: {}\ndescription: {}\n---\n\n\
+        "---\ntitle: {}\ndescription: {}\nsidebar:\n  label: {}\n---\n\n\
+         {}\n\n\
          This page is generated from the built binary at build time. \
          The text below is the output of `{line} --help`, unchanged.\n\n",
         yaml_quote(&line),
-        yaml_quote(&format!("Output of {line} --help, unchanged."))
+        yaml_quote(&description),
+        yaml_quote(&sidebar_label(path)),
+        pointer_line(hand_written)
     );
     let body = help.trim_end();
     let fence = fence_for(body);
@@ -221,6 +310,8 @@ pub fn generate(
     let version = run_capture(bin, &["-V"])?;
     fs::create_dir_all(reference_dir)
         .map_err(|e| format!("cannot create {}: {}", reference_dir.display(), e))?;
+    // `docs-site/src/content/docs`, where the hand-written `commands/` pages are
+    let content_dir = reference_dir.parent().unwrap_or(reference_dir);
     let mut written = Vec::new();
     for cmd in &commands {
         let version = if cmd.path.is_empty() {
@@ -228,9 +319,13 @@ pub fn generate(
         } else {
             None
         };
+        let hand_written = hand_written_page(&cmd.path, content_dir);
         let file = reference_dir.join(page_file(&cmd.path));
-        fs::write(&file, render_page(&cmd.path, &cmd.help, version))
-            .map_err(|e| format!("cannot write {}: {}", file.display(), e))?;
+        fs::write(
+            &file,
+            render_page(&cmd.path, &cmd.help, version, hand_written.as_ref()),
+        )
+        .map_err(|e| format!("cannot write {}: {}", file.display(), e))?;
         written.push(file);
     }
     remove_stale_pages(reference_dir, &written)?;
@@ -315,15 +410,17 @@ Options:
     /// generated block cannot be closed early.
     #[test]
     fn test_render_page_fence_outgrows_backticks_in_the_text() {
-        let page = render_page(&["x".to_string()], "see ```code``` here\n", None);
+        let page = render_page(&["x".to_string()], "see ```code``` here\n", None, None);
         assert!(page.contains("````text\n$ spawn-at x --help\nsee ```code``` here\n````\n"));
     }
 
     /// The version block appears only when a version is given (the root page).
     #[test]
     fn test_render_page_version_block_only_for_root() {
-        assert!(render_page(&[], "h\n", Some("DEV BUILD\n")).contains("$ spawn-at -V\nDEV BUILD"));
-        assert!(!render_page(&["x".to_string()], "h\n", None).contains("-V"));
+        assert!(
+            render_page(&[], "h\n", Some("DEV BUILD\n"), None).contains("$ spawn-at -V\nDEV BUILD")
+        );
+        assert!(!render_page(&["x".to_string()], "h\n", None, None).contains("-V"));
     }
 
     /// A missing binary is an error that names the file and how to build it, not an empty list.
@@ -386,6 +483,14 @@ Options:
         assert!(root.contains("spawn-at 9.9.9"));
         let inner = fs::read_to_string(out.join("spawn-at-beta-inner.md")).unwrap();
         assert!(inner.contains("Leaf for beta inner --help") && !inner.contains("9.9.9"));
+        // each page's description is the first line of its own help, not one shared sentence
+        assert!(root.contains("description: \"Root\"\n"), "{root}");
+        assert!(
+            inner.contains("description: \"Leaf for beta inner --help\"\n"),
+            "{inner}"
+        );
+        // the stand-in has no `commands/` folder next to `reference/`, so every page points to the index
+        assert!(inner.contains("[Commands](/spawn-at/commands/)"), "{inner}");
         let _ = fs::remove_dir_all(&dir);
     }
 
@@ -437,19 +542,131 @@ Options:
         assert!(!sidebar_autogenerates("", "reference"));
     }
 
-    /// A page starts with a `---` block holding `title` and `description`, then the generated
-    /// paragraph; there is no `# ` heading line (Starlight would show the title twice).
+    /// A page starts with a `---` block holding `title`, `description` (the first line of the
+    /// help text) and `sidebar.label`, then the line that points to the hand-written text, then
+    /// the generated paragraph; there is no `# ` heading line (Starlight would show the title
+    /// twice).
     #[test]
     fn test_render_page_has_front_matter_and_no_h1() {
-        let page = render_page(&["query".to_string(), "layout".to_string()], "h\n", None);
+        let page = render_page(
+            &["query".to_string(), "layout".to_string()],
+            "Print the layout\n\nUsage: x\n",
+            None,
+            None,
+        );
         assert!(
             page.starts_with(
                 "---\ntitle: \"spawn-at query layout\"\n\
-                 description: \"Output of spawn-at query layout --help, unchanged.\"\n---\n\n"
+                 description: \"Print the layout\"\n\
+                 sidebar:\n  label: \"query layout\"\n---\n\n\
+                 The hand-written pages for each command are on [Commands](/spawn-at/commands/).\n\n\
+                 This page is generated from the built binary"
             ),
             "{page}"
         );
         assert!(!page.lines().any(|l| l.starts_with("# ")), "{page}");
+    }
+
+    /// The description is the first non-empty line of that command's help, so two pages do not
+    /// share one string; it is quoted for YAML; an empty help falls back to the old sentence.
+    #[test]
+    fn test_description_is_the_first_help_line() {
+        assert_eq!(
+            first_help_line("\n  Move a window \nmore\n"),
+            Some("Move a window")
+        );
+        assert_eq!(first_help_line("\n\n"), None);
+        let a = render_page(&["a".to_string()], "Do \"a\"\n\nUsage\n", None, None);
+        let b = render_page(&["b".to_string()], "Do b\n\nUsage\n", None, None);
+        assert!(a.contains("description: \"Do \\\"a\\\"\"\n"), "{a}");
+        assert!(b.contains("description: \"Do b\"\n"), "{b}");
+        let empty = render_page(&["c".to_string()], "", None, None);
+        assert!(
+            empty.contains("description: \"Output of spawn-at c --help, unchanged.\""),
+            "{empty}"
+        );
+    }
+
+    /// The sidebar label drops the leading `spawn-at `; the root keeps its name, because the
+    /// rest would be empty; the title is untouched.
+    #[test]
+    fn test_sidebar_label_drops_the_program_name() {
+        assert_eq!(sidebar_label(&[]), "spawn-at");
+        assert_eq!(sidebar_label(&["spawn".to_string()]), "spawn");
+        assert_eq!(
+            sidebar_label(&["query".to_string(), "windows".to_string()]),
+            "query windows"
+        );
+        let page = render_page(
+            &["config".to_string(), "set".to_string()],
+            "h\n",
+            None,
+            None,
+        );
+        assert!(page.contains("title: \"spawn-at config set\""), "{page}");
+        assert!(
+            page.contains("sidebar:\n  label: \"config set\"\n"),
+            "{page}"
+        );
+    }
+
+    /// The pointer line names a page that exists: the map lists the command, the file is in
+    /// `commands/` and has a title. A listed command without its file, a command that is not
+    /// listed, a nested command (it uses the page of its first word) and a page without a title
+    /// are each handled, and the help text under the pointer is unchanged.
+    #[test]
+    fn test_hand_written_page_is_built_from_the_files_that_exist() {
+        let content = temp_dir("handwritten");
+        let commands = content.join("commands");
+        fs::create_dir_all(&commands).unwrap();
+        fs::write(
+            commands.join("spawn.md"),
+            "---\ntitle: \"spawn\"\n---\n\nText\n",
+        )
+        .unwrap();
+        fs::write(
+            commands.join("window-state.md"),
+            "---\ntitle: \"Focus and window state\"\n---\n\nText\n",
+        )
+        .unwrap();
+        fs::write(commands.join("query.md"), "no front matter\n").unwrap();
+        let s = |w: &[&str]| w.iter().map(|x| x.to_string()).collect::<Vec<_>>();
+
+        assert_eq!(
+            hand_written_page(&s(&["spawn"]), &content),
+            Some(HandWritten {
+                url: "/spawn-at/commands/spawn/".to_string(),
+                title: "spawn".to_string()
+            })
+        );
+        let focus = hand_written_page(&s(&["focus"]), &content).unwrap();
+        assert_eq!(focus.url, "/spawn-at/commands/window-state/");
+        assert_eq!(focus.title, "Focus and window state");
+        // a listed command whose file is missing, and one whose file has no title
+        assert_eq!(hand_written_page(&s(&["transform"]), &content), None);
+        assert_eq!(hand_written_page(&s(&["query", "layout"]), &content), None);
+        // not in the map: `config` has no page under `commands/`; the root has no first word
+        assert_eq!(hand_written_page(&s(&["config", "set"]), &content), None);
+        assert_eq!(hand_written_page(&[], &content), None);
+
+        assert_eq!(
+            pointer_line(Some(&focus)),
+            "Hand-written page for this command: [Focus and window state](/spawn-at/commands/window-state/)."
+        );
+        assert_eq!(
+            pointer_line(None),
+            "The hand-written pages for each command are on [Commands](/spawn-at/commands/)."
+        );
+        let page = render_page(&s(&["focus"]), "Focus it\n\nUsage: y\n", None, Some(&focus));
+        assert!(
+            page.contains("---\n\nHand-written page for this command: [Focus and window state]"),
+            "{page}"
+        );
+        assert!(
+            page.ends_with("```text\n$ spawn-at focus --help\nFocus it\n\nUsage: y\n```\n"),
+            "{page}"
+        );
+        let _ = fs::remove_dir_all(&content);
     }
 
     /// A double quote or backslash in a title cannot end the YAML string early.

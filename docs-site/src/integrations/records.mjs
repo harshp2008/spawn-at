@@ -18,8 +18,8 @@
 //
 // The layout is src/styles/records.css. The cells keep their inner HTML, so links, ids, inline code
 // and the break points of code-breaks.mjs come along; the text of the page does not change. The
-// fields stay in the column order of the table (copy-paste and screen readers read them so); the
-// stylesheet shows the short ones first.
+// short fields come first in the HTML, then the long ones, each group in the column order of the
+// table, so the order on the screen is the order of the markup (Tab, screen readers, copy).
 //
 // Which tables:
 //   - on a page under project/ (the pages mirrored from docs/, not project/index.html), a table
@@ -172,12 +172,24 @@ export function recordsHtml({ header, body }, key, style = null) {
   const out = [`<${tag} class="${cls}" role="list">`];
   body.forEach((row, r) => {
     const cells = header.map((_, i) => row[i] ?? ''); // a short row has empty cells
-    const fields = header
+    // The short fields come first in the HTML, each group in the column order of the table: the
+    // order a reader sees is then the order of the markup, of the Tab key, of a screen reader and
+    // of a copy. (The stylesheet used to move them with `order`, which left focus in table order.)
+    const items = header
       .map((h, i) => {
-        if (i === k || textLength(cells[i]) === 0) return '';
+        if (i === k || textLength(cells[i]) === 0) return null;
         const size = textLength(cells[i]) <= SHORT_FIELD ? 'short' : 'long';
-        return `<div class="field field-${size}"><dt>${h || `Column ${i + 1}`}</dt><dd>${cells[i]}</dd></div>`;
+        return {
+          size,
+          html: `<div class="field field-${size}"><dt>${h || `Column ${i + 1}`}</dt><dd>${cells[i]}</dd></div>`,
+        };
       })
+      .filter(Boolean);
+    const fields = [
+      ...items.filter((f) => f.size === 'short'),
+      ...items.filter((f) => f.size === 'long'),
+    ]
+      .map((f) => f.html)
       .join('');
     const { num, note } = steps ? parsed[r] : {};
     const keyHtml = steps

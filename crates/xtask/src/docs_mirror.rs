@@ -5,18 +5,24 @@
 //! `index.md`. Which files are mirrored is a fixed list (`MIRRORED`: file, page name, sidebar
 //! order); `TEST_LOG.md` and `RELEASE_NOTES_*.md` are excluded on purpose (`EXCLUDED_FILES`,
 //! `EXCLUDED_PREFIXES`). A `docs/*.md` file that is in neither list fails the run, so a new file
-//! is always a decision. Outside code fences, the text of a file is changed in four ways:
+//! is always a decision. Outside code fences, the text of a file is changed in five ways:
 //!
 //! - the first `# ` heading becomes the front-matter `title` (double-quoted YAML) and is removed,
-//!   because Starlight prints the title as the heading; `sidebar.order` comes from the list;
+//!   because Starlight prints the title as the heading; `sidebar.order` and the short
+//!   `sidebar.label` come from the list;
 //! - a link to a mirrored sibling (`DESIGN_SWAY.md#x`) becomes `/spawn-at/project/design-sway/#x`;
 //! - a link to an excluded file (`TEST_LOG.md#x`) or out of `docs/` (`../CHANGELOG.md`) becomes a
 //!   GitHub `blob/main` URL; links to `#anchors` and to other sites are left alone;
+//! - a mention such as `6.12`, `section 6.15` or `6.11.1` becomes a link to the experiment page of
+//!   that number when the folder `experiments/` has one (`link_experiments`; never inside code,
+//!   headings or existing links); the "Moved to TEST_LOG.md" line under a `### 6.NN` heading
+//!   gets a second sentence with the link to the page on this site;
 //! - a `## Sources` section naming the source file with its GitHub URL is appended.
 //!
 //! The sidebar reaches the pages through an `autogenerate` entry for the folder `project` in
 //! `docs-site/astro.config.mjs`, which this module checks for, as `docs_cli` does for `reference`.
 
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -31,6 +37,9 @@ pub struct Entry {
     pub slug: &'static str,
     /// Position in the sidebar group (`sidebar.order`); `project/index.md` is 0.
     pub order: u32,
+    /// Short name in the sidebar (`sidebar.label`), in sentence case, written from the file's
+    /// `# ` heading. The page title and the browser tab still follow the heading.
+    pub label: &'static str,
 }
 
 /// Every mirrored file. The order is the sidebar order: how the code is laid out, how placement
@@ -40,66 +49,79 @@ pub const MIRRORED: [Entry; 13] = [
         file: "CODE_LAYOUT.md",
         slug: "code-layout",
         order: 1,
+        label: "Code layout",
     },
     Entry {
         file: "behavior-notes.md",
         slug: "behavior-notes",
         order: 2,
+        label: "Behavior notes",
     },
     Entry {
         file: "CONFIG.md",
         slug: "config",
         order: 3,
+        label: "Settings",
     },
     Entry {
         file: "legacy-gnome.md",
         slug: "legacy-gnome",
         order: 4,
+        label: "Legacy GNOME (42–44)",
     },
     Entry {
         file: "DESIGN_PLATFORMS.md",
         slug: "design-platforms",
         order: 5,
+        label: "Design: more platforms",
     },
     Entry {
         file: "DESIGN_SWAY.md",
         slug: "design-sway",
         order: 6,
+        label: "Design: Sway backend",
     },
     Entry {
         file: "DESIGN_READY_WAIT.md",
         slug: "design-ready-wait",
         order: 7,
+        label: "Design: ready-wait",
     },
     Entry {
         file: "DESIGN_RUNNER_SETUP.md",
         slug: "design-runner-setup",
         order: 8,
+        label: "Design: runner setup",
     },
     Entry {
         file: "TEST_PLAN.md",
         slug: "test-plan",
         order: 9,
+        label: "Test plan",
     },
     Entry {
         file: "TEST_COVERAGE_AUDIT.md",
         slug: "test-coverage-audit",
         order: 10,
+        label: "Test coverage audit",
     },
     Entry {
         file: "REFACTOR_PROOFS.md",
         slug: "refactor-proofs",
         order: 11,
+        label: "Refactor proofs",
     },
     Entry {
         file: "COMMENT_STYLE.md",
         slug: "comment-style",
         order: 12,
+        label: "Comment style",
     },
     Entry {
         file: "KNOWLEDGE.md",
         slug: "knowledge",
         order: 13,
+        label: "Knowledge base",
     },
 ];
 
@@ -224,6 +246,254 @@ fn is_fence(line: &str) -> bool {
     t.starts_with("```") || t.starts_with("~~~")
 }
 
+/// The experiment pages of the site, by the number the docs use for them: `6.12` for the file
+/// `6-12-why-revealed-at-pre-resize-size.md`, `6.25a` for `6-25a-window-ping.md`, `6.11.1` for
+/// `6-11-1-final-state-oracle.md`. Built at mirror time from the file names in
+/// `docs-site/src/content/docs/experiments/`, so a number is linked only while its page exists.
+#[derive(Debug, Default)]
+pub struct ExperimentMap {
+    /// `6.12` -> `6-12-why-revealed-at-pre-resize-size`
+    slugs: BTreeMap<String, String>,
+    /// Smallest and largest two-digit number among the keys; a `6.NN` outside it is not a mention
+    /// of an experiment (`6.85 ms`, `6.4`).
+    lo: u32,
+    hi: u32,
+}
+
+/// What the mirror did with the `6.NN` mentions of one page.
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
+pub struct LinkStats {
+    /// Links made: numbers in the text and `Moved to TEST_LOG` stubs.
+    pub linked: usize,
+    /// Mentions of a number in range that has no page (`6.25`, `6.30`), left as they were.
+    pub unlinked: usize,
+}
+
+/// The number the docs use for an experiment file, from its stem: `None` for `index` and `p8-...`.
+fn experiment_key(stem: &str) -> Option<String> {
+    let rest = stem.strip_prefix("6-")?;
+    let b = rest.as_bytes();
+    if b.len() < 3 || !b[0].is_ascii_digit() || !b[1].is_ascii_digit() {
+        return None;
+    }
+    let mut key = format!("6.{}", &rest[..2]);
+    let mut i = 2;
+    if b[i].is_ascii_lowercase() {
+        key.push(b[i] as char);
+        i += 1;
+    }
+    if b.get(i) != Some(&b'-') {
+        return None;
+    }
+    i += 1;
+    let digits: String = rest[i..].chars().take_while(char::is_ascii_digit).collect();
+    if !digits.is_empty() && rest[i + digits.len()..].starts_with('-') {
+        key.push('.');
+        key.push_str(&digits);
+    }
+    Some(key)
+}
+
+/// The map for the `.md` file names (with extension) found in the experiments folder.
+pub fn experiment_map(names: &[String]) -> ExperimentMap {
+    let mut map = ExperimentMap {
+        slugs: BTreeMap::new(),
+        lo: u32::MAX,
+        hi: 0,
+    };
+    for name in names {
+        let Some(stem) = name.strip_suffix(".md") else {
+            continue;
+        };
+        let Some(key) = experiment_key(stem) else {
+            continue;
+        };
+        let nn: u32 = key[2..4].parse().unwrap_or(0);
+        map.lo = map.lo.min(nn);
+        map.hi = map.hi.max(nn);
+        map.slugs.insert(key, stem.to_string());
+    }
+    map
+}
+
+/// `.md` names in `dir`; empty when the folder does not exist (a unit test, or a checkout
+/// without the site).
+fn experiment_names(dir: &Path) -> Vec<String> {
+    md_names(dir).unwrap_or_default()
+}
+
+impl ExperimentMap {
+    fn url(&self, key: &str) -> Option<String> {
+        self.slugs
+            .get(key)
+            .map(|slug| format!("/spawn-at/experiments/{slug}/"))
+    }
+
+    /// Letters used as a suffix in a key (`a`, `b`, `c` for `6.25a`).
+    fn has_letter(&self, c: char) -> bool {
+        self.slugs
+            .keys()
+            .any(|k| k.chars().nth(4).is_some_and(|x| x == c))
+    }
+}
+
+/// A `6.NN` mention starting at `cs[i]`: where it ends and its key (`6.12`, `6.25a`, `6.11.1`),
+/// or `None` when the text there is not one. Not a mention: a `6` after a digit, `.`, `v`, `_` or
+/// a letter (`0.6.12`, `16.12`, `v6.12`, `x6.12`); a number of three digits (`6.123`); a
+/// number outside the range of the experiment pages (`6.4`, `6.85`); a number followed by a
+/// letter or digit that is not a page suffix (`6.12ms`); and a number followed by a unit (`6.12 ms`,
+/// `6.12px`, `6.12 %`), which is a measurement.
+fn mention_at(cs: &[char], i: usize, map: &ExperimentMap) -> Option<(usize, String)> {
+    if cs.get(i) != Some(&'6') || cs.get(i + 1) != Some(&'.') {
+        return None;
+    }
+    if i > 0 {
+        let p = cs[i - 1];
+        if p.is_ascii_digit() || p == '.' || p == '_' || p.is_alphabetic() {
+            return None;
+        }
+    }
+    let (d1, d2) = (*cs.get(i + 2)?, *cs.get(i + 3)?);
+    if !d1.is_ascii_digit() || !d2.is_ascii_digit() {
+        return None;
+    }
+    let nn = d1.to_digit(10)? * 10 + d2.to_digit(10)?;
+    if map.slugs.is_empty() || nn < map.lo || nn > map.hi {
+        return None;
+    }
+    let mut end = i + 4;
+    let mut key = format!("6.{d1}{d2}");
+    if let Some(&c) = cs.get(end) {
+        if c.is_ascii_digit() {
+            return None; // three digits
+        }
+        if c.is_ascii_lowercase() && map.has_letter(c) {
+            key.push(c);
+            end += 1;
+        }
+    }
+    if cs.get(end) == Some(&'.') && cs.get(end + 1).is_some_and(char::is_ascii_digit) {
+        key.push('.');
+        end += 1;
+        while let Some(&c) = cs.get(end) {
+            if !c.is_ascii_digit() {
+                break;
+            }
+            key.push(c);
+            end += 1;
+        }
+    }
+    if cs
+        .get(end)
+        .is_some_and(|c| c.is_alphanumeric() || *c == '_')
+    {
+        return None;
+    }
+    let mut u = end;
+    if cs.get(u) == Some(&' ') {
+        u += 1;
+    }
+    let tail: String = cs[u.min(cs.len())..].iter().take(3).collect();
+    let unit = ["ms", "px", "Hz", "s", "%"].iter().any(|unit| {
+        tail.starts_with(unit)
+            && !tail
+                .chars()
+                .nth(unit.chars().count())
+                .is_some_and(char::is_alphanumeric)
+    });
+    if unit {
+        return None;
+    }
+    Some((end, key))
+}
+
+/// `line` with every `6.NN` mention that has a page turned into a link to that page; counts
+/// the links made and the mentions left because no page has that number. The text of code spans,
+/// of existing links (text and target), of `<...>` tags and autolinks and of bare URLs is never
+/// touched. The caller does not pass headings or fenced lines.
+fn link_experiments(line: &str, map: &ExperimentMap, stats: &mut LinkStats) -> String {
+    let cs: Vec<char> = line.chars().collect();
+    let mut out = String::with_capacity(line.len() + 32);
+    let mut i = 0;
+    while i < cs.len() {
+        let c = cs[i];
+        if c == '`' {
+            let n = cs[i..].iter().take_while(|&&x| x == '`').count();
+            let mut j = i + n;
+            let mut close = None;
+            while j < cs.len() {
+                if cs[j] == '`' {
+                    let m = cs[j..].iter().take_while(|&&x| x == '`').count();
+                    if m == n {
+                        close = Some(j + m);
+                        break;
+                    }
+                    j += m;
+                } else {
+                    j += 1;
+                }
+            }
+            let stop = close.unwrap_or(i + n);
+            out.extend(&cs[i..stop]);
+            i = stop;
+            continue;
+        }
+        if c == '[' {
+            if let Some(k) = cs[i..].iter().position(|&x| x == ']').map(|k| i + k) {
+                if cs.get(k + 1) == Some(&'(') {
+                    if let Some(e) = cs[k..].iter().position(|&x| x == ')').map(|e| k + e) {
+                        out.extend(&cs[i..=e]);
+                        i = e + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        if c == '<' {
+            if let Some(e) = cs[i..].iter().position(|&x| x == '>').map(|e| i + e) {
+                out.extend(&cs[i..=e]);
+                i = e + 1;
+                continue;
+            }
+        }
+        let rest: String = cs[i..].iter().take(8).collect();
+        if rest.starts_with("http://") || rest.starts_with("https://") {
+            let e = cs[i..]
+                .iter()
+                .position(|x| x.is_whitespace() || *x == ')' || *x == '>')
+                .map_or(cs.len(), |e| i + e);
+            out.extend(&cs[i..e]);
+            i = e;
+            continue;
+        }
+        if let Some((end, key)) = mention_at(&cs, i, map) {
+            if let Some(url) = map.url(&key) {
+                out.push_str(&format!("[{key}]({url})"));
+                stats.linked += 1;
+            } else {
+                out.extend(&cs[i..end]);
+                stats.unlinked += 1;
+            }
+            i = end;
+            continue;
+        }
+        out.push(c);
+        i += 1;
+    }
+    out
+}
+
+/// The number at the start of a heading's text (`### 6.12 Why ...` gives `6.12`), if it is a
+/// mention in the sense of `mention_at`.
+fn heading_key(line: &str, map: &ExperimentMap) -> Option<String> {
+    let text = line.trim_start().trim_start_matches('#');
+    if text.len() == line.trim_start().len() || !text.starts_with(' ') {
+        return None;
+    }
+    let cs: Vec<char> = text.trim_start().chars().collect();
+    mention_at(&cs, 0, map).map(|(_, key)| key)
+}
+
 /// The `## Sources` section of a mirrored page: its source file and the GitHub URL, which ends in
 /// `.md` and so is written with `://` (the site check allows that for other sites).
 fn sources_section(file: &str) -> String {
@@ -233,8 +503,31 @@ fn sources_section(file: &str) -> String {
     )
 }
 
-/// The page for `docs/<entry.file>` whose text is `text`.
+/// True for a markdown heading line: one to six `#` and a space.
+fn is_heading(line: &str) -> bool {
+    let t = line.trim_start();
+    let hashes = t.chars().take_while(|&c| c == '#').count();
+    (1..=6).contains(&hashes) && t[hashes..].starts_with(' ')
+}
+
+/// The page for `docs/<entry.file>` whose text is `text`, without links to experiment pages.
+/// Used by the tests, which do not need the experiments folder; `run` calls `render_linked`.
+#[cfg(test)]
 pub fn render(entry: &Entry, text: &str) -> Result<String, String> {
+    render_linked(entry, text, &ExperimentMap::default()).map(|(page, _)| page)
+}
+
+/// The page for `docs/<entry.file>` and what the mirror did with its `6.NN` mentions. Outside code
+/// fences, headings, code spans and existing links, a `6.NN` that has an experiment page in `map`
+/// becomes a link to it, and the "Moved to TEST_LOG.md" line under a `### 6.NN` heading of
+/// `TEST_PLAN.md` gets a second sentence with the link to the page on this site.
+pub fn render_linked(
+    entry: &Entry,
+    text: &str,
+    map: &ExperimentMap,
+) -> Result<(String, LinkStats), String> {
+    let mut stats = LinkStats::default();
+    let mut current_heading: Option<String> = None;
     let mut title = None;
     let mut body = String::new();
     let mut in_fence = false;
@@ -262,20 +555,43 @@ pub fn render(entry: &Entry, text: &str) -> Result<String, String> {
                 entry.file
             ));
         }
-        body.push_str(&rewrite_links(line).map_err(|e| format!("docs/{}: {e}", entry.file))?);
+        let rewritten = rewrite_links(line).map_err(|e| format!("docs/{}: {e}", entry.file))?;
+        if is_heading(line) {
+            current_heading = heading_key(line, map);
+            body.push_str(&rewritten);
+        } else if rewritten.starts_with("Moved to [TEST_LOG.md](") && current_heading.is_some() {
+            // the stub under a `### 6.NN` heading: the experiment log itself stays on GitHub, the
+            // page of the same experiment on this site is added
+            let key = current_heading.as_deref().unwrap_or_default();
+            match (map.url(key), rewritten.strip_suffix('.')) {
+                (Some(url), Some(head)) => {
+                    body.push_str(&format!(
+                        "{head}. Also on this site: [experiment {key}]({url})."
+                    ));
+                    stats.linked += 1;
+                }
+                _ => {
+                    body.push_str(&rewritten);
+                    stats.unlinked += 1;
+                }
+            }
+        } else {
+            body.push_str(&link_experiments(&rewritten, map, &mut stats));
+        }
         body.push('\n');
     }
     let title =
         title.ok_or_else(|| format!("docs/{}: no `# ` heading to use as title", entry.file))?;
     let mut page = format!(
-        "---\ntitle: {}\nsidebar:\n  order: {}\n---\n\n",
+        "---\ntitle: {}\nsidebar:\n  order: {}\n  label: {}\n---\n\n",
         yaml_quote(&title),
-        entry.order
+        entry.order,
+        yaml_quote(entry.label)
     );
     page.push_str(body.trim_start_matches('\n'));
     page.push_str(&sources_section(entry.file));
     debug_assert!(has_sources_list(&page));
-    Ok(page)
+    Ok((page, stats))
 }
 
 /// `.md` file names directly inside `dir`, sorted.
@@ -309,14 +625,34 @@ fn remove_stale_pages(dir: &Path, keep: &[PathBuf]) -> Result<(), String> {
     Ok(())
 }
 
-/// Writes one page per `MIRRORED` entry into `out_dir` and removes stale ones. Fails, writing
-/// nothing, if the list does not match `docs_dir`, if the sidebar in `sidebar_config` has no
-/// `autogenerate` entry for `project`, or if a file cannot be turned into a page.
+/// The files `generate_linked` wrote and, for each `docs/` file, what it did with the `6.NN`
+/// mentions.
+pub type Generated = (Vec<PathBuf>, Vec<(&'static str, LinkStats)>);
+
+/// `generate_linked` without links to experiment pages. Used by the tests; `run` calls
+/// `generate_linked`.
+#[cfg(test)]
 pub fn generate(
     docs_dir: &Path,
     out_dir: &Path,
     sidebar_config: &str,
 ) -> Result<Vec<PathBuf>, String> {
+    generate_linked(docs_dir, out_dir, sidebar_config, None).map(|(written, _)| written)
+}
+
+/// Writes one page per `MIRRORED` entry into `out_dir` and removes stale ones. Fails, writing
+/// nothing, if the list does not match `docs_dir`, if the sidebar in `sidebar_config` has no
+/// `autogenerate` entry for `project`, or if a file cannot be turned into a page. With
+/// `experiments_dir` (the folder of the experiment pages), `6.NN` mentions are linked to those
+/// pages; the result also holds the counts per file.
+pub fn generate_linked(
+    docs_dir: &Path,
+    out_dir: &Path,
+    sidebar_config: &str,
+    experiments_dir: Option<&Path>,
+) -> Result<Generated, String> {
+    let map = experiment_map(&experiments_dir.map(experiment_names).unwrap_or_default());
+    let mut all_stats = Vec::new();
     let mut problems = manifest_problems(&md_names(docs_dir)?);
     if !sidebar_autogenerates(sidebar_config, "project") {
         problems.push(
@@ -331,8 +667,11 @@ pub fn generate(
             let path = docs_dir.join(entry.file);
             let text = fs::read_to_string(&path)
                 .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
-            match render(entry, &text) {
-                Ok(page) => pages.push((out_dir.join(format!("{}.md", entry.slug)), page)),
+            match render_linked(entry, &text, &map) {
+                Ok((page, stats)) => {
+                    pages.push((out_dir.join(format!("{}.md", entry.slug)), page));
+                    all_stats.push((entry.file, stats));
+                }
                 Err(e) => problems.push(e),
             }
         }
@@ -348,15 +687,17 @@ pub fn generate(
         written.push(path);
     }
     remove_stale_pages(out_dir, &written)?;
-    Ok(written)
+    Ok((written, all_stats))
 }
 
-/// Entry point of `cargo xtask docs-mirror [--docs DIR] [--out DIR] [--config FILE]` (defaults
-/// `docs`, `docs-site/src/content/docs/project` and `docs-site/astro.config.mjs`).
+/// Entry point of `cargo xtask docs-mirror [--docs DIR] [--out DIR] [--config FILE]
+/// [--experiments DIR]` (defaults `docs`, `docs-site/src/content/docs/project`,
+/// `docs-site/astro.config.mjs` and `docs-site/src/content/docs/experiments`).
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut docs = PathBuf::from("docs");
     let mut out = PathBuf::from("docs-site/src/content/docs/project");
     let mut config = PathBuf::from("docs-site/astro.config.mjs");
+    let mut experiments = PathBuf::from("docs-site/src/content/docs/experiments");
     let mut it = args.iter();
     while let Some(flag) = it.next() {
         let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
@@ -364,17 +705,30 @@ pub fn run(args: &[String]) -> Result<(), String> {
             "--docs" => docs = PathBuf::from(value),
             "--out" => out = PathBuf::from(value),
             "--config" => config = PathBuf::from(value),
+            "--experiments" => experiments = PathBuf::from(value),
             other => return Err(format!("unknown option {other}")),
         }
     }
     let config_text = fs::read_to_string(&config)
         .map_err(|e| format!("cannot read {}: {}", config.display(), e))?;
-    let written = generate(&docs, &out, &config_text)?;
+    let (written, stats) = generate_linked(&docs, &out, &config_text, Some(&experiments))?;
     println!(
         "==> wrote {} project pages to {}",
         written.len(),
         out.display()
     );
+    let (mut linked, mut unlinked) = (0, 0);
+    for (file, s) in &stats {
+        if s.linked + s.unlinked > 0 {
+            println!(
+                "    {file}: {} links to experiment pages, {} mentions left unlinked (no page)",
+                s.linked, s.unlinked
+            );
+        }
+        linked += s.linked;
+        unlinked += s.unlinked;
+    }
+    println!("    total: {linked} links to experiment pages, {unlinked} mentions left unlinked");
     Ok(())
 }
 
@@ -417,11 +771,61 @@ mod tests {
         .unwrap();
         assert!(
             page.starts_with(
-                "---\ntitle: \"Tests & `config` \\\"a\\\" \\\\ b\"\nsidebar:\n  order: 3\n---\n\nText\n"
+                "---\ntitle: \"Tests & `config` \\\"a\\\" \\\\ b\"\nsidebar:\n  order: 3\n  label: \"Settings\"\n---\n\nText\n"
             ),
             "{page}"
         );
         assert!(!page.contains("\n# "), "the H1 is removed: {page}");
+    }
+
+    /// The sidebar label is its own front-matter key under `sidebar:`; the page title keeps
+    /// following the heading, so a long heading gets a short label and the page is still
+    /// called by its heading.
+    #[test]
+    fn test_sidebar_label_is_separate_from_the_title() {
+        let page = render(
+            entry("legacy-gnome.md"),
+            "# Legacy GNOME (42–44) Differences & Compatibility Analysis\n\nText\n",
+        )
+        .unwrap();
+        let (front, _) = split_front_matter(&page).unwrap();
+        assert!(
+            front.contains("title: \"Legacy GNOME (42–44) Differences & Compatibility Analysis\""),
+            "{front}"
+        );
+        assert!(
+            front.contains("sidebar:\n  order: 4\n  label: \"Legacy GNOME (42–44)\""),
+            "{front}"
+        );
+        assert_eq!(
+            crate::docs_check::front_matter_title(front),
+            "Legacy GNOME (42–44) Differences & Compatibility Analysis"
+        );
+    }
+
+    /// Every label is filled in, starts with a capital letter, has no space at either end, is at
+    /// most 24 characters (a sidebar line at the narrowest width of the desktop layout) and is
+    /// used once, so two pages cannot look the same in the menu.
+    #[test]
+    fn test_labels_are_short_and_distinct() {
+        let mut seen: Vec<&str> = Vec::new();
+        for e in &MIRRORED {
+            let label = e.label;
+            assert!(!label.is_empty(), "{}: empty label", e.file);
+            assert_eq!(label, label.trim(), "{}: spaces around the label", e.file);
+            assert!(
+                label.chars().next().is_some_and(char::is_uppercase),
+                "{}: `{label}` does not start with a capital",
+                e.file
+            );
+            assert!(
+                label.chars().count() <= 24,
+                "{}: `{label}` is longer than 24 characters",
+                e.file
+            );
+            assert!(!seen.contains(&label), "label `{label}` is used twice");
+            seen.push(label);
+        }
     }
 
     /// A page without a `# ` heading outside a fence cannot get a title; a `# ` line inside a
@@ -618,15 +1022,372 @@ mod tests {
             let text = fs::read_to_string(docs.join(e.file)).unwrap();
             let page = render(e, &text).unwrap_or_else(|err| panic!("{err}"));
             let (front, body) = split_front_matter(&page).unwrap();
+            let title = crate::docs_check::front_matter_title(front);
+            assert!(!title.is_empty(), "{}", e.file);
+            // a label is a short form of the heading, never longer than the title it stands for
             assert!(
-                !crate::docs_check::front_matter_title(front).is_empty(),
-                "{}",
-                e.file
+                e.label.chars().count() <= title.chars().count(),
+                "{}: label `{}` is longer than the title `{title}`",
+                e.file,
+                e.label
             );
             assert!(!has_h1(body), "{}: has a # heading", e.file);
             assert_eq!(md_links(body), Vec::<String>::new(), "{}", e.file);
             assert!(has_sources_list(body), "{}", e.file);
             assert_eq!(forbidden_in(&page), Vec::<String>::new(), "{}", e.file);
         }
+    }
+
+    fn names(list: &[&str]) -> Vec<String> {
+        list.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// Experiment files as the site has them: two ranges of numbers, a lettered group (`6.25a`,
+    /// `6.25b` but no `6.25`), a sub-number (`6.11.1`), and files that are not experiments.
+    fn map() -> ExperimentMap {
+        experiment_map(&names(&[
+            "6-10-placement.md",
+            "6-11-late-fix.md",
+            "6-11-1-oracle.md",
+            "6-12-why.md",
+            "6-25a-ping.md",
+            "6-25b-rig.md",
+            "6-35-shim.md",
+            "index.md",
+            "p8-sway.md",
+            "6-notes.txt",
+        ]))
+    }
+
+    fn link(line: &str) -> (String, LinkStats) {
+        let mut stats = LinkStats::default();
+        let out = link_experiments(line, &map(), &mut stats);
+        (out, stats)
+    }
+
+    fn url(slug: &str) -> String {
+        format!("/spawn-at/experiments/{slug}/")
+    }
+
+    /// The number of a file is read from its name: `6-12-why.md` is `6.12`, `6-25a-ping.md` is
+    /// `6.25a`, `6-11-1-oracle.md` is `6.11.1` (not `6.11`, which is `6-11-late-fix.md`);
+    /// `index.md`, `p8-sway.md` and a non-markdown file have none, and `6.25` has no page.
+    #[test]
+    fn test_experiment_numbers_come_from_file_names() {
+        let m = map();
+        for (key, slug) in [
+            ("6.10", "6-10-placement"),
+            ("6.11", "6-11-late-fix"),
+            ("6.11.1", "6-11-1-oracle"),
+            ("6.12", "6-12-why"),
+            ("6.25a", "6-25a-ping"),
+            ("6.25b", "6-25b-rig"),
+            ("6.35", "6-35-shim"),
+        ] {
+            assert_eq!(m.url(key), Some(url(slug)), "{key}");
+        }
+        assert_eq!(m.slugs.len(), 7, "{:?}", m.slugs);
+        assert_eq!(m.url("6.25"), None);
+        assert_eq!((m.lo, m.hi), (10, 35));
+        assert_eq!(
+            experiment_key("6-21-default-cap-250-wire-paint-time"),
+            Some("6.21".into())
+        );
+        assert_eq!(experiment_key("index"), None);
+        assert_eq!(experiment_key("p8-sway-flicker-not-run"), None);
+        assert_eq!(experiment_key("6-25abc-x"), None);
+    }
+
+    /// The forms the docs use: a bare number, `section 6.NN`, `sections 6.NN to 6.MM` and `6.NN
+    /// and 6.MM`, a number in parentheses, a range with a hyphen, a number before a sentence
+    /// end, at the start of a line, with a letter, and with a sub-number. Only the number is linked.
+    #[test]
+    fn test_mentions_with_a_page_become_links() {
+        let l = |n: &str, s: &str| format!("[{n}]({})", url(s));
+        let cases = [
+            (
+                "see section 6.10 and 6.12.".to_string(),
+                format!(
+                    "see section {} and {}.",
+                    l("6.10", "6-10-placement"),
+                    l("6.12", "6-12-why")
+                ),
+                2,
+            ),
+            (
+                "Sections 6.10 to 6.35 moved".to_string(),
+                format!(
+                    "Sections {} to {} moved",
+                    l("6.10", "6-10-placement"),
+                    l("6.35", "6-35-shim")
+                ),
+                2,
+            ),
+            (
+                "(`TEST_PLAN.md` 6.11, 6.11.1 and 6.25a)".to_string(),
+                format!(
+                    "(`TEST_PLAN.md` {}, {} and {})",
+                    l("6.11", "6-11-late-fix"),
+                    l("6.11.1", "6-11-1-oracle"),
+                    l("6.25a", "6-25a-ping")
+                ),
+                3,
+            ),
+            (
+                "6.10-6.12 measured".to_string(),
+                format!(
+                    "{}-{} measured",
+                    l("6.10", "6-10-placement"),
+                    l("6.12", "6-12-why")
+                ),
+                2,
+            ),
+            (
+                "6.12: the first line".to_string(),
+                format!("{}: the first line", l("6.12", "6-12-why")),
+                1,
+            ),
+        ];
+        for (input, expected, n) in cases {
+            let (out, stats) = link(&input);
+            assert_eq!(out, expected, "{input}");
+            assert_eq!(
+                stats,
+                LinkStats {
+                    linked: n,
+                    unlinked: 0
+                },
+                "{input}"
+            );
+        }
+    }
+
+    /// Things that look like `6.NN` and are not: a version (`0.6.12`, `v6.12`, `6.12.1`), a number
+    /// with more digits before or after (`16.12`, `6.123`, `6.1210`), a letter before or after
+    /// (`x6.12`, `6.12ms`), a value with a unit (`6.12 ms`, `6.12px`, `6.12 %`, `6.12 s`), a
+    /// number outside the pages (`6.4`, `6.85 ms`) and an identifier (`_6.12`). None is changed;
+    /// the ones that are a number of an experiment with a sub-number that has no page are counted.
+    #[test]
+    fn test_things_that_are_not_mentions_stay_as_they_are() {
+        for input in [
+            "version 0.6.12 of it",
+            "v6.12 and V6.12",
+            "x6.12 and a6.12 and _6.12",
+            "16.12 and 26.12 and 6.6.12",
+            "6.123 and 6.1210",
+            "6.12ms and 6.12abc",
+            "took 6.12 ms",
+            "took 6.12ms and 6.12px and 6.12 %",
+            "took 6.12 s.",
+            "6.4 and 6.9 and 6.85 ms",
+        ] {
+            let (out, stats) = link(input);
+            assert_eq!(out, input, "{input}");
+            assert_eq!(stats, LinkStats::default(), "{input}");
+        }
+        // 6.12.1 is not 6.12: no page has it, so nothing is linked and the mention is counted
+        let (out, stats) = link("see 6.12.1 and 6.10.5");
+        assert_eq!(out, "see 6.12.1 and 6.10.5");
+        assert_eq!(
+            stats,
+            LinkStats {
+                linked: 0,
+                unlinked: 2
+            }
+        );
+        // a word that starts with `s` after the number is not the unit `s`
+        let (out, stats) = link("the 6.12 simulation");
+        assert!(out.contains("[6.12]("), "{out}");
+        assert_eq!(stats.linked, 1);
+    }
+
+    /// Text that must not change: code spans (one or two backticks), the text and the target of a
+    /// link, an HTML tag, a bare URL. Text next to them is still linked.
+    #[test]
+    fn test_protected_text_is_never_linked() {
+        let l = format!("[6.12]({})", url("6-12-why"));
+        for input in [
+            "`6.10` is code",
+            "``a `6.10` b`` is code",
+            "[6.10](https://example.org/x) is a link",
+            "[text](https://example.org/6.10) is a link",
+            "<a href=\"6.10\">x</a>",
+            "https://example.org/docs/6.10 is a url",
+            "(https://example.org/6.10)",
+            "<https://example.org/6.10>",
+        ] {
+            let (out, stats) = link(input);
+            assert_eq!(out, input, "{input}");
+            assert_eq!(stats, LinkStats::default(), "{input}");
+        }
+        // the tags are protected, the text between them is prose and is linked
+        let (out, stats) = link("`6.10` and 6.12 and [6.10](u) and <b>6.10</b>");
+        let l10 = format!("[6.10]({})", url("6-10-placement"));
+        assert_eq!(
+            out,
+            format!("`6.10` and {l} and [6.10](u) and <b>{l10}</b>")
+        );
+        assert_eq!(stats.linked, 2);
+    }
+
+    /// A number in range with no page is counted and left as written: `6.20` and `6.30` have no
+    /// file, `6.25` has only `6.25a` and `6.25b`.
+    #[test]
+    fn test_numbers_without_a_page_are_counted_not_linked() {
+        let (out, stats) = link("6.20, 6.25 and 6.30");
+        assert_eq!(out, "6.20, 6.25 and 6.30");
+        assert_eq!(
+            stats,
+            LinkStats {
+                linked: 0,
+                unlinked: 3
+            }
+        );
+    }
+
+    /// Whole page: fenced text and headings are untouched, the blockquote and the prose are
+    /// linked, and the "Moved to TEST_LOG.md" line under a heading of a number with a page gets the
+    /// link to the page on this site, while the one under a number without a page is left alone
+    /// and counted.
+    #[test]
+    fn test_render_links_prose_and_stubs_but_not_fences_or_headings() {
+        let text = "# T\n\n> Sections 6.10 to 6.35 moved to [TEST_LOG.md](TEST_LOG.md#x).\n\n\
+                    ### 6.10 Placement 6.12\n\n\
+                    Moved to [TEST_LOG.md](TEST_LOG.md#610-placement).\n\n\
+                    ### 6.20 No page here\n\n\
+                    Moved to [TEST_LOG.md](TEST_LOG.md#620-no-page).\n\n\
+                    ```text\nsee 6.10 in a fence\n```\n\n\
+                    Prose with 6.12 and `6.12`.\n";
+        let (page, stats) = render_linked(entry("TEST_PLAN.md"), text, &map()).unwrap();
+        let l10 = format!("[6.10]({})", url("6-10-placement"));
+        let l35 = format!("[6.35]({})", url("6-35-shim"));
+        assert!(
+            page.contains(&format!(
+                "> Sections {l10} to {l35} moved to [TEST_LOG.md]("
+            )),
+            "{page}"
+        );
+        assert!(
+            page.contains("\n### 6.10 Placement 6.12\n"),
+            "heading unchanged: {page}"
+        );
+        assert!(
+            page.contains(&format!(
+                "docs/TEST_LOG.md#610-placement). Also on this site: [experiment 6.10]({}).\n",
+                url("6-10-placement")
+            )),
+            "{page}"
+        );
+        assert!(page.contains("\n### 6.20 No page here\n\nMoved to [TEST_LOG.md](https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md#620-no-page).\n"), "{page}");
+        assert!(page.contains("```text\nsee 6.10 in a fence\n```"), "{page}");
+        assert!(
+            page.contains(&format!(
+                "Prose with [6.12]({}) and `6.12`.",
+                url("6-12-why")
+            )),
+            "{page}"
+        );
+        // 6.10 and 6.35 in the quote, the 6.10 stub, 6.12 in the prose: 4 links; the 6.20 stub: 1
+        assert_eq!(
+            stats,
+            LinkStats {
+                linked: 4,
+                unlinked: 1
+            }
+        );
+        // the page still passes the site rules: no `.md` link, no `# ` heading, no forbidden text
+        let (_, body) = split_front_matter(&page).unwrap();
+        assert_eq!(md_links(body), Vec::<String>::new());
+        assert_eq!(forbidden_in(&page), Vec::<String>::new());
+    }
+
+    /// With no experiment pages (a checkout without the site) nothing is linked and nothing is
+    /// counted, whatever the text says.
+    #[test]
+    fn test_no_experiment_pages_means_no_links() {
+        let none = experiment_map(&[]);
+        let (page, stats) =
+            render_linked(entry("TEST_PLAN.md"), "# T\n\nSee 6.12 and 6.10.\n", &none).unwrap();
+        assert!(page.contains("See 6.12 and 6.10."), "{page}");
+        assert_eq!(stats, LinkStats::default());
+    }
+
+    /// `generate_linked` reads the file names of the experiments folder at run time, links to
+    /// them, and returns the counts per file; `generate` (no folder) links nothing.
+    #[test]
+    fn test_generate_linked_uses_the_experiments_folder() {
+        let base = temp("linked");
+        let (docs, out, exp) = (
+            base.join("docs"),
+            base.join("project"),
+            base.join("experiments"),
+        );
+        for d in [&docs, &exp] {
+            fs::create_dir_all(d).unwrap();
+        }
+        for name in all_names() {
+            fs::write(docs.join(&name), "# Title\n\nText\n").unwrap();
+        }
+        fs::write(docs.join("TEST_PLAN.md"), "# Title\n\nSee 6.12 and 6.33.\n").unwrap();
+        fs::write(exp.join("6-12-why.md"), "x").unwrap();
+        fs::write(exp.join("6-33-sync.md"), "x").unwrap();
+        let (written, stats) = generate_linked(&docs, &out, CONFIG, Some(&exp)).unwrap();
+        assert_eq!(written.len(), 13);
+        let plan = fs::read_to_string(out.join("test-plan.md")).unwrap();
+        assert!(plan.contains("See [6.12](/spawn-at/experiments/6-12-why/) and [6.33](/spawn-at/experiments/6-33-sync/)."), "{plan}");
+        let plan_stats = stats.iter().find(|(f, _)| *f == "TEST_PLAN.md").unwrap().1;
+        assert_eq!(
+            plan_stats,
+            LinkStats {
+                linked: 2,
+                unlinked: 0
+            }
+        );
+        generate(&docs, &out, CONFIG).unwrap();
+        let plain = fs::read_to_string(out.join("test-plan.md")).unwrap();
+        assert!(plain.contains("See 6.12 and 6.33."), "{plain}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// The real documents and the real experiment folder: every link made points to a file that
+    /// exists, headings and fences keep their text, and the pages still pass the site rules.
+    #[test]
+    fn test_real_docs_link_only_to_experiment_pages_that_exist() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let exp = root.join("docs-site/src/content/docs/experiments");
+        let map = experiment_map(&experiment_names(&exp));
+        assert!(
+            map.slugs.len() >= 25,
+            "{} experiment pages",
+            map.slugs.len()
+        );
+        let mut total = 0;
+        for e in &MIRRORED {
+            let text = fs::read_to_string(root.join("docs").join(e.file)).unwrap();
+            let (page, stats) = render_linked(e, &text, &map).unwrap();
+            total += stats.linked;
+            let mut rest = page.as_str();
+            while let Some(i) = rest.find("](/spawn-at/experiments/") {
+                let after = &rest[i + "](/spawn-at/experiments/".len()..];
+                let slug = &after[..after.find("/)").unwrap()];
+                assert!(
+                    exp.join(format!("{slug}.md")).is_file(),
+                    "{}: {slug}",
+                    e.file
+                );
+                rest = after;
+            }
+            for line in page.lines().filter(|l| l.starts_with('#')) {
+                assert!(
+                    !line.contains("](/spawn-at/experiments/"),
+                    "{}: {line}",
+                    e.file
+                );
+            }
+            let (_, body) = split_front_matter(&page).unwrap();
+            assert_eq!(md_links(body), Vec::<String>::new(), "{}", e.file);
+            assert_eq!(forbidden_in(&page), Vec::<String>::new(), "{}", e.file);
+        }
+        assert!(total >= 100, "only {total} links were made");
     }
 }

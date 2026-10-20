@@ -209,9 +209,52 @@ test('a field of 40 characters is short, one of 41 is long; markup does not coun
     assert.match(cards(['K', 'A'], [['k', `${long(40)}&lt;`]]), /field-long/);
 });
 
-test('fields stay in the column order of the table, short and long alike', () => {
-    const r = cards(['K', 'Long', 'Short', 'Long2'], [['k', long(60), 's', long(60)]]);
-    assert.deepEqual([...r.matchAll(/<dt>(.*?)<\/dt>/g)].map((m) => m[1]), ['Long', 'Short', 'Long2']);
+const dts = (html) => [...html.matchAll(/<dt>(.*?)<\/dt>/g)].map((m) => m[1]);
+
+test('the short fields come first in the markup, each group in the column order of the table', () => {
+    const r = cards(
+        ['K', 'Long', 'Short', 'Long2', 'Short2', 'Long3'],
+        [['k', long(60), 's', long(60), 's2', long(60)]],
+    );
+    assert.deepEqual(dts(r), ['Short', 'Short2', 'Long', 'Long2', 'Long3']);
+    // the order of the markup is the order on the screen: every short field sits before the first long one
+    assert.ok(r.indexOf('field-short') < r.indexOf('field-long'));
+    assert.ok(r.lastIndexOf('field-short') < r.indexOf('field-long'));
+});
+
+test('a row with only short fields, or only long ones, keeps the column order', () => {
+    assert.deepEqual(dts(cards(['K', 'A', 'B', 'C'], [['k', 'a', 'b', 'c']])), ['A', 'B', 'C']);
+    assert.deepEqual(dts(cards(['K', 'A', 'B', 'C'], [['k', long(50), long(60), long(70)]])), ['A', 'B', 'C']);
+});
+
+test('each card is ordered on its own: a field that is long in one row is short in another', () => {
+    const r = cards(['K', 'A', 'B'], [['one', long(50), 'b'], ['two', 'a', long(50)]]);
+    const [one, two] = items(r);
+    assert.deepEqual(dts(one), ['B', 'A']);
+    assert.deepEqual(dts(two), ['A', 'B']);
+});
+
+test('links and ids in a short field stay with it when it moves before a long field', () => {
+    const link = '<a href="/spawn-at/project/config/#x" id="n1">config</a>';
+    const longLink = `<a href="/spawn-at/known-limits/" id="n2">${long(60)}</a>`;
+    const r = cards(['K', 'Long', 'Short'], [['k', longLink, link]]);
+    const [card] = items(r);
+    // the short field with its link is first, the long one with its link second, in the markup
+    assert.ok(card.indexOf('href="/spawn-at/project/config/#x"') < card.indexOf('href="/spawn-at/known-limits/"'));
+    assert.match(card, /<div class="field field-short"><dt>Short<\/dt><dd><a href="\/spawn-at\/project\/config\/#x" id="n1">config<\/a><\/dd><\/div>/);
+    assert.ok(card.includes(`<dd>${longLink}</dd>`));
+    // text, links and ids are the same as in the table: nothing is lost or duplicated
+    assert.equal((r.match(/href="/g) || []).length, 2);
+    assert.equal((r.match(/id="n[12]"/g) || []).length, 2);
+});
+
+test('empty cells are left out and do not leave a gap in the new order', () => {
+    const r = cards(['K', 'Long', 'Empty', 'Short', 'Blank', 'Long2'], [['k', long(60), '', 's', '<em></em>', long(60)]]);
+    assert.deepEqual(dts(r), ['Short', 'Long', 'Long2']);
+    // a row shorter than the header is padded with empty cells, which are also left out
+    assert.deepEqual(dts(cards(['K', 'Long', 'Short', 'Gone'], [['k', long(60), 's']])), ['Short', 'Long']);
+    // a row with nothing but empty cells has no field list at all
+    assert.ok(!cards(['K', 'A'], [['k', '']]).includes('record-fields'));
 });
 
 test('steps: keys that all start with a whole number give an ordered list of numbers and notes', () => {

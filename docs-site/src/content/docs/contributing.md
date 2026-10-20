@@ -130,7 +130,7 @@ site is served under `/spawn-at/`. The pieces:
 
 | Command | What it does |
 | :--- | :--- |
-| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/`. Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
+| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/` (the description is the first line of the command's help, the sidebar label is the command without `spawn-at `, and one line under the title points to the hand-written page in `commands/`, or to the Commands index when a command has none; the `--help` text itself is unchanged). Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
 | `cargo xtask docs-check-src` | Checks the markdown and the config: front matter, a duplicate `#` title, empty pages, pages missing from the sidebar, `.md` links, environment pages, `Sources` lists, `smartypants: false`, forbidden text |
 | `npm ci` and `npm run build` in `docs-site/` | Install the pinned packages and build the site into `docs-site/dist/` (`docs-site` does both; it reuses `node_modules` when it is newer than the lock file) |
 | `cargo xtask docs-check-html <dir>` | Checks a built site for broken links, missing ids, a flag such as `--id` turned into an en dash, and third-party requests |

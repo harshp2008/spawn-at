@@ -98,6 +98,11 @@ Every column keeps a floor of 12 characters, so a table with many columns, or wi
 to 20 characters in several of them, scrolls sideways instead of squeezing a column; keep the columns
 of a table few and the cells short.
 
+A table or a code block that scrolls sideways shows a soft shadow (`src/styles/scroll-hints.css`) at
+the edge that has more content behind it, and none at an edge that has been reached or when nothing
+overflows. It is CSS only (`background-attachment: local`) and reads in both themes. A table shown as
+records has no such hint, because it is not a table any more.
+
 ## Long tables as records
 
 A table with a long cell cannot be read in a 45rem column, because each cell gets about 25
@@ -106,9 +111,9 @@ body cell has 240 characters or more is shown as records instead: one card per r
 the rows. The first column is the key, in a gutter at the left of the card. The other columns are
 fields in the body of the card, labelled with the column header (empty cells are left out). A field
 whose text is 40 characters or fewer is a short fact: a small label over its value, side by side with
-the other short ones. A longer one is a label over full-width text. The short fields are shown first,
-but they stay in the order of the table in the page itself, so copying a card and reading it with a
-screen reader give the table's order. When the keys are sentences (the median key is longer than 48
+the other short ones. A longer one is a label over full-width text. The short fields come first in the
+markup, then the long ones, each group in the order of the table, so what you see, what Tab reaches
+and what a screen reader or a copy gives are in the same order. When the keys are sentences (the median key is longer than 48
 characters), the key stands above the fields for the whole list, and on a narrow column every card
 stacks. `src/integrations/records.mjs` rewrites the table in the built page and
 `src/styles/records.css` draws it. The page text, links, ids and inline code are the same as in the
@@ -192,8 +197,16 @@ dependency.
   (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
   into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,
   sends links to files it does not mirror (`TEST_LOG.md`, `RELEASE_NOTES_*.md`, `../CHANGELOG.md`)
-  to GitHub, and appends a `## Sources` section. A new file in `docs/` fails the build until it is
-  added to the mirrored list or the excluded list. The site rules still apply to the result, so a
+  to GitHub, and appends a `## Sources` section. It also gives each page a short sidebar label (the
+  `label` of its entry in the list; the page title still follows the heading) and links a mention of
+  an experiment, such as `6.12`, `section 6.15` or `6.11.1`, to the page of that experiment in
+  `experiments/`, when the folder has a file for that number. It never links inside a heading, a code
+  span, a code block, an existing link, a tag or a URL; it does not link a number that follows a digit,
+  a `.`, a `v` or a letter, that is followed by a digit, a `.` and a digit, a letter or a unit (`0.6.12`,
+  `16.12`, `6.12.1`, `6.12 ms`), or that has no page (`6.25`, `6.30`), and under each `### 6.NN`
+  heading of `TEST_PLAN.md` it adds the link to the page next to the "Moved to TEST_LOG.md" line. The
+  run prints the number of links and of mentions left unlinked per file. A new file in `docs/` fails
+  the build until it is added to the mirrored list or the excluded list. The site rules still apply to the result, so a
   `docs/` file that is mirrored cannot contain a home path, the owner's name or the other forbidden
   text.
 - Everything else is hand-written and must follow the anatomy above.

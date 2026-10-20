@@ -13,13 +13,15 @@ title: "Testing and the verify tool"
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
-Counts measured on 2026-10-19 on the branch `docs-records-cards`:
+Counts measured on 2026-10-19 on the branch `docs-records-cards`, except the Node and `xtask`
+figures, which were measured again on 2026-10-20 on `docs-batch-3`:
 `spawn-at` 460, `spawn-at-core` 64, `spawn-at-verify` 625 passed and 5 ignored (with
-`--features tui,fixture`), `xtask` 77 (75 unit tests and 2 in `burn_cpu_test.rs`), Node 226 run. Five
+`--features tui,fixture`), `xtask` 91 (89 unit tests and 2 in `burn_cpu_test.rs`), Node 230 run. Five
 tests stay ignored: four need a live display, one needs a private Sway. The 3 tests of
 `tests/install_unsupported_test.js`, which run `install.sh` against a stand-in `curl`, a stand-in
 `spawn-at` and a temporary `HOME`, were not run on that branch and are left to CI, so the Node figure
-with them is 229 (the Node run used every other file of `tests/` by name).
+with them is 233 (the Node run used every other file of `tests/` by name, `tests/gi_loader.js`
+included, which `node --test` counts as one test; the `*_test.js` files alone give 229).
 
 ## What `spawn-at-verify` checks
 

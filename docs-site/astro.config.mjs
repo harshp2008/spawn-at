@@ -28,11 +28,15 @@ export default defineConfig({
         './src/styles/custom.css',
         './src/styles/tables.css',
         './src/styles/records.css',
+        './src/styles/scroll-hints.css',
         './src/styles/toc-toggle.css',
       ],
       head: [{ tag: 'script', content: tocToggle }],
-      // Same order and groups as the mdBook table of contents this replaces. The CLI reference
-      // group is filled from the folder `reference`, so a new command needs no entry here.
+      // The order follows the reader's path: the introduction, then installing and using it (with
+      // the commands), where it works, the reference, the findings and experiments, the documents
+      // of the project, and the pages for people who work on it last. Every group is `collapsed`:
+      // Starlight opens only the group that holds the current page. The CLI reference group is
+      // filled from the folder `reference`, so a new command needs no entry here.
       sidebar: [
         { slug: 'index', label: 'Introduction' },
         {
@@ -79,13 +83,28 @@ export default defineConfig({
               ],
             },
             'shortcomings',
-            'findings',
           ],
         },
         {
-          label: 'Experiments',
+          label: 'Reference',
           collapsed: true,
           items: [
+            {
+              label: 'CLI reference',
+              collapsed: true,
+              items: [{ autogenerate: { directory: 'reference' } }],
+            },
+            // The page is `rustdoc`, not `api`: the rustdoc output is copied to /api/, so a page
+            // at /api/ would collide with it.
+            { slug: 'rustdoc', label: 'API documentation (rustdoc)' },
+            'known-limits',
+          ],
+        },
+        {
+          label: 'Findings and experiments',
+          collapsed: true,
+          items: [
+            'findings',
             { slug: 'experiments', label: 'Index' },
             'experiments/6-10-placement-resize-specs',
             'experiments/6-11-late-resize-fix-live',
@@ -116,21 +135,6 @@ export default defineConfig({
             'experiments/6-34-self-sent-sync-request',
             'experiments/6-35-ld-preload-geometry-shim',
             'experiments/p8-sway-flicker-not-run',
-          ],
-        },
-        {
-          label: 'Reference',
-          collapsed: true,
-          items: [
-            {
-              label: 'CLI reference',
-              collapsed: true,
-              items: [{ autogenerate: { directory: 'reference' } }],
-            },
-            // The page is `rustdoc`, not `api`: the rustdoc output is copied to /api/, so a page
-            // at /api/ would collide with it.
-            { slug: 'rustdoc', label: 'API documentation (rustdoc)' },
-            'known-limits',
           ],
         },
         // Written from docs/ at build time by `cargo xtask docs-mirror`; the order comes from the
