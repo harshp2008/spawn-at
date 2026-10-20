@@ -11,8 +11,13 @@ project as a whole is on [Known shortcomings](/spawn-at/shortcomings/).
 ### spawn exits 0 when no window appears
 
 If the program starts but no window shows up within `spawn.window_timeout_ms`, `spawn` prints a
-warning and exits 0. The default is 2000 ms. This is the same on GNOME, Sway and X11. On GNOME the
-wait can last twice as long: first for the extension's claim, then by polling.
+warning and exits 0. The default is 2000 ms. This is the same on GNOME, Sway and X11.
+
+On GNOME the wait can last twice as long: first for the extension's claim, then by polling. Three
+words are used for the GNOME placement on this page: `spawn` *arms* the extension by registering the
+placement it wants before it starts the program, the extension *claims* a new window when it matches
+that registration (it places the window and reports back), and *disarm* would cancel the
+registration.
 
 `spawn` exits non-zero only for an empty command, invalid options, `--area screen` without the
 helper it needs, or a program that cannot be started.
@@ -48,8 +53,8 @@ listed. A window list that cannot be read counts as closed. `--no-wait` skips th
 
 ## Matching a window by name
 
-There is no single matching rule, and none of the rules is strict. Each of the four places below has
-its own.
+There is no single matching rule. Each of the four places below has its own, and most are lenient:
+case is ignored and a part of a name is often enough. Only `--id` is strict.
 
 ### Selectors for existing windows
 

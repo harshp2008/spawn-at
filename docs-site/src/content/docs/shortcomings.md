@@ -24,8 +24,7 @@ then fails with an error that says the compositor failed.
 The ready-wait holds a new window hidden until the app answers the resize request. See
 [Concepts](/spawn-at/concepts/#cloak-and-waiting-for-the-app). An app already at its minimum size, or
 a hung app, never answers. The window then stays hidden until the cap, `wait.cap_ms`, which is 250 ms
-by default. The README reports about 230 ms extra in one test; the test log has no entry for that
-figure.
+by default. The README reports about 230 ms extra in one test.
 
 ### Under load the window is hidden longer
 
@@ -66,23 +65,6 @@ The exit status of the state commands and the cursor options on Sway are covered
 More on each environment: [GNOME on Wayland](/spawn-at/environments/gnome-wayland/),
 [Sway](/spawn-at/environments/sway/), [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
-## What the extension's log shows
-
-Test tools read the extension's timing log. What each command writes there, from a trace inventory of
-the extension:
-
-| Command | Log entries |
-| :-- | :-- |
-| `spawn`, `transform` | A full timeline with the window id. |
-| `focus` | `RAISE` and `ACTIVATE`. |
-| `minimize`, `restore` | `MINIMIZE` or `UNMINIMIZE` (`restore` only if the window was minimized). |
-| `maximize`, `close`, the queries | Nothing for the target. |
-| `defocus` | Nothing for the target. The window that receives focus gets `RAISE` and `ACTIVATE`. |
-| Any new window | `WINDOW_CREATED` and `ACTOR_MAP`, for every window on the desktop. |
-
-A reader of the log must filter by window id. A flash or ordering check works for `spawn` and
-`transform` on GNOME, only partly for `focus` and `minimize`, and not for the rest.
-
 ## Limits of the flash measurement
 
 - No pixels are captured. Nobody has measured what was on screen.
@@ -95,16 +77,13 @@ A reader of the log must filter by window id. A flash or ordering check works fo
 - Only GNOME `spawn` is measured for flash. GNOME `transform` is informational and not yet run on a
   real session. The other commands are not measured. Sway and X11 cannot be, because it needs the
   GNOME extension's clock.
+- The extension's log has entries for `spawn` and `transform`, only some for `focus` and `minimize`,
+  and none for the rest, so a flash or ordering check works for the first two on GNOME and only
+  partly for the others. What it logs for each command is in the
+  [runner setup](/spawn-at/project/design-runner-setup/) document.
 - All numbers come from one GNOME 46 Wayland machine with the project's test window.
 
-## The test suite itself
-
-- The catalog has 22 entries for existing windows. 15 passed on a private headless Sway, 7 were
-  skipped, and none has run on GNOME. The original 45 entries only run `spawn`.
-- Five tests stay ignored. Four in `fixture_test` need a live display, and one Sway focus-chain test
-  needs a private Sway.
-- Four tests named "supported on X11" pass on a connection error, so they do not test X11.
-- The harness uses GNOME-only tools (`journalctl`, `gdbus`) for its logs and display probes.
+The gaps in the test suite itself are on [Testing and the verify tool](/spawn-at/testing/#limits-of-the-test-suite).
 
 ## Sources
 
