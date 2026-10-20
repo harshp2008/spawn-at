@@ -31,6 +31,11 @@ Each entry is one line: the date, what changed, and the page it was taken from. 
 - 2026-10-13: `CHANGELOG.md` was added (commit `c1a34fa`), after the contract search of section 6.1. On 2026-10-19 its matches for min size, clamp and raised (lines 288 and 350-351) were checked: they are about the ready-wait, not about the min-size contract.
 - Date not recorded: `spawn-at-verify run --repeat` has existed since commit `0f6bb36`. Earlier versions of the report kept only the first repetition; that was a limitation of the report, not a design choice. It now stores every repetition under `repeat_runs`.
 
+- 2026-10-20: the test counts were measured on the branch `docs-rewrite-1`: `spawn-at` 460, `spawn-at-core` 64, `spawn-at-verify` 625 run and 5 ignored with `tui,fixture`, `xtask` 96, and 240 Node tests in the 12 `*_test.js` files (243 with the 3 install-script tests, which were left to CI). The Testing page had quoted counts taken on 2026-10-19 on the branch `docs-records-cards`.
+- 2026-10-20: the 47 Covered and 12 Not written rows of the test plan catalog were counted with a file-exists check on all 59 paths. `spawn-at-verify list` printed 67 tests (55 auto, 12 both) with the debug binary built on 2026-10-18, newer than every file under `crates/spawn-at-verify/src` and `verify/`.
+- 2026-10-15: the first run of the 22 specs for existing windows on a private headless Sway failed one spec, `transforms/reposition-by-id`: a fresh tiled window is as large as the work area, so "size unchanged, 400x300" did not hold. The spec became GNOME-only.- Date not recorded: while the Sway backend was built, `--size 600 400` with a real border and title bar (`for_window ... border normal 3`) was tried by hand on the private Sway. It gave a container of exactly 600x400 (content 594x372). This is also in [DESIGN_SWAY.md](DESIGN_SWAY.md), section 4.
+- Date not recorded: the first batch of window-command tests through the built binary (`tests/sway_backend_cli_test.rs`) had 10 tests. The file has 19 now.
+
 ## Knowledge base entries
 
 - 2026-10-15: the runner chose the GNOME journal source and `SetLogging` from `XDG_CURRENT_DESKTOP` alone. With `SPAWN_AT_BACKEND=sway` or `x11` set it no longer does (commit `77ab5d2`, with the runner setup work).

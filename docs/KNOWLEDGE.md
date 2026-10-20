@@ -71,9 +71,9 @@ How to use it: read the table of contents, then only the section you need. An en
 ### Running and counting
 
 - `node --test tests/*.js` includes the installer test that runs `install.sh` against a stand-in curl and `spawn-at`. A rule of "never execute `install.sh`" therefore also **rules out running that file locally**. CI runs it. Recorded 2026-10-18.
-- Run `spawn-at-verify` per binary, not as a bare workspace number: `cargo test -p spawn-at-verify --features tui,fixture` (5 tests stay ignored). Counts: `docs/TEST_PLAN.md`, section 1.1.
+- Run `spawn-at-verify` per binary, not as a bare workspace number: `cargo test -p spawn-at-verify --features tui,fixture` (5 tests stay ignored). Counts: `docs-site/src/content/docs/testing.md`, "Test counts".
 - Count tests with `cargo test --locked -p <crate> [--features ...] -- --list`, which runs nothing (`--ignored` lists the ignored ones). For Node, run one `node --test` per `tests/*_test.js`, because `node --test tests/*.js` also counts the helper `tests/gi_loader.js` as 1 test. Recorded 2026-10-20.
-- The test counts appear in `docs/TEST_PLAN.md` section 1.1 and in `docs-site/src/content/docs/testing.md`. Nothing else should quote them.
+- The totals of the test counts are in one table, in `docs-site/src/content/docs/testing.md`. `docs/TEST_PLAN.md` section 1.2 has the breakdown per binary. Nothing else should quote them.
 
 ### Refactor proofs
 
