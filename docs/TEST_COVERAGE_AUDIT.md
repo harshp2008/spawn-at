@@ -1,5 +1,7 @@
 # Command and flicker test coverage audit
 
+**Status:** historical record. An audit of 2026-10-15 at `ff1eb6a`, updated once for command coverage batch 1 on the same date.
+
 Audit only: no Rust, JS, shell or workflow code was changed. Date 2026-10-15, `main` at `ff1eb6a`. Claims marked **(read)** come from reading code or tests; **(ran)** means a command was run for this audit (`spawn-at --help` and every subcommand's `--help`, `spawn-at-verify list`, `spawn-at-verify tui --help`, a build, the test suites); **(unverified)** means neither. Nothing live was run: no GNOME test, no `smoke-live.sh`, no `spawn-at install`, no Sway.
 
 **Updated 2026-10-15 (command coverage batch 1):** tests for proposals P1, P2, P3, P5 and P9 were added and some gaps were closed or characterized. Each such gap in section 7 carries an "Update" note citing the new tests. Sections 1 to 6 are the audit as it was written; their line citations are for `ff1eb6a`.
