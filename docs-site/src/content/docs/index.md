@@ -48,7 +48,8 @@ This is the status of v0.2.1.
 - **Prebuilt binaries:** Linux x86_64 only.
 - **Not verified anywhere:** GNOME versions other than 46; real Sway sessions and Sway versions
   other than 1.9; X11 or XWayland with real applications; more than two outputs and output scales
-  other than 1 and 2 (on Sway); removal at system scope (`--scope system`).
+  other than 1 and 2 (any desktop; the only runs with two outputs were on a private headless Sway,
+  and GNOME was tried with one monitor); removal at system scope (`--scope system`).
 
 The list of behaviours that may surprise you is on [Known limits](/spawn-at/known-limits/), and the
 unmeasured parts are on [Known shortcomings](/spawn-at/shortcomings/).

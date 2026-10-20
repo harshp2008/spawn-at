@@ -43,8 +43,8 @@ spawn-at transform --id <ID> --size 600 450 --anchor center --margin 0 --no-focu
   for `spawn`.
 - On a **minimized** window, the usual glide from the dock is deliberately suppressed, so the window
   appears at the new geometry. On a window covered by others, normal focus transitions play.
-- The `--focus`, `--no-focus` and `--defocus` options are read here (they control focus after the
-  action). On `spawn` they are not.
+- The `--focus`, `--no-focus` and `--defocus` options control focus after the action here; on
+  `spawn` they do nothing (see [spawn](/spawn-at/commands/spawn/)).
 
 ## Not measured
 

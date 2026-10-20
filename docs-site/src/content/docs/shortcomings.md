@@ -7,10 +7,8 @@ Nothing here is a plan.
 
 ## Behaviour that does not match what you might expect
 
-- **`spawn --focus`, `--no-focus` and `--defocus` are accepted and ignored.** `spawn` always asks for
-  exclusive focus. `--help` still describes the flags, and the README's own `btop` example uses
-  `--no-focus`. A test pins the current behaviour; it is not a contract. On `transform`, `maximize`
-  and `restore` the flags do work.
+- **`spawn --focus`, `--no-focus` and `--defocus` are accepted and ignored.** What the code does,
+  and the test that pins it, are on [spawn](/spawn-at/commands/spawn/).
 - **State commands exit 0 even if nothing changed.** `focus`, `defocus`, `maximize`, `minimize`,
   `restore` and `transform` wait up to 2 seconds for the new state, drop the result of that wait, and
   exit 0. Reporting the timeout would change an exit code, so it was pinned, not fixed.
