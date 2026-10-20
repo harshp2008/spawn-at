@@ -21,7 +21,7 @@ tests stay ignored: four need a live display, one needs a private Sway. The 3 te
 `tests/install_unsupported_test.js`, which run `install.sh` against a stand-in `curl`, a stand-in
 `spawn-at` and a temporary `HOME`, were not run on that branch and are left to CI, so the Node figure
 with them is 242 (the Node run used every other file of `tests/` by name, `tests/gi_loader.js`
-included, which `node --test` counts as one test; the `*_test.js` files alone give 229).
+included, which `node --test` counts as one test; the `*_test.js` files alone give 238).
 
 ## What `spawn-at-verify` checks
 
