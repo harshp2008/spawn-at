@@ -2,10 +2,24 @@
 title: "Concepts"
 ---
 
+spawn-at starts a program, or takes a window that is already open, and puts it at the position and
+size you give; on GNOME Wayland its extension hides a new window until it is in place, so that it
+does not flash at the wrong spot (how far that holds is on [Findings](/spawn-at/findings/)).
+
 ## Where a window goes
 
 A placement is worked out from a few inputs. The arithmetic lives in `spawn-at-core`, which has no
-display-server code, and every driver uses it.
+display-server code, and every backend uses it.
+
+### The coordinate model
+
+Every number is in whole pixels. `--area` chooses what a position is counted from. With `workarea`
+(the default) and `screen`, `-p X Y` is counted from the top-left corner of that rectangle on the
+target monitor. With `unbounded`, `-p X Y` is an absolute position in the global desktop space across
+all monitors, which is the space of `GEOMETRY` in `query windows`. The anchor, pivot and margin rules
+below, and the worked example, all follow from that choice.
+
+### The inputs
 
 **Reference area (`--area`).** The rectangle that positions, anchors, margins and clamping refer to:
 
@@ -13,7 +27,7 @@ display-server code, and every driver uses it.
 | :--- | :--- |
 | `workarea` (default) | The usable area of the monitor: without the top bar, docks and panels |
 | `screen` | The whole monitor |
-| `unbounded` | The whole desktop across all monitors, in the same global coordinates as `GEOMETRY` in `query windows`. No margin, no border, no clamp |
+| `unbounded` | The whole desktop across all monitors, in global coordinates. No margin, no border, no clamp |
 
 **Monitor (`--monitor`).** An index, `cursor`, or `primary`. When omitted, `spawn` uses the primary
 monitor (or index 0, with an `INFO` note, if none is flagged primary; or the monitor under the
@@ -29,10 +43,9 @@ margins.
 **Pivot (`--pivot`).** Which point of the window sits on the anchor: `center`, `top-left`,
 `top-right`, `bottom-left`, `bottom-right`. If omitted, each anchor uses its own matching point
 (`center` to `center`, `top` to top-centre, corners to the same corner), and `cursor` uses
-`top-left`. Without `--anchor` the pivot is `top-left`. This is what the code does
-(`crates/spawn-at-core/src/geometry.rs`, the pivot match near line 660, and the test
-`test_new_matrix_and_cursor_default_pivot`). The `--anchor` text in `--help` says "defaults to
-top-left pivot when --pivot is omitted", which is only true for `cursor` and for no anchor.
+`top-left`. Without `--anchor` the pivot is `top-left`. This is what the code does (the evidence is
+in Sources). The `--anchor` text in `--help` says "defaults to top-left pivot when --pivot is
+omitted", which is only true for `cursor` and for no anchor.
 
 **Position (`-p X Y`, or the alias `-o X Y`).** Without `--anchor` it is a position in the area,
 counted from the area's own top-left corner with no margin added. With `--anchor` it is an offset
@@ -95,19 +108,17 @@ for the application is the **ready-wait**:
 
 - On GNOME 46 with Wayland the extension waits until the app has answered the size request. The
   default cap is 250 ms and the hard limit is 1500 ms (`wait.cap_ms`).
-- XWayland and X11 windows, and the older extension for GNOME 42 to 44, use the older rule: a 30 ms
-  quiet period, a 120 ms minimum, and a 1500 ms hard cap.
-- Setting `wait.strategy` to `legacy` selects the original 30 ms rule; see
+- XWayland and X11 windows, and the legacy extension for GNOME 42 to 44, use the legacy rule: a
+  30 ms quiet period, a 120 ms minimum, and a 1500 ms hard cap.
+- Setting `wait.strategy` to `legacy` selects that same 30 ms rule; see
   [Configuration](/spawn-at/configuration/).
 
 A window never stays invisible. Registrations expire after 15 seconds (1.2 seconds for wildcard
 matches), a window that matches nothing is revealed at once, and an error during placement restores
 the opacity. If something goes wrong you get a normally placed window.
 
-Nothing withdraws a registration early. `spawn-at` does not send the extension's disarm call on
-Linux, not even when the program fails to start, so a registration the program never claims stays
-until it expires. A window that the extension matches to it in that time is placed instead; see
-[Known limits](/spawn-at/known-limits/).
+A registration is not withdrawn early, even when the program fails to start; what that can do is on
+[Known limits](/spawn-at/known-limits/#after-a-failed-spawn).
 
 After the reveal, the extension corrects a resize that arrives late by re-anchoring, and keeps a
 listener for size changes: when the app resizes itself and the anchored position moves, the frame is
@@ -117,11 +128,12 @@ Requests go through a queue, so two shortcuts pressed together do not interleave
 based on libvte do not lay out their character grid until they get a focus change, so the extension
 pulses focus while the window is still hidden.
 
-## What flicker means here
+## What a flash means here
 
-"Flash" in this book follows the project's test harness: the window was revealed before the app's
-first commit at its final size, read from the Wayland protocol, or it changed size or position
-after the reveal. No screen capture was done. See [Findings](/spawn-at/findings/).
+A flash is a window that was shown before the app first painted at its final size, or that changed
+size or position after it was shown, as the project's test harness decides it from the Wayland
+protocol. No screen capture was done. The rule and its limits are on
+[Findings](/spawn-at/findings/#how-a-flash-is-decided).
 
 ## Sources
 
@@ -131,4 +143,6 @@ after the reveal. No screen capture was done. See [Findings](/spawn-at/findings/
 - `docs/DESIGN_PLATFORMS.md`, section 4 (reveal control is GNOME-only)
 - `docs/DESIGN_READY_WAIT.md`, section 12 (X11 and XWayland keep the legacy rule)
 - `docs/TEST_PLAN.md`, sections 6.1 to 6.3 (minimum-size evidence)
-- `crates/spawn-at-core/src/geometry.rs` (default pivot) and the output of `spawn-at spawn --help`
+- `crates/spawn-at-core/src/geometry.rs`: the pivot match near line 660 (default pivot), and the
+  test `test_new_matrix_and_cursor_default_pivot`
+- the output of `spawn-at spawn --help`
