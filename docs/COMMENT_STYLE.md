@@ -1,5 +1,7 @@
 # Comment style
 
+**Status:** reference. `scripts/check-comment-only-product.sh` wraps `cargo xtask check-comment-only`, as the first paragraph says (checked 2026-10-20).
+
 Rules for comments in Rust code. Comment-only commits must pass
 `scripts/check-comment-only-product.sh <rev>` (wraps `cargo xtask check-comment-only`).
 
