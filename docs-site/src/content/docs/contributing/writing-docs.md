@@ -111,9 +111,9 @@ body cell has 240 characters or more is shown as records instead: one card per r
 the rows. The first column is the key, in a gutter at the left of the card. The other columns are
 fields in the body of the card, labelled with the column header (empty cells are left out). A field
 whose text is 40 characters or fewer is a short fact: a small label over its value, side by side with
-the other short ones. A longer one is a label over full-width text. The short fields are shown first,
-but they stay in the order of the table in the page itself, so copying a card and reading it with a
-screen reader give the table's order. When the keys are sentences (the median key is longer than 48
+the other short ones. A longer one is a label over full-width text. The short fields come first in the
+markup, then the long ones, each group in the order of the table, so what you see, what Tab reaches
+and what a screen reader or a copy gives are in the same order. When the keys are sentences (the median key is longer than 48
 characters), the key stands above the fields for the whole list, and on a narrow column every card
 stacks. `src/integrations/records.mjs` rewrites the table in the built page and
 `src/styles/records.css` draws it. The page text, links, ids and inline code are the same as in the

@@ -5,8 +5,8 @@
      ol.records.records-steps: the same, and the key is span.record-num + span.record-note.
    A card has the key in a gutter at the left and the other columns in the body: a short cell is a
    small label over its value, side by side with the others in a wrapping row; a long cell is a label
-   over full-width text. The fields are in the column order of the table in the HTML (copy-paste,
-   screen readers) and `order` shows the short ones first. Colours are Starlight tokens, mixed: the
+   over full-width text. The short fields come first in the HTML (records.mjs), so the screen order
+   is the markup order and no `order` is needed. Colours are Starlight tokens, mixed: the
    same rule gives a tinted card on the white page of the light theme and on the dark page. */
 .sl-markdown-content .records {
   --rec-card: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-black));
@@ -87,11 +87,7 @@
 .sl-markdown-content .records .field {
   min-width: 0;
 }
-.sl-markdown-content .records .field-short {
-  order: 0;
-}
 .sl-markdown-content .records .field-long {
-  order: 1;
   flex-basis: 100%;
 }
 .sl-markdown-content .records dt {
