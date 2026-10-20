@@ -11,10 +11,10 @@
 .sl-markdown-content .records {
   --rec-card: color-mix(in srgb, var(--sl-color-gray-6) 50%, var(--sl-color-black));
   --rec-line: color-mix(in srgb, var(--sl-color-gray-5) 45%, var(--sl-color-gray-6));
-  /* Starlight's inline-code background (gray-6 in the light theme) is the same colour as the card
-     there; a little darker keeps the chips visible on it. The .code-any chip and its two
-     box-shadows read this variable, so they stay in step. */
-  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-5) 40%, var(--sl-color-gray-6));
+  /* The inline-code chip of the page (custom.css) is nearly the colour of the card, so a little
+     darker keeps the chips visible on it. The .code-any chip and its two box-shadows read this
+     variable, so they stay in step. */
+  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-5) 20%, var(--sl-color-gray-6));
   list-style: none;
   padding: 0;
   margin-block: 1.5rem;
@@ -59,20 +59,33 @@
   color: var(--sl-color-white);
   overflow-wrap: break-word;
 }
-.sl-markdown-content .records .record-key code {
+.sl-markdown-content .records:not(.records-sentence) .record-key code {
   background: none;
   padding: 0;
   font: inherit;
   color: inherit;
 }
-.sl-markdown-content .records .record-key code :is(.code-any, .code-nb) {
+.sl-markdown-content .records:not(.records-sentence) .record-key code :is(.code-any, .code-nb) {
   background: none;
   box-shadow: none;
 }
-.sl-markdown-content .records .record-key code .code-any {
+.sl-markdown-content .records:not(.records-sentence) .record-key code .code-any {
   display: inline;
   max-width: none;
   overflow-wrap: break-word;
+}
+
+/* A key that is a sentence (`records-sentence`, records.mjs: median key over 48 characters, not
+   steps) is not an identifier: body font, weight 600, 1rem (the field text is 0.875rem), a 1.5
+   line height for the lines of a sentence. Code inside it keeps the chip of any inline code
+   (custom.css), at the normal weight. */
+.sl-markdown-content .records.records-sentence .record-key {
+  font-family: inherit;
+  font-size: var(--sl-text-base);
+  line-height: 1.5;
+}
+.sl-markdown-content .records.records-sentence .record-key code {
+  font-weight: 400;
 }
 
 /* The body: a hairline at the left of the fields. */
@@ -136,10 +149,11 @@
 }
 
 /* custom.css gives a piece of code longer than 20 characters (.code-any) `max-width: 100%`, but
-   the chip of its parent <code> adds 6px of padding on each side, so a 60-character test name was
-   12px wider than its column. A table cell hides that behind its own padding; a field has none. */
+   the chip of its parent <code> adds 0.3em of padding on each side (6px with the old 2px 6px chip),
+   so a 60-character test name was wider than its column. A table cell hides that behind its own
+   padding; a field has none. 0.6em of the piece's own size is the two paddings. */
 .sl-markdown-content .records .field :not(pre) > code .code-any {
-  max-width: calc(100% - 0.75rem);
+  max-width: calc(100% - 0.6em);
 }
 
 /* A list whose keys are sentences or that has a field longer than 400 characters (titled cards,

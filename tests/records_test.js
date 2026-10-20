@@ -142,7 +142,7 @@ test('the key stacks above the fields when the median key is over 48 characters'
     const mk = (lens) => table(['k', 'v'], lens.map((n) => [long(n), 'v']));
     const run = (lens) => convertTables(`<!-- site: records -->\n${mk(lens)}`).html;
     assert.ok(!run([10, 48, 60]).includes('records-stack'), 'median 48');
-    assert.ok(run([10, 49, 60]).includes('<ul class="records records-stack"'), 'median 49');
+    assert.ok(run([10, 49, 60]).includes('<ul class="records records-stack records-sentence"'), 'median 49');
     assert.ok(!run([48, 48]).includes('records-stack'));
     assert.ok(run([48, 49]).includes('records-stack'), 'even count: the mean of the middle two, 48.5');
     assert.ok(!run([1, 1, 200]).includes('records-stack'), 'one long key does not stack the list');
@@ -373,14 +373,52 @@ test('the stacked key rule applies to steps as well, counting the whole key cell
     const at49 = run([note(45), note(45), note(45)]);
     assert.match(at49, /^<ol class="records records-stack records-steps" role="list">/);
     // cards: the same rule, unchanged
-    assert.match(cards(['k', 'v'], [[long(49), 'v']]), /^<ul class="records records-stack"/);
+    assert.match(cards(['k', 'v'], [[long(49), 'v']]), SENTENCE);
     assert.match(cards(['k', 'v'], [[long(48), 'v']]), /^<ul class="records" /);
+});
+
+// ---- sentence keys: the key is body text, not a monospace identifier ----
+
+test('a list whose median key is over 48 characters gets records-sentence, with records-stack', () => {
+    const run = (lens, directive = '<!-- site: records -->') =>
+        convertTables(`${directive}\n${table(['k', 'v'], lens.map((n) => [long(n), 'v']))}`).html;
+    // the same median test as the stack: 48 stays an identifier, 49 is a sentence
+    const at48 = run([10, 48, 60]);
+    assert.match(at48, GUTTER);
+    assert.ok(!at48.includes('records-sentence'), 'median 48');
+    assert.match(run([10, 49, 60]), SENTENCE, 'median 49');
+    assert.match(run([48, 49]), SENTENCE, 'even count: the mean of the middle two, 48.5');
+    assert.ok(!run([1, 1, 200]).includes('records-sentence'), 'one long key among short ones');
+    // the list decides, so every card of it is a sentence card
+    assert.match(run([200, 200, 1]), SENTENCE);
+    // style=cards keeps the gutter only for a long body; a sentence key still stacks and is body text
+    assert.match(run([60], '<!-- site: records style=cards -->'), SENTENCE);
+    // key=N: the median is taken over the key column that was chosen
+    const k2 = cards(['A', 'Name'], [['x', long(60)], ['y', long(60)]], '<!-- site: records key=2 -->');
+    assert.match(k2, SENTENCE);
+    assert.ok(!cards(['A', 'Name'], [[long(60), 'x'], [long(60), 'y']], '<!-- site: records key=2 -->').includes('records-sentence'));
+});
+
+test('short keys are never sentence keys: gutter cards, titled cards, steps', () => {
+    const none = (html) => assert.ok(!html.includes('records-sentence'), html.slice(0, 80));
+    none(cards(['k', 'v'], [['src/main.rs', 'a'], ['--pivot', 'b']]));
+    // titled cards (a 401-character field, or style=titled) with identifier keys stay identifiers
+    const titled = cards(['k', 'a'], [['one', long(401)]]);
+    assert.match(titled, TITLED);
+    none(titled);
+    none(cards(['k', 'a'], [['one', 'short']], '<!-- site: records style=titled -->'));
+    // steps, even with a long note that stacks the key: the number and the note are not a sentence
+    const note = `1 (${long(60)})`;
+    const steps = cards(['#', 'v'], [[note, 'a'], [note, 'b'], [note, 'c']]);
+    assert.match(steps, /^<ol class="records records-stack records-steps" role="list">/);
+    none(steps);
 });
 
 // ---- titled cards: a list with a field longer than TITLED_MIN, or style=titled ----
 
 const TITLED = /^<ul class="records records-stack" role="list">/;
 const GUTTER = /^<ul class="records" role="list">/;
+const SENTENCE = /^<ul class="records records-stack records-sentence" role="list">/;
 
 test('a field of 400 characters keeps the gutter, one of 401 makes the list titled', () => {
     assert.equal(TITLED_MIN, 400);
@@ -408,7 +446,7 @@ test('the rule is per list: one long field in one row titles every card of the l
     // the long field may be in any column but the key's
     assert.match(cards(['k', 'a', 'b'], [['one', 'x', long(401)]]), TITLED);
     // the key column is not a field: a long cell there does not count, it stacks by the key rule
-    assert.match(cards(['k', 'a'], [[long(500), 'x']]), TITLED, 'a 500-character key stacks (median > 48)');
+    assert.match(cards(['k', 'a'], [[long(500), 'x']]), SENTENCE, 'a 500-character key stacks (median > 48)');
     assert.match(cards(['k', 'a'], [[long(40), 'x']]), GUTTER);
 });
 
@@ -437,7 +475,7 @@ test('style=cards keeps the gutter for a long body, style=titled forces the titl
     assert.match(cards(['k', 'a'], longRows, '<!-- site: records style=titled -->'), TITLED);
     assert.match(cards(['k', 'a'], [['one', 'short']], '<!-- site: records style=titled -->'), TITLED);
     // style=cards does not undo the stacked key of sentence keys
-    assert.match(cards(['k', 'a'], [[long(60), long(900)]], '<!-- site: records style=cards -->'), /^<ul class="records records-stack"/);
+    assert.match(cards(['k', 'a'], [[long(60), long(900)]], '<!-- site: records style=cards -->'), SENTENCE);
 });
 
 test('style=titled on numbered keys is titled cards, not steps; with key=N it names the title column', () => {

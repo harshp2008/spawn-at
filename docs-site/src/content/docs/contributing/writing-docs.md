@@ -52,6 +52,191 @@ docs-check-src` fails when:
 A page that adds new content therefore needs, in the same commit, its sidebar entry. Put the summary
 first, then the body, then `## Not verified`, then `## Sources` last.
 
+## Style rules
+
+These rules are about how a page reads, not what it claims (that is the truth rule above). They come
+from a count of the markdown sources, 76 files: the 62 tracked pages of `docs-site/`, the 13
+`docs/` files that the site mirrors under "Project documents", and `README.md`. Text in fenced code
+blocks was left out. The count is a throwaway script, not committed, and it is a rough reading
+aid: it is not a check, and `cargo xtask docs-check-src` does not enforce these rules. No page was
+rewritten for them yet.
+
+### Bold
+
+Bold is for a warning or a label the reader must not miss. Use it at most once in a paragraph. Do not
+put it at the start of every bullet of a list: a list of distinct topics becomes short `###`
+headings or plain sentences. A list of terms and their meanings may bold the term and nothing else.
+
+Before, from "Known shortcomings":
+
+```md
+- **State commands exit 0 even if nothing changed.** `focus`, `defocus`, `maximize`, `minimize`,
+  `restore` and `transform` wait up to 2 seconds for the new state, drop the result of that wait, and
+  exit 0. Reporting the timeout would change an exit code, so it was pinned, not fixed.
+- **A window that cannot answer a resize costs the full cap.** An app already at its minimum size, or
+  a hung app, makes the ready-wait run to `wait.cap_ms` (about +230 ms in one test).
+```
+
+After:
+
+```md
+### State commands exit 0 even if nothing changed
+
+`focus`, `defocus`, `maximize`, `minimize`, `restore` and `transform` wait up to 2 seconds for the
+new state, drop the result of that wait, and exit 0. Reporting the timeout would change an exit
+code, so it was pinned, not fixed.
+
+### A window that cannot answer a resize costs the full cap
+
+An app already at its minimum size, or a hung app, makes the ready-wait run to `wait.cap_ms` (about
++230 ms in one test).
+```
+
+### Inline code
+
+Use code marks only for what the reader types or sees verbatim: a command, a flag, a config key, a
+path they open, literal output. Do not use them for ordinary words, for a number with its unit
+(2 seconds, 250 ms), or for a concept.
+
+On a user page (everything outside "Project documents") the names of modules, functions and types
+do not go in the prose. They go in the `## Sources` list. In a project document code names are
+allowed, but at most about 3 in a sentence; a run of more than 3 identifiers becomes a table or a
+list.
+
+Before, a user page (`environments/x11-xwayland.md`):
+
+```md
+XRandR (`src/platform/linux/x11/atoms.rs` and `session.rs`; the other files there are `mod.rs`,
+`interception.rs` and `tests.rs`). It needs no helper to install (`needs_helper: false` in
+`x11/mod.rs`).
+```
+
+After, with the file names moved to `## Sources`:
+
+```md
+XRandR. It needs no helper to install.
+
+## Sources
+
+- `src/platform/linux/x11/atoms.rs` and `session.rs` (the EWMH atoms and XRandR) and `mod.rs`
+  (`needs_helper: false`)
+```
+
+Before, a project document (`docs/CODE_LAYOUT.md`, "Facts that constrain moving files"), one bullet
+with 19 code marks in 2 sentences:
+
+```md
+- **Cargo targets of `spawn-at-verify`** are declared in its `Cargo.toml`: `[[bin]]` `spawn-at-verify` (`src/main.rs`) and `fixture` (`src/bin/fixture.rs`, `required-features = ["fixture"]`), and `[[test]]` entries `fixture_test` (needs `fixture`), `oracle_cross_check`, `trace_analyser_test`, `trace_state_test`, `tui_test` (needs `tui`) and `render_test` (needs `tui`). Other files under `tests/` are found by Cargo's default discovery.
+```
+
+After:
+
+```md
+The targets of `spawn-at-verify` are declared in its `Cargo.toml`:
+
+| Target | Kind | Note |
+| :-- | :-- | :-- |
+| `spawn-at-verify` | `[[bin]]` | `src/main.rs` |
+| `fixture` | `[[bin]]` | `src/bin/fixture.rs`, `required-features = ["fixture"]` |
+| `fixture_test` | `[[test]]` | needs `fixture` |
+| `oracle_cross_check` | `[[test]]` | |
+| `trace_analyser_test` | `[[test]]` | |
+| `trace_state_test` | `[[test]]` | |
+| `tui_test` | `[[test]]` | needs `tui` |
+| `render_test` | `[[test]]` | needs `tui` |
+
+Other files under `tests/` are found by Cargo's default discovery.
+```
+
+### Length
+
+A paragraph is up to about 4 lines and holds one idea. A sentence is under about 25 words. A list has
+7 items or fewer; a longer one is grouped under headings. A list item that needs more than 60 words is
+a paragraph under a heading.
+
+Before, `docs/DESIGN_SWAY.md` (one paragraph of 115 words whose first sentence is the longest):
+
+```md
+**Forced but unusable is an error, never a fallback.** If `SPAWN_AT_BACKEND=sway` and `SWAYSOCK` is unset or empty, or the socket is not connectable, or the first reply is not valid IPC, `bootstrap` returns `DriverError::IpcError` (`src/platform/linux/mod.rs:110-115`, with `?`, so nothing after it runs) with a message such as `SPAWN_AT_BACKEND=sway, but $SWAYSOCK is not set. Run spawn-at inside a Sway session, or unset SPAWN_AT_BACKEND.` (and the connect error for a bad socket), which `main` prints as "Driver initialization error: ..." and exits 1 (`src/main.rs`, the `init_backend` match). It does not fall through to X11, unlike the GNOME candidate, which falls back silently when D-Bus is unreachable (`src/platform/linux/mod.rs:116-122`). `I3SOCK` is not consulted (open question 7: no i3 backend).
+```
+
+After (the file and line references go to the page's `## Sources`):
+
+```md
+### Forced but unusable is an error, never a fallback
+
+If `SPAWN_AT_BACKEND=sway` and the Sway socket cannot be used, `bootstrap` returns
+`DriverError::IpcError` and nothing after it runs. The socket cannot be used when `SWAYSOCK` is unset
+or empty, when it is not connectable, or when the first reply is not valid IPC.
+
+`main` prints the message as "Driver initialization error: ..." and exits 1. For an unset
+`SWAYSOCK` the message is `SPAWN_AT_BACKEND=sway, but $SWAYSOCK is not set. Run spawn-at inside a
+Sway session, or unset SPAWN_AT_BACKEND.`
+
+It does not fall through to X11. The GNOME candidate does: it falls back silently when D-Bus is
+unreachable. `I3SOCK` is not consulted (open question 7: no i3 backend).
+```
+
+### Jargon
+
+Explain a term at its first use on the page, or link to the page that does. The terms the pages share
+(cloak, ready-wait, pivot, anchor) are defined in [Concepts](/spawn-at/concepts/).
+
+Before, "Known shortcomings" uses "ready-wait" with no explanation:
+
+```md
+makes the ready-wait run to `wait.cap_ms` (about +230 ms in one test).
+```
+
+After:
+
+```md
+makes the [ready-wait](/spawn-at/concepts/#cloak-and-waiting-for-the-app) (the wait for the app to
+answer the resize request) run to `wait.cap_ms` (about +230 ms in one test).
+```
+
+### Tables
+
+A table is for facts that line up in columns, with a short first column: a name, a flag, a number, a
+file. A table whose first column is a sentence is not a table: use a list, or headings. The site
+cannot fix this; for a table that has to stay (the `docs/` pages are also read on GitHub) it draws
+the sentence in the body font at weight 600, not as an identifier.
+
+Before, `docs/DESIGN_SWAY.md`, "Verified facts about Sway" (the claim is the first column and
+"How verified" the second):
+
+```md
+| Fact | How verified |
+| :-- | :-- |
+| A raw `RUN_COMMAND` with payload `nop` returned `[ { "success": true } ]`. | `socat` exchange. |
+```
+
+After:
+
+```md
+- A raw `RUN_COMMAND` with payload `nop` returned `[ { "success": true } ]`. Verified with a `socat`
+  exchange.
+```
+
+### Targets
+
+The numbers below come from the same count (76 files, 2026-10-20). A file is "over" when it is
+above the target.
+
+- Bold spans: up to 1.5 per 100 words. 15 of 76 files are over.
+- List items that start with bold: not more than half of a page's items, on pages with 3 or more
+  items. 11 of 76 are over.
+- Code marks on user pages: up to 10 per 100 words. 14 of 63 are over.
+- Code marks in project documents: up to 12 per 100 words. 7 of 13 are over.
+- Paragraphs: up to 100 words. 26 of 76 files have at least one longer.
+- List items: up to 60 words. 39 of 76 files have at least one longer.
+- Sentences: the aim is 25 words, and only 35 was counted. 64 of 76 files have a longer sentence.
+- First column of a table: median up to 48 characters. 6 of 76 files have a table over it.
+
+The three pages the maintainer called readable (`quick-start`, `concepts`, `commands/spawn`) have
+0.0 to 1.4 bold spans and 7.9 to 9.7 code marks per 100 words, which is why the code target for user
+pages is 10, not lower. The whole tree has 1.2 bold spans and 9.2 code marks per 100 words.
+
 ## Links
 
 Link to other pages as `/spawn-at/<slug>/`, with the base written out and a trailing slash, for
