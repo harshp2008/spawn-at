@@ -462,7 +462,7 @@ Status: CONFIRMED. The last point (two TUIs) was read in the code and not run.
 - So `tui/logging.rs::detect_current_logging_state` returns `true` once any enable has ever been logged, and `ExtensionLoggingGuard::init` then skips enabling. Only the TUI used the guard; `run` and `calibrate` never enabled logging.
 - The guard restores the state it detected on exit, so a second TUI whose startup state was "off" would turn logging off for an open one. Nothing re-checked the state before a run.
 
-#### What `spawn-at-verify` does now
+#### What `spawn-at-verify` does about the trace
 
 - Before every run that needs a trace (`never_visible_off_target`, or an id under `cloak/`), `runner/executor.rs` calls `SetLogging(true)` and polls the journal up to six times, 40 ms apart, for the `SET_LOGGING enabled=true` line (`ext_logging.rs`). Without a getter this "set and confirm" replaces "query and re-enable". The time spent is not part of the run's `duration_ms`.
 - If the call fails, the echo never arrives, or the log source is the no-op one, the reason is stored as the result's `trace_note` and printed by `run`. The TUI uses the same code path (`tui/app/queue.rs` calls `execute_single_test`).
