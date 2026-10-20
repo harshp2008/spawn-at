@@ -44,7 +44,7 @@ pub struct Entry {
 
 /// Every mirrored file. The order is the sidebar order: how the code is laid out, how placement
 /// behaves, the settings, the legacy extension, the design notes, then tests and house rules.
-pub const MIRRORED: [Entry; 13] = [
+pub const MIRRORED: [Entry; 14] = [
     Entry {
         file: "CODE_LAYOUT.md",
         slug: "code-layout",
@@ -122,6 +122,12 @@ pub const MIRRORED: [Entry; 13] = [
         slug: "knowledge",
         order: 13,
         label: "Knowledge base",
+    },
+    Entry {
+        file: "HISTORY.md",
+        slug: "history",
+        order: 14,
+        label: "Project history",
     },
 ];
 
@@ -951,7 +957,7 @@ mod tests {
         fs::write(out.join("notes.txt"), "other").unwrap();
 
         let written = generate(&docs, &out, CONFIG).unwrap();
-        assert_eq!(written.len(), 13);
+        assert_eq!(written.len(), 14);
         assert!(out.join("test-plan.md").is_file());
         assert!(!out.join("old-page.md").exists(), "stale page removed");
         assert_eq!(
@@ -1332,7 +1338,7 @@ mod tests {
         fs::write(exp.join("6-12-why.md"), "x").unwrap();
         fs::write(exp.join("6-33-sync.md"), "x").unwrap();
         let (written, stats) = generate_linked(&docs, &out, CONFIG, Some(&exp)).unwrap();
-        assert_eq!(written.len(), 13);
+        assert_eq!(written.len(), 14);
         let plan = fs::read_to_string(out.join("test-plan.md")).unwrap();
         assert!(plan.contains("See [6.12](/spawn-at/experiments/6-12-why/) and [6.33](/spawn-at/experiments/6-33-sync/)."), "{plan}");
         let plan_stats = stats.iter().find(|(f, _)| *f == "TEST_PLAN.md").unwrap().1;

@@ -415,7 +415,7 @@ dependency.
   `--help` text differs from its verified behavior) is explained on a hand-written page that links to
   it.
 - The "Project documents" pages (`project/<name>.md`) are written by `cargo xtask docs-mirror` from
-  13 files of `docs/`, listed in `crates/xtask/src/docs_mirror.rs` with their page name and sidebar
+  14 files of `docs/`, listed in `crates/xtask/src/docs_mirror.rs` with their page name and sidebar
   order. `docs/` is the source: edit the file there, never the page. The pages are not committed
   (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
   into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,
