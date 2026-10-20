@@ -101,6 +101,13 @@ shows NOT QUALIFIED. This is checked with fake reports in unit tests, not on a l
 On GNOME the TUI returns focus to your terminal after the automatic part of an attended test. A
 raised terminal can cover the small test window; move or shrink the terminal first.
 
+## Limits of the test suite
+
+- The catalog has 22 entries for existing windows. 15 passed on a private headless Sway, 7 were
+  skipped, and none has run on GNOME. The original 45 entries only run `spawn`.
+- Four tests named "supported on X11" pass on a connection error, so they do not test X11.
+- The harness uses GNOME-only tools (`journalctl`, `gdbus`) for its logs and display probes.
+
 ## Safety rules for contributors
 
 These come from the project rules and the harness design.
