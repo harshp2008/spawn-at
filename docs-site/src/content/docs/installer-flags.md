@@ -15,55 +15,66 @@ run: the rows are read from `install.sh`, the clap definitions and `--help`.
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- <flags>
 ```
 
-| Flag or variable | Default | What it does | Source |
-| :--- | :--- | :--- | :--- |
-| `-v <tag>`, `--version <tag>` | latest stable release | Installs that release tag. The value must follow as the next word and must not start with `-`; otherwise the script prints `Flag --version / -v requires a release tag` and exits 1. The tag may contain only letters, digits, `.`, `_`, `+` and `-`, and must start with a letter or digit | `install.sh:97-110, 291-293` |
-| `--version=<tag>` | | Same, in one word | `install.sh:111-114` |
-| a pinned tag without the leading `v` | | If the download of `<tag>` fails and the tag does not start with `v`, the script tries `v<tag>` once | `install.sh:429` |
-| `--prerelease` | off | Without `--version`, resolves the newest non-draft release including pre-releases (the first of the 10 newest releases the API returns), instead of `releases/latest` | `install.sh:115-118, 383` |
-| `--allow-unsupported` | off | On a desktop that is not GNOME and not X11, installs without asking `Install anyway? [y/N]`. The script consumes it: `spawn-at` never sees it. If you go on, the installer runs with `SPAWN_AT_BACKEND=x11` set for that one process | `install.sh:119-123, 146-172, 473-476` |
-| any other flag | | Passed on, in order, to `spawn-at install` | `install.sh:124-126, 481` |
-| `--help`, `-h` | | Prints the script's own flags (`--version`/`-v`, `--prerelease`, `--allow-unsupported`, `--help`), says that every other flag is passed on to `spawn-at install`, names `GITHUB_TOKEN` and `SPAWN_AT_RESOLVE_ONLY`, and exits 0. It is looked for before the platform check, the desktop check, the temp directory and every network call, so nothing is resolved or downloaded. It is not passed on: `spawn-at install --help` shows the binary's flags. Read from source and `bash -n` only, not run | `install.sh:44-78` |
-| `GITHUB_TOKEN` (environment) | unset | Sent as `Authorization: Bearer ...` on the GitHub API calls, to raise the rate limit | `install.sh:24, 304-306` |
-| `SPAWN_AT_RESOLVE_ONLY=1` (environment) | unset | Prints the resolved tag and exits, with no download and no install. The unsupported-desktop question is not asked | `install.sh:25, 140-147, 395-398` |
-| `SPAWN_AT_BACKEND` (environment) | unset | Read for the unsupported-desktop test: `x11` or `sway` (any letter case) counts as supported | `install.sh:140-147` |
+| Flag | Default | What it does |
+| :--- | :--- | :--- |
+| `-v <tag>`, `--version <tag>` | latest stable release | Installs that release tag. The value must follow as the next word and must not start with `-`; otherwise the script prints `Flag --version / -v requires a release tag` and exits 1. The tag may contain only letters, digits, `.`, `_`, `+` and `-`, and must start with a letter or digit |
+| `--version=<tag>` | | Same, in one word |
+| `--prerelease` | off | Without `--version`, resolves the newest non-draft release including pre-releases (the first of the 10 newest releases the API returns), instead of `releases/latest` |
+| `--allow-unsupported` | off | On a desktop that is not GNOME and not X11, installs without asking `Install anyway? [y/N]`. The script consumes it: `spawn-at` never sees it. If you go on, the installer runs with `SPAWN_AT_BACKEND=x11` set for that one process |
+| any other flag | | Passed on, in order, to `spawn-at install` |
+| `--help`, `-h` | | Prints the script's own flags (`--version`/`-v`, `--prerelease`, `--allow-unsupported`, `--help`), says that every other flag is passed on to `spawn-at install`, names `GITHUB_TOKEN` and `SPAWN_AT_RESOLVE_ONLY`, and exits 0. It is looked for before the platform check, the desktop check, the temp directory and every network call, so nothing is resolved or downloaded. It is not passed on: `spawn-at install --help` shows the binary's flags. Read from source and `bash -n` only, not run |
+
+If the download of a pinned `<tag>` fails and the tag does not start with `v`, the script tries
+`v<tag>` once.
+
+### Environment variables of `install.sh`
+
+| Variable | Default | What it does |
+| :--- | :--- | :--- |
+| `GITHUB_TOKEN` | unset | Sent as `Authorization: Bearer ...` on the GitHub API calls, to raise the rate limit |
+| `SPAWN_AT_RESOLVE_ONLY=1` | unset | Prints the resolved tag and exits, with no download and no install. The unsupported-desktop question is not asked |
+| `SPAWN_AT_BACKEND` | unset | Read for the unsupported-desktop test: `x11` or `sway` (any letter case) counts as supported |
+
+Every variable the binary reads is on [Environment and exit codes](/spawn-at/environment/).
 
 How the release is found: with `--version`, the tag is used as given. Otherwise the script asks the
 GitHub API (`releases/latest`, or `releases?per_page=10` with `--prerelease`), retrying, and falls
 back to `releases.atom` (with `--prerelease`) or the redirect of `releases/latest` (stable). The
-package itself is always downloaded from the plain `releases/download` URL
-(`install.sh:7-17, 262-352`).
+package itself is always downloaded from the plain `releases/download` URL.
 
-The script stops at once with a message when the machine is not Linux x86_64
-(`install.sh:43-50`).
+The script stops at once with a message when the machine is not Linux x86_64.
 
 ## `spawn-at install`
 
-| Flag | Default | What it does | Source |
-| :--- | :--- | :--- | :--- |
-| `--scope <user\|system>` | `user` | Where the binary goes: `user` is `~/.local/bin/spawn-at`, `system` is `/usr/local/bin/spawn-at` | `src/platform/mod.rs:109-120`, `src/platform/installer.rs:20-21` |
-| `--skip-bin` | off | Does not install the binary. The login update entry then points at the installed copy (the requested scope's bin directory, else the other scope's), and only when neither exists at the binary that is running. `update` runs the new binary from its temp directory this way (see [Update](/spawn-at/update/#the-child-install-and-your-settings)) | `src/main.rs:136-141, 352-360`, `src/platform/installer.rs:61` |
-| `--headless` | off | Never asks. The flags decide. See [Headless defaults](#headless-defaults) | `src/main.rs:106, 282` |
-| `-y`, `--yes` | off | Goes on after the notice printed for an untested platform without asking. The notice is still printed | `src/platform/mod.rs:121-124`, `src/main.rs:106-118` |
-| `--dry-run` | off | Prints the notice (if any) and `Dry run: would install the binary (<scope> scope...) and the <driver> extension; nothing was changed.`, then stops | `src/main.rs:126-134` |
-| `--clean-install` | off | If spawn-at is already installed, removes it first (binary, extension, login update entry) without asking. Ignored, with a message, when `--skip-bin` is given | `src/main.rs:136-186` |
-| `--update-channel <stable\|beta\|all>` | asked in a terminal; `stable` when headless | The update channel written to the config file. `all` prints `'all' is deprecated and now means 'beta'.` and is written as `beta` | `src/platform/mod.rs:129-130`, `src/main.rs:281-343` |
-| `--update-notify [true\|false]` | asked in a terminal (default Yes); `false` when headless | Whether terminal update notices are on. The flag with no value means `true` | `src/platform/mod.rs:131-133`, `src/main.rs:305-343` |
-| `--gnome-auto-enable [true\|false]` | `true` | GNOME: enable the extension after deploying it. **Read only when the run is not interactive** (`--headless`, or stdout is not a terminal); in a terminal the question `PROMPT_ENABLE_EXTENSION` is asked instead | `src/platform/linux/gnome/args.rs:21-22`, `deploy.rs:269-279` |
-| `--gnome-x11-reload [true\|false]` | `true` | GNOME on X11: reload the Shell in place (applications stay open) | `args.rs:25-26, 41-49` |
-| `--gnome-wayland-logout [true\|false]` | `false` | GNOME on Wayland: log out to load the extension. This closes your applications | `args.rs:29-30, 41-49` |
-| `--no-action` | off | Does not reload or log out. Same as `--gnome-x11-reload=false --gnome-wayland-logout=false`, and it wins over both | `args.rs:33-34, 41-49` |
-| `--no-wait` | off | Global flag: do not wait for the compositor | `--help` |
+| Flag | Default | What it does |
+| :--- | :--- | :--- |
+| `--scope <user\|system>` | `user` | Where the binary goes: `user` is `~/.local/bin/spawn-at`, `system` is `/usr/local/bin/spawn-at` |
+| `--skip-bin` | off | Does not install the binary. The login update entry then points at the installed copy rather than the running binary; the rule is on [Update](/spawn-at/update/#the-child-install-and-your-settings), which also says why `update` uses this flag |
+| `--headless` | off | Never asks. The flags decide. See [Headless defaults](#headless-defaults) |
+| `-y`, `--yes` | off | Goes on after the notice printed for an untested platform without asking. The notice is still printed |
+| `--dry-run` | off | Prints the notice (if any) and `Dry run: would install the binary (<scope> scope...) and the <driver> extension; nothing was changed.`, then stops. The text is quoted as the binary prints it |
+| `--clean-install` | off | If spawn-at is already installed, removes it first (binary, extension, login update entry) without asking. Ignored, with a message, when `--skip-bin` is given |
+| `--update-channel <stable\|beta\|all>` | asked in a terminal; `stable` when headless | The update channel written to the config file. `all` prints `'all' is deprecated and now means 'beta'.` and is written as `beta` |
+| `--update-notify [true\|false]` | asked in a terminal (default Yes); `false` when headless | Whether terminal update notices are on. The flag with no value means `true` |
+| `--gnome-auto-enable [true\|false]` | `true` | GNOME: enable the extension after deploying it. **Read only when the run is not interactive** (`--headless`, or stdout is not a terminal); in a terminal the question `PROMPT_ENABLE_EXTENSION` is asked instead |
+| `--gnome-x11-reload [true\|false]` | `true` | GNOME on X11: reload the Shell in place (applications stay open) |
+| `--gnome-wayland-logout [true\|false]` | `false` | GNOME on Wayland: log out to load the extension. This closes your applications |
+| `--no-action` | off | Does not reload or log out. Same as `--gnome-x11-reload=false --gnome-wayland-logout=false`, and it wins over both |
+| `--no-wait` | off | Global flag: do not wait for the compositor |
 
 The log-out and reload flags decide only when there is no terminal; in a terminal the question is
-asked last, with the exceptions in `src/session.rs`, `decision` (for example
-`--gnome-wayland-logout` answers it with yes without asking).
+asked last, with exceptions (for example `--gnome-wayland-logout` answers it with yes without
+asking).
+
+To preview an install without changing anything, use `--dry-run`: by the code it prints the notice
+for your platform, if there is one, and the `Dry run: ...` line, then stops. Not run here, because
+`install` acts on the live session. If a flag does not do what this table says, see
+[Troubleshooting](/spawn-at/troubleshooting/).
 
 ### Headless defaults
 
-With `--headless`, or when standard output is not a terminal, `install` asks nothing. By the code
-of `src/main.rs:281-347` and `UpdateConfig::apply_headless_install` in `src/config.rs`, each of the
-three `[update]` keys is decided on its own:
+With `--headless`, or when standard output is not a terminal, `install` asks nothing. By the code,
+each of the three `[update]` keys is decided on its own:
 
 - `update.channel`: set from `--update-channel` if given; else kept if the config file has the key;
   else `stable`;
@@ -84,20 +95,20 @@ keys are rewritten only as described here.
 
 ## `spawn-at uninstall`
 
-| Flag | Default | What it does | Source |
-| :--- | :--- | :--- | :--- |
-| `--scope <user\|system>` | `user` | Which binary to remove | `src/platform/mod.rs:144-148` |
-| `--skip-bin` | off | Does not remove the binary | `src/main.rs:374-406` |
-| `--headless` | off | Never asks. Without `--skip-bin` a headless run removes the binary of the chosen scope | `src/main.rs:376, 396-406` |
-| `--gnome-delete-files [true\|false]` | `true` | GNOME: remove the extension directory after disabling the extension. **Read only when the run is not interactive**; in a terminal `Delete the extension files?` is asked (default Yes) | `args.rs:61-63`, `deploy.rs:375-386` |
-| `--gnome-x11-reload [true\|false]` | `true` | GNOME on X11: reload the Shell in place | `args.rs:65-67, 81-91` |
-| `--gnome-wayland-logout [true\|false]` | `false` | GNOME on Wayland: log out afterwards. Closes your applications | `args.rs:69-71, 81-91` |
-| `--no-action` | off | Does not reload or log out; wins over both | `args.rs:73-75, 81-91` |
-| `--no-wait` | off | Global flag | `--help` |
+| Flag | Default | What it does |
+| :--- | :--- | :--- |
+| `--scope <user\|system>` | `user` | Which binary to remove |
+| `--skip-bin` | off | Does not remove the binary |
+| `--headless` | off | Never asks. Without `--skip-bin` a headless run removes the binary of the chosen scope |
+| `--gnome-delete-files [true\|false]` | `true` | GNOME: remove the extension directory after disabling the extension. **Read only when the run is not interactive**; in a terminal `Delete the extension files?` is asked (default Yes) |
+| `--gnome-x11-reload [true\|false]` | `true` | GNOME on X11: reload the Shell in place |
+| `--gnome-wayland-logout [true\|false]` | `false` | GNOME on Wayland: log out afterwards. Closes your applications |
+| `--no-action` | off | Does not reload or log out; wins over both |
+| `--no-wait` | off | Global flag |
 
 `uninstall` has no `--dry-run` and no `--yes`. Run bare in a terminal, it first asks whether to
-remove the binary (user scope, system scope or keep it; `src/main.rs:375-394`). It removes the
-login update entry whether or not the binary is removed (`src/main.rs:414`).
+remove the binary (user scope, system scope or keep it). It removes the login update entry whether
+or not the binary is removed.
 
 ## Not verified
 
@@ -110,8 +121,18 @@ login update entry whether or not the binary is removed (`src/main.rs:414`).
 
 ## Sources
 
-- `install.sh` (line numbers in the tables)
-- `src/platform/mod.rs:109-148` (`InstallScope`, `InstallArgs`, `UninstallArgs`)
-- `src/platform/linux/gnome/args.rs`, `src/platform/linux/gnome/deploy.rs:269-279, 375-386`
-- `src/main.rs:100-186, 281-414`, `src/session.rs` (`decision`)
+- `install.sh`: lines 97-110 and 291-293 (`--version`), 111-114 (`--version=`), 429 (retry with
+  `v<tag>`), 115-118 and 383 (`--prerelease`), 119-123 and 146-172 and 473-476
+  (`--allow-unsupported`), 124-126 and 481 (flags passed on), 44-78 (`--help`), 24 and 304-306
+  (`GITHUB_TOKEN`), 25 and 140-147 and 395-398 (`SPAWN_AT_RESOLVE_ONLY`, `SPAWN_AT_BACKEND`), 7-17
+  and 262-352 (how the release is found), 43-50 (platform check)
+- `src/platform/mod.rs`: lines 109-148 (`InstallScope`, `InstallArgs`, `UninstallArgs`);
+  `src/platform/installer.rs`: lines 20-21 (bin directories) and 61
+- `src/platform/linux/gnome/args.rs`: lines 21-34 and 41-49 (install flags), 61-91 (uninstall flags);
+  `src/platform/linux/gnome/deploy.rs`: lines 269-279 and 375-386
+- `src/main.rs`: lines 100-186 (install flags, `--dry-run` at 126-134, `--clean-install` at
+  136-186), 281-347 (headless `[update]` keys), 352-360 (`--skip-bin`), 374-414 (uninstall: the
+  prompt for the binary at 375-394, the login entry removal at 414); `UpdateConfig::apply_headless_install`
+  in `src/config.rs`
+- `src/session.rs`: `decision` (when the log-out question is asked and when a flag answers it)
 - the output of `spawn-at install --help` and `spawn-at uninstall --help`

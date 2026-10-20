@@ -32,7 +32,7 @@ Both implementations adhere to the same D-Bus interface specification, except th
 
 ---
 
-## 3. Protocol & Signal Parity Guarantee
+## 3. Protocol and signals: what matches and what differs
 
 Both trees implement the same D-Bus contract, apart from the protocol-6 `ResizeOutcome` signal that only the modern tree has:
 - **Interface:** `org.gnome.Shell.Extensions.SpawnAt`
