@@ -18,12 +18,12 @@ Automated test execution across the workspace is partitioned by crate and featur
 | :--- | :---: | :---: | :--- |
 | **Workspace: `spawn-at` CLI** | 460 | 0 | breakdown by batch of additions below the table |
 | **Workspace: `spawn-at-core`** | 64 | 0 | 60 unit tests (`lib.rs`: 21 geometry/driver + 9 `ready_wait` + 4 `resize_report` + 9 `wait_override` + 17 `settings`) + 2 golden placement integration tests (`tests/golden_placement.rs`) + 2 `tests/ready_wait_vectors.rs` (20 shared golden scripts in one test, plus the policy check) |
-| **Workspace: `xtask`** | 91 | 0 | 89 unit tests + 2 `burn_cpu_test`; breakdown below the table |
+| **Workspace: `xtask`** | 96 | 0 | 94 unit tests + 2 `burn_cpu_test`; breakdown below the table |
 | **Workspace: Node.js (Extension)** | 242 | 0 | 38 in `tests/records_test.js`; the rest in the other files of `tests/`; breakdown below the table |
 | **`spawn-at-verify` (bare default)** | 434 | 0 | 335 lib + 0 main + 12 `action_trace_test` + 1 `catalog_golden_test` + 5 `category_library_test` + 6 `suite_wiring_test` + 5 `run_signal_test` + 4 `run_sway_guard_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` (+ 0 `panic_hook_test`, which needs `feature = "tui"`). The 6 lib tests and the `render_test` and `tui_test` binaries that need `feature = "tui"` are not compiled. Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify` on 2026-10-19 at `34983d5`. |
 | **`spawn-at-verify --features tui`** | 599 | 1 | 341 lib + 0 main + 12 `action_trace_test` + 1 `catalog_golden_test` + 5 `category_library_test` + 6 `suite_wiring_test` + 5 `run_signal_test` + 4 `run_sway_guard_test` + 7 `cli_exit_codes_test` + 20 `flash_test` + 5 `oracle_cross_check` + 1 `preflight_tools_test` + 13 `render_test` + 21 `trace_analyser_test` + 6 `trace_state_test` + 6 `trace_window_scope_test` + 145 `tui_test` (+ 1 ignored) + 1 `panic_hook_test`. Summed from the `test result:` lines of `cargo test --locked -p spawn-at-verify --features tui` on 2026-10-19 at `34983d5`. |
 | **`spawn-at-verify --features tui,fixture`** | 625 | 5 | 625 measured 2026-10-18 on `fix/v0-2-1-batch`; per-binary breakdown below the table |
-| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 1240 | 5 | 460 + 64 + 91 + 625; with the 242 Node tests: 1482; breakdown and older detail below the table |
+| **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`)** | 1245 | 5 | 460 + 64 + 96 + 625; with the 242 Node tests: 1487; breakdown and older detail below the table |
 
 **Workspace: `spawn-at` CLI, breakdown:**
 
@@ -106,15 +106,15 @@ Automated test execution across the workspace is partitioned by crate and featur
 
 **Workspace: `xtask`, breakdown:**
 
-- 89 unit tests (`src/main.rs`):
+- 94 unit tests (`src/main.rs`):
   - 6 `burn_cpu`
   - 2 `compiler_docs`
-  - 27 `docs_check` (8 added for the `site:` directives above tables: the valid forms, each error, the comment above a table, two columns for records, the cell splitting, the origin in `check`, every directive in the real `docs/` files, and the `style=` option: both values with `key=N`, an unknown value, `style` on `site: table`; the tests of the valid forms and of each error also cover `style=` and a repeated option)
+  - 32 `docs_check` (8 added for the `site:` directives above tables: the valid forms, each error, the comment above a table, two columns for records, the cell splitting, the origin in `check`, every directive in the real `docs/` files, and the `style=` option: both values with `key=N`, an unknown value, `style` on `site: table`; the tests of the valid forms and of each error also cover `style=` and a repeated option; the tests of the valid forms, of each error and of the style option also cover `style=titled`; 5 added on 2026-10-20 for the table cell limit: what a cell's text counts, 1200 passes and 1201 fails with the table, row key, column and length named, fences and non-tables ignored, `check` reporting the page line and the `docs/` origin and skipping `experiments/`, and the real mirrored documents)
   - 17 `docs_cli` (3 added on 2026-10-20 for the reference pages: the description is the first line of each command's help and is YAML-quoted, the sidebar label drops `spawn-at ` and the title stays, and the pointer to the hand-written page is built from the files that exist, with the Commands index for a command without one and the help text under it unchanged)
   - 11 `docs_html`
   - 23 `docs_mirror` (2 added on 2026-10-20 for the sidebar labels: the label is its own front-matter key and the title keeps following the heading; every label is filled in, at most 24 characters, starts with a capital and is used once; 9 more for the links to experiment pages: numbers read from file names, the forms that become links, the forms that do not (`0.6.12`, `v6.12`, `16.12`, `6.123`, `6.12.1`, `6.12 ms`, `6.4`), code spans, links, tags and URLs left alone, numbers without a page counted, a page with fences, headings and `Moved to TEST_LOG.md` stubs, no experiment folder, `generate_linked` over a temporary folder, and the real documents against the real experiment files)
   - 3 `docs_site`
-  - counted 2026-10-20 on `docs-batch-3` with `cargo test --locked -p xtask`, and 2026-10-19 on `docs-records-cards` before the 2
+  - counted 2026-10-20 on `docs-batch-4a` with `cargo test --locked -p xtask` (89 on `docs-batch-3`, before the 5 for the cell limit), and 2026-10-19 on `docs-records-cards` before the 2
 - 2 `burn_cpu_test` (`tests/burn_cpu_test.rs`, runs the built binary)
 
 **Workspace: Node.js (Extension), breakdown:**
@@ -160,8 +160,8 @@ Automated test execution across the workspace is partitioned by crate and featur
 
 **Total (Rust crates, `spawn-at-verify` counted with `tui,fixture`), breakdown:**
 
-- 460 + 64 + 91 + 625 (`spawn-at`, `spawn-at-core` and `spawn-at-verify` counted again on 2026-10-19 on `docs-records-cards`: 460, 64 and 625 passed with 5 ignored, unchanged; `xtask` 77 then, 91 on 2026-10-20 on `docs-batch-3` (1226 in total on 2026-10-19); the earlier totals used 10, 54, 69 and then 76 for `xtask`)
-- with the 242 Node tests: 1482 (1479 run on 2026-10-20 on `docs-batch-4a`, the 3 of `install_unsupported_test.js` left to CI; 1473 on `docs-batch-3` before the 9 tests for the titled layout, 1470 of them run; 1455 on 2026-10-19 before the 4 tests for the field order, 1452 of them run; the total before the card layout was 1225 + 220 = 1445, before the records build 1218 + 204 = 1422)
+- 460 + 64 + 96 + 625 (`spawn-at`, `spawn-at-core` and `spawn-at-verify` counted again on 2026-10-19 on `docs-records-cards`: 460, 64 and 625 passed with 5 ignored, unchanged; `xtask` 77 then, 91 on 2026-10-20 on `docs-batch-3` (1226 in total on 2026-10-19), 96 on `docs-batch-4a` (1240 in total on `docs-batch-3`); the earlier totals used 10, 54, 69 and then 76 for `xtask`)
+- with the 242 Node tests: 1487 (1484 run on 2026-10-20 on `docs-batch-4a`, the 3 of `install_unsupported_test.js` left to CI; 1473 on `docs-batch-3` before the 9 tests for the titled layout, 1470 of them run; 1455 on 2026-10-19 before the 4 tests for the field order, 1452 of them run; the total before the card layout was 1225 + 220 = 1445, before the records build 1218 + 204 = 1422)
 - Older detail follows, measured before: 1140 = 447 + 64 + 10 + 619; with the 204 Node tests: 1344 passed:
   - the 6 added by the scroll smoothing, all in `tests/tui/scroll_work.rs`: 1000 queued events are 2 draws and no rebuild with the offset equal to the clamped sum of the accelerated steps and no movement afterwards, one slow notch moves the base rows, mixed events and a resize keep their order, the ends clamp, Escape after a burst, the content cache rebuilds only on resize / raw toggle / new result / invalidation; the three end-marker tests were updated for the extra blank row below the rule (`rows[len-2]` is the rule, `base + 3` rows, the content-height test looks for the rule and `external close`)
   - before that, the 3 added by the centred end marker, in `tests/tui/drawer_scroll.rs`: centred and exactly the inner width at 60/61/80/119/200 with the odd fill on the right and the cut below the text width, the drawn marker row at the supported widths with the row count unchanged, rebuilt on resize; the two marker tests of the previous change were updated for the new text (`last.contains(" end of details ")` instead of an exact left-aligned line)

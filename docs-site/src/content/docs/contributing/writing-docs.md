@@ -98,6 +98,13 @@ Every column keeps a floor of 12 characters, so a table with many columns, or wi
 to 20 characters in several of them, scrolls sideways instead of squeezing a column; keep the columns
 of a table few and the cells short.
 
+A table cell has at most 1200 characters of text (link targets, tags and the marks of code and
+emphasis are not counted). `cargo xtask docs-check-src` fails on a longer cell, naming the page, the
+table, the row key, the column and the length, and it checks the mirrored `project/` pages, so it
+covers `docs/` too; the `experiments/` pages are evidence and are exempt. A long cell is a paragraph:
+keep a short version (a few words or the key numbers) in the table and put the full text in a list
+after it, under a bold lead-in that names the row, split at its natural joints.
+
 A table or a code block that scrolls sideways shows a soft shadow (`src/styles/scroll-hints.css`) at
 the edge that has more content behind it, and none at an edge that has been reached or when nothing
 overflows. It is CSS only (`background-attachment: local`) and reads in both themes. A table shown as
