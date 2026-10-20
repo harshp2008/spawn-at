@@ -16,7 +16,7 @@ title: "Testing and the verify tool"
 Counts measured on 2026-10-19 on the branch `docs-records-cards`, except the Node and `xtask`
 figures, which were measured again on 2026-10-20 on `docs-batch-3`:
 `spawn-at` 460, `spawn-at-core` 64, `spawn-at-verify` 625 passed and 5 ignored (with
-`--features tui,fixture`), `xtask` 82 (80 unit tests and 2 in `burn_cpu_test.rs`), Node 230 run. Five
+`--features tui,fixture`), `xtask` 91 (89 unit tests and 2 in `burn_cpu_test.rs`), Node 230 run. Five
 tests stay ignored: four need a live display, one needs a private Sway. The 3 tests of
 `tests/install_unsupported_test.js`, which run `install.sh` against a stand-in `curl`, a stand-in
 `spawn-at` and a temporary `HOME`, were not run on that branch and are left to CI, so the Node figure

@@ -197,8 +197,16 @@ dependency.
   (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
   into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,
   sends links to files it does not mirror (`TEST_LOG.md`, `RELEASE_NOTES_*.md`, `../CHANGELOG.md`)
-  to GitHub, and appends a `## Sources` section. A new file in `docs/` fails the build until it is
-  added to the mirrored list or the excluded list. The site rules still apply to the result, so a
+  to GitHub, and appends a `## Sources` section. It also gives each page a short sidebar label (the
+  `label` of its entry in the list; the page title still follows the heading) and links a mention of
+  an experiment, such as `6.12`, `section 6.15` or `6.11.1`, to the page of that experiment in
+  `experiments/`, when the folder has a file for that number. It never links inside a heading, a code
+  span, a code block, an existing link, a tag or a URL; it does not link a number that follows a digit,
+  a `.`, a `v` or a letter, that is followed by a digit, a `.` and a digit, a letter or a unit (`0.6.12`,
+  `16.12`, `6.12.1`, `6.12 ms`), or that has no page (`6.25`, `6.30`), and under each `### 6.NN`
+  heading of `TEST_PLAN.md` it adds the link to the page next to the "Moved to TEST_LOG.md" line. The
+  run prints the number of links and of mentions left unlinked per file. A new file in `docs/` fails
+  the build until it is added to the mirrored list or the excluded list. The site rules still apply to the result, so a
   `docs/` file that is mirrored cannot contain a home path, the owner's name or the other forbidden
   text.
 - Everything else is hand-written and must follow the anatomy above.
