@@ -8,7 +8,8 @@
 //! is always a decision. Outside code fences, the text of a file is changed in four ways:
 //!
 //! - the first `# ` heading becomes the front-matter `title` (double-quoted YAML) and is removed,
-//!   because Starlight prints the title as the heading; `sidebar.order` comes from the list;
+//!   because Starlight prints the title as the heading; `sidebar.order` and the short
+//!   `sidebar.label` come from the list;
 //! - a link to a mirrored sibling (`DESIGN_SWAY.md#x`) becomes `/spawn-at/project/design-sway/#x`;
 //! - a link to an excluded file (`TEST_LOG.md#x`) or out of `docs/` (`../CHANGELOG.md`) becomes a
 //!   GitHub `blob/main` URL; links to `#anchors` and to other sites are left alone;
@@ -31,6 +32,9 @@ pub struct Entry {
     pub slug: &'static str,
     /// Position in the sidebar group (`sidebar.order`); `project/index.md` is 0.
     pub order: u32,
+    /// Short name in the sidebar (`sidebar.label`), in sentence case, written from the file's
+    /// `# ` heading. The page title and the browser tab still follow the heading.
+    pub label: &'static str,
 }
 
 /// Every mirrored file. The order is the sidebar order: how the code is laid out, how placement
@@ -40,66 +44,79 @@ pub const MIRRORED: [Entry; 13] = [
         file: "CODE_LAYOUT.md",
         slug: "code-layout",
         order: 1,
+        label: "Code layout",
     },
     Entry {
         file: "behavior-notes.md",
         slug: "behavior-notes",
         order: 2,
+        label: "Behavior notes",
     },
     Entry {
         file: "CONFIG.md",
         slug: "config",
         order: 3,
+        label: "Settings",
     },
     Entry {
         file: "legacy-gnome.md",
         slug: "legacy-gnome",
         order: 4,
+        label: "Legacy GNOME (42–44)",
     },
     Entry {
         file: "DESIGN_PLATFORMS.md",
         slug: "design-platforms",
         order: 5,
+        label: "Design: more platforms",
     },
     Entry {
         file: "DESIGN_SWAY.md",
         slug: "design-sway",
         order: 6,
+        label: "Design: Sway backend",
     },
     Entry {
         file: "DESIGN_READY_WAIT.md",
         slug: "design-ready-wait",
         order: 7,
+        label: "Design: ready-wait",
     },
     Entry {
         file: "DESIGN_RUNNER_SETUP.md",
         slug: "design-runner-setup",
         order: 8,
+        label: "Design: runner setup",
     },
     Entry {
         file: "TEST_PLAN.md",
         slug: "test-plan",
         order: 9,
+        label: "Test plan",
     },
     Entry {
         file: "TEST_COVERAGE_AUDIT.md",
         slug: "test-coverage-audit",
         order: 10,
+        label: "Test coverage audit",
     },
     Entry {
         file: "REFACTOR_PROOFS.md",
         slug: "refactor-proofs",
         order: 11,
+        label: "Refactor proofs",
     },
     Entry {
         file: "COMMENT_STYLE.md",
         slug: "comment-style",
         order: 12,
+        label: "Comment style",
     },
     Entry {
         file: "KNOWLEDGE.md",
         slug: "knowledge",
         order: 13,
+        label: "Knowledge base",
     },
 ];
 
@@ -268,9 +285,10 @@ pub fn render(entry: &Entry, text: &str) -> Result<String, String> {
     let title =
         title.ok_or_else(|| format!("docs/{}: no `# ` heading to use as title", entry.file))?;
     let mut page = format!(
-        "---\ntitle: {}\nsidebar:\n  order: {}\n---\n\n",
+        "---\ntitle: {}\nsidebar:\n  order: {}\n  label: {}\n---\n\n",
         yaml_quote(&title),
-        entry.order
+        entry.order,
+        yaml_quote(entry.label)
     );
     page.push_str(body.trim_start_matches('\n'));
     page.push_str(&sources_section(entry.file));
@@ -417,11 +435,61 @@ mod tests {
         .unwrap();
         assert!(
             page.starts_with(
-                "---\ntitle: \"Tests & `config` \\\"a\\\" \\\\ b\"\nsidebar:\n  order: 3\n---\n\nText\n"
+                "---\ntitle: \"Tests & `config` \\\"a\\\" \\\\ b\"\nsidebar:\n  order: 3\n  label: \"Settings\"\n---\n\nText\n"
             ),
             "{page}"
         );
         assert!(!page.contains("\n# "), "the H1 is removed: {page}");
+    }
+
+    /// The sidebar label is its own front-matter key under `sidebar:`; the page title keeps
+    /// following the heading, so a long heading gets a short label and the page is still
+    /// called by its heading.
+    #[test]
+    fn test_sidebar_label_is_separate_from_the_title() {
+        let page = render(
+            entry("legacy-gnome.md"),
+            "# Legacy GNOME (42–44) Differences & Compatibility Analysis\n\nText\n",
+        )
+        .unwrap();
+        let (front, _) = split_front_matter(&page).unwrap();
+        assert!(
+            front.contains("title: \"Legacy GNOME (42–44) Differences & Compatibility Analysis\""),
+            "{front}"
+        );
+        assert!(
+            front.contains("sidebar:\n  order: 4\n  label: \"Legacy GNOME (42–44)\""),
+            "{front}"
+        );
+        assert_eq!(
+            crate::docs_check::front_matter_title(front),
+            "Legacy GNOME (42–44) Differences & Compatibility Analysis"
+        );
+    }
+
+    /// Every label is filled in, starts with a capital letter, has no space at either end, is at
+    /// most 24 characters (a sidebar line at the narrowest width of the desktop layout) and is
+    /// used once, so two pages cannot look the same in the menu.
+    #[test]
+    fn test_labels_are_short_and_distinct() {
+        let mut seen: Vec<&str> = Vec::new();
+        for e in &MIRRORED {
+            let label = e.label;
+            assert!(!label.is_empty(), "{}: empty label", e.file);
+            assert_eq!(label, label.trim(), "{}: spaces around the label", e.file);
+            assert!(
+                label.chars().next().is_some_and(char::is_uppercase),
+                "{}: `{label}` does not start with a capital",
+                e.file
+            );
+            assert!(
+                label.chars().count() <= 24,
+                "{}: `{label}` is longer than 24 characters",
+                e.file
+            );
+            assert!(!seen.contains(&label), "label `{label}` is used twice");
+            seen.push(label);
+        }
     }
 
     /// A page without a `# ` heading outside a fence cannot get a title; a `# ` line inside a
@@ -618,10 +686,14 @@ mod tests {
             let text = fs::read_to_string(docs.join(e.file)).unwrap();
             let page = render(e, &text).unwrap_or_else(|err| panic!("{err}"));
             let (front, body) = split_front_matter(&page).unwrap();
+            let title = crate::docs_check::front_matter_title(front);
+            assert!(!title.is_empty(), "{}", e.file);
+            // a label is a short form of the heading, never longer than the title it stands for
             assert!(
-                !crate::docs_check::front_matter_title(front).is_empty(),
-                "{}",
-                e.file
+                e.label.chars().count() <= title.chars().count(),
+                "{}: label `{}` is longer than the title `{title}`",
+                e.file,
+                e.label
             );
             assert!(!has_h1(body), "{}: has a # heading", e.file);
             assert_eq!(md_links(body), Vec::<String>::new(), "{}", e.file);
