@@ -127,28 +127,30 @@ pub fn yaml_quote(text: &str) -> String {
     format!("\"{}\"", text.replace('\\', "\\\\").replace('"', "\\\""))
 }
 
-/// The hand-written page of each command that has one, as the file name under `commands/`
-/// (without `.md`). A command that is not listed, or whose file is missing, has none and the
-/// reference page points to the Commands index instead. Nested commands (`query layout`) use the
-/// page of their first word.
-const COMMAND_PAGES: [(&str, &str); 12] = [
-    ("spawn", "spawn"),
-    ("transform", "transform"),
-    ("focus", "window-state"),
-    ("defocus", "window-state"),
-    ("maximize", "window-state"),
-    ("minimize", "window-state"),
-    ("restore", "window-state"),
-    ("close", "window-state"),
-    ("query", "query"),
-    ("install", "manage"),
-    ("uninstall", "manage"),
-    ("update", "manage"),
+/// The hand-written page of each command that has one, as its path under the content folder
+/// (without `.md`): a file of `commands/`, or for `config` the Configuration page. A command that
+/// is not listed, or whose file is missing, has none and the reference page points to the
+/// Commands index instead. Nested commands (`query layout`, `config set`) use the page of their
+/// first word.
+const COMMAND_PAGES: [(&str, &str); 13] = [
+    ("spawn", "commands/spawn"),
+    ("transform", "commands/transform"),
+    ("focus", "commands/window-state"),
+    ("defocus", "commands/window-state"),
+    ("maximize", "commands/window-state"),
+    ("minimize", "commands/window-state"),
+    ("restore", "commands/window-state"),
+    ("close", "commands/window-state"),
+    ("query", "commands/query"),
+    ("install", "commands/manage"),
+    ("uninstall", "commands/manage"),
+    ("update", "commands/manage"),
+    ("config", "configuration"),
 ];
 
 /// Where the hand-written text of a command is: a site path such as `/spawn-at/commands/spawn/`
 /// and the title of that page.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct HandWritten {
     pub url: String,
     pub title: String,
@@ -160,14 +162,14 @@ pub struct HandWritten {
 pub fn hand_written_page(path: &[String], content_dir: &Path) -> Option<HandWritten> {
     let first = path.first()?;
     let (_, page) = COMMAND_PAGES.iter().find(|(name, _)| name == first)?;
-    let text = fs::read_to_string(content_dir.join("commands").join(format!("{page}.md"))).ok()?;
+    let text = fs::read_to_string(content_dir.join(format!("{page}.md"))).ok()?;
     let (front, _) = crate::docs_check::split_front_matter(&text)?;
     let title = crate::docs_check::front_matter_title(front);
     if title.is_empty() {
         return None;
     }
     Some(HandWritten {
-        url: format!("/spawn-at/commands/{page}/"),
+        url: format!("/spawn-at/{page}/"),
         title,
     })
 }
@@ -310,7 +312,7 @@ pub fn generate(
     let version = run_capture(bin, &["-V"])?;
     fs::create_dir_all(reference_dir)
         .map_err(|e| format!("cannot create {}: {}", reference_dir.display(), e))?;
-    // `docs-site/src/content/docs`, where the hand-written `commands/` pages are
+    // `docs-site/src/content/docs`, where the hand-written `commands/` pages and `configuration.md` are
     let content_dir = reference_dir.parent().unwrap_or(reference_dir);
     let mut written = Vec::new();
     for cmd in &commands {
@@ -611,9 +613,10 @@ Options:
     }
 
     /// The pointer line names a page that exists: the map lists the command, the file is in
-    /// `commands/` and has a title. A listed command without its file, a command that is not
-    /// listed, a nested command (it uses the page of its first word) and a page without a title
-    /// are each handled, and the help text under the pointer is unchanged.
+    /// `commands/` (for `config`, `configuration.md` at the top of the content folder) and has a
+    /// title. A listed command without its file, a command that is not listed, a nested command
+    /// (it uses the page of its first word) and a page without a title are each handled, and the
+    /// help text under the pointer is unchanged.
     #[test]
     fn test_hand_written_page_is_built_from_the_files_that_exist() {
         let content = temp_dir("handwritten");
@@ -630,6 +633,11 @@ Options:
         )
         .unwrap();
         fs::write(commands.join("query.md"), "no front matter\n").unwrap();
+        fs::write(
+            content.join("configuration.md"),
+            "---\ntitle: \"Configuration\"\n---\n\nText\n",
+        )
+        .unwrap();
         let s = |w: &[&str]| w.iter().map(|x| x.to_string()).collect::<Vec<_>>();
 
         assert_eq!(
@@ -645,10 +653,28 @@ Options:
         // a listed command whose file is missing, and one whose file has no title
         assert_eq!(hand_written_page(&s(&["transform"]), &content), None);
         assert_eq!(hand_written_page(&s(&["query", "layout"]), &content), None);
-        // not in the map: `config` has no page under `commands/`; the root has no first word
-        assert_eq!(hand_written_page(&s(&["config", "set"]), &content), None);
+        // `config` and each of its subcommands point to the Configuration page, which is not
+        // under `commands/`
+        let config = HandWritten {
+            url: "/spawn-at/configuration/".to_string(),
+            title: "Configuration".to_string(),
+        };
+        for words in [&["config"][..], &["config", "set"], &["config", "show"]] {
+            assert_eq!(hand_written_page(&s(words), &content), Some(config.clone()));
+        }
+        // the Configuration page is missing: the Commands index is used
+        assert_eq!(
+            hand_written_page(&s(&["config", "set"]), &content.join("nowhere")),
+            None
+        );
+        // not in the map; the root has no first word
+        assert_eq!(hand_written_page(&s(&["help"]), &content), None);
         assert_eq!(hand_written_page(&[], &content), None);
 
+        assert_eq!(
+            pointer_line(Some(&config)),
+            "Hand-written page for this command: [Configuration](/spawn-at/configuration/)."
+        );
         assert_eq!(
             pointer_line(Some(&focus)),
             "Hand-written page for this command: [Focus and window state](/spawn-at/commands/window-state/)."
