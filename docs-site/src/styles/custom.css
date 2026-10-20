@@ -7,14 +7,21 @@
   --sl-text-code: 0.9rem;
   /* A little shorter than the 3.5rem / 4rem default, so the header takes less of the screen. */
   --sl-nav-height: 3rem;
+  /* Starlight's 1.75 (28px at 16px) and a 1rem gap between blocks (paragraph, list, table, code
+     block, aside: every block after another one gets this margin-top). */
+  --sl-line-height: 1.8;
+  --sl-content-gap-y: 1.25rem;
 }
 
-/* Blue accent. Links use --sl-color-text-accent, which Starlight maps to the accent colours. */
+/* Blue accent. Links use --sl-color-text-accent, which Starlight maps to the accent colours.
+   The inline-code chip is Starlight's gray-5 (dark) or gray-6 (light) pulled toward the page
+   colour, so a line with several pieces of code is not a row of boxes. */
 :root,
 :root[data-theme='dark'] {
   --sl-color-accent-low: #0e2a52;
   --sl-color-accent: #3b82f6;
   --sl-color-accent-high: #9cc3ff;
+  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-5) 55%, var(--sl-color-black));
 }
 
 :root[data-theme='light'] {
@@ -22,6 +29,7 @@
   --sl-color-accent: #1f5fbf;
   --sl-color-accent-high: #123d80;
   --sl-color-text-accent: #1a56ad;
+  --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-6) 60%, var(--sl-color-black));
 }
 
 @media (prefers-color-scheme: light) {
@@ -30,7 +38,33 @@
     --sl-color-accent: #1f5fbf;
     --sl-color-accent-high: #123d80;
     --sl-color-text-accent: #1a56ad;
+    --sl-color-bg-inline-code: color-mix(in srgb, var(--sl-color-gray-6) 60%, var(--sl-color-black));
   }
+}
+
+/* Rhythm. Starlight puts 0.25rem between list items and 1.5em above a heading. Items several
+   lines long ran together at 0.25rem, and a heading was as close to the text above as to its own. */
+.sl-markdown-content li + li:not(:where(.not-content *)) {
+  margin-top: 0.5em;
+}
+.sl-markdown-content li > :is(ul, ol):not(:where(.not-content *)) {
+  margin-top: 0.5em;
+}
+.sl-markdown-content
+  :not(h1, h2, h3, h4, h5, h6, .sl-heading-wrapper)
+  + .sl-heading-wrapper.level-h2 {
+  margin-top: 2.2em;
+}
+.sl-markdown-content
+  :not(h1, h2, h3, h4, h5, h6, .sl-heading-wrapper)
+  + .sl-heading-wrapper.level-h3 {
+  margin-top: 1.8em;
+}
+
+/* Bold is 600, not Starlight's browser default 700 (`bolder`): a lead-in or a warning is still
+   marked, but a paragraph with three of them is not a wall of black. Headings keep their weight. */
+.sl-markdown-content strong:not(:where(.not-content *)) {
+  font-weight: 600;
 }
 
 /* The header line is lighter than the default. */
@@ -69,6 +103,15 @@ header.header {
 .sl-markdown-content :not(pre) > code {
   overflow-wrap: break-word;
 }
+/* The chip: Starlight's is 13px (0.8125rem, whatever the text around it) with 2px 6px padding and
+   a 2px negative block margin. This one scales with the text (a 14px table cell gets 11.9px
+   code), is padded 0.1em 0.3em and has no margin, border or colour of its own. */
+.sl-markdown-content :not(pre) > code:not(:where(.not-content *)) {
+  font-size: 0.85em;
+  padding: 0.1em 0.3em;
+  margin-block: 0;
+  border: 0;
+}
 .sl-markdown-content :not(pre) > code .code-nb {
   white-space: nowrap;
 }
@@ -78,14 +121,15 @@ header.header {
      line itself; a plain inline piece would also break after its hyphens. */
   display: inline-block;
   max-width: 100%;
-  /* The chip of the parent <code> (background and 2px 6px padding) is painted only behind the
+  /* The chip of the parent <code> (background and 0.1em 0.3em padding) is painted only behind the
      line the inline-block sits on, its last one, so the other lines had no chip. The same colour
-     is painted behind every line of the piece, and the 6px at each end are box-shadows, which take
-     no room: a cell does not get wider. */
+     is painted behind every line of the piece, and the 0.3em at each end are box-shadows (em of
+     this piece, which has the font size of the parent <code>), which take no room: a cell does
+     not get wider. */
   background-color: var(--sl-color-bg-inline-code);
   box-shadow:
-    -6px 0 var(--sl-color-bg-inline-code),
-    6px 0 var(--sl-color-bg-inline-code);
+    -0.3em 0 var(--sl-color-bg-inline-code),
+    0.3em 0 var(--sl-color-bg-inline-code);
 }
 /* The underline of a link does not reach into an inline-block, so it is drawn again. */
 .sl-markdown-content a:not(:where(.not-content *)) > code .code-any {

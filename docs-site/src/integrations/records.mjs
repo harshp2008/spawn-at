@@ -2,7 +2,7 @@
 // is unreadable as a table in a 45rem column (the cells get 25 characters each), so this
 // integration rewrites such a <table> in the built HTML as
 //
-//   <ul class="records [records-stack]" role="list">
+//   <ul class="records [records-stack] [records-sentence]" role="list">
 //     <li class="record">
 //       <div class="record-key">first column</div>
 //       <dl class="record-fields">
@@ -49,7 +49,10 @@
 // field-long. When the median key is longer than STACK_KEY characters, or the list is titled (see
 // above), the key goes above the fields in the whole list (a gutter of 12.5rem cannot hold a
 // sentence, and wastes the width beside a long body), for steps as well where the key is long:
-// there the number and the note sit in one row. The style also stacks below 36rem. The integration runs
+// there the number and the note sit in one row. The style also stacks below 36rem. In a list that
+// stacks because the median key is a sentence (not for steps, and not for titled cards whose keys
+// are short), the list also gets `records-sentence`: the key is then set in the body font at weight
+// 600 instead of monospace, which is for identifiers (a file name, a flag, a number). The integration runs
 // after Starlight, whose build step makes the Pagefind index from the tables as written, and before
 // code-breaks.mjs, which then sees the records. Node built-ins only.
 import { readdir, readFile, writeFile } from 'node:fs/promises';
@@ -192,9 +195,16 @@ export function recordsHtml({ header, body }, key, style = null) {
   // Titled: forced by style=titled, automatic when a field is over TITLED_MIN; never for steps, and
   // style=cards keeps the gutter. It is the stacked layout, so it shares the class.
   const titled = !steps && (style === 'titled' || (style === null && longest > TITLED_MIN));
-  const stack = titled || median(keys.map(textLength)) > STACK_KEY;
+  const sentenceKeys = median(keys.map(textLength)) > STACK_KEY;
+  const stack = titled || sentenceKeys;
+  // A key that is a sentence (the same median test as the stack) is set in the body font, not as a
+  // monospace identifier. Only the median decides: titled cards with short keys stay identifiers,
+  // and the number and note of a step are never a sentence key.
+  const sentence = sentenceKeys && !steps;
   const tag = steps ? 'ol' : 'ul';
-  const cls = `records${stack ? ' records-stack' : ''}${steps ? ' records-steps' : ''}`;
+  const cls =
+    `records${stack ? ' records-stack' : ''}${steps ? ' records-steps' : ''}` +
+    (sentence ? ' records-sentence' : '');
   const out = [`<${tag} class="${cls}" role="list">`];
   body.forEach((row, r) => {
     const cells = header.map((_, i) => row[i] ?? ''); // a short row has empty cells
