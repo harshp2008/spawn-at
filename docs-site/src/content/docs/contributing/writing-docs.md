@@ -115,7 +115,15 @@ the other short ones. A longer one is a label over full-width text. The short fi
 markup, then the long ones, each group in the order of the table, so what you see, what Tab reaches
 and what a screen reader or a copy gives are in the same order. When the keys are sentences (the median key is longer than 48
 characters), the key stands above the fields for the whole list, and on a narrow column every card
-stacks. `src/integrations/records.mjs` rewrites the table in the built page and
+stacks.
+
+A list in which any field has more than 400 characters of text (not counting the key column, markup
+or empty cells) is shown as **titled cards**: the key is the title at the top of the card in bold
+monospace, with a hairline under it, then the short fields as small label and value pairs in a
+wrapping row, then each long field as a label over full-width text, with no gutter. The rule is per
+list, not per card, so the cards of one list look alike; a field of exactly 400 characters does not
+trigger it. It is the same layout as the stacked key, and steps are never changed by it.
+`src/integrations/records.mjs` rewrites the table in the built page and
 `src/styles/records.css` draws it. The page text, links, ids and inline code are the same as in the
 table, and the search index is made from the text as written. The source stays a table, so GitHub
 still shows a table.
@@ -124,7 +132,7 @@ When every key starts with a whole number (`1`, `2 (fixed in step 1)`, `12 files
 `A1`), the list is a list of steps instead: the gutter holds the number in large type, with the rest
 of the key as a note under it (one pair of parentheses around the note is dropped). If only some of
 the keys start with a number, the list is a normal list of cards. When the numbers are labels and
-not an order, write them with a word ("Leak 1"), or use `style=cards`.
+not an order, write them with a word ("Leak 1"), or use `style=cards` or `style=titled`.
 
 A comment on the line directly above the table, before its header row, chooses the layout by hand.
 GitHub shows nothing for it, and the page shows nothing for it:
@@ -134,6 +142,7 @@ GitHub shows nothing for it, and the page shows nothing for it:
 <!-- site: records key=2 -->
 <!-- site: records style=steps -->
 <!-- site: records style=cards -->
+<!-- site: records style=titled -->
 <!-- site: records key=2 style=cards -->
 <!-- site: table -->
 ```
@@ -143,14 +152,17 @@ GitHub shows nothing for it, and the page shows nothing for it:
 - `site: records key=N` does the same with column N (counted from 1) as the key instead of column 1.
 - `site: records style=steps` makes steps. The build fails, naming the page, the table and the row,
   when a key does not start with a number.
-- `site: records style=cards` makes cards even where every key starts with a number.
+- `site: records style=cards` makes cards with the key in a gutter, even where every key starts with
+  a number or a field is longer than 400 characters (a long key still stacks).
+- `site: records style=titled` makes titled cards even where every field is short and where every key
+  starts with a number (then the list is titled cards, not steps).
 - `key=N` and `style=...` can be given together, each once, in any order. Only `records` takes them.
 - `site: table` keeps a plain table where the length rule would convert it; use it for a matrix
   whose columns are read side by side. It takes no option.
 
 A table with one column is never converted. `cargo xtask docs-check-src` fails, with the file and
 line, on a comment that is not one of these forms, on `key=N` with N that is not a whole number, is 0
-or is larger than the number of columns, on a `style` other than `steps` or `cards`, on an option
+or is larger than the number of columns, on a `style` other than `steps`, `cards` or `titled`, on an option
 repeated, on an option after `site: table`, on a comment that is not directly above a table, and on
 `records` for a table with fewer than 2 columns. The check reads the mirrored `project/` pages, so
 it covers the comments written in `docs/`. That the keys of a `style=steps` table are numbers is

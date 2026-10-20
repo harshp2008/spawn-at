@@ -249,13 +249,14 @@ fn table_columns(header: &str, delimiter: &str) -> Option<usize> {
 }
 
 const DIRECTIVE_FORMS: &str =
-    "use `site: records`, `site: records key=N`, `site: records style=steps`, `site: records style=cards` or `site: table`";
+    "use `site: records`, `site: records key=N`, `site: records style=steps`, `site: records style=cards`, `site: records style=titled` or `site: table`";
 
 /// Problems with the `<!-- site: ... -->` comments of one page body, as (1-based line in `body`,
 /// message). The comments choose how the site shows the table on the next line
 /// (`docs-site/src/integrations/records.mjs` reads them from the built page): `site: records`,
-/// `site: records key=N` (column N, counted from 1, is the key), `site: records style=steps` or
-/// `style=cards` (the two options combine, each once) and `site: table`, which takes no option. A
+/// `site: records key=N` (column N, counted from 1, is the key), `site: records style=steps`,
+/// `style=cards` or `style=titled` (`key=N` and one style combine, each once) and `site: table`,
+/// which takes no option. A
 /// comment must be alone on its line, directly above a table; `records` needs at least 2 columns; N
 /// must not be larger than the column count. That every key of a `style=steps` table starts with a
 /// number is checked by the build, which reads the cells. Comments inside code fences and other
@@ -323,8 +324,10 @@ pub fn directive_problems(body: &str) -> Vec<(usize, String)> {
                 if mode == "table" {
                     err("`site: table` takes no style".to_string());
                     bad = true;
-                } else if !matches!(v, "steps" | "cards") {
-                    err(format!("unknown style `{v}` (style=steps or style=cards)"));
+                } else if !matches!(v, "steps" | "cards" | "titled") {
+                    err(format!(
+                        "unknown style `{v}` (style=steps, style=cards or style=titled)"
+                    ));
                     bad = true;
                 } else if style_seen {
                     err(format!("style given twice in `{inner}`"));
@@ -659,7 +662,9 @@ mod tests {
             "<!-- site: table -->",
             "<!-- site: records style=steps -->",
             "<!-- site: records style=cards -->",
+            "<!-- site: records style=titled -->",
             "<!-- site: records key=2 style=cards -->",
+            "<!-- site: records key=2 style=titled -->",
             "<!-- site: records style=steps key=3 -->",
         ] {
             let body = format!("Text\n\n{text}\n{TABLE3}");
@@ -674,7 +679,7 @@ mod tests {
     /// Each kind of mistake is reported once, with the 1-based line of the comment.
     #[test]
     fn test_directives_each_error() {
-        let cases: [(&str, &str); 15] = [
+        let cases: [(&str, &str); 20] = [
             ("<!-- site: record -->", "unknown directive `site: record`"),
             ("<!-- site: -->", "unknown directive `site:`"),
             ("<!-- site records -->", "needs a colon"),
@@ -695,19 +700,39 @@ mod tests {
             ("<!-- site: records wide -->", "unknown option `wide`"),
             (
                 "<!-- site: records style=rail -->",
-                "unknown style `rail` (style=steps or style=cards)",
+                "unknown style `rail` (style=steps, style=cards or style=titled)",
             ),
             (
                 "<!-- site: records style= -->",
-                "unknown style `` (style=steps or style=cards)",
+                "unknown style `` (style=steps, style=cards or style=titled)",
+            ),
+            (
+                "<!-- site: records style=Titled -->",
+                "unknown style `Titled` (style=steps, style=cards or style=titled)",
             ),
             (
                 "<!-- site: table style=steps -->",
                 "`site: table` takes no style",
             ),
             (
+                "<!-- site: table style=titled -->",
+                "`site: table` takes no style",
+            ),
+            (
                 "<!-- site: records style=steps style=cards -->",
                 "style given twice",
+            ),
+            (
+                "<!-- site: records style=cards style=titled -->",
+                "style given twice",
+            ),
+            (
+                "<!-- site: records style=titled style=titled -->",
+                "style given twice",
+            ),
+            (
+                "<!-- site: records style=titled key=2 key=3 -->",
+                "key given twice",
             ),
             ("<!-- site: records key=1 key=2 -->", "key given twice"),
             (
@@ -733,6 +758,8 @@ mod tests {
             "<!-- site: records style=steps key=2 -->",
             "<!-- site: records key=2 style=steps -->",
             "<!-- site: records key=3 style=cards -->",
+            "<!-- site: records style=titled key=2 -->",
+            "<!-- site: records key=3 style=titled -->",
         ] {
             let body = format!("{text}\n{TABLE3}");
             assert!(directive_problems(&body).is_empty(), "{text}");
