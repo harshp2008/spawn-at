@@ -7,7 +7,7 @@ title: "Architecture and contributing"
 | Member | Role |
 | :--- | :--- |
 | `spawn-at` (the repository root) | The CLI and the installer. The only default member, so a bare `cargo build` or `cargo test` covers only this package |
-| `crates/spawn-at-core` | Logic with no I/O: geometry, the driver trait and batch types, the ready-wait state machine, settings, the wait override, the resize report |
+| `crates/spawn-at-core` | Logic with no I/O: geometry, the `Driver` trait and batch types, the ready-wait state machine, settings, the wait override, the resize report |
 | `crates/spawn-at-verify` | The developer-only verification harness and its `fixture` test window |
 | `crates/xtask` | Repository tooling: `cargo xtask ...` (comment-only check, doc coverage, `burn-cpu`, and the documentation commands) |
 
@@ -30,7 +30,7 @@ All of this lives in `src/platform/` and `spawn-at-core`.
 | `SettingsStore` (core) | Where the config text lives; the Linux implementation is the only one |
 
 The command layer talks only to `CompositorBackend`. The GNOME-specific module `gnome::mechanics` is
-used from production code only inside the GNOME driver. To add a backend, create a module under
+used from production code only inside the GNOME backend. To add a backend, create a module under
 `src/platform/linux/` and register it in `LinuxBackend::bootstrap()` (the choice rules are in
 `linux/registry.rs`). A new backend should be reachable only through `SPAWN_AT_BACKEND=<name>` until
 its live suite passes; Sway is the worked example.
@@ -92,7 +92,7 @@ commands, not these rules.
   the function body, not the function name; if unsure, leave it out.
 - Keep `CHANGELOG.md` current (new entries under Unreleased) and add facts that took more than a few
   steps to find to `docs/KNOWLEDGE.md`.
-- **A page of this book** follows the rules and the templates on
+- **A page of this guide** follows the rules and the templates on
   [Writing the docs](/spawn-at/contributing/writing-docs/); `cargo xtask docs-site` must exit 0.
 
 ## Build and test

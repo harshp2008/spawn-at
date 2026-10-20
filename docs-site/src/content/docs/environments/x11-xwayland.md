@@ -14,7 +14,7 @@ X11 applications.
 
 ## 2. The native X11 driver
 
-A separate driver (`src/platform/linux/x11/`) that talks to the X server with EWMH atoms
+A separate backend (`src/platform/linux/x11/`) that talks to the X server with EWMH atoms
 (`_NET_CLIENT_LIST`, `_NET_WM_PID`, `_NET_WORKAREA`, `_NET_MOVERESIZE_WINDOW`, `_NET_WM_STATE`) and
 XRandR (`src/platform/linux/x11/atoms.rs` and `session.rs`; the other files there are `mod.rs`,
 `interception.rs` and `tests.rs`). It needs no helper to install (`needs_helper: false` in
@@ -27,7 +27,7 @@ It is used when:
 - you are in a real X11 session, on any desktop, with nothing set;
 - you set `SPAWN_AT_BACKEND=x11`, which forces it, including on a non-GNOME Wayland session, where it
   sees XWayland windows only and "may or may not work";
-- a GNOME session's D-Bus connection fails: it falls back to the X11 driver.
+- a GNOME session's D-Bus connection fails: it falls back to the X11 backend.
 
 On a non-GNOME Wayland session without `SPAWN_AT_BACKEND`, spawn-at exits with an error instead; see
 [Unsupported desktops](/spawn-at/environments/unsupported-desktops/).
@@ -35,11 +35,11 @@ On a non-GNOME Wayland session without `SPAWN_AT_BACKEND`, spawn-at exits with a
 ### How well it is tested
 
 - GNOME on X11: partly, with the test window only.
-- The X11 driver has 8 unit tests (token generation, rectangle arithmetic, clamping). **No test
+- The X11 backend has 8 unit tests (token generation, rectangle arithmetic, clamping). **No test
   talks to an X server.** The tests named "supported on X11" for `transform`, `focus`, `maximize`
-  and `close` call the real X11 driver but check only that an error message lacks a phrase; without
+  and `close` call the real X11 backend but check only that an error message lacks a phrase; without
   an X server they pass on a connection error.
-- No tests at all for the X11 driver's `query layout`, `query windows`, `query pointer`, `defocus`,
+- No tests at all for the X11 backend's `query layout`, `query windows`, `query pointer`, `defocus`,
   `minimize` and `restore`.
 
 ## What was tried to make X11 flicker-free
@@ -106,7 +106,7 @@ variables for apps that can run on Wayland.
   XWayland should be treated as flashing on that machine. So "possible" is not a noise floor there.
 - The "possible" probability assumes the reveal lands at a random point of the frame; the code
   itself calls that a hypothesis.
-- None of it is measured for Sway or the native X11 driver: it needs the GNOME extension's clock.
+- None of it is measured for Sway or the native X11 backend: it needs the GNOME extension's clock.
 
 ## Sources
 

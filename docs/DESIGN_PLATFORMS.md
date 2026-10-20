@@ -1,5 +1,7 @@
 # Design: restructuring spawn-at for more platforms
 
+**Status:** implemented in part. Section 6 marks steps 0 to 12 done (steps 8 and 12 in part); there is no Windows or macOS backend (`src/platform/non_linux.rs` is a compile-only stand-in).
+
 Status: proposal, written from the tree at `8822484` (v0.2.0-beta.3 merged). The document itself changes no code; migration step 1 (section 6) was then done in this same branch and is marked there. Citations below were re-checked after that step. Every claim about the code cites `file:line`; anything that could not be confirmed here is marked **unverified**. Statements about other platforms come from public knowledge, not from running anything, and are marked the same way.
 
 Goal: a structure that lets spawn-at support GNOME Wayland (today), other Wayland compositors, X11, Windows, macOS and more, **without changing the working GNOME Wayland behavior**.

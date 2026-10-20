@@ -105,7 +105,7 @@ There is no single matching rule, and none of the rules is strict.
 ## Not verified
 
 None of the above was run on a live GNOME, Sway or X11 session for this page. The statements come
-from reading the CLI source, the GNOME extension source and the Sway and X11 drivers. Anything about
+from reading the CLI source, the GNOME extension source and the Sway and X11 backends. Anything about
 other GNOME versions, real Sway sessions and real X11 applications is listed in
 [Known shortcomings](/spawn-at/shortcomings/).
 

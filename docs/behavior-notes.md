@@ -1,5 +1,7 @@
 # Behavior Notes: Coordinate Model, Reference Areas, and Monitor Defaults
 
+**Status:** reference. The tests and error messages it cites were checked against `src/` and `crates/spawn-at-core/` on 2026-10-20.
+
 This document describes the placement coordinate model, reference areas, unbounded mode rules, and monitor selection defaults implemented in `spawn-at` since v0.2.0.
 
 ---
@@ -96,7 +98,7 @@ When `--monitor` is omitted:
 
 1. **`spawn` Command**:
    - Defaults to the primary monitor (the monitor flagged `primary: true` in `MonitorLayout`).
-   - If no monitor is flagged primary, falls back to index `0` and emits an `INFO` diagnostic message: `"No monitor flagged as primary; falling back to index 0."`.
+   - If no monitor is flagged primary, falls back to index `0` and prints a `DEBUG` line on stderr (`src/commands/spawn.rs`, `render_debug`): `[spawn-at] DEBUG: No monitor flagged primary; falling back to monitor index 0.`.
    - If `--anchor cursor` is specified, uses the monitor containing the current cursor position.
 *(Pinned by: `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_two_monitors_primary_not_index_zero` and `crates/spawn-at-core/src/geometry.rs::test_resolve_monitor_from_layout_nothing_flagged_primary_falls_back`)*
 

@@ -1,5 +1,7 @@
 # Design: "wait until the window is ready before placing and revealing it"
 
+**Status:** implemented in part. The ready-wait for native Wayland windows is `crates/spawn-at-core/src/ready_wait.rs` and `assets/gnome/modern/ready_wait.js`; the probe, the learned-minimum cache and the X11 strategies are not built (section 8).
+
 Status: implemented in part. Written as a design on 2026-10-13; sections 8 to 12 record what was built (the ready-wait for native Wayland windows and its wiring, a per-spawn override, the default cap of 250 ms, and X11 observation logging). The probe, the learned-minimum cache and the strategies for X11, XWayland and other systems are not implemented (section 8). Sections 1 to 7 describe the code as it was when the design was written. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
 
 ## 0. Reading guide
@@ -28,6 +30,8 @@ Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME She
 6. **X11 and XWayland get an observe-only slice first** (log when `damaged` / `thawed` fire) before any wait is built on them, because the "presented" semantics of those signals are unverified (section 3.2).
 
 ## 1. Inventory: where readiness, wait and anchor logic lives today
+
+This section describes the code as it was when this design was written (2026-10-13), before sections 8 to 11. Two things in it have changed, checked in the tree on 2026-10-20: the modern extension's `ProtocolVersion` is 6 (`assets/gnome/modern/extension.js:1529`; the legacy extension is still at 5, `assets/gnome/legacy/extension.js:1339`), and the modern extension now reads `allows_resize` (`assets/gnome/modern/extension.js:827`).
 
 ### 1.1 GNOME Shell extension (`assets/gnome/modern/`, `assets/gnome/legacy/`)
 
@@ -124,7 +128,7 @@ Rule for the beta: **additive only**. A script written against today's CLI must 
 | **JSON (`--json`)** | add `"resize": {"outcome":"reached"\|"adjusted"\|"timed-out"\|"skipped","w":..,"h":..,"waited_ms":..,"evidence":"..","reason":".."}` and `"schema":1`. Keep `size_raised`, `raised_w`, `raised_h` (derivable: adjusted and larger). Consumers must treat unknown `outcome`/`evidence`/`reason` strings as `adjusted`/opaque | `SpawnOutputJson` is read with serde and `#[serde(default)]` fields already exist for `raised_*`; the verify harness reads stdout as a generic JSON value |
 | **D-Bus** | `ProtocolVersion` 5 -> 6 and a new typed signal `ResizeOutcome`, decided at wiring time (details below the table, under "D-Bus, beta shape") | `SpawnClaimed` is `(sbtiiuubs)`; changing the signature would break every installed CLI/extension pair, and a new signal does not: an old CLI never subscribes to it, and an old extension never emits it. New instruction *names* would break (the extension throws on an unknown instruction), so no new instruction is added |
 | **Logs** | keep every existing tag (`COMMIT_SAMPLE`, `COMMIT_RESOLVED` with its `reason`; the verify tool parses them: `trace/phases.rs`). Add `READY_WAIT_START strategy=.. kind=.. target=WxH cap=.. hard=..`, `READY_WAIT_ANSWER size=WxH t=..`, `READY_WAIT_DONE outcome=.. waited_ms=.. evidence=..` | additive lines; the analyser ignores unknown tags (CONFIRMED (source), parser regex accepts any tag) |
-| **Config / flags** | no user-facing flag in the beta. A hidden developer switch `--ready-wait=<variant>` on the CLI selects the strategy and is carried in the instruction args, so A/B runs need no extension reload and no file in `$XDG_RUNTIME_DIR` (the earlier idea in 6.13) | nothing to document or support |
+| **Config / flags** | no user-facing flag in the beta. A hidden developer switch `--ready-wait=<variant>` (proposed name, not shipped; the shipped hidden switches are `--wait-strategy` and `--wait-cap-ms`, section 10) on the CLI selects the strategy and is carried in the instruction args, so A/B runs need no extension reload and no file in `$XDG_RUNTIME_DIR` (the earlier idea in 6.13) | nothing to document or support |
 
 **D-Bus, beta shape:**
 
@@ -333,7 +337,7 @@ Plan, each step ends with numbers from the existing metric:
 
 1. **P0 - machine only.** Rust state machine + virtual clock + the golden vectors; the JS port passes the same vectors in `node --test`. No GNOME involved. Includes the cases above as event scripts.
 2. **P1 - observe only (extension).** Log `READY_OBSERVE` lines: `size-changed`, `damaged`, `thawed`, `first-frame` timestamps next to `UNCLOAK`, on X11 and Wayland, native and XWayland; no behaviour change. This answers "when does each signal fire" (UNVERIFIED today) and is the data the X11/XWayland strategies need.
-3. **P2 - machine in the extension behind the hidden `--ready-wait=<variant>`** (variants: `old`, `exact`, `exact+probe`), carried in the instruction args. Run the fixture matrix above x {idle, 11, 22 threads} x 100 runs; compare variants in one login.
+3. **P2 - machine in the extension behind the hidden `--ready-wait=<variant>`** (proposed name, not shipped; the shipped hidden switches are `--wait-strategy` and `--wait-cap-ms`, section 10) (variants: `old`, `exact`, `exact+probe`), carried in the instruction args. Run the fixture matrix above x {idle, 11, 22 threads} x 100 runs; compare variants in one login.
 4. **P3 - probe on/off decision** from P2: keep the probe only if it separates slow from refusing without a visible side effect and without storing a wrong window size in apps that persist it.
 
 **XWayland test.** In a Wayland session run the fixture as an X11 client: spec `subject.args = ["--protocol","x11", ...]` (the flag exists, `fixture.rs`), `requires.backend` for the protocol, and the harness's protocol tracking (it records the protocol actually used; "A test requiring native Wayland fails or skips if the window was mapped under XWayland", `verify/README.md` section 7, CONFIRMED (docs)). The extension's trace shows `proto=XWayland` for it (`logger.js:278`). Cannot run on this X11 session; the result is UNVERIFIED until a Wayland session is available. The fixture does not take part in sync (3.2), so it models the non-sync XWayland client; a sync-capable XWayland client (Chromium/Electron with the X11 Ozone backend, or GTK with `GDK_BACKEND=x11`) needs a real app.

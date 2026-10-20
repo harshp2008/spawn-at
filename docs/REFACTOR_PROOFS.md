@@ -1,5 +1,7 @@
 # Proofs for behavior-preserving refactors
 
+**Status:** historical record. The method used for the steps of `DESIGN_PLATFORMS.md` section 6; the scripts it names are in the gitignored `scratch/` and are not in the repository.
+
 The platform restructuring in [DESIGN_PLATFORMS.md](DESIGN_PLATFORMS.md) section 6 is a series of small steps that must not change what spawn-at does on Linux. After each step the same snapshot is taken and compared with the one taken before the first step.
 
 ## What is captured

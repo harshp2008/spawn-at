@@ -2,14 +2,14 @@
 title: "Writing the docs"
 ---
 
-How the pages of this book are written and checked. It covers the hand-written pages in
+How the pages of this guide are written and checked. It covers the hand-written pages in
 `docs-site/src/content/docs/`. Rust code comments have their own rules in `docs/COMMENT_STYLE.md`
 and are not covered here. Everything below is taken from the checks in `crates/xtask/src/` and the
 conventions already used by the pages; where the repository states no rule, the text says so.
 
 ## Purpose
 
-The book tells a user or a contributor what spawn-at does, and tells them plainly what nobody has
+The guide tells a user or a contributor what spawn-at does, and tells them plainly what nobody has
 verified. A page that sounds sure about something nobody ran does harm, so the rules below are about
 evidence first and style second.
 
@@ -19,7 +19,7 @@ evidence first and style second.
   the file (with line numbers or a heading) in its `## Sources` list, or shows the command and its
   output.
 - Anything else is written as "not verified", in the page's own `## Not verified` list or inline. The
-  book's front page defines the word: it means no test or run in the repository covers it.
+  guide's front page defines the word: it means no test or run in the repository covers it.
 - Code that was read but not run is said to be read: "read from source, not run".
 - Do not invent a symptom, a step, a number or a version. If the repository does not record a cause,
   write that it records none.
@@ -61,7 +61,7 @@ file gives a 404 and is rejected by the check. A link to a heading uses its gene
 stylesheet and image in the built site and fails on a missing file or a `#fragment` the page does not
 have. Links to other sites are counted and listed, not fetched.
 
-The book makes no third-party request: no external fonts, scripts or analytics. The same check fails if
+The guide makes no third-party request: no external fonts, scripts or analytics. The same check fails if
 any file names a known font, CDN or analytics host.
 
 ## Text that must not be published
@@ -72,10 +72,10 @@ contained them would fail the check.
 
 | Class | Why |
 | :--- | :--- |
-| AI attribution: a co-author trailer, a tool-credit line, a session link or id, the vendor's domain and the no-reply address, the robot emoji | the book carries no machine attribution |
+| AI attribution: a co-author trailer, a tool-credit line, a session link or id, the vendor's domain and the no-reply address, the robot emoji | the guide carries no machine attribution |
 | Two marker words for unfinished work, and one filler word for placeholder text (the markers match as whole words) | a published page must be finished |
 | An absolute path under a user's home directory, in the Linux, macOS and Windows forms | it names a person's machine |
-| The owner's first name, as a whole word | the book does not use it |
+| The owner's first name, as a whole word | the guide does not use it |
 
 The repository owner's account name in a URL is allowed, because the match is whole-word only. The
 one string that contains the owner's name on purpose is the extension identifier, which the check

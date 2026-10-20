@@ -9,7 +9,7 @@ title: "Testing and the verify tool"
 | Rust unit and integration tests | Placement arithmetic, the CLI, command handlers against mock backends, the config commands, the installer logic | `cargo test`, in CI |
 | Golden vectors | `verify/golden/placement.json` and `tests/ready_wait_vectors/`, read by both Rust and JavaScript tests so the two implementations agree | in CI |
 | Node tests (`tests/*.js`) | The GNOME extension, loaded with mocked GNOME objects | `node --test tests/*.js`, in CI |
-| Scripted-server tests | The Sway driver against a scripted fake of Sway's IPC socket, and the GNOME driver against D-Bus stubs | in CI |
+| Scripted-server tests | The Sway backend against a scripted fake of Sway's IPC socket, and the GNOME backend against D-Bus stubs | in CI |
 | Headless Sway, live | `scripts/sway-live.sh` and `scripts/verify-sway.sh` against a private Sway started and stopped by `scripts/sway-headless.sh` | by hand, on any Linux machine with `sway` |
 | `spawn-at-verify`, live GNOME | Placement, cloak and flash checks against a real GNOME session | by hand, on a GNOME session, attended |
 
@@ -21,7 +21,7 @@ tests stay ignored: four need a live display, one needs a private Sway. The 3 te
 `tests/install_unsupported_test.js`, which run `install.sh` against a stand-in `curl`, a stand-in
 `spawn-at` and a temporary `HOME`, were not run on that branch and are left to CI, so the Node figure
 with them is 242 (the Node run used every other file of `tests/` by name, `tests/gi_loader.js`
-included, which `node --test` counts as one test; the `*_test.js` files alone give 229).
+included, which `node --test` counts as one test; the `*_test.js` files alone give 238).
 
 ## What `spawn-at-verify` checks
 

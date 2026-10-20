@@ -93,10 +93,10 @@ spawn-at spawn --anchor cursor --pivot center --size 400 500 gnome-calculator
 spawn-at spawn --anchor top-right --pivot top-right --size 800 500 -m 20 alacritty
 
 # Dashboard in the corner
-spawn-at spawn --anchor bottom-right --size 600 350 -m 16 --no-focus btop
+spawn-at spawn --anchor bottom-right --size 600 350 -m 16 btop
 ```
 
-The `--no-focus` in the last example is accepted and has no effect on `spawn`; see
+`spawn` accepts `--focus`, `--no-focus` and `--defocus` and they have no effect; see
 [spawn](/spawn-at/commands/spawn/). The README suggests binding any of these to a GNOME custom
 shortcut. That was not tried for this guide.
 

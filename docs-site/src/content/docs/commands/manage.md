@@ -49,7 +49,7 @@ change the live session.
 
 For a backend that needs no helper (X11, Sway), the backend's part of `install` prints `No
 installation required for NAME.` and the backend's part of `uninstall` prints `No uninstallation
-required for NAME.`, where NAME is `X11` or `Sway` (the driver's `name()`; `src/platform/mod.rs`, the default `install`
+required for NAME.`, where NAME is `X11` or `Sway` (the backend's `name()`; `src/platform/mod.rs`, the default `install`
 and `uninstall`). Only GNOME has an extension to deploy.
 
 ## Sources

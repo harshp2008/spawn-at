@@ -3,7 +3,7 @@ title: "Unsupported desktops"
 ---
 
 spawn-at supports GNOME. On a Wayland desktop that is not GNOME, such as KDE or Hyprland, or when
-the session type is unknown, it refuses to run instead of silently switching to the X11 driver,
+the session type is unknown, it refuses to run instead of silently switching to the X11 backend,
 which on Wayland would only see XWayland windows.
 
 ## What you see
@@ -19,7 +19,7 @@ The same error comes from `install` and `uninstall`, which change nothing.
 
 ## What counts as unsupported
 
-The check is made when the driver is chosen. A session is refused when **all** of these hold:
+The check is made when the backend is chosen. A session is refused when **all** of these hold:
 
 - `SPAWN_AT_BACKEND` is not `x11` or `sway`;
 - `XDG_CURRENT_DESKTOP` does not contain `GNOME`;
@@ -35,7 +35,7 @@ SPAWN_AT_BACKEND=x11 spawn-at spawn --anchor center -- <your program>
 
 It sees XWayland windows only, has no cloak, and the error says it "may or may not work". The
 details are on [X11 and XWayland](/spawn-at/environments/x11-xwayland/). If your desktop is Sway, use the experimental
-Sway driver instead: [Sway](/spawn-at/environments/sway/).
+Sway backend instead: [Sway](/spawn-at/environments/sway/).
 
 ## The installer
 
@@ -46,7 +46,7 @@ desktop. See [Install](/spawn-at/install/).
 
 ## What still works
 
-`spawn-at update` and `spawn-at config` need no driver, so they run on any desktop. The login
+`spawn-at update` and `spawn-at config` need no backend, so they run on any desktop. The login
 update check (`update --check --headless`) works there too and exits 0 without printing the error.
 
 ## Other operating systems
