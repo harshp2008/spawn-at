@@ -1,5 +1,7 @@
 # Design: "wait until the window is ready before placing and revealing it"
 
+**Status:** implemented in part. The ready-wait for native Wayland windows is `crates/spawn-at-core/src/ready_wait.rs` and `assets/gnome/modern/ready_wait.js`; the probe, the learned-minimum cache and the X11 strategies are not built (section 8).
+
 Status: implemented in part. Written as a design on 2026-10-13; sections 8 to 12 record what was built (the ready-wait for native Wayland windows and its wiring, a per-spawn override, the default cap of 250 ms, and X11 observation logging). The probe, the learned-minimum cache and the strategies for X11, XWayland and other systems are not implemented (section 8). Sections 1 to 7 describe the code as it was when the design was written. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
 
 ## 0. Reading guide
