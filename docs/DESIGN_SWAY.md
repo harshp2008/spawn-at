@@ -1,5 +1,7 @@
 # Design: a Sway backend
 
+**Status:** implemented. An experimental, opt-in backend in `src/platform/linux/sway/`, picked only by `SPAWN_AT_BACKEND=sway` (`src/platform/linux/registry.rs`).
+
 Status: **implemented as an EXPERIMENTAL, opt-in backend** (`src/platform/linux/sway/`, branch `feat/sway-backend`); section 12 says what was built, where it differs from this design and what was run. The design (sections 1 to 11) was written on 2026-10-15 against `main` at `b45df0f` (the platform-neutral restructuring, see [DESIGN_PLATFORMS.md](DESIGN_PLATFORMS.md)); where the implementation chose differently, the text below is marked **Changed in the implementation** and section 12 has the reason. What is checked is marked **verified** with how; what is not is marked **unverified**.
 
 The harness that produced the evidence is [`scripts/sway-headless.sh`](../scripts/sway-headless.sh) (section 11). Everything "verified" below was observed on this machine with Sway 1.9 running headless in a private directory, with the repo's own fixture window as the only client. No real application and no GNOME session was involved.
