@@ -58,16 +58,34 @@ These rules are about how a page reads, not what it claims (that is the truth ru
 from a count of the markdown sources, 76 files: the 62 tracked pages of `docs-site/`, the 13
 `docs/` files that the site mirrors under "Project documents", and `README.md`. Text in fenced code
 blocks was left out. The count is a throwaway script, not committed, and it is a rough reading
-aid: it is not a check, and `cargo xtask docs-check-src` does not enforce these rules. No page was
-rewritten for them yet.
+aid: it is not a check, and `cargo xtask docs-check-src` does not enforce these rules.
 
 ### Bold
 
-Bold is for a warning or a label the reader must not miss. Use it at most once in a paragraph. Do not
-put it at the start of every bullet of a list: a list of distinct topics becomes short `###`
-headings or plain sentences. A list of terms and their meanings may bold the term and nothing else.
+Bold marks what a reader who skims must not miss. It is for four things, and nothing else:
 
-Before, from "Known shortcomings":
+1. A warning or a consequence. This is a limit that can bite (a command exits 0 although nothing
+   changed, a wait that costs the full cap), something never run or not verified, something that may
+   not work, or something destructive or irreversible.
+2. The one fact or instruction a section hinges on: one short phrase, under about 12 words, and at
+   most one per section.
+3. A status word in a table cell where status matters (not verified, BUG, CONFIRMED against
+   HYPOTHESIS). Bold the deviation or the cell that needs attention, not every cell.
+4. The first definition of a term that the page uses afterwards. Bold the term once.
+
+The limits:
+
+- At most one bold phrase in a paragraph.
+- About one bold phrase per 200 to 300 words is the ceiling, not a target.
+- Never a whole sentence longer than about 12 words.
+- Never a bold lead-in on every bullet. A list of distinct topics becomes short `###` headings or
+  plain sentences. A list of terms and their meanings may bold the term and nothing else.
+- Never bold to stress an ordinary word.
+- Headings are not bold-marked.
+
+A page that holds a real warning and has no bold at all is a defect.
+
+Before, from "Known shortcomings" (a bold lead-in on every bullet):
 
 ```md
 - **State commands exit 0 even if nothing changed.** `focus`, `defocus`, `maximize`, `minimize`,
@@ -223,7 +241,7 @@ After:
 The numbers below come from the same count (76 files, 2026-10-20). A file is "over" when it is
 above the target.
 
-- Bold spans: up to 1.5 per 100 words. 15 of 76 files are over.
+- Bold spans: one per 200 to 300 words at most (see "Bold" above).
 - List items that start with bold: not more than half of a page's items, on pages with 3 or more
   items. 11 of 76 are over.
 - Code marks on user pages: up to 10 per 100 words. 14 of 63 are over.
@@ -236,6 +254,27 @@ above the target.
 The three pages the maintainer called readable (`quick-start`, `concepts`, `commands/spawn`) have
 0.0 to 1.4 bold spans and 7.9 to 9.7 code marks per 100 words, which is why the code target for user
 pages is 10, not lower. The whole tree has 1.2 bold spans and 9.2 code marks per 100 words.
+
+## History stays out of reference pages
+
+A statement that helps someone doing future work stays on its page as a plain present-tense fact. It
+says how something works, why it is this way, or what to watch for. A statement that only records
+what changed, or what was measured at a time, does not belong there. Examples: "added for X", "was 5,
+now 6", a branch name, "re-measured on", "the earlier text of this page said", a note for each
+commit. Do not delete such a note. Move it.
+
+| Kind of note | Where it goes |
+| :-- | :-- |
+| A change a user can see | `CHANGELOG.md` |
+| A dated measurement or an experiment | `docs/TEST_LOG.md` and the experiment pages |
+| A change to the documents or the tests, a superseded plan, "was X, now Y" | `docs/HISTORY.md`, shown as "Project history" at the end of "Project documents" |
+
+An entry in `docs/HISTORY.md` is one line: the date, what changed, and a link to the pull request or
+the commit when it is known. A claim that was not checked again is written as "Not verified." and
+the claim itself. It does not say that an earlier version of the page made it.
+
+To find history in a page, search it for "earlier text of this page", "this page said", "was not
+re-checked", "re-measured", "was added", "previously", "branch" and "after the rewrite".
 
 ## Links
 
@@ -397,7 +436,7 @@ dependency.
   `--help` text differs from its verified behavior) is explained on a hand-written page that links to
   it.
 - The "Project documents" pages (`project/<name>.md`) are written by `cargo xtask docs-mirror` from
-  13 files of `docs/`, listed in `crates/xtask/src/docs_mirror.rs` with their page name and sidebar
+  14 files of `docs/`, listed in `crates/xtask/src/docs_mirror.rs` with their page name and sidebar
   order. `docs/` is the source: edit the file there, never the page. The pages are not committed
   (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
   into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,

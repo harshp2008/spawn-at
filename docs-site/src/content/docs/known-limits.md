@@ -10,8 +10,8 @@ project as a whole is on [Known shortcomings](/spawn-at/shortcomings/).
 
 ### spawn exits 0 when no window appears
 
-If the program starts but no window shows up within `spawn.window_timeout_ms`, `spawn` prints a
-warning and exits 0. The default is 2000 ms. This is the same on GNOME, Sway and X11.
+If the program starts but no window shows up within `spawn.window_timeout_ms`, `spawn`
+**prints a warning and exits 0**. The default is 2000 ms. This is the same on GNOME, Sway and X11.
 
 On GNOME the wait can last twice as long: first for the extension's claim, then by polling. Three
 words are used for the GNOME placement on this page: `spawn` *arms* the extension by registering the
@@ -31,7 +31,7 @@ With `--no-wait` and a placement that could not be armed, nothing is printed.
 ### State commands exit 0 when the state does not change
 
 `focus`, `defocus`, `maximize`, `minimize`, `restore` and `transform` wait up to 2 seconds for the new
-state, ignore the outcome and exit 0. `--no-wait` skips the wait. A test pins this behaviour.
+state, **ignore the outcome and exit 0**. `--no-wait` skips the wait. A test pins this behaviour.
 
 `defocus` prints `Defocused window ...` whenever it sent the request, even after a timed-out wait and
 with `--no-wait`. If the window is not focused, it prints a note and sends nothing.
@@ -54,7 +54,7 @@ listed. A window list that cannot be read counts as closed. `--no-wait` skips th
 ## Matching a window by name
 
 There is no single matching rule. Each of the four places below has its own, and most are lenient:
-case is ignored and a part of a name is often enough. Only `--id` is strict.
+case is ignored and a part of a name is often enough. **Only `--id` is strict.**
 
 ### Selectors for existing windows
 
@@ -123,7 +123,7 @@ own:
 | A name | 15 seconds |
 | No name (`--class '*'` or an empty name) | 1.2 seconds |
 
-Until then, an unrelated window can be placed. A window that the extension matches to the name (see
+Until then, **an unrelated window can be placed**. A window that the extension matches to the name (see
 above) and that opens in that time gets the placement meant for the program that failed. With the
 1.2 second wildcard, the next window that opens is taken.
 
@@ -136,7 +136,7 @@ Registrations under one name queue up to 16. A 17th drops the oldest.
   return an error instead.
 - Only the first entry of a request is placed. `spawn` sends one entry, so the first window that
   appears is the one placed. Later windows of the same program are left alone.
-- `--no-wait` still waits up to 5 seconds for the window, because the placement step runs in every
+- `--no-wait` **still waits up to 5 seconds** for the window, because the placement step runs in every
   mode.
 - If no window of the program appears in that time, `spawn` warns that the program was started but
   not placed, and still exits 0.
@@ -152,7 +152,7 @@ window is found it prints a message only when `SPAWN_AT_DEBUG=1`, and `spawn` st
 
 ## Not verified
 
-None of the above was run on a live GNOME, Sway or X11 session. The statements come from reading the
+**None of the above was run** on a live GNOME, Sway or X11 session. The statements come from reading the
 CLI source, the GNOME extension source and the Sway and X11 backends. Other GNOME versions, real Sway
 sessions and real X11 applications are listed on [Known shortcomings](/spawn-at/shortcomings/).
 

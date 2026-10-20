@@ -81,8 +81,7 @@ other than the one asked; scales other than 1 and 2; more than two outputs; outp
 
 - `README.md` ("Sway (experimental)")
 - `docs/DESIGN_SWAY.md`, sections 2, 4 to 7 and 12
-- `src/commands/spawn.rs` (the cursor fallback to (0, 0); the design document's section 3 used to say
-  `--anchor cursor` fails and was corrected to match its section 12 and the code)
+- `src/commands/spawn.rs` (the cursor fallback to (0, 0))
 - `docs/TEST_PLAN.md`, sections 7.1 to 7.5
 - `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("Sway: limitations")
 - `docs/KNOWLEDGE.md` ("GNOME and Wayland behavior", "Gotchas")

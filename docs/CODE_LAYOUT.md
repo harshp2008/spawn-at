@@ -2,9 +2,7 @@
 
 **Status:** reference. The file tables list the tracked source files; the workspace members, Cargo targets and module lists were checked against the tree on 2026-10-20.
 
-What is in the repository now. The file list below is generated from the tracked files: the last column is the first sentence of the file's own module header (the `//!` lines of a Rust file, which can run over several lines; the leading comment of a JavaScript file), or `no module header` when the file has none. The tables carry no line counts; use `wc -l` when you need one. Where the tables and the code disagree, the code wins. Build and test commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
-
-An earlier version of this file was a reorganization proposal (target layout, move map, stages 1 to 5). Only stage 1, the modularization of `spawn-at-verify`, was carried out; the rest was never built, and its paths no longer matched the tree, so it was removed. It is in git history (`git log -- docs/CODE_LAYOUT.md`).
+What is in the repository now. The file list below is generated from the tracked files: the last column is the first sentence of the file's own module header (the `//!` lines of a Rust file, which can run over several lines; the leading comment of a JavaScript file), or `no module header` when the file has none. The tables carry no line counts; use `wc -l` when you need one. Where the tables and the code disagree, the code wins. Build commands are in [CONTRIBUTING.md](../CONTRIBUTING.md), and test commands are on the [Testing](https://harshp2008.github.io/spawn-at/testing/) page of the guide.
 
 ## Workspace
 

@@ -15,7 +15,7 @@ Goal: `SPAWN_AT_BACKEND=sway spawn-at spawn ...` places a new window with anchor
 
 Not in the first version:
 
-- Flicker-free placement (section 5 explains why it cannot be promised).
+- Flicker-free placement (section 5 explains why it **cannot be promised**).
 - Pointer queries, maximize and minimize.
 - i3, which uses the same IPC (section 10, question 7).
 - Automatic selection of the backend (section 7).
@@ -102,7 +102,7 @@ Evidence: observed.
 
 ### `for_window` over IPC keeps only the first command
 
-A `for_window` rule registered over IPC takes only the first command of a comma list.
+A `for_window` rule registered over IPC **takes only the first command** of a comma list.
 
 - `for_window [app_id="x"] floating enable, resize set 700 450, move position 300 200` made
   `floating enable` the rule and ran the other two immediately on the focused container.
@@ -227,8 +227,8 @@ X11 driver does. The default monitor is then the same "primary" as on GNOME.
 ### The cursor
 
 `get_cursor_position` returns `UnsupportedCapability`, so `query pointer` fails with the standard
-message. `spawn --anchor cursor` and `--monitor cursor` do not fail: `spawn` uses (0, 0) in place of
-the pointer.
+message. `spawn --anchor cursor` and `--monitor cursor` do not fail: `spawn` **uses (0, 0) in place of
+the pointer**.
 
 ## 4. What the backend declares, and placement
 
@@ -271,7 +271,7 @@ given. For Sway:
    window, verified). The driver then computes the position again with the size the window really has,
    so an anchor like bottom-right keeps it inside the area. `--size 30 20` at bottom-right with margin
    16 gives 75x50 at (1829, 1014), the position `verify_and_report_placement` expects.
-7. With exclusive focus, a `focus` command follows. The `Leave` focus intent cannot be honoured,
+7. With exclusive focus, a `focus` command follows. The `Leave` focus intent **cannot be honoured**,
    because Sway focuses a new window by its own rules.
 
 `transform` on an existing window uses the same commands. It always sends a resize to the target
@@ -279,13 +279,13 @@ rectangle's size, even when `--size` was not given.
 
 ## 5. Flicker-free strategy
 
-There is no way over IPC to run commands before the first frame that is both reliable and safe. These
+There is **no way over IPC to run commands before the first frame** that is both reliable and safe. These
 are the options that were weighed:
 
 | Option | How | Verdict |
 | :-- | :-- | :-- |
 | A. `for_window` rule before launch | Register a rule, then start the app. | Rejected as the mechanism. |
-| B. React to `window::new` | Subscribe in `arm`; on the matching `new` event, send one chained command. | Chosen. |
+| B. React to `window::new` | Subscribe in `arm`; on the matching `new` event, send one chained command. | **Chosen.** |
 | C. Start, then poll and move | `exec`, poll `GET_TREE`, then `move`. | Rejected: B, but slower. |
 | D. Start on a hidden workspace or output, then move and show | Workspace games. | Rejected: it changes the user's layout, needs cleanup and breaks focus. |
 
@@ -313,7 +313,7 @@ So the backend keeps `reveal_control` false and the docs say that a flash can ha
 subscription is made in `arm`, so no event is missed: the socket buffers events between `arm` and
 `post_spawn`.
 
-The real flash has not been measured. The flash analysis in `crates/spawn-at-verify` is based on the
+**The real flash has not been measured.** The flash analysis in `crates/spawn-at-verify` is based on the
 GNOME extension. It would need a Sway source of frame timing, for example `wlr-screencopy`; whether
 that is feasible is unverified. Until it is measured, the docs and `--help` must not promise
 flicker-free placement on Sway.
@@ -329,7 +329,7 @@ from `arm` are considered. The rules, in order:
    launchers that exec.
 3. The window's `app_id` (or XWayland class) matches the entry's hint. This covers launchers that
    hand over to a running server, where the pid never matches.
-4. Nothing matches within 5 seconds: no other window is moved. The standard "post-spawn hook failed"
+4. Nothing matches within 5 seconds: **no other window is moved**. The standard "post-spawn hook failed"
    warning says the application was started but not placed, and `spawn` carries on.
 
 Details of rule 3:
@@ -345,14 +345,13 @@ has no access to `window_timeout`.
 
 ## 7. Selection: never automatic
 
-`LinuxBackend::bootstrap` walks `registry::candidates`. Before this backend, `SPAWN_AT_BACKEND` was
-compared to `x11` only, and any other value was ignored.
+`LinuxBackend::bootstrap` walks `registry::candidates`. `SPAWN_AT_BACKEND` is compared, lowercased
+and not trimmed, to `x11` and `sway`, and any other value is ignored.
 
-The only behaviour change is that `SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`)
-selects Sway. If the value is `sway`, `candidates` returns Sway alone. Every other input returns what
-it returned before.
+`SPAWN_AT_BACKEND=sway` (any case, nothing trimmed, like `x11`) selects Sway. If the value is `sway`,
+`candidates` returns Sway alone. Every other input returns what it returned before Sway was added.
 
-`XDG_CURRENT_DESKTOP=sway` without the variable no longer gets X11 silently. `registry::unsupported`
+`XDG_CURRENT_DESKTOP=sway` without the variable **no longer gets X11 silently**. `registry::unsupported`
 refuses it with the "not supported" error (Leak 11 in DESIGN_PLATFORMS.md), unless the session type is
 `x11`.
 
@@ -377,7 +376,7 @@ empty, when it is not connectable, or when the first reply is not valid IPC.
 the message is `SPAWN_AT_BACKEND=sway, but $SWAYSOCK is not set. Run spawn-at inside a Sway session, or
 unset SPAWN_AT_BACKEND.`
 
-There is no fallback to X11. The GNOME candidate does fall back, silently, when D-Bus is unreachable.
+**There is no fallback to X11.** The GNOME candidate does fall back, silently, when D-Bus is unreachable.
 `I3SOCK` is not consulted (section 10, question 7: no i3 backend).
 
 ## 8. IPC: hand-roll, no new dependency
@@ -392,7 +391,7 @@ already depends on.
 - The module is `src/platform/linux/sway/`. It exists only on Linux, so the Windows and macOS trees are
   untouched.
 
-The cost of the alternative crates (`swayipc`, `swayipc-async`, `i3ipc`) was not measured. The
+The cost of the alternative crates (`swayipc`, `swayipc-async`, `i3ipc`) **was not measured**. The
 machine had no network, and none of them was in the local cargo registry, so `cargo tree` could not
 resolve them. For reference, spawn-at's own normal tree on Linux has 145 distinct entries (counted
 with `cargo tree --edges normal` on 2026-10-20), and `serde`, `serde_json` and `thiserror` are
@@ -407,8 +406,7 @@ with `cargo add --dry-run` and `cargo tree` before reconsidering.
   `post_spawn` matching by pid, by descendant and by app id, the timeout, `close`, `focus`.
 - 19 tests that run the built binary against a recording stand-in socket.
 - `scripts/sway-live.sh`: live checks on a private headless Sway, run by hand. The last recorded run
-  passed 62 checks and failed none ([TEST_PLAN.md](TEST_PLAN.md) section 7.2). It was not re-run for
-  this page.
+  passed 62 checks and failed none ([TEST_PLAN.md](TEST_PLAN.md) section 7.2).
 - No live test is gated by an environment variable, and no CI job installs `sway`.
 - Flash measurement is out of scope for the first version (section 5).
 
@@ -426,9 +424,6 @@ implementation.
 | 5. May CI install `sway`? | No CI job installs it. |
 | 6. Map maximize and minimize? | No. They are unsupported in the first version. |
 | 7. An i3 backend? | No. |
-
-The design had proposed the content size for question 3 and the focused workspace's output for
-question 4. The owner's answers replaced both.
 
 ## 11. The harness
 
@@ -451,7 +446,7 @@ question 4. The owner's answers replaced both.
 The author's recorded checks: a recorded PID that was a `sleep` was refused and left alive;
 `stop --dir /tmp` was refused; a normal `stop` left no sway, swaybar or fixture process and no
 directory; `gnome-shell` kept its PID and command line; no journal line mentioned spawn-at, sway or an
-assertion during the runs. These were not repeated for this page.
+assertion during the runs.
 
 To try it yourself (not run in your session by the author):
 

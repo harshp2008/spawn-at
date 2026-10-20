@@ -2,6 +2,12 @@
 title: "Architecture and contributing"
 ---
 
+How the code is organized, how to add a backend, the rules for a change, and how to build this
+documentation. For tests, see [Testing and the verify tool](/spawn-at/testing/),
+[Running the verify TUI](/spawn-at/contributing/verify-tui/) and
+[Writing a test spec](/spawn-at/contributing/test-specs/). For the pages of this guide, see
+[Writing the docs](/spawn-at/contributing/writing-docs/).
+
 ## The crates
 
 | Member | Role |
@@ -30,10 +36,29 @@ All of this lives in `src/platform/` and `spawn-at-core`.
 | `SettingsStore` (core) | Where the config text lives; the Linux implementation is the only one |
 
 The command layer talks only to `CompositorBackend`. The GNOME-specific module `gnome::mechanics` is
-used from production code only inside the GNOME backend. To add a backend, create a module under
-`src/platform/linux/` and register it in `LinuxBackend::bootstrap()` (the choice rules are in
-`linux/registry.rs`). A new backend should be reachable only through `SPAWN_AT_BACKEND=<name>` until
-its live suite passes; Sway is the worked example.
+used from production code only inside the GNOME backend.
+
+## Adding a backend
+
+Sway is the worked example: its design and the facts it rests on are in
+[Design: a Sway backend](/spawn-at/project/design-sway/).
+
+1. Create a module under `src/platform/linux/`, a file or a folder like `gnome/` and `x11/`. Implement
+   `Driver` (`arm` is the required method) and `CompositorBackend`. Most `CompositorBackend` methods
+   default to "unsupported", so a new backend can start small.
+2. Add a variant to `BackendId` in `src/platform/linux/registry.rs` and teach `candidates` when to
+   return it. The functions there read three environment variables and do no I/O, so every desktop
+   can be tested without one. `unsupported` in the same file decides which sessions are refused.
+3. Add a branch for the new variant in `LinuxBackend::bootstrap()` in `src/platform/linux/mod.rs`,
+   which builds the driver.
+4. Keep the backend **reachable only through `SPAWN_AT_BACKEND=<name>`** until its live suite
+   passes. Sway is never chosen from the desktop.
+5. Test it in layers, as Sway does: unit tests for the payloads and the matching rules; driver tests
+   against a scripted fake of the compositor's socket; tests of the built binary against a stand-in
+   socket (`tests/sway_backend_cli_test.rs`); and a live script on a private session of the
+   compositor, run by hand (`scripts/sway-live.sh`).
+6. Teach the harness the new backend name (`crates/spawn-at-verify/src/backend.rs`), so that specs can
+   list it under `[requires] backend`. See [Writing a test spec](/spawn-at/contributing/test-specs/).
 
 ## The design documents
 
@@ -71,46 +96,39 @@ The GNOME Wayland contract, from `DESIGN_PLATFORMS.md` section 7:
 
 ## How a change is made
 
-These are the project's contributor rules. They are written in `CLAUDE.md` in the repository root;
-`CONTRIBUTING.md` holds the architecture reference, a guide to adding a backend, and the cargo
-commands, not these rules.
+These are the project's contributor rules. The safety rules for running tests are on
+[Testing and the verify tool](/spawn-at/testing/#safety-rules-for-contributors).
 
 - Start every change from an up-to-date `main`. One commit per step, with a conventional message
   (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`). Update doc counts in the same
   commit that changes them.
 - Run `cargo fmt --check`, clippy and the tests after every commit, not only at the end.
-- **Pull requests:** push your branch, open a draft pull request, and do not merge, tag or
-  push `main` yourself. The order for a release is: pull request, merge, pull `main`, then tag. The
-  version comes from the git tag at build time; a build that is not on a tag prints `DEV BUILD`.
-  `install.sh` is fetched from `main`, so a merge ships changes to it at once; changes to the binary
+- Push your branch and open a draft pull request. **Do not merge, tag or push `main` yourself.** The
+  order for a release is: pull request, merge, pull `main`, then tag.
+- The version comes from the git tag at build time; a build that is not on a tag prints `DEV BUILD`.
+  `install.sh` is fetched from `main`, so a merge ships changes to it at once. Changes to the binary
   ship only with the next tag.
-- **A pure move needs proof**: the sorted test names per binary, the `--help` of every subcommand,
-  and the hashes of goldens and fixtures must be identical, and `git diff -M --stat` must show moves
+- A pure move needs proof: the sorted test names per binary, the `--help` of every subcommand, and
+  the hashes of goldens and fixtures must be identical, and `git diff -M --stat` must show moves
   only. Never mix moves and logic in one commit. See `REFACTOR_PROOFS.md`.
-- **A comment-only commit must pass `cargo xtask check-comment-only <rev>`.**
+- A comment-only commit must pass `cargo xtask check-comment-only <rev>`.
   `scripts/check-comment-only-product.sh <rev>` runs it over the product code. Write comments from
   the function body, not the function name; if unsure, leave it out.
 - Keep `CHANGELOG.md` current (new entries under Unreleased) and add facts that took more than a few
   steps to find to `docs/KNOWLEDGE.md`.
-- **A page of this guide** follows the rules and the templates on
+- A page of this guide follows the rules and the templates on
   [Writing the docs](/spawn-at/contributing/writing-docs/); `cargo xtask docs-site` must exit 0.
 
 ## Build and test
 
-What CI runs (`.github/workflows/ci.yml`):
-
-```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets --locked --features spawn-at-verify/tui,spawn-at-verify/fixture -- -D warnings
-cargo test --locked -p spawn-at -p spawn-at-core -p xtask
-cargo test --locked -p spawn-at-verify --features tui,fixture
-node --test tests/*.js
-```
+The commands that CI runs (`.github/workflows/ci.yml`: format, clippy, the Rust tests and the Node
+tests), and what each one needs, are in the table on
+[Testing and the verify tool](/spawn-at/testing/#which-command-for-what). CI also compile-checks the
+whole workspace for Windows and for both macOS targets; no test runs there.
 
 The release workflow (`.github/workflows/release.yml`, on `v*` tags) builds the release binary with
 `cargo build --release --locked`, which produces `target/release/spawn-at`. `ci.yml` does not run
-that build. CI also compile-checks the workspace for Windows and both macOS targets. Plain `cargo test` at the
-root covers only the `spawn-at` package.
+that build.
 
 ## Build this documentation
 
@@ -130,14 +148,22 @@ site is served under `/spawn-at/`. The pieces:
 
 | Command | What it does |
 | :--- | :--- |
-| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/` (the description is the first line of the command's help, the sidebar label is the command without `spawn-at `, and one line under the title points to the hand-written page in `commands/`, or to the Commands index when a command has none; the `--help` text itself is unchanged). Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
+| `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/`. Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
+| `cargo xtask docs-mirror` | Writes the "Project documents" pages from the files in `docs/` |
 | `cargo xtask docs-check-src` | Checks the markdown and the config: front matter, a duplicate `#` title, empty pages, pages missing from the sidebar, `.md` links, environment pages, `Sources` lists, `smartypants: false`, forbidden text |
 | `npm ci` and `npm run build` in `docs-site/` | Install the pinned packages and build the site into `docs-site/dist/` (`docs-site` does both; it reuses `node_modules` when it is newer than the lock file) |
 | `cargo xtask docs-check-html <dir>` | Checks a built site for broken links, missing ids, a flag such as `--id` turned into an en dash, and third-party requests |
 
+## Not verified
+
+- The steps for adding a backend were read from the source and from how Sway is wired in. They were
+  not run as a procedure to build a new backend.
+
 ## Sources
 
 - `CONTRIBUTING.md` and the repository's contributor rules
+- `src/platform/linux/registry.rs` and `src/platform/linux/mod.rs` (`BackendId`, `candidates`,
+  `unsupported`, `LinuxBackend::bootstrap`)
 - `docs/CODE_LAYOUT.md` ("Workspace")
 - `docs/DESIGN_PLATFORMS.md`, sections 2, 4 and 7
 - `docs/REFACTOR_PROOFS.md`

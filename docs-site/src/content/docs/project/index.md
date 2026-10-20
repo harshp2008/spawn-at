@@ -28,6 +28,7 @@ one of them can be older than the code.
 - [Proofs for behavior-preserving refactors](/spawn-at/project/refactor-proofs/)
 - [Comment style](/spawn-at/project/comment-style/)
 - [Knowledge base](/spawn-at/project/knowledge/)
+- [Project history](/spawn-at/project/history/): what changed in the documents and the tests, and when.
 
 Two kinds of file in `docs/` are not mirrored, and links to them go to GitHub: the experiment log
 ([`TEST_LOG.md`](https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md)) and the release
