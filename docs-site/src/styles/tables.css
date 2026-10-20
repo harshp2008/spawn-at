@@ -1,17 +1,28 @@
 /* Table layout for the markdown content area. Starlight sets `display: block; overflow: auto` on
-   every table, so a table with short cells shrinks to its content and sits at the left edge while
-   one with long text fills the column. These rules make both centered: the table is as wide as its
-   content, never wider than the column, wraps long cell text inside the column, and scrolls inside
-   its own box when a row cannot wrap (a long unbroken path or flag). Colors and borders are left to
+   every table. The box then is as wide as the column, but the grid inside it is sized to its
+   content (measured: `width: 100%` on such a table gives a 600px box with columns of 27px), so a
+   table with short cells only fills the column if it is a real table. Two states:
+   - `data-fit` (set by src/scripts/toc-toggle.js on a table whose content fits the column):
+     `display: table; width: 100%`. It starts at the left edge of the text, takes the column width
+     and wraps long cell text inside it.
+   - otherwise (and without JavaScript): Starlight's `display: block` box, as wide as the column
+     and left-aligned, scrolling inside itself when a row cannot wrap (a long unbroken path or
+     flag). The scroll hint of scroll-hints.css needs this box, which is why a table that
+     overflows is never made a real table.
+   There is no centering: before, `width: fit-content; margin-inline: auto` centered every table
+   narrower than the column, so its left edge was not the text's. Colors and borders are left to
    Starlight and custom.css; markdown column alignment (`align` attribute) is not touched. */
 .sl-markdown-content table:not(:where(.not-content *)) {
-  width: fit-content;
+  width: 100%;
   max-width: 100%;
-  margin-inline: auto;
+  margin-inline: 0;
+}
+.sl-markdown-content table[data-fit]:not(:where(.not-content *)) {
+  display: table;
 }
 
 /* Starlight drops the padding on the outer edge of the first and last column, which looks lopsided
-   once the table is centered. The same padding on every cell keeps a 2rem gap between columns and
+   in a table with a border. The same padding on every cell keeps a 2rem gap between columns and
    the same inset on both sides. */
 .sl-markdown-content :is(th, td):not(:where(.not-content *)) {
   padding: 0.5rem 1rem;
