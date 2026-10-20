@@ -83,7 +83,7 @@ Three monitor calls differ or are optional across Mutter versions. None of them 
 
 ### 3.2 Transformation, snapshot gating and animation suppression
 
-The zero-flicker transformation path gates snapshots and suppresses the unminimize animation. A GNOME Shell 46 source was inspected for these calls. They are not verified live on GNOME 42–44, 45 or 47–48, and the legacy tree relies on guards.
+The zero-flicker transformation path gates snapshots and suppresses the unminimize animation. Only GNOME Shell 46 was directly inspected for these calls (the comment above `_skipWindowEffects` in the legacy `extension.js` says so). They are not verified live on GNOME 42–44, 45 or 47–48, and the legacy tree relies on guards.
 
 | Call | Guard in the legacy tree | If the call is missing |
 | :-- | :-- | :-- |
