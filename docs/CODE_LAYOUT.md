@@ -1,5 +1,7 @@
 # Code layout
 
+**Status:** reference. The file tables list the tracked source files; the workspace members, Cargo targets and module lists were checked against the tree on 2026-10-20.
+
 What is in the repository now. The file list below is generated from the tracked files: the last column is the first `//!` line of the file itself (blank when the file has none). The tables carry no line counts; use `wc -l` when you need one. Where the tables and the code disagree, the code wins. Build and test commands are in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 An earlier version of this file was a reorganization proposal (target layout, move map, stages 1 to 5). Only stage 1, the modularization of `spawn-at-verify`, was carried out; the rest was never built, and its paths no longer matched the tree, so it was removed. It is in git history (`git log -- docs/CODE_LAYOUT.md`).
@@ -21,7 +23,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 - **Cargo targets of `spawn-at-verify`** are declared in its `Cargo.toml`: `[[bin]]` `spawn-at-verify` (`src/main.rs`) and `fixture` (`src/bin/fixture.rs`, `required-features = ["fixture"]`), and `[[test]]` entries `fixture_test` (needs `fixture`), `oracle_cross_check`, `trace_analyser_test`, `trace_state_test`, `tui_test` (needs `tui`) and `render_test` (needs `tui`). Other files under `tests/` are found by Cargo's default discovery.
 - **Release packaging.** `install.sh` downloads the release tarball and needs `spawn-at` in it; `.github/workflows/release.yml` builds `target/release/spawn-at` from the repository root. `scripts/smoke-live.sh` hard-codes `target/debug/spawn-at` and `target/debug/spawn-at-verify`.
 - **Shared golden data.** `verify/golden/placement.json` is read by `crates/spawn-at-core/tests/golden_placement.rs`, `crates/spawn-at-verify/src/oracle/tests/vectors.rs` and `tests/golden_anchor_test.js`. `crates/spawn-at-verify/tests/fixtures/` holds recorded runs with a `SHA256SUMS`, and `crates/spawn-at-verify/tests/golden/` holds five `drawer_*.txt` terminal snapshots.
-- **Library surface.** `spawn-at-core` re-exports `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` and a list of geometry items (see `src/lib.rs`). `spawn-at-verify`'s `src/lib.rs` declares `cli`, `display`, `ext_logging`, `loadavg`, `loader`, `log_source`, `no_config`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, and `tui` (only with the `tui` feature).
+- **Library surface.** `spawn-at-core` re-exports `Armed`, `Batch`, `Driver`, `DriverError`, `Entry`, `FocusIntent`, `Reveal`, `Urgency` and a list of geometry items (see `src/lib.rs`). `spawn-at-verify`'s `src/lib.rs` declares `backend`, `cli`, `display`, `ext_logging`, `loadavg`, `loader`, `log_source`, `no_config`, `oracle`, `preflight`, `probe`, `process`, `report`, `runner`, `schema`, `trace`, `tracker`, and `tui` (only with the `tui` feature).
 
 ## Files
 
