@@ -60,21 +60,21 @@ This is the one table of counts. Other pages point here.
 | :-- | --: | --: | :-- |
 | `spawn-at` | 460 | 0 | `cargo test --locked -p spawn-at -- --list` |
 | `spawn-at-core` | 64 | 0 | `cargo test --locked -p spawn-at-core -- --list` |
-| `xtask` | 107 | 0 | `cargo test --locked -p xtask -- --list` |
+| `xtask` | 119 | 0 | `cargo test --locked -p xtask -- --list` |
 | `spawn-at-verify`, no features | 434 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
 | `spawn-at-verify`, `tui` | 599 | 1 | `cargo test --locked -p spawn-at-verify --features tui -- --list` |
 | `spawn-at-verify`, `tui,fixture` (what CI runs) | 625 | 5 | `cargo test --locked -p spawn-at-verify --features tui,fixture -- --list` |
 | Node, 12 `*_test.js` files | 240 | 0 | `node --test tests/<file>`, once per file |
 | Node, the install-script test | 3 | 0 | CI only |
 
-Rust total with `tui,fixture`: 1256 run and 5 ignored (460 + 64 + 107 + 625). With the 240 Node tests
-that run locally: 1496. With the 3 install-script tests, which only CI runs: 1499.
+Rust total with `tui,fixture`: 1268 run and 5 ignored (460 + 64 + 119 + 625). With the 240 Node tests
+that run locally: 1508. With the 3 install-script tests, which only CI runs: 1511.
 
 Last checked on 2026-10-21 at commit `4b14ad9`, the head of `main` then. Every Rust row was produced
 by the command in its last column (`--list`, then `grep -c ': test$'`, and `--list --ignored` for the
 ignored column); the Node row by running the 12 local files once (`tests 240`, `pass 240`). The
 `xtask` row also counts the tests added on the branch of this change (the Status check of the
-mirror, the image checks); the other crates are
+mirror, the image checks and the readability warnings); the other crates are
 unchanged since that commit. The install-script count is carried over and was not run here.
 
 To get a Rust count, pipe the command through `grep -c ': test$'`. That is the number of tests

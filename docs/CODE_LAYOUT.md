@@ -118,7 +118,9 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/xtask/src/docs_check.rs` | `docs-check-src`: checks the markdown of the site (`docs-site/src/content/docs`) and the Starlight config before the site is built. |
 | `crates/xtask/src/docs_cli.rs` | `docs-cli-reference`: writes one Starlight page per `spawn-at` command from the built binary's own `--help` output, and fails if a command that `--help` lists has no page. |
 | `crates/xtask/src/docs_html.rs` | `docs-check-html`: checks the assembled site (Astro output plus `api/`) without any network access. |
+| `crates/xtask/src/docs_images.rs` | The image rules of `docs-check-src`: a reference needs an existing file in `docs-site/public/img/`, alt text and no address on another site; reports the size of the folder and the placeholders. |
 | `crates/xtask/src/docs_site.rs` | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
+| `crates/xtask/src/docs_warn.rs` | The readability warnings of `docs-check-src` (rules W1 to W16 of the writing rules): one summary line per rule, never a failure. |
 | `crates/xtask/src/main.rs` | xtask: Internal developer and CI tooling for spawn-at. |
 | `crates/xtask/tests/burn_cpu_test.rs` | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
 

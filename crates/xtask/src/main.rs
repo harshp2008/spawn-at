@@ -18,6 +18,7 @@ mod docs_html;
 mod docs_images;
 mod docs_mirror;
 mod docs_site;
+mod docs_warn;
 
 use std::env;
 use std::process::exit;
@@ -35,7 +36,7 @@ fn main() {
             eprintln!("  docs-site [--bin P] [--out DIR] [--clean-install]");
             eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--config FILE]");
             eprintln!("  docs-mirror [--docs DIR] [--out DIR] [--config FILE]");
-            eprintln!("  docs-check-src [DOCS_DIR] [--config FILE]");
+            eprintln!("  docs-check-src [DOCS_DIR] [--config FILE] [--warnings-full]");
             eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             exit(1);
         }

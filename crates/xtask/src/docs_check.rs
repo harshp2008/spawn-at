@@ -25,6 +25,7 @@ use std::path::{Path, PathBuf};
 
 use crate::docs_cli::sidebar_autogenerates;
 use crate::docs_images;
+use crate::docs_warn;
 
 /// Pages every build must have, relative to the content folder.
 pub const ENVIRONMENT_PAGES: [&str; 4] = [
@@ -480,7 +481,7 @@ pub fn disables_smartypants(config: &str) -> bool {
         .any(|l| !l.trim_start().starts_with("//") && l.contains("smartypants: false"))
 }
 
-fn markdown_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
+pub(crate) fn markdown_files(dir: &Path, out: &mut Vec<PathBuf>) -> std::io::Result<()> {
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
         if path.is_dir() {
@@ -633,12 +634,14 @@ pub fn check_with_images(
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut docs = PathBuf::from("docs-site/src/content/docs");
     let mut config = PathBuf::from("docs-site/astro.config.mjs");
+    let mut full = false;
     let mut it = args.iter();
     while let Some(arg) = it.next() {
         match arg.as_str() {
             "--config" => {
                 config = PathBuf::from(it.next().ok_or("--config needs a value")?);
             }
+            "--warnings-full" => full = true,
             other if !other.starts_with("--") => docs = PathBuf::from(other),
             other => return Err(format!("unknown option {other}")),
         }
@@ -648,6 +651,23 @@ pub fn run(args: &[String]) -> Result<(), String> {
         println!("==> site source OK ({})", docs.display());
         for line in docs_images::summary(&images, &image_dir(&config)) {
             println!("{line}");
+        }
+        // Warnings never change the result: a page that cannot be read is reported and skipped.
+        match docs_warn::warnings(&docs) {
+            Ok(found) => {
+                let lines = docs_warn::summary_lines(&found, full);
+                println!(
+                    "==> readability warnings (do not fail the check): {} rules with findings",
+                    lines
+                        .iter()
+                        .filter(|l| l.starts_with("    warning"))
+                        .count()
+                );
+                for line in lines {
+                    println!("{line}");
+                }
+            }
+            Err(e) => println!("==> readability warnings skipped: {e}"),
         }
         Ok(())
     } else {

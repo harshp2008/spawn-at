@@ -49,6 +49,7 @@ How to use it: read the table of contents, then only the section you need. An en
 - A list whose keys all start with a whole number is steps (`stepKey`). A cell of 240 characters or more converts a table on `project/` pages. A field over `TITLED_MIN = 400` characters makes the whole list titled cards. `tests/records_test.js` runs in the `node --test` step.
 - `docs-check-src` fails on a table cell over `MAX_CELL_CHARS = 1200` characters on every page except `experiments/`. On 2026-10-20 the longest cell left in `docs/` had 581.
 - Images are plain Markdown, `![alt](/spawn-at/img/<name>.svg)`, with the file in `docs-site/public/img/` (the base path is not added for you). `docs-check-src` fails on a missing file, an empty alt or an address on another site, and prints the file count, the bytes against a 5 MB budget and how many are placeholders (SVGs that say "Placeholder"). Source: `crates/xtask/src/docs_images.rs`. Checked 2026-10-21.
+- `docs-check-src` also prints readability warnings (rules W1 to W16 of the audit; W4 needs a browser and is not measured). They are counted on the Markdown source, never change the exit code, and `--warnings-full` lists every finding. A table separator row (`| :-- |`) must be skipped or it counts as a paragraph (a bug found while writing it). Source: `crates/xtask/src/docs_warn.rs`. Checked 2026-10-21.
 
 ## Install and release
 

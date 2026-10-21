@@ -72,10 +72,11 @@ the policy check.
 | `docs_cli` | 17 |
 | `docs_html` | 11 |
 | `burn_cpu` | 6 |
+| `docs_warn` | 12 |
 | `docs_images` | 4 |
 | `docs_site` | 3 |
 | `compiler_docs` | 2 |
-| Unit tests | 105 |
+| Unit tests | 117 |
 | `tests/burn_cpu_test.rs` (runs the built binary) | 2 |
 
 `spawn-at-verify`, by binary and feature set (a dash means the binary is not built with that set):

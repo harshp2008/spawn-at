@@ -46,6 +46,8 @@ docs-check-src` fails when:
 - one of the four environment pages is missing;
 - a hand-written page has no `## Sources` heading followed by a list;
 - a link ends in `.md`;
+- an image reference has an empty alt text, names a file that is not in `docs-site/public/img/` or
+  points to another site (see "Images");
 - the config does not set `markdown.smartypants: false`;
 - the text contains something that must not be published (below).
 
@@ -57,8 +59,8 @@ first, then the body, then `## Not verified`, then `## Sources` last.
 These rules are about how a page reads, not what it claims (that is the truth rule above). They come
 from a count of the markdown sources, 76 files: the 62 tracked pages of `docs-site/`, the 13
 `docs/` files that the site mirrors under "Project documents", and `README.md`. Text in fenced code
-blocks was left out. The count is a throwaway script, not committed, and it is a rough reading
-aid: it is not a check, and `cargo xtask docs-check-src` does not enforce these rules.
+blocks was left out. The numbers are targets, not errors: `cargo xtask docs-check-src` measures most
+of them and prints a warning per rule, and it never fails because of one. See "Targets" below.
 
 ### Bold
 
@@ -75,15 +77,20 @@ Bold marks what a reader who skims must not miss. It is for four things, and not
 
 The limits:
 
-- At most one bold phrase in a paragraph.
-- About one bold phrase per 200 to 300 words is the ceiling, not a target.
-- Never a whole sentence longer than about 12 words.
+- A bold span is a phrase of 12 words or fewer, never a whole sentence.
+- At most two spans in a paragraph, and only when each is one of the four things above.
+- A page that holds a warning, a limit or a fact a section hinges on has bold on it. A page of 300
+  words or more with none is flagged, so check that it really has none of the four.
+- On a page over 400 words, aim for 4 to 25 spans per 1000 words: one per 40 to 250 words. Fewer
+  means real warnings are not marked. More means bold has become decoration.
 - Never a bold lead-in on every bullet. A list of distinct topics becomes short `###` headings or
-  plain sentences. A list of terms and their meanings may bold the term and nothing else.
-- Never bold to stress an ordinary word.
-- Headings are not bold-marked.
+  plain sentences. A list of terms and their meanings may bold the term and nothing else. More than
+  half of 9 or more spans being a word or two (`Symptom.`, `Fix.`) is flagged as a label, not a
+  mark.
+- Never bold to stress an ordinary word. Headings are not bold-marked.
 
-A page that holds a real warning and has no bold at all is a defect.
+Bold is drawn in weight 700 and in the brighter colour of the headings, so it stands out in both
+themes. Inside a link, a heading, an aside or a card it keeps the colour of its surroundings.
 
 Before, from "Known shortcomings" (a bold lead-in on every bullet):
 
@@ -168,9 +175,12 @@ Other files under `tests/` are found by Cargo's default discovery.
 
 ### Length
 
-A paragraph is up to about 4 lines and holds one idea. A sentence is under about 25 words. A list has
-7 items or fewer; a longer one is grouped under headings. A list item that needs more than 60 words is
-a paragraph under a heading.
+A paragraph is about 4 lines (60 words) and holds one idea; over 100 words is flagged on a hand page
+and over 150 in a project document. A sentence aims at 25 words; over 45 is flagged, and so is a
+page where more than 1 sentence in 10 is over 25. A list has 7 items or fewer; a longer one is
+grouped under headings. A list item is up to 60 words (100 in a project document); one that needs
+more is a paragraph under a heading. A hand page is up to 2500 words and a project document up to
+6000; a longer one is split by topic.
 
 Before, `docs/DESIGN_SWAY.md` (one paragraph of 115 words whose first sentence is the longest):
 
@@ -238,22 +248,38 @@ After:
 
 ### Targets
 
-The numbers below come from the same count (76 files, 2026-10-20). A file is "over" when it is
-above the target.
+These are the thresholds `cargo xtask docs-check-src` warns about. They were set from a count of
+every page, so that only the worst quarter of pages is flagged, and they are targets: a warning does
+not fail the build. Experiment records and the generated CLI reference are not measured. "Hand" is a
+page written under `docs-site/src/content/docs/` and "project" a mirrored document of `docs/`. The
+last column is the number of pages flagged by `cargo xtask docs-check-src` on 2026-10-21, out of 35
+hand pages and 14 project documents.
 
-- Bold spans: one per 200 to 300 words at most (see "Bold" above).
-- List items that start with bold: not more than half of a page's items, on pages with 3 or more
-  items. 11 of 76 are over.
-- Code marks on user pages: up to 10 per 100 words. 14 of 63 are over.
-- Code marks in project documents: up to 12 per 100 words. 7 of 13 are over.
-- Paragraphs: up to 100 words. 26 of 76 files have at least one longer.
-- List items: up to 60 words. 39 of 76 files have at least one longer.
-- Sentences: the aim is 25 words, and only 35 was counted. 64 of 76 files have a longer sentence.
-- First column of a table: median up to 48 characters. 6 of 76 files have a table over it.
+| Rule | Target | Flagged |
+| :-- | :-- | --: |
+| W1 | A paragraph of up to 100 words (project 150) | 5 |
+| W2 | A list item of up to 60 words (project 100) | 14 |
+| W3 | No sentence over 45 words; at most 1 in 10 sentences over 25 | 35 |
+| W5 | A page of 300 words or more has bold | 3 |
+| W6 | A hand page over 400 words has 4 to 25 bold spans per 1000 words | 14 |
+| W7 | Not more than half of 9 or more bold spans are a word or two | 5 |
+| W8 | A bold span of up to 12 words; two in a paragraph on 3 paragraphs at most | 4 |
+| W9 | Up to 10 code marks per 100 words (project 12) | 16 |
+| W10 | 3 or more headings per 1000 words on a page over 800 words; up to 20 `###` | 5 |
+| W11 | A hand page of up to 2500 words (project 6000) | 5 |
+| W12 | Sources up to 8 items and 12% of the page words | 12 |
+| W13 | No `file:line` in the prose of a hand page; it goes in Sources | 3 |
+| W14 | No repeated paragraph or list item, one `Status` line | 0 |
+| W15 | A mirrored document opens with its `**Status:**` line | 0 |
+| W16 | A table cell of up to 350 characters | 6 |
+
+W4 (paragraphs taller than 4 lines at 1440 px) needs a browser and is not measured. The first
+column of a table is not measured either: aim for a median of 48 characters, and make a table whose
+first column is a sentence a list. To see each finding, not only the five worst pages, run
+`cargo xtask docs-check-src --warnings-full`.
 
 The three pages the maintainer called readable (`quick-start`, `concepts`, `commands/spawn`) have
-0.0 to 1.4 bold spans and 7.9 to 9.7 code marks per 100 words, which is why the code target for user
-pages is 10, not lower. The whole tree has 1.2 bold spans and 9.2 code marks per 100 words.
+7.9 to 9.7 code marks per 100 words, which is why the code target for user pages is 10, not lower.
 
 ## History stays out of reference pages
 
@@ -275,6 +301,39 @@ the claim itself. It does not say that an earlier version of the page made it.
 
 To find history in a page, search it for "earlier text of this page", "this page said", "was not
 re-checked", "re-measured", "was added", "previously", "branch" and "after the rewrite".
+
+## Images
+
+An image is plain Markdown with the base path written out, like a link:
+
+```md
+![The terminal window in the top-right corner of the screen, 24 pixels from each edge.](/spawn-at/img/quick-start-placed-window.svg)
+```
+
+- The file is in `docs-site/public/img/`, directly in that folder, and the page names it as
+  `/spawn-at/img/<file>`. There is no directive and no import.
+- The name is kebab-case, `page-slug-what.ext`: the slug of the page that shows it, then what it
+  shows (`concepts-coordinate-model.svg`). Use the real extension: `svg` for a diagram, `webp` or
+  `png` for a screenshot.
+- The alt text is a sentence that says what the picture shows, as one would tell it to someone who
+  cannot see it. It is not empty and it is not "screenshot". `docs-check-src` fails on an empty one.
+- No image carries text that the page does not also say. A picture can make a fact quicker to see,
+  but it can be missing, unread by a screen reader and not searchable.
+- Aim at 1280 pixels wide and 16:9. A screenshot is under about 200 KB. The folder has a budget of
+  5 MB in all, and `docs-check-src` prints its size.
+- Only files of this repository: an address on another site fails the check, and so does a missing
+  file. `docs-check-html` checks the same on the built pages.
+
+The site draws every image at most as wide as the column, with a 1 px border and a small radius, so
+a picture with its own frame or drop shadow doubles up. It has no dark and light variants: a diagram
+uses colours that read on both backgrounds, or has a transparent background and mid-grey lines.
+
+A **placeholder** holds the place of a picture that does not exist yet: an SVG with a dashed frame
+and the text "Placeholder: what this will show" with the intended size. `docs-check-src` counts the
+SVGs that contain the word "Placeholder" and reports how many pages use one; it does not fail on
+them. To replace one, put the real file in the same folder under the same name. If the real picture
+is a `png` or a `webp`, give it the same name with its own extension, change the extension in the
+page, and delete the placeholder.
 
 ## Links
 
