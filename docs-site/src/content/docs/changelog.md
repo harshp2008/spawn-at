@@ -12,7 +12,8 @@ The changelog is `CHANGELOG.md` in the repository. It follows
 
 | Version | Date | Release notes |
 | :--- | :--- | :--- |
-| Unreleased | | Documentation site changes only |
+| Unreleased | | Nothing yet |
+| 0.2.2 | 2026-10-21 | GNOME Shell 49 and 50 listed in the extension metadata, clearer extension diagnostics and placement log line (#82); see the changelog in the repository |
 | 0.2.1 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.1.md): fixes for #47, #48, #49, #50, #51, #56, #57 and #58; the GNOME extension is unchanged |
 | 0.2.0 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0.md): the same code as 0.2.0-beta.6; documentation and version only |
 | 0.2.0-beta.6 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.6.md): the installer's PATH advice is idempotent and mentions logging out; otherwise docs and tests |

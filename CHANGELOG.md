@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-21
+
+Patch release: GNOME Shell 49 and 50 support (#82). After upgrading, run `spawn-at update` (it redeploys the extension) or `spawn-at install`, then log out and back in, so the new `metadata.json` is written and loaded.
+
 ### Added
 
 - GNOME Shell 49 and 50 are listed in `assets/gnome/modern/metadata.json`. Before, GNOME 50 marked the extension OUT OF DATE and never loaded it, so no D-Bus object appeared and every `spawn` printed the "protocol mismatch" warning and `UnknownMethod: Object does not exist`. The owner ran GNOME 50.1 (Ubuntu 26.04, Wayland) by hand with the two entries added and the extension was ACTIVE and placed windows correctly; GNOME 49 and the legacy tree were not run. It reaches users with the next release, and then `spawn-at install` has to be run again to write the new `metadata.json`.
@@ -362,7 +366,8 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/harshp2008/spawn-at/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.6...v0.2.0
 [0.2.0-beta.6]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.5...v0.2.0-beta.6
