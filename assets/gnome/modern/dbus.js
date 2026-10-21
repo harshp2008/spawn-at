@@ -12,8 +12,18 @@ export const DBUS_IFACE = `
       <arg type="s" name="target_id" direction="in"/>
       <arg type="s" name="instructions_json" direction="in"/>
     </method>
+    <method name="ArmSpawnEntry">
+      <arg type="s" name="target_id" direction="in"/>
+      <arg type="s" name="entry_key" direction="in"/>
+      <arg type="s" name="instructions_json" direction="in"/>
+    </method>
     <method name="DisarmSpawn">
       <arg type="s" name="target_id" direction="in"/>
+      <arg type="b" name="disarmed" direction="out"/>
+    </method>
+    <method name="DisarmEntry">
+      <arg type="s" name="target_id" direction="in"/>
+      <arg type="s" name="entry_key" direction="in"/>
       <arg type="b" name="disarmed" direction="out"/>
     </method>
     <method name="ExecuteBatch">

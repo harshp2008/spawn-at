@@ -110,14 +110,18 @@ function createMockWindowAndActor() {
     return { window, actor };
 }
 
-// The legacy tree stays at protocol 5; protocol 6 added the ResizeOutcome signal to the modern tree only.
+// The legacy tree stays at protocol 5; protocol 6 added the ResizeOutcome signal and protocol 7 the
+// ArmSpawnEntry and DisarmEntry methods to the modern tree only.
 const RESIZE_OUTCOME_SIGNAL = /    <signal name="ResizeOutcome">[\s\S]*?<\/signal>\n/;
+const ENTRY_METHODS = /    <method name="(ArmSpawnEntry|DisarmEntry)">[\s\S]*?<\/method>\n/g;
 
-test('contract: interface XML parity between modern and legacy D-Bus definitions, apart from the protocol-6 ResizeOutcome signal', () => {
+test('contract: interface XML parity between modern and legacy D-Bus definitions, apart from the protocol-6 ResizeOutcome signal and the protocol-7 entry methods', () => {
     assert.ok(RESIZE_OUTCOME_SIGNAL.test(modernIface), 'modern XML must declare ResizeOutcome');
+    assert.equal([...modernIface.matchAll(ENTRY_METHODS)].length, 2, 'modern XML must declare ArmSpawnEntry and DisarmEntry');
     assert.ok(!legacyIface.includes('ResizeOutcome'), 'legacy XML stays at protocol 5');
-    assert.equal(legacyIface.trim(), modernIface.replace(RESIZE_OUTCOME_SIGNAL, '').trim(),
-        'Legacy and modern D-Bus interface XML must match character-for-character, minus ResizeOutcome');
+    assert.ok(!legacyIface.includes('ArmSpawnEntry') && !legacyIface.includes('DisarmEntry'), 'legacy XML stays at protocol 5');
+    assert.equal(legacyIface.trim(), modernIface.replace(RESIZE_OUTCOME_SIGNAL, '').replace(ENTRY_METHODS, '').trim(),
+        'Legacy and modern D-Bus interface XML must match character-for-character, minus ResizeOutcome and the entry methods');
 });
 
 test('dispatcher (legacy): ProtocolVersion property is 5', () => {

@@ -111,7 +111,7 @@ Without `tui` the library has 6 fewer (the 5 of `tui::app` and the 1 of `tui::lo
 known-empty list, and that every spec is selected by some suite. The unreachable categories `focus`
 and `platform` are pinned.
 
-Node, 12 files:
+Node, 13 files:
 
 | File | Tests |
 | :-- | --: |
@@ -122,6 +122,7 @@ Node, 12 files:
 | `tests/legacy_dispatcher_test.js` | 22 |
 | `tests/x11_observe_test.js` | 21 |
 | `tests/window_control_test.js` | 18 |
+| `tests/stale_arm_test.js` | 14 |
 | `tests/wait_override_test.js` | 9 |
 | `tests/extension_test.js` | 8 |
 | `tests/cloak_test.js` | 5 |

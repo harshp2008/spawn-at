@@ -31,8 +31,9 @@ The legacy tree has no `ready_wait.js` and no `x11_observe.js`.
 | Module syntax | `import` / `export` | `imports.gi`, `Me.imports`; `Me` comes from `ExtensionUtils.getCurrentExtension()` | different |
 | Entry point | `export default class ... extends Extension` | `function init()` returns the object | different |
 | Class definitions | `export class X` | `var X = class X { ... };` plus a `module.exports` guard for the Node tests | different |
-| `ProtocolVersion` | 6 | 5 | different |
+| `ProtocolVersion` | 7 | 5 | different |
 | `ResizeOutcome` signal | declared | not declared | different |
+| `ArmSpawnEntry` and `DisarmEntry` methods | declared | not declared | different |
 | Other D-Bus methods and signals | see section 3 | see section 3 | same |
 | Steps of a spawn (the `switch` in `extension.js`) | set size, wait for commit, set position, uncloak | same | same |
 | Wait for the window | ready-wait (`ready_wait.js`) | 30 ms quiet rule (`commit.js`) | different |
@@ -53,7 +54,7 @@ The unmaximize helper is called from the same five places in both trees: `_stepS
 
 ## 3. Protocol and signals
 
-Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.SpawnAt`. The only difference is the protocol-6 `ResizeOutcome` signal, which only the modern tree has.
+Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.SpawnAt`. The only differences are the protocol-6 `ResizeOutcome` signal and the protocol-7 `ArmSpawnEntry` and `DisarmEntry` methods, which only the modern tree has.
 
 `ProtocolVersion` is a `uint32` property. What each step added:
 
@@ -62,6 +63,7 @@ Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.Spawn
 | ProtocolVersion 4 | `GetLayout` and `--area screen` | `src/platform/capability.rs` |
 | ProtocolVersion 5 | monitor and state columns of `GetWindows` | `src/platform/capability.rs` |
 | ProtocolVersion 6 | the `ResizeOutcome` signal, modern tree only | the D-Bus XML of the two trees |
+| ProtocolVersion 7 | `ArmSpawnEntry` and `DisarmEntry`, modern tree only; the CLI uses them only when it reads 7 or higher | the D-Bus XML of the two trees |
 
 **Not verified.** Protocol 3 added `CloseWindow`.
 
