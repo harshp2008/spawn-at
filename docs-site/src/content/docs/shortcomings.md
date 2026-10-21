@@ -52,7 +52,7 @@ The exit status of the state commands and the cursor options on Sway are covered
 | :-- | :-- |
 | GNOME 46 on Wayland | The only setup tested in earnest: one machine, one monitor. |
 | GNOME 42 to 44 | The legacy extension was never run on a real GNOME 42 to 44. It **may not work at all**. |
-| GNOME 45, 47 and later | The extension's metadata lists 45 to 48, but only 46 has been run. |
+| GNOME 45, 47 and later | The extension's metadata lists 45 to 50, but only 46 has been run in earnest. GNOME 50.1 on Ubuntu 26.04 was tried once by hand and placed a window correctly. |
 | GNOME layouts and apps | Multi-monitor, fractional scaling, Qt and Electron apps: untested. |
 | X11 and XWayland | Test window only, no real apps. No test touches an X server. |
 | Sway | A private headless Sway 1.9 only. No real session, no other version, no i3. |

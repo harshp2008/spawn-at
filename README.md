@@ -184,7 +184,7 @@ A value on the command line beats the file, and the file beats the default; `sho
 | GNOME 46, X11 session | Partly tested (the test fixture only, no real apps) |
 | XWayland windows (X11 apps on a Wayland session) | Test window only, no real apps. Uses the old rule, so it flashes more |
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**: never run on a real GNOME 42-44, it may not work at all |
-| GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 48, but only 46 has been run) |
+| GNOME 45 and 47+ | Untested (the extension's metadata lists 45 to 50, but only 46 has been run in earnest; 50.1 on Ubuntu 26.04 was tried once by hand and placed a window correctly) |
 | Multi-monitor, fractional scaling | Untested |
 | Real GTK apps | A few runs each, Wayland only: gnome-text-editor and nautilus (GTK4), gnome-terminal, zenity and firefox (snap), which we believe are GTK3 (the toolkit version was not checked). Firefox flashed in 6 of 6 runs under the old rule ([experiment 6.12](https://harshp2008.github.io/spawn-at/experiments/6-12-why-revealed-at-pre-resize-size/)). Chrome was never matched |
 | Qt and Electron apps | Untested |

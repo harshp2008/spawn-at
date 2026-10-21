@@ -27,7 +27,7 @@ The legacy tree has no `ready_wait.js` and no `x11_observe.js`.
 
 | What | Modern | Legacy | Same or different |
 | :-- | :-- | :-- | :-- |
-| Shell versions (`metadata.json`) | 45–48 | 42–44 | different |
+| Shell versions (`metadata.json`) | 45–50 | 42–44 | different |
 | Module syntax | `import` / `export` | `imports.gi`, `Me.imports`; `Me` comes from `ExtensionUtils.getCurrentExtension()` | different |
 | Entry point | `export default class ... extends Extension` | `function init()` returns the object | different |
 | Class definitions | `export class X` | `var X = class X { ... };` plus a `module.exports` guard for the Node tests | different |

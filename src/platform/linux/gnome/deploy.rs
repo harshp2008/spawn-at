@@ -29,7 +29,7 @@ const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 
 /// The files of `assets/gnome/modern/`, as (file name, contents), written by `install` when the
 /// detected Shell is 45 or newer or unknown. The `metadata.json` of this set lists Shell
-/// versions 45 to 48.
+/// versions 45 to 50.
 pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
     (
         "extension.js",
