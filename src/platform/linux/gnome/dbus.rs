@@ -25,7 +25,7 @@ use zbus::proxy;
     interface = "org.gnome.Shell.Extensions.SpawnAt"
 )]
 pub trait SpawnAt {
-    /// The extension's protocol number: 6 in `modern/extension.js`, 5 in `legacy/extension.js`.
+    /// The extension's protocol number: 7 in `modern/extension.js`, 5 in `legacy/extension.js`.
     /// The driver treats a failed read as 0 (see `driver.rs`).
     #[zbus(property)]
     fn protocol_version(&self) -> zbus::Result<u32>;
@@ -36,6 +36,18 @@ pub trait SpawnAt {
     /// `Ok` even when the extension rejects the JSON: it logs the
     /// error and returns without a D-Bus error (`ArmSpawn` in `extension.js`).
     fn arm_spawn(&self, target_id: &str, instructions_json: &str) -> zbus::Result<()>;
+    /// `arm_spawn` that also names the registration with `entry_key`, so `disarm_entry` can remove
+    /// just that one. Protocol 7 and higher (`ArmSpawnEntry` in `modern/extension.js`); an older
+    /// extension answers `UnknownMethod`.
+    fn arm_spawn_entry(
+        &self,
+        target_id: &str,
+        entry_key: &str,
+        instructions_json: &str,
+    ) -> zbus::Result<()>;
+    /// Removes the one registration under `target_id` that was armed with `entry_key`. `false`
+    /// when none matches (claimed, expired, never keyed, or an empty key). Protocol 7 and higher.
+    fn disarm_entry(&self, target_id: &str, entry_key: &str) -> zbus::Result<bool>;
     /// Removes every registration queued under `target_id` (`"*"` removes the wildcard). The result
     /// is `false` when nothing was registered under that id, so a repeated call is harmless.
     fn disarm_spawn(&self, target_id: &str) -> zbus::Result<bool>;

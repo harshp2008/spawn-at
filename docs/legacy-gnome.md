@@ -63,7 +63,7 @@ Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.Spawn
 | ProtocolVersion 4 | `GetLayout` and `--area screen` | `src/platform/capability.rs` |
 | ProtocolVersion 5 | monitor and state columns of `GetWindows` | `src/platform/capability.rs` |
 | ProtocolVersion 6 | the `ResizeOutcome` signal, modern tree only | the D-Bus XML of the two trees |
-| ProtocolVersion 7 | `ArmSpawnEntry` and `DisarmEntry`, modern tree only; the CLI uses them only when it reads 7 or higher | the D-Bus XML of the two trees |
+| ProtocolVersion 7 | `ArmSpawnEntry` and `DisarmEntry`, modern tree only; the CLI uses them only when it reads 7 or higher | the D-Bus XML of the two trees, `ENTRY_KEY_PROTOCOL` in `src/platform/linux/gnome/driver.rs` |
 
 **Not verified.** Protocol 3 added `CloseWindow`.
 

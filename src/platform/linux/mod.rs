@@ -107,8 +107,8 @@ pub fn query_x11_cursor() -> Option<(i32, i32)> {
 
 /// The Linux backend: holds one driver and forwards every call to it.
 ///
-/// It forwards each [`CompositorBackend`] method and [`Driver::arm`] to the driver unchanged.
-/// [`Driver::disarm`] is not forwarded: `LinuxBackend` uses the trait default, which does nothing
+/// It forwards each [`CompositorBackend`] method, [`Driver::arm`] and [`Driver::disarm_entry`] to
+/// the driver unchanged. [`Driver::disarm`] is not forwarded: `LinuxBackend` uses the trait default, which does nothing
 /// and returns `Ok(false)`, whatever driver is inside.
 // Surprising, left as is (comment-only change): the spawn command calls `disarm` on the value
 // from `init_backend`, which is a `LinuxBackend` on Linux, so the GNOME driver's `disarm`
@@ -168,6 +168,10 @@ impl LinuxBackend {
 impl Driver for LinuxBackend {
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
         self.driver.arm(batch).await
+    }
+
+    async fn disarm_entry(&self, token: &str, entry_key: &str) -> Result<bool, DriverError> {
+        self.driver.disarm_entry(token, entry_key).await
     }
 }
 
@@ -351,6 +355,17 @@ mod tests {
                 token: Some("tracked-arm-token".into()),
                 launch_env: vec![("TRACKED".into(), "1".into())],
             })
+        }
+
+        async fn disarm(&self, token: &str) -> Result<bool, DriverError> {
+            self.tracker.record(&format!("disarm:{token}"));
+            Ok(true)
+        }
+
+        async fn disarm_entry(&self, token: &str, entry_key: &str) -> Result<bool, DriverError> {
+            self.tracker
+                .record(&format!("disarm_entry:{token}:{entry_key}"));
+            Ok(true)
         }
     }
 
@@ -582,6 +597,24 @@ mod tests {
         assert!(backend.supports_close());
         assert!(backend.close_window("win-close-123").await.is_ok());
         assert!(tracker.has_called("close_window:win-close-123"));
+    }
+
+    /// `disarm_entry` reaches the driver. `disarm` does not: `LinuxBackend` keeps the trait
+    /// default (`Ok(false)`, no call), which this test pins so that forwarding it by accident,
+    /// and with it the whole-queue `DisarmSpawn`, fails here.
+    #[tokio::test]
+    async fn test_linux_backend_forwards_disarm_entry_but_not_disarm() {
+        let tracker = Arc::new(CallTracker::default());
+        let mock = TrackingMockDriver {
+            tracker: tracker.clone(),
+        };
+        let backend = LinuxBackend::new(Box::new(mock));
+
+        assert!(backend.disarm_entry("tok", "key-1").await.unwrap());
+        assert!(tracker.has_called("disarm_entry:tok:key-1"));
+
+        assert!(!backend.disarm("tok").await.unwrap());
+        assert!(!tracker.has_called("disarm:tok"));
     }
 
     #[tokio::test]
