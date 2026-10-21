@@ -1,6 +1,6 @@
 # Project history
 
-Status: reference. This page records what changed in the documents and in how the project is tested, and when. It does not say how anything works now: the reference pages do that.
+**Status:** reference. This page records what changed in the documents and in how the project is tested, and when. It does not say how anything works now: the reference pages do that.
 
 ## Where each kind of note goes
 

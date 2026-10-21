@@ -20,8 +20,9 @@ Things that `--help` does not show, found by running the binary:
   There is no `version` command: `spawn-at version` is rejected as an unrecognized subcommand.
 - `restore` also answers to `unmaximize`, `unmaximise`, `unminimize` and `unminimise`. They are
   not listed in `--help`; `spawn-at unmaximize --help` prints the `restore` help.
-- `spawn` and `config` accept hidden wait flags that the help does not list. They are not
-  documented here.
+- `spawn` and `config` accept hidden wait flags that the help does not list. They are not on
+  these pages; they are described on
+  [Configuration](/spawn-at/configuration/#hidden-flags-for-one-run).
 
 For what each command is for, see [Commands](/spawn-at/commands/).
 

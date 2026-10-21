@@ -1,6 +1,6 @@
 # spawn-at Test Library & Verification Plan
 
-Status: reference. Section 1 is the overview and the counts per binary. Sections 2 and 3 are the catalog and the CLI coverage, section 4 the animation cases, sections 5 and 6 dated investigations, and section 7 the Sway backend. The totals of the counts are on the [Testing](https://harshp2008.github.io/spawn-at/testing/#test-counts) page of the guide, not here.
+**Status:** reference. Section 1 is the overview and the counts per binary. Sections 2 and 3 are the catalog and the CLI coverage, section 4 the animation cases, sections 5 and 6 dated investigations, and section 7 the Sway backend. The totals of the counts are on the [Testing](https://harshp2008.github.io/spawn-at/testing/#test-counts) page of the guide, not here.
 
 Sections 6.10 to 6.35 (the dated experiment log) are in [TEST_LOG.md](TEST_LOG.md). Every old heading stays below as a stub that links to its place, so "TEST_PLAN 6.x" citations keep working.
 
@@ -68,13 +68,13 @@ the policy check.
 | Module (`src/main.rs`) | Tests |
 | :-- | --: |
 | `docs_check` | 32 |
-| `docs_mirror` | 23 |
+| `docs_mirror` | 29 |
 | `docs_cli` | 17 |
 | `docs_html` | 11 |
 | `burn_cpu` | 6 |
 | `docs_site` | 3 |
 | `compiler_docs` | 2 |
-| Unit tests | 94 |
+| Unit tests | 100 |
 | `tests/burn_cpu_test.rs` (runs the built binary) | 2 |
 
 `spawn-at-verify`, by binary and feature set (a dash means the binary is not built with that set):
@@ -357,7 +357,7 @@ machine (`cloak/delayed-paint/delay-500` unless stated). Each finding carries it
 
 #### Finding 1: cloak time has two regimes
 
-Status: CONFIRMED (measured); mechanism HYPOTHESIS.
+Evidence status: CONFIRMED (measured); mechanism HYPOTHESIS.
 
 | Regime | `COMMIT_RESOLVED` to `SetPositionAnchored` gap | Total cloak (UNCLOAK - CLOAK) |
 | :--- | :---: | :---: |
@@ -378,7 +378,7 @@ Status: CONFIRMED (measured); mechanism HYPOTHESIS.
 
 #### Finding 2: no deliberate wait between `COMMIT_RESOLVED` and the next batch step
 
-Status: CONFIRMED (code); the stall itself CONFIRMED (probe, +/-10 ms alignment); its content
+Evidence status: CONFIRMED (code); the stall itself CONFIRMED (probe, +/-10 ms alignment); its content
 HYPOTHESIS.
 
 - Code: `commit.js:62-66` logs `COMMIT_RESOLVED` and calls `resolve()`; `extension.js:783-786`
@@ -397,7 +397,7 @@ HYPOTHESIS.
 
 #### Finding 3: why another window makes the stall short is unexplained
 
-Status: HYPOTHESIS only.
+Evidence status: HYPOTHESIS only.
 
 - Slow batches occurred with about 10 windows open (10 windows were present in all three slow
   batches), so the trigger is not simply "another window exists".
@@ -408,7 +408,7 @@ Status: HYPOTHESIS only.
 
 #### Finding 4: `UNCLOAK_4C` to `UNCLOAK` is a one-frame wait
 
-Status: code CONFIRMED; frame quantisation HYPOTHESIS.
+Evidence status: code CONFIRMED; frame quantisation HYPOTHESIS.
 
 `extension.js:861` does `await waitForFrames(global.stage, 1, 50 ms)`, then `_reveal`. It was
 1.1 - 4.8 ms in the isolated batches, with occasional 10 - 35 ms waits (34.5, 19.9, 18.2, 11.1, 9.8 ms)
@@ -417,7 +417,7 @@ was not shown.
 
 #### Finding 5: outliers did not reproduce
 
-Status: CONFIRMED (not reproduced); cause unknown.
+Evidence status: CONFIRMED (not reproduced); cause unknown.
 
 The earlier 140.18 ms, 115.71 ms and one unmeasured run did not recur in more than 100 runs
 afterwards (40 `--repeat` runs, 60 separate runs and about 50 scripted runs); the largest cloak seen
@@ -431,7 +431,7 @@ A drawer once showed `Cloak 162.0 ms`, `! over provisional budget`, `Trace ✔ c
 
 #### Finding 1: where `162.0 ms` came from
 
-Status: CONFIRMED. The explanation for the equal numbers of two tests is a HYPOTHESIS.
+Evidence status: CONFIRMED. The explanation for the equal numbers of two tests is a HYPOTHESIS.
 
 - The drawer's Cloak row used the trace's CLOAK..UNCLOAK time and, when there was none, fell back to `TestResult::duration_ms` (the old `tui/views/drawer/result_section.rs`). That is the wall-clock time of the whole `spawn-at spawn` process (`runner/executor.rs`, `start.elapsed()`), not a cloak time. The Budget row then judged that number against 100 ms.
 - Reproduced with the previous build (8fa1975) and the extension's logging forced off: `cloak/delayed-paint/delay-0` passed with `"log_slice": ""` and `"duration_ms": 142`, which that drawer would have shown as `Cloak 142.0 ms`.
@@ -440,7 +440,7 @@ Status: CONFIRMED. The explanation for the equal numbers of two tests is a HYPOT
 
 #### Finding 2: why the log slice was empty
 
-Status: mechanism CONFIRMED; the cause in that session is a HYPOTHESIS.
+Evidence status: mechanism CONFIRMED; the cause in that session is a HYPOTHESIS.
 
 - The journal source was in use (`XDG_CURRENT_DESKTOP=ubuntu:GNOME`; `run` now prints `Timing log source: journalctl`). The no-op source (`engine.rs`) is chosen only when that variable is unset or lacks "gnome".
 - The extension's logger writes nothing while its logging is off (`assets/gnome/modern/logger.js`, `logTime`). The journal holds no line for window ids 870906690 or 870906691. CONFIRMED.
@@ -449,13 +449,13 @@ Status: mechanism CONFIRMED; the cause in that session is a HYPOTHESIS.
 
 #### Finding 3: why Trace read "clean"
 
-Status: CONFIRMED.
+Evidence status: CONFIRMED.
 
 `TraceReport::is_pass()` is `violations.is_empty()`, so an analysis of zero events is a pass. An empty (not missing) slice produced exactly that report, and a result with no slice at all hit an explicit `✔ clean, no violations` branch in the drawer. An absent trace is now `TraceState::NotCaptured` (`trace/state.rs`), never a report.
 
 #### Finding 4: how logging is enabled
 
-Status: CONFIRMED. The last point (two TUIs) was read in the code and not run.
+Evidence status: CONFIRMED. The last point (two TUIs) was read in the code and not run.
 
 - The extension has no getter for its logging state (`dbus.js` exposes only `SetLogging`). The state lives in the logger instance created by `enable()` and is off again after a reload.
 - Turning logging off writes no line (`logger.js` clears the flag before it calls `logTime`). After `SetLogging(false)` the last line of `~/.local/state/spawn-at/session.log` was still `SET_LOGGING enabled=true`, and neither that file nor the journal contains a single `enabled=false`.
@@ -605,7 +605,7 @@ The rows keep their numbers because 6.2 and 6.4 cite them ("6.1 row 13").
 
 #### Item 3: the API route to the minimum is unavailable; the design finds the minimum empirically
 
-Status: CONFIRMED (code and logs).
+Evidence status: CONFIRMED (code and logs).
 
 `Meta.Window.prototype.get_min_size` is `undefined` in the Mutter 14 (GNOME 46) typelib:
 
@@ -669,7 +669,7 @@ The exit code was 0 in all 60 probe runs, including every WARNING (6.3). A mis-p
 
 #### Item 9: where the two INFO texts come from
 
-Status: CONFIRMED (code).
+Evidence status: CONFIRMED (code).
 
 The "below toolkit minimums" text is `INFO: Requested size (WxH) is below toolkit minimums; window will expand.`
 
@@ -1018,4 +1018,4 @@ Not covered: real Sway, other Sway versions, outputs other than one 1920x1080 `H
 
 With `-- --tag existing-window` all 22 entries ran: the same 15 passed and 7 were Skipped with `unsupported on this backend (sway): spec requires gnome`. The 7 are `focus/defocus-active-window`, `queries/query-pointer`, `transforms/maximize-and-restore`, `minimize-and-restore`, `move-flash`, `reposition-by-id` and `resize-flash`.
 
-`transforms/reposition-by-id` is GNOME-only. On Sway a fresh tiled window is as large as the work area, so a position-only transform keeps 1920x1080, not the fixture's 400x300. `gnome-shell` kept its PID and the user journal held no line mentioning spawn-at. **None of the GNOME specs has been run**; the Both specs need a person. **None of the GNOME specs has been run**; the Both specs need a person.
+`transforms/reposition-by-id` is GNOME-only. On Sway a fresh tiled window is as large as the work area, so a position-only transform keeps 1920x1080, not the fixture's 400x300. `gnome-shell` kept its PID and the user journal held no line mentioning spawn-at. **None of the GNOME specs has been run**; the Both specs need a person.

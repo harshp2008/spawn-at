@@ -1,6 +1,6 @@
 # Design: tests of an existing window in the verify runner
 
-Status: approved and implemented on 2026-10-15. Version 2 specs run through `execute_v2_test` in `runner/executor_v2.rs` and `SetupSession` in `runner/owned.rs`. 18 spec files under `verify/` use `schema_version = 2`.
+**Status:** approved and implemented on 2026-10-15. Version 2 specs run through `execute_v2_test` in `runner/executor_v2.rs` and `SetupSession` in `runner/owned.rs`. 18 spec files under `verify/` use `schema_version = 2`.
 
 **Sections 1 to 10 are the design as approved.** They describe the code at `ca11523`, before the implementation, and were not rewritten to match the tree: only section 5.5 and section 11 describe what was built. Where the tree has since overtaken a statement of those sections, the text says so or the statement was removed.
 

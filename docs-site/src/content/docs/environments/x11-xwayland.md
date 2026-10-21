@@ -82,8 +82,7 @@ Two later leads, both only on our own GTK4 test client on one machine:
 The code for the failed experiments is not in the current tree. It was removed by later commits but
 is still in the git history of `main`, up to the commit `673e6f2` (2026-10-14): that commit is an
 ancestor of `origin/main`, and the removed files such as `assets/gnome/modern/x11_probe.js` and
-`x11_premap.js` appear as deletions in `git diff 673e6f2 origin/main -- assets`. A local branch named
-`archive/x11-experiments` points at that commit; the branch itself is not pushed to the remote.
+`x11_premap.js` appear as deletions in `git diff 673e6f2 origin/main -- assets`.
 
 ### Future work, not a plan
 
@@ -116,4 +115,4 @@ variables for apps that can run on Wayland.
 - `docs/DESIGN_PLATFORMS.md`, sections 3 (Leak 11) and 5 ("X11")
 - `docs/TEST_COVERAGE_AUDIT.md`, section 3 and gap 3, section 4.2 and gap 10
 - `src/platform/linux/x11/` (file list, `atoms.rs`, `session.rs`, `mod.rs`)
-- `git merge-base --is-ancestor archive/x11-experiments origin/main` (true), `git branch -r --contains 673e6f2`, `git diff --stat 673e6f2 origin/main -- assets` (read only; nothing pushed)
+- `git merge-base --is-ancestor 673e6f2 origin/main`, `git branch -r --contains 673e6f2`, `git diff --stat 673e6f2 origin/main -- assets` (read only; nothing pushed)

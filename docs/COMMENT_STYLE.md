@@ -21,7 +21,7 @@ Rules for comments in Rust code. Comment-only commits must pass
 - If you are not sure, say less, or write "not verified". A missing comment beats a wrong one.
 - No release or version status ("not in beta.4", "main only", "added in 0.2") and no commit
   hashes. They go stale at the next tag and a hash tells a reader nothing. Say what the code does
-  today; release status lives in the release notes and the book.
+  today; release status lives in the release notes and the changelog.
 - No invented history ("used to", "was added because") unless a commit or doc says so.
 - A comment that contradicts the code is fixed or deleted, and listed in the PR report.
   The code is never changed to match a comment.

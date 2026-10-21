@@ -1,6 +1,6 @@
 # Behavior Notes: Coordinate Model, Reference Areas, and Monitor Defaults
 
-Status: reference. Checked on 2026-10-20 against `src/`, `crates/spawn-at-core/`, the GNOME extension
+**Status:** reference. Checked on 2026-10-20 against `src/`, `crates/spawn-at-core/`, the GNOME extension
 and `--help`. The tests it cites exist. Nothing here was run on a live session unless a line says so.
 
 How spawn-at turns the placement options into a window rectangle, which monitor it uses when you do

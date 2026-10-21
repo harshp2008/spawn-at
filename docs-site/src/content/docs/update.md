@@ -234,4 +234,3 @@ separate cache file.
   `src/platform/installer.rs`: `login_entry_exe`; `src/prompts.rs`: lines 54-77
 - the output of `spawn-at update --help`
 - `grep -n -i "sha256\|checksum\|signature\|gpg\|minisign" src/update.rs install.sh` (no output)
-- `grep -n -i "sha256\|checksum\|signature\|gpg\|minisign" src/update.rs install.sh` (no output)

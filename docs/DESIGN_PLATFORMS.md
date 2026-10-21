@@ -2,7 +2,7 @@
 
 **Status:** implemented in part. Section 6 marks steps 0 to 12 done (steps 8 and 12 in part); there is no Windows or macOS backend (`src/platform/non_linux.rs` is a compile-only stand-in).
 
-Status: proposal, written from the tree at `8822484` (v0.2.0-beta.3 merged). The document itself changes no code; migration step 1 (section 6) was then done in this same branch and is marked there. Citations below were re-checked after that step. Every claim about the code cites `file:line`; anything that could not be confirmed here is marked **unverified**. Statements about other platforms come from public knowledge, not from running anything, and are marked the same way.
+It was written as a proposal from the tree at `8822484` (v0.2.0-beta.3 merged). The document itself changes no code; migration step 1 (section 6) was then done in this same branch and is marked there. Citations below were re-checked after that step. Every claim about the code cites `file:line`; anything that could not be confirmed here is marked **unverified**. Statements about other platforms come from public knowledge, not from running anything, and are marked the same way.
 
 Goal: a structure that lets spawn-at support GNOME Wayland (today), other Wayland compositors, X11, Windows, macOS and more, **without changing the working GNOME Wayland behavior**.
 
@@ -57,7 +57,7 @@ Line counts are `wc -l` of the tracked files (tests included, so a file's produc
 | `crates/spawn-at-verify` | 147 files, 32,484 lines | Developer verification harness: runs spawn-at against a fixture window, reads logs and traces, TUI | mixed: runner, oracle, report are neutral; `log_source.rs:39` (`journalctl`), `ext_logging.rs:20` (`gdbus`), `display.rs:77-85` (`xrandr`, `gdbus GetCurrentState`), `probe.rs:150` (`gnome-shell --version`) are GNOME/Linux. Depends only on core. |
 | `crates/xtask` | 7 files, 952 lines | Repository tooling | neutral |
 | `assets/gnome/modern`, `assets/gnome/legacy` | 11 and 9 files, 3,661 and 2,793 lines | The GNOME Shell extensions (JavaScript), embedded in the binary; `extension.js` 1,799 lines; a JS port of `ready_wait` | GNOME |
-| `tests/` | 35 files, 5,644 lines | Node tests of the extension (183), Rust CLI tests, ready-wait vectors (`tests/ready_wait_vectors`) | GNOME (node), neutral (vectors) |
+| `tests/` | 35 files, 5,644 lines | Node tests of the extension, Rust CLI tests, ready-wait vectors (`tests/ready_wait_vectors`) | GNOME (node), neutral (vectors) |
 | `verify/` | 62 files | Test specs (TOML), golden placement | neutral specs, GNOME runner |
 | `install.sh`, `scripts/`, `.github/workflows/` | | Bootstrap installer (Linux x86_64 only, `install.sh:27,42`); CI and release on `ubuntu-24.04` only (`ci.yml:20`) | Linux |
 
@@ -202,7 +202,7 @@ Native: the Accessibility API (`AXUIElement`, set `kAXPositionAttribute` / `kAXS
 
 ## 6. Migration plan
 
-Rule for every step: **behavior-preserving, one logical change, no new feature**, proven in the beta.2 style: sorted test names per binary unchanged, `cargo test` counts unchanged, `--help` of `spawn-at` and each subcommand byte-identical (`install --help` included), `git diff -M --stat` for moves, sha256 of goldens (`verify/golden/placement.json`, `tests/ready_wait_vectors`) unchanged, the node suite (183) unchanged, and the GNOME live suite re-run by the owner on GNOME 46 Wayland before the release that contains the step.
+Rule for every step: **behavior-preserving, one logical change, no new feature**, proven in the beta.2 style: sorted test names per binary unchanged, `cargo test` counts unchanged, `--help` of `spawn-at` and each subcommand byte-identical (`install --help` included), `git diff -M --stat` for moves, sha256 of goldens (`verify/golden/placement.json`, `tests/ready_wait_vectors`) unchanged, the node suite unchanged, and the GNOME live suite re-run by the owner on GNOME 46 Wayland before the release that contains the step.
 
 | Step | Change | Proof | Size | Risk |
 | :-- | :-- | :-- | :-- | :-- |
@@ -239,7 +239,7 @@ Steps 1-3 can be done at once and by themselves reduce risk. Steps 4-10 are the 
 * The ready-wait policy and its Rust/JS parity (`ready_wait.rs` and `assets/gnome/modern/ready_wait.js`, checked by `tests/ready_wait_vectors`), the 30 ms legacy rule, `wait.strategy` / `wait.cap_ms`.
 * Placement math (`geometry.rs`, `verify/golden/placement.json`), config keys and file location, CLI flags and `--help` text, exit codes.
 * The installer flow just stabilised in beta.3: the log-out question last (`session.rs`), `--clean-install`, the prompts' width rules (`prompts.rs`), `install.sh` behavior.
-* The test suites: 273 / 64 / 10 / 404 (4 ignored) / 183 at beta.3; only counts that a step deliberately changes may change, with docs updated in the same commit.
+* The test suites: only counts that a step deliberately changes may change, with docs updated in the same commit (the counts are on the Testing page of the guide).
 
 **Risks.** (1) Trait churn breaks the many test doubles in `commands/mod.rs`, `spawn.rs`, `query.rs`; the supertrait bundle in step 4 is meant to absorb that. (2) `clap` flatten changes can alter help text silently; step 5 must diff help output. (3) Moving code between files changes `file:line` citations in docs (`DESIGN_READY_WAIT.md:66` cites `linux/mod.rs:101`); docs need a pass per move. (4) Off-Linux compilation has never been tried; its cost is unknown. (5) Only GNOME 46 on Wayland has ever been run; any restructuring that touches GNOME-shaped code is verified only by unit tests and the owner's live run. (6) Two helper-based backends (GNOME, KWin) will want a shared "deploy and version a helper" abstraction; designing it from one example is a risk, so keep it GNOME-internal until a second helper exists.
 

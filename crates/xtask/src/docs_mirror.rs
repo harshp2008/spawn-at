@@ -252,6 +252,46 @@ fn is_fence(line: &str) -> bool {
     t.starts_with("```") || t.starts_with("~~~")
 }
 
+/// Problems with the Status line of `docs/<file>`. A mirrored doc has at most one line that starts
+/// (at the first column, outside code fences) with `**Status:**`, and it is written in bold: a
+/// plain `Status:` line is a second format, and a second Status line of either kind put two
+/// Status paragraphs under the title of `DESIGN_PLATFORMS.md` and `DESIGN_READY_WAIT.md`. A doc
+/// with no Status line passes; a label inside a list item (`- Status: ...`) or a heading is not a
+/// line that starts with the word.
+pub fn status_problems(file: &str, text: &str) -> Vec<String> {
+    let mut in_fence = false;
+    let mut lines = Vec::new();
+    let mut problems = Vec::new();
+    for (i, line) in text.lines().enumerate() {
+        if is_fence(line) {
+            in_fence = !in_fence;
+            continue;
+        }
+        if in_fence {
+            continue;
+        }
+        if line.starts_with("**Status:**") {
+            lines.push(i + 1);
+        } else if line.starts_with("Status:") {
+            lines.push(i + 1);
+            problems.push(format!(
+                "docs/{file}:{}: a plain `Status:` line; write it as `**Status:**`",
+                i + 1
+            ));
+        }
+    }
+    if lines.len() > 1 {
+        let at: Vec<String> = lines.iter().map(|n| n.to_string()).collect();
+        problems.push(format!(
+            "docs/{file}: {} lines start with `Status:` (lines {}); keep one `**Status:**` line \
+             under the title and put the rest in a plain sentence below it",
+            lines.len(),
+            at.join(", ")
+        ));
+    }
+    problems
+}
+
 /// The experiment pages of the site, by the number the docs use for them: `6.12` for the file
 /// `6-12-why-revealed-at-pre-resize-size.md`, `6.25a` for `6-25a-window-ping.md`, `6.11.1` for
 /// `6-11-1-final-state-oracle.md`. Built at mirror time from the file names in
@@ -532,6 +572,10 @@ pub fn render_linked(
     text: &str,
     map: &ExperimentMap,
 ) -> Result<(String, LinkStats), String> {
+    let status = status_problems(entry.file, text);
+    if !status.is_empty() {
+        return Err(status.join("\n"));
+    }
     let mut stats = LinkStats::default();
     let mut current_heading: Option<String> = None;
     let mut title = None;
@@ -1395,5 +1439,80 @@ mod tests {
             assert_eq!(forbidden_in(&page), Vec::<String>::new(), "{}", e.file);
         }
         assert!(total >= 100, "only {total} links were made");
+    }
+
+    /// One bold Status line under the title passes; so does a doc with none (the other tests
+    /// render short texts without one).
+    #[test]
+    fn test_one_bold_status_line_is_fine() {
+        let text = "# Title\n\n**Status:** reference. Checked.\n\nText\n";
+        assert_eq!(status_problems("X.md", text), Vec::<String>::new());
+        assert_eq!(
+            status_problems("X.md", "# Title\n\nText\n"),
+            Vec::<String>::new()
+        );
+        assert!(render(entry("CONFIG.md"), text).is_ok());
+    }
+
+    /// The two Status paragraphs of `DESIGN_PLATFORMS.md` before this check (a bold line, then the
+    /// older plain one) are reported once as a count with both line numbers, and the plain one
+    /// also as a wrong format. Two bold lines are reported too.
+    #[test]
+    fn test_second_status_line_is_a_problem() {
+        let old =
+            "# T\n\n**Status:** implemented in part.\n\nStatus: proposal, written from the tree.\n";
+        let problems = status_problems("DESIGN_PLATFORMS.md", old);
+        assert_eq!(problems.len(), 2, "{problems:?}");
+        assert!(problems[0].contains("DESIGN_PLATFORMS.md:5: a plain `Status:`"));
+        assert!(problems[1].contains("2 lines start with `Status:` (lines 3, 5)"));
+        let twice = "# T\n\n**Status:** a.\n\n**Status:** b.\n";
+        let problems = status_problems("X.md", twice);
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("(lines 3, 5)"));
+    }
+
+    /// A plain `Status:` as the only Status line is the second format: it is reported with its
+    /// line number and no count.
+    #[test]
+    fn test_plain_status_line_is_a_problem() {
+        let problems = status_problems("X.md", "# T\n\nStatus: reference.\n");
+        assert_eq!(problems.len(), 1, "{problems:?}");
+        assert!(problems[0].contains("X.md:3: a plain `Status:` line"));
+    }
+
+    /// Only a line that starts with the word counts: a label in a list item, an evidence label
+    /// (`Evidence status:`), a heading and the inside of a code fence are not Status lines.
+    #[test]
+    fn test_status_check_ignores_labels_lists_headings_and_fences() {
+        let text = "# T\n\n**Status:** reference.\n\n- Status: open.\n\n### Status: not measured\n\n\
+                    Evidence status: CONFIRMED.\n\n```text\nStatus: in a fence\n**Status:** too\n```\n";
+        assert_eq!(status_problems("X.md", text), Vec::<String>::new());
+    }
+
+    /// The mirror refuses a doc with two Status lines instead of writing a page with two.
+    #[test]
+    fn test_render_refuses_two_status_lines() {
+        let text = "# T\n\n**Status:** a.\n\nStatus: b.\n";
+        let err = render(entry("CONFIG.md"), text).unwrap_err();
+        assert!(err.contains("a plain `Status:` line"), "{err}");
+        assert!(err.contains("2 lines start with `Status:`"), "{err}");
+    }
+
+    /// Every real mirrored doc has exactly one Status line, in bold, as its first paragraph after
+    /// the title.
+    #[test]
+    fn test_real_docs_have_one_bold_status_line_under_the_title() {
+        let docs = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs");
+        for e in &MIRRORED {
+            let text = fs::read_to_string(docs.join(e.file)).unwrap();
+            assert_eq!(status_problems(e.file, &text), Vec::<String>::new());
+            let mut paragraphs = text.split("\n\n");
+            assert!(paragraphs.next().unwrap().starts_with("# "), "{}", e.file);
+            assert!(
+                paragraphs.next().unwrap().starts_with("**Status:** "),
+                "{}: the first paragraph after the title is not the Status line",
+                e.file
+            );
+        }
     }
 }
