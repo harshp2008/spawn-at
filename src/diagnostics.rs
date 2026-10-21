@@ -173,12 +173,11 @@ impl RequestedPlacement {
                 text.push_str(&format!(", offset {}", fmt(off)));
             }
             (text, anchor != spawn_at_core::geometry::Anchor::Cursor)
-        } else if let Some(p) = params.pos.or(params.offset) {
+        } else {
             // `-p` and `-o` are aliases; the spawn command puts the value in `pos` when there is
             // no anchor, so both flags read as "offset" here.
+            let p = params.pos.or(params.offset)?;
             (format!("offset {}", fmt(p)), true)
-        } else {
-            return None;
         };
         let area = measured_from_area.then(|| {
             let kind = params.area.unwrap_or_default();
