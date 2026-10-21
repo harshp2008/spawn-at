@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - 'v*'
+  # Dry run: builds, tests and checks the versions, and never publishes. Only the publish step at
+  # the end publishes, and it runs only for a push of a v* tag (see its `if`), so starting this
+  # from the Actions tab, on a branch or on a tag, cannot create or change a release.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to check the versions against, for example v0.2.4. Empty: only check that all versions agree with each other.'
+        required: false
+        type: string
 
 jobs:
   build-release:
@@ -16,6 +25,15 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      # First check, before the tests and the build: the tag, the four Cargo.toml files and the
+      # four Cargo.lock entries must all name the same version (crates/xtask/src/release.rs).
+      # A tag push checks the pushed tag; a dry run checks the optional input.
+      - name: Check that the tag matches every crate version
+        id: version
+        env:
+          CHECK_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        run: cargo xtask check-release-version "$CHECK_TAG"
 
       - name: Run Tests
         run: cargo test --verbose
@@ -32,9 +50,24 @@ jobs:
           # install.sh extracts into a temp dir and requires ./spawn-at there.
           tar -tzf spawn-at-x86_64-unknown-linux-gnu.tar.gz | tee /dev/stderr | grep -qx './spawn-at'
 
-      - name: Upload Release Asset
+      # Uses the CHANGELOG.md section of this version as the release body when it has one;
+      # otherwise `found` is false and the release keeps GitHub's generated notes.
+      - name: Take the release notes from CHANGELOG.md
+        id: notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: cargo xtask release-notes "$VERSION" release-notes.md
+
+      - name: Dry run ends here
+        if: github.event_name != 'push'
+        run: |
+          echo "Dry run (${{ github.event_name }}): the checks passed, nothing was published."
+
+      - name: Publish the release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           files: spawn-at-x86_64-unknown-linux-gnu.tar.gz
-          generate_release_notes: true
+          body_path: ${{ steps.notes.outputs.found == 'true' && steps.notes.outputs.path || '' }}
+          generate_release_notes: ${{ steps.notes.outputs.found != 'true' }}
           prerelease: ${{ contains(github.ref_name, '-') }}
