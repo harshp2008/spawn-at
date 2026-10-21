@@ -25,13 +25,13 @@ The rows of each table add up to the totals on the Testing page.
 
 | Binary | Tests |
 | :-- | --: |
-| Unit tests (`src/main.rs`) | 437 |
+| Unit tests (`src/main.rs`) | 441 |
 | `tests/config_cli_test.rs` | 10 |
 | `tests/install_notice_cli_test.rs` | 6 |
 | `tests/sway_backend_cli_test.rs` | 19 |
 | `tests/unsupported_desktop_cli_test.rs` | 3 |
 
-The 437 unit tests by module:
+The 441 unit tests by module:
 
 | Module | Tests |
 | :-- | --: |
@@ -39,7 +39,7 @@ The 437 unit tests by module:
 | `commands` (`state_command_tests` 31, `tests` 20, `spawn` 16, `query` 7) | 74 |
 | `update` | 31 |
 | `cli` | 29 |
-| `diagnostics` | 22 |
+| `diagnostics` | 26 |
 | `platform::upgrade` | 17 |
 | `session` | 16 |
 | `target` | 15 |

@@ -61,7 +61,7 @@ pub struct GeometryArgs {
     #[arg(long, value_enum, help_heading = "Anchor and pivot")]
     pub pivot: Option<Pivot>,
 
-    /// Absolute target screen coordinates [X, Y], or anchor offset when --anchor is specified
+    /// Target position [X, Y], counted from the top-left of the --area rectangle (the work area by default; the whole desktop with --area unbounded), or anchor offset when --anchor is specified
     #[arg(
         short = 'p',
         long,
@@ -73,7 +73,7 @@ pub struct GeometryArgs {
     )]
     pub pos: Option<Vec<i32>>,
 
-    /// Absolute target screen coordinates [X, Y], or anchor offset when --anchor is specified (alias for --pos / -p)
+    /// Target position [X, Y], counted from the top-left of the --area rectangle (the work area by default; the whole desktop with --area unbounded), or anchor offset when --anchor is specified (alias for --pos / -p)
     #[arg(
         short = 'o',
         long,

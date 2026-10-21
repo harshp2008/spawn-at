@@ -58,7 +58,7 @@ This is the one table of counts. Other pages point here.
 
 | Target | Run | Ignored | Command that prints the count |
 | :-- | --: | --: | :-- |
-| `spawn-at` | 475 | 0 | `cargo test --locked -p spawn-at -- --list` |
+| `spawn-at` | 479 | 0 | `cargo test --locked -p spawn-at -- --list` |
 | `spawn-at-core` | 64 | 0 | `cargo test --locked -p spawn-at-core -- --list` |
 | `xtask` | 96 | 0 | `cargo test --locked -p xtask -- --list` |
 | `spawn-at-verify`, no features | 434 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
@@ -67,8 +67,8 @@ This is the one table of counts. Other pages point here.
 | Node, 12 `*_test.js` files | 240 | 0 | `node --test tests/<file>`, once per file |
 | Node, the install-script test | 3 | 0 | CI only |
 
-Rust total with `tui,fixture`: 1260 run and 5 ignored (475 + 64 + 96 + 625). With the 240 Node tests
-that run locally: 1500. With the 3 install-script tests, which only CI runs: 1503.
+Rust total with `tui,fixture`: 1264 run and 5 ignored (479 + 64 + 96 + 625). With the 240 Node tests
+that run locally: 1504. With the 3 install-script tests, which only CI runs: 1507.
 
 Last checked at commit `1a5a618`.
 
