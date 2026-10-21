@@ -38,7 +38,7 @@ command and one placement model, with a separate backend for each desktop undern
 
 ## Status
 
-This is the status of v0.2.3.
+This is the status of v0.2.4.
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
 - **Partly tested, with failures:** GNOME Shell 50.1 on Wayland (Ubuntu 26.04). One run of the

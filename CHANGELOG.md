@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-21
+
+Patch release (#87, #88). After upgrading, `spawn-at update` redeploys the extension as before; the extension itself is unchanged (protocol 7), so no new log-in is needed for this release.
+
 ### Changed
 
 - Release workflow (`.github/workflows/release.yml`): it now fails first if the tag does not equal the version in all four `Cargo.toml` files and the four `Cargo.lock` entries (`cargo xtask check-release-version`); it uses the `CHANGELOG.md` section of the tagged version as the release body when there is one (`cargo xtask release-notes`) and keeps the generated notes otherwise; and `workflow_dispatch` runs it as a dry run that builds and checks but never publishes (the publish step runs only for a push of a `v*` tag). Checked by reading the file, parsing it as YAML and unit tests; the workflow has not run on GitHub yet, and `actionlint` was not available.
