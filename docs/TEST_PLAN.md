@@ -25,18 +25,18 @@ The rows of each table add up to the totals on the Testing page.
 
 | Binary | Tests |
 | :-- | --: |
-| Unit tests (`src/main.rs`) | 441 |
+| Unit tests (`src/main.rs`) | 454 |
 | `tests/config_cli_test.rs` | 10 |
 | `tests/install_notice_cli_test.rs` | 6 |
 | `tests/sway_backend_cli_test.rs` | 19 |
 | `tests/unsupported_desktop_cli_test.rs` | 3 |
 
-The 441 unit tests by module:
+The 454 unit tests by module:
 
 | Module | Tests |
 | :-- | --: |
-| `platform::linux` | 174 |
-| `commands` (`state_command_tests` 31, `tests` 20, `spawn` 16, `query` 7) | 74 |
+| `platform::linux` | 181 |
+| `commands` (`state_command_tests` 31, `tests` 20, `spawn` 22, `query` 7) | 80 |
 | `update` | 31 |
 | `cli` | 29 |
 | `diagnostics` | 26 |
@@ -48,8 +48,8 @@ The 441 unit tests by module:
 | `platform` (`installer` 8, `capability` 7, `install_notice` 4, `provisioner` 3, `update_hooks` 3, `session_actions` 2, `null_backend` 1) | 28 |
 | `prompts` | 4 |
 
-The 174 of `platform::linux` are `sway` 70, `gnome` 74, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
-`config_store` 2 and `tests` 2.
+The 181 of `platform::linux` are `sway` 70, `gnome` 80, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
+`config_store` 2 and `tests` 3.
 
 `spawn-at-core`:
 
@@ -111,7 +111,7 @@ Without `tui` the library has 6 fewer (the 5 of `tui::app` and the 1 of `tui::lo
 known-empty list, and that every spec is selected by some suite. The unreachable categories `focus`
 and `platform` are pinned.
 
-Node, 12 files:
+Node, 13 files:
 
 | File | Tests |
 | :-- | --: |
@@ -122,6 +122,7 @@ Node, 12 files:
 | `tests/legacy_dispatcher_test.js` | 22 |
 | `tests/x11_observe_test.js` | 21 |
 | `tests/window_control_test.js` | 18 |
+| `tests/stale_arm_test.js` | 14 |
 | `tests/wait_override_test.js` | 9 |
 | `tests/extension_test.js` | 8 |
 | `tests/cloak_test.js` | 5 |

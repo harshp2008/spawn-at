@@ -54,6 +54,9 @@ export default class SpawnAtExtension extends Extension {
         this._batchBusy = false;
         this._currentBatchItem = null;
         this._armedSpawns = new Map();
+        // Entry key of each queued instruction list, for DisarmEntry. Arms made through the
+        // two-argument ArmSpawn have no key.
+        this._armKeys = new WeakMap();
         this._wildcardTarget = null;
         this._wildcardTimeoutId = 0;
         this._anchors = new Map();
@@ -1526,8 +1529,9 @@ export default class SpawnAtExtension extends Extension {
     // =======================================================================
 
     // 6 adds the ResizeOutcome signal (emitted before SpawnClaimed for native Wayland windows).
+    // 7 adds ArmSpawnEntry and DisarmEntry, so a CLI that gave up can withdraw its own arm.
     get ProtocolVersion() {
-        return 6;
+        return 7;
     }
 
     DisarmSpawn(target_id) {
@@ -1545,7 +1549,33 @@ export default class SpawnAtExtension extends Extension {
         return false;
     }
 
+    // Removes the one entry armed under entry_key. Other entries of the same target keep their
+    // place. False when nothing matched: already claimed, expired, dropped by the 16-entry cap,
+    // armed without a key, or an empty key.
+    DisarmEntry(target_id, entry_key) {
+        if (!target_id || !entry_key)
+            return false;
+        const queue = this._armedSpawns.get(target_id);
+        const idx = queue ? queue.findIndex(i => this._armKeys.get(i) === entry_key) : -1;
+        this.logTime('DISARM_ENTRY', `target="${target_id}" entry="${entry_key}" removed=${idx !== -1}`);
+        if (idx === -1)
+            return false;
+        queue.splice(idx, 1);
+        if (queue.length === 0)
+            this._armedSpawns.delete(target_id);
+        this._releaseHeldIfIdle();
+        return true;
+    }
+
     ArmSpawn(target_id, instructions_json) {
+        this._arm(target_id, instructions_json, '');
+    }
+
+    ArmSpawnEntry(target_id, entry_key, instructions_json) {
+        this._arm(target_id, instructions_json, entry_key);
+    }
+
+    _arm(target_id, instructions_json, entry_key) {
         this.logTime('ARM_SPAWN', `target="${target_id}"`);
 
         let instructions;
@@ -1575,6 +1605,8 @@ export default class SpawnAtExtension extends Extension {
             queue.shift();
         }
         queue.push(instructions);
+        if (entry_key)
+            this._armKeys.set(instructions, entry_key);
 
         this._addTimer(ARM_EXPIRY_MS, () => {
             const queue = this._armedSpawns.get(target_id);

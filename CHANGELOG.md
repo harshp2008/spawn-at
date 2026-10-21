@@ -6,6 +6,14 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- An arm that no window claims no longer misplaces the next show of the same app (#84). When `spawn` is run while the app's window is already visible and the app only forwards the request to its running instance, no window is created, the instruction stayed queued in the extension for 15 s, and the next window of that app was placed from it (the oldest entry is served first). `spawn` now withdraws its own entry when the wait ends without a claim (timeout, or an app that reused an old window). This needs the new extension: run `spawn-at update` or `spawn-at install`, then log out and back in. A new CLI with an older extension, and an older CLI with the new extension, behave as before. Not fixed: a window shown within the CLI's own wait of about 4 s after such an arm, `--no-wait`, a CLI that is killed (all rely on the 15 s expiry), and the legacy extension for GNOME 42 to 44. Tested with node and D-Bus stubs; not yet run on a live GNOME Shell.
+
+### Added
+
+- Extension protocol 7 (modern tree only): the D-Bus methods `ArmSpawnEntry(target_id, entry_key, instructions_json)` and `DisarmEntry(target_id, entry_key)`. `ArmSpawn` and `DisarmSpawn` are unchanged. The CLI uses the new methods only when the extension reports protocol 7 or higher.
+
 ## [0.2.2] - 2026-10-21
 
 Patch release: GNOME Shell 49 and 50 support (#82). After upgrading, run `spawn-at update` (it redeploys the extension) or `spawn-at install`, then log out and back in, so the new `metadata.json` is written and loaded.

@@ -74,6 +74,11 @@ pub const EXPECTED_PROTOCOL_VERSION: u32 = 3;
 /// subscribes to that signal only at this version or higher.
 pub const RESIZE_OUTCOME_PROTOCOL: u32 = 6;
 
+/// The first extension protocol that has `ArmSpawnEntry` and `DisarmEntry`. `arm` uses the keyed
+/// method, and `disarm_entry` calls the extension, only at this version or higher; below it the
+/// plain `ArmSpawn` is used and an entry is never withdrawn early.
+pub const ENTRY_KEY_PROTOCOL: u32 = 7;
+
 /// The warning for a loaded extension that reports `found`, below [`EXPECTED_PROTOCOL_VERSION`].
 fn old_protocol_text(found: u32) -> String {
     diagnose::message(&Diagnosis::OldProtocol {
@@ -233,6 +238,10 @@ impl Driver for GnomeWaylandDriver {
     /// `Ok` does not prove the extension accepted the instructions: it logs invalid JSON and
     /// returns normally.
     ///
+    /// Each entry is armed with `ArmSpawnEntry` (named by its `key`, so `disarm_entry` can remove
+    /// just that one) when the protocol is [`ENTRY_KEY_PROTOCOL`] or higher, and with the plain
+    /// `ArmSpawn` otherwise or when the version could not be read.
+    ///
     /// A protocol below [`EXPECTED_PROTOCOL_VERSION`] prints a warning and carries on. A failed
     /// version read does not warn by itself: if `ArmSpawn` then fails, the error says why
     /// (`diagnose.rs`); if it succeeds, the extension is loaded without a readable
@@ -266,16 +275,20 @@ impl Driver for GnomeWaylandDriver {
                 DriverError::Execution(format!("Failed to serialize instructions: {}", e).into())
             })?;
 
-            self.proxy
-                .arm_spawn(target_id, &instructions_json)
-                .await
-                .map_err(|e| {
-                    DriverError::IpcError(format!(
-                        "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n{}",
-                        e,
-                        explain_failure(ext_version)
-                    ))
-                })?;
+            let armed_call = if ext_version.is_some_and(|v| v >= ENTRY_KEY_PROTOCOL) {
+                self.proxy
+                    .arm_spawn_entry(target_id, &entry.key, &instructions_json)
+                    .await
+            } else {
+                self.proxy.arm_spawn(target_id, &instructions_json).await
+            };
+            armed_call.map_err(|e| {
+                DriverError::IpcError(format!(
+                    "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n{}",
+                    e,
+                    explain_failure(ext_version)
+                ))
+            })?;
 
             if ext_version.is_none() && !warned_old {
                 crate::diagnostics::render_warning(&old_protocol_text(0));
@@ -306,6 +319,26 @@ impl Driver for GnomeWaylandDriver {
             .disarm_spawn(token)
             .await
             .map_err(|e| DriverError::IpcError(format!("Failed to disarm spawn on D-Bus: {}", e)))
+    }
+
+    /// Asks the extension to drop the one registration armed under `token` with `entry_key`
+    /// (`DisarmEntry`). `Ok(false)` without any call when the extension reports a protocol below
+    /// [`ENTRY_KEY_PROTOCOL`] or the version cannot be read: `arm` uses the unkeyed `ArmSpawn` in
+    /// those cases, and the extension would answer `UnknownMethod` to `DisarmEntry`. Otherwise
+    /// `Ok(true)` when the entry was removed and `Ok(false)` when it had already been claimed or
+    /// had expired.
+    ///
+    /// Errors: [`DriverError::IpcError`] when the D-Bus call fails; a caller that wants
+    /// best-effort ignores the result.
+    async fn disarm_entry(&self, token: &str, entry_key: &str) -> Result<bool, DriverError> {
+        match self.proxy.protocol_version().await {
+            Ok(v) if v >= ENTRY_KEY_PROTOCOL => {}
+            _ => return Ok(false),
+        }
+        self.proxy
+            .disarm_entry(token, entry_key)
+            .await
+            .map_err(|e| DriverError::IpcError(format!("Failed to disarm entry on D-Bus: {}", e)))
     }
 }
 

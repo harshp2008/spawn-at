@@ -208,24 +208,45 @@ fn test_legacy_and_modern_dbus_xml_parity() {
     }
 
     // The legacy tree (GNOME 42-44) stays at protocol 5; protocol 6 added the ResizeOutcome
-    // signal to the modern tree only. Everything else must still be identical.
-    fn without_resize_outcome(xml: &str) -> String {
+    // signal and protocol 7 the ArmSpawnEntry and DisarmEntry methods to the modern tree only.
+    // Everything else must still be identical.
+    fn without_block(xml: &str, open: &str, close: &str, what: &str) -> String {
         let start = xml
-            .find("    <signal name=\"ResizeOutcome\">")
-            .expect("modern XML must declare ResizeOutcome (protocol 6)");
-        let end_tag = "</signal>\n";
-        let end = start + xml[start..].find(end_tag).unwrap() + end_tag.len();
+            .find(open)
+            .unwrap_or_else(|| panic!("modern XML must declare {what}"));
+        let end = start + xml[start..].find(close).unwrap() + close.len();
         format!("{}{}", &xml[..start], &xml[end..])
+    }
+    fn without_modern_only(xml: &str) -> String {
+        let xml = without_block(
+            xml,
+            "    <signal name=\"ResizeOutcome\">",
+            "</signal>\n",
+            "ResizeOutcome (protocol 6)",
+        );
+        let xml = without_block(
+            &xml,
+            "    <method name=\"ArmSpawnEntry\">",
+            "</method>\n",
+            "ArmSpawnEntry (protocol 7)",
+        );
+        without_block(
+            &xml,
+            "    <method name=\"DisarmEntry\">",
+            "</method>\n",
+            "DisarmEntry (protocol 7)",
+        )
     }
 
     let modern_xml = extract_xml(modern_dbus);
     let legacy_xml = extract_xml(legacy_dbus);
 
     assert!(!legacy_xml.contains("ResizeOutcome"));
+    assert!(!legacy_xml.contains("ArmSpawnEntry") && !legacy_xml.contains("DisarmEntry"));
     assert_eq!(
-            without_resize_outcome(&modern_xml),
+            without_modern_only(&modern_xml),
             legacy_xml,
-            "D-Bus interface XML must match between modern and legacy extensions, apart from the protocol-6 ResizeOutcome signal"
+            "D-Bus interface XML must match between modern and legacy extensions, apart from the protocol-6 ResizeOutcome signal and the protocol-7 ArmSpawnEntry and DisarmEntry methods"
         );
     assert!(modern_xml.contains("name=\"SpawnClaimed\""));
     assert!(modern_xml.contains("name=\"ProtocolVersion\""));
