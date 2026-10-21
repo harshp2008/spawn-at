@@ -189,8 +189,8 @@ that behind. Read from source, not run. Details, and what to check:
 
 ### Which version am I running?
 
-`spawn-at -V` or `--version`. A build that is not on a release tag prints `DEV BUILD`, the last
-release and a commit id.
+`spawn-at -V` or `--version`. A build that is not on a release tag prints `DEV BUILD <crate
+version>`, the last release and a commit id.
 
 ### Does `update` check what it downloads?
 

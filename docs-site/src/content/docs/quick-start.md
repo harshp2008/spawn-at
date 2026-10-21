@@ -14,12 +14,14 @@ spawn-at --version
 ```
 
 A release build prints `spawn-at <version>`, the release tag without its leading `v`. A build that
-is not on a release tag prints `DEV BUILD`, the last release and a commit id instead. If the shell
+is not on a release tag prints `DEV BUILD <crate version>`, then the last release and a commit id
+(the first line never starts with `spawn-at `, so a script that matches `spawn-at <version>` still
+sees "not a release"). If the shell
 says `command not found`, see
 [the `PATH` entry](/spawn-at/troubleshooting/#spawn-at-command-not-found-after-install).
 
-Only the `DEV BUILD` form was run for this guide, on a build that is not on a tag. The release form
-is read from the code (see Sources), not run.
+Only the `DEV BUILD` form was run, on a build that is not on a tag. The release form is read from
+the code (see Sources) and pinned by a unit test, not run.
 
 ## 2. See the screen
 

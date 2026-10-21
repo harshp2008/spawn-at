@@ -59,7 +59,7 @@ When standard output is not a terminal, or with `--headless`, there is no menu.
 ### A build that is not a release
 
 A binary built from a commit that is not on a release tag has no parseable version (`spawn-at -V`
-prints `DEV BUILD`). For such a build:
+prints `DEV BUILD <crate version>`). For such a build:
 
 - `update --check` finds no candidate and prints `spawn-at is up to date (dev).`
 - `update` without `--check` prints `Running build does not have a parseable release version (dev

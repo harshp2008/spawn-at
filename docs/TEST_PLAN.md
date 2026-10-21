@@ -25,19 +25,20 @@ The rows of each table add up to the totals on the Testing page.
 
 | Binary | Tests |
 | :-- | --: |
-| Unit tests (`src/main.rs`) | 470 |
+| Unit tests (`src/main.rs`) | 473 |
 | `tests/config_cli_test.rs` | 10 |
 | `tests/install_notice_cli_test.rs` | 6 |
 | `tests/sway_backend_cli_test.rs` | 19 |
 | `tests/unsupported_desktop_cli_test.rs` | 3 |
+| `tests/version_cli_test.rs` | 1 |
 
-The 470 unit tests by module:
+The 473 unit tests by module:
 
 | Module | Tests |
 | :-- | --: |
 | `platform::linux` | 193 |
 | `commands` (`state_command_tests` 31, `tests` 20, `spawn` 22, `query` 7) | 80 |
-| `update` | 31 |
+| `update` | 34 |
 | `cli` | 29 |
 | `diagnostics` | 26 |
 | `platform::upgrade` | 17 |
@@ -81,7 +82,7 @@ the policy check.
 
 | Binary | No features | `tui` | `tui,fixture` |
 | :-- | --: | --: | --: |
-| Unit tests (`src/lib.rs`) | 335 | 341 | 341 |
+| Unit tests (`src/lib.rs`) | 336 | 342 | 342 |
 | Fixture binary (`src/bin/fixture.rs`) | - | - | 22 |
 | `src/main.rs` | 0 | 0 | 0 |
 | `tests/action_trace_test.rs` | 12 | 12 | 12 |
@@ -102,8 +103,8 @@ the policy check.
 | `tests/trace_window_scope_test.rs` | 6 | 6 | 6 |
 | `tests/tui_test.rs` | - | 145 (and 1 ignored) | 145 (and 1 ignored) |
 
-The 341 unit tests of the library, counted with `tui`, by area: `runner` 135, `oracle` 43, `schema`
-41, `report` 21, `trace` 19, `preflight` 12, `cli` 11, `tracker` 10, `backend` 8, `ext_logging` 8,
+The 342 unit tests of the library, counted with `tui`, by area: `runner` 135, `oracle` 43, `schema`
+41, `report` 21, `trace` 19, `preflight` 13, `cli` 11, `tracker` 10, `backend` 8, `ext_logging` 8,
 `loader` 7, `tui` 6, `probe` 5, `display` 4, `loadavg` 4, `log_source` 3, `no_config` 2 and `process` 2.
 Without `tui` the library has 6 fewer (the 5 of `tui::app` and the 1 of `tui::logging`).
 
