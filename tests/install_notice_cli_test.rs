@@ -87,6 +87,12 @@ fn test_other_versions_are_untested_and_yes_still_prints_the_notice() {
     for v in ["45.1", "47.0"] {
         let t = stdout(&install_dry_run(v, &["--yes"]));
         assert!(t.contains("is UNTESTED"), "{v}: {t}");
+        // The wording says what IS tested (built from the verified list), not "only 46".
+        assert!(
+            t.contains("spawn-at has been tested on GNOME Shell 46")
+                && !t.contains("only been run"),
+            "{v}: {t}"
+        );
     }
 }
 

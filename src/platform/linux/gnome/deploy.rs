@@ -260,7 +260,8 @@ impl GnomeWaylandDriver {
 
 impl Provisioner for GnomeWaylandDriver {
     /// The notice for the detected GNOME Shell version and session type, from
-    /// `install_notice::gnome_notice`; `None` for Shell 46 on Wayland. Runs `gnome-shell
+    /// `install_notice::gnome_notice`; `None` for an environment in `install_notice::VERIFIED`
+    /// with full coverage (today Shell 46 on Wayland). Runs `gnome-shell
     /// --version` and `loginctl` (see `detect.rs`).
     fn install_notice(&self) -> Option<String> {
         crate::platform::install_notice::gnome_notice(

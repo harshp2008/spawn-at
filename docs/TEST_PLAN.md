@@ -25,13 +25,13 @@ The rows of each table add up to the totals on the Testing page.
 
 | Binary | Tests |
 | :-- | --: |
-| Unit tests (`src/main.rs`) | 466 |
+| Unit tests (`src/main.rs`) | 470 |
 | `tests/config_cli_test.rs` | 10 |
 | `tests/install_notice_cli_test.rs` | 6 |
 | `tests/sway_backend_cli_test.rs` | 19 |
 | `tests/unsupported_desktop_cli_test.rs` | 3 |
 
-The 466 unit tests by module:
+The 470 unit tests by module:
 
 | Module | Tests |
 | :-- | --: |
@@ -45,7 +45,7 @@ The 466 unit tests by module:
 | `target` | 15 |
 | `config` (`tests` 13, `autostart_file_tests` 3) | 16 |
 | `ui` | 11 |
-| `platform` (`installer` 8, `capability` 7, `install_notice` 4, `provisioner` 3, `update_hooks` 3, `session_actions` 2, `null_backend` 1) | 28 |
+| `platform` (`installer` 8, `capability` 7, `install_notice` 8, `provisioner` 3, `update_hooks` 3, `session_actions` 2, `null_backend` 1) | 32 |
 | `prompts` | 4 |
 
 The 193 of `platform::linux` are `sway` 70, `gnome` 92, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
