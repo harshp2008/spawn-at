@@ -17,9 +17,11 @@ or an earlier failure.
 
 ### The extension was installed but is not active, or `extension is older than the CLI expects`
 
-- **Symptom.** Either `Extension protocol mismatch (detected older extension). Please log out and
-  back in to load the updated extension.` as a warning, or an error such as `extension is older
-  than the CLI expects (protocol 2, need 3): run spawn-at install and log out and back in`.
+- **Symptom.** Either a warning that starts `The extension is loaded but reports protocol N; this
+  spawn-at expects 3 or newer.` and ends `log out and back in to load the updated extension`, or an
+  error such as `extension is older than the CLI expects (protocol 2, need 3): run spawn-at install
+  and log out and back in`. The warning is printed only when the extension answered with an older
+  protocol. An extension that does not answer at all gets the other entry below.
 - **Cause.** On Wayland the Shell loads an extension at log-in. A newer extension written to disk is
   not loaded until you log out and back in, and the extension exposes only a protocol number, not a
   content hash. The installer decides whether a log-out is needed by comparing file times with the
@@ -33,14 +35,19 @@ or an earlier failure.
 
 ### `Failed to communicate with SpawnAt GNOME extension via D-Bus`
 
-- **Symptom.** The text continues `Reason: The extension does not appear to be running on the
-  session bus.` and `Fix: Run 'spawn-at install' to install and activate the extension.`
-- **Cause.** The message is returned for any failure of the call to the extension, so it says the
-  extension is not running whatever the real cause was. A code comment adds that whether this call
-  already fails when the extension is not loaded is not verified.
-- **Fix.** The message's own advice (`spawn-at install`), then the log-out described in
-  [the extension is not active entry](#the-extension-was-installed-but-is-not-active-or-extension-is-older-than-the-cli-expects).
-  No other cause is recorded.
+- **Symptom.** The text continues with a reason and a fix, chosen from what spawn-at finds on disk
+  and in `gnome-extensions info`: not installed (run `spawn-at install`); installed but disabled
+  (run `gnome-extensions enable spawn-at@harsh.local`); OUT OF DATE, meaning the installed
+  `metadata.json` does not list the running GNOME Shell version (upgrade spawn-at, run `spawn-at
+  install`, log out and back in); or installed and listed but silent (check `gnome-extensions info
+  spawn-at@harsh.local`; on Wayland a new extension loads at the next login).
+- **Cause.** GNOME does not load an extension whose `shell-version` list lacks the running Shell
+  major, and the extension's D-Bus object then never appears. The owner saw this on GNOME Shell 50.1
+  with a release that listed 45 to 48. The choice between the causes is made from files and command
+  output and is unit-tested; it has not been run on a live Shell.
+- **Fix.** The message's own advice, then the log-out described in
+  [the extension is not active entry](#the-extension-was-installed-but-is-not-active-or-extension-is-older-than-the-cli-expects)
+  where the message asks for it.
 
 ### `spawn-at: command not found` after `install`
 

@@ -6,7 +6,17 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- GNOME Shell 49 and 50 are listed in `assets/gnome/modern/metadata.json`. Before, GNOME 50 marked the extension OUT OF DATE and never loaded it, so no D-Bus object appeared and every `spawn` printed the "protocol mismatch" warning and `UnknownMethod: Object does not exist`. The owner ran GNOME 50.1 (Ubuntu 26.04, Wayland) by hand with the two entries added and the extension was ACTIVE and placed windows correctly; GNOME 49 and the legacy tree were not run. It reaches users with the next release, and then `spawn-at install` has to be run again to write the new `metadata.json`.
+
+### Fixed
+
+- When the extension does not answer on the session bus, the error now says why: not installed, installed but disabled, OUT OF DATE (the installed `metadata.json` does not list the running Shell major: upgrade spawn-at, run `spawn-at install`, log out and back in), or loaded with an older protocol. Only that last case prints "log out and back in to load the updated extension". A failed `ProtocolVersion` read is no longer counted as protocol 0, so a missing extension no longer prints "protocol mismatch (detected older extension)" or the "does not support SpawnClaimed" note. Not run on a live Shell.
+
 ### Changed
+
+- The placement line names the request, the area and the screen position, for example `Window mapped at final size (814x601), offset (100, 100) in workarea (origin 0, 40) -> screen position (100, 140).`, instead of only `... and positioned at (100, 140).` Placement itself is unchanged. The `--pos` and `--offset` help text said "absolute target screen coordinates"; it now says the position is counted from the `--area` rectangle (the work area by default).
 
 - Documentation site only (nothing in `spawn-at`, the extension or `install.sh` changed): a table with a long cell (240 characters or more) on the pages written from `docs/` is shown as records, one block per row with the key on the left and the other columns as labelled fields, instead of as a table with 25-character cells. `<!-- site: records -->`, `<!-- site: records key=N -->` and `<!-- site: table -->` above a table choose the layout by hand; `cargo xtask docs-check-src` checks them. A list whose keys all start with a whole number is drawn as numbered steps and any other as cards, and `<!-- site: records style=steps -->` or `style=cards` chooses between the two (#69). The step 11 row of the migration table in `docs/DESIGN_PLATFORMS.md` has its Proof text in the Proof column again.
 
