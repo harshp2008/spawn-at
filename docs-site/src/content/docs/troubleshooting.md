@@ -117,7 +117,11 @@ or an earlier failure.
   installed and enabled`. Exit status 0.
 - **Cause.** `gnome-extensions enable` exited non-zero. `install` stops with an error only if
   `gnome-extensions` cannot be started. Builds before this version printed the success line even
-  then.
+  then. On a first install on Wayland, exit code 2 together with `gnome-extensions info` saying the
+  Shell does not know the extension is the usual reason (the Shell has not indexed the new
+  directory yet); that case prints `The extension is installed. GNOME Shell has not indexed it yet,
+  so it loads after you log out and back in ...` instead of this note. Not run end to end: the
+  condition is covered by unit tests with injected facts.
 - **Fix.** Log out and back in (see
   [the extension is not active entry](#the-extension-was-installed-but-is-not-active-or-extension-is-older-than-the-cli-expects)),
   then read the state with

@@ -225,6 +225,66 @@ fn enable_note_text(why: &str) -> String {
     )
 }
 
+/// What `install` tells the user about the result of `gnome-extensions enable`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum EnableReport {
+    /// Exit 0: the success line.
+    Enabled,
+    /// The one benign failure: a first install on Wayland, where `enable` exits 2 because the
+    /// running Shell has not indexed the new extension directory yet.
+    NotIndexedYet,
+    /// Any other failure; the text is [`exit_failure`]'s ("exited with code N", ...). Printed as
+    /// the loud note by [`enable_note_text`].
+    Failed(String),
+}
+
+/// Decides what to report after `gnome-extensions enable` ended with `code` (`success` is its
+/// exit status being 0). Only exit code 2 on a first install on Wayland, **and** the Shell
+/// answering `gnome-extensions info` with "no such extension" (`shell_knows` gives
+/// `Some(false)`), is [`EnableReport::NotIndexedYet`]; every other failure, including exit 2 on a
+/// later install or with an unreadable `info`, is [`EnableReport::Failed`]. `shell_knows` is only
+/// called in the one case that needs it.
+fn enable_report(
+    success: bool,
+    code: Option<i32>,
+    first_wayland_install: bool,
+    shell_knows: impl FnOnce() -> Option<bool>,
+) -> EnableReport {
+    match exit_failure_from(success, code) {
+        None => EnableReport::Enabled,
+        Some(_) if code == Some(2) && first_wayland_install && shell_knows() == Some(false) => {
+            EnableReport::NotIndexedYet
+        }
+        Some(why) => EnableReport::Failed(why),
+    }
+}
+
+/// From the exit code and stdout of `gnome-extensions info <uuid>`: `Some(true)` when it exits 0
+/// and prints a `State:` line, `Some(false)` when it exits 2 (what GNOME Shell 50.1 does for an
+/// extension it does not know: `Extension “…” doesn't exist`), `None` for anything else.
+fn parse_info_known(code: Option<i32>, stdout: &str) -> Option<bool> {
+    match code {
+        Some(0) => logout::parse_info_active(stdout).map(|_| true),
+        Some(2) => Some(false),
+        _ => None,
+    }
+}
+
+/// Runs `gnome-extensions info` (read only) and applies [`parse_info_known`]; `None` when it
+/// cannot be started.
+fn shell_knows_extension() -> Option<bool> {
+    let o = Command::new("gnome-extensions")
+        .args(["info", EXTENSION_UUID])
+        .output()
+        .ok()?;
+    parse_info_known(o.status.code(), &String::from_utf8_lossy(&o.stdout))
+}
+
+/// The plain message printed instead of [`enable_note_text`] in the one [`EnableReport::NotIndexedYet`]
+/// case. It does not promise that the extension ends up enabled, only what is known: the files
+/// are in place and the Shell reads them at the next log-in.
+const NOT_INDEXED_YET_TEXT: &str = "The extension is installed. GNOME Shell has not indexed it yet, so it loads after you log out and back in. If 'gnome-extensions list --enabled' does not show it then, run 'gnome-extensions enable spawn-at@harsh.local'.";
+
 /// The warning printed by `uninstall` instead of the success line when `gnome-extensions
 /// disable` could not be run or did not exit with 0. `files_removed` says whether the extension
 /// directory was deleted by this run.
@@ -301,17 +361,19 @@ impl Provisioner for GnomeWaylandDriver {
 
         // Read before anything is written. Only on Wayland (X11 reloads the Shell in place);
         // any fact that cannot be read keeps the log-out advice (see logout.rs).
-        let logout_not_needed = is_wayland
-            && logout::decide(
-                &logout::RealFacts {
-                    ext_dir: ext_dir.clone(),
-                    uuid: EXTENSION_UUID,
-                },
-                files,
-            ) == logout::LogoutNeed::NotNeeded;
+        let facts = logout::RealFacts {
+            ext_dir: ext_dir.clone(),
+            uuid: EXTENSION_UUID,
+        };
+        // No extension directory yet: this run is the first install, so the running Shell cannot
+        // know the extension (see `enable_report`).
+        let first_install = matches!(logout::ExtensionFacts::deployed_files(&facts), Ok(None));
+        let logout_not_needed =
+            is_wayland && logout::decide(&facts, files) == logout::LogoutNeed::NotNeeded;
 
         let interactive = !args.headless && std::io::stdout().is_terminal();
         let auto_enable = if interactive {
+            crate::ui::require_prompt().map_err(|m| DriverError::Execution(m.into()))?;
             crate::ui::section("GNOME Shell Extension Setup");
             Confirm::new()
                 .with_prompt(crate::prompts::PROMPT_ENABLE_EXTENSION)
@@ -379,10 +441,17 @@ impl Provisioner for GnomeWaylandDriver {
                     )
                 })?;
 
-            if let Some(why) = exit_failure(&status) {
-                println!("{}", enable_note_text(&why));
-            } else {
-                println!("Spawn-At GNOME extension successfully installed and enabled.");
+            match enable_report(
+                status.success(),
+                status.code(),
+                is_wayland && first_install,
+                shell_knows_extension,
+            ) {
+                EnableReport::Enabled => {
+                    println!("Spawn-At GNOME extension successfully installed and enabled.")
+                }
+                EnableReport::NotIndexedYet => println!("{NOT_INDEXED_YET_TEXT}"),
+                EnableReport::Failed(why) => println!("{}", enable_note_text(&why)),
             }
         } else {
             println!("Extension files deployed. Skipping automatic enablement (--gnome-auto-enable=false).");
@@ -418,6 +487,7 @@ impl Provisioner for GnomeWaylandDriver {
 
         let interactive = !args.headless && std::io::stdout().is_terminal();
         let delete_files = if interactive {
+            crate::ui::require_prompt().map_err(|m| DriverError::Execution(m.into()))?;
             crate::ui::section("GNOME Shell Extension Uninstallation");
             println!("{}", crate::prompts::NOTE_DELETE_EXTENSION_FILES);
             Confirm::new()
@@ -609,6 +679,86 @@ mod tests {
             exit_failure_from(false, None).as_deref(),
             Some("was ended by a signal")
         );
+    }
+
+    /// The one benign case: exit 2 on a first Wayland install while the Shell says it does not
+    /// know the extension. Exit 0 is plain success and asks nothing.
+    #[test]
+    fn test_enable_report_first_wayland_install_with_code_2_is_not_indexed_yet() {
+        assert_eq!(
+            enable_report(false, Some(2), true, || Some(false)),
+            EnableReport::NotIndexedYet
+        );
+        assert_eq!(
+            enable_report(true, Some(0), true, || panic!("not asked on success")),
+            EnableReport::Enabled
+        );
+    }
+
+    /// Every other failure stays the loud note, so a real failure is never hidden: exit 2 when
+    /// the Shell does know the extension (or `info` could not be read), exit 2 on a later install
+    /// or on X11 (`first_wayland_install` false; `info` is not even run), another exit code, and
+    /// a signal. The wording is `exit_failure_from`'s.
+    #[test]
+    fn test_enable_report_keeps_real_failures_loud() {
+        assert_eq!(
+            enable_report(false, Some(2), true, || Some(true)),
+            EnableReport::Failed("exited with code 2".into())
+        );
+        assert_eq!(
+            enable_report(false, Some(2), true, || None),
+            EnableReport::Failed("exited with code 2".into())
+        );
+        assert_eq!(
+            enable_report(false, Some(2), false, || panic!(
+                "not asked off the first Wayland install"
+            )),
+            EnableReport::Failed("exited with code 2".into())
+        );
+        assert_eq!(
+            enable_report(false, Some(1), true, || panic!(
+                "only code 2 is asked about"
+            )),
+            EnableReport::Failed("exited with code 1".into())
+        );
+        assert_eq!(
+            enable_report(false, None, true, || panic!("a signal is not code 2")),
+            EnableReport::Failed("was ended by a signal".into())
+        );
+    }
+
+    /// `gnome-extensions info`: exit 0 with a `State:` line is known, exit 2 is not known (the
+    /// real text on GNOME Shell 50.1 is `Extension “…” doesn't exist`), anything else is no answer.
+    #[test]
+    fn test_parse_info_known() {
+        let info = "spawn-at@harsh.local\n  Name: spawn-at\n  State: ACTIVE\n";
+        assert_eq!(parse_info_known(Some(0), info), Some(true));
+        assert_eq!(parse_info_known(Some(0), "no state line here"), None);
+        assert_eq!(
+            parse_info_known(Some(2), "Extension “x@y” doesn't exist\n"),
+            Some(false)
+        );
+        assert_eq!(parse_info_known(Some(1), ""), None);
+        assert_eq!(parse_info_known(None, ""), None);
+    }
+
+    /// The plain message says the extension is installed and loads after a log-out, names no exit
+    /// code, claims no success and still tells how to check and enable it.
+    #[test]
+    fn test_not_indexed_yet_text_is_plain() {
+        let t = NOT_INDEXED_YET_TEXT;
+        assert!(t.starts_with("The extension is installed."), "{t}");
+        assert!(t.contains("log out and back in"), "{t}");
+        assert!(
+            !t.contains("exited with code") && !t.contains("Note:"),
+            "{t}"
+        );
+        assert!(!t.contains("successfully"), "{t}");
+        assert!(
+            t.contains("gnome-extensions enable spawn-at@harsh.local"),
+            "{t}"
+        );
+        assert!(!t.contains('\n'));
     }
 
     /// After a failed `enable` the note says the files are there but the extension is not

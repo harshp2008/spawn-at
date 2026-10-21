@@ -922,6 +922,9 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     // Interactive TUI Menu
     if !args.headless && std::io::stdout().is_terminal() {
+        // A terminal on stdout without anything to read from: say so once, as the error the
+        // failed key read would have been (exit code 1), before a menu is drawn.
+        crate::ui::require_prompt().map_err(Box::<dyn std::error::Error>::from)?;
         let options = update_menu_options(has_update || args.force, &release.tag_name, channel);
 
         let selection = Select::new()
