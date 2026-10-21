@@ -14,6 +14,7 @@
 use super::detect::{detect_gnome_shell_major_version, is_wayland_session};
 use super::driver::GnomeWaylandDriver;
 use super::logout;
+use super::needs_logout;
 use crate::platform::provisioner::Provisioner;
 use crate::platform::{DriverError, InstallArgs, UninstallArgs};
 use dialoguer::Confirm;
@@ -517,19 +518,67 @@ impl crate::platform::update_hooks::UpdateHooks for GnomeUpdateHooks {
     /// the extension files come from the new version.
     ///
     /// Only a failure to start that child is reported (as a warning). Its exit status is not
-    /// looked at, so an install that fails is silent here. Returns nothing.
-    fn after_unpack(&self, new_binary: &std::path::Path) {
-        if Self::on_gnome() {
-            println!("Deploying GNOME Shell extension via newly unpacked binary...");
-            let ext_status = Command::new(new_binary)
-                .args(["install", "--skip-bin", "--headless"])
-                .status();
-            if let Err(e) = ext_status {
+    /// looked at, so an install that fails is silent here.
+    ///
+    /// The deployed extension directory is read before and after the child runs
+    /// (`needs_logout::classify`): `Some` only when files that were already there now differ.
+    /// `None` off GNOME, for a first install, for identical files, and when `$HOME` is unset or a
+    /// read failed.
+    fn after_unpack(
+        &self,
+        new_binary: &std::path::Path,
+    ) -> Option<crate::platform::update_hooks::ChangedExtension> {
+        if !Self::on_gnome() {
+            return None;
+        }
+        let facts = GnomeWaylandDriver::extension_dir()
+            .ok()
+            .map(|ext_dir| logout::RealFacts {
+                ext_dir,
+                uuid: EXTENSION_UUID,
+            });
+        let read = |f: &Option<logout::RealFacts>| match f {
+            Some(f) => logout::ExtensionFacts::deployed_files(f),
+            None => Err("$HOME is not set".to_string()),
+        };
+        let before = read(&facts);
+        println!("Deploying GNOME Shell extension via newly unpacked binary...");
+        let ext_status = Command::new(new_binary)
+            .args(["install", "--skip-bin", "--headless"])
+            .status();
+        if let Err(e) = ext_status {
+            crate::diagnostics::render_warning(&format!(
+                "Failed to install GNOME extension from new binary: {}",
+                e
+            ));
+        }
+        needs_logout::classify(before, read(&facts))
+    }
+
+    /// Prints [`needs_logout::NOTICE_TEXT`] and, on Wayland, sends the notification and writes the
+    /// marker (`needs_logout::announce`). A notification or marker that fails is a warning.
+    fn announce_logout_needed(&self, changed: &crate::platform::update_hooks::ChangedExtension) {
+        let marker = needs_logout::marker_path();
+        let result = needs_logout::announce(
+            changed,
+            is_wayland_session(),
+            marker.as_deref(),
+            &mut needs_logout::send_notification,
+        );
+        match result.announced {
+            needs_logout::Announced::Sent => println!("{}", needs_logout::NOTICE_TEXT),
+            needs_logout::Announced::SendFailed(why) => {
                 crate::diagnostics::render_warning(&format!(
-                    "Failed to install GNOME extension from new binary: {}",
-                    e
-                ));
+                    "Could not send the desktop notification ({why}). {}",
+                    needs_logout::NOTICE_TEXT
+                ))
             }
+            needs_logout::Announced::NotWayland | needs_logout::Announced::AlreadyFlagged => {}
+        }
+        if let Some(why) = result.marker_error {
+            crate::diagnostics::render_warning(&format!(
+                "Could not record the pending log-out ({why}); `spawn` will not remind you."
+            ));
         }
     }
 

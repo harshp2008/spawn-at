@@ -581,7 +581,10 @@ pub fn asset_name_for(target: &str) -> String {
 }
 
 /// Downloads and installs the specified release binary and updates extensions.
-pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
+///
+/// `headless` is `update --headless`. When it runs without a terminal (the login entry) nobody
+/// is there to be asked about a log-out, so a changed helper is announced instead (#87).
+pub fn perform_upgrade(release: &GitHubRelease, headless: bool) -> Result<(), String> {
     let asset_name = asset_name_for(env!("SPAWN_AT_TARGET"));
     let asset_name = asset_name.as_str();
     let asset = release
@@ -653,7 +656,15 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     }
 
     // Deploy what the desktop needs from the new binary itself (GNOME: the Shell extension)
-    crate::platform::update_hooks().after_unpack(&new_binary);
+    let hooks = crate::platform::update_hooks();
+    let changed = hooks.after_unpack(&new_binary);
+    // Same test as the question at the end of this function: with a terminal the user is asked
+    // there; without one (the login entry) nobody would hear about a changed helper.
+    if headless && !(hooks.offers_session_action() && std::io::stdout().is_terminal()) {
+        if let Some(changed) = &changed {
+            hooks.announce_logout_needed(changed);
+        }
+    }
 
     // Identify target installation path
     let current_exe =
@@ -700,7 +711,6 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     );
     // Last of all: record what is known and let session::finish() ask whether to log out or
     // reload the Shell (where the desktop offers it, in a terminal), then do it (see session.rs).
-    let hooks = crate::platform::update_hooks();
     if hooks.offers_session_action() && std::io::stdout().is_terminal() {
         crate::session::record(crate::session::Pending {
             flow: crate::session::Flow::Update,
@@ -903,7 +913,8 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 
         match selection {
             0 => {
-                perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
+                perform_upgrade(&release, args.headless)
+                    .map_err(Box::<dyn std::error::Error>::from)?;
             }
             1 => {
                 let ch_sel = Select::new()
@@ -931,7 +942,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         // Headless execution
         if has_update || args.force {
-            perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
+            perform_upgrade(&release, args.headless).map_err(Box::<dyn std::error::Error>::from)?;
         } else {
             println!("Already up to date. Use --force to reinstall.");
         }

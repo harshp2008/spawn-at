@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- A headless update (the login entry) that changes the GNOME extension files on Wayland now says so (#87). Before, it rewrote the files after the Shell had started and printed nothing, so the extension stayed OUT OF DATE or old until the next log-in by chance. Now, when `update --headless` runs without a terminal and the deployed files differ from before, it sends one desktop notification (`spawn-at updated its GNOME extension; log out and back in to finish`) and writes `$XDG_STATE_HOME/spawn-at/needs-logout` (default `~/.local/state/spawn-at/needs-logout`) with the deployed protocol. `spawn` prints one hint line while that file exists and the loaded extension's protocol is lower than the deployed one, and removes the file once it has caught up. No notification and no file on X11, on a first install, when nothing changed, or for the same deployed files twice. A change that keeps the protocol number (for example a new Shell version in `metadata.json`) is announced once but gives no `spawn` hint, because the extension exposes only a protocol number. There is no `doctor` command, so only `spawn` prints the hint. Run end to end against a fake release in a temporary tree on a private session bus with a stub notification service; not run on a real login, on other Shell versions or on X11 with a real Shell. The extension protocol is unchanged (7).
+
 ## [0.2.3] - 2026-10-21
 
 Patch release: the stale-arm fix (#84, #85). It needs both the new CLI and the protocol-7 extension. After upgrading, run `spawn-at update` (it redeploys the extension) or `spawn-at install`, then log out and back in, so the new extension is loaded.

@@ -2,7 +2,8 @@
 //! window queries and actions of the compositor backend.
 //!
 //! [`GnomeWaylandDriver`] is a thin client of the extension's session-bus interface (`dbus.rs`).
-//! It keeps no state besides the proxy, so every call is one D-Bus round trip and the extension
+//! It keeps no state besides the proxy and the path of the needs-logout marker (`arm` reads it,
+//! see `needs_logout.rs`), so every call is one D-Bus round trip and the extension
 //! is the only place that knows about windows. `LinuxBackend` wraps it; the spawn command calls
 //! it only through that wrapper.
 //!
@@ -36,6 +37,9 @@ use crate::platform::{
 /// this driver is made in `registry.rs`.
 pub struct GnomeWaylandDriver {
     proxy: dbus::SpawnAtProxy<'static>,
+    /// Where `arm` looks for the needs-logout marker (`needs_logout.rs`). `None` in tests, so a
+    /// test never reads or removes a marker in the real state directory.
+    logout_marker: Option<std::path::PathBuf>,
 }
 
 impl GnomeWaylandDriver {
@@ -52,13 +56,19 @@ impl GnomeWaylandDriver {
             DriverError::IpcError(format!("Failed to initialize SpawnAt D-Bus proxy: {}", e))
         })?;
 
-        Ok(Self { proxy })
+        Ok(Self {
+            proxy,
+            logout_marker: super::needs_logout::marker_path(),
+        })
     }
 
     /// Wraps a proxy built by a test, for example one pointed at a stub service on a private bus.
     #[cfg(test)]
     pub fn from_proxy(proxy: dbus::SpawnAtProxy<'static>) -> Self {
-        Self { proxy }
+        Self {
+            proxy,
+            logout_marker: None,
+        }
     }
 }
 
@@ -249,6 +259,15 @@ impl Driver for GnomeWaylandDriver {
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
         // The version check only warns; it never stops the arm.
         let ext_version = self.proxy.protocol_version().await.ok();
+        // A headless update changed the extension and no log-in has loaded it yet: one line.
+        // Also removes the marker once the loaded protocol has caught up.
+        if let Some(hint) = self
+            .logout_marker
+            .as_deref()
+            .and_then(|p| super::needs_logout::check_marker(p, ext_version))
+        {
+            crate::diagnostics::render_info(&hint);
+        }
         let mut warned_old = false;
         if let Some(found) = ext_version.filter(|v| *v < EXPECTED_PROTOCOL_VERSION) {
             crate::diagnostics::render_warning(&old_protocol_text(found));
