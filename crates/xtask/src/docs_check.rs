@@ -15,12 +15,16 @@
 //! `directive_problems`); the mirrored `project/` pages carry the comments of `docs/`, so the
 //! sources of `docs/` are checked through them. A table cell of more than `MAX_CELL_CHARS`
 //! (1200) characters of text fails too (see `long_cell_problems`), on every page except the
-//! `experiments/` pages, which are evidence.
+//! `experiments/` pages, which are evidence. An image reference fails when its file is missing
+//! from `docs-site/public/img/`, has no alt text or points to another site (see `docs_images`);
+//! the run then prints how many images there are, how many are placeholders and how many bytes
+//! the folder holds.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::docs_cli::sidebar_autogenerates;
+use crate::docs_images;
 
 /// Pages every build must have, relative to the content folder.
 pub const ENVIRONMENT_PAGES: [&str; 4] = [
@@ -84,7 +88,7 @@ fn body_lines(text: &str) -> usize {
 }
 
 /// Lines of `body` outside code fences, with their 1-based numbers (counted from the body).
-fn prose_lines(body: &str) -> Vec<(usize, &str)> {
+pub(crate) fn prose_lines(body: &str) -> Vec<(usize, &str)> {
     let mut in_fence = false;
     let mut out = Vec::new();
     for (i, line) in body.lines().enumerate() {
@@ -501,12 +505,32 @@ fn is_mirrored(rel: &str) -> bool {
     rel.starts_with("project/") && rel != "project/index.md"
 }
 
+/// The folder of the images, `public/img/` next to the sidebar config (`docs-site/`).
+fn image_dir(config: &Path) -> PathBuf {
+    config
+        .parent()
+        .unwrap_or_else(|| Path::new(""))
+        .join("public/img")
+}
+
 /// All problems found under `docs` (the content folder) with the sidebar config at `config`,
-/// one line each. Empty means the site source passes.
+/// one line each. Empty means the site source passes. Only the tests call it; `run` calls
+/// `check_with_images`.
+#[cfg(test)]
 pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
+    check_with_images(docs, config).map(|(problems, _)| problems)
+}
+
+/// `check`, and the report on the images folder (see `docs_images`).
+pub fn check_with_images(
+    docs: &Path,
+    config: &Path,
+) -> Result<(Vec<String>, docs_images::ImageReport), String> {
     let config_text = fs::read_to_string(config)
         .map_err(|e| format!("cannot read {}: {}", config.display(), e))?;
     let mut problems = Vec::new();
+    let img_dir = image_dir(config);
+    let mut used_images = std::collections::BTreeSet::new();
 
     if !disables_smartypants(&config_text) {
         problems.push(format!(
@@ -581,6 +605,11 @@ pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
                 "{rel}: link to `{target}` ends in .md; link to /spawn-at/<slug>/ instead"
             ));
         }
+        let refs = docs_images::image_refs(&prose_lines(body));
+        for (line, why) in docs_images::image_problems(&refs, &img_dir) {
+            problems.push(format!("{rel}:{}{origin}: {why}", front_lines + line));
+        }
+        used_images.extend(docs_images::used_names(&refs));
         if !is_generated(&rel) {
             if !has_sources_list(body) {
                 problems.push(format!("{rel}: no `## Sources` heading with a list"));
@@ -595,7 +624,8 @@ pub fn check(docs: &Path, config: &Path) -> Result<Vec<String>, String> {
             }
         }
     }
-    Ok(problems)
+    let report = docs_images::image_report(&img_dir, &used_images)?;
+    Ok((problems, report))
 }
 
 /// Entry point of `cargo xtask docs-check-src [DOCS_DIR] [--config FILE]` (defaults
@@ -613,9 +643,12 @@ pub fn run(args: &[String]) -> Result<(), String> {
             other => return Err(format!("unknown option {other}")),
         }
     }
-    let problems = check(&docs, &config)?;
+    let (problems, images) = check_with_images(&docs, &config)?;
     if problems.is_empty() {
         println!("==> site source OK ({})", docs.display());
+        for line in docs_images::summary(&images, &image_dir(&config)) {
+            println!("{line}");
+        }
         Ok(())
     } else {
         Err(problems.join("\n"))
@@ -1323,6 +1356,52 @@ mod tests {
         let refs: Vec<&str> = names.iter().map(String::as_str).collect();
         fs::write(&config, config_for(&refs)).unwrap();
         assert_eq!(check(&docs, &config).unwrap(), Vec::<String>::new());
+        let _ = fs::remove_dir_all(docs.parent().unwrap());
+    }
+
+    /// An image in `public/img/` next to the config passes and is counted (one placeholder, one
+    /// real, one used); a missing file, an empty alt text and an address on another site each give
+    /// a problem with the page and line.
+    #[test]
+    fn test_check_reads_image_references_and_reports_the_folder() {
+        let page = "---\ntitle: \"P\"\n---\n\nSome real text.\n\n\
+                    ![A terminal in the corner](/spawn-at/img/ok.svg)\n\n\
+                    ![](/spawn-at/img/ok.svg)\n\n\
+                    ![Gone](/spawn-at/img/gone.webp)\n\n\
+                    ![Far](https://example.org/a.png)\n\n\
+                    The syntax `![alt](/spawn-at/img/not-an-image.svg)` in a code span is text.\n\n\
+                    ## Sources\n\n- `README.md`\n";
+        let mut files: Vec<(&str, &str)> = vec![("index.md", page)];
+        for p in ENVIRONMENT_PAGES {
+            files.push((p, GOOD_PAGE));
+        }
+        let (docs, config) = site("images", &files);
+        let mut names: Vec<String> = vec!["index".to_string()];
+        names.extend(env_slugs());
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        fs::write(&config, config_for(&refs)).unwrap();
+        let img = config.parent().unwrap().join("public/img");
+        fs::create_dir_all(&img).unwrap();
+        fs::write(img.join("ok.svg"), "<svg>Placeholder: a thing</svg>").unwrap();
+        fs::write(img.join("real.webp"), "RIFF").unwrap();
+        let (problems, report) = check_with_images(&docs, &config).unwrap();
+        let problems = problems.join("\n");
+        assert!(
+            problems.contains("index.md:9: image `/spawn-at/img/ok.svg` has no alt text"),
+            "{problems}"
+        );
+        assert!(
+            problems.contains("index.md:11: image `gone.webp` does not exist"),
+            "{problems}"
+        );
+        assert!(
+            problems.contains("index.md:13: image `https://example.org/a.png` is on another site"),
+            "{problems}"
+        );
+        assert!(!problems.contains("not-an-image"), "{problems}");
+        assert_eq!(problems.lines().count(), 3, "{problems}");
+        assert_eq!((report.files, report.placeholders, report.used), (2, 1, 1));
+        assert_eq!(report.used_placeholders, 1);
         let _ = fs::remove_dir_all(docs.parent().unwrap());
     }
 }

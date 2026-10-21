@@ -14,6 +14,8 @@ sized 700 by 450. On GNOME with Wayland, the window is kept invisible until it h
 the application has had time to draw at the new size, so you do not see it appear in the wrong
 place and jump.
 
+![A demo is to come here: the same terminal window placed without and with spawn-at. Without it the window opens in the middle of the screen and then jumps; with it the window opens once, in the top-right corner.](/spawn-at/img/index-before-after-flash.svg)
+
 ## Why it exists
 
 Every desktop places windows its own way. On X11 any program can move any window, but only after

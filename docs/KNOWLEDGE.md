@@ -48,6 +48,7 @@ How to use it: read the table of contents, then only the section you need. An en
 - Long tables: `docs-site/src/integrations/records.mjs` rewrites a `<table>` of the built HTML as one card per row. It runs after Starlight (the Pagefind index is made from the table text) and before `code-breaks.mjs`. The rules are in `writing-docs.md`, "Long tables as records".
 - A list whose keys all start with a whole number is steps (`stepKey`). A cell of 240 characters or more converts a table on `project/` pages. A field over `TITLED_MIN = 400` characters makes the whole list titled cards. `tests/records_test.js` runs in the `node --test` step.
 - `docs-check-src` fails on a table cell over `MAX_CELL_CHARS = 1200` characters on every page except `experiments/`. On 2026-10-20 the longest cell left in `docs/` had 581.
+- Images are plain Markdown, `![alt](/spawn-at/img/<name>.svg)`, with the file in `docs-site/public/img/` (the base path is not added for you). `docs-check-src` fails on a missing file, an empty alt or an address on another site, and prints the file count, the bytes against a 5 MB budget and how many are placeholders (SVGs that say "Placeholder"). Source: `crates/xtask/src/docs_images.rs`. Checked 2026-10-21.
 
 ## Install and release
 

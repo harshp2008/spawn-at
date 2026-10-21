@@ -116,6 +116,20 @@ header.header {
   text-underline-offset: 0.2em;
 }
 
+/* Images (public/img/, see "Images" in the rules page): as wide as the column at most, never
+   stretched, a hairline border and a small radius. A markdown image is an <img> inside a <p>, so
+   the paragraph's top margin is the block gap; the image is a block so that the line box leaves no
+   gap under it. The panel colour shows behind a transparent SVG (a placeholder or a diagram) in
+   both themes; a screenshot covers it. */
+.sl-markdown-content img:not(:where(.not-content *)) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--sl-color-hairline);
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg-nav);
+}
+
 /* Tables: a rule under the header row, a quiet rule between rows, and the table scrolls inside
    its own box when it is wider than the column. */
 .sl-markdown-content table:not(:where(.not-content *)) {

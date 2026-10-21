@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 520" width="1280" height="520" role="img" aria-labelledby="t">
+  <title id="t">Placeholder: one placement, from registered to revealed</title>
+  <rect x="3" y="3" width="1274" height="514" rx="14" fill="none" stroke="#8a8f99" stroke-width="6" stroke-dasharray="18 14"/>
+  <path d="M3 3 L1277 517 M1277 3 L3 517" stroke="#8a8f99" stroke-width="2" stroke-opacity=".35"/>
+  <text x="640" y="238" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" font-weight="600" fill="#8a8f99">Placeholder: one placement, from registered to revealed</text>
+  <text x="640" y="292" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" fill="#8a8f99">1280×520</text>
+</svg>

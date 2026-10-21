@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" width="1280" height="720" role="img" aria-labelledby="t">
+  <title id="t">Placeholder: the verify TUI, annotated main screen</title>
+  <rect x="3" y="3" width="1274" height="714" rx="14" fill="none" stroke="#8a8f99" stroke-width="6" stroke-dasharray="18 14"/>
+  <path d="M3 3 L1277 717 M1277 3 L3 717" stroke="#8a8f99" stroke-width="2" stroke-opacity=".35"/>
+  <text x="640" y="338" text-anchor="middle" font-family="system-ui, sans-serif" font-size="34" font-weight="600" fill="#8a8f99">Placeholder: the verify TUI, annotated main screen</text>
+  <text x="640" y="392" text-anchor="middle" font-family="system-ui, sans-serif" font-size="30" fill="#8a8f99">1280×720</text>
+</svg>

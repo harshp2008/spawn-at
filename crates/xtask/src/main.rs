@@ -15,6 +15,7 @@ mod doc_coverage;
 mod docs_check;
 mod docs_cli;
 mod docs_html;
+mod docs_images;
 mod docs_mirror;
 mod docs_site;
 
