@@ -37,7 +37,7 @@ command and one placement model, with a separate backend for each desktop undern
 
 ## Status
 
-This is the status of v0.2.1.
+This is the status of v0.2.2.
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
 - **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
