@@ -25,17 +25,17 @@ The rows of each table add up to the totals on the Testing page.
 
 | Binary | Tests |
 | :-- | --: |
-| Unit tests (`src/main.rs`) | 422 |
+| Unit tests (`src/main.rs`) | 437 |
 | `tests/config_cli_test.rs` | 10 |
 | `tests/install_notice_cli_test.rs` | 6 |
 | `tests/sway_backend_cli_test.rs` | 19 |
 | `tests/unsupported_desktop_cli_test.rs` | 3 |
 
-The 422 unit tests by module:
+The 437 unit tests by module:
 
 | Module | Tests |
 | :-- | --: |
-| `platform::linux` | 159 |
+| `platform::linux` | 174 |
 | `commands` (`state_command_tests` 31, `tests` 20, `spawn` 16, `query` 7) | 74 |
 | `update` | 31 |
 | `cli` | 29 |
@@ -48,7 +48,7 @@ The 422 unit tests by module:
 | `platform` (`installer` 8, `capability` 7, `install_notice` 4, `provisioner` 3, `update_hooks` 3, `session_actions` 2, `null_backend` 1) | 28 |
 | `prompts` | 4 |
 
-The 159 of `platform::linux` are `sway` 70, `gnome` 59, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
+The 174 of `platform::linux` are `sway` 70, `gnome` 74, `registry` 10, `x11` 8, `host` 4, `xdg` 4,
 `config_store` 2 and `tests` 2.
 
 `spawn-at-core`:

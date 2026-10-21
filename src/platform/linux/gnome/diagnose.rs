@@ -218,3 +218,205 @@ pub fn gather_real(
         expected_protocol,
     )
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn versions(v: &[&str]) -> Installed {
+        Installed::Versions(v.iter().map(|s| s.to_string()).collect())
+    }
+
+    fn silent(installed: Installed, enabled: Option<bool>) -> Facts {
+        Facts {
+            shell_major: Some(50),
+            installed,
+            enabled,
+            protocol: None,
+            expected_protocol: 3,
+        }
+    }
+
+    /// No metadata.json and no answer is "not installed", whatever `gnome-extensions info`
+    /// said; catches a missing install being reported as a version or protocol problem.
+    #[test]
+    fn test_no_files_is_not_installed() {
+        let d = diagnose(&silent(Installed::NotFound, Some(false))).unwrap();
+        assert_eq!(d, Diagnosis::NotInstalled);
+        assert!(message(&d).contains("not installed"));
+        assert!(message(&d).contains("spawn-at install"));
+    }
+
+    /// The owner's 2026-10-21 case: Enabled Yes, metadata lists 45-48, Shell 50. Must be OUT OF
+    /// DATE with the upgrade-install-relogin advice, and must not claim a protocol mismatch or
+    /// say "load the updated extension".
+    #[test]
+    fn test_shell_major_missing_from_metadata_is_out_of_date() {
+        let d = diagnose(&silent(versions(&["45", "46", "47", "48"]), Some(true))).unwrap();
+        assert_eq!(
+            d,
+            Diagnosis::OutOfDate {
+                shell_major: 50,
+                listed: vec!["45".into(), "46".into(), "47".into(), "48".into()],
+            }
+        );
+        let m = message(&d);
+        assert!(m.contains("does not list GNOME Shell 50"), "{m}");
+        assert!(m.contains("OUT OF DATE"), "{m}");
+        assert!(m.contains("upgrade spawn-at"), "{m}");
+        assert!(m.contains("spawn-at install"), "{m}");
+        assert!(m.contains("log out and back in"), "{m}");
+        assert!(!m.contains("mismatch"), "{m}");
+        assert!(!m.contains("updated extension"), "{m}");
+    }
+
+    /// OUT OF DATE wins over disabled: enabling an extension that does not list the Shell
+    /// leaves it unloaded, so advising 'enable' first would send the user in a circle.
+    #[test]
+    fn test_out_of_date_wins_over_disabled() {
+        let d = diagnose(&silent(versions(&["45", "46"]), Some(false))).unwrap();
+        assert!(matches!(d, Diagnosis::OutOfDate { .. }));
+    }
+
+    /// A list that names the Shell (including a "50.1" style entry) with `Enabled: No` is the
+    /// disabled case with the enable command.
+    #[test]
+    fn test_listed_but_disabled_is_disabled() {
+        for entry in ["50", "50.1"] {
+            let d = diagnose(&silent(versions(&["48", entry]), Some(false))).unwrap();
+            assert_eq!(d, Diagnosis::Disabled);
+            let m = message(&d);
+            assert!(m.contains("disabled"), "{m}");
+            assert!(
+                m.contains("gnome-extensions enable spawn-at@harsh.local"),
+                "{m}"
+            );
+        }
+    }
+
+    /// Only a loaded extension with a protocol below the expected one gets the "log out and back
+    /// in to load the updated extension" hint; a protocol of 1 against an expected 2 and 3
+    /// catches a threshold that is off by one.
+    #[test]
+    fn test_old_protocol_gets_the_logout_hint() {
+        for (found, expected) in [(1, 2), (2, 3)] {
+            let mut f = silent(versions(&["48"]), Some(true));
+            f.protocol = Some(found);
+            f.expected_protocol = expected;
+            let d = diagnose(&f).unwrap();
+            assert_eq!(d, Diagnosis::OldProtocol { found, expected });
+            assert!(message(&d).contains("log out and back in to load the updated extension"));
+        }
+    }
+
+    /// An answering extension with a protocol at or above the expected one has nothing to
+    /// explain, even if the metadata would not list the Shell.
+    #[test]
+    fn test_current_protocol_has_no_diagnosis() {
+        let mut f = silent(versions(&["48"]), Some(true));
+        f.protocol = Some(3);
+        assert_eq!(diagnose(&f), None);
+        f.protocol = Some(6);
+        assert_eq!(diagnose(&f), None);
+    }
+
+    /// Files fine, listed, not disabled, no answer: the catch-all must not blame a protocol
+    /// mismatch or an out-of-date list. An unreadable metadata.json and an unknown Shell
+    /// version land here too, since neither proves a cause.
+    #[test]
+    fn test_listed_enabled_but_silent_is_not_loaded() {
+        let d = diagnose(&silent(versions(&["50"]), Some(true))).unwrap();
+        assert_eq!(
+            d,
+            Diagnosis::NotLoaded {
+                shell_major: Some(50)
+            }
+        );
+        let m = message(&d);
+        assert!(
+            !m.contains("mismatch")
+                && !m.contains("updated extension")
+                && !m.contains("OUT OF DATE"),
+            "{m}"
+        );
+
+        let mut unknown_shell = silent(versions(&["48"]), None);
+        unknown_shell.shell_major = None;
+        assert_eq!(
+            diagnose(&unknown_shell),
+            Some(Diagnosis::NotLoaded { shell_major: None })
+        );
+        assert!(matches!(
+            diagnose(&silent(Installed::Unreadable, Some(true))),
+            Some(Diagnosis::NotLoaded { .. })
+        ));
+    }
+
+    /// Two-digit majors and "major.minor" entries compare on the major only; "5" must not match
+    /// 50 (catches a prefix or substring comparison).
+    #[test]
+    fn test_lists_major_compares_the_major_only() {
+        assert!(lists_major("50", 50));
+        assert!(lists_major("50.1", 50));
+        assert!(!lists_major("5", 50));
+        assert!(!lists_major("500", 50));
+        assert!(!lists_major("beta", 50));
+    }
+
+    /// The `Enabled:` line decides; other labels and a missing line do not.
+    #[test]
+    fn test_parse_info_enabled() {
+        let on = "spawn-at@harsh.local\n  Name: Spawn-At Interceptor\n  Enabled: Yes\n  State: OUT OF DATE\n";
+        let off = "spawn-at@harsh.local\n  Enabled: No\n  State: INACTIVE\n";
+        assert_eq!(parse_info_enabled(on), Some(true));
+        assert_eq!(parse_info_enabled(off), Some(false));
+        assert_eq!(parse_info_enabled("  State: ACTIVE\n"), None);
+    }
+
+    /// `read_installed` on a temp directory: missing file, broken JSON, and a real list.
+    /// Catches a missing file being reported as unreadable (which would hide "not installed").
+    #[test]
+    fn test_read_installed_on_a_temp_directory() {
+        let dir = std::env::temp_dir().join(format!("spawn-at-diagnose-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        assert_eq!(read_installed(&dir), Installed::NotFound);
+        fs::write(dir.join("metadata.json"), "{ not json").unwrap();
+        assert_eq!(read_installed(&dir), Installed::Unreadable);
+        fs::write(
+            dir.join("metadata.json"),
+            r#"{"uuid":"spawn-at@harsh.local","shell-version":["49","50"]}"#,
+        )
+        .unwrap();
+        assert_eq!(read_installed(&dir), versions(&["49", "50"]));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    /// `gather` takes its facts from the arguments and the given directory, so a test can build
+    /// the whole picture without GNOME: here the owner's case end to end.
+    #[test]
+    fn test_gather_builds_facts_from_text() {
+        let dir = std::env::temp_dir().join(format!("spawn-at-gather-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(
+            dir.join("metadata.json"),
+            r#"{"shell-version":["45","46","47","48"]}"#,
+        )
+        .unwrap();
+        let f = gather(
+            &dir,
+            Some(50),
+            Some("  Enabled: Yes\n  State: OUT OF DATE\n"),
+            None,
+            3,
+        );
+        assert_eq!(f.enabled, Some(true));
+        assert!(matches!(
+            diagnose(&f),
+            Some(Diagnosis::OutOfDate {
+                shell_major: 50,
+                ..
+            })
+        ));
+        fs::remove_dir_all(&dir).unwrap();
+    }
+}
