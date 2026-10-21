@@ -87,6 +87,12 @@ fn test_other_versions_are_untested_and_yes_still_prints_the_notice() {
     for v in ["45.1", "47.0"] {
         let t = stdout(&install_dry_run(v, &["--yes"]));
         assert!(t.contains("is UNTESTED"), "{v}: {t}");
+        // The wording says what IS tested (built from the verified list), not "only 46".
+        assert!(
+            t.contains("spawn-at has been tested on GNOME Shell 46")
+                && !t.contains("only been run"),
+            "{v}: {t}"
+        );
     }
 }
 
@@ -102,6 +108,30 @@ fn test_46_has_no_untested_notice() {
     if std::env::var("XDG_SESSION_TYPE").as_deref() == Ok("wayland") {
         assert!(!t.contains("NOTICE"), "{t}");
     }
+}
+
+/// GNOME 50 on a Wayland session prints the "partly tested" notice with the measured result of the
+/// run on 50.1, never the UNTESTED one and never the old "only GNOME 46" wording.
+#[test]
+fn test_50_wayland_says_what_the_run_found() {
+    if !gnome_driver_available() {
+        return;
+    }
+    if std::env::var("XDG_SESSION_TYPE").as_deref() != Ok("wayland") {
+        eprintln!("skipped: the notice for 50 differs by session type and this is not Wayland");
+        return;
+    }
+    let t = stdout(&install_dry_run("50.1", &["--yes"]));
+    assert!(
+        t.contains("GNOME Shell 50 on Wayland is only PARTLY tested")
+            && t.contains("16 passed")
+            && t.contains("9 failed"),
+        "{t}"
+    );
+    assert!(
+        !t.contains("UNTESTED") && !t.contains("only been run"),
+        "{t}"
+    );
 }
 
 /// The flags are documented.

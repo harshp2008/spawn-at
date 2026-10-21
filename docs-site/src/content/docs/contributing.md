@@ -130,6 +130,15 @@ The release workflow (`.github/workflows/release.yml`, on `v*` tags) builds the 
 `cargo build --release --locked`, which produces `target/release/spawn-at`. `ci.yml` does not run
 that build.
 
+Before the tests and the build, the workflow runs `cargo xtask check-release-version <tag>`: the
+`version` of the four `Cargo.toml` files and the four matching `Cargo.lock` entries must all equal the
+tag's version, or the run fails and names each value that differs. If `CHANGELOG.md` has a non-empty
+`## [<version>]` section, `cargo xtask release-notes` writes it out and it becomes the release body;
+otherwise the release keeps GitHub's generated notes. `workflow_dispatch` starts a dry run that
+does all of that (with an optional `tag` input to check against) and never publishes: the one step
+that publishes runs only for a push of a `v*` tag. Written from the file and the unit tests in
+`crates/xtask/src/release.rs`; the workflow itself has not run on GitHub.
+
 ## Build this documentation
 
 The site is built with [Starlight](https://starlight.astro.build/) (Astro). You need Node.js and

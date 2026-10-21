@@ -56,11 +56,12 @@ below 45, the modern set otherwise, **and also when the version cannot be read**
 | GNOME Shell | File set | `shell-version` in its metadata | Notice at install | Status in the README |
 | :--- | :--- | :--- | :--- | :--- |
 | 42, 43, 44 | legacy (9 files) | `42`, `43`, `44` | "legacy extension ... UNTESTED" | untested |
-| 45 | modern (11 files) | `45`, `46`, `47`, `48` | "is UNTESTED" | untested |
+| 45 | modern (11 files) | `45` to `50` | "is UNTESTED" | untested |
 | 46 on Wayland | modern | listed | none | tested |
 | 46 on X11 | modern | listed | "only PARTLY tested" | partly tested (test window only) |
-| 47, 48 | modern | listed | "is UNTESTED" | untested |
-| 49 and later, or unreadable | modern | **not listed**; whether GNOME loads it is not verified | "is UNTESTED" or "could not be read" | untested |
+| 47, 48, 49 | modern | listed | "is UNTESTED" | untested |
+| 50 on Wayland | modern | listed | "only PARTLY tested (one run on 50.1: ...)" with the counts | partly tested, with failures (9 of 36 required cases failed on 50.1) |
+| 50 on X11, 51 and later, or unreadable | modern | 50 is listed; 51 and later are **not listed** (whether GNOME loads them is not verified) | "is UNTESTED" or "could not be read" | untested |
 
 `--yes`, `--headless`, or no terminal make the install go on after printing the notice.
 

@@ -112,6 +112,11 @@ async fn main() {
                     println!();
                 }
                 let go = crate::platform::install_notice::gate(args.yes, interactive, || {
+                    // No keyboard: decline, as the failed prompt did, without drawing it.
+                    if let Err(msg) = crate::ui::require_prompt() {
+                        crate::diagnostics::render_error(msg);
+                        return false;
+                    }
                     Confirm::new()
                         .with_prompt(crate::prompts::PROMPT_INSTALL_ANYWAY)
                         .default(false)
@@ -213,6 +218,11 @@ async fn main() {
                 }
             }
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
+                // Same exit (1) as the failed selection below, with one clear line and no menu.
+                if let Err(msg) = crate::ui::require_prompt() {
+                    crate::diagnostics::render_error(msg);
+                    std::process::exit(1);
+                }
                 crate::ui::section("Binary Installation Setup");
                 let selection = dialoguer::Select::new()
                     .with_prompt(crate::prompts::PROMPT_SCOPE)
@@ -373,6 +383,11 @@ async fn main() {
         }
         Commands::Uninstall(mut args) => {
             if !args.headless && std::io::stdout().is_terminal() && !args.skip_bin {
+                // Same exit (1) as the failed selection below, with one clear line and no menu.
+                if let Err(msg) = crate::ui::require_prompt() {
+                    crate::diagnostics::render_error(msg);
+                    std::process::exit(1);
+                }
                 crate::ui::section("Binary Uninstallation Setup");
                 let selection = dialoguer::Select::new()
                     .with_prompt(crate::prompts::PROMPT_REMOVE_BINARY)

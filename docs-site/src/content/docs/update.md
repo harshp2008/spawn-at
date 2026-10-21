@@ -59,7 +59,7 @@ When standard output is not a terminal, or with `--headless`, there is no menu.
 ### A build that is not a release
 
 A binary built from a commit that is not on a release tag has no parseable version (`spawn-at -V`
-prints `DEV BUILD`). For such a build:
+prints `DEV BUILD <crate version>`). For such a build:
 
 - `update --check` finds no candidate and prints `spawn-at is up to date (dev).`
 - `update` without `--check` prints `Running build does not have a parseable release version (dev
@@ -74,6 +74,18 @@ Both are read from source, not run.
 - **The end-of-run question.** On GNOME and in a terminal, `update` ends with a question: on
   Wayland the log-out question, on X11 the Shell reload. The log-out happens only if you answer yes.
   On Wayland the new extension files are loaded only after you log out and back in.
+- **No terminal (the login entry).** `update --headless` without a terminal has nobody to ask.
+  When it changes the deployed extension files on Wayland, it sends one desktop notification,
+  `spawn-at updated its GNOME extension; log out and back in to finish`, and writes
+  `$XDG_STATE_HOME/spawn-at/needs-logout` (`~/.local/state/spawn-at/needs-logout` when that
+  variable is not set) with the protocol and a fingerprint of the deployed files. While that file
+  exists and the loaded extension reports a lower protocol, `spawn` prints one hint line; once the
+  loaded protocol has caught up, `spawn` removes the file. There is no notification and no file on
+  X11, on a first install, when the files did not change, or for the same deployed files a second
+  time. A change that keeps the protocol number (for example a new Shell version in
+  `metadata.json`) is announced once but gives no `spawn` hint, because the extension exposes only a
+  protocol number. Run end to end against a fake release in a temporary tree on a private session
+  bus with a stub notification service, not on a real login.
 - **Check the version.** Run `spawn-at --version`. By the code it prints `spawn-at <version>` for a
   release build, with the new tag (not run). A build that is not on a release tag prints `DEV BUILD`
   and cannot show this.

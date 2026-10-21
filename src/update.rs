@@ -58,15 +58,34 @@ pub struct GitHubAsset {
 
 /// Returns the dynamic version string formatted for `spawn-at -V` / `--version`.
 pub fn get_version_display() -> String {
-    if let Some(ver) = option_env!("SPAWN_AT_VERSION") {
-        format!("spawn-at {}", ver)
-    } else {
-        let commit_id = option_env!("SPAWN_AT_COMMIT_ID").unwrap_or("unknown");
-        let last_release = option_env!("SPAWN_AT_LAST_RELEASE").unwrap_or("v0.1.0");
-        format!(
-            "DEV BUILD\nlast release was {}\n-----------------------------------------------------------------\nPrevious Commit ID: {}",
-            last_release, commit_id
-        )
+    version_display(
+        option_env!("SPAWN_AT_VERSION"),
+        env!("CARGO_PKG_VERSION"),
+        option_env!("SPAWN_AT_LAST_RELEASE").unwrap_or("v0.1.0"),
+        option_env!("SPAWN_AT_COMMIT_ID").unwrap_or("unknown"),
+    )
+}
+
+/// The `-V` text. A release build (`tag` is the version `build.rs` took from the exact git tag)
+/// is `spawn-at <tag>`, one line. Any other build is four lines: `DEV BUILD <crate version>`, the
+/// last release, a rule and `Previous Commit ID: <commit>`.
+///
+/// Readers of this text, each looking only at the first line or at the commit line: the
+/// installer of Win11Clip (`^spawn-at <semver>$`, so a dev build must NOT start with `spawn-at `),
+/// `platform::upgrade::parse_version_output` (first line starts with `DEV BUILD`) and the
+/// preflight of `spawn-at-verify` (a line starting `Previous Commit ID:`).
+fn version_display(
+    tag: Option<&str>,
+    crate_version: &str,
+    last_release: &str,
+    commit_id: &str,
+) -> String {
+    match tag {
+        Some(ver) => format!("spawn-at {}", ver),
+        None => format!(
+            "DEV BUILD {}\nlast release was {}\n-----------------------------------------------------------------\nPrevious Commit ID: {}",
+            crate_version, last_release, commit_id
+        ),
     }
 }
 
@@ -581,7 +600,10 @@ pub fn asset_name_for(target: &str) -> String {
 }
 
 /// Downloads and installs the specified release binary and updates extensions.
-pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
+///
+/// `headless` is `update --headless`. When it runs without a terminal (the login entry) nobody
+/// is there to be asked about a log-out, so a changed helper is announced instead (#87).
+pub fn perform_upgrade(release: &GitHubRelease, headless: bool) -> Result<(), String> {
     let asset_name = asset_name_for(env!("SPAWN_AT_TARGET"));
     let asset_name = asset_name.as_str();
     let asset = release
@@ -653,7 +675,15 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     }
 
     // Deploy what the desktop needs from the new binary itself (GNOME: the Shell extension)
-    crate::platform::update_hooks().after_unpack(&new_binary);
+    let hooks = crate::platform::update_hooks();
+    let changed = hooks.after_unpack(&new_binary);
+    // Same test as the question at the end of this function: with a terminal the user is asked
+    // there; without one (the login entry) nobody would hear about a changed helper.
+    if headless && !(hooks.offers_session_action() && std::io::stdout().is_terminal()) {
+        if let Some(changed) = &changed {
+            hooks.announce_logout_needed(changed);
+        }
+    }
 
     // Identify target installation path
     let current_exe =
@@ -700,7 +730,6 @@ pub fn perform_upgrade(release: &GitHubRelease) -> Result<(), String> {
     );
     // Last of all: record what is known and let session::finish() ask whether to log out or
     // reload the Shell (where the desktop offers it, in a terminal), then do it (see session.rs).
-    let hooks = crate::platform::update_hooks();
     if hooks.offers_session_action() && std::io::stdout().is_terminal() {
         crate::session::record(crate::session::Pending {
             flow: crate::session::Flow::Update,
@@ -893,6 +922,9 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 
     // Interactive TUI Menu
     if !args.headless && std::io::stdout().is_terminal() {
+        // A terminal on stdout without anything to read from: say so once, as the error the
+        // failed key read would have been (exit code 1), before a menu is drawn.
+        crate::ui::require_prompt().map_err(Box::<dyn std::error::Error>::from)?;
         let options = update_menu_options(has_update || args.force, &release.tag_name, channel);
 
         let selection = Select::new()
@@ -903,7 +935,8 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 
         match selection {
             0 => {
-                perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
+                perform_upgrade(&release, args.headless)
+                    .map_err(Box::<dyn std::error::Error>::from)?;
             }
             1 => {
                 let ch_sel = Select::new()
@@ -931,7 +964,7 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         // Headless execution
         if has_update || args.force {
-            perform_upgrade(&release).map_err(Box::<dyn std::error::Error>::from)?;
+            perform_upgrade(&release, args.headless).map_err(Box::<dyn std::error::Error>::from)?;
         } else {
             println!("Already up to date. Use --force to reinstall.");
         }
@@ -943,6 +976,58 @@ pub fn run_update(args: UpdateArgs) -> Result<(), Box<dyn std::error::Error>> {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+
+    /// A release build prints exactly `spawn-at <tag>` on one line, with the `-dirty` suffix
+    /// `build.rs` adds to a modified tag build. This is the text Win11Clip's installer matches with
+    /// `^spawn-at <semver>$`, so it must not gain a word, a line or a trailing newline.
+    #[test]
+    fn test_release_version_text_is_unchanged() {
+        assert_eq!(
+            version_display(Some("0.2.3"), "0.2.3", "v0.2.3", "abc1234"),
+            "spawn-at 0.2.3"
+        );
+        assert_eq!(
+            version_display(Some("0.2.4-beta.1-dirty"), "0.2.4", "v0.2.3", "abc1234"),
+            "spawn-at 0.2.4-beta.1-dirty"
+        );
+    }
+
+    /// A dev build prints the crate version after `DEV BUILD` on the first line, then the three
+    /// lines it always had. The first line never starts with `spawn-at ` (so Win11Clip's installer
+    /// and Makefile still read "no release version" from it), and the commit line keeps the text
+    /// the `spawn-at-verify` preflight looks for.
+    #[test]
+    fn test_dev_version_text_has_the_crate_version_and_keeps_the_old_lines() {
+        let text = version_display(None, "0.2.4", "v0.2.3", "00d0da4");
+        assert_eq!(
+            text,
+            "DEV BUILD 0.2.4\nlast release was v0.2.3\n\
+             -----------------------------------------------------------------\n\
+             Previous Commit ID: 00d0da4"
+        );
+        let first = text.lines().next().unwrap();
+        assert!(first.starts_with("DEV BUILD "), "{first}");
+        assert!(!first.starts_with("spawn-at "), "{first}");
+        assert_eq!(text.lines().count(), 4);
+        assert!(text.lines().any(|l| l == "Previous Commit ID: 00d0da4"));
+        // spawn-at's own reader of its older copies (`install` over an existing binary).
+        let (shown, version) = crate::platform::upgrade::parse_version_output(&text);
+        assert_eq!((shown.as_str(), version), ("dev build", None));
+    }
+
+    /// The text this build prints is one of the two forms, with this crate's version in the dev
+    /// form.
+    #[test]
+    fn test_this_builds_version_text_matches_its_form() {
+        let text = get_version_display();
+        match option_env!("SPAWN_AT_VERSION") {
+            Some(tag) => assert_eq!(text, format!("spawn-at {tag}")),
+            None => assert!(
+                text.starts_with(&format!("DEV BUILD {}\n", env!("CARGO_PKG_VERSION"))),
+                "{text}"
+            ),
+        }
+    }
 
     /// The update menu and its prompt fit on one 70-column line even with a long pre-release tag
     /// and channel name, and no item ends with ':'.

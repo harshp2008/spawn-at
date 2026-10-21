@@ -1,8 +1,9 @@
 //! xtask: Internal developer and CI tooling for spawn-at.
 //!
-//! Provides `check-comment-only`, `check-doc-coverage`, `burn-cpu` and the documentation-site
+//! Provides `check-comment-only`, `check-doc-coverage`, `burn-cpu`, the documentation-site
 //! commands (`docs-site`, `docs-cli-reference`, `docs-mirror`, `docs-check-src`,
-//! `docs-check-html`) without
+//! `docs-check-html`) and the release checks of `release.yml` (`check-release-version`,
+//! `release-notes`) without
 //! external dependencies.
 //! `check-doc-coverage` with no paths gates `crates/spawn-at-verify/src` and only reports a count
 //! for `tests/`.
@@ -17,6 +18,7 @@ mod docs_cli;
 mod docs_html;
 mod docs_mirror;
 mod docs_site;
+mod release;
 
 use std::env;
 use std::process::exit;
@@ -36,6 +38,8 @@ fn main() {
             eprintln!("  docs-mirror [--docs DIR] [--out DIR] [--config FILE]");
             eprintln!("  docs-check-src [DOCS_DIR] [--config FILE]");
             eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
+            eprintln!("  check-release-version [<tag>]");
+            eprintln!("  release-notes <version> <out-file>");
             exit(1);
         }
     };
@@ -86,11 +90,24 @@ fn main() {
                 exit(1);
             }
         }
+        "check-release-version" | "release-notes" => {
+            let rest: Vec<String> = args.collect();
+            let result = if subcommand == "release-notes" {
+                release::run_release_notes(&rest)
+            } else {
+                release::run_check_version(&rest)
+            };
+            if let Err(message) = result {
+                eprintln!("{} failed:\n{}", subcommand, message);
+                exit(1);
+            }
+        }
         other => {
             eprintln!("Unknown subcommand: {}", other);
             eprintln!(
                 "Available subcommands: check-comment-only, check-doc-coverage, burn-cpu, \
-                 docs-site, docs-cli-reference, docs-mirror, docs-check-src, docs-check-html"
+                 docs-site, docs-cli-reference, docs-mirror, docs-check-src, docs-check-html, \
+                 check-release-version, release-notes"
             );
             exit(1);
         }

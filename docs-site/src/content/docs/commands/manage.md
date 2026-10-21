@@ -38,7 +38,14 @@ does not change the exit status:
   exited with code N. The extension files were deployed, but the extension is not confirmed
   enabled. If GNOME Shell has not loaded the new files yet, it may only be enabled after you log
   out and back in ...`) and still exits 0. It stops with an error only when `gnome-extensions` cannot be
-  started.
+  started. One case gets a plain message instead of that note: a first install on Wayland where `enable`
+  exits 2 and `gnome-extensions info` then says the Shell does not know the extension
+  (`The extension is installed. GNOME Shell has not indexed it yet, so it loads after you log out and
+  back in ...`). Any other failure keeps the note.
+- With a terminal on stdout but nothing to read answers from (stdin is not a terminal and `/dev/tty`
+  cannot be opened, for example under `setsid`), the menus and questions of `install`, `uninstall` and
+  `update` are not drawn: one line says there is no terminal to ask on and to use `--headless`. The
+  exit status is the one the failed question already gave (1).
 - `uninstall` prints `Spawn-At extension successfully uninstalled.` only when `gnome-extensions
   disable` exits 0. When it cannot be started or exits non-zero, `uninstall` still deletes the files
   if asked to, prints a warning that the extension may still be enabled and whether its files were

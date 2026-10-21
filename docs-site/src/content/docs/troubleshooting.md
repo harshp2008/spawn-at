@@ -117,7 +117,11 @@ or an earlier failure.
   installed and enabled`. Exit status 0.
 - **Cause.** `gnome-extensions enable` exited non-zero. `install` stops with an error only if
   `gnome-extensions` cannot be started. Builds before this version printed the success line even
-  then.
+  then. On a first install on Wayland, exit code 2 together with `gnome-extensions info` saying the
+  Shell does not know the extension is the usual reason (the Shell has not indexed the new
+  directory yet); that case prints `The extension is installed. GNOME Shell has not indexed it yet,
+  so it loads after you log out and back in ...` instead of this note. Not run end to end: the
+  condition is covered by unit tests with injected facts.
 - **Fix.** Log out and back in (see
   [the extension is not active entry](#the-extension-was-installed-but-is-not-active-or-extension-is-older-than-the-cli-expects)),
   then read the state with
@@ -168,8 +172,8 @@ or an earlier failure.
 
 ### Which desktops and GNOME versions work?
 
-Only GNOME Shell 46 on Wayland has been run on a real session. The full table, and what the code
-accepts, is on [Requirements](/spawn-at/requirements/) and [Environments](/spawn-at/environments/).
+Only GNOME Shell 46 on Wayland counts as tested; GNOME 50.1 on Wayland was run once and 9 of 36
+required cases failed. The full table, and what the code accepts, is on [Requirements](/spawn-at/requirements/) and [Environments](/spawn-at/environments/).
 
 ### Does `uninstall` delete my config file?
 
@@ -189,8 +193,8 @@ that behind. Read from source, not run. Details, and what to check:
 
 ### Which version am I running?
 
-`spawn-at -V` or `--version`. A build that is not on a release tag prints `DEV BUILD`, the last
-release and a commit id.
+`spawn-at -V` or `--version`. A build that is not on a release tag prints `DEV BUILD <crate
+version>`, the last release and a commit id.
 
 ### Does `update` check what it downloads?
 
