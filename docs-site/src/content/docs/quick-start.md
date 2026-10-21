@@ -65,8 +65,9 @@ spawn-at spawn --anchor top-right --size 700 450 -m 24 gnome-terminal
 the command to run.
 
 What you should see: the window opens in that corner at that size, and `spawn` prints one line on
-stderr, `Window mapped at final size (700x450) and positioned at (<x>, <y>).`, with the window's
-real numbers. If the app ends up larger than asked, the line says so instead. This text is read from
+stderr, `Window mapped at final size (700x450), anchor top-right in workarea (origin <x>, <y>) ->
+screen position (<x>, <y>).`, with the window's real numbers. It names what you asked for and the
+area it is counted from, then the absolute position on the screen. If the app ends up larger than asked, the line says so instead. This text is read from
 the code (see Sources), not run.
 
 To check it, list the windows and find the row of the new one:
@@ -110,7 +111,8 @@ spawn-at transform --class org.gnome.Calculator --anchor center --size 400 500
 id or a class, run `spawn-at query windows` (or add `--json`).
 
 What you should see: the window moves and resizes, and `transform` prints `Window transformed at
-final size (<w>x<h>) and positioned at (<x>, <y>).` (read from the code, not run). To check it, run
+final size (<w>x<h>), anchor center in workarea (origin <x>, <y>) -> screen position (<x>, <y>).`
+(read from the code, not run). To check it, run
 `spawn-at query windows` again and compare the `GEOMETRY` of that row. If nothing changed but the
 command exited 0, see
 [the exit-0 entry](/spawn-at/troubleshooting/#focus-maximize-minimize-restore-transform-or-defocus-exited-0-but-nothing-changed).

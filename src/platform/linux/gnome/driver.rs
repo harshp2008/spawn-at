@@ -7,7 +7,9 @@
 //! it only through that wrapper.
 //!
 //! Version gating: each method reads the extension's `ProtocolVersion` itself and treats a failed
-//! read as 0, so an unreachable extension looks like "older extension". The thresholds used here
+//! read as 0, so an unreachable extension looks like "older extension". The exceptions are `arm`
+//! and `prepare_claim_wait`, which keep a failed read apart so `diagnose.rs` can say why the
+//! extension is missing instead of calling it old. The thresholds used here
 //! are 2 (claim signal), 3 (close, and the version `arm` warns below), 4 (layout) and 6
 //! (resize outcome). The extension reports 6 (modern) or 5 (legacy), read from
 //! `assets/gnome/*/extension.js`.
@@ -15,6 +17,8 @@
 //! It must not touch files or the Shell process; installing the extension is the provisioner's
 //! job (`deploy.rs`).
 
+use super::deploy::EXTENSION_UUID;
+use super::diagnose::{self, Diagnosis};
 use super::{dbus, mechanics};
 use crate::platform::{
     Armed, Batch, CompositorBackend, Driver, DriverError, MonitorInfo, MonitorLayout,
@@ -69,6 +73,31 @@ pub const EXPECTED_PROTOCOL_VERSION: u32 = 3;
 /// The first extension protocol that sends the `ResizeOutcome` signal. `prepare_claim_wait`
 /// subscribes to that signal only at this version or higher.
 pub const RESIZE_OUTCOME_PROTOCOL: u32 = 6;
+
+/// The warning for a loaded extension that reports `found`, below [`EXPECTED_PROTOCOL_VERSION`].
+fn old_protocol_text(found: u32) -> String {
+    diagnose::message(&Diagnosis::OldProtocol {
+        found,
+        expected: EXPECTED_PROTOCOL_VERSION,
+    })
+}
+
+/// The reason and fix to print after a failed `ArmSpawn`, from facts read now (`protocol` is the
+/// `ProtocolVersion` read at the start of `arm`, `None` when it failed). Reads the installed
+/// `metadata.json` and runs `gnome-shell --version` and `gnome-extensions info`.
+fn explain_failure(protocol: Option<u32>) -> String {
+    let Ok(dir) = GnomeWaylandDriver::extension_dir() else {
+        return "Reason: $HOME is not set, so the installed extension could not be checked.\n\
+                Fix: run 'spawn-at install'."
+            .to_string();
+    };
+    let facts = diagnose::gather_real(&dir, EXTENSION_UUID, protocol, EXPECTED_PROTOCOL_VERSION);
+    match diagnose::diagnose(&facts) {
+        Some(d) => diagnose::message(&d),
+        // Only reachable with a current protocol: the extension answers, yet the call failed.
+        None => "Reason: the extension answered ProtocolVersion but rejected the call.".to_string(),
+    }
+}
 
 use crate::platform::{ClaimResult, ClaimSubscription};
 use futures_util::{FutureExt, StreamExt};
@@ -204,16 +233,17 @@ impl Driver for GnomeWaylandDriver {
     /// `Ok` does not prove the extension accepted the instructions: it logs invalid JSON and
     /// returns normally.
     ///
-    /// A protocol below [`EXPECTED_PROTOCOL_VERSION`], or a failed version read, prints a warning
-    /// and carries on.
+    /// A protocol below [`EXPECTED_PROTOCOL_VERSION`] prints a warning and carries on. A failed
+    /// version read does not warn by itself: if `ArmSpawn` then fails, the error says why
+    /// (`diagnose.rs`); if it succeeds, the extension is loaded without a readable
+    /// `ProtocolVersion`, which counts as protocol 0 and warns once.
     async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
         // The version check only warns; it never stops the arm.
-        let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
-        if ext_version < EXPECTED_PROTOCOL_VERSION {
-            crate::diagnostics::render_warning(
-                "Extension protocol mismatch (detected older extension). \
-                 Please log out and back in to load the updated extension.",
-            );
+        let ext_version = self.proxy.protocol_version().await.ok();
+        let mut warned_old = false;
+        if let Some(found) = ext_version.filter(|v| *v < EXPECTED_PROTOCOL_VERSION) {
+            crate::diagnostics::render_warning(&old_protocol_text(found));
+            warned_old = true;
         }
 
         let mut launch_env = Vec::new();
@@ -241,12 +271,16 @@ impl Driver for GnomeWaylandDriver {
                 .await
                 .map_err(|e| {
                     DriverError::IpcError(format!(
-                        "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n\
-                         Reason: The extension does not appear to be running on the session bus.\n\
-                         Fix: Run 'spawn-at install' to install and activate the extension.",
-                        e
+                        "Failed to communicate with SpawnAt GNOME extension via D-Bus: {}\n{}",
+                        e,
+                        explain_failure(ext_version)
                     ))
                 })?;
+
+            if ext_version.is_none() && !warned_old {
+                crate::diagnostics::render_warning(&old_protocol_text(0));
+                warned_old = true;
+            }
 
             launch_env.push(("XDG_ACTIVATION_TOKEN".to_string(), entry.key.clone()));
             launch_env.push(("DESKTOP_STARTUP_ID".to_string(), entry.key.clone()));
@@ -308,8 +342,8 @@ impl CompositorBackend for GnomeWaylandDriver {
     }
 
     /// Opens the `SpawnClaimed` stream (and the `ResizeOutcome` stream on protocol 6 or newer)
-    /// for `target_id`. `Ok(None)` with an info message when the protocol is below 2, which
-    /// includes a failed version read, since that counts as 0.
+    /// for `target_id`. `Ok(None)` with an info message when the protocol is below 2, and
+    /// `Ok(None)` without a message when the version cannot be read.
     ///
     /// Errors: [`DriverError::IpcError`] when a subscription cannot be made. The spawn command
     /// turns that into "no claim wait" without a message (`.ok().flatten()` in
@@ -318,7 +352,11 @@ impl CompositorBackend for GnomeWaylandDriver {
         &self,
         target_id: &str,
     ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
-        let ext_version = self.proxy.protocol_version().await.unwrap_or(0);
+        // A failed read says nothing about the protocol: the extension may not be loaded at all.
+        // `arm` runs next and reports the cause, so stay silent here instead of calling it old.
+        let Ok(ext_version) = self.proxy.protocol_version().await else {
+            return Ok(None);
+        };
         if ext_version < 2 {
             crate::diagnostics::render_info(
                 "GNOME Shell extension does not support SpawnClaimed signal (protocol version < 2); falling back to polling.",

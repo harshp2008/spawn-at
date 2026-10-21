@@ -59,6 +59,7 @@
 //! - `dbus.rs`: the zbus proxy of the extension's interface.
 //! - `mechanics.rs`: the instruction list and placement payload sent to the extension.
 //! - `logout.rs`: whether an install still needs a log-out.
+//! - `diagnose.rs`: why the extension did not answer on the bus (not installed, disabled, OUT OF DATE, old protocol).
 
 pub mod dbus;
 pub mod logout;
@@ -67,6 +68,7 @@ pub mod mechanics;
 mod args;
 mod deploy;
 mod detect;
+mod diagnose;
 mod driver;
 #[cfg(test)]
 mod tests;

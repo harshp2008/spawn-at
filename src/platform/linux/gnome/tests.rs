@@ -789,3 +789,67 @@ async fn test_gnome_driver_is_its_own_provisioner() {
         .expect("GNOME needs the extension installed");
     assert_eq!(p.install_notice(), driver.install_notice());
 }
+
+/// The `shell-version` list of the modern `metadata.json` that `install` writes.
+fn modern_shell_versions() -> Vec<String> {
+    let (_, text) = EMBEDDED_EXTENSION_FILES_MODERN
+        .iter()
+        .find(|(name, _)| *name == "metadata.json")
+        .expect("the modern file list must contain metadata.json");
+    super::diagnose::parse_shell_versions(text)
+        .expect("modern metadata.json must have a shell-version array of strings")
+}
+
+/// Every `shell-version` entry of the modern metadata is a plain number. A typo such as "5O" or
+/// "49 " would make GNOME mark the extension OUT OF DATE for that Shell without any build error.
+#[test]
+fn test_modern_metadata_shell_versions_are_numbers() {
+    for entry in modern_shell_versions() {
+        assert!(
+            entry.parse::<u32>().is_ok(),
+            "shell-version entry {entry:?} is not a number"
+        );
+    }
+}
+
+/// The modern metadata lists 49 and 50 (GNOME 50.1 marked the extension OUT OF DATE and never
+/// loaded it while only 45 to 48 were listed), and still lists 45 to 48.
+#[test]
+fn test_modern_metadata_lists_gnome_49_and_50() {
+    let listed = modern_shell_versions();
+    for major in ["45", "46", "47", "48", "49", "50"] {
+        assert!(
+            listed.iter().any(|e| e == major),
+            "modern metadata must list {major}, has {listed:?}"
+        );
+    }
+}
+
+/// The legacy metadata keeps listing only 42 to 44: its tree is used below Shell 45 and was not
+/// part of the 49/50 change.
+#[test]
+fn test_legacy_metadata_still_lists_42_to_44() {
+    let (_, text) = EMBEDDED_EXTENSION_FILES_LEGACY
+        .iter()
+        .find(|(name, _)| *name == "metadata.json")
+        .expect("the legacy file list must contain metadata.json");
+    assert_eq!(
+        super::diagnose::parse_shell_versions(text),
+        Some(vec!["42".to_string(), "43".to_string(), "44".to_string()])
+    );
+}
+
+/// Two-digit majors above 48 parse from the real `gnome-shell --version` shapes ("GNOME Shell
+/// 50.1", "49.rc"); a parser that cut at the first digit would give 5 or 4 and select nothing.
+#[test]
+fn test_parse_gnome_shell_major_version_49_and_50() {
+    assert_eq!(
+        parse_gnome_shell_major_version("GNOME Shell 50.1"),
+        Some(50)
+    );
+    assert_eq!(
+        parse_gnome_shell_major_version("GNOME Shell 49.rc"),
+        Some(49)
+    );
+    assert_eq!(parse_gnome_shell_major_version("GNOME Shell 49"), Some(49));
+}

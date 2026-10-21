@@ -30,7 +30,7 @@ and keeps correcting late resizes for a short time.
 
 - **GNOME 42, 43 and 44.** A separate legacy extension exists. It was never run on a real GNOME 42 to
   44 and may not work at all.
-- **GNOME 45 and 47 or later.** The extension's metadata lists 45 to 48; only 46 has been run. On an
+- **GNOME 45 and 47 or later.** The extension's metadata lists 45 to 50; only 46 has been run in earnest (50.1 on Ubuntu 26.04 was tried once by hand and placed a window correctly). On an
   untested version the installer prints a notice first and asks before it installs (`--yes` skips the
   question).
 - **GNOME on X11.** Partly tested with the test window. On X11 the installer reloads the Shell in

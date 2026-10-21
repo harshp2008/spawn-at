@@ -25,11 +25,11 @@ use std::process::Command;
 /// The extension's UUID: the name of its directory under the user's extensions folder and the
 /// argument of `gnome-extensions enable` / `disable`. It equals `uuid` in both `metadata.json`
 /// files.
-const EXTENSION_UUID: &str = "spawn-at@harsh.local";
+pub(super) const EXTENSION_UUID: &str = "spawn-at@harsh.local";
 
 /// The files of `assets/gnome/modern/`, as (file name, contents), written by `install` when the
 /// detected Shell is 45 or newer or unknown. The `metadata.json` of this set lists Shell
-/// versions 45 to 48.
+/// versions 45 to 50.
 pub const EMBEDDED_EXTENSION_FILES_MODERN: &[(&str, &str)] = &[
     (
         "extension.js",
@@ -241,7 +241,7 @@ fn disable_warning_text(why: &str, files_removed: bool) -> String {
 impl GnomeWaylandDriver {
     /// `$HOME/.local/share/gnome-shell/extensions/spawn-at@harsh.local`. Reads `$HOME` only
     /// (not the XDG data dir), so with `HOME` unset it fails with [`DriverError::Execution`].
-    fn extension_dir() -> Result<PathBuf, DriverError> {
+    pub(super) fn extension_dir() -> Result<PathBuf, DriverError> {
         let home = std::env::var("HOME").map_err(|e| {
             DriverError::Execution(
                 format!(

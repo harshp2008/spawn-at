@@ -11,7 +11,7 @@ everyone. The exact limits of each row are on its own page.
 | GNOME 46, X11 session | Partly tested: the project's test window only, no real apps |
 | XWayland windows on a GNOME Wayland session | Test window only. They use the older, shorter wait, so they flash more |
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**; never run on a real GNOME 42 to 44 |
-| GNOME 45 and 47 or later | Untested. The extension's metadata lists 45 to 48, but only 46 has been run |
+| GNOME 45 and 47 or later | Untested. The extension's metadata lists 45 to 50, but only 46 has been run in earnest |
 | [Sway](/spawn-at/environments/sway/) | **Experimental**, opt-in with `SPAWN_AT_BACKEND=sway`. Run only against a private headless Sway 1.9 with the test window |
 | [X11 and XWayland (fallback)](/spawn-at/environments/x11-xwayland/) | Experimental backend, untested with real apps. No cloaking, so windows flash |
 | [Other Wayland desktops](/spawn-at/environments/unsupported-desktops/) (KDE, Hyprland, unknown) | Not supported. spawn-at exits with an error unless you opt in to the X11 fallback |

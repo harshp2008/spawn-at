@@ -144,6 +144,62 @@ pub fn render_debug(msg: &str) {
     eprintln!("[spawn-at] DEBUG: {}", msg);
 }
 
+/// The position part of a request, in the words of the success message: `reference` is the
+/// text for what was given (`offset (100, 100)`, `anchor top-left, offset (8, 8)`), and `area`
+/// and `origin` say which rectangle it is measured from. `origin` is the top-left of the
+/// params' `workarea` rectangle; it is not shown for [`Area::Unbounded`], where the origin is
+/// the global (0, 0).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RequestedPlacement {
+    reference: String,
+    area: Option<(Area, (i32, i32))>,
+}
+
+impl RequestedPlacement {
+    /// Describes the position part of `params`: with an anchor, the anchor (and its offset);
+    /// otherwise `pos`, which wins over `offset` as in `calculate_rect_from_placement`, or
+    /// `offset`, worded as an offset. `None` when none of the three is set. An anchor at the cursor is measured from
+    /// the pointer, so it names no area.
+    pub fn from_params(params: &PlacementParams) -> Option<Self> {
+        use clap::ValueEnum;
+        let fmt = |(x, y): (i32, i32)| format!("({}, {})", x, y);
+        let (reference, measured_from_area) = if let Some(anchor) = params.anchor {
+            let name = anchor
+                .to_possible_value()
+                .map(|v| v.get_name().to_string())
+                .unwrap_or_else(|| format!("{:?}", anchor));
+            let mut text = format!("anchor {}", name);
+            if let Some(off) = params.offset {
+                text.push_str(&format!(", offset {}", fmt(off)));
+            }
+            (text, anchor != spawn_at_core::geometry::Anchor::Cursor)
+        } else {
+            // `-p` and `-o` are aliases; the spawn command puts the value in `pos` when there is
+            // no anchor, so both flags read as "offset" here.
+            let p = params.pos.or(params.offset)?;
+            (format!("offset {}", fmt(p)), true)
+        };
+        let area = measured_from_area.then(|| {
+            let kind = params.area.unwrap_or_default();
+            let origin = (params.workarea.x, params.workarea.y);
+            (kind, origin)
+        });
+        Some(Self { reference, area })
+    }
+
+    /// `offset (100, 100) in workarea (origin 0, 40)`; the origin is left out for `unbounded`
+    /// and the whole area clause for a cursor anchor.
+    fn describe(&self) -> String {
+        match self.area {
+            None => self.reference.clone(),
+            Some((Area::Unbounded, _)) => format!("{} in unbounded", self.reference),
+            Some((kind, (ox, oy))) => {
+                format!("{} in {} (origin {}, {})", self.reference, kind, ox, oy)
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Diagnostic {
     /// Window mapped/transformed successfully at target position and size.
@@ -151,6 +207,9 @@ pub enum Diagnostic {
         pos: (i32, i32),
         size: (u32, u32),
         is_transform: bool,
+        /// What was asked for, so the message can show it next to the absolute `pos`. `None`
+        /// when the request had no position (only a size).
+        requested: Option<RequestedPlacement>,
     },
     /// The requested size was below toolkit minimums and was expanded.
     SizeRaisedToMinimum {
@@ -227,17 +286,27 @@ impl Diagnostic {
                 pos,
                 size,
                 is_transform,
+                requested,
             } => {
-                if *is_transform {
-                    format!(
-                        "Window transformed at final size ({}x{}) and positioned at ({}, {}).",
-                        size.0, size.1, pos.0, pos.1
-                    )
+                let verb = if *is_transform {
+                    "transformed"
                 } else {
-                    format!(
-                        "Window mapped at final size ({}x{}) and positioned at ({}, {}).",
-                        size.0, size.1, pos.0, pos.1
-                    )
+                    "mapped"
+                };
+                match requested {
+                    Some(r) => format!(
+                        "Window {} at final size ({}x{}), {} -> screen position ({}, {}).",
+                        verb,
+                        size.0,
+                        size.1,
+                        r.describe(),
+                        pos.0,
+                        pos.1
+                    ),
+                    None => format!(
+                        "Window {} at final size ({}x{}), screen position ({}, {}).",
+                        verb, size.0, size.1, pos.0, pos.1
+                    ),
                 }
             }
             Diagnostic::SizeRaisedToMinimum {
@@ -454,6 +523,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 pos: (actual_rect.x, actual_rect.y),
                 size: (actual_rect.width, actual_rect.height),
                 is_transform,
+                requested: RequestedPlacement::from_params(params),
             });
         }
         return diags;
@@ -537,6 +607,7 @@ pub fn evaluate_placement_diagnostics_for_action(
                 pos: (actual_rect.x, actual_rect.y),
                 size: (actual_rect.width, actual_rect.height),
                 is_transform,
+                requested: RequestedPlacement::from_params(params),
             });
         }
     } else {
@@ -1029,12 +1100,140 @@ mod tests {
         // Spawn keeps original wording: "Window mapped..."
         assert_eq!(
             diags_spawn[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Window mapped at final size (800x600) and positioned at (560, 260)."
+            "[spawn-at] INFO: Window mapped at final size (800x600), anchor center in workarea (origin 0, 40) -> screen position (560, 260)."
         );
         // Transform uses transform-fitting wording: "Window transformed..."
         assert_eq!(
             diags_transform[0].format_message_with_capability(ColorCapability::Disabled),
-            "[spawn-at] INFO: Window transformed at final size (800x600) and positioned at (560, 260)."
+            "[spawn-at] INFO: Window transformed at final size (800x600), anchor center in workarea (origin 0, 40) -> screen position (560, 260)."
+        );
+    }
+
+    /// The success line for `params` with the window at `(x, y)` and size `(w, h)`.
+    fn success_line(params: &PlacementParams, x: i32, y: i32, w: u32, h: u32) -> String {
+        let actual = Rect {
+            x,
+            y,
+            width: w,
+            height: h,
+        };
+        let diags = evaluate_placement_diagnostics(params, actual, None, false);
+        assert_eq!(diags.len(), 1, "{diags:?}");
+        assert!(
+            matches!(diags[0], Diagnostic::PlacedSuccess { .. }),
+            "{diags:?}"
+        );
+        diags[0].message_body()
+    }
+
+    /// `-o 100 100` on the default area: the line shows the offset, the area and its origin, and
+    /// the absolute result. The reported case was a "positioned at (100, 140)" line for `-o 100
+    /// 100`, which read like an off-by-40 bug; the 40 is the work area's top edge. The origin
+    /// printed is the work area's own y, so a different top bar changes the text, not the code.
+    #[test]
+    fn test_success_line_shows_offset_area_and_screen_position() {
+        let params = PlacementParams {
+            pos: Some((100, 100)),
+            size: Some((814, 601)),
+            area: Some(Area::Workarea),
+            workarea: sample_workarea(),
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&params, 100, 140, 814, 601),
+            "Window mapped at final size (814x601), offset (100, 100) in workarea (origin 0, 40) -> screen position (100, 140)."
+        );
+
+        let params_top_bar_60 = PlacementParams {
+            workarea: Rect {
+                y: 60,
+                height: 1020,
+                ..sample_workarea()
+            },
+            ..params
+        };
+        assert_eq!(
+            success_line(&params_top_bar_60, 100, 160, 814, 601),
+            "Window mapped at final size (814x601), offset (100, 100) in workarea (origin 0, 60) -> screen position (100, 160)."
+        );
+    }
+
+    /// `--area screen` on a second monitor at x=1920: the origin printed is that monitor's, and
+    /// the screen position is global (2020), not the offset. Catches printing the offset as the
+    /// result or the origin of the first monitor.
+    #[test]
+    fn test_success_line_for_screen_area_on_another_monitor() {
+        let params = PlacementParams {
+            pos: Some((100, 100)),
+            area: Some(Area::Screen),
+            workarea: Rect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&params, 2020, 100, 400, 300),
+            "Window mapped at final size (400x300), offset (100, 100) in screen (origin 1920, 0) -> screen position (2020, 100)."
+        );
+    }
+
+    /// With `--area unbounded` the offset is measured from the global (0, 0), so no origin is
+    /// printed (it would say "origin 0, 40" for a rectangle that is not used).
+    #[test]
+    fn test_success_line_for_unbounded_area_has_no_origin() {
+        let params = PlacementParams {
+            pos: Some((-300, 50)),
+            area: Some(Area::Unbounded),
+            workarea: sample_workarea(),
+            clamp: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&params, -300, 50, 400, 300),
+            "Window mapped at final size (400x300), offset (-300, 50) in unbounded -> screen position (-300, 50)."
+        );
+    }
+
+    /// An anchor with an offset names both; a cursor anchor names no area, since it is measured
+    /// from the pointer; a request with only a size has no position to show. Margin is 0 so the
+    /// top-left anchor lands at the work area's corner plus the offset: (0 + 8, 40 + 8).
+    #[test]
+    fn test_success_line_for_anchor_cursor_and_size_only() {
+        let anchored = PlacementParams {
+            anchor: Some(Anchor::TopLeft),
+            offset: Some((8, 8)),
+            size: Some((400, 300)),
+            workarea: sample_workarea(),
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&anchored, 8, 48, 400, 300),
+            "Window mapped at final size (400x300), anchor top-left, offset (8, 8) in workarea (origin 0, 40) -> screen position (8, 48)."
+        );
+
+        let cursor = PlacementParams {
+            anchor: Some(Anchor::Cursor),
+            cursor_pos: Some((500, 400)),
+            size: Some((400, 300)),
+            workarea: sample_workarea(),
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&cursor, 500, 400, 400, 300),
+            "Window mapped at final size (400x300), anchor cursor -> screen position (500, 400)."
+        );
+
+        let size_only = PlacementParams {
+            size: Some((400, 300)),
+            workarea: sample_workarea(),
+            ..Default::default()
+        };
+        assert_eq!(
+            success_line(&size_only, 700, 300, 400, 300),
+            "Window mapped at final size (400x300), screen position (700, 300)."
         );
     }
 
