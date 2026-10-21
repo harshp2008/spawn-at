@@ -172,8 +172,8 @@ or an earlier failure.
 
 ### Which desktops and GNOME versions work?
 
-Only GNOME Shell 46 on Wayland has been run on a real session. The full table, and what the code
-accepts, is on [Requirements](/spawn-at/requirements/) and [Environments](/spawn-at/environments/).
+Only GNOME Shell 46 on Wayland counts as tested; GNOME 50.1 on Wayland was run once and 9 of 36
+required cases failed. The full table, and what the code accepts, is on [Requirements](/spawn-at/requirements/) and [Environments](/spawn-at/environments/).
 
 ### Does `uninstall` delete my config file?
 

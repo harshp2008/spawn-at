@@ -2,7 +2,10 @@
 title: "GNOME on Wayland"
 ---
 
-**Status: supported. Tested on GNOME Shell 46 only**, Wayland, one monitor, one machine.
+**Status: supported. Tested on GNOME Shell 46 only**, Wayland, one monitor, one machine. GNOME
+Shell 50.1 (Wayland) was run once for 0.2.4 and is partly tested, with failures: of the 36 required
+`release-gate` cases 16 passed, 9 failed (windows requested below their minimum size came out too
+tall), 4 were skipped and 7 await a human verdict.
 
 This is the one environment where spawn-at hides a window until it is placed. Only the compositor
 can place windows on Wayland, so spawn-at ships a GNOME Shell extension and talks to it over D-Bus
