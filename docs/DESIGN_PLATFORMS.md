@@ -235,7 +235,7 @@ Steps 1-3 can be done at once and by themselves reduce risk. Steps 4-10 are the 
 
 **Must not change** (the GNOME Wayland contract):
 
-* The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt` and the instruction JSON (`mechanics.rs:42`, `dbus.rs:3-6`), the protocol numbers (`gnome/driver.rs:81-89`), and the extension files (`assets/gnome`). The extension files changed in v0.2.2 (`metadata.json` lists Shell 49 and 50) and in v0.2.3 (protocol 7); each release says in its CHANGELOG.md entry whether they changed.
+* The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt` and the instruction JSON (`mechanics.rs:42`, `dbus.rs:3-6`), the protocol numbers (`gnome/driver.rs:81-90`), and the extension files (`assets/gnome`). The extension files changed in v0.2.2 (`metadata.json` lists Shell 49 and 50) and in v0.2.3 (protocol 7); each release says in its CHANGELOG.md entry whether they changed.
 * The ready-wait policy and its Rust/JS parity (`ready_wait.rs` and `assets/gnome/modern/ready_wait.js`, checked by `tests/ready_wait_vectors`), the 30 ms legacy rule, `wait.strategy` / `wait.cap_ms`.
 * Placement math (`geometry.rs`, `verify/golden/placement.json`), config keys and file location, CLI flags and `--help` text (the `--pos` and `--offset` help was reworded in v0.2.2), exit codes.
 * The installer flow just stabilised in beta.3: the log-out question last (`session.rs`), `--clean-install`, the prompts' width rules (`prompts.rs`), `install.sh` behavior.
@@ -252,7 +252,7 @@ Steps 1-3 can be done at once and by themselves reduce risk. Steps 4-10 are the 
 * The neutral command layer is genuinely neutral: it only uses `CompositorBackend`; `gnome::mechanics` is referenced from production code only inside the GNOME driver.
 * `run_spawn_with` is one function of about 524 lines (`spawn.rs:59-582`); splitting it is a prerequisite for reasoning about a second ready-signal model.
 * `/proc` process ancestry existed twice; step 2 merged it into `linux/process_tree.rs:4-33`.
-* Extension protocol numbers (3, 4, 5, 6, 7): until step 6 the neutral commands compared them (`spawn.rs:101`, `transform.rs:44`, `query.rs:74`); now only `HelperNeed::min_protocol` (4, 5) in `capability.rs` knows the thresholds, and the GNOME driver keeps its own (constants `gnome/driver.rs:81-89`).
+* Extension protocol numbers (3, 4, 5, 6, 7): until step 6 the neutral commands compared them (`spawn.rs:101`, `transform.rs:44`, `query.rs:74`); now only `HelperNeed::min_protocol` (4, 5) in `capability.rs` knows the thresholds, and the GNOME driver keeps its own (constants `gnome/driver.rs:81-90`).
 * Only two of the `supports_*` capability flags are read in production (`transform.rs:19`, `lifecycle.rs:34`).
 * Ready-wait exists twice, in Rust (`spawn-at-core/src/ready_wait.rs`) and JavaScript (`assets/gnome/modern/ready_wait.js`), tied together by shared vectors in `tests/ready_wait_vectors`.
 * The GNOME extension exposes only a protocol number over D-Bus, no content hash (`assets/gnome/modern/dbus.js`, `extension.js:1533`); "is the running extension current" therefore needs file facts (`logout.rs`).
