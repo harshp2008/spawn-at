@@ -70,12 +70,14 @@ This is the one table of counts. Other pages point here.
 Rust total with `tui,fixture`: 1342 run and 5 ignored (520 + 64 + 132 + 626). With the 254 Node tests
 that run locally: 1596. With the 3 install-script tests, which only CI runs: 1599.
 
-Last checked on 2026-10-21 at commit `4b14ad9`, the head of `main` then. Every Rust row was produced
-by the command in its last column (`--list`, then `grep -c ': test$'`, and `--list --ignored` for the
-ignored column); the Node row by running the 12 local files once (`tests 240`, `pass 240`). The
-`xtask` row also counts the tests added on the branch of this change (the Status check of the
-mirror, the image checks and the readability warnings); the other crates are
-unchanged since that commit. The install-script count is carried over and was not run here.
+Last checked on 2026-10-23 at commit `cca1bc3`, which contains v0.2.4 (`07228c4`) and the
+documentation changes of this branch. Every Rust row was produced by the command in its last column
+(`--list`, then `grep -c ': test$'`, and `--list --ignored` for the ignored column); the Node row by
+running each of the 13 local files once with `node --test tests/<file>` (`tests 254`, `pass 254`, `fail 0`
+in total). The `xtask` row includes the 13 tests of `release.rs` from v0.2.4 and the tests of this
+branch (the Status check of the mirror, the image checks and the readability warnings). No Rust or
+JavaScript code changed between the merge of v0.2.4 and that commit. The install-script count is
+carried over from earlier documentation and was not run here.
 
 To get a Rust count, pipe the command through `grep -c ': test$'`. That is the number of tests
 listed, ignored ones included. Add `--ignored` after `--list` to count only the ignored tests. Run is
