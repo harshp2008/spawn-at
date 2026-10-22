@@ -11,7 +11,7 @@ What is in the repository now. The file list below is generated from the tracked
 | `.` (package `spawn-at`) | The CLI and the installer. Binary `spawn-at`. | The only default member (`default-members = ["."]` in `Cargo.toml`), so plain `cargo build` / `cargo test` cover only this package. |
 | `crates/spawn-at-core` | Pure logic with no I/O: geometry, driver trait and batch types, ready-wait state machine, settings, wait override, resize report. | Modules in `src/lib.rs`: `driver`, `geometry`, `ready_wait`, `resize_report`, `settings`, `wait_override`. |
 | `crates/spawn-at-verify` | Developer-only verification harness (binary `spawn-at-verify`, plus the `fixture` test-window binary). Never in the release tarball. | Features `fixture` and `tui`; name it with `-p spawn-at-verify --features tui,fixture`. |
-| `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`, and the documentation-site commands (`docs-site`, `docs-cli-reference`, `docs-check-src`, `docs-check-html`). | No dependencies. |
+| `crates/xtask` | Repository tooling (`cargo xtask ...`): comment-only check, doc coverage, `burn-cpu`, the documentation-site commands (`docs-site`, `docs-cli-reference`, `docs-mirror`, `docs-check-src`, `docs-check-html`) and the release checks of `release.yml` (`check-release-version`, `release-notes`). | No dependencies. |
 
 Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions, embedded into the binary), `tests/*.js` (Node tests for the extension), `tests/ready_wait_vectors/` (golden event scripts run by both a Rust test and a Node test), `verify/` (test specs and suite definitions read by `spawn-at-verify`), `tests/fixtures/sway/` (JSON and event lines recorded from a private headless Sway 1.9, read by the Sway unit tests and by `tests/sway_backend_cli_test.rs`), `scripts/` (`smoke-live.sh`, `sway-headless.sh` (a private headless Sway for the Sway backend tests, see [DESIGN_SWAY.md](DESIGN_SWAY.md)), `sway-live.sh` (the Sway live cases, run inside that private Sway), and thin wrappers for `cargo xtask`, among them `check-comment-only-product.sh`), `install.sh`, `.github/workflows/` (`ci.yml`, `release.yml`, `docs.yml`), `docs-site/` (the Starlight user guide: `astro.config.mjs`, `package.json` and `src/content/docs/`; see "Documentation site" below).
 
@@ -59,7 +59,9 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/logout.rs` | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | Internal GNOME Compositor Mechanics |
 | `src/platform/linux/gnome/mod.rs` | GNOME Compositor Backend & Extension Driver |
+| `src/platform/linux/gnome/needs_logout.rs` | The "log out to finish" follow-up of a headless update: one desktop notification and a marker file that `spawn` reads. |
 | `src/platform/linux/gnome/tests.rs` | Unit tests of the GNOME backend: the install and uninstall flag defaults, the Shell version parser, the embedded extension file lists against `assets/gnome`, the legacy and modern D-Bus XML, and `GnomeWaylandDriver` against stub services on the session bus (close, layout, windows, claims, capabilities, provisioner). |
+| `src/platform/linux/gnome/tests_entry.rs` | D-Bus stub tests for the keyed arm of `GnomeWaylandDriver`: `arm` against an extension at protocol 7 (`ArmSpawnEntry`) and at protocol 6 (only `ArmSpawn`), and `disarm_entry`. |
 | `src/platform/linux/mod.rs` | Everything Linux-specific: the three drivers (`gnome`, `sway`, `x11`), the backend choice (`registry`), the Linux [`host::NativeHost`] and config store, and [`LinuxBackend`], the one value the commands hold on this OS. |
 | `src/platform/linux/process_tree.rs` | Process Tree Introspection Helpers |
 | `src/platform/linux/registry.rs` | Which Linux backend a session gets: the choice that `LinuxBackend::bootstrap` always made, as a pure function |
@@ -123,6 +125,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `crates/xtask/src/docs_site.rs` | `docs-site`: builds the whole documentation site the way CI does, and checks it. |
 | `crates/xtask/src/docs_warn.rs` | The readability warnings of `docs-check-src` (rules W1 to W16 of the writing rules): one summary line per rule, never a failure. |
 | `crates/xtask/src/main.rs` | xtask: Internal developer and CI tooling for spawn-at. |
+| `crates/xtask/src/release.rs` | The release checks that `.github/workflows/release.yml` runs: `check-release-version` (the tag, the four `Cargo.toml` files and the four `Cargo.lock` entries agree) and `release-notes` (the `CHANGELOG.md` section of a version). |
 | `crates/xtask/tests/burn_cpu_test.rs` | Runs the built `xtask` binary's `burn-cpu` subcommand as a user would. |
 
 ### spawn-at-verify, library and binaries (`crates/spawn-at-verify/src/`)
@@ -305,6 +308,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `tests/legacy_dispatcher_test.js` | no module header |
 | `tests/ready_wait_test.js` | no module header |
 | `tests/ready_wait_wiring_test.js` | no module header |
+| `tests/stale_arm_test.js` | no module header |
 | `tests/wait_override_test.js` | no module header |
 | `tests/x11_observe_test.js` | no module header |
 
