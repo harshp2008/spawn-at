@@ -29,7 +29,7 @@ The harness rows need the binaries first: `cargo build -p spawn-at -p spawn-at-v
 spawn-at-verify/fixture`. The binary embeds its commit, so rebuild after every commit or the
 preflight check blocks the run as a stale binary.
 
-The first four `cargo` rows are what CI runs. The `node --test` row lists the 12 `*_test.js` files by
+The first four `cargo` rows are what CI runs. The `node --test` row lists the 13 `*_test.js` files by
 name. CI runs `node --test tests/*.js` instead, which also runs the 3 tests of
 `tests/install_unsupported_test.js`.
 
@@ -58,17 +58,17 @@ This is the one table of counts. Other pages point here.
 
 | Target | Run | Ignored | Command that prints the count |
 | :-- | --: | --: | :-- |
-| `spawn-at` | 460 | 0 | `cargo test --locked -p spawn-at -- --list` |
+| `spawn-at` | 520 | 0 | `cargo test --locked -p spawn-at -- --list` |
 | `spawn-at-core` | 64 | 0 | `cargo test --locked -p spawn-at-core -- --list` |
-| `xtask` | 119 | 0 | `cargo test --locked -p xtask -- --list` |
-| `spawn-at-verify`, no features | 434 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
-| `spawn-at-verify`, `tui` | 599 | 1 | `cargo test --locked -p spawn-at-verify --features tui -- --list` |
-| `spawn-at-verify`, `tui,fixture` (what CI runs) | 625 | 5 | `cargo test --locked -p spawn-at-verify --features tui,fixture -- --list` |
-| Node, 12 `*_test.js` files | 240 | 0 | `node --test tests/<file>`, once per file |
+| `xtask` | 132 | 0 | `cargo test --locked -p xtask -- --list` |
+| `spawn-at-verify`, no features | 435 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
+| `spawn-at-verify`, `tui` | 600 | 1 | `cargo test --locked -p spawn-at-verify --features tui -- --list` |
+| `spawn-at-verify`, `tui,fixture` (what CI runs) | 626 | 5 | `cargo test --locked -p spawn-at-verify --features tui,fixture -- --list` |
+| Node, 13 `*_test.js` files | 254 | 0 | `node --test tests/<file>`, once per file |
 | Node, the install-script test | 3 | 0 | CI only |
 
-Rust total with `tui,fixture`: 1268 run and 5 ignored (460 + 64 + 119 + 625). With the 240 Node tests
-that run locally: 1508. With the 3 install-script tests, which only CI runs: 1511.
+Rust total with `tui,fixture`: 1342 run and 5 ignored (520 + 64 + 132 + 626). With the 254 Node tests
+that run locally: 1596. With the 3 install-script tests, which only CI runs: 1599.
 
 Last checked on 2026-10-21 at commit `4b14ad9`, the head of `main` then. Every Rust row was produced
 by the command in its last column (`--list`, then `grep -c ': test$'`, and `--list --ignored` for the

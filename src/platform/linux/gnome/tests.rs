@@ -208,24 +208,45 @@ fn test_legacy_and_modern_dbus_xml_parity() {
     }
 
     // The legacy tree (GNOME 42-44) stays at protocol 5; protocol 6 added the ResizeOutcome
-    // signal to the modern tree only. Everything else must still be identical.
-    fn without_resize_outcome(xml: &str) -> String {
+    // signal and protocol 7 the ArmSpawnEntry and DisarmEntry methods to the modern tree only.
+    // Everything else must still be identical.
+    fn without_block(xml: &str, open: &str, close: &str, what: &str) -> String {
         let start = xml
-            .find("    <signal name=\"ResizeOutcome\">")
-            .expect("modern XML must declare ResizeOutcome (protocol 6)");
-        let end_tag = "</signal>\n";
-        let end = start + xml[start..].find(end_tag).unwrap() + end_tag.len();
+            .find(open)
+            .unwrap_or_else(|| panic!("modern XML must declare {what}"));
+        let end = start + xml[start..].find(close).unwrap() + close.len();
         format!("{}{}", &xml[..start], &xml[end..])
+    }
+    fn without_modern_only(xml: &str) -> String {
+        let xml = without_block(
+            xml,
+            "    <signal name=\"ResizeOutcome\">",
+            "</signal>\n",
+            "ResizeOutcome (protocol 6)",
+        );
+        let xml = without_block(
+            &xml,
+            "    <method name=\"ArmSpawnEntry\">",
+            "</method>\n",
+            "ArmSpawnEntry (protocol 7)",
+        );
+        without_block(
+            &xml,
+            "    <method name=\"DisarmEntry\">",
+            "</method>\n",
+            "DisarmEntry (protocol 7)",
+        )
     }
 
     let modern_xml = extract_xml(modern_dbus);
     let legacy_xml = extract_xml(legacy_dbus);
 
     assert!(!legacy_xml.contains("ResizeOutcome"));
+    assert!(!legacy_xml.contains("ArmSpawnEntry") && !legacy_xml.contains("DisarmEntry"));
     assert_eq!(
-            without_resize_outcome(&modern_xml),
+            without_modern_only(&modern_xml),
             legacy_xml,
-            "D-Bus interface XML must match between modern and legacy extensions, apart from the protocol-6 ResizeOutcome signal"
+            "D-Bus interface XML must match between modern and legacy extensions, apart from the protocol-6 ResizeOutcome signal and the protocol-7 ArmSpawnEntry and DisarmEntry methods"
         );
     assert!(modern_xml.contains("name=\"SpawnClaimed\""));
     assert!(modern_xml.contains("name=\"ProtocolVersion\""));
@@ -788,4 +809,68 @@ async fn test_gnome_driver_is_its_own_provisioner() {
         .provisioner()
         .expect("GNOME needs the extension installed");
     assert_eq!(p.install_notice(), driver.install_notice());
+}
+
+/// The `shell-version` list of the modern `metadata.json` that `install` writes.
+fn modern_shell_versions() -> Vec<String> {
+    let (_, text) = EMBEDDED_EXTENSION_FILES_MODERN
+        .iter()
+        .find(|(name, _)| *name == "metadata.json")
+        .expect("the modern file list must contain metadata.json");
+    super::diagnose::parse_shell_versions(text)
+        .expect("modern metadata.json must have a shell-version array of strings")
+}
+
+/// Every `shell-version` entry of the modern metadata is a plain number. A typo such as "5O" or
+/// "49 " would make GNOME mark the extension OUT OF DATE for that Shell without any build error.
+#[test]
+fn test_modern_metadata_shell_versions_are_numbers() {
+    for entry in modern_shell_versions() {
+        assert!(
+            entry.parse::<u32>().is_ok(),
+            "shell-version entry {entry:?} is not a number"
+        );
+    }
+}
+
+/// The modern metadata lists 49 and 50 (GNOME 50.1 marked the extension OUT OF DATE and never
+/// loaded it while only 45 to 48 were listed), and still lists 45 to 48.
+#[test]
+fn test_modern_metadata_lists_gnome_49_and_50() {
+    let listed = modern_shell_versions();
+    for major in ["45", "46", "47", "48", "49", "50"] {
+        assert!(
+            listed.iter().any(|e| e == major),
+            "modern metadata must list {major}, has {listed:?}"
+        );
+    }
+}
+
+/// The legacy metadata keeps listing only 42 to 44: its tree is used below Shell 45 and was not
+/// part of the 49/50 change.
+#[test]
+fn test_legacy_metadata_still_lists_42_to_44() {
+    let (_, text) = EMBEDDED_EXTENSION_FILES_LEGACY
+        .iter()
+        .find(|(name, _)| *name == "metadata.json")
+        .expect("the legacy file list must contain metadata.json");
+    assert_eq!(
+        super::diagnose::parse_shell_versions(text),
+        Some(vec!["42".to_string(), "43".to_string(), "44".to_string()])
+    );
+}
+
+/// Two-digit majors above 48 parse from the real `gnome-shell --version` shapes ("GNOME Shell
+/// 50.1", "49.rc"); a parser that cut at the first digit would give 5 or 4 and select nothing.
+#[test]
+fn test_parse_gnome_shell_major_version_49_and_50() {
+    assert_eq!(
+        parse_gnome_shell_major_version("GNOME Shell 50.1"),
+        Some(50)
+    );
+    assert_eq!(
+        parse_gnome_shell_major_version("GNOME Shell 49.rc"),
+        Some(49)
+    );
+    assert_eq!(parse_gnome_shell_major_version("GNOME Shell 49"), Some(49));
 }

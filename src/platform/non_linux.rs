@@ -80,7 +80,13 @@ pub fn session_actions() -> &'static dyn crate::platform::session_actions::Sessi
 struct NoUpdateHooks;
 
 impl crate::platform::update_hooks::UpdateHooks for NoUpdateHooks {
-    fn after_unpack(&self, _new_binary: &std::path::Path) {}
+    fn after_unpack(
+        &self,
+        _new_binary: &std::path::Path,
+    ) -> Option<crate::platform::update_hooks::ChangedExtension> {
+        None
+    }
+    fn announce_logout_needed(&self, _changed: &crate::platform::update_hooks::ChangedExtension) {}
     fn offers_session_action(&self) -> bool {
         false
     }

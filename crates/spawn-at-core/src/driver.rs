@@ -62,6 +62,7 @@ pub struct Entry {
     /// Identifies the entry within its batch.
     // The GNOME and X11 drivers return it as the value of XDG_ACTIVATION_TOKEN and
     // DESKTOP_STARTUP_ID, and GNOME uses it as the target id when the batch has several entries
+    // and, from extension protocol 7, as the name of the arm that `Driver::disarm_entry` removes
     // (src/platform/linux/gnome/driver.rs, x11/mod.rs).
     pub key: String,
     /// Application identifier or binary hint (e.g. "alacritty", "org.gnome.TextEditor").
@@ -183,6 +184,16 @@ pub trait Driver: Send + Sync {
     // src/platform/linux/mod.rs finds nothing), so the call in src/commands/spawn.rs reaches this
     // default and returns `Ok(false)` on Linux.
     async fn disarm(&self, _token: &str) -> Result<bool, DriverError> {
+        Ok(false)
+    }
+
+    /// Withdraws only the registration made for `entry_key` (the [`Entry::key`] of the arm), under
+    /// `token` ([`Armed::token`]); registrations of other launches of the same app stay. `Ok(true)`
+    /// when it was removed, `Ok(false)` when there was nothing to remove (already claimed or
+    /// expired) or the backend cannot do it. The default does nothing and returns `Ok(false)`.
+    // Only the GNOME driver overrides it (the extension's DisarmEntry, protocol 7 or higher).
+    // `LinuxBackend` forwards it, unlike `disarm`.
+    async fn disarm_entry(&self, _token: &str, _entry_key: &str) -> Result<bool, DriverError> {
         Ok(false)
     }
 }

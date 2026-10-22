@@ -6,7 +6,49 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-10-21
+
+Patch release (#87, #88). After upgrading, `spawn-at update` redeploys the extension as before; the extension itself is unchanged (protocol 7), so no new log-in is needed for this release.
+
 ### Changed
+
+- Release workflow (`.github/workflows/release.yml`): it now fails first if the tag does not equal the version in all four `Cargo.toml` files and the four `Cargo.lock` entries (`cargo xtask check-release-version`); it uses the `CHANGELOG.md` section of the tagged version as the release body when there is one (`cargo xtask release-notes`) and keeps the generated notes otherwise; and `workflow_dispatch` runs it as a dry run that builds and checks but never publishes (the publish step runs only for a push of a `v*` tag). Checked by reading the file, parsing it as YAML and unit tests; the workflow has not run on GitHub yet, and `actionlint` was not available.
+- `spawn-at -V` on a build that is not on a release tag prints the crate version after `DEV BUILD` on the first line (`DEV BUILD 0.2.3`); the other three lines (last release, rule, `Previous Commit ID:`) are as before. The first line still starts with `DEV BUILD` and never with `spawn-at `, so Win11Clip's installer regex (`^spawn-at <semver>$`) and its Makefile `sed` read it as "no release version" exactly as before, and the `spawn-at-verify` preflight still finds the commit line. A release build still prints exactly `spawn-at <version>`.
+- The untested-GNOME notice is driven by a list of verified environments (Shell major version, session type) instead of the fixed "only GNOME 46 on Wayland" text. The wording now says which environments were tested, built from the list, for example `GNOME Shell 49 on Wayland is UNTESTED: spawn-at has been tested on GNOME Shell 46 on Wayland.` Matching is by Shell major version. Two lists: `VERIFIED` (every case passed: no notice; today only 46 on Wayland) and `PARTLY_TESTED` (a "PARTLY tested" notice that says what was run: 46 on X11, and 50 on Wayland). GNOME Shell 50.1 on Wayland was run once with the `release-gate` suite on a clean build (`c2437c7`): of 36 required cases 16 passed, 9 failed (all "request below the minimum size" cases: 300x300 instead of 300x200), 4 were skipped (the cloak cases are limited to Shell 42-48 by their spec) and 7 await a human verdict, so 50 is **not** listed as tested; the README matrix and the docs say so. The previous README text ("50.1 was tried once by hand and placed a window correctly") is replaced by this result, and the install notice for Shell 50 no longer says UNTESTED.
+
+### Fixed
+
+- A menu or question on a terminal that has no keyboard no longer draws and then fails with a raw IO error. When stdout is a terminal but stdin is not and `/dev/tty` cannot be opened (a `setsid` process, a service), `update`, `install` and `uninstall` print one line, `There is no terminal to ask on ... Run again with --headless to skip the questions.`, instead of drawing the menu, printing `IO error: No such device or address (os error 6)` (or `not a terminal`) and leaving the cursor hidden. Exit codes are unchanged (1, measured before and after for `update --force` and `install --dry-run`). I could not reproduce several repeated error lines in the shapes tried (one raw error per run).
+- On a first install on Wayland, `gnome-extensions enable exited with code 2` is replaced by a plain message (`The extension is installed. GNOME Shell has not indexed it yet, so it loads after you log out and back in ...`) in that one case only: a first install (no extension directory before), Wayland, `enable` exit code 2, and `gnome-extensions info` exit code 2 (the Shell does not know the extension). Every other failure keeps the loud `Note:` line. Covered by unit tests with injected facts; `install` was not run end to end.
+- A headless update (the login entry) that changes the GNOME extension files on Wayland now says so (#87). Before, it rewrote the files after the Shell had started and printed nothing, so the extension stayed OUT OF DATE or old until the next log-in by chance. Now, when `update --headless` runs without a terminal and the deployed files differ from before, it sends one desktop notification (`spawn-at updated its GNOME extension; log out and back in to finish`) and writes `$XDG_STATE_HOME/spawn-at/needs-logout` (default `~/.local/state/spawn-at/needs-logout`) with the deployed protocol. `spawn` prints one hint line while that file exists and the loaded extension's protocol is lower than the deployed one, and removes the file once it has caught up. No notification and no file on X11, on a first install, when nothing changed, or for the same deployed files twice. A change that keeps the protocol number (for example a new Shell version in `metadata.json`) is announced once but gives no `spawn` hint, because the extension exposes only a protocol number. There is no `doctor` command, so only `spawn` prints the hint. Run end to end against a fake release in a temporary tree on a private session bus with a stub notification service; not run on a real login, on other Shell versions or on X11 with a real Shell. The extension protocol is unchanged (7).
+
+## [0.2.3] - 2026-10-21
+
+Patch release: the stale-arm fix (#84, #85). It needs both the new CLI and the protocol-7 extension. After upgrading, run `spawn-at update` (it redeploys the extension) or `spawn-at install`, then log out and back in, so the new extension is loaded.
+
+### Added
+
+- Extension protocol 7 (modern tree only): the D-Bus methods `ArmSpawnEntry(target_id, entry_key, instructions_json)` and `DisarmEntry(target_id, entry_key)`. `ArmSpawn` and `DisarmSpawn` are unchanged. The CLI uses the new methods only when the extension reports protocol 7 or higher.
+
+### Fixed
+
+- An arm that no window claims no longer misplaces the next show of the same app (#84). When `spawn` is run while the app's window is already visible and the app only forwards the request to its running instance, no window is created, the instruction stayed queued in the extension for 15 s, and the next window of that app was placed from it (the oldest entry is served first). `spawn` now withdraws its own entry when the wait ends without a claim (timeout, or an app that reused an old window). This needs the new CLI and the protocol-7 extension: run `spawn-at update` or `spawn-at install`, then log out and back in. A new CLI with an older extension, and an older CLI with the new extension, behave as before. Not fixed: a window shown within the CLI's own wait of about 4 s after such an arm, `--no-wait`, a CLI that is killed (all rely on the 15 s expiry), and the legacy extension for GNOME 42 to 44. Run on GNOME Shell 50.1 (Wayland) with test windows, and with node and D-Bus stubs; not run on other Shell versions or on X11.
+
+## [0.2.2] - 2026-10-21
+
+Patch release: GNOME Shell 49 and 50 support (#82). After upgrading, run `spawn-at update` (it redeploys the extension) or `spawn-at install`, then log out and back in, so the new `metadata.json` is written and loaded.
+
+### Added
+
+- GNOME Shell 49 and 50 are listed in `assets/gnome/modern/metadata.json`. Before, GNOME 50 marked the extension OUT OF DATE and never loaded it, so no D-Bus object appeared and every `spawn` printed the "protocol mismatch" warning and `UnknownMethod: Object does not exist`. The owner ran GNOME 50.1 (Ubuntu 26.04, Wayland) by hand with the two entries added and the extension was ACTIVE and placed windows correctly; GNOME 49 and the legacy tree were not run. It reaches users with the next release, and then `spawn-at install` has to be run again to write the new `metadata.json`.
+
+### Fixed
+
+- When the extension does not answer on the session bus, the error now says why: not installed, installed but disabled, OUT OF DATE (the installed `metadata.json` does not list the running Shell major: upgrade spawn-at, run `spawn-at install`, log out and back in), or loaded with an older protocol. Only that last case prints "log out and back in to load the updated extension". A failed `ProtocolVersion` read is no longer counted as protocol 0, so a missing extension no longer prints "protocol mismatch (detected older extension)" or the "does not support SpawnClaimed" note. Not run on a live Shell.
+
+### Changed
+
+- The placement line names the request, the area and the screen position, for example `Window mapped at final size (814x601), offset (100, 100) in workarea (origin 0, 40) -> screen position (100, 140).`, instead of only `... and positioned at (100, 140).` Placement itself is unchanged. The `--pos` and `--offset` help text said "absolute target screen coordinates"; it now says the position is counted from the `--area` rectangle (the work area by default).
 
 - Documentation site only (nothing in `spawn-at`, the extension or `install.sh` changed): a table with a long cell (240 characters or more) on the pages written from `docs/` is shown as records, one block per row with the key on the left and the other columns as labelled fields, instead of as a table with 25-character cells. `<!-- site: records -->`, `<!-- site: records key=N -->` and `<!-- site: table -->` above a table choose the layout by hand; `cargo xtask docs-check-src` checks them. A list whose keys all start with a whole number is drawn as numbered steps and any other as cards, and `<!-- site: records style=steps -->` or `style=cards` chooses between the two (#69). The step 11 row of the migration table in `docs/DESIGN_PLATFORMS.md` has its Proof text in the Proof column again.
 
@@ -352,7 +394,8 @@ Shell was not connected to.
 - Untested: real X11 and XWayland applications, GNOME 42 to 45 and 47 to 48, Qt and Electron apps,
   multi-monitor and fractional scaling, and any screen-capture check of what is visible.
 
-[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/harshp2008/spawn-at/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/harshp2008/spawn-at/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/harshp2008/spawn-at/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.6...v0.2.0
 [0.2.0-beta.6]: https://github.com/harshp2008/spawn-at/compare/v0.2.0-beta.5...v0.2.0-beta.6

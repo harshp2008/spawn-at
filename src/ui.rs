@@ -9,6 +9,39 @@
 use std::io::{IsTerminal, Write};
 use std::sync::Mutex;
 
+/// The one line printed when a menu or question cannot be answered because there is nothing to
+/// read the answer from.
+pub const NO_TERMINAL_MESSAGE: &str = "There is no terminal to ask on (stdin is not a terminal and /dev/tty cannot be opened). Run again with --headless to skip the questions.";
+
+/// True when a question can be answered: stdin is a terminal, or `/dev/tty` can be opened
+/// (dialoguer reads keys from `/dev/tty` when stdin is not a terminal).
+///
+/// This is the case that is left when stdout is a terminal but there is no usable keyboard: the
+/// process runs in its own session (`setsid`, a service) or has stdin on `/dev/null`. Without
+/// this check the menu is drawn, the key read fails with `No such device or address (os error
+/// 6)`, and the cursor stays hidden. Opens `/dev/tty` once, read only.
+pub fn can_prompt() -> bool {
+    can_prompt_from(std::io::stdin().is_terminal(), || {
+        std::fs::File::open("/dev/tty").is_ok()
+    })
+}
+
+/// [`can_prompt`] with its two facts supplied; `tty_opens` is only called when stdin is not a
+/// terminal.
+pub fn can_prompt_from(stdin_is_terminal: bool, tty_opens: impl FnOnce() -> bool) -> bool {
+    stdin_is_terminal || tty_opens()
+}
+
+/// `Ok` when a question can be asked, else [`NO_TERMINAL_MESSAGE`], for a caller that then fails
+/// the way its question would have failed.
+pub fn require_prompt() -> Result<(), &'static str> {
+    if can_prompt() {
+        Ok(())
+    } else {
+        Err(NO_TERMINAL_MESSAGE)
+    }
+}
+
 /// Remembers whether any block has been printed yet.
 #[derive(Debug, Default)]
 pub struct Layout {
@@ -117,6 +150,22 @@ mod tests {
         let mut out = Vec::new();
         f(&mut l, &mut out);
         String::from_utf8(out).unwrap()
+    }
+
+    /// A question can be asked with a terminal on stdin (`/dev/tty` is not even tried) or, with
+    /// stdin elsewhere, only when `/dev/tty` opens. Neither is the no-terminal case, and its
+    /// message is one line that names `--headless`.
+    #[test]
+    fn test_can_prompt_rules_and_message() {
+        assert!(can_prompt_from(true, || panic!(
+            "not needed with a stdin terminal"
+        )));
+        assert!(can_prompt_from(false, || true));
+        assert!(!can_prompt_from(false, || false));
+        assert!(!NO_TERMINAL_MESSAGE.contains('\n'));
+        assert!(
+            NO_TERMINAL_MESSAGE.contains("--headless") && NO_TERMINAL_MESSAGE.contains("/dev/tty")
+        );
     }
 
     /// The first section has no blank line before it; one blank line follows the heading.

@@ -59,6 +59,8 @@
 //! - `dbus.rs`: the zbus proxy of the extension's interface.
 //! - `mechanics.rs`: the instruction list and placement payload sent to the extension.
 //! - `logout.rs`: whether an install still needs a log-out.
+//! - `needs_logout.rs`: the notification and the `needs-logout` marker of a headless update that changed the extension, and the `spawn` hint read from it.
+//! - `diagnose.rs`: why the extension did not answer on the bus (not installed, disabled, OUT OF DATE, old protocol).
 
 pub mod dbus;
 pub mod logout;
@@ -67,11 +69,15 @@ pub mod mechanics;
 mod args;
 mod deploy;
 mod detect;
+mod diagnose;
 mod driver;
+mod needs_logout;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_control;
+#[cfg(test)]
+mod tests_entry;
 
 // The public paths the rest of the crate uses (`platform::linux::gnome::...`) are kept here.
 pub use args::{GnomeInstallArgs, GnomeUninstallArgs};

@@ -49,7 +49,9 @@ omitted", which is only true for `cursor` and for no anchor.
 
 **Position (`-p X Y`, or the alias `-o X Y`).** Without `--anchor` it is a position in the area,
 counted from the area's own top-left corner with no margin added. With `--anchor` it is an offset
-from the anchor.
+from the anchor. The `INFO` line printed after the placement shows both spaces, for example
+`offset (100, 100) in workarea (origin 0, 40) -> screen position (100, 140)`: the 40 is the top
+edge of the work area on that machine, not an error.
 
 **Size (`-s W H`).** The window size in pixels.
 

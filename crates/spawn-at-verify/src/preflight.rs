@@ -199,6 +199,23 @@ mod tests {
         assert!(!is_rel);
     }
 
+    /// The dev text of spawn-at 0.2.4 and later has the crate version after `DEV BUILD`
+    /// (`update.rs`, `version_display`); the commit is still read from its own line, a dirty
+    /// build is still recognised, and the text is not taken for a release (`spawn-at <version>`).
+    #[test]
+    fn test_parse_dev_build_version_with_the_crate_version() {
+        let text = "DEV BUILD 0.2.4\nlast release was v0.2.3\n-----------------------------------------------------------------\nPrevious Commit ID: 00d0da4";
+        assert_eq!(
+            parse_binary_version(text),
+            (Some("00d0da4".to_string()), false, false)
+        );
+        let dirty = text.replace("00d0da4", "00d0da4-dirty");
+        assert_eq!(
+            parse_binary_version(&dirty),
+            (Some("00d0da4-dirty".to_string()), true, false)
+        );
+    }
+
     /// Tests parsing dirty development build version output string.
     #[test]
     fn test_parse_dirty_dev_build_version() {

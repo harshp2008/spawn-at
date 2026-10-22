@@ -54,6 +54,7 @@ Outside the crates: `assets/gnome/{modern,legacy}/` (the GNOME Shell extensions,
 | `src/platform/linux/gnome/dbus.rs` | The session-bus interface of the spawn-at GNOME Shell extension, as a zbus proxy. |
 | `src/platform/linux/gnome/deploy.rs` | Deploying and removing the GNOME Shell extension (`install` / `uninstall`), the embedded extension files, and the session reload helpers. |
 | `src/platform/linux/gnome/detect.rs` | Detection of the GNOME Shell version and of a Wayland session. |
+| `src/platform/linux/gnome/diagnose.rs` | Why the extension did not answer on the session bus: not installed, disabled, OUT OF DATE for the running Shell, or loaded with an older protocol. Pure over injected facts. |
 | `src/platform/linux/gnome/driver.rs` | The GNOME Wayland driver: D-Bus communication with the extension, arming, claims, and the window queries and actions of the compositor backend. |
 | `src/platform/linux/gnome/logout.rs` | Decides whether a GNOME Wayland install still needs a log-out. |
 | `src/platform/linux/gnome/mechanics.rs` | Internal GNOME Compositor Mechanics |

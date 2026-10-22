@@ -4,7 +4,9 @@
 //! the flags; build one `Batch` entry keyed by a fresh startup key; record the ids of the windows
 //! that exist now; `arm` the backend; start the command with the environment `arm` returned;
 //! call `post_spawn`; then, unless `no_wait`, wait for the window (a backend claim signal first,
-//! polling `wait_for_spawn` second), re-read its geometry and report it.
+//! polling `wait_for_spawn` second), re-read its geometry and report it. When the wait ends with
+//! no claim (a timeout, or an application that reused an old window), the entry's own arm is
+//! withdrawn with `disarm_entry` before the function returns.
 //!
 //! Arming is fail-open: if `arm` fails the command is still started, unplaced, with a warning. The
 //! JSON printed for `--json` is `SpawnOutputJson`. This module does not decide how a backend
@@ -13,7 +15,7 @@
 use crate::cli::args::SpawnArgs;
 use crate::commands::wait_for_spawn;
 use crate::platform::capability::HelperNeed;
-use crate::platform::{CompositorBackend, DriverError, PlacementParams};
+use crate::platform::{Armed, CompositorBackend, DriverError, PlacementParams};
 use serde::{Deserialize, Serialize};
 use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
 use spawn_at_core::geometry::{
@@ -469,6 +471,9 @@ pub async fn run_spawn_with(
                     .await
                     {
                         Ok(w) => {
+                            // Found by polling, not by a claim: if the extension never claimed
+                            // for us, the registration would otherwise wait out its 15 s.
+                            withdraw_arm(driver, armed_opt.as_ref(), &entry_key).await;
                             let id = w.id;
                             (
                                 id,
@@ -482,6 +487,10 @@ pub async fn run_spawn_with(
                             )
                         }
                         Err(e) => {
+                            // No window was claimed or found, whether it timed out or the app
+                            // reused an old window: withdraw our registration now. Left queued
+                            // for 15 s, the next show of the app would be placed from it.
+                            withdraw_arm(driver, armed_opt.as_ref(), &entry_key).await;
                             // "Reused" is recognised by the text of the error that
                             // `wait_for_spawn` builds, so changing that text changes this.
                             // Either way the command returns `Ok(())`, so a window that never
@@ -639,6 +648,20 @@ pub async fn run_spawn_with(
     }
 
     Ok(())
+}
+
+/// Withdraws this spawn's own registration (`entry_key`, under the token `arm` returned) once the
+/// wait for its window ended without a claim, so the next window of the same app is not placed
+/// from it. Does nothing when `arm` failed. The result is ignored: the registration expires by
+/// itself after 15 s, and `Ok(false)` only means it had already been claimed or had expired.
+async fn withdraw_arm(
+    driver: &(dyn CompositorBackend + Sync),
+    armed: Option<&Armed>,
+    entry_key: &str,
+) {
+    if let Some(token) = armed.and_then(|a| a.token.as_deref()) {
+        let _ = driver.disarm_entry(token, entry_key).await;
+    }
 }
 
 /// Sets up the standard streams of the child and detaches it from this process.
@@ -1468,5 +1491,213 @@ mod tests {
 
         let _ = child.kill();
         let _ = child.wait();
+    }
+
+    /// What a `WithdrawMock` shows for the wait after `arm`.
+    #[derive(Clone, Copy, PartialEq)]
+    enum Wait {
+        /// No claim support and no window ever listed: the poll times out.
+        NoWindow,
+        /// Claim support; the claim signal never comes (`wait_claim` errors), then the poll times out.
+        ClaimTimesOut,
+        /// Claim support and a claim arrives at once.
+        Claimed,
+        /// No claim support; the first `get_windows` is empty and later ones list a new window.
+        PollFindsNewWindow,
+        /// No claim support; one window of the app is listed from the start and stays.
+        ReusesOldWindow,
+    }
+
+    const WITHDRAW_TOKEN: &str = "withdraw-test-app";
+
+    struct WithdrawClaimSub {
+        claims: bool,
+    }
+
+    #[async_trait::async_trait]
+    impl ClaimSubscription for WithdrawClaimSub {
+        async fn wait_claim(&mut self, timeout: Duration) -> Result<ClaimResult, DriverError> {
+            if self.claims {
+                return TestClaimSub.wait_claim(timeout).await;
+            }
+            Err(DriverError::TargetNotFound("no claim signal".into()))
+        }
+    }
+
+    /// Records the `disarm_entry` calls as `"<token>|<entry_key>"`.
+    struct WithdrawMock {
+        wait: Wait,
+        arm_fails: bool,
+        get_windows_calls: Arc<Mutex<u32>>,
+        disarmed: Arc<Mutex<Vec<String>>>,
+    }
+
+    impl WithdrawMock {
+        fn new(wait: Wait) -> Self {
+            Self {
+                wait,
+                arm_fails: false,
+                get_windows_calls: Arc::new(Mutex::new(0)),
+                disarmed: Arc::new(Mutex::new(Vec::new())),
+            }
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl Driver for WithdrawMock {
+        async fn arm(&self, _batch: Batch) -> Result<Armed, DriverError> {
+            if self.arm_fails {
+                return Err(DriverError::IpcError("no extension".into()));
+            }
+            Ok(Armed {
+                launch_env: Vec::new(),
+                token: Some(WITHDRAW_TOKEN.into()),
+            })
+        }
+
+        async fn disarm_entry(&self, token: &str, entry_key: &str) -> Result<bool, DriverError> {
+            self.disarmed
+                .lock()
+                .unwrap()
+                .push(format!("{token}|{entry_key}"));
+            Ok(true)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for WithdrawMock {
+        fn name(&self) -> &'static str {
+            "WithdrawMock"
+        }
+
+        fn resolve_id(&self, _command: &[String], _explicit_class: Option<&str>) -> String {
+            WITHDRAW_TOKEN.into()
+        }
+
+        async fn prepare_claim_wait(
+            &self,
+            _target_id: &str,
+        ) -> Result<Option<Box<dyn ClaimSubscription>>, DriverError> {
+            Ok(match self.wait {
+                Wait::Claimed => Some(Box::new(WithdrawClaimSub { claims: true })),
+                Wait::ClaimTimesOut => Some(Box::new(WithdrawClaimSub { claims: false })),
+                _ => None,
+            })
+        }
+
+        async fn get_workareas(&self) -> Result<Vec<Rect>, DriverError> {
+            Ok(vec![Rect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            }])
+        }
+
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            let mut n = self.get_windows_calls.lock().unwrap();
+            *n += 1;
+            let listed = match self.wait {
+                Wait::NoWindow | Wait::ClaimTimesOut => false,
+                Wait::Claimed => true,
+                Wait::PollFindsNewWindow => *n > 1,
+                Wait::ReusesOldWindow => true,
+            };
+            if !listed {
+                return Ok(Vec::new());
+            }
+            Ok(vec![WindowMetadata {
+                id: Some(if self.wait == Wait::PollFindsNewWindow {
+                    900
+                } else {
+                    7
+                }),
+                pid: None,
+                title: "Test".into(),
+                class: WITHDRAW_TOKEN.into(),
+                app_id: Some(WITHDRAW_TOKEN.into()),
+                x: 10,
+                y: 10,
+                w: 400,
+                h: 300,
+                ..Default::default()
+            }])
+        }
+    }
+
+    /// Runs `spawn -- true` against `backend` with a 50 ms window wait and returns the
+    /// `disarm_entry` calls.
+    async fn disarmed_by_spawn(backend: WithdrawMock, no_wait: bool) -> Vec<String> {
+        let args = SpawnArgs {
+            geometry: crate::cli::args::GeometryArgs {
+                size: Some(vec!["400".into(), "300".into()]),
+                ..Default::default()
+            },
+            command: vec!["true".into()],
+            ..Default::default()
+        };
+        let loaded = spawn_at_core::settings::Loaded {
+            settings: spawn_at_core::settings::Settings {
+                window_timeout_ms: Some(50),
+                ..Default::default()
+            },
+            warnings: Vec::new(),
+        };
+        let res = run_spawn_with(&backend, args, no_wait, loaded).await;
+        assert!(res.is_ok(), "{res:?}");
+        let calls = backend.disarmed.lock().unwrap().clone();
+        calls
+    }
+
+    /// The entry key is `spawn-at-<pid>-<ms>_TIME<ms>`; the test can not know the time, so it
+    /// checks the part it can.
+    fn assert_withdrew_own_entry(calls: &[String]) {
+        assert_eq!(calls.len(), 1, "exactly one disarm_entry call: {calls:?}");
+        let prefix = format!("{WITHDRAW_TOKEN}|spawn-at-{}-", std::process::id());
+        assert!(calls[0].starts_with(&prefix), "{calls:?} vs {prefix}");
+    }
+
+    #[tokio::test]
+    async fn test_a_timeout_withdraws_the_entry_it_armed() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::NoWindow), false).await;
+        assert_withdrew_own_entry(&calls);
+    }
+
+    #[tokio::test]
+    async fn test_a_claim_signal_that_never_comes_then_a_poll_timeout_withdraws_the_entry() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::ClaimTimesOut), false).await;
+        assert_withdrew_own_entry(&calls);
+    }
+
+    #[tokio::test]
+    async fn test_an_app_that_reused_an_old_window_withdraws_the_entry() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::ReusesOldWindow), false).await;
+        assert_withdrew_own_entry(&calls);
+    }
+
+    #[tokio::test]
+    async fn test_a_window_found_by_polling_without_a_claim_withdraws_the_entry() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::PollFindsNewWindow), false).await;
+        assert_withdrew_own_entry(&calls);
+    }
+
+    #[tokio::test]
+    async fn test_a_claimed_window_does_not_withdraw_anything() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::Claimed), false).await;
+        assert!(calls.is_empty(), "{calls:?}");
+    }
+
+    #[tokio::test]
+    async fn test_no_wait_and_a_failed_arm_withdraw_nothing() {
+        let calls = disarmed_by_spawn(WithdrawMock::new(Wait::NoWindow), true).await;
+        assert!(
+            calls.is_empty(),
+            "--no-wait never waits, so never gives up: {calls:?}"
+        );
+
+        let mut failing = WithdrawMock::new(Wait::NoWindow);
+        failing.arm_fails = true;
+        let calls = disarmed_by_spawn(failing, false).await;
+        assert!(calls.is_empty(), "nothing was armed: {calls:?}");
     }
 }

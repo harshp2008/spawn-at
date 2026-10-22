@@ -20,7 +20,8 @@ release and `--prerelease` takes the newest release including pre-releases.
    fails, then downloads `spawn-at-x86_64-unknown-linux-gnu.tar.gz` from the release.
 4. Runs `spawn-at install`. Every flag that `install.sh` does not recognise is passed on to it.
 
-Only GNOME Shell 46 on Wayland has been tested. See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
+Only GNOME Shell 46 on Wayland counts as tested; GNOME 50.1 on Wayland was run once, with failures.
+See [GNOME on Wayland](/spawn-at/environments/gnome-wayland/).
 The programs it needs (`curl`, `tar`, `gnome-extensions`) and the accepted desktops are on
 [Requirements](/spawn-at/requirements/).
 
@@ -79,7 +80,7 @@ If it did not work:
 
 ```bash
 # Pin a version
-curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.1
+curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --version v0.2.4
 
 # Remove an existing install first, without asking; your config file is kept
 curl -fsSL https://raw.githubusercontent.com/harshp2008/spawn-at/main/install.sh | bash -s -- --clean-install

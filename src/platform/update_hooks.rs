@@ -10,17 +10,38 @@
 
 use std::path::Path;
 
+/// A helper (GNOME: the Shell extension) that an upgrade rewrote on disk. Whether it needs a
+/// log-out to be loaded is the platform's call ([`UpdateHooks::announce_logout_needed`]).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ChangedExtension {
+    /// The protocol the newly deployed helper reports; `None` when it could not be read from the
+    /// deployed files.
+    pub protocol: Option<u32>,
+    /// A fingerprint of the newly deployed files; two deployments with the same bytes have the
+    /// same value.
+    pub fingerprint: String,
+}
+
 /// Desktop-specific steps of an upgrade.
 pub trait UpdateHooks {
     /// After the new binary is unpacked and checked, before it replaces the running one: deploys
     /// what the desktop needs from it (GNOME: the Shell extension, via `install --skip-bin
     /// --headless`). Prints its own progress and warnings.
     ///
+    /// Returns `Some` only when files that were already deployed now differ (so a first
+    /// install, an unchanged deployment and a read that failed all give `None`).
+    ///
     /// Side effect: runs `new_binary` as a child process.
     // GNOME does this only when `XDG_CURRENT_DESKTOP` contains GNOME (uppercased), and warns only
     // when the child cannot be started; a child that runs and exits non-zero is not reported
     // here (the status is not inspected).
-    fn after_unpack(&self, new_binary: &Path);
+    fn after_unpack(&self, new_binary: &Path) -> Option<ChangedExtension>;
+
+    /// For an update that has nobody to ask (`--headless` without a terminal): tells the user
+    /// that `changed` needs a log-out to be loaded, when this desktop and session need one
+    /// (GNOME on Wayland: one notification and a marker file for `spawn`; see
+    /// `gnome/needs_logout.rs`). Prints its own warnings; never fails the update.
+    fn announce_logout_needed(&self, changed: &ChangedExtension);
 
     /// True if this desktop has a session action to offer after the upgrade (a log-out or a Shell
     /// reload). GNOME: `XDG_CURRENT_DESKTOP` contains GNOME.

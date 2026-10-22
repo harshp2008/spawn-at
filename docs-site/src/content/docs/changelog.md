@@ -12,7 +12,10 @@ The changelog is `CHANGELOG.md` in the repository. It follows
 
 | Version | Date | Release notes |
 | :--- | :--- | :--- |
-| Unreleased | | Documentation site changes only |
+| Unreleased | | Nothing yet |
+| 0.2.4 | 2026-10-21 | A headless update that changes the extension on Wayland now notifies once and leaves a marker that `spawn` reads (#87); the install notice is driven by a list of tested environments and GNOME 50.1 is listed as partly tested; `-V` on a dev build shows the crate version; a clear message when a menu has no terminal; a plain note for the first-install `enable` exit 2; the release workflow checks the tag against every crate version and has a dry run (#88); see the changelog in the repository |
+| 0.2.3 | 2026-10-21 | A spawn that no window claims no longer misplaces the next window of the app (#84, #85); needs the new CLI and the protocol-7 extension; see the changelog in the repository |
+| 0.2.2 | 2026-10-21 | GNOME Shell 49 and 50 listed in the extension metadata, clearer extension diagnostics and placement log line (#82); see the changelog in the repository |
 | 0.2.1 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.1.md): fixes for #47, #48, #49, #50, #51, #56, #57 and #58; the GNOME extension is unchanged |
 | 0.2.0 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0.md): the same code as 0.2.0-beta.6; documentation and version only |
 | 0.2.0-beta.6 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.6.md): the installer's PATH advice is idempotent and mentions logging out; otherwise docs and tests |

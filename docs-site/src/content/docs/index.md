@@ -28,7 +28,8 @@ command and one placement model, with a separate backend for each desktop undern
 - **Not a guarantee of no flash.** The GNOME backend removes most flashes in the measurements
   that were made, not all of them. See [Findings](/spawn-at/findings/) for the numbers and their limits.
 - **Not tested widely.** Only GNOME Shell 46 on Wayland has been tested in earnest, on one machine.
-  Everything else is untested or experimental. See [Environments](/spawn-at/environments/) and
+  GNOME 50.1 on Wayland was run once for 0.2.4 and 9 of its 36 required cases failed (partly
+  tested). Everything else is untested or experimental. See [Environments](/spawn-at/environments/) and
   [Known shortcomings](/spawn-at/shortcomings/).
 - **Not a cross-desktop tool yet.** KDE, Hyprland, macOS and Windows are not implemented. On macOS
   and Windows the program prints `spawn-at does not support this operating system yet` and exits
@@ -39,9 +40,13 @@ command and one placement model, with a separate backend for each desktop undern
 
 ## Status
 
-This is the status of v0.2.1.
+This is the status of v0.2.4.
 
 - **Supported:** GNOME Shell 46 on Wayland, tested on one machine with one monitor.
+- **Partly tested, with failures:** GNOME Shell 50.1 on Wayland (Ubuntu 26.04). One run of the
+  `release-gate` cases on a clean build: of 36 required cases 16 passed, 9 failed (windows requested
+  below their minimum size came out too tall), 4 were skipped and 7 await a human verdict. Not
+  listed as supported.
 - **Experimental:** Sway, opt-in with `SPAWN_AT_BACKEND=sway`, run only against a private headless
   Sway 1.9 with the project's test window. X11 and XWayland (the fallback backend): partly tested
   with the test window only, no cloaking, so windows can flash.
