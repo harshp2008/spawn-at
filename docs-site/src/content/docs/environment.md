@@ -101,18 +101,18 @@ table alone, so nothing in spawn-at clears the cache keys.
 
 ## Sources
 
-- `src/main.rs`: lines 56-59 (exit 2: `cli.validate()` and the parse error), 67, 76, 98, 123, 210, 229,
-  267, 278 and 373-454 (each a `std::process::exit(1)`), 145-152 (`PATH`), 56-152 and 282-335
+- `src/main.rs`: lines 56-59 (exit 2: `cli.validate()` and the parse error), 67, 76, 98, 128, 215, 239,
+  277, 288 and 383-469 (each a `std::process::exit(1)`), 150-157 (`PATH`), 56-157 and 292-345
 - `src/platform/linux/registry.rs`: lines 52-58 and 56 (`SPAWN_AT_BACKEND`, `XDG_CURRENT_DESKTOP`,
   `XDG_SESSION_TYPE`)
 - `src/platform/linux/config_store.rs`: lines 24-34 (`SPAWN_AT_CONFIG`, `XDG_CONFIG_HOME`);
   `src/config.rs`: lines 184-203 (`XDG_CONFIG_HOME`), 12-44 (the `[update]` table), 78-100
   (`latest_cached_version`)
-- `src/update.rs`: lines 13-19 (`SPAWN_AT_DEBUG`), 338-372 and 521 (`LC_*`, `COLUMNS`), 786-788 (exit 0
+- `src/update.rs`: lines 13-19 (`SPAWN_AT_DEBUG`), 357-391 and 540 (`LC_*`, `COLUMNS`), 849-852 (exit 0
   on a failed lookup)
 - `src/platform/linux/x11/atoms.rs`: lines 5-16 (`SPAWN_AT_DEBUG`); `src/platform/linux/sway/mod.rs`:
   lines 60-66 and `sway/client.rs`: lines 29-41 (`SWAYSOCK`)
-- `src/platform/linux/gnome/deploy.rs`: lines 200-216 (`HOME`) and 456-460 (`XDG_CURRENT_DESKTOP`
+- `src/platform/linux/gnome/deploy.rs`: lines 303-316 (`HOME`) and 579-584 (`XDG_CURRENT_DESKTOP`
   in `update`); `gnome/detect.rs`: lines 52-60 (`XDG_SESSION_ID`) and 104-136 (`WAYLAND_DISPLAY`)
 - `src/platform/linux/xdg.rs`: lines 92-118 (`XDG_DATA_DIRS`); `host.rs`: lines 19-33 (`HOME`);
   `src/platform/installer.rs`: lines 52-70 (`PATH`)

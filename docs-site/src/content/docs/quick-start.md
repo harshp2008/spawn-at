@@ -149,7 +149,7 @@ the path of the file. With no config file and no flags, the defaults apply.
 - `README.md` ("What it looks like", "Things I use it for", "CLI reference")
 - `src/commands/query.rs`: `run_query`, the `Layout` arm (lines 33-77) prints the table and the
   `Note:` line; the `Windows` arm (lines 82-207) prints the `query windows` table
-- `src/update.rs`: `get_version_display` (lines 60-72) and `build.rs` (the `SPAWN_AT_VERSION` value)
+- `src/update.rs`: `get_version_display` and `version_display` (lines 59-88) and `build.rs` (the `SPAWN_AT_VERSION` value)
 - `src/diagnostics.rs`: `Diagnostic::PlacedSuccess`, `evaluate_placement_diagnostics_for_action`,
   `verify_and_report_placement` and `verify_and_report_transform`
 - the output of `spawn-at --version`, `spawn-at query windows --help`, `spawn-at query layout --help`

@@ -129,10 +129,11 @@ or not the binary is removed.
 - `src/platform/mod.rs`: lines 109-148 (`InstallScope`, `InstallArgs`, `UninstallArgs`);
   `src/platform/installer.rs`: lines 20-21 (bin directories) and 61
 - `src/platform/linux/gnome/args.rs`: lines 21-34 and 41-49 (install flags), 61-91 (uninstall flags);
-  `src/platform/linux/gnome/deploy.rs`: lines 269-279 and 375-386
-- `src/main.rs`: lines 100-186 (install flags, `--dry-run` at 126-134, `--clean-install` at
-  136-186), 281-347 (headless `[update]` keys), 352-360 (`--skip-bin`), 374-414 (uninstall: the
-  prompt for the binary at 375-394, the login entry removal at 414); `UpdateConfig::apply_headless_install`
+  `src/platform/linux/gnome/deploy.rs`: lines 333-349 (the doc comment of `install`) and 435-455 (the
+  `enable` call and its note)
+- `src/main.rs`: lines 100-191 (install flags, `--dry-run` at 131-139, `--clean-install` at
+  141-191), 291-357 (headless `[update]` keys), 362-370 (`--skip-bin`), 384-429 (uninstall: the
+  prompt for the binary at 385-409, the login entry removal at 429); `UpdateConfig::apply_headless_install`
   in `src/config.rs`
 - `src/session.rs`: `decision` (when the log-out question is asked and when a flag answers it)
 - the output of `spawn-at install --help` and `spawn-at uninstall --help`

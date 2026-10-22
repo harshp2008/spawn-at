@@ -58,9 +58,9 @@ SPAWN_AT_BACKEND=sway spawn-at spawn --anchor top-right -m 24 --size 600 400 -- 
   `--area screen` without the helper it needs, or a program that cannot be started. This is read
   from the code, not run live.
 - **`--focus`, `--no-focus` and `--defocus` are accepted on `spawn` and do nothing.** The code
-  never reads them for `spawn`: it always asks for exclusive focus (`src/commands/spawn.rs:313`,
+  never reads them for `spawn`: it always asks for exclusive focus (`src/commands/spawn.rs:315`,
   `FocusIntent::Exclusive`; the test `test_spawn_focus_modifiers_have_no_effect_today` at
-  `spawn.rs:928` pins it). A test pins this behaviour as it is today; it is not a promise.
+  `spawn.rs:951` pins it). A test pins this behaviour as it is today; it is not a promise.
   `--help` still describes the three flags as if they worked, and the generated
   [reference page for `spawn`](/spawn-at/reference/spawn-at-spawn/) is the unchanged `--help`
   output, so it shows that wording (for example "Passive: do not alter focus state; leave active

@@ -227,14 +227,15 @@ unless you force a backend. See [Unsupported desktops](/spawn-at/environments/un
 
 ## Sources
 
-- `src/platform/linux/gnome/driver.rs`: lines 41 and 199-203 and 241-247 (the D-Bus failure message and
-  the code comment), 211-216 (the protocol mismatch warning)
+- `src/platform/linux/gnome/driver.rs`: lines 93-115 (`old_protocol_text`, `explain_failure`) and
+  259-315 (`arm`: the D-Bus failure message and the old-protocol warning);
+  `src/platform/linux/gnome/diagnose.rs` (the reason and fix of each cause)
 - `src/commands/mod.rs`: line 888 (the `extension is older than the CLI expects` error)
 - `src/platform/linux/gnome/logout.rs`: `decide`, lines 100-110 and 160-175 (file times,
   `gnome-extensions info`, the enable note); `src/session.rs`: lines 41-42
 - `src/platform/installer.rs`: lines 96-125 and 210-216 (the `PATH` advice)
 - `src/platform/linux/registry.rs`: lines 83-108 (the unsupported-desktop test)
-- `src/update.rs`: lines 60-72 (`get_version_display`)
+- `src/update.rs`: lines 59-88 (`get_version_display`, `version_display`)
 - `docs-site/src/content/docs/known-limits.md`, `configuration.md`, `environments/*`
 - `docs/KNOWLEDGE.md` ("Dead ends"), `docs/TEST_LOG.md` (6.17, 6.18), `README.md` ("Support", "How
   well it works")

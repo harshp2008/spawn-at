@@ -235,16 +235,17 @@ separate cache file.
 
 ## Sources
 
-- `src/update.rs`: `get_version_display` (lines 60-72); `run_update` (renders the lookup error and
-  returns `Ok(())`; refuses a build with no parseable version); `update_menu_options` (the menu);
-  `perform_upgrade` (lines 584-722: asset name, temp directory at 599-610, the child at 656, the
-  `.old` rename at 664-676, the temp directory deletion at 685, the success message at 698);
-  `render_update_notice_if_available` (lines 531-575) and the 24-hour rule (lines 283-300);
-  `lookup_is_cached` and `headless_check` (what `--check` saves); the 0.1 to 0.2 note (lines 131-133,
-  805, 851); the failed-lookup exit (lines 786-788)
-- `src/main.rs`: line 461 (the notice at the end of `main`) and the `Commands::Install` arm
-- `src/platform/update_hooks.rs`; `src/platform/linux/gnome/deploy.rs`: lines 463-484 (the child
-  install: `.status()` at 472-474, `on_gnome`)
+- `src/update.rs`: `get_version_display` and `version_display` (lines 59-88); `run_update` (renders
+  the lookup error and returns `Ok(())`; refuses a build with no parseable version);
+  `update_menu_options` (the menu); `perform_upgrade` (lines 606-751: asset name, temp directory at
+  621-632, the child at 679, the `.old` rename at 694-706, the temp directory deletion at 715, the
+  success message at 728); `render_update_notice_if_available` (lines 550-594) and the 24-hour rule
+  (lines 302-319);
+  `lookup_is_cached` and `headless_check` (what `--check` saves); the 0.1 to 0.2 note (lines 150-152,
+  413, 867, 914); the failed-lookup exit (lines 849-852)
+- `src/main.rs`: line 492 (the notice at the end of `main`) and the `Commands::Install` arm
+- `src/platform/update_hooks.rs`; `src/platform/linux/gnome/deploy.rs`: lines 598-627 (`after_unpack`, the child
+  install: `.status()` at 617-619) and 579-584 (`on_gnome`)
 - `src/session.rs`: `update_outcome` (the end-of-run question)
 - `src/config.rs`: `UpdateConfig`, `apply_headless_install`, the autostart entry (lines 184-261);
   `src/platform/installer.rs`: `login_entry_exe`; `src/prompts.rs`: lines 54-77
