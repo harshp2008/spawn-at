@@ -27,7 +27,7 @@ All of this lives in `src/platform/` and `spawn-at-core`.
 
 | Trait | Role |
 | :--- | :--- |
-| `Driver` (core) | `arm(Batch)` before the program starts, and `disarm`. The platform-neutral heart; the spawn pipeline never sees D-Bus or X11 |
+| `Driver` (core) | `arm(Batch)` before the program starts, and `disarm` and `disarm_entry`. The platform-neutral heart; the spawn pipeline never sees D-Bus or X11 |
 | `CompositorBackend` | Extends `Driver` with setup and teardown, capability flags, queries (windows, monitors, work areas, pointer) and actions (transform, state, focus, close, `post_spawn`). Most methods default to "unsupported", so a new backend can start small |
 | `Capabilities` (a struct), `WindowQuery`, `WindowControl`, `ReadySignal` (traits) | What a backend can do, and narrow views of the trait (`src/platform/capability.rs`) |
 | `Provisioner` | Install and uninstall of whatever a backend needs on the machine (for GNOME, the extension) |
@@ -86,11 +86,13 @@ Each of these is a document in the repository, with the evidence for its claims:
 The GNOME Wayland contract, from `DESIGN_PLATFORMS.md` section 7:
 
 - The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt`, the instruction JSON, the protocol
-  numbers, and the extension files under `assets/gnome`, which every release compares byte for byte.
+  numbers, and the extension files under `assets/gnome`. The extension files changed in v0.2.2 (the
+  Shell versions in `metadata.json`) and in v0.2.3 (protocol 7); the `CHANGELOG.md` entry of a
+  release says whether they changed.
 - The ready-wait policy and its Rust and JavaScript parity (checked by `tests/ready_wait_vectors`),
   the 30 ms legacy rule, and `wait.strategy` and `wait.cap_ms`.
 - The placement arithmetic (`verify/golden/placement.json`), config keys and file location, CLI flags
-  and `--help` text, and exit codes.
+  and `--help` text (the `--pos` and `--offset` help was reworded in v0.2.2), and exit codes.
 - The installer flow: the log-out question last, `--clean-install`, the prompt width rules, and the
   behaviour of `install.sh`.
 

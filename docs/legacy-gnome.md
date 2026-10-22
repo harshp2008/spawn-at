@@ -14,7 +14,7 @@ So spawn-at keeps two asset trees, and the installer picks one from the Shell's 
 
 | Tree | Path | Shell versions | ProtocolVersion | JavaScript files |
 | :-- | :-- | :-- | :-- | :-- |
-| Modern | `assets/gnome/modern/` | 45, 46, 47, 48 | 6 | 10 |
+| Modern | `assets/gnome/modern/` | 45 to 50 | 7 | 10 |
 | Legacy | `assets/gnome/legacy/` | 42, 43, 44 | 5 | 8 |
 
 The legacy tree has no `ready_wait.js` and no `x11_observe.js`.
@@ -67,11 +67,11 @@ Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.Spawn
 
 **Not verified.** Protocol 3 added `CloseWindow`.
 
-The methods are `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `CloseWindow` and `SetLogging`.
+The methods are `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `CloseWindow` and `SetLogging`, and, in the modern tree only, `ArmSpawnEntry` and `DisarmEntry`.
 
 The signals are `WorkareaChanged`, `SpawnClaimed` and, in the modern tree only, `ResizeOutcome`. `SpawnClaimed` carries `target_id` (string), `success` (bool), `window_id` (uint64), `x` and `y` (int), `w` and `h` (uint), `size_raised` (bool) and `error` (string).
 
-The test `test_legacy_and_modern_dbus_xml_parity` compares the XML of the two trees character for character, after it removes the `ResizeOutcome` signal from the modern one.
+The test `test_legacy_and_modern_dbus_xml_parity` compares the XML of the two trees character for character, after it removes the `ResizeOutcome` signal and the `ArmSpawnEntry` and `DisarmEntry` methods from the modern one.
 
 ### 3.1 Monitor introspection in `GetLayout()`
 

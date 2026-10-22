@@ -31,7 +31,7 @@ Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME She
 
 ## 1. Inventory: where readiness, wait and anchor logic lives today
 
-This section describes the code as it was when this design was written (2026-10-13), before sections 8 to 11. Two things in it have changed, checked in the tree on 2026-10-20: the modern extension's `ProtocolVersion` is 6 (`assets/gnome/modern/extension.js:1529`; the legacy extension is still at 5, `assets/gnome/legacy/extension.js:1339`), and the modern extension now reads `allows_resize` (`assets/gnome/modern/extension.js:827`).
+This section describes the code as it was when this design was written (2026-10-13), before sections 8 to 11. Two things in it have changed, checked in the tree on 2026-10-23 (v0.2.4): the modern extension's `ProtocolVersion` is 7 (`assets/gnome/modern/extension.js:1533`; 6 added the `ResizeOutcome` signal and 7 the `ArmSpawnEntry` and `DisarmEntry` methods; the legacy extension is still at 5, `assets/gnome/legacy/extension.js:1339`), and the modern extension now reads `allows_resize` (`assets/gnome/modern/extension.js:830`).
 
 ### 1.1 GNOME Shell extension (`assets/gnome/modern/`, `assets/gnome/legacy/`)
 
