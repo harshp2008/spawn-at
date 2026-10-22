@@ -125,13 +125,13 @@ is the temp directory, is on
   warning); `src/platform/escalate.rs`: lines 13-35 and `remove_elevated`
 - `src/platform/linux/host.rs`: lines 22-36 (bin directories);
   `src/platform/linux/config_store.rs`: lines 4-34 (config location)
-- `src/platform/linux/gnome/deploy.rs`: line 28 (`EXTENSION_UUID`), lines 200-216 (`$HOME` only),
-  234-238 and 317-322 (unchanged files are not rewritten), 329 and 400 (`gnome-extensions`),
-  395-410 (`uninstall` removes the directory)
+- `src/platform/linux/gnome/deploy.rs`: line 29 (`EXTENSION_UUID`), lines 303-316 (`$HOME` only),
+  425-427 (unchanged files are not rewritten), 435 and 514 (`gnome-extensions`),
+  525 (`uninstall` removes the directory)
 - `src/config.rs`: lines 184-261 (config path and autostart entry; the entry's content is at 251-258),
   265 (the only non-test `remove_file` in that file; `src/main.rs` has none)
-- `src/update.rs`: lines 584-722 (the work directory at 599-610, the `.old` backup at 664-676, the
-  deletion at 685)
+- `src/update.rs`: lines 606-751 (the work directory at 621-632, the `.old` backup at 694-706, the
+  deletion at 715)
 - `install.sh`: lines 132-133 (`mktemp -d` and the `EXIT` trap)
 - `assets/gnome/modern`, `assets/gnome/legacy` (file lists and `metadata.json`)
 - `docs/TEST_LOG.md`, line 364 (`enabled-extensions` seen in a test)

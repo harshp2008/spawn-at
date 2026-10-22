@@ -1,6 +1,6 @@
 # Project history
 
-Status: reference. This page records what changed in the documents and in how the project is tested, and when. It does not say how anything works now: the reference pages do that.
+**Status:** reference. This page records what changed in the documents and in how the project is tested, and when. It does not say how anything works now: the reference pages do that.
 
 ## Where each kind of note goes
 
@@ -20,6 +20,11 @@ Each entry is one line: the date, what changed, and the page it was taken from. 
 - 2026-10-21: the Knowledge base was rewritten and shortened. Stale entries were corrected or removed, every file path, constant, function and test name in it was checked, and the page was reorganised.
 - Date not recorded: [Code layout](CODE_LAYOUT.md) was first a reorganization proposal (target layout, move map, stages 1 to 5). Only stage 1, the modularization of `spawn-at-verify`, was carried out. The rest was never built and its paths no longer matched the tree.
 - Date not recorded: that proposal was removed from the page. It is in git history (`git log -- docs/CODE_LAYOUT.md`).
+- 2026-10-23: the Known limits page of the guide ("After a failed spawn") said the disarm call is never sent on Linux and that every registration stays until it expires. Since v0.2.3 `spawn` withdraws its own registration when the wait ends with no claim, on an extension at protocol 7 or higher (CHANGELOG.md, 0.2.3). The page now lists which endings still leave the registration to expire.
+- 2026-10-23: the pages on supported GNOME versions said the extension's metadata lists 45 to 48 (until v0.2.2) and that 50.1 "was tried once by hand and placed a window correctly" (v0.2.2 text; the v0.2.4 run replaced it with 9 of 36 required cases failed). One line of the GNOME on Wayland page still had the old sentence and was corrected.
+- 2026-10-23: [Legacy GNOME](legacy-gnome.md) listed the modern extension at protocol 6 and Shell versions 45 to 48. It is protocol 7 and 45 to 50 (v0.2.3, v0.2.2). The legacy tree is still at protocol 5.
+- 2026-10-23: [Design: platforms](DESIGN_PLATFORMS.md), section 7, said every release compares `assets/gnome` byte for byte. The extension files changed in v0.2.2 and v0.2.3.
+- 2026-10-23: the Update page of the guide ("After an update") called the headless update that announces a log-out "the login entry". The login entry runs only `update --check --headless`, which installs nothing; the announcement belongs to `update --headless` with no terminal.
 
 ## Design: a Sway backend
 
@@ -42,6 +47,7 @@ Each entry is one line: the date, what changed, and the page it was taken from. 
 
 - 2026-10-20: the test counts were measured on the branch `docs-rewrite-1`: `spawn-at` 460, `spawn-at-core` 64, `spawn-at-verify` 625 run and 5 ignored with `tui,fixture`, `xtask` 96.
 - 2026-10-20: the same run counted 240 Node tests in the 12 `*_test.js` files, and 243 with the 3 install-script tests, which were left to CI. The Testing page had quoted counts taken on 2026-10-19 on the branch `docs-records-cards`.
+- 2026-10-23: the counts were measured again after v0.2.4 was merged into the docs branch: `spawn-at` 520 (was 460; the files `no_tty_cli_test` and `version_cli_test` are new and the unit tests grew), `spawn-at-core` 64, `xtask` 132 (was 96 on 2026-10-20), `spawn-at-verify` 435, 600 and 626 run (with 1 and 5 ignored for `tui` and `tui,fixture`), 13 Node files with 254 tests (`stale_arm_test.js` has 14).
 - 2026-10-20: the 47 Covered and 12 Not written rows of the catalog in section 2 were counted with a file-exists check on all 59 paths.
 - 2026-10-20: `spawn-at-verify list` printed 67 tests (55 auto, 12 both) with the debug binary built on 2026-10-18, newer than every file under `crates/spawn-at-verify/src` and `verify/`.
 - Date not recorded: the first batch of window-command tests through the built binary (`tests/sway_backend_cli_test.rs`) had 10 tests. The file has 19 now.

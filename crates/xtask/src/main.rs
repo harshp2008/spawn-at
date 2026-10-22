@@ -16,8 +16,10 @@ mod doc_coverage;
 mod docs_check;
 mod docs_cli;
 mod docs_html;
+mod docs_images;
 mod docs_mirror;
 mod docs_site;
+mod docs_warn;
 mod release;
 
 use std::env;
@@ -36,7 +38,7 @@ fn main() {
             eprintln!("  docs-site [--bin P] [--out DIR] [--clean-install]");
             eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--config FILE]");
             eprintln!("  docs-mirror [--docs DIR] [--out DIR] [--config FILE]");
-            eprintln!("  docs-check-src [DOCS_DIR] [--config FILE]");
+            eprintln!("  docs-check-src [DOCS_DIR] [--config FILE] [--warnings-full]");
             eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             eprintln!("  check-release-version [<tag>]");
             eprintln!("  release-notes <version> <out-file>");

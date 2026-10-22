@@ -1,8 +1,8 @@
 # Design: "wait until the window is ready before placing and revealing it"
 
-**Status:** implemented in part. The ready-wait for native Wayland windows is `crates/spawn-at-core/src/ready_wait.rs` and `assets/gnome/modern/ready_wait.js`; the probe, the learned-minimum cache and the X11 strategies are not built (section 8).
+**Status:** implemented in part. The ready-wait for native Wayland windows is `crates/spawn-at-core/src/ready_wait.rs` and `assets/gnome/modern/ready_wait.js`; the probe, the learned-minimum cache and the strategies for X11, XWayland and other systems are not built (section 8).
 
-Status: implemented in part. Written as a design on 2026-10-13; sections 8 to 12 record what was built (the ready-wait for native Wayland windows and its wiring, a per-spawn override, the default cap of 250 ms, and X11 observation logging). The probe, the learned-minimum cache and the strategies for X11, XWayland and other systems are not implemented (section 8). Sections 1 to 7 describe the code as it was when the design was written. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
+It was written as a design on 2026-10-13; sections 8 to 12 record what was built (the ready-wait for native Wayland windows and its wiring, a per-spawn override, the default cap of 250 ms, and X11 observation logging). Sections 1 to 7 describe the code as it was when the design was written. Builds on `TEST_PLAN.md` 6.12 (why the window is revealed at its pre-resize size), 6.13 (frame callbacks), 6.14 (mutter API leads and the arrival-wait simulation), 6.15 and 6.16 (the flash metric).
 
 ## 0. Reading guide
 
@@ -31,7 +31,7 @@ Session facts for this document: Ubuntu 24.04, `XDG_SESSION_TYPE=x11`, GNOME She
 
 ## 1. Inventory: where readiness, wait and anchor logic lives today
 
-This section describes the code as it was when this design was written (2026-10-13), before sections 8 to 11. Two things in it have changed, checked in the tree on 2026-10-20: the modern extension's `ProtocolVersion` is 6 (`assets/gnome/modern/extension.js:1529`; the legacy extension is still at 5, `assets/gnome/legacy/extension.js:1339`), and the modern extension now reads `allows_resize` (`assets/gnome/modern/extension.js:827`).
+This section describes the code as it was when this design was written (2026-10-13), before sections 8 to 11. Two things in it have changed, checked in the tree on 2026-10-23 (v0.2.4): the modern extension's `ProtocolVersion` is 7 (`assets/gnome/modern/extension.js:1533`; 6 added the `ResizeOutcome` signal and 7 the `ArmSpawnEntry` and `DisarmEntry` methods; the legacy extension is still at 5, `assets/gnome/legacy/extension.js:1339`), and the modern extension now reads `allows_resize` (`assets/gnome/modern/extension.js:830`).
 
 ### 1.1 GNOME Shell extension (`assets/gnome/modern/`, `assets/gnome/legacy/`)
 
@@ -617,11 +617,11 @@ All of them fire at the shell-side resize, not at the client's paint. The client
 
 ## 13. Experiment: hold the cloak and wait for a second `damaged` (2026-10-14; removed)
 
-Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`; an unpushed local branch `archive/x11-experiments` points at that commit).
+Tried and not usable; the data is in TEST_PLAN 6.26 and the summary in section 12 above. The code (the module and its hidden strategy value) was removed after the experiments failed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`).
 
 ## 14. Experiments: resize before the map, and a pixel probe (2026-10-14; removed)
 
-Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`; an unpushed local branch `archive/x11-experiments` points at that commit). The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
+Tried and not usable (pre-map resize, TEST_PLAN 6.27 and 6.28) or removed because it can crash the Shell (pixel probe, 6.28 and 6.29); summaries in section 12 above. The code (the two modules and their hidden strategy values) was removed and is no longer in the tree (it is still in the git history of `main` up to commit `673e6f2`). The fixture's test-only `--state-colors` option stays (solid magenta at the initial size, green at any other).
 
 ## 15. Future direction (post-beta)
 

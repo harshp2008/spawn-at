@@ -33,9 +33,12 @@ and keeps correcting late resizes for a short time.
 
 - **GNOME 42, 43 and 44.** A separate legacy extension exists. It was never run on a real GNOME 42 to
   44 and may not work at all.
-- **GNOME 45 and 47 or later.** The extension's metadata lists 45 to 50; only 46 has been run in earnest (50.1 on Ubuntu 26.04 was tried once by hand and placed a window correctly). On an
+- **GNOME 45, 47, 48, 49 and 51 or later.** The extension's metadata lists 45 to 50; 51 and later are
+  not listed, and whether GNOME loads it there is not verified. Only 46 has been run in earnest. On an
   untested version the installer prints a notice first and asks before it installs (`--yes` skips the
   question).
+- **GNOME 50.** One `release-gate` run on 50.1 (Ubuntu 26.04, Wayland), described under the status
+  above. The installer prints a notice that says what was and was not run.
 - **GNOME on X11.** Partly tested with the test window. On X11 the installer reloads the Shell in
   place and apps stay open.
 - **XWayland windows** on a Wayland session: the test window only. They use the older rule (a 30 ms

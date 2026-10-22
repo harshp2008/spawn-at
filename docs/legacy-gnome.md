@@ -1,6 +1,6 @@
 # Legacy GNOME (42–44) Differences & Compatibility Analysis
 
-Status: implemented and checked with the test harness only. This page compares source only: the legacy extension has never been run on a real GNOME 42-44 session, and **it may not work at all**.
+**Status:** implemented and checked with the test harness only. This page compares source only: the legacy extension has never been run on a real GNOME 42-44 session, and **it may not work at all**.
 
 The installer says so before it installs (see the README, "Support"). The legacy extension is `assets/gnome/legacy/`: 8 JavaScript files and `metadata.json`. The two trees were compared with a read-only `diff` on 2026-10-21.
 
@@ -14,7 +14,7 @@ So spawn-at keeps two asset trees, and the installer picks one from the Shell's 
 
 | Tree | Path | Shell versions | ProtocolVersion | JavaScript files |
 | :-- | :-- | :-- | :-- | :-- |
-| Modern | `assets/gnome/modern/` | 45, 46, 47, 48 | 6 | 10 |
+| Modern | `assets/gnome/modern/` | 45 to 50 | 7 | 10 |
 | Legacy | `assets/gnome/legacy/` | 42, 43, 44 | 5 | 8 |
 
 The legacy tree has no `ready_wait.js` and no `x11_observe.js`.
@@ -67,11 +67,11 @@ Both trees implement the same D-Bus interface, `org.gnome.Shell.Extensions.Spawn
 
 **Not verified.** Protocol 3 added `CloseWindow`.
 
-The methods are `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `CloseWindow` and `SetLogging`.
+The methods are `ArmSpawn`, `DisarmSpawn`, `ExecuteBatch`, `GetCursor`, `GetPointer`, `GetWorkareas`, `GetLayout`, `GetWindows`, `MoveWindow`, `FocusWindow`, `DefocusWindow`, `SetWindowState`, `CloseWindow` and `SetLogging`, and, in the modern tree only, `ArmSpawnEntry` and `DisarmEntry`.
 
 The signals are `WorkareaChanged`, `SpawnClaimed` and, in the modern tree only, `ResizeOutcome`. `SpawnClaimed` carries `target_id` (string), `success` (bool), `window_id` (uint64), `x` and `y` (int), `w` and `h` (uint), `size_raised` (bool) and `error` (string).
 
-The test `test_legacy_and_modern_dbus_xml_parity` compares the XML of the two trees character for character, after it removes the `ResizeOutcome` signal from the modern one.
+The test `test_legacy_and_modern_dbus_xml_parity` compares the XML of the two trees character for character, after it removes the `ResizeOutcome` signal and the `ArmSpawnEntry` and `DisarmEntry` methods from the modern one.
 
 ### 3.1 Monitor introspection in `GetLayout()`
 

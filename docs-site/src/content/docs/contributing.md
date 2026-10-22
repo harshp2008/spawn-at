@@ -27,7 +27,7 @@ All of this lives in `src/platform/` and `spawn-at-core`.
 
 | Trait | Role |
 | :--- | :--- |
-| `Driver` (core) | `arm(Batch)` before the program starts, and `disarm`. The platform-neutral heart; the spawn pipeline never sees D-Bus or X11 |
+| `Driver` (core) | `arm(Batch)` before the program starts, and `disarm` and `disarm_entry`. The platform-neutral heart; the spawn pipeline never sees D-Bus or X11 |
 | `CompositorBackend` | Extends `Driver` with setup and teardown, capability flags, queries (windows, monitors, work areas, pointer) and actions (transform, state, focus, close, `post_spawn`). Most methods default to "unsupported", so a new backend can start small |
 | `Capabilities` (a struct), `WindowQuery`, `WindowControl`, `ReadySignal` (traits) | What a backend can do, and narrow views of the trait (`src/platform/capability.rs`) |
 | `Provisioner` | Install and uninstall of whatever a backend needs on the machine (for GNOME, the extension) |
@@ -86,11 +86,13 @@ Each of these is a document in the repository, with the evidence for its claims:
 The GNOME Wayland contract, from `DESIGN_PLATFORMS.md` section 7:
 
 - The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt`, the instruction JSON, the protocol
-  numbers, and the extension files under `assets/gnome`, which every release compares byte for byte.
+  numbers, and the extension files under `assets/gnome`. The extension files changed in v0.2.2 (the
+  Shell versions in `metadata.json`) and in v0.2.3 (protocol 7); the `CHANGELOG.md` entry of a
+  release says whether they changed.
 - The ready-wait policy and its Rust and JavaScript parity (checked by `tests/ready_wait_vectors`),
   the 30 ms legacy rule, and `wait.strategy` and `wait.cap_ms`.
 - The placement arithmetic (`verify/golden/placement.json`), config keys and file location, CLI flags
-  and `--help` text, and exit codes.
+  and `--help` text (the `--pos` and `--offset` help was reworded in v0.2.2), and exit codes.
 - The installer flow: the log-out question last, `--clean-install`, the prompt width rules, and the
   behaviour of `install.sh`.
 
@@ -159,7 +161,7 @@ site is served under `/spawn-at/`. The pieces:
 | :--- | :--- |
 | `cargo xtask docs-cli-reference --bin target/debug/spawn-at` | Writes the CLI reference pages from `--help` into `docs-site/src/content/docs/reference/`. Fails if the binary is missing, a command has no page, or the sidebar does not list that folder |
 | `cargo xtask docs-mirror` | Writes the "Project documents" pages from the files in `docs/` |
-| `cargo xtask docs-check-src` | Checks the markdown and the config: front matter, a duplicate `#` title, empty pages, pages missing from the sidebar, `.md` links, environment pages, `Sources` lists, `smartypants: false`, forbidden text |
+| `cargo xtask docs-check-src` | Checks the markdown and the config: front matter, a duplicate `#` title, empty pages, pages missing from the sidebar, `.md` links, environment pages, `Sources` lists, image references, `smartypants: false`, forbidden text. It also prints readability warnings, which never fail it |
 | `npm ci` and `npm run build` in `docs-site/` | Install the pinned packages and build the site into `docs-site/dist/` (`docs-site` does both; it reuses `node_modules` when it is newer than the lock file) |
 | `cargo xtask docs-check-html <dir>` | Checks a built site for broken links, missing ids, a flag such as `--id` turned into an en dash, and third-party requests |
 

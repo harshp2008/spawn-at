@@ -119,7 +119,9 @@ A window never stays invisible. Registrations expire after 15 seconds (1.2 secon
 matches), a window that matches nothing is revealed at once, and an error during placement restores
 the opacity. If something goes wrong you get a normally placed window.
 
-A registration is not withdrawn early, even when the program fails to start; what that can do is on
+When the wait for the window ends with no claim, `spawn` withdraws its own registration at once on the
+modern extension (protocol 7). It stays until it expires when the program fails to start, with
+`--no-wait`, and on the legacy extension; what that can do is on
 [Known limits](/spawn-at/known-limits/#after-a-failed-spawn).
 
 After the reveal, the extension corrects a resize that arrives late by re-anchoring, and keeps a

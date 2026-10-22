@@ -74,8 +74,9 @@ Both are read from source, not run.
 - **The end-of-run question.** On GNOME and in a terminal, `update` ends with a question: on
   Wayland the log-out question, on X11 the Shell reload. The log-out happens only if you answer yes.
   On Wayland the new extension files are loaded only after you log out and back in.
-- **No terminal (the login entry).** `update --headless` without a terminal has nobody to ask.
-  When it changes the deployed extension files on Wayland, it sends one desktop notification,
+- **No terminal (`update --headless`).** Run from a script or a service, it has nobody to ask (the
+  login entry never does this: it runs only `update --check --headless`). When it changes the
+  deployed extension files on Wayland, it sends one desktop notification,
   `spawn-at updated its GNOME extension; log out and back in to finish`, and writes
   `$XDG_STATE_HOME/spawn-at/needs-logout` (`~/.local/state/spawn-at/needs-logout` when that
   variable is not set) with the protocol and a fingerprint of the deployed files. While that file
@@ -164,6 +165,8 @@ process therefore exits 0 on a failed lookup. This is read from source, not run.
    `install --skip-bin --headless`, to put the extension files from the new version in place. It
    waits for that child to exit and sets no working directory and no environment for it, so it
    inherits both. Only a failure to start the child is reported; its exit status is not looked at.
+   It reads the deployed extension files before and after, and with `--headless` and no terminal
+   announces a change (see [After an update](#after-an-update)).
 5. Renames the running binary to the same name with the extension `.old`, copies the new one over
    the old path, and deletes the `.old` file. If the copy fails it renames the backup back and
    returns the error. The mode is then set to 0755. The path replaced is the one the running
@@ -231,19 +234,19 @@ separate cache file.
 
 ## Sources
 
-- `src/update.rs`: `get_version_display` (lines 60-72); `run_update` (renders the lookup error and
-  returns `Ok(())`; refuses a build with no parseable version); `update_menu_options` (the menu);
-  `perform_upgrade` (lines 584-722: asset name, temp directory at 599-610, the child at 656, the
-  `.old` rename at 664-676, the temp directory deletion at 685, the success message at 698);
-  `render_update_notice_if_available` (lines 531-575) and the 24-hour rule (lines 283-300);
-  `lookup_is_cached` and `headless_check` (what `--check` saves); the 0.1 to 0.2 note (lines 131-133,
-  805, 851); the failed-lookup exit (lines 786-788)
-- `src/main.rs`: line 461 (the notice at the end of `main`) and the `Commands::Install` arm
-- `src/platform/update_hooks.rs`; `src/platform/linux/gnome/deploy.rs`: lines 463-484 (the child
-  install: `.status()` at 472-474, `on_gnome`)
+- `src/update.rs`: `get_version_display` and `version_display` (lines 59-88); `run_update` (renders
+  the lookup error and returns `Ok(())`; refuses a build with no parseable version);
+  `update_menu_options` (the menu); `perform_upgrade` (lines 606-751: asset name, temp directory at
+  621-632, the child at 679, the `.old` rename at 694-706, the temp directory deletion at 715, the
+  success message at 728); `render_update_notice_if_available` (lines 550-594) and the 24-hour rule
+  (lines 302-319);
+  `lookup_is_cached` and `headless_check` (what `--check` saves); the 0.1 to 0.2 note (lines 150-152,
+  413, 867, 914); the failed-lookup exit (lines 849-852)
+- `src/main.rs`: line 492 (the notice at the end of `main`) and the `Commands::Install` arm
+- `src/platform/update_hooks.rs`; `src/platform/linux/gnome/deploy.rs`: lines 598-627 (`after_unpack`, the child
+  install: `.status()` at 617-619) and 579-584 (`on_gnome`)
 - `src/session.rs`: `update_outcome` (the end-of-run question)
 - `src/config.rs`: `UpdateConfig`, `apply_headless_install`, the autostart entry (lines 184-261);
   `src/platform/installer.rs`: `login_entry_exe`; `src/prompts.rs`: lines 54-77
 - the output of `spawn-at update --help`
-- `grep -n -i "sha256\|checksum\|signature\|gpg\|minisign" src/update.rs install.sh` (no output)
 - `grep -n -i "sha256\|checksum\|signature\|gpg\|minisign" src/update.rs install.sh` (no output)

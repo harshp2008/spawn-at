@@ -1,6 +1,6 @@
 # Design: a Sway backend
 
-Status: implemented as an experimental, opt-in backend in `src/platform/linux/sway/`. Only
+**Status:** implemented as an experimental, opt-in backend in `src/platform/linux/sway/`. Only
 `SPAWN_AT_BACKEND=sway` selects it (`src/platform/linux/registry.rs`).
 
 Every fact below is marked with how it was checked. "Verified" means observed on one machine with

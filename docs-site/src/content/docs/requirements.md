@@ -104,11 +104,11 @@ log-in (see [Install](/spawn-at/install/)).
 - `Cargo.toml`: line 4 (edition)
 - `src/platform/mod.rs`: lines 433-447 (the operating-system refusal)
 - `src/platform/linux/registry.rs`: lines 5-20 and 83-120 (the choice rules and the refusal)
-- `src/platform/install_notice.rs`: lines 19-37 (the notice texts)
-- `src/platform/linux/gnome/deploy.rs`: lines 251-256 (file set by major version), 329 and 400
-  (`gnome-extensions`), 134-155 (`gnome-session-quit`), 164-196 (`xdotool`)
+- `src/platform/install_notice.rs`: lines 38-61 (`VERIFIED`, `PARTLY_TESTED`) and 100-140 (the notice texts)
+- `src/platform/linux/gnome/deploy.rs`: lines 355-357 (file set by major version), 435 and 514
+  (`gnome-extensions`), 135-156 (`gnome-session-quit`), 165-197 (`xdotool`)
 - `src/platform/linux/gnome/detect.rs`: line 19 (`gnome-shell --version`), lines 52-136
   (`loginctl`, `id`, `WAYLAND_DISPLAY`); `logout.rs`: line 168
-- `src/platform/escalate.rs` (`sudo`); `src/update.rs`: lines 176, 202, 616 (`curl`), 630 (`tar`)
+- `src/platform/escalate.rs` (`sudo`); `src/update.rs`: lines 195, 221, 638 (`curl`), 652 (`tar`)
 - `assets/gnome/legacy/metadata.json`, `assets/gnome/modern/metadata.json`
 - `README.md` ("Support")

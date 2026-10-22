@@ -60,17 +60,26 @@ This is the one table of counts. Other pages point here.
 | :-- | --: | --: | :-- |
 | `spawn-at` | 520 | 0 | `cargo test --locked -p spawn-at -- --list` |
 | `spawn-at-core` | 64 | 0 | `cargo test --locked -p spawn-at-core -- --list` |
-| `xtask` | 109 | 0 | `cargo test --locked -p xtask -- --list` |
+| `xtask` | 132 | 0 | `cargo test --locked -p xtask -- --list` |
 | `spawn-at-verify`, no features | 435 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
 | `spawn-at-verify`, `tui` | 600 | 1 | `cargo test --locked -p spawn-at-verify --features tui -- --list` |
 | `spawn-at-verify`, `tui,fixture` (what CI runs) | 626 | 5 | `cargo test --locked -p spawn-at-verify --features tui,fixture -- --list` |
 | Node, 13 `*_test.js` files | 254 | 0 | `node --test tests/<file>`, once per file |
 | Node, the install-script test | 3 | 0 | CI only |
 
-Rust total with `tui,fixture`: 1319 run and 5 ignored (520 + 64 + 109 + 626). With the 254 Node tests
-that run locally: 1573. With the 3 install-script tests, which only CI runs: 1576.
+Rust total with `tui,fixture`: 1342 run and 5 ignored (520 + 64 + 132 + 626). With the 254 Node tests
+that run locally: 1596. With the 3 install-script tests, which only CI runs: 1599.
 
-Last checked at commit `1a5a618`.
+Last checked on 2026-10-23 at commit `cca1bc3`, which contains v0.2.4 (`07228c4`) and the
+documentation changes of this branch. Every Rust row was produced by the command in its last column
+(`--list`, then `grep -c ': test$'`, and `--list --ignored` for the ignored column). The Node row was
+produced by running each of the 13 local files once with `node --test tests/<file>`: `tests 254`,
+`pass 254`, `fail 0` in total.
+
+The `xtask` row includes the 13 tests of `release.rs` from v0.2.4 and the tests of this branch (the
+Status check of the mirror, the image checks and the readability warnings). No Rust or JavaScript code
+changed between the merge of v0.2.4 and that commit. The install-script count is carried over from
+earlier documentation and was not run here.
 
 To get a Rust count, pipe the command through `grep -c ': test$'`. That is the number of tests
 listed, ignored ones included. Add `--ignored` after `--list` to count only the ignored tests. Run is

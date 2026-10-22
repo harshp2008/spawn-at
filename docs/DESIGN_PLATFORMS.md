@@ -2,7 +2,7 @@
 
 **Status:** implemented in part. Section 6 marks steps 0 to 12 done (steps 8 and 12 in part); there is no Windows or macOS backend (`src/platform/non_linux.rs` is a compile-only stand-in).
 
-Status: proposal, written from the tree at `8822484` (v0.2.0-beta.3 merged). The document itself changes no code; migration step 1 (section 6) was then done in this same branch and is marked there. Citations below were re-checked after that step. Every claim about the code cites `file:line`; anything that could not be confirmed here is marked **unverified**. Statements about other platforms come from public knowledge, not from running anything, and are marked the same way.
+It was written as a proposal from the tree at `8822484` (v0.2.0-beta.3 merged). The document itself changes no code; migration step 1 (section 6) was then done in this same branch and is marked there. Citations below were re-checked after that step. Every claim about the code cites `file:line`; anything that could not be confirmed here is marked **unverified**. Statements about other platforms come from public knowledge, not from running anything, and are marked the same way.
 
 Goal: a structure that lets spawn-at support GNOME Wayland (today), other Wayland compositors, X11, Windows, macOS and more, **without changing the working GNOME Wayland behavior**.
 
@@ -57,13 +57,13 @@ Line counts are `wc -l` of the tracked files (tests included, so a file's produc
 | `crates/spawn-at-verify` | 147 files, 32,484 lines | Developer verification harness: runs spawn-at against a fixture window, reads logs and traces, TUI | mixed: runner, oracle, report are neutral; `log_source.rs:39` (`journalctl`), `ext_logging.rs:20` (`gdbus`), `display.rs:77-85` (`xrandr`, `gdbus GetCurrentState`), `probe.rs:150` (`gnome-shell --version`) are GNOME/Linux. Depends only on core. |
 | `crates/xtask` | 7 files, 952 lines | Repository tooling | neutral |
 | `assets/gnome/modern`, `assets/gnome/legacy` | 11 and 9 files, 3,661 and 2,793 lines | The GNOME Shell extensions (JavaScript), embedded in the binary; `extension.js` 1,799 lines; a JS port of `ready_wait` | GNOME |
-| `tests/` | 35 files, 5,644 lines | Node tests of the extension (183), Rust CLI tests, ready-wait vectors (`tests/ready_wait_vectors`) | GNOME (node), neutral (vectors) |
+| `tests/` | 35 files, 5,644 lines | Node tests of the extension, Rust CLI tests, ready-wait vectors (`tests/ready_wait_vectors`) | GNOME (node), neutral (vectors) |
 | `verify/` | 62 files | Test specs (TOML), golden placement | neutral specs, GNOME runner |
 | `install.sh`, `scripts/`, `.github/workflows/` | | Bootstrap installer (Linux x86_64 only, `install.sh:27,42`); CI and release on `ubuntu-24.04` only (`ci.yml:20`) | Linux |
 
 ## 2. What abstraction already exists
 
-1. **`Driver` (core, `driver.rs:132`)**: `arm(Batch) -> Armed` and `disarm`. A declarative `Batch` of `Entry` values (app hint, `PlacementParams`, wait override) with reveal / focus / urgency policy (`driver.rs:12-72`). `Armed` carries environment variables to inject into the child (`driver.rs:73`). This is the platform-neutral heart and it is used as intended: `run_spawn_with` builds a batch (`spawn.rs:285`) and never sees D-Bus or X11.
+1. **`Driver` (core, `driver.rs:132`)**: `arm(Batch) -> Armed`, `disarm` and `disarm_entry` (withdraws one entry; only the GNOME driver overrides it). A declarative `Batch` of `Entry` values (app hint, `PlacementParams`, wait override) with reveal / focus / urgency policy (`driver.rs:12-72`). `Armed` carries environment variables to inject into the child (`driver.rs:73`). This is the platform-neutral heart and it is used as intended: `run_spawn_with` builds a batch (`spawn.rs:285`) and never sees D-Bus or X11.
 2. **`CompositorBackend` (binary crate, `platform/mod.rs:134`)**: extends `Driver` with setup and teardown (`install_notice` :148, `install` :153, `uninstall` :164), capability flags (`supports_runtime_transform` :190, `supports_claim_wait` :198, `supports_close` :203), claim waiting (`prepare_claim_wait` :208), queries (`resolve_id` :234, `get_cursor_position` :237, `get_monitors` :242, `get_workareas` :247, `get_windows` :252, `get_layout` :257, `protocol_version` :280) and actions (`transform_window` :294, `move_window` :308, `move_resize_window` :315, `set_window_state` :327, `focus_window` :336, `defocus_window` :341, `close_window` :351, `post_spawn` :358) and, since step 4, `capabilities` :179 (a `Capabilities` struct whose default is built from the `supports_*` methods). Most methods have an "unsupported" default, so a new backend can start small.
 3. **`ClaimSubscription` (`platform/mod.rs:67`)**: "the compositor tells me when the armed window was placed", with `ClaimResult` (:50).
 4. **`SettingsStore` (core, `settings.rs:333`)**: where the config text lives; implemented by `LinuxConfigStore` (`config_store.rs:44`). This is the one place where a neutral trait + one platform implementation is already the right shape.
@@ -114,7 +114,7 @@ A backend is a bundle of small capabilities. A backend implements only what its 
 
 | Capability | Operations | Implemented today by |
 | :-- | :-- | :-- |
-| **Arm** (declare intent before launch) | `arm(Batch)`, `disarm` | `Driver` (`driver.rs:132`); GNOME `gnome/driver.rs:141,195` (D-Bus `ArmSpawn`); X11 `x11/mod.rs:37,52` (`arm` only returns the launch environment; the interception loop runs later, in `post_spawn`) |
+| **Arm** (declare intent before launch) | `arm(Batch)`, `disarm`, `disarm_entry` | `Driver` (`driver.rs:132`); GNOME `gnome/driver.rs:141,195` (D-Bus `ArmSpawn`, or `ArmSpawnEntry` at protocol 7); X11 `x11/mod.rs:37,52` (`arm` only returns the launch environment; the interception loop runs later, in `post_spawn`) |
 | **Launch** | start the app with the armed environment; detach it | `spawn.rs:298-307`, `configure_child_process` :582 (neutral; the detach is `Host::detach_child`, `spawn.rs:599`) |
 | **Discover** (windows, monitors, work areas, cursor) | `get_windows`, `get_monitors`, `get_workareas`, `get_layout`, `get_cursor_position` | GNOME `gnome/driver.rs:412,339,402,356,329`; X11 `x11/mod.rs:127,107,117,137,87` |
 | **Identify** (map a command to an app id; match windows to a process) | `resolve_id`, process ancestry | `xdg.rs:30` via `gnome/driver.rs:281`; `commands/mod.rs:50-92` and `/proc` helpers (Leak 3, Leak 14) |
@@ -202,7 +202,7 @@ Native: the Accessibility API (`AXUIElement`, set `kAXPositionAttribute` / `kAXS
 
 ## 6. Migration plan
 
-Rule for every step: **behavior-preserving, one logical change, no new feature**, proven in the beta.2 style: sorted test names per binary unchanged, `cargo test` counts unchanged, `--help` of `spawn-at` and each subcommand byte-identical (`install --help` included), `git diff -M --stat` for moves, sha256 of goldens (`verify/golden/placement.json`, `tests/ready_wait_vectors`) unchanged, the node suite (183) unchanged, and the GNOME live suite re-run by the owner on GNOME 46 Wayland before the release that contains the step.
+Rule for every step: **behavior-preserving, one logical change, no new feature**, proven in the beta.2 style: sorted test names per binary unchanged, `cargo test` counts unchanged, `--help` of `spawn-at` and each subcommand byte-identical (`install --help` included), `git diff -M --stat` for moves, sha256 of goldens (`verify/golden/placement.json`, `tests/ready_wait_vectors`) unchanged, the node suite unchanged, and the GNOME live suite re-run by the owner on GNOME 46 Wayland before the release that contains the step.
 
 | Step | Change | Proof | Size | Risk |
 | :-- | :-- | :-- | :-- | :-- |
@@ -235,11 +235,11 @@ Steps 1-3 can be done at once and by themselves reduce risk. Steps 4-10 are the 
 
 **Must not change** (the GNOME Wayland contract):
 
-* The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt` and the instruction JSON (`mechanics.rs:42`, `dbus.rs:3-6`), the protocol numbers (`gnome/driver.rs:43-46`), and the extension files (`assets/gnome`, which every release compares byte for byte).
+* The D-Bus interface `org.gnome.Shell.Extensions.SpawnAt` and the instruction JSON (`mechanics.rs:42`, `dbus.rs:3-6`), the protocol numbers (`gnome/driver.rs:81-90`), and the extension files (`assets/gnome`). The extension files changed in v0.2.2 (`metadata.json` lists Shell 49 and 50) and in v0.2.3 (protocol 7); each release says in its CHANGELOG.md entry whether they changed.
 * The ready-wait policy and its Rust/JS parity (`ready_wait.rs` and `assets/gnome/modern/ready_wait.js`, checked by `tests/ready_wait_vectors`), the 30 ms legacy rule, `wait.strategy` / `wait.cap_ms`.
-* Placement math (`geometry.rs`, `verify/golden/placement.json`), config keys and file location, CLI flags and `--help` text, exit codes.
+* Placement math (`geometry.rs`, `verify/golden/placement.json`), config keys and file location, CLI flags and `--help` text (the `--pos` and `--offset` help was reworded in v0.2.2), exit codes.
 * The installer flow just stabilised in beta.3: the log-out question last (`session.rs`), `--clean-install`, the prompts' width rules (`prompts.rs`), `install.sh` behavior.
-* The test suites: 273 / 64 / 10 / 404 (4 ignored) / 183 at beta.3; only counts that a step deliberately changes may change, with docs updated in the same commit.
+* The test suites: only counts that a step deliberately changes may change, with docs updated in the same commit (the counts are on the Testing page of the guide).
 
 **Risks.** (1) Trait churn breaks the many test doubles in `commands/mod.rs`, `spawn.rs`, `query.rs`; the supertrait bundle in step 4 is meant to absorb that. (2) `clap` flatten changes can alter help text silently; step 5 must diff help output. (3) Moving code between files changes `file:line` citations in docs (`DESIGN_READY_WAIT.md:66` cites `linux/mod.rs:101`); docs need a pass per move. (4) Off-Linux compilation has never been tried; its cost is unknown. (5) Only GNOME 46 on Wayland has ever been run; any restructuring that touches GNOME-shaped code is verified only by unit tests and the owner's live run. (6) Two helper-based backends (GNOME, KWin) will want a shared "deploy and version a helper" abstraction; designing it from one example is a risk, so keep it GNOME-internal until a second helper exists.
 
@@ -252,10 +252,10 @@ Steps 1-3 can be done at once and by themselves reduce risk. Steps 4-10 are the 
 * The neutral command layer is genuinely neutral: it only uses `CompositorBackend`; `gnome::mechanics` is referenced from production code only inside the GNOME driver.
 * `run_spawn_with` is one function of about 524 lines (`spawn.rs:59-582`); splitting it is a prerequisite for reasoning about a second ready-signal model.
 * `/proc` process ancestry existed twice; step 2 merged it into `linux/process_tree.rs:4-33`.
-* Extension protocol numbers (3, 4, 5, 6): until step 6 the neutral commands compared them (`spawn.rs:101`, `transform.rs:44`, `query.rs:74`); now only `HelperNeed::min_protocol` (4, 5) in `capability.rs` knows the thresholds, and the GNOME driver keeps its own (constants `gnome/driver.rs:43-46`).
+* Extension protocol numbers (3, 4, 5, 6, 7): until step 6 the neutral commands compared them (`spawn.rs:101`, `transform.rs:44`, `query.rs:74`); now only `HelperNeed::min_protocol` (4, 5) in `capability.rs` knows the thresholds, and the GNOME driver keeps its own (constants `gnome/driver.rs:81-90`).
 * Only two of the `supports_*` capability flags are read in production (`transform.rs:19`, `lifecycle.rs:34`).
 * Ready-wait exists twice, in Rust (`spawn-at-core/src/ready_wait.rs`) and JavaScript (`assets/gnome/modern/ready_wait.js`), tied together by shared vectors in `tests/ready_wait_vectors`.
-* The GNOME extension exposes only a protocol number over D-Bus, no content hash (`assets/gnome/modern/dbus.js`, `extension.js:1529`); "is the running extension current" therefore needs file facts (`logout.rs`).
+* The GNOME extension exposes only a protocol number over D-Bus, no content hash (`assets/gnome/modern/dbus.js`, `extension.js:1533`); "is the running extension current" therefore needs file facts (`logout.rs`).
 * `spawn-at-verify` depends only on `spawn-at-core` and talks to the binary as a black box, but its log and display probing is GNOME/Linux tooling (`log_source.rs:39`, `ext_logging.rs:20`, `display.rs:77-85`, `probe.rs:150`).
 * `escalate.rs` already has macOS (`sudo install`) and Windows (not implemented) branches (`escalate.rs:23-55`); like the other off-Linux code it has never been compiled.
 * Wayland has no generic "move another client's window" protocol; each compositor needs its own IPC or script (public knowledge, unverified here).
