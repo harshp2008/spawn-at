@@ -74,8 +74,10 @@ Both are read from source, not run.
 - **The end-of-run question.** On GNOME and in a terminal, `update` ends with a question: on
   Wayland the log-out question, on X11 the Shell reload. The log-out happens only if you answer yes.
   On Wayland the new extension files are loaded only after you log out and back in.
-- **No terminal (the login entry).** `update --headless` without a terminal has nobody to ask.
-  When it changes the deployed extension files on Wayland, it sends one desktop notification,
+- **No terminal (`update --headless`).** `update --headless` with standard output not a terminal
+  (a script or a service) has nobody to ask. The login entry does not do this: it runs only
+  `update --check --headless`, which installs nothing. When `update --headless` changes the
+  deployed extension files on Wayland, it sends one desktop notification,
   `spawn-at updated its GNOME extension; log out and back in to finish`, and writes
   `$XDG_STATE_HOME/spawn-at/needs-logout` (`~/.local/state/spawn-at/needs-logout` when that
   variable is not set) with the protocol and a fingerprint of the deployed files. While that file
@@ -164,6 +166,8 @@ process therefore exits 0 on a failed lookup. This is read from source, not run.
    `install --skip-bin --headless`, to put the extension files from the new version in place. It
    waits for that child to exit and sets no working directory and no environment for it, so it
    inherits both. Only a failure to start the child is reported; its exit status is not looked at.
+   It reads the deployed extension files before and after, and with `--headless` and no terminal
+   announces a change (see [After an update](#after-an-update)).
 5. Renames the running binary to the same name with the extension `.old`, copies the new one over
    the old path, and deletes the `.old` file. If the copy fails it renames the backup back and
    returns the error. The mode is then set to 0755. The path replaced is the one the running

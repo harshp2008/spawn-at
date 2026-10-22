@@ -11,7 +11,8 @@ everyone. The exact limits of each row are on its own page.
 | GNOME 46, X11 session | Partly tested: the project's test window only, no real apps |
 | XWayland windows on a GNOME Wayland session | Test window only. They use the older, shorter wait, so they flash more |
 | GNOME 42, 43, 44 (the legacy extension) | **Untested**; never run on a real GNOME 42 to 44 |
-| GNOME 45 and 47 or later | Untested. The extension's metadata lists 45 to 50, but only 46 has been run in earnest |
+| [GNOME 50 (run on 50.1), Wayland session](/spawn-at/environments/gnome-wayland/) | **Partly tested, with failures.** One `release-gate` run: of 36 required cases 9 failed. Not listed as tested |
+| GNOME 45, 47, 48, 49 and 51 or later | Untested. The extension's metadata lists 45 to 50, but only 46 has been run in earnest |
 | [Sway](/spawn-at/environments/sway/) | **Experimental**, opt-in with `SPAWN_AT_BACKEND=sway`. Run only against a private headless Sway 1.9 with the test window |
 | [X11 and XWayland (fallback)](/spawn-at/environments/x11-xwayland/) | Experimental backend, untested with real apps. No cloaking, so windows flash |
 | [Other Wayland desktops](/spawn-at/environments/unsupported-desktops/) (KDE, Hyprland, unknown) | Not supported. spawn-at exits with an error unless you opt in to the X11 fallback |
@@ -34,7 +35,7 @@ Sway is never chosen automatically.
 
 ## What has not been verified anywhere
 
-- GNOME versions other than 46.
+- GNOME versions other than 46 (50.1 only partly, see the table).
 - Real Sway sessions, and Sway versions other than 1.9.
 - X11 or XWayland with real applications.
 - More than two outputs, and output scales other than 1 and 2 (on Sway).
