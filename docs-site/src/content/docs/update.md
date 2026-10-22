@@ -74,9 +74,8 @@ Both are read from source, not run.
 - **The end-of-run question.** On GNOME and in a terminal, `update` ends with a question: on
   Wayland the log-out question, on X11 the Shell reload. The log-out happens only if you answer yes.
   On Wayland the new extension files are loaded only after you log out and back in.
-- **No terminal (`update --headless`).** `update --headless` with standard output not a terminal
-  (a script or a service) has nobody to ask. The login entry does not do this: it runs only
-  `update --check --headless`, which installs nothing. When `update --headless` changes the
+- **No terminal (`update --headless`).** Run from a script or a service, it has nobody to ask (the
+  login entry never does this: it runs only `update --check --headless`). When it changes the
   deployed extension files on Wayland, it sends one desktop notification,
   `spawn-at updated its GNOME extension; log out and back in to finish`, and writes
   `$XDG_STATE_HOME/spawn-at/needs-logout` (`~/.local/state/spawn-at/needs-logout` when that
