@@ -154,11 +154,15 @@ or an earlier failure.
 
 - **Symptom.** A window you opened by hand after a failed `spawn` got the position and size meant
   for the program that failed.
-- **Cause.** `spawn` registers the placement with the extension before the program starts and never
-  withdraws it on Linux, so a window the extension matches to that name before the registration
-  expires is placed. The expiry times and the queue limit are on
+- **Cause.** `spawn` registers the placement with the extension before the program starts. When the
+  program fails to start, with `--no-wait`, or on the legacy extension (GNOME 42 to 44), it does not
+  withdraw the registration, so a window the extension matches to that name before the registration
+  expires is placed. When the wait ends with no window on the modern extension (protocol 7), `spawn`
+  withdraws it. The cases, the expiry times and the queue limit are on
   [Known limits](/spawn-at/known-limits/#after-a-failed-spawn).
-- **Fix.** None recorded; the repository records only the expiry times.
+- **Fix.** On the modern extension, if it was installed before v0.2.3, run `spawn-at update` or
+  `spawn-at install` and log out and back in, so protocol 7 is loaded. For the other cases none is
+  recorded; the repository records only the expiry times.
 
 ### Sway: `--anchor cursor` puts the window in the corner
 

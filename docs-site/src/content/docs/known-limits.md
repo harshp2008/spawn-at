@@ -45,7 +45,7 @@ listed. A window list that cannot be read counts as closed. `--no-wait` skips th
 
 | Command | If `gnome-extensions` fails | Exit |
 | :-- | :-- | :-- |
-| `install` | After a non-zero `enable`, prints a note instead of "successfully installed and enabled". The files are deployed, the extension is not confirmed enabled. | 0 |
+| `install` | After a non-zero `enable`, prints a note instead of "successfully installed and enabled". The files are deployed, the extension is not confirmed enabled. One case gets a plain message instead: a first install on Wayland where `enable` exits 2 and `gnome-extensions info` says the Shell does not know the extension yet (it loads after a log-out and log-in). | 0 |
 | `uninstall` | If `disable` cannot start or exits non-zero, prints a warning instead of "successfully uninstalled", carries on, and says whether the files were removed. | 0 |
 
 `install` stops with an error when a file cannot be written or `gnome-extensions` cannot be started.
@@ -114,20 +114,35 @@ once, when a size, position or anchor was requested.
 
 ## After a failed spawn
 
-On GNOME, `spawn` registers the placement with the extension before the program starts. On Linux the
-disarm call is never sent, not even when the program fails to start. The registration ends on its
-own:
+On GNOME, `spawn` registers the placement with the extension before the program starts. A
+registration that no window claims stays until `spawn` withdraws it or it expires. In that time **an
+unrelated window can be placed**: a window that the extension matches to the name (see above) and that
+opens then gets the placement meant for the program that failed. With the 1.2 second wildcard, the
+next window that opens is taken.
+
+What `spawn` does depends on how it ends:
+
+| How `spawn` ends | The registration |
+| :-- | :-- |
+| A window claims it | Used up. |
+| The wait ends with no claim: it timed out, the program reused an existing window, or the window was found by polling | **Withdrawn at once** with `DisarmEntry`, but only when the extension reports protocol 7 or higher (the modern extension). On the legacy extension (protocol 5, GNOME 42 to 44) or any older one it stays and expires. |
+| The program fails to start | **Stays and expires.** The whole-queue disarm call is never sent on Linux. |
+| `--no-wait` | **Stays and expires.** `spawn` never gives up, so it never withdraws. |
+| Registered under no name (`--class '*'` or an empty name) | **Stays and expires.** `DisarmEntry` only looks in the queues of named registrations. |
+
+While `spawn` is still waiting, which is up to twice `spawn.window_timeout_ms` (4 seconds by default),
+the registration is live, so a window of the same name that opens then can still take it. A
+registration that is not withdrawn ends on its own:
 
 | Registered under | Expires after |
 | :-- | :-- |
 | A name | 15 seconds |
 | No name (`--class '*'` or an empty name) | 1.2 seconds |
 
-Until then, **an unrelated window can be placed**. A window that the extension matches to the name (see
-above) and that opens in that time gets the placement meant for the program that failed. With the
-1.2 second wildcard, the next window that opens is taken.
-
 Registrations under one name queue up to 16. A 17th drops the oldest.
+
+The withdrawal is covered by Node and D-Bus stub tests (`tests/stale_arm_test.js`, the tests of
+`src/commands/spawn.rs`). This page did not run it on a live session.
 
 ## Sway
 
@@ -165,8 +180,9 @@ sessions and real X11 applications are listed on [Known shortcomings](/spawn-at/
 - `src/main.rs` (exit codes for invalid options and errors)
 - `src/diagnostics.rs` (the position and size report)
 - `src/platform/linux/gnome/deploy.rs` (`install` and `uninstall` output)
-- `src/platform/linux/mod.rs` (`disarm` is not forwarded) and `assets/gnome/modern/extension.js`
-  (registration expiry, queue limit and name matching)
+- `src/platform/linux/mod.rs` (`disarm` is not forwarded, `disarm_entry` is),
+  `src/platform/linux/gnome/driver.rs` (`ENTRY_KEY_PROTOCOL`, `disarm_entry`) and
+  `assets/gnome/modern/extension.js` (registration expiry, queue limit, name matching, `DisarmEntry`)
 - `src/platform/linux/sway/mod.rs`, `src/platform/linux/sway/place.rs` and
   `src/platform/linux/x11/interception.rs` (the placement step)
 - `src/platform/linux/x11/mod.rs` (the launch environment)
