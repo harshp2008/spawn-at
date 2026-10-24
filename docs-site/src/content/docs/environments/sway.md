@@ -83,6 +83,6 @@ other than the one asked; scales other than 1 and 2; more than two outputs; outp
 - `docs/DESIGN_SWAY.md`, sections 2, 4 to 7 and 12
 - `src/commands/spawn.rs` (the cursor fallback to (0, 0))
 - `docs/TEST_PLAN.md`, sections 7.1 to 7.5
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("Sway: limitations")
+- `docs/release-notes/0.2.0-beta.4.md` ("Sway: limitations")
 - `docs/KNOWLEDGE.md` ("GNOME and Wayland behavior", "Gotchas")
 - the error text above was produced by running the built binary with `SPAWN_AT_BACKEND=sway` and no `SWAYSOCK`

@@ -49,4 +49,4 @@ Sway is never chosen automatically.
 - `docs/DESIGN_PLATFORMS.md`, section 3, Leak 11 (backend choice)
 - `docs/DESIGN_SWAY.md`, sections 7 and 12
 - `docs/TEST_PLAN.md`, section 7.3 ("Not verified")
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")
+- `docs/release-notes/0.2.0-beta.4.md` ("What was NOT verified")
