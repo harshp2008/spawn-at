@@ -13,6 +13,7 @@ scratch/
 !/docs-site/src/content/docs/reference/index.md
 /docs-site/src/content/docs/project/*
 !/docs-site/src/content/docs/project/index.md
+/docs-site/src/content/docs/release-notes/
 # Starlight build: installed packages, the built site, Astro's generated types and cache.
 /docs-site/node_modules/
 /docs-site/dist/

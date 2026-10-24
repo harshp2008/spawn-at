@@ -499,7 +499,7 @@ dependency.
   order. `docs/` is the source: edit the file there, never the page. The pages are not committed
   (`.gitignore` lists them; only `project/index.md` is tracked). The mirror turns the `# ` heading
   into the front-matter title, rewrites links to other mirrored files to `/spawn-at/project/<name>/`,
-  sends links to files it does not mirror (`TEST_LOG.md`, `RELEASE_NOTES_*.md`, `../CHANGELOG.md`)
+  sends links to files it does not mirror (`TEST_LOG.md`, `../CHANGELOG.md`)
   to GitHub, and appends a `## Sources` section. It also gives each page a short sidebar label (the
   `label` of its entry in the list; the page title still follows the heading) and links a mention of
   an experiment, such as `6.12`, `section 6.15` or `6.11.1`, to the page of that experiment in

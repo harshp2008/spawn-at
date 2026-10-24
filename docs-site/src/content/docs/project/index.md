@@ -30,9 +30,9 @@ one of them can be older than the code.
 - [Knowledge base](/spawn-at/project/knowledge/)
 - [Project history](/spawn-at/project/history/): what changed in the documents and the tests, and when.
 
-Two kinds of file in `docs/` are not mirrored, and links to them go to GitHub: the experiment log
-([`TEST_LOG.md`](https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md)) and the release
-notes of each version (`RELEASE_NOTES_*.md`, listed on the [Changelog](/spawn-at/changelog/) page).
+One file in `docs/` is not mirrored, and links to it go to GitHub: the experiment log
+([`TEST_LOG.md`](https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md)). The release
+notes of each version are in their own menu group, [Release notes](/spawn-at/release-notes/).
 The experiment records of sections 6.10 to 6.35 and P8 of the log have a page each under Experiments
 in the menu.
 

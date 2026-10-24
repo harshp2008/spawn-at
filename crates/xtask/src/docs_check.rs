@@ -503,7 +503,17 @@ fn is_generated(rel: &str) -> bool {
 /// has a `## Sources` list (the mirror appends one) and every other rule applies; only the
 /// sidebar-name rule is replaced by the `autogenerate` entry for the folder `project`.
 fn is_mirrored(rel: &str) -> bool {
-    rel.starts_with("project/") && rel != "project/index.md"
+    (rel.starts_with("project/") && rel != "project/index.md") || rel.starts_with("release-notes/")
+}
+
+/// The folder whose `autogenerate` sidebar entry reaches the mirrored page `rel`: `release-notes`
+/// for the release notes (every page of that folder is generated, `index.md` too), else `project`.
+fn mirrored_folder(rel: &str) -> &'static str {
+    if rel.starts_with("release-notes/") {
+        "release-notes"
+    } else {
+        "project"
+    }
 }
 
 /// The folder of the images, `public/img/` next to the sidebar config (`docs-site/`).
@@ -615,7 +625,8 @@ pub fn check_with_images(
             if !has_sources_list(body) {
                 problems.push(format!("{rel}: no `## Sources` heading with a list"));
             }
-            let covered = is_mirrored(&rel) && sidebar_autogenerates(&config_text, "project");
+            let covered =
+                is_mirrored(&rel) && sidebar_autogenerates(&config_text, mirrored_folder(&rel));
             if !covered && !sidebar_names(&config_text, &page_slug(&rel)) {
                 problems.push(format!(
                     "{rel}: page `{}` is not named in the sidebar of {}",

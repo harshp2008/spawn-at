@@ -8,22 +8,25 @@ The changelog is `CHANGELOG.md` in the repository. It follows
 
 **[Read CHANGELOG.md on GitHub](https://github.com/harshp2008/spawn-at/blob/main/CHANGELOG.md)**
 
+Every release also has a page of plain-language notes. They are in the
+[Release notes](/spawn-at/release-notes/) section of the menu.
+
 ## Releases listed in it
 
 | Version | Date | Release notes |
 | :--- | :--- | :--- |
 | Unreleased | | Nothing yet |
-| 0.2.4 | 2026-10-21 | A headless update that changes the extension on Wayland now notifies once and leaves a marker that `spawn` reads (#87); the install notice is driven by a list of tested environments and GNOME 50.1 is listed as partly tested; `-V` on a dev build shows the crate version; a clear message when a menu has no terminal; a plain note for the first-install `enable` exit 2; the release workflow checks the tag against every crate version and has a dry run (#88); see the changelog in the repository |
-| 0.2.3 | 2026-10-21 | A spawn that no window claims no longer misplaces the next window of the app (#84, #85); needs the new CLI and the protocol-7 extension; see the changelog in the repository |
-| 0.2.2 | 2026-10-21 | GNOME Shell 49 and 50 listed in the extension metadata, clearer extension diagnostics and placement log line (#82); see the changelog in the repository |
-| 0.2.1 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.1.md): fixes for #47, #48, #49, #50, #51, #56, #57 and #58; the GNOME extension is unchanged |
-| 0.2.0 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0.md): the same code as 0.2.0-beta.6; documentation and version only |
-| 0.2.0-beta.6 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.6.md): the installer's PATH advice is idempotent and mentions logging out; otherwise docs and tests |
-| 0.2.0-beta.5 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.5.md): unsupported-desktop refusal, `install.sh` prompt, docs site, Known limits; developer-tool changes |
-| 0.2.0-beta.4 | 2026-10-15 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.4.md): code restructured for other platforms; experimental Sway backend |
-| 0.2.0-beta.3 | 2026-10-15 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.3.md): the install flow |
-| 0.2.0-beta.2 | 2026-10-14 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.2.md) |
-| 0.2.0-beta.1 | 2026-10-14 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0-beta.1.md) |
+| 0.2.4 | 2026-10-21 | [Notes](/spawn-at/release-notes/0-2-4/): A headless update that changes the extension on Wayland now notifies once and leaves a marker that `spawn` reads (#87); the install notice is driven by a list of tested environments and GNOME 50.1 is listed as partly tested; `-V` on a dev build shows the crate version; a clear message when a menu has no terminal; a plain note for the first-install `enable` exit 2; the release workflow checks the tag against every crate version and has a dry run (#88); see the changelog in the repository |
+| 0.2.3 | 2026-10-21 | [Notes](/spawn-at/release-notes/0-2-3/): A spawn that no window claims no longer misplaces the next window of the app (#84, #85); needs the new CLI and the protocol-7 extension; see the changelog in the repository |
+| 0.2.2 | 2026-10-21 | [Notes](/spawn-at/release-notes/0-2-2/): GNOME Shell 49 and 50 listed in the extension metadata, clearer extension diagnostics and placement log line (#82); see the changelog in the repository |
+| 0.2.1 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.1.md): fixes for #47, #48, #49, #50, #51, #56, #57 and #58; the GNOME extension is unchanged |
+| 0.2.0 | 2026-10-18 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0.md): the same code as 0.2.0-beta.6; documentation and version only |
+| 0.2.0-beta.6 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.6.md): the installer's PATH advice is idempotent and mentions logging out; otherwise docs and tests |
+| 0.2.0-beta.5 | 2026-10-17 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.5.md): unsupported-desktop refusal, `install.sh` prompt, docs site, Known limits; developer-tool changes |
+| 0.2.0-beta.4 | 2026-10-15 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.4.md): code restructured for other platforms; experimental Sway backend |
+| 0.2.0-beta.3 | 2026-10-15 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.3.md): the install flow |
+| 0.2.0-beta.2 | 2026-10-14 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.2.md) |
+| 0.2.0-beta.1 | 2026-10-14 | [Notes](https://github.com/harshp2008/spawn-at/blob/main/docs/release-notes/0.2.0-beta.1.md) |
 
 Releases are published on [GitHub](https://github.com/harshp2008/spawn-at/releases). A tag that
 contains a `-` is published as a pre-release.
@@ -31,5 +34,5 @@ contains a `-` is published as a pre-release.
 ## Sources
 
 - `CHANGELOG.md` (the headings and dates above)
-- `docs/RELEASE_NOTES_0.2.0-beta.1.md` to `docs/RELEASE_NOTES_0.2.0-beta.6.md`, `docs/RELEASE_NOTES_0.2.0.md`, `docs/RELEASE_NOTES_0.2.1.md`
+- `docs/release-notes/0.2.0-beta.1.md` to `docs/release-notes/0.2.0-beta.6.md`, `docs/release-notes/0.2.0.md`, `docs/release-notes/0.2.1.md` to `docs/release-notes/0.2.4.md`
 - `.github/workflows/release.yml` (pre-release rule), the contributor rules ("Versions and releases")
