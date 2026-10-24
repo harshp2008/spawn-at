@@ -84,6 +84,6 @@ says something is "not verified", it means no test or run in the repository cove
 ## Sources
 
 - `README.md` (intro, "Support", "How well it works", "Roadmap")
-- `docs/RELEASE_NOTES_0.2.0.md`
+- `docs/release-notes/0.2.0.md`
 - `Cargo.toml` (package version), `install.sh` (prebuilt target), the contributor rules ("Versions and releases")
 - `docs/DESIGN_PLATFORMS.md`, section 5 (macOS and Windows are not implemented)

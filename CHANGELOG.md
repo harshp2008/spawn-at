@@ -6,6 +6,10 @@ All notable changes to this project are recorded here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Release notes moved from `docs/RELEASE_NOTES_<version>.md` to `docs/release-notes/<version>.md`, with an `index.md` and notes for 0.2.2, 0.2.3 and 0.2.4. The documentation site shows them in a "Release notes" menu group. `release.yml` now runs `cargo xtask check-release-notes` and fails a tag whose notes page is missing or not listed in the index. Documentation and release tooling only; the program, the extension and `install.sh` are unchanged.
+
 ## [0.2.4] - 2026-10-21
 
 Patch release (#87, #88). After upgrading, `spawn-at update` redeploys the extension as before; the extension itself is unchanged (protocol 7), so no new log-in is needed for this release.
@@ -54,7 +58,7 @@ Patch release: GNOME Shell 49 and 50 support (#82). After upgrading, run `spawn-
 
 ## [0.2.1] - 2026-10-18
 
-Patch release. Since v0.2.0, `git diff v0.2.0..HEAD --stat -- src crates assets scripts install.sh build.rs .github tests` shows changes only in `src` (`config.rs`, `main.rs`, `session.rs`, `update.rs`, `platform/installer.rs`, `platform/linux/gnome/deploy.rs`), `install.sh` and `crates/spawn-at-verify` (the developer tool); `assets` (the GNOME extension), `scripts`, `build.rs`, `.github`, `tests`, `crates/spawn-at-core` and `crates/xtask` are unchanged. See [docs/RELEASE_NOTES_0.2.1.md](docs/RELEASE_NOTES_0.2.1.md) for what to expect and what is not verified.
+Patch release. Since v0.2.0, `git diff v0.2.0..HEAD --stat -- src crates assets scripts install.sh build.rs .github tests` shows changes only in `src` (`config.rs`, `main.rs`, `session.rs`, `update.rs`, `platform/installer.rs`, `platform/linux/gnome/deploy.rs`), `install.sh` and `crates/spawn-at-verify` (the developer tool); `assets` (the GNOME extension), `scripts`, `build.rs`, `.github`, `tests`, `crates/spawn-at-core` and `crates/xtask` are unchanged. See [docs/release-notes/0.2.1.md](docs/release-notes/0.2.1.md) for what to expect and what is not verified.
 
 None of this was run on a live GNOME session. The GNOME extension (`assets/gnome/`) is unchanged.
 
@@ -71,7 +75,7 @@ None of this was run on a live GNOME session. The GNOME extension (`assets/gnome
 
 ## [0.2.0] - 2026-10-18
 
-Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src`, `assets`, `scripts`, `tests`, `build.rs`, `.github`, `install.sh`, `crates/spawn-at-core` and `crates/spawn-at-verify` are unchanged since v0.2.0-beta.6; `crates/xtask` differs only in `docs_check.rs`, the documentation-site check, which is not part of the release binary (`git diff 75e867a..HEAD --stat` on the release branch). See [docs/RELEASE_NOTES_0.2.0.md](docs/RELEASE_NOTES_0.2.0.md) for what to expect and what is not verified.
+Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src`, `assets`, `scripts`, `tests`, `build.rs`, `.github`, `install.sh`, `crates/spawn-at-core` and `crates/spawn-at-verify` are unchanged since v0.2.0-beta.6; `crates/xtask` differs only in `docs_check.rs`, the documentation-site check, which is not part of the release binary (`git diff 75e867a..HEAD --stat` on the release branch). See [docs/release-notes/0.2.0.md](docs/release-notes/0.2.0.md) for what to expect and what is not verified.
 
 ### Changed
 
@@ -85,12 +89,12 @@ Stable release. Same code as v0.2.0-beta.6; documentation and version only. `src
 - The command aliases and the hidden wait flags are documented; `--no-focus` is no longer in the README example.
 - The documentation-site check allows the extension identifier `spawn-at@harsh.local` (`crates/xtask/src/docs_check.rs`, developer tool).
 - The experiment records name the project owner where they said "the user".
-- `docs/RELEASE_NOTES_0.2.0.md`.
+- `docs/release-notes/0.2.0.md`.
 
 ## [0.2.0-beta.6] - 2026-10-17
 
 Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-beta.4 and 0.2.0-beta.5 (`git diff 2e64085..main -- assets` is empty), and GNOME Wayland placement behaves as before. One change is visible to users: the PATH advice that the installer prints. Everything else since 0.2.0-beta.5 is documentation, test counts and this release's version metadata. See
-[docs/RELEASE_NOTES_0.2.0-beta.6.md](docs/RELEASE_NOTES_0.2.0-beta.6.md) for what to expect and what is not verified.
+[docs/release-notes/0.2.0-beta.6.md](docs/release-notes/0.2.0-beta.6.md) for what to expect and what is not verified.
 
 ### Changed
 
@@ -99,7 +103,7 @@ Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-be
 ## [0.2.0-beta.5] - 2026-10-17
 
 Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-beta.4 (`git diff 2e64085..main -- assets` is empty), and GNOME Wayland placement behaves as before. Two changes are visible to users: `spawn-at` refuses a non-GNOME Wayland session instead of silently using the X11 backend, and `install.sh` asks before installing on such a desktop. Everything else below is documentation, comments, tests and the developer-only `spawn-at-verify` tool. See
-[docs/RELEASE_NOTES_0.2.0-beta.5.md](docs/RELEASE_NOTES_0.2.0-beta.5.md) for what to expect and what is not verified.
+[docs/release-notes/0.2.0-beta.5.md](docs/release-notes/0.2.0-beta.5.md) for what to expect and what is not verified.
 
 ### Fixed
 
@@ -154,7 +158,7 @@ Pre-release. The GNOME extension (`assets/gnome/`) is byte-identical to 0.2.0-be
 ## [0.2.0-beta.4] - 2026-10-15
 
 Pre-release. The GNOME extension (`assets/gnome/`) and `install.sh` are byte-identical to 0.2.0-beta.3, and GNOME Wayland placement behaves as before. The release restructures the code so other platforms can be added, and adds an experimental, off-by-default Sway backend. See
-[docs/RELEASE_NOTES_0.2.0-beta.4.md](docs/RELEASE_NOTES_0.2.0-beta.4.md) for what to expect and what is not verified.
+[docs/release-notes/0.2.0-beta.4.md](docs/release-notes/0.2.0-beta.4.md) for what to expect and what is not verified.
 
 ### Changed
 
@@ -170,7 +174,7 @@ Pre-release. The GNOME extension (`assets/gnome/`) and `install.sh` are byte-ide
 Pre-release. Window placement, the ready-wait policy and the GNOME extension are the same as in
 0.2.0-beta.2: no file under `assets/gnome/` and no file under `crates/` changed. This release is
 about `spawn-at install`. See
-[docs/RELEASE_NOTES_0.2.0-beta.3.md](docs/RELEASE_NOTES_0.2.0-beta.3.md) for how to use it and
+[docs/release-notes/0.2.0-beta.3.md](docs/release-notes/0.2.0-beta.3.md) for how to use it and
 what is not verified.
 
 **Already live for everyone:** `install.sh` is fetched from `main`, so the two `install.sh` items
@@ -203,7 +207,7 @@ prompts, the log-out handling, `--clean-install`).
 
 Pre-release. Placement behavior, the ready-wait policy and the extension are the same as in
 0.2.0-beta.1: no file under `assets/gnome/` changed. See
-[docs/RELEASE_NOTES_0.2.0-beta.2.md](docs/RELEASE_NOTES_0.2.0-beta.2.md) for upgrade notes and
+[docs/release-notes/0.2.0-beta.2.md](docs/release-notes/0.2.0-beta.2.md) for upgrade notes and
 what is not verified.
 
 ### Changed
@@ -278,7 +282,7 @@ what is not verified.
 ## [0.2.0-beta.1] - 2026-10-14
 
 Pre-release. Tested on one machine only: GNOME 46, Wayland, one monitor, with the project's own
-test window. See [docs/RELEASE_NOTES_0.2.0-beta.1.md](docs/RELEASE_NOTES_0.2.0-beta.1.md) for the
+test window. See [docs/release-notes/0.2.0-beta.1.md](docs/release-notes/0.2.0-beta.1.md) for the
 caveats and [docs/TEST_PLAN.md](docs/TEST_PLAN.md) (sections 6.22 to 6.24) for the measurements.
 
 ### Added

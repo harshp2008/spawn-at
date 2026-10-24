@@ -7,8 +7,11 @@
 //! - `cargo xtask release-notes <version> <out-file>` writes the `CHANGELOG.md` section
 //!   `## [<version>]` to `<out-file>` when there is a non-empty one, and writes nothing
 //!   otherwise (the release then keeps GitHub's generated notes).
+//! - `cargo xtask check-release-notes [<tag>]` fails unless `docs/release-notes/<version>.md`
+//!   exists, is not empty, and is linked from `docs/release-notes/index.md`. Without a tag (the
+//!   dry run with no input) it checks nothing and passes.
 //!
-//! Both print what they decided and, when `$GITHUB_OUTPUT` is set, append `key=value` lines to it
+//! The first two print what they decided and, when `$GITHUB_OUTPUT` is set, append `key=value` lines to it
 //! for later steps: `version`; `found` and `path`. The parsing is line based and only meant for
 //! the shapes cargo writes; a manifest that uses `version.workspace = true` counts as unreadable.
 
@@ -207,6 +210,57 @@ pub fn run_check_version(args: &[String]) -> Result<(), String> {
                 None => println!("release version check: all 8 versions agree ({version}); no tag was given to compare with"),
             }
             set_output("version", &version)
+        }
+        Err(problems) => Err(problems.join("\n")),
+    }
+}
+
+/// The problems with the release notes of `tag`, or the version when there are none. `read` gives
+/// the text of a file by its path from the repository root. The page must exist and have text,
+/// and `docs/release-notes/index.md` must link to it as `](<version>.md)`, the form the index
+/// uses, so a release cannot be added without its line in the list.
+pub fn check_notes(
+    tag: &str,
+    read: &dyn Fn(&str) -> Result<String, String>,
+) -> Result<String, Vec<String>> {
+    let version = tag_version(tag).map_err(|e| vec![e])?;
+    let page = format!("docs/release-notes/{version}.md");
+    let mut problems = Vec::new();
+    match read(&page) {
+        Ok(text) if text.trim().is_empty() => problems.push(format!("{page} is empty")),
+        Ok(_) => {}
+        Err(e) => problems.push(format!(
+            "{page} is missing ({e}): every release needs its notes in docs/release-notes/"
+        )),
+    }
+    let index = "docs/release-notes/index.md";
+    match read(index) {
+        Ok(text) if text.contains(&format!("]({version}.md)")) => {}
+        Ok(_) => problems.push(format!("{index} has no link to {version}.md")),
+        Err(e) => problems.push(format!("{index}: {e}")),
+    }
+    if problems.is_empty() {
+        Ok(version)
+    } else {
+        Err(problems)
+    }
+}
+
+/// `cargo xtask check-release-notes [<tag>]` (see the module docs). Reads the files relative to
+/// the current directory, which must be the repository root.
+pub fn run_check_notes(args: &[String]) -> Result<(), String> {
+    if args.len() > 1 {
+        return Err("Usage: cargo xtask check-release-notes [<tag>]".to_string());
+    }
+    let Some(tag) = args.first().filter(|t| !t.is_empty()) else {
+        println!("release notes check: no tag was given, so there is nothing to check");
+        return Ok(());
+    };
+    let read = |path: &str| fs::read_to_string(path).map_err(|e| e.to_string());
+    match check_notes(tag, &read) {
+        Ok(version) => {
+            println!("release notes check: docs/release-notes/{version}.md exists and is listed in the index");
+            Ok(())
         }
         Err(problems) => Err(problems.join("\n")),
     }
@@ -514,5 +568,90 @@ mod tests {
             version_step < test_step && version_step < build_step,
             "the version check runs before the tests and the build"
         );
+        let notes_step = steps
+            .iter()
+            .position(|s| s.contains("check-release-notes"))
+            .expect("the notes check is a step");
+        assert!(
+            version_step < notes_step && notes_step < test_step,
+            "the notes check runs right after the version check, before the tests"
+        );
+    }
+
+    /// Reader over a fixed list of (path, text) pairs, like the repository root.
+    fn notes_files<'a>(
+        files: &'a [(&'a str, &'a str)],
+    ) -> impl Fn(&str) -> Result<String, String> + 'a {
+        move |path| {
+            files
+                .iter()
+                .find(|(p, _)| *p == path)
+                .map(|(_, t)| t.to_string())
+                .ok_or_else(|| "No such file or directory (os error 2)".to_string())
+        }
+    }
+
+    /// A tag with a notes page and an index line passes and gives its version, for a release
+    /// and for a beta.
+    #[test]
+    fn test_check_notes_passes_with_page_and_index_line() {
+        let files = [
+            ("docs/release-notes/0.2.4.md", "# 0.2.4\n"),
+            ("docs/release-notes/0.2.0-beta.1.md", "# beta\n"),
+            (
+                "docs/release-notes/index.md",
+                "- [0.2.4](0.2.4.md), x\n- [0.2.0-beta.1](0.2.0-beta.1.md), y\n",
+            ),
+        ];
+        let read = notes_files(&files);
+        assert_eq!(check_notes("v0.2.4", &read), Ok("0.2.4".to_string()));
+        assert_eq!(
+            check_notes("v0.2.0-beta.1", &read),
+            Ok("0.2.0-beta.1".to_string())
+        );
+    }
+
+    /// A tag with no page fails and names the path it looked for (`v9.9.9` is a made-up tag).
+    #[test]
+    fn test_check_notes_names_the_missing_page() {
+        let files = [("docs/release-notes/index.md", "- [0.2.4](0.2.4.md)\n")];
+        let err = check_notes("v9.9.9", &notes_files(&files)).unwrap_err();
+        assert!(
+            err.iter()
+                .any(|p| p.contains("docs/release-notes/9.9.9.md is missing")),
+            "{err:?}"
+        );
+        assert!(
+            err.iter().any(|p| p.contains("no link to 9.9.9.md")),
+            "{err:?}"
+        );
+    }
+
+    /// An empty page fails, and a page that the index does not link fails even though the page
+    /// exists: `0.2.4.md` in the index must not be mistaken for `10.2.4.md`-style substrings.
+    #[test]
+    fn test_check_notes_needs_text_and_an_index_line() {
+        let files = [
+            ("docs/release-notes/0.2.5.md", "  \n"),
+            ("docs/release-notes/0.2.4.md", "# 0.2.4\n"),
+            ("docs/release-notes/index.md", "- [10.2.4](10.2.4.md)\n"),
+        ];
+        let read = notes_files(&files);
+        let empty = check_notes("v0.2.5", &read).unwrap_err();
+        assert!(
+            empty.iter().any(|p| p.ends_with("0.2.5.md is empty")),
+            "{empty:?}"
+        );
+        let unlisted = check_notes("v0.2.4", &read).unwrap_err();
+        assert_eq!(unlisted.len(), 1, "{unlisted:?}");
+        assert!(unlisted[0].contains("no link to 0.2.4.md"), "{unlisted:?}");
+    }
+
+    /// A tag that is not a version (no `v`) is rejected before any file is read.
+    #[test]
+    fn test_check_notes_rejects_a_bad_tag() {
+        let err = check_notes("0.2.4", &notes_files(&[])).unwrap_err();
+        assert_eq!(err.len(), 1, "{err:?}");
+        assert!(err[0].contains("not of the form vX.Y.Z"), "{err:?}");
     }
 }

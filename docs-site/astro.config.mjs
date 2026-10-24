@@ -144,6 +144,13 @@ export default defineConfig({
           collapsed: true,
           items: [{ autogenerate: { directory: 'project' } }],
         },
+        // Written from docs/release-notes/ at build time by `cargo xtask docs-mirror`: the index
+        // first, then the releases newest first (the `sidebar.order` of each page).
+        {
+          label: 'Release notes',
+          collapsed: true,
+          items: [{ autogenerate: { directory: 'release-notes' } }],
+        },
         {
           label: 'Developing',
           collapsed: true,

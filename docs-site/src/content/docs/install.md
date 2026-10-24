@@ -155,7 +155,7 @@ login entry and asks nothing. `--scope system` and `--skip-bin` exist; see
 - `CHANGELOG.md` ("[0.2.0-beta.5] Changed", "[0.2.0-beta.3] Added/Changed", "[0.2.0-beta.4] Changed")
 - `docs/CONFIG.md` (uninstall keeps the config file; update channel)
 - `docs/KNOWLEDGE.md` ("Install and release", "Architecture map": login autostart entry)
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md` ("What was NOT verified")
+- `docs/release-notes/0.2.0-beta.4.md` ("What was NOT verified")
 - `src/session.rs`: `decision` ("otherwise: asked at the end"; `--gnome-wayland-logout` logs out
   without asking) and `install_outcome` (returns `NoLogoutNeeded`)
 - `src/platform/linux/gnome/logout.rs`: `decide`

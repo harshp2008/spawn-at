@@ -3,7 +3,7 @@
 //! Provides `check-comment-only`, `check-doc-coverage`, `burn-cpu`, the documentation-site
 //! commands (`docs-site`, `docs-cli-reference`, `docs-mirror`, `docs-check-src`,
 //! `docs-check-html`) and the release checks of `release.yml` (`check-release-version`,
-//! `release-notes`) without
+//! `check-release-notes`, `release-notes`) without
 //! external dependencies.
 //! `check-doc-coverage` with no paths gates `crates/spawn-at-verify/src` and only reports a count
 //! for `tests/`.
@@ -37,10 +37,11 @@ fn main() {
             eprintln!("  burn-cpu --threads N --seconds S");
             eprintln!("  docs-site [--bin P] [--out DIR] [--clean-install]");
             eprintln!("  docs-cli-reference [--bin P] [--out DIR] [--config FILE]");
-            eprintln!("  docs-mirror [--docs DIR] [--out DIR] [--config FILE]");
+            eprintln!("  docs-mirror [--docs DIR] [--out DIR] [--config FILE] [--notes-out DIR]");
             eprintln!("  docs-check-src [DOCS_DIR] [--config FILE] [--warnings-full]");
             eprintln!("  docs-check-html <site-dir> [--site-prefix P] [--generated-dir DIR]");
             eprintln!("  check-release-version [<tag>]");
+            eprintln!("  check-release-notes [<tag>]");
             eprintln!("  release-notes <version> <out-file>");
             exit(1);
         }
@@ -92,12 +93,12 @@ fn main() {
                 exit(1);
             }
         }
-        "check-release-version" | "release-notes" => {
+        "check-release-version" | "check-release-notes" | "release-notes" => {
             let rest: Vec<String> = args.collect();
-            let result = if subcommand == "release-notes" {
-                release::run_release_notes(&rest)
-            } else {
-                release::run_check_version(&rest)
+            let result = match subcommand.as_str() {
+                "release-notes" => release::run_release_notes(&rest),
+                "check-release-notes" => release::run_check_notes(&rest),
+                _ => release::run_check_version(&rest),
             };
             if let Err(message) = result {
                 eprintln!("{} failed:\n{}", subcommand, message);
@@ -109,7 +110,7 @@ fn main() {
             eprintln!(
                 "Available subcommands: check-comment-only, check-doc-coverage, burn-cpu, \
                  docs-site, docs-cli-reference, docs-mirror, docs-check-src, docs-check-html, \
-                 check-release-version, release-notes"
+                 check-release-version, check-release-notes, release-notes"
             );
             exit(1);
         }

@@ -3,9 +3,11 @@
 //!
 //! The pages are generated and git ignores everything in that folder except the hand-written
 //! `index.md`. Which files are mirrored is a fixed list (`MIRRORED`: file, page name, sidebar
-//! order); `TEST_LOG.md` and `RELEASE_NOTES_*.md` are excluded on purpose (`EXCLUDED_FILES`,
-//! `EXCLUDED_PREFIXES`). A `docs/*.md` file that is in neither list fails the run, so a new file
-//! is always a decision. Outside code fences, the text of a file is changed in five ways:
+//! order); `TEST_LOG.md` is excluded on purpose (`EXCLUDED_FILES`). A `docs/*.md` file that is in
+//! neither list fails the run, so a new file is always a decision. The release notes are not in
+//! that list: they live in `docs/release-notes/` and get their own pages and their own sidebar
+//! group (`generate_notes`, below). Outside code fences, the text of a file is changed in five
+//! ways:
 //!
 //! - the first `# ` heading becomes the front-matter `title` (double-quoted YAML) and is removed,
 //!   because Starlight prints the title as the heading; `sidebar.order` and the short
@@ -135,16 +137,13 @@ pub const MIRRORED: [Entry; 14] = [
 /// author's machine in run directories and journal lines) stays on GitHub.
 pub const EXCLUDED_FILES: [&str; 1] = ["TEST_LOG.md"];
 
-/// File-name prefixes that are not mirrored: the release notes are linked from the changelog page.
-pub const EXCLUDED_PREFIXES: [&str; 1] = ["RELEASE_NOTES_"];
-
 /// Where the pages are served.
 const SITE_BASE: &str = "/spawn-at/project/";
 /// Where files of the repository can be read.
 const GITHUB_BLOB: &str = "https://github.com/harshp2008/spawn-at/blob/main/";
 
 fn is_excluded(file: &str) -> bool {
-    EXCLUDED_FILES.contains(&file) || EXCLUDED_PREFIXES.iter().any(|p| file.starts_with(p))
+    EXCLUDED_FILES.contains(&file)
 }
 
 fn entry_for(file: &str) -> Option<&'static Entry> {
@@ -195,12 +194,7 @@ pub fn manifest_problems(present: &[String]) -> Vec<String> {
 /// (an `#anchor`, another site, a site-absolute path). `Err` for a `.md` file of `docs/` that is
 /// not in either list.
 fn rewrite_target(target: &str) -> Result<Option<String>, String> {
-    if target.is_empty()
-        || target.starts_with('#')
-        || target.starts_with('/')
-        || target.starts_with("mailto:")
-        || target.contains("://")
-    {
+    if is_left_alone(target) {
         return Ok(None);
     }
     let (path, frag) = match target.find('#') {
@@ -227,9 +221,28 @@ fn rewrite_target(target: &str) -> Result<Option<String>, String> {
     ))
 }
 
+/// True for a link target that is never rewritten: empty, an `#anchor`, a site-absolute path,
+/// `mailto:` or a URL with a scheme.
+fn is_left_alone(target: &str) -> bool {
+    target.is_empty()
+        || target.starts_with('#')
+        || target.starts_with('/')
+        || target.starts_with("mailto:")
+        || target.contains("://")
+}
+
 /// `line` with every `](target)` link target rewritten by `rewrite_target`. Inline code is not
 /// skipped, because `docs_check::md_links` does not skip it either.
 fn rewrite_links(line: &str) -> Result<String, String> {
+    rewrite_links_with(line, rewrite_target)
+}
+
+/// `rewrite_links` with the rule for one target given: `rewrite_target` for a file of `docs/`,
+/// `rewrite_notes_target` for a file of `docs/release-notes/`.
+fn rewrite_links_with(
+    line: &str,
+    rewrite: fn(&str) -> Result<Option<String>, String>,
+) -> Result<String, String> {
     let mut out = String::with_capacity(line.len());
     let mut rest = line;
     while let Some(i) = rest.find("](") {
@@ -237,7 +250,7 @@ fn rewrite_links(line: &str) -> Result<String, String> {
         let Some(end) = after.find(')') else { break };
         let target = &after[..end];
         out.push_str(&rest[..i + 2]);
-        match rewrite_target(target)? {
+        match rewrite(target)? {
             Some(new) => out.push_str(&new),
             None => out.push_str(target),
         }
@@ -740,14 +753,194 @@ pub fn generate_linked(
     Ok((written, all_stats))
 }
 
+/// Where the release-notes pages are served.
+const NOTES_SITE_BASE: &str = "/spawn-at/release-notes/";
+
+/// Sort key of a notes file stem (`0.2.4`, `0.2.0-beta.6`): major, minor, patch, then 0 for a
+/// beta and 1 for a release (so `0.2.0-beta.6` sorts before `0.2.0`), then the beta number.
+/// `None` for any other stem, including `0.2.0-alpha`: a name the release check could not
+/// match to a tag.
+fn notes_version_key(stem: &str) -> Option<(u32, u32, u32, u32, u32)> {
+    let (core, pre) = match stem.split_once('-') {
+        Some((core, pre)) => (core, Some(pre)),
+        None => (stem, None),
+    };
+    let mut nums = core.split('.').map(|n| n.parse::<u32>().ok());
+    let (major, minor, patch) = (nums.next()??, nums.next()??, nums.next()??);
+    if nums.next().is_some() {
+        return None;
+    }
+    let (rank, beta) = match pre {
+        None => (1, 0),
+        Some(pre) => (0, pre.strip_prefix("beta.")?.parse().ok()?),
+    };
+    Some((major, minor, patch, rank, beta))
+}
+
+/// Page name of a notes file: the stem with `.` written as `-` (`0-2-0-beta-1`), because the dots
+/// of a version would be dropped or kept depending on how the site builds its addresses.
+fn notes_slug(stem: &str) -> String {
+    stem.replace('.', "-")
+}
+
+/// Link rule for a file of `docs/release-notes/`: a sibling notes file (or `index.md`) becomes
+/// its page on this site, `../X.md` is read as `X.md` of `docs/`, and `../../X` is a file of the
+/// repository, which becomes a GitHub URL.
+fn rewrite_notes_target(target: &str) -> Result<Option<String>, String> {
+    if is_left_alone(target) {
+        return Ok(None);
+    }
+    let (path, frag) = match target.find('#') {
+        Some(i) => (&target[..i], &target[i..]),
+        None => (target, ""),
+    };
+    if let Some(rest) = path.strip_prefix("../../") {
+        if rest.starts_with("../") {
+            return Err(format!("`{target}` goes up more than two folders"));
+        }
+        return Ok(Some(format!("{GITHUB_BLOB}{rest}{frag}")));
+    }
+    if let Some(rest) = path.strip_prefix("../") {
+        return rewrite_target(&format!("{rest}{frag}"));
+    }
+    if path == "index.md" {
+        return Ok(Some(format!("{NOTES_SITE_BASE}{frag}")));
+    }
+    match path.strip_suffix(".md") {
+        Some(stem) if notes_version_key(stem).is_some() => Ok(Some(format!(
+            "{NOTES_SITE_BASE}{}/{frag}",
+            notes_slug(stem)
+        ))),
+        _ => Err(format!(
+            "`{target}` is not a notes file named like a version (0.2.4.md, 0.2.0-beta.1.md)"
+        )),
+    }
+}
+
+/// The page for `docs/release-notes/<stem>.md` whose text is `text`. `order` is the position in
+/// the sidebar group (`index` is 0, the newest release 1). The sidebar label is the stem, so the
+/// menu reads `0.2.4`, `0.2.3`, ...; the page title follows the file's `# ` heading.
+fn render_notes(stem: &str, text: &str, order: u32) -> Result<String, String> {
+    let file = format!("release-notes/{stem}.md");
+    let label = if stem == "index" { "Overview" } else { stem };
+    let mut title = None;
+    let mut body = String::new();
+    let mut in_fence = false;
+    for line in text.lines() {
+        if is_fence(line) {
+            in_fence = !in_fence;
+        } else if !in_fence {
+            if title.is_none() {
+                if let Some(t) = line.strip_prefix("# ") {
+                    title = Some(t.trim().to_string());
+                    continue;
+                }
+            }
+            if line.trim_end() == "## Sources" {
+                return Err(format!(
+                    "docs/{file}: already has a `## Sources` heading; the mirror appends one"
+                ));
+            }
+            let rewritten = rewrite_links_with(line, rewrite_notes_target)
+                .map_err(|e| format!("docs/{file}: {e}"))?;
+            body.push_str(&rewritten);
+            body.push('\n');
+            continue;
+        }
+        body.push_str(line);
+        body.push('\n');
+    }
+    let title = title.ok_or_else(|| format!("docs/{file}: no `# ` heading to use as title"))?;
+    let mut page = format!(
+        "---\ntitle: {}\nsidebar:\n  order: {order}\n  label: {}\n---\n\n",
+        yaml_quote(&title),
+        yaml_quote(label)
+    );
+    page.push_str(body.trim_start_matches('\n'));
+    page.push_str(&sources_section(&file));
+    debug_assert!(has_sources_list(&page));
+    Ok(page)
+}
+
+/// Writes one page per file of `docs_dir/release-notes/` into `out_dir` and removes stale ones.
+/// `index.md` is page 0; the version files follow, newest first. Fails, writing nothing, if
+/// there is no `index.md`, if a file is not named like a version, if the sidebar in
+/// `sidebar_config` has no `autogenerate` entry for `release-notes`, or if a file cannot be
+/// turned into a page.
+pub fn generate_notes(
+    docs_dir: &Path,
+    out_dir: &Path,
+    sidebar_config: &str,
+) -> Result<Vec<PathBuf>, String> {
+    let names = md_names(&docs_dir.join("release-notes"))?;
+    let mut problems = Vec::new();
+    if !sidebar_autogenerates(sidebar_config, "release-notes") {
+        problems.push(
+            "the sidebar in astro.config.mjs has no `autogenerate: { directory: 'release-notes' \
+             }` entry, so the release-notes pages would not be in the menu"
+                .to_string(),
+        );
+    }
+    if !names.iter().any(|n| n == "index.md") {
+        problems.push("docs/release-notes/index.md: the index of the releases is missing".into());
+    }
+    let mut versions = Vec::new();
+    for name in &names {
+        let stem = name.trim_end_matches(".md");
+        match notes_version_key(stem) {
+            Some(key) => versions.push((key, stem.to_string())),
+            None if stem == "index" => {}
+            None => problems.push(format!(
+                "docs/release-notes/{name}: not named like a version (0.2.4.md, 0.2.0-beta.1.md)"
+            )),
+        }
+    }
+    versions.sort_by_key(|(key, _)| std::cmp::Reverse(*key));
+    let mut stems = vec![("index".to_string(), 0u32)];
+    stems.extend(versions.into_iter().zip(1u32..).map(|((_, s), n)| (s, n)));
+    let mut pages = Vec::new();
+    if problems.is_empty() {
+        for (stem, order) in &stems {
+            let path = docs_dir.join("release-notes").join(format!("{stem}.md"));
+            let text = fs::read_to_string(&path)
+                .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
+            match render_notes(stem, &text, *order) {
+                Ok(page) => {
+                    let out = if stem == "index" {
+                        "index".to_string()
+                    } else {
+                        notes_slug(stem)
+                    };
+                    pages.push((out_dir.join(format!("{out}.md")), page));
+                }
+                Err(e) => problems.push(e),
+            }
+        }
+    }
+    if !problems.is_empty() {
+        return Err(problems.join("\n"));
+    }
+    fs::create_dir_all(out_dir)
+        .map_err(|e| format!("cannot create {}: {}", out_dir.display(), e))?;
+    let mut written = Vec::new();
+    for (path, page) in pages {
+        fs::write(&path, page).map_err(|e| format!("cannot write {}: {}", path.display(), e))?;
+        written.push(path);
+    }
+    remove_stale_pages(out_dir, &written)?;
+    Ok(written)
+}
+
 /// Entry point of `cargo xtask docs-mirror [--docs DIR] [--out DIR] [--config FILE]
-/// [--experiments DIR]` (defaults `docs`, `docs-site/src/content/docs/project`,
-/// `docs-site/astro.config.mjs` and `docs-site/src/content/docs/experiments`).
+/// [--experiments DIR] [--notes-out DIR]` (defaults `docs`,
+/// `docs-site/src/content/docs/project`, `docs-site/astro.config.mjs`,
+/// `docs-site/src/content/docs/experiments` and `docs-site/src/content/docs/release-notes`).
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut docs = PathBuf::from("docs");
     let mut out = PathBuf::from("docs-site/src/content/docs/project");
     let mut config = PathBuf::from("docs-site/astro.config.mjs");
     let mut experiments = PathBuf::from("docs-site/src/content/docs/experiments");
+    let mut notes_out = PathBuf::from("docs-site/src/content/docs/release-notes");
     let mut it = args.iter();
     while let Some(flag) = it.next() {
         let value = it.next().ok_or_else(|| format!("{flag} needs a value"))?;
@@ -756,12 +949,19 @@ pub fn run(args: &[String]) -> Result<(), String> {
             "--out" => out = PathBuf::from(value),
             "--config" => config = PathBuf::from(value),
             "--experiments" => experiments = PathBuf::from(value),
+            "--notes-out" => notes_out = PathBuf::from(value),
             other => return Err(format!("unknown option {other}")),
         }
     }
     let config_text = fs::read_to_string(&config)
         .map_err(|e| format!("cannot read {}: {}", config.display(), e))?;
     let (written, stats) = generate_linked(&docs, &out, &config_text, Some(&experiments))?;
+    let notes = generate_notes(&docs, &notes_out, &config_text)?;
+    println!(
+        "==> wrote {} release-notes pages to {}",
+        notes.len(),
+        notes_out.display()
+    );
     println!(
         "==> wrote {} project pages to {}",
         written.len(),
@@ -805,7 +1005,6 @@ mod tests {
     fn all_names() -> Vec<String> {
         let mut names: Vec<String> = MIRRORED.iter().map(|e| e.file.to_string()).collect();
         names.push("TEST_LOG.md".to_string());
-        names.push("RELEASE_NOTES_0.2.1.md".to_string());
         names
     }
 
@@ -906,16 +1105,15 @@ mod tests {
         assert_eq!(md_links(body), Vec::<String>::new());
     }
 
-    /// A link to an excluded docs file (the experiment log, release notes) or to a file outside
-    /// `docs/` becomes a GitHub URL with its fragment, because the site has no page for it.
+    /// A link to an excluded docs file (the experiment log) or to a file outside `docs/` becomes
+    /// a GitHub URL with its fragment, because the site has no page for it.
     #[test]
     fn test_links_to_excluded_and_parent_files_go_to_github() {
-        let text = "# T\n\n[log](TEST_LOG.md#610-x) [notes](RELEASE_NOTES_0.2.0.md) \
+        let text = "# T\n\n[log](TEST_LOG.md#610-x) \
                     [cl](../CHANGELOG.md) [v](../verify/README.md) [s](../scripts/sway-headless.sh)\n";
         let page = render(entry("CONFIG.md"), text).unwrap();
         for expected in [
             "(https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md#610-x)",
-            "(https://github.com/harshp2008/spawn-at/blob/main/docs/RELEASE_NOTES_0.2.0.md)",
             "(https://github.com/harshp2008/spawn-at/blob/main/CHANGELOG.md)",
             "(https://github.com/harshp2008/spawn-at/blob/main/verify/README.md)",
             "(https://github.com/harshp2008/spawn-at/blob/main/scripts/sway-headless.sh)",
@@ -1514,5 +1712,138 @@ mod tests {
                 e.file
             );
         }
+    }
+
+    const NOTES_CONFIG: &str = "items: [{ autogenerate: { directory: 'release-notes' } }]";
+
+    /// Sort order of the notes: newest first, a release above its betas, betas by number (so
+    /// `beta.10` is above `beta.9`, which a text sort gets wrong); names that are not versions
+    /// have no key.
+    #[test]
+    fn test_notes_version_key_orders_newest_first() {
+        let mut stems = vec![
+            "0.2.0-beta.9",
+            "0.2.0",
+            "0.2.1",
+            "0.2.0-beta.10",
+            "0.10.0",
+            "0.2.0-beta.1",
+        ];
+        stems.sort_by_key(|s| std::cmp::Reverse(notes_version_key(s).unwrap()));
+        assert_eq!(
+            stems,
+            [
+                "0.10.0",
+                "0.2.1",
+                "0.2.0",
+                "0.2.0-beta.10",
+                "0.2.0-beta.9",
+                "0.2.0-beta.1"
+            ]
+        );
+        for bad in ["index", "0.2", "0.2.0.1", "0.2.0-alpha", "v0.2.0", "0.2.x"] {
+            assert_eq!(notes_version_key(bad), None, "{bad}");
+        }
+    }
+
+    /// In a notes file, a sibling note becomes its page (dots written as dashes), `../X.md` is a
+    /// file of `docs/`, `../../X` is a file of the repository, and an `#anchor` stays.
+    #[test]
+    fn test_notes_links_are_rewritten() {
+        let text = "# T\n\n[a](0.2.0-beta.1.md) [i](index.md) [c](../CONFIG.md#x) \
+                    [l](../TEST_LOG.md) [cl](../../CHANGELOG.md) [h](#here)\n";
+        let page = render_notes("0.2.4", text, 1).unwrap();
+        for expected in [
+            "(/spawn-at/release-notes/0-2-0-beta-1/)",
+            "(/spawn-at/release-notes/)",
+            "(/spawn-at/project/config/#x)",
+            "(https://github.com/harshp2008/spawn-at/blob/main/docs/TEST_LOG.md)",
+            "(https://github.com/harshp2008/spawn-at/blob/main/CHANGELOG.md)",
+            "(#here)",
+        ] {
+            assert!(page.contains(expected), "missing {expected} in:\n{page}");
+        }
+        let (_, body) = split_front_matter(&page).unwrap();
+        assert_eq!(md_links(body), Vec::<String>::new());
+        assert!(page.contains("order: 1\n  label: \"0.2.4\""), "{page}");
+        assert!(
+            page.contains("docs/release-notes/0.2.4.md"),
+            "Sources names the file"
+        );
+    }
+
+    /// A link to a file that is not a version, and one inside a code fence, are handled apart:
+    /// the first is an error, the second is left as written.
+    #[test]
+    fn test_notes_link_to_a_non_version_file_is_an_error() {
+        let err = render_notes("0.2.4", "# T\n\n[x](OTHER.md)\n", 1).unwrap_err();
+        assert!(err.contains("OTHER.md"), "{err}");
+        let page = render_notes("0.2.4", "# T\n\n```\n[x](OTHER.md)\n```\n", 1).unwrap();
+        assert!(page.contains("```\n[x](OTHER.md)\n```"), "{page}");
+    }
+
+    /// `generate_notes` numbers the pages index 0 then newest first, writes dashes in file names,
+    /// removes a stale page, and writes nothing when the index or the sidebar entry is missing
+    /// or a file is not named like a version.
+    #[test]
+    fn test_generate_notes_orders_pages_and_fails_on_bad_input() {
+        let base = temp("notes");
+        let docs = base.join("docs");
+        let out = base.join("out");
+        let notes = docs.join("release-notes");
+        fs::create_dir_all(&notes).unwrap();
+        fs::create_dir_all(&out).unwrap();
+        fs::write(notes.join("index.md"), "# Release notes\n\nList\n").unwrap();
+        for v in ["0.2.0", "0.2.1", "0.2.0-beta.1"] {
+            fs::write(notes.join(format!("{v}.md")), format!("# {v}\n\nText\n")).unwrap();
+        }
+        fs::write(out.join("old.md"), "stale").unwrap();
+
+        let written = generate_notes(&docs, &out, NOTES_CONFIG).unwrap();
+        assert_eq!(written.len(), 4);
+        assert!(!out.join("old.md").exists(), "stale page removed");
+        for (file, order) in [
+            ("index", 0),
+            ("0-2-1", 1),
+            ("0-2-0", 2),
+            ("0-2-0-beta-1", 3),
+        ] {
+            let page = fs::read_to_string(out.join(format!("{file}.md"))).unwrap();
+            assert!(
+                page.contains(&format!("order: {order}\n")),
+                "{file}: {page}"
+            );
+        }
+
+        let err = generate_notes(&docs, &out, "items: ['index']").unwrap_err();
+        assert!(err.contains("release-notes"), "{err}");
+        fs::write(notes.join("0.2.0-alpha.md"), "# a\n").unwrap();
+        let err = generate_notes(&docs, &out, NOTES_CONFIG).unwrap_err();
+        assert!(
+            err.contains("0.2.0-alpha.md: not named like a version"),
+            "{err}"
+        );
+        fs::remove_file(notes.join("0.2.0-alpha.md")).unwrap();
+        fs::remove_file(notes.join("index.md")).unwrap();
+        let err = generate_notes(&docs, &out, NOTES_CONFIG).unwrap_err();
+        assert!(err.contains("index.md: the index"), "{err}");
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    /// The real notes folder passes the same rules: every file is named like a version, has a
+    /// `# ` heading, and has a line in the index (the check the release workflow also makes).
+    #[test]
+    fn test_real_release_notes_folder_generates() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+        let out = temp("real-notes");
+        let written = generate_notes(&root.join("docs"), &out, NOTES_CONFIG).unwrap();
+        let index = fs::read_to_string(root.join("docs/release-notes/index.md")).unwrap();
+        for name in md_names(&root.join("docs/release-notes")).unwrap() {
+            if name != "index.md" {
+                assert!(index.contains(&format!("]({name})")), "{name} not in index");
+            }
+        }
+        assert!(written.len() >= 12, "{}", written.len());
+        let _ = fs::remove_dir_all(&out);
     }
 }

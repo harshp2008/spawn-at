@@ -21,7 +21,7 @@ and keeps correcting late resizes for a short time.
 - **GNOME Shell 46, Wayland.** The ready-wait, the cloak and placement were measured on one machine
   with the project's own test window ([Findings](/spawn-at/findings/)). The 0.2.0-beta.4 release notes state that
   the maintainer re-verified GNOME Wayland behaviour live on GNOME 46, Wayland, one monitor
-  (`docs/RELEASE_NOTES_0.2.0-beta.4.md`, first paragraph). No log of that run is in the repository.
+  (`docs/release-notes/0.2.0-beta.4.md`, first paragraph). No log of that run is in the repository.
 - **Real applications**, a few runs each, Wayland only: `gnome-text-editor` and `nautilus` (GTK4),
   `gnome-terminal`, `zenity` and `firefox` (snap), which the README believes are GTK3 (the toolkit
   version was not checked). Under the old rule Firefox flashed in 6 of 6 runs. Chrome was never
@@ -64,7 +64,7 @@ and keeps correcting late resizes for a short time.
 - `README.md` ("How it works", "Support")
 - `docs/DESIGN_PLATFORMS.md`, sections 4, 7 and 8
 - `docs/KNOWLEDGE.md` ("Architecture map", "Install and release", "GNOME and Wayland behavior")
-- `docs/RELEASE_NOTES_0.2.0-beta.4.md`
+- `docs/release-notes/0.2.0-beta.4.md`
 - `docs/legacy-gnome.md`
 - `docs/TEST_PLAN.md`, section 5
 - `CHANGELOG.md` ("[0.2.0-beta.3] Added")
