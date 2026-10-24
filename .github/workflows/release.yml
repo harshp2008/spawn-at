@@ -35,6 +35,13 @@ jobs:
           CHECK_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
         run: cargo xtask check-release-version "$CHECK_TAG"
 
+      # Second check, also before the tests and the build: docs/release-notes/<version>.md must
+      # exist and be listed in docs/release-notes/index.md. A dry run with no tag checks nothing.
+      - name: Check that the release has its notes page
+        env:
+          CHECK_TAG: ${{ github.event_name == 'push' && github.ref_name || inputs.tag }}
+        run: cargo xtask check-release-notes "$CHECK_TAG"
+
       - name: Run Tests
         run: cargo test --verbose
 
