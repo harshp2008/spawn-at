@@ -278,6 +278,7 @@ pub(super) fn req(name: &str) -> SetupRequest {
         name: name.to_string(),
         args: vec!["--width".into(), "400".into()],
         timeout: Some(Duration::from_millis(400)),
+        ..Default::default()
     }
 }
 

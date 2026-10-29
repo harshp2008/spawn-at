@@ -46,6 +46,39 @@ async fn test_x11_arm_generates_tokens() {
         .any(|(k, v)| k == "XDG_ACTIVATION_TOKEN" && v == "test-token-123"));
 }
 
+/// The environment the X11 driver hands the child for a key `spawn` really builds: exactly the two
+/// startup variables, both the key, and no timestamp the toolkit could mistake for a server time.
+#[tokio::test]
+async fn test_x11_arm_launch_env_is_exactly_the_two_variables_with_the_launch_key() {
+    use spawn_at_core::driver::{Batch, Entry, FocusIntent, Reveal, Urgency};
+
+    let key = crate::commands::spawn::launch_key();
+    let batch = Batch {
+        id: 1,
+        entries: vec![Entry {
+            key: key.clone(),
+            app_hint: "test-app".into(),
+            wait: Default::default(),
+            placement: PlacementParams::default(),
+        }],
+        reveal: Reveal::Together,
+        focus: FocusIntent::Exclusive,
+        urgency: Urgency::Normal,
+        deadline: Duration::from_millis(5000),
+    };
+
+    let armed = X11Driver.arm(batch).await.unwrap();
+    assert_eq!(
+        armed.launch_env,
+        vec![
+            ("XDG_ACTIVATION_TOKEN".to_string(), key.clone()),
+            ("DESKTOP_STARTUP_ID".to_string(), key.clone()),
+        ]
+    );
+    assert_eq!(armed.token.as_deref(), Some(key.as_str()));
+    assert!(key.ends_with("_TIME0"), "{key}");
+}
+
 #[test]
 fn test_calculate_rect_center_anchor() {
     use spawn_at_core::geometry::Anchor;

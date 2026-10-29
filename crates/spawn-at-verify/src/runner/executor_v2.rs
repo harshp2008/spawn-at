@@ -151,6 +151,10 @@ fn eval_check(
     before: &HashMap<String, Option<Rect>>,
     timings: &Timings,
 ) -> Result<(), String> {
+    if check.shell_alive {
+        // One look, no retry: a Shell that aborted does not come back as the same process.
+        return session.check_shell_alive();
+    }
     if check.process_exited {
         return if session.wait_process_exit(&check.window, timings.check_wait) {
             Ok(())
@@ -302,6 +306,8 @@ impl TestRunner {
                 name: s.name.clone(),
                 args: s.args.clone(),
                 timeout: s.timeout_ms.map(Duration::from_millis),
+                command: s.command.clone(),
+                env: s.env.clone(),
             };
             if let Err(e) = session.launch(&req) {
                 return Outcome::error(format!("setup failed: {e}"));

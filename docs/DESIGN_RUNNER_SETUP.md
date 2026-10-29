@@ -715,7 +715,7 @@ Each guard in the table was broken on purpose once (loader rules, `owned.rs`, `e
 
 ### 11.5 Section 7 (the catalog specs): implemented 2026-10-16
 
-All the specs of section 7 exist under `verify/queries/`, `verify/transforms/`, `verify/focus/` and `verify/robustness/`: 18 files. The anchor matrix expands to five entries, so there are 22 catalog entries, and 67 in all with the original 45. Differences from the table of section 7:
+All the specs of section 7 exist under `verify/queries/`, `verify/transforms/`, `verify/focus/` and `verify/robustness/`: 19 files (the last, `robustness/gtk4-x11-close-focused`, starts a real program; see section 11). The anchor matrix expands to five entries, so there are 23 catalog entries, and 68 in all with the original 45. Differences from the table of section 7:
 
 | Topic | What differs | Reason, where the earlier text gave one |
 | :-- | :-- | :-- |
@@ -727,3 +727,12 @@ All the specs of section 7 exist under `verify/queries/`, `verify/transforms/`, 
 | The tag `visual` | No spec carries it, so the `visual` suite is unchanged. The four Both specs carry `human-review` (`spawn-at-verify tui --tag human-review`). | |
 | The `lifecycle` to `focus` alias | Added to both copies of the alias list (`schema/suite.rs`, `loader/registry.rs`). `focus` is reachable and the known-empty list of `suite_wiring_test` shrank from eight names to four. | |
 | Not done, as asked | No flash measurement (`resize-flash` and `move-flash` only ask the human), no spec that depends on `spawn --no-focus`, **no GNOME run**. | |
+
+### 11.6 A real program in `[[setup]]`, and the `shell_alive` check (2026-10-29)
+
+One spec starts a real program instead of the fixture: `robustness/gtk4-x11-close-focused` (gnome-text-editor with `GDK_BACKEND=x11`, focused, closed by id, then the Shell is compared). This is the smallest change that lets it exist, and it can be dropped by reverting its commit. It was tested with the fake `Control` and shell scripts only; no real program and no GNOME Shell was involved.
+
+- **`[[setup]] command` and `env`.** `command` is a list: a bare program name and flags. The loader accepts only the programs in `v2::SETUP_PROGRAMS` (today `gnome-text-editor`), only `--flag` words after it, and only the variables in `v2::SETUP_ENV` (`GDK_BACKEND` = `x11` or `wayland`). `args` (the fixture flags) can not be combined with it, `env` needs it, and the spec must carry the tag `needs-real-app`. The runner repeats the shape rules (`validate_setup_command`: a bare name, no NUL byte, the environment allowlist); the program and flag allowlist is the loader's.
+- **Which window is "ours".** A real program chooses its own title, so the unique-title rule can not hold. The runner lists the windows before it starts the program and records the one new window whose pid is the pid of the child it started, if there is exactly one (two new windows end `Ambiguous`, none ends `NoWindow`, a program that exits first ends `ExitedEarly`; each is an `Error`, nothing is closed). It then remembers that window's title, and every later look and the close still require the same id, title and pid. A program that hands the request to an already running instance and exits ends `ExitedEarly`, so it never claims a window of the other instance.
+- **`[[check]] shell_alive = true`.** It takes no `window`. At the start of the session the runner reads the one `gnome-shell` process of the current user from `/proc` (pid and start time, field 22 of `stat`). The check passes when that same process is still the one running, and fails when the pid is gone, changed or reused (a different start time). It is read once, with no retry. When the Shell could not be identified at the start (none, or more than one such process) the check fails with that reason instead of passing.
+- **Not covered.** The check can not say why a Shell ended, and a Shell that dies during the action more likely shows as a failed `close` command first. Nothing here ran against a real session.

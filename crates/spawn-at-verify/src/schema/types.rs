@@ -240,6 +240,14 @@ pub struct TestSetup {
     /// default (5000) applies when absent.
     #[serde(default)]
     pub timeout_ms: Option<u64>,
+    /// A real program to start instead of the fixture: its name, then flags (`schema::v2::
+    /// SETUP_PROGRAMS`). The window is the one new window that belongs to the process the runner
+    /// started. Empty (the default) means the fixture.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub command: Vec<String>,
+    /// Environment for `command` (`schema::v2::SETUP_ENV`). Only meaningful with `command`.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub env: std::collections::BTreeMap<String, String>,
 }
 
 /// What a `[[check]]` asserts about a recorded window.
@@ -263,7 +271,7 @@ pub enum CheckState {
 }
 
 /// `[[check]]`: one assertion about a recorded window, evaluated after an action. Exactly one of
-/// `state`, `same_rect_as` and `process_exited` must be given.
+/// `state`, `same_rect_as`, `process_exited` and `shell_alive` must be given.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(deny_unknown_fields)]
 pub struct TestCheck {
@@ -271,7 +279,8 @@ pub struct TestCheck {
     /// means after the last action.
     #[serde(default)]
     pub after: Option<usize>,
-    /// Name of the `[[setup]]` window the check is about.
+    /// Name of the `[[setup]]` window the check is about. Empty exactly for `shell_alive`.
+    #[serde(default)]
     pub window: String,
     /// The window's state in `query windows`.
     #[serde(default)]
@@ -282,6 +291,14 @@ pub struct TestCheck {
     /// The fixture process this setup launched has exited (within 2 s).
     #[serde(default)]
     pub process_exited: bool,
+    /// The GNOME Shell process (pid and start time) is the one that was running when the test
+    /// began, so the actions did not make it abort or restart. Takes no `window`.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub shell_alive: bool,
+}
+
+fn is_false(v: &bool) -> bool {
+    !*v
 }
 
 /// The keys a version 2 spec may add. Flattened into [`TestDefinition`], so a version 1 spec

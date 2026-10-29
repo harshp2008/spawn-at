@@ -149,6 +149,38 @@ async fn test_arm_on_protocol_7_sends_arm_spawn_entry_with_the_entry_key() {
     assert_eq!(armed.token.as_deref(), Some("clip-app"));
 }
 
+/// What the GNOME driver hands the child for a key `spawn` really builds: exactly the two startup
+/// variables, both the key, and the key ends in `_TIME0`, not an epoch-millisecond timestamp.
+#[tokio::test]
+async fn test_arm_launch_env_is_exactly_the_two_variables_with_the_launch_key() {
+    let key = crate::commands::spawn::launch_key();
+    let calls = Calls::default();
+    let stub = StubProtocol7 {
+        calls: calls.clone(),
+        live_key: "",
+        fail_disarm: false,
+    };
+    let (driver, _conn) = driver_for("/test/entry/launch_env", stub, 7).await;
+
+    let armed = driver
+        .arm(batch(vec![entry(&key, "clip-app")]))
+        .await
+        .unwrap();
+
+    assert_eq!(
+        armed.launch_env,
+        vec![
+            ("XDG_ACTIVATION_TOKEN".to_string(), key.clone()),
+            ("DESKTOP_STARTUP_ID".to_string(), key.clone()),
+        ]
+    );
+    assert_eq!(
+        recorded(&calls),
+        vec![format!("ArmSpawnEntry(clip-app,{key})")]
+    );
+    assert!(key.ends_with("_TIME0"), "{key}");
+}
+
 #[tokio::test]
 async fn test_arm_on_protocol_6_sends_the_plain_arm_spawn() {
     let calls = Calls::default();
