@@ -720,6 +720,79 @@ mod tests {
         assert_eq!(win.h, 514);
     }
 
+    /// One window whose title carries the key of the launch and which no other rule links to the
+    /// launcher: not the pid, not a descendant, not the class, not the app hint.
+    struct KeyedWindowBackend {
+        title: String,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::platform::Driver for KeyedWindowBackend {
+        async fn arm(
+            &self,
+            _batch: crate::platform::Batch,
+        ) -> Result<crate::platform::Armed, DriverError> {
+            Ok(crate::platform::Armed::default())
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl CompositorBackend for KeyedWindowBackend {
+        fn name(&self) -> &'static str {
+            "KeyedWindow"
+        }
+        fn resolve_id(&self, _cmd: &[String], _cls: Option<&str>) -> String {
+            "no-such-app".into()
+        }
+        async fn get_windows(&self) -> Result<Vec<WindowMetadata>, DriverError> {
+            Ok(vec![WindowMetadata {
+                id: Some(77),
+                pid: Some(1),
+                title: self.title.clone(),
+                class: "unrelated".into(),
+                w: 300,
+                h: 200,
+                ..Default::default()
+            }])
+        }
+    }
+
+    /// The key `spawn` builds (`launch_key`, ending in `_TIME0`) is what `wait_for_spawn` looks
+    /// for in a title: a window carrying it is found, a window carrying another process's key is
+    /// not.
+    #[tokio::test]
+    async fn test_wait_for_spawn_finds_a_window_by_the_launch_key() {
+        let key = crate::commands::spawn::launch_key();
+        let own = KeyedWindowBackend {
+            title: format!("Editor [{key}]"),
+        };
+        let found = wait_for_spawn(
+            &own,
+            4242,
+            "no-such-app-hint",
+            &key,
+            &std::collections::HashSet::new(),
+            Duration::from_millis(300),
+        )
+        .await
+        .expect("the window with the key in its title");
+        assert_eq!(found.id, Some(77));
+
+        let other = KeyedWindowBackend {
+            title: "Editor [spawn-at-1-1793000000000_TIME0]".into(),
+        };
+        let missed = wait_for_spawn(
+            &other,
+            4242,
+            "no-such-app-hint",
+            &key,
+            &std::collections::HashSet::new(),
+            Duration::from_millis(150),
+        )
+        .await;
+        assert!(missed.is_err(), "another launch's key must not match");
+    }
+
     #[tokio::test]
     async fn test_wait_for_spawn_timeout() {
         let backend = MockSpawnBackend {

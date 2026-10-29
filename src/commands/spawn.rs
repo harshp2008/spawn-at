@@ -22,6 +22,7 @@ use spawn_at_core::geometry::{
     check_geometry_diagnostics, resolve_workarea, Anchor, Area, GeometryDiagnostic, Rect,
 };
 use spawn_at_core::wait_override::WaitOverride;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 /// Structured JSON output emitted to stdout when `--json` is supplied to `spawn-at spawn`.
@@ -60,6 +61,45 @@ pub struct SpawnOutputJson {
     /// poll fallback or no `--size`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub resize: Option<spawn_at_core::resize_report::ResizeReport>,
+}
+
+/// The `_TIME<timestamp>` part of every launch key. The timestamp is 0, the X11 `CurrentTime`
+/// ("no timestamp"). GDK (GTK3 and GTK4 on X11) reads the digits after `_TIME` as an X server time
+/// and writes it into the new window's `_NET_WM_USER_TIME`; a 13-digit millisecond epoch cut to 32
+/// bits is a time weeks ahead of Mutter's clock, and the focus hand-over when that window closes
+/// was then refused and aborted GNOME Shell (see CHANGELOG.md, Unreleased). 0 can not be ahead of
+/// any clock and GDK treats it the same as a key without the part.
+const LAUNCH_KEY_TIME: &str = "_TIME0";
+
+/// The last millisecond value [`launch_key`] handed out in this process.
+static LAST_KEY_MS: AtomicU64 = AtomicU64::new(0);
+
+/// `now_ms`, or one more than the last value returned when the clock has not moved on, so two keys
+/// built in the same process never share the millisecond field.
+fn next_key_ms(last_used: &AtomicU64, now_ms: u64) -> u64 {
+    let mut last = last_used.load(Ordering::Relaxed);
+    loop {
+        let next = now_ms.max(last + 1);
+        match last_used.compare_exchange_weak(last, next, Ordering::Relaxed, Ordering::Relaxed) {
+            Ok(_) => return next,
+            Err(seen) => last = seen,
+        }
+    }
+}
+
+/// `spawn-at-<pid>-<ms>_TIME0`: unique per process (the pid) and per call (the millisecond field).
+/// [`LAUNCH_KEY_TIME`] says why the part after `_TIME` is 0. Both drivers pass this string to the
+/// child as `DESKTOP_STARTUP_ID` and `XDG_ACTIVATION_TOKEN` and match it against the window's
+/// `_NET_STARTUP_ID` (X11) or startup id (GNOME extension).
+pub(crate) fn launch_key() -> String {
+    let now_ms = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_millis() as u64);
+    format_launch_key(std::process::id(), next_key_ms(&LAST_KEY_MS, now_ms))
+}
+
+fn format_launch_key(pid: u32, ms: u64) -> String {
+    format!("spawn-at-{pid}-{ms}{LAUNCH_KEY_TIME}")
 }
 
 /// Runs `spawn-at spawn` with the settings from the user's config file. A file that is missing,
@@ -273,14 +313,9 @@ pub async fn run_spawn_with(
         }
     }
 
-    // 2. The entry key: `spawn-at-<our pid>-<ms since epoch>_TIME<same ms>`. It is also the
-    // `startup_id` that `wait_for_spawn` looks for in a window's title or class. Whether it follows
-    // the freedesktop startup-notification format is not verified.
-    let ts_ms = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    let entry_key = format!("spawn-at-{}-{}_TIME{}", std::process::id(), ts_ms, ts_ms);
+    // 2. The entry key, see `launch_key`. It is also the `startup_id` that `wait_for_spawn` looks
+    // for in a window's title or class.
+    let entry_key = launch_key();
 
     let app_hint = spawn_args
         .class
@@ -1649,7 +1684,7 @@ mod tests {
         calls
     }
 
-    /// The entry key is `spawn-at-<pid>-<ms>_TIME<ms>`; the test can not know the time, so it
+    /// The entry key is `spawn-at-<pid>-<ms>_TIME0`; the test can not know the time, so it
     /// checks the part it can.
     fn assert_withdrew_own_entry(calls: &[String]) {
         assert_eq!(calls.len(), 1, "exactly one disarm_entry call: {calls:?}");
@@ -1699,5 +1734,173 @@ mod tests {
         failing.arm_fails = true;
         let calls = disarmed_by_spawn(failing, false).await;
         assert!(calls.is_empty(), "nothing was armed: {calls:?}");
+    }
+
+    /// The part after `_TIME` in a launch key, as GDK reads it: `strtoul` on the text after the
+    /// last `_TIME`.
+    fn time_part(key: &str) -> &str {
+        key.rsplit_once("_TIME").expect("a _TIME part").1
+    }
+
+    #[test]
+    fn test_launch_key_has_the_documented_shape() {
+        let key = launch_key();
+        let rest = key.strip_prefix("spawn-at-").expect("spawn-at- prefix");
+        let (pid, rest) = rest.split_once('-').expect("spawn-at-<pid>-...");
+        let (ms, time) = rest.split_once("_TIME").expect("..._TIME<n>");
+        assert_eq!(pid, std::process::id().to_string(), "{key}");
+        assert!(
+            ms.len() >= 13 && ms.chars().all(|c| c.is_ascii_digit()),
+            "13 or more digits of milliseconds since the epoch: {key}"
+        );
+        assert_eq!(time, "0", "{key}");
+        assert!(
+            key.is_ascii() && !key.contains(char::is_whitespace),
+            "{key}"
+        );
+    }
+
+    /// A 13-digit millisecond epoch cut to 32 bits is weeks ahead of Mutter's clock, and that was
+    /// the crash. The part after `_TIME` must be a value a 32-bit X timestamp can hold, and must
+    /// not be the epoch value (with or without wrapping to 32 bits).
+    #[test]
+    fn test_launch_key_time_part_is_a_valid_u32_and_not_an_epoch_ms() {
+        let key = launch_key();
+        let time: u32 = time_part(&key)
+            .parse()
+            .expect("the time part parses as a u32");
+        let ms: u64 = key
+            .rsplit_once('-')
+            .and_then(|(_, tail)| tail.split_once("_TIME"))
+            .map(|(ms, _)| ms.parse().expect("ms"))
+            .expect("ms field");
+        assert_ne!(u64::from(time), ms, "{key}");
+        assert_ne!(time, ms as u32, "the epoch value cut to 32 bits: {key}");
+        assert_eq!(
+            time, 0,
+            "CurrentTime: no timestamp, can not be ahead of any clock"
+        );
+    }
+
+    #[test]
+    fn test_launch_keys_differ_by_pid_and_by_millisecond() {
+        let a = format_launch_key(100, 1_793_000_000_000);
+        assert_eq!(a, "spawn-at-100-1793000000000_TIME0");
+        assert_ne!(
+            a,
+            format_launch_key(101, 1_793_000_000_000),
+            "another process"
+        );
+        assert_ne!(
+            a,
+            format_launch_key(100, 1_793_000_000_001),
+            "another millisecond"
+        );
+    }
+
+    #[test]
+    fn test_launch_keys_are_unique_across_calls_and_threads() {
+        // 8 threads x 200 calls inside what is usually one or two milliseconds.
+        let handles: Vec<_> = (0..8)
+            .map(|_| std::thread::spawn(|| (0..200).map(|_| launch_key()).collect::<Vec<_>>()))
+            .collect();
+        let all: Vec<String> = handles
+            .into_iter()
+            .flat_map(|h| h.join().expect("thread"))
+            .collect();
+        let unique: std::collections::HashSet<&String> = all.iter().collect();
+        assert_eq!(unique.len(), all.len(), "a key was handed out twice");
+    }
+
+    #[test]
+    fn test_next_key_ms_never_repeats_when_the_clock_stands_still() {
+        let last = AtomicU64::new(0);
+        let first = next_key_ms(&last, 1_793_000_000_000);
+        let second = next_key_ms(&last, 5);
+        let third = next_key_ms(&last, 1_793_000_000_000);
+        assert!(second > first && third > second, "{first} {second} {third}");
+    }
+
+    /// Runs `spawn` against a backend whose `arm` is the real X11 driver's (it only builds the
+    /// environment), with a child that writes its environment to a file. The child must get exactly
+    /// the two startup variables, both holding the key of the batch entry, and nothing else of that
+    /// family.
+    #[cfg(target_os = "linux")]
+    #[tokio::test]
+    async fn test_the_child_environment_has_exactly_the_two_startup_variables() {
+        struct RealArm(BatchRecorder);
+
+        #[async_trait::async_trait]
+        impl Driver for RealArm {
+            async fn arm(&self, batch: Batch) -> Result<Armed, DriverError> {
+                self.0.batches.lock().unwrap().push(batch.clone());
+                crate::platform::linux::x11::X11Driver.arm(batch).await
+            }
+        }
+
+        #[async_trait::async_trait]
+        impl CompositorBackend for RealArm {
+            fn name(&self) -> &'static str {
+                "RealArm"
+            }
+            fn resolve_id(&self, command: &[String], explicit_class: Option<&str>) -> String {
+                self.0.resolve_id(command, explicit_class)
+            }
+        }
+
+        let dir = std::env::temp_dir().join(format!("spawn-at-key-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let out = dir.join("env.txt");
+        let batches = Arc::new(Mutex::new(Vec::new()));
+        let backend = RealArm(BatchRecorder {
+            inner: OrderingMockBackend {
+                calls: Arc::new(Mutex::new(Vec::new())),
+            },
+            batches: batches.clone(),
+        });
+        let args = SpawnArgs {
+            command: vec![
+                "sh".into(),
+                "-c".into(),
+                format!("env > '{}'", out.display()),
+            ],
+            ..Default::default()
+        };
+        let loaded = spawn_at_core::settings::Loaded {
+            settings: spawn_at_core::settings::Settings {
+                window_timeout_ms: Some(50),
+                ..Default::default()
+            },
+            warnings: Vec::new(),
+        };
+        run_spawn_with(&backend, args, true, loaded)
+            .await
+            .expect("spawn");
+
+        let key = batches.lock().unwrap()[0].entries[0].key.clone();
+        let mut text = String::new();
+        for _ in 0..100 {
+            text = std::fs::read_to_string(&out).unwrap_or_default();
+            if text.contains("PATH=") {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        let startup: Vec<&str> = text
+            .lines()
+            .filter(|l| {
+                l.starts_with("DESKTOP_STARTUP_ID=") || l.starts_with("XDG_ACTIVATION_TOKEN=")
+            })
+            .collect();
+        let mut expected = vec![
+            format!("DESKTOP_STARTUP_ID={key}"),
+            format!("XDG_ACTIVATION_TOKEN={key}"),
+        ];
+        let mut got: Vec<String> = startup.iter().map(|s| s.to_string()).collect();
+        expected.sort();
+        got.sort();
+        assert_eq!(got, expected, "child environment:\n{text}");
+        assert_eq!(time_part(&key), "0", "{key}");
     }
 }
