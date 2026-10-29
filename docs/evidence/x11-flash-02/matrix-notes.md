@@ -181,3 +181,27 @@ per size loaded. No native Wayland control exists for this toolkit.
 | java-swing | loaded | small | 20 | 20 | 0 | 0 | 0 | 0 | 0 | -45.3 / -4.3 | 67.9 |
 
 Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
+
+## gnome-text-editor-nowindow (GTK4)
+
+Private headless Shell, DING not loaded. The same editor without `--new-window` (the extra entry in
+`run.rs`'s table), forced X11, 20 runs per size idle plus 10 native Wayland controls (5 per size),
+then 20 runs per size loaded.
+
+### X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: |
+| gnome-text-editor-nowindow | idle | large | 20 | 20 | 0 | 6 | 0 | 0 | 6 | -1.4 / 5.3 | 4.4 |
+| gnome-text-editor-nowindow | idle | small | 20 | 20 | 0 | 2 | 0 | 0 | 2 | -1.1 / 1.1 | 4.8 |
+| gnome-text-editor-nowindow | loaded | large | 20 | 20 | 0 | 0 | 0 | 0 | 0 | -13.7 / 2.2 | 26.6 |
+| gnome-text-editor-nowindow | loaded | small | 20 | 20 | 0 | 0 | 0 | 0 | 0 | -8.1 / 1.7 | 39.2 |
+
+### Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
+| gnome-text-editor-nowindow | idle | large | 5 | 0 | 13.8 / 15.0 | 5x reached:at-target | 5 |
+| gnome-text-editor-nowindow | idle | small | 5 | 0 | 9.4 / 11.3 | 5x reached:at-target | 5 |
+
+Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
