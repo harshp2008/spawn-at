@@ -71,6 +71,10 @@ export SPAWN_AT_CONFIG='$SB/none.toml'
 export DBUS_SESSION_BUS_ADDRESS='unix:path=$SB/run/bus'
 export WAYLAND_DISPLAY=xflash-wl
 EV
+# Extra environment for the private Shell only (e.g. MUTTER_DEBUG=focus,startup,ping for the
+# crash mechanism run). Appended verbatim: it is shell code sourced by the Shell, never by the
+# live session, and only after every live variable above has been replaced.
+if [ -n "${PSH_SHELL_ENV:-}" ]; then printf '%s\n' "$PSH_SHELL_ENV" >> "$SB/env"; fi
 echo "$SB" > scratch/xflash02/priv/CURRENT
 # shellcheck disable=SC1090
 . "$SB/env"

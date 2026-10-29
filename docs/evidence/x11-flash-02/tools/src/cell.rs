@@ -31,6 +31,23 @@ struct Cell {
     unset_vars: Vec<String>,
     set_env: Vec<(String, String)>,
     startup_id: Option<String>,
+    // X11-FLASH-02i factor cells: which parts of `spawn-at spawn` are applied, and whether it
+    // waits. "both" is the configuration every earlier cell used.
+    geom: String,
+    no_wait: bool,
+    /// Arm a `spawn-at spawn --no-wait` for this class and let it exit: the extension is left with
+    /// a registration that matches no window, so a plain launch maps while the extension is armed
+    /// (it cloaks every new window then) without being positioned by it.
+    arm_class: Option<String>,
+    /// Milliseconds to sleep between arming and the launch.
+    sleep_before: u64,
+    /// For a plain launch: "self" builds `spawn-at-<pid>-<ms>_TIME<ms>` the way the CLI does and
+    /// sets both variables; any other value is used literally. Without it a plain launch gets no
+    /// startup variables at all.
+    startup_env: Option<String>,
+    /// When `spawn-at spawn --no-wait --json` prints no window id, find the window by a substring
+    /// of its WM_CLASS or app id among the windows that appeared after the cell started.
+    find_class: Option<String>,
     close: String,
     runs: usize,
     settle_ms: u64,
@@ -51,6 +68,12 @@ fn parse(args: &[String]) -> Result<Cell, String> {
         unset_vars: Vec::new(),
         set_env: Vec::new(),
         startup_id: None,
+        geom: "both".into(),
+        no_wait: false,
+        arm_class: None,
+        sleep_before: 0,
+        startup_env: None,
+        find_class: None,
         close: "spawn-at".into(),
         runs: 3,
         settle_ms: 2500,
@@ -68,12 +91,23 @@ fn parse(args: &[String]) -> Result<Cell, String> {
             "--unset-startup" => c.unset_startup = true,
             "--focus" => c.focus = true,
             "--bg-window" => c.bg_window = true,
+            "--no-wait" => c.no_wait = true,
             _ => {
                 let v = args.get(i + 1).ok_or_else(|| format!("{f} needs a value"))?.clone();
                 match f {
                     "--label" => c.label = v,
                     "--app" => c.app = v,
                     "--startup-id" => c.startup_id = Some(v),
+                    "--startup-env" => c.startup_env = Some(v),
+                    "--find-class" => c.find_class = Some(v),
+                    "--geom" => {
+                        if !matches!(v.as_str(), "both" | "size" | "anchor" | "none") {
+                            return Err("--geom must be both, size, anchor or none".into());
+                        }
+                        c.geom = v;
+                    }
+                    "--arm-class" => c.arm_class = Some(v),
+                    "--sleep-before" => c.sleep_before = v.parse().map_err(|_| "--sleep-before N")?,
                     "--unset" => c.unset_vars.push(v),
                     "--setenv" => { if let Some((k, val)) = v.split_once('=') { c.set_env.push((k.to_string(), val.to_string())); } }
                     "--close" => c.close = v,
@@ -111,6 +145,12 @@ fn warnings(text: &str) -> Vec<String> {
         .filter(|l| l.contains("warning") || l.contains("assertion") || l.contains("Bail out") || l.contains("crashed") || l.contains("Buggy") || l.contains("ERROR") || l.contains("CRITICAL"))
         .map(|l| l.chars().take(200).collect::<String>())
         .collect()
+}
+
+/// The spawn-at binary this cell drives: `$SPAWN_AT` when set (the throwaway-worktree build used
+/// for a candidate patch), otherwise `spawn-at` from PATH. Recorded in the cell log by the runner.
+fn spawn_at() -> std::ffi::OsString {
+    std::env::var_os("SPAWN_AT").unwrap_or_else(|| "spawn-at".into())
 }
 
 fn atom(conn: &impl Connection, name: &str) -> Option<Atom> {
@@ -202,9 +242,11 @@ pub fn run(args: &[String]) -> Result<(), String> {
         std::thread::sleep(Duration::from_millis(1500));
     }
     let cfg = format!(
-        "{{\"label\":{},\"app\":{},\"mode\":{},\"launcher\":{},\"observer\":{},\"unset_startup\":{},\"startup_id\":{},\"close\":{}}}",
+        "{{\"label\":{},\"app\":{},\"mode\":{},\"launcher\":{},\"observer\":{},\"unset_startup\":{},\"startup_id\":{},\"close\":{},\"geom\":{},\"no_wait\":{},\"arm_class\":{},\"sleep_before\":{},\"startup_env\":{}}}",
         js(&c.label), js(&c.app), js(if c.wayland { "wayland" } else { "x11" }), js(if c.plain { "plain" } else { "spawn-at" }),
-        c.observer, c.unset_startup, c.startup_id.as_deref().map(js).unwrap_or_else(|| "null".into()), js(&c.close)
+        c.observer, c.unset_startup, c.startup_id.as_deref().map(js).unwrap_or_else(|| "null".into()), js(&c.close),
+        js(&c.geom), c.no_wait, c.arm_class.as_deref().map(js).unwrap_or_else(|| "null".into()), c.sleep_before,
+        c.startup_env.as_deref().map(js).unwrap_or_else(|| "null".into())
     );
     let mut crashed = false;
     // A second, native Wayland window kept open for the whole cell (eog, Wayland), so that closing
@@ -228,7 +270,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
         if let Some(b) = bg_id {
             base.push(b);
-            let _ = Command::new("spawn-at").args(["focus", "--id", &b.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+            let _ = Command::new(spawn_at()).args(["focus", "--id", &b.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
             std::thread::sleep(Duration::from_millis(800));
         } else {
             return Err("the background Wayland window did not appear".into());
@@ -241,13 +283,49 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
         let log_before = log_len(&c.shell_log);
         let size = app.small;
-        let argv: Vec<&str> = app.argv.iter().map(|s| *s).collect();
+        let ozone = if c.wayland { "wayland" } else { "x11" };
+        // {PROFILE} and {OZONE} are substituted here the same way `xflash run` does it (run.rs), so
+        // the matrix can use the same app definitions. The directory goes inside the private
+        // sandbox (removed by psh-stop.sh) or the temp dir: never the real home, never the evidence
+        // tree, so a browser profile cannot bloat or leak into the committed data.
+        let scratch = std::env::var_os("PSH_SB")
+            .filter(|s| !s.is_empty())
+            .map(PathBuf::from)
+            .unwrap_or_else(std::env::temp_dir);
+        let profile = scratch.join(format!("xflash-profile-{}-{}", c.label, n));
+        if app.profile {
+            fs::create_dir_all(&profile).map_err(|e| e.to_string())?;
+        }
+        let profile_s = profile.display().to_string();
+        let argv_owned: Vec<String> = app
+            .argv
+            .iter()
+            .map(|s| s.replace("{OZONE}", ozone).replace("{PROFILE}", &profile_s))
+            .collect();
+        let argv: Vec<&str> = argv_owned.iter().map(|s| s.as_str()).collect();
         let envs = if c.wayland { app.env_wl } else { app.env_x11 };
         let class = if c.wayland { app.class_wl } else { app.class_x11 };
         let t0 = mono_ns();
         let mut plain_child = None;
         let mut spawn_json = String::from("null");
         let mut wid: Option<u64> = None;
+        // Arm the extension for a class that matches no real window, then let spawn-at exit: the
+        // registration stays for its 15 s lifetime, so the next window maps while the extension is
+        // armed (it cloaks every new window then) but is never claimed. This is factor cell 6/7.
+        if let Some(arm) = &c.arm_class {
+            let st = Command::new(spawn_at())
+                .args(["spawn", "--no-wait", "--no-focus", "-c", arm, "--", "/bin/true"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null())
+                .status();
+            if st.map(|s| !s.success()).unwrap_or(true) {
+                return Err(format!("cell: arming spawn-at for {arm} failed"));
+            }
+        }
+        if c.sleep_before > 0 {
+            std::thread::sleep(Duration::from_millis(c.sleep_before));
+        }
         if c.plain {
             let mut cmd = Command::new(argv[0]);
             cmd.args(&argv[1..]);
@@ -256,6 +334,21 @@ pub fn run(args: &[String]) -> Result<(), String> {
             }
             for (k, v) in envs {
                 cmd.env(k, v);
+            }
+            if let Some(sv) = &c.startup_env {
+                // "self": the string the CLI builds (src/commands/spawn.rs:276-283); anything else
+                // is used verbatim, e.g. a harmless non-spawn-at value.
+                let key = if sv == "self" {
+                    let ms = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_millis())
+                        .unwrap_or(0);
+                    format!("spawn-at-{}-{}_TIME{}", std::process::id(), ms, ms)
+                } else {
+                    sv.clone()
+                };
+                cmd.env("DESKTOP_STARTUP_ID", &key);
+                cmd.env("XDG_ACTIVATION_TOKEN", &key);
             }
             cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null());
             plain_child = cmd.spawn().ok();
@@ -267,13 +360,27 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 wid = all_ids(&windows_json()).into_iter().find(|(i, p)| *p == cpid && !base.contains(i)).map(|(i, _)| i);
             }
         } else {
-            let mut cmd = Command::new("spawn-at");
+            let mut cmd = Command::new(spawn_at());
             cmd.arg("spawn");
             if !class.is_empty() {
                 cmd.args(["-c", class]);
             }
-            cmd.args(["--no-focus", "--anchor", "bottom-right", "--size", &size.0.to_string(), &size.1.to_string(), "-m", "24", "--json", "--"]);
-            if c.unset_startup || c.startup_id.is_some() || !c.unset_vars.is_empty() {
+            cmd.arg("--no-focus");
+            // Factor cells 1 to 4: which of the two placement requests are sent. "both" is the
+            // configuration every earlier cell used.
+            match c.geom.as_str() {
+                "both" => { cmd.args(["--anchor", "bottom-right", "--size", &size.0.to_string(), &size.1.to_string(), "-m", "24"]); }
+                "size" => { cmd.args(["--size", &size.0.to_string(), &size.1.to_string(), "-m", "24"]); }
+                "anchor" => { cmd.args(["--anchor", "bottom-right", "-m", "24"]); }
+                _ => {}
+            };
+            if c.no_wait {
+                cmd.arg("--no-wait");
+            }
+            cmd.arg("--json");
+            let wrap = c.unset_startup || c.startup_id.is_some() || !c.unset_vars.is_empty() || !c.set_env.is_empty();
+            cmd.arg("--");
+            if wrap {
                 cmd.arg("env");
                 if c.unset_startup {
                     cmd.args(["-u", "DESKTOP_STARTUP_ID", "-u", "XDG_ACTIVATION_TOKEN"]);
@@ -283,6 +390,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 }
                 if let Some(s) = &c.startup_id {
                     cmd.arg(format!("DESKTOP_STARTUP_ID={}", s));
+                }
+                for (k, v) in &c.set_env {
+                    cmd.arg(format!("{}={}", k, v));
                 }
             }
             cmd.args(&argv);
@@ -306,13 +416,40 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 spawn_json = txt.trim().to_string();
             }
         }
+        // `spawn-at spawn --no-wait --json` prints a placeholder with no window id (the CLI does not
+        // wait for the window). When asked, find it among the windows that appeared since the cell
+        // started, by a substring of WM_CLASS or app id. DING's desktop window (class "gjs") never
+        // matches these substrings, so it cannot be taken for the app's window.
+        if wid.is_none() {
+            if let Some(needle) = &c.find_class {
+                let needle = needle.to_lowercase();
+                let until = Instant::now() + Duration::from_secs(12);
+                while Instant::now() < until && wid.is_none() {
+                    std::thread::sleep(Duration::from_millis(150));
+                    let post = windows_json();
+                    for (i, _) in all_ids(&post) {
+                        if base.contains(&i) {
+                            continue;
+                        }
+                        if let Some(e) = window_entry(&post, i) {
+                            let cls = str_field(&e, "class").unwrap_or_default().to_lowercase();
+                            let app = str_field(&e, "app_id").unwrap_or_default().to_lowercase();
+                            if cls.contains(&needle) || app.contains(&needle) {
+                                wid = Some(i);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         std::thread::sleep(Duration::from_millis(c.settle_ms));
         // The private headless Shell has no user activity, so a new window is not given focus the
         // way it is in the live session. `--focus` asks the extension to focus it (private session
         // only), to reach the state both live crashes had: a focused window at close.
         if c.focus {
             if let Some(w) = wid {
-                let _ = Command::new("spawn-at").args(["focus", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+                let _ = Command::new(spawn_at()).args(["focus", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
                 std::thread::sleep(Duration::from_millis(600));
             }
         }
@@ -339,7 +476,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
                     close_note.push_str(if ok { "xdotool ctrl+w sent" } else { "xdotool failed" });
                 }
                 _ => {
-                    let _ = Command::new("spawn-at").args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+                    let _ = Command::new(spawn_at()).args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
                     close_note.push_str("spawn-at close");
                 }
             }
@@ -358,7 +495,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
             }
             if !gone && !crashed && c.close != "spawn-at" {
                 // The chosen method did not close it: finish with the graceful request, noted.
-                let _ = Command::new("spawn-at").args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+                let _ = Command::new(spawn_at()).args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
                 close_note.push_str("; method did not close, fell back to spawn-at close");
                 let until = Instant::now() + Duration::from_secs(5);
                 while Instant::now() < until && !crashed {
@@ -418,7 +555,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         std::thread::sleep(Duration::from_secs(3));
     }
     if let (Some(b), false) = (bg_id, crashed) {
-        let _ = Command::new("spawn-at").args(["close", "--id", &b.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+        let _ = Command::new(spawn_at()).args(["close", "--id", &b.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
         std::thread::sleep(Duration::from_secs(2));
     }
     drop(bg_child);

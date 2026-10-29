@@ -83,6 +83,23 @@ pub fn apps() -> Vec<App> {
             large: (1100, 760),
         },
         App {
+            // X11-FLASH-02i: the editor without `--new-window`, to separate "the app presents its
+            // window on a launch request" from "the app only maps a window".
+            id: "gnome-text-editor-nowindow",
+            toolkit: "GTK4",
+            class_x11: "org.gnome.TextEditor",
+            class_wl: "org.gnome.TextEditor",
+            argv: &["gnome-text-editor"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2500,
+            small: (640, 420),
+            large: (1100, 760),
+        },
+        App {
             id: "eog",
             toolkit: "GTK3",
             class_x11: "Eog",
@@ -109,6 +126,7 @@ pub fn apps() -> Vec<App> {
                 "--no-first-run",
                 "--no-default-browser-check",
                 "--disable-sync",
+                "--no-sandbox",
                 "--ozone-platform={OZONE}",
                 "--class=xflash-chrome",
                 "about:blank",
@@ -143,6 +161,110 @@ pub fn apps() -> Vec<App> {
             settle_ms: 4500,
             small: (800, 560),
             large: (1300, 860),
+        },
+        // X11-FLASH-02i exposure map (with DING loaded): the rest of the installed set, in the same
+        // shape as the apps above. Settles are shorter because the matrix only asks "crash or not".
+        App {
+            id: "gnome-calculator",
+            toolkit: "GTK4",
+            class_x11: "org.gnome.Calculator",
+            class_wl: "org.gnome.Calculator",
+            argv: &["gnome-calculator"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2000,
+            small: (500, 400),
+            large: (900, 700),
+        },
+        App {
+            id: "nautilus",
+            toolkit: "GTK4",
+            class_x11: "org.gnome.Nautilus",
+            class_wl: "org.gnome.Nautilus",
+            argv: &["nautilus", "--new-window"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (700, 480),
+            large: (1100, 760),
+        },
+        App {
+            id: "gnome-terminal",
+            toolkit: "GTK3 (server)",
+            class_x11: "Gnome-terminal",
+            class_wl: "org.gnome.Terminal",
+            argv: &["gnome-terminal"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: false,
+            settle_ms: 3000,
+            small: (700, 460),
+            large: (1100, 700),
+        },
+        App {
+            id: "code",
+            toolkit: "Electron",
+            class_x11: "Code",
+            class_wl: "code",
+            argv: &[
+                "code",
+                "--user-data-dir={PROFILE}",
+                "--extensions-dir={PROFILE}/ext",
+                "--no-sandbox",
+                "--ozone-platform={OZONE}",
+                "--disable-gpu",
+                "--new-window",
+                "--skip-welcome",
+            ],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: true,
+            profile: true,
+            kill_ok: true,
+            settle_ms: 5000,
+            small: (800, 560),
+            large: (1200, 800),
+        },
+        App {
+            // scratch/xflash02/swing/SwingApp.class, compiled from the source quoted in
+            // ding-crash.md; not committed (committed tooling is Rust).
+            id: "java-swing",
+            toolkit: "Swing (AWT X11)",
+            class_x11: "SwingApp",
+            class_wl: "",
+            argv: &["java", "-cp", "scratch/xflash02/swing", "SwingApp"],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: false,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (600, 400),
+            large: (900, 650),
+        },
+        App {
+            // Qt 5.15 Widgets: the qt5 tools are installed, there is no distro Qt app.
+            id: "qt-assistant",
+            toolkit: "Qt 5.15 Widgets",
+            class_x11: "assistant",
+            class_wl: "assistant",
+            argv: &["/usr/lib/x86_64-linux-gnu/qt5/bin/assistant"],
+            env_x11: &[("QT_QPA_PLATFORM", "xcb")],
+            env_wl: &[("QT_QPA_PLATFORM", "wayland")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (700, 500),
+            large: (1000, 700),
         },
     ]
 }
@@ -359,7 +481,7 @@ fn calibrate(log: &mut File, tag: &str, n: usize) {
 }
 
 pub fn windows_json() -> String {
-    Command::new("spawn-at")
+    Command::new(std::env::var_os("SPAWN_AT").unwrap_or_else(|| "spawn-at".into()))
         .args(["query", "windows", "--json"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
