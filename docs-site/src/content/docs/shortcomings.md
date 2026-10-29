@@ -43,6 +43,41 @@ The cause is unknown.
 Sway cannot hold a new window invisible, so a window can show before it is placed. This was not
 measured.
 
+### Closing a focused GTK4 window that runs on XWayland could abort the Shell
+
+Status: **fixed** after 0.2.4 (not yet in a release). Every release up to 0.2.4 has the bug.
+
+Until now `spawn` gave the program a startup id of the form `spawn-at-<pid>-<ms>_TIME<ms>`, where
+`<ms>` is the time in milliseconds since 1970 (13 digits). GDK, the GTK display layer, reads the
+number after `_TIME` as an X11 server timestamp and cuts it to 32 bits. On Wayland that value is
+about 16 days ahead of Mutter's clock. A GTK4 program on XWayland then asked to be activated with that
+time, Mutter kept it as the time of the last focus change, and when the window was closed while it had
+focus, Mutter refused to hand focus to the next window. GNOME Shell then stopped with `meta_window_unmanage:
+assertion failed: (window->display->focus_window != window)` and took every window of the session
+with it.
+
+The id is now `spawn-at-<pid>-<ms>_TIME0`. It is still unique and still the value the window is
+matched by. The part after `_TIME` is 0, which X11 reads as "no timestamp", so a program cannot take
+it for a time in the future.
+
+Who was affected, as far as it was measured:
+
+- gnome-text-editor started with `GDK_BACKEND=x11` on Ubuntu 24.04 (GNOME Shell 46.0, Mutter 46.2),
+  in a private headless Shell with Desktop Icons NG (`ding@rastersoft.com`, installed by default)
+  loaded: the Shell stopped on 10 of 10 closes with the old id and on 0 of 10 with the new one.
+- Without Desktop Icons NG the Shell did not stop in 30 runs (one or two native Wayland windows open,
+  the editor focused or not when it was closed). In those runs the editor never asked for activation
+  with the id's time, so the condition for the bug was not reached. That the bug needs Desktop Icons NG
+  is therefore not shown.
+- The investigation before this fix also tried gnome-calculator, eog, gnome-terminal, Chrome and Qt
+  Assistant with the old id and Desktop Icons NG (5 runs each); the Shell did not stop. Those runs
+  were not repeated for this change. Whether another toolkit would stop it is unknown.
+
+Not established: other GNOME or Mutter versions (Mutter's development branch still has the assertion),
+other programs, whether the two Shell stops seen on a live session were this cause (they are
+consistent with it), and whether Mutter will change. The bug was never reproduced on a live session
+after the fix, and no live session was used to test the fix.
+
 The exit status of the state commands and the cursor options on Sway are covered on
 [Known limits](/spawn-at/known-limits/).
 

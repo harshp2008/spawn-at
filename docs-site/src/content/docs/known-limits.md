@@ -159,7 +159,10 @@ The withdrawal is covered by Node and D-Bus stub tests (`tests/stale_arm_test.js
 ## X11
 
 The X11 backend does nothing when `spawn` registers the placement. It only returns the launch
-environment: `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`, both set to the entry key.
+environment: `XDG_ACTIVATION_TOKEN` and `DESKTOP_STARTUP_ID`, both set to the entry key. The key is
+`spawn-at-<pid>-<ms>_TIME0`. The 0 after `_TIME` is on purpose: a program reads that number as an X11
+timestamp, and a real millisecond time there once made GNOME Shell abort (see
+[Known shortcomings](/spawn-at/shortcomings/)).
 
 The window is found and moved afterwards. That step waits up to 5 seconds to find the window and up
 to 3 seconds for it to map, also with `--no-wait`. It ignores errors from the X11 requests. If no
