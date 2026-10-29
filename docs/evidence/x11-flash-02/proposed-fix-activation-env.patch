@@ -1,0 +1,116 @@
+diff --git a/src/commands/spawn.rs b/src/commands/spawn.rs
+index 62ad049..8552e63 100644
+--- a/src/commands/spawn.rs
++++ b/src/commands/spawn.rs
+@@ -273,14 +273,22 @@ pub async fn run_spawn_with(
+         }
+     }
+ 
+-    // 2. The entry key: `spawn-at-<our pid>-<ms since epoch>_TIME<same ms>`. It is also the
+-    // `startup_id` that `wait_for_spawn` looks for in a window's title or class. Whether it follows
+-    // the freedesktop startup-notification format is not verified.
++    // 2. The entry key: `spawn-at-<our pid>-<ms since epoch>`. It is also the `startup_id` that
++    // `wait_for_spawn` looks for in a window's title or class, and the value of
++    // `DESKTOP_STARTUP_ID` / `XDG_ACTIVATION_TOKEN` for the child.
++    //
++    // No `_TIME<ms>` suffix: GDK takes the part after `_TIME` as an X11 server timestamp. A
++    // millisecond epoch (13 digits) truncated to 32 bits is a time Mutter's monotonic clock reads
++    // as weeks in the future; GTK then sends `_NET_ACTIVE_WINDOW` with it, Mutter stores it as the
++    // focus and user time, and the hand-over to the next window at close is refused as "too old"
++    // (`meta_display_timestamp_too_old`), which trips the `meta_window_unmanage` assertion and
++    // aborts the Shell (X11-FLASH-02i). A plain id keeps the uniqueness and the GTK3 parser fix of
++    // ccc84dd; the app then activates with CurrentTime, which Mutter resolves itself.
+     let ts_ms = std::time::SystemTime::now()
+         .duration_since(std::time::UNIX_EPOCH)
+         .unwrap_or_default()
+         .as_millis();
+-    let entry_key = format!("spawn-at-{}-{}_TIME{}", std::process::id(), ts_ms, ts_ms);
++    let entry_key = format!("spawn-at-{}-{}", std::process::id(), ts_ms);
+ 
+     let app_hint = spawn_args
+         .class
+@@ -1700,4 +1708,37 @@ mod tests {
+         let calls = disarmed_by_spawn(failing, false).await;
+         assert!(calls.is_empty(), "nothing was armed: {calls:?}");
+     }
++
++    /// X11-FLASH-02i. The entry key is the value of `DESKTOP_STARTUP_ID` and
++    /// `XDG_ACTIVATION_TOKEN` (both drivers copy it verbatim; `src/platform/linux/x11/mod.rs:57-58`
++    /// and `src/platform/linux/gnome/driver.rs:317-318`). GDK reads a `_TIME<ms>` suffix there as an
++    /// X11 server timestamp: a 13-digit epoch truncated to 32 bits is a time Mutter's monotonic
++    /// clock reads as weeks in the future, the app's `_NET_ACTIVE_WINDOW` stores it as the focus
++    /// time, and the focus hand-over when the window closes is refused as "too old", which aborts
++    /// the Shell in `meta_window_unmanage`. The key must carry no timestamp at all, so that the
++    /// child receives no startup/activation variable holding one.
++    #[tokio::test]
++    async fn test_the_launch_key_carries_no_x11_timestamp() {
++        let (batch, _warnings) = arm_with_wait_flags(None, None).await;
++        let key = batch.entries[0].key.clone();
++        assert!(key.starts_with("spawn-at-"), "plain spawn-at id: {key}");
++        assert!(
++            !key.contains("_TIME"),
++            "no X11 timestamp in the startup id: {key}"
++        );
++        let rest = key.strip_prefix("spawn-at-").expect("spawn-at- prefix");
++        let (pid, ts) = rest.split_once('-').expect("spawn-at-<pid>-<ms>");
++        assert!(pid.chars().all(|c| c.is_ascii_digit()), "pid: {pid}");
++        assert!(ts.chars().all(|c| c.is_ascii_digit()), "ms since epoch: {ts}");
++        // The two variables the child gets both carry this key; neither may hold a timestamp.
++        for (name, value) in [
++            ("DESKTOP_STARTUP_ID", key.as_str()),
++            ("XDG_ACTIVATION_TOKEN", key.as_str()),
++        ] {
++            assert!(
++                !value.contains("_TIME"),
++                "{name} carries no X11 timestamp: {value}"
++            );
++        }
++    }
+ }
+diff --git a/verify/apps/gtk4-x11-close-focused.toml b/verify/apps/gtk4-x11-close-focused.toml
+new file mode 100644
+index 0000000..f51bb11
+--- /dev/null
++++ b/verify/apps/gtk4-x11-close-focused.toml
+@@ -0,0 +1,41 @@
++# PROPOSAL (X11-FLASH-02i), release-gate sessions only. Do not add to CI: it needs a real GNOME
++# Wayland session with XWayland, the gnome-text-editor package, and Desktop Icons NG
++# (ding@rastersoft.com) enabled. A failing run aborts the Shell, so it must never run in the
++# private headless Shell or anywhere unattended.
++schema_version = 2
++id = "apps/gtk4-x11-close-focused"
++category = "apps"
++title = "Close a focused forced-X11 GTK4 window and keep the Shell alive"
++description = "Launches gnome-text-editor with GDK_BACKEND=x11 through `spawn-at spawn`, so its window is XWayland and is focused when closed (GNOME focuses a new window; the runner waits until `focused` is true). Then closes it gracefully and checks that the window is gone and that the Shell that spawned it is still the same process. With the startup id carrying a `_TIME<epoch ms>` suffix this aborts the Shell in `meta_window_unmanage` when DING is enabled (X11-FLASH-02i, docs/evidence/x11-flash-02/ding-crash.md); with the plain id it must survive. Attended only."
++kind = "both"
++required = false
++tags = ["needs-real-app", "moves-focus", "!headless-safe", "human-review"]
++
++[requires]
++backend = ["gnome"]
++
++# The setup step needs `command` + `env` (today's fixture-only steps take `args`); `${w}` is the
++# window id the setup records. The runner must wait for `focused` before the action runs.
++[[setup]]
++name = "w"
++command = "gnome-text-editor"
++args = ["--new-window"]
++env = { GDK_BACKEND = "x11" }
++
++[action]
++command = "close"
++args = ["--id", "${w}"]
++
++[expect]
++exit_code = 0
++stderr_absent = ["[spawn-at] ERROR:"]
++
++[[check]]
++window = "w"
++state = "gone"
++
++# The check the harness would need: the gnome-shell process that started the window is the same
++# before and after (pid and /proc/<pid>/stat start time). A crash has to fail the spec, not just
++# show up in the journal.
++[[check]]
++shell_alive = true

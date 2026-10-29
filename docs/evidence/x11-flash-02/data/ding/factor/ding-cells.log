@@ -1,0 +1,137 @@
+=== g1_geom_none 15:13:43 private shell 2896384 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2508768582,"pid":2896384,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2508768582]
+[g1_geom_none] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g1_geom_none] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g1_geom_none rc=1 15:13:49
+=== g2_geom_size 15:13:59 private shell 2897892 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+[g2_geom_size] run 1 focused=null close='' crashed=false ts0=true
+[g2_geom_size] run 2 focused=true close='spawn-at close' crashed=true ts0=true
+[g2_geom_size] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g2_geom_size rc=1 15:14:15
+=== g3_geom_anchor 15:14:22 private shell 2899460 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2827624890,"pid":2899460,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2827624890]
+[g3_geom_anchor] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g3_geom_anchor] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g3_geom_anchor rc=1 15:14:28
+=== g4_geom_both 15:14:35 private shell 2900946 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+[g4_geom_both] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g4_geom_both] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g4_geom_both rc=1 15:14:41
+=== g5_no_wait 15:15:00 private shell 2902511 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":3336342837,"pid":2902511,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3336342837]
+[g5_no_wait] run 1 focused=null close='' crashed=false ts0=true
+[g5_no_wait] run 2 focused=null close='' crashed=false ts0=true
+[g5_no_wait] run 3 focused=null close='' crashed=false ts0=true
+[g5_no_wait] run 4 focused=null close='' crashed=false ts0=true
+[g5_no_wait] run 5 focused=null close='' crashed=false ts0=true
+=== g5_no_wait rc=0 15:15:39
+=== g6_plain_armed_novars 15:15:46 private shell 2904614 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":3643697917,"pid":2904614,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3643697917]
+[g6_plain_armed_novars] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g6_plain_armed_novars] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g6_plain_armed_novars] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g6_plain_armed_novars] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g6_plain_armed_novars] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== g6_plain_armed_novars rc=0 15:16:53
+=== g5b_no_wait 15:17:04 private shell 2907692 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1193234617,"pid":2907692,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1193234617]
+[g5b_no_wait] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g5b_no_wait] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g5b_no_wait rc=1 15:17:14
+=== g7_plain_armed_vars 15:17:23 private shell 2909339 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":4209762635,"pid":2909339,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [4209762635]
+[g7_plain_armed_vars] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g7_plain_armed_vars] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g7_plain_armed_vars rc=1 15:17:33
+=== g8a_both_harmless_nosuffix 15:17:48 private shell 2911075 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2945865417]
+[g8a_both_harmless_nosuffix] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8a_both_harmless_nosuffix] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8a_both_harmless_nosuffix] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8a_both_harmless_nosuffix] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8a_both_harmless_nosuffix] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== g8a_both_harmless_nosuffix rc=0 15:18:29
+=== g8b_both_harmless_time123 15:18:35 private shell 2913390 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [722216443]
+[g8b_both_harmless_time123] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8b_both_harmless_time123] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8b_both_harmless_time123] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8b_both_harmless_time123] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8b_both_harmless_time123] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== g8b_both_harmless_time123 rc=0 15:19:16
+=== g8c_dsid_harmless_token_unset 15:19:27 private shell 2915730 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2217572317]
+[g8c_dsid_harmless_token_unset] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8c_dsid_harmless_token_unset] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8c_dsid_harmless_token_unset] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8c_dsid_harmless_token_unset] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8c_dsid_harmless_token_unset] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== g8c_dsid_harmless_token_unset rc=0 15:20:09
+=== g8d_token_harmless_dsid_unset 15:20:16 private shell 2918024 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3090850525]
+[g8d_token_harmless_dsid_unset] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8d_token_harmless_dsid_unset] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8d_token_harmless_dsid_unset] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8d_token_harmless_dsid_unset] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[g8d_token_harmless_dsid_unset] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== g8d_token_harmless_dsid_unset rc=0 15:20:57
+=== g8e_dsid_real_token_unset 15:21:08 private shell 2920411 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1770242010,"pid":2920411,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1770242010]
+[g8e_dsid_real_token_unset] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g8e_dsid_real_token_unset] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g8e_dsid_real_token_unset rc=1 15:21:16
+=== g8f_token_real_dsid_unset 15:21:23 private shell 2921881 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1633350184,"pid":2921881,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1633350184]
+[g8f_token_real_dsid_unset] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[g8f_token_real_dsid_unset] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== g8f_token_real_dsid_unset rc=1 15:21:31

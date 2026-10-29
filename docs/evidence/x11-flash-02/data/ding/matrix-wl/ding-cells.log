@@ -1,0 +1,77 @@
+=== m_wl_gnome-text-editor 15:33:49 private shell 2952339 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3712421647]
+[m_wl_gnome-text-editor] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-text-editor] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-text-editor] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-text-editor] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-text-editor] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_gnome-text-editor rc=0 15:34:30
+=== m_wl_eog 15:34:37 private shell 2954642 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1173156710]
+[m_wl_eog] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_eog] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_eog] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_eog] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_eog] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_eog rc=0 15:35:16
+=== m_wl_gnome-calculator 15:35:23 private shell 2956570 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [4000286264]
+[m_wl_gnome-calculator] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-calculator] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-calculator] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-calculator] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-calculator] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_gnome-calculator rc=0 15:36:05
+=== m_wl_nautilus 15:36:11 private shell 2958895 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":3285880750,"pid":2958895,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3285880750]
+[m_wl_nautilus] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_nautilus] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_nautilus] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_nautilus] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_nautilus] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_nautilus rc=0 15:37:13
+=== m_wl_gnome-terminal 15:37:23 private shell 2962375 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1043538775]
+[m_wl_gnome-terminal] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-terminal] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-terminal] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-terminal] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_gnome-terminal] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_gnome-terminal rc=0 15:38:03
+=== m_wl_google-chrome 15:38:09 private shell 2964842 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":755265805,"pid":2964842,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [755265805]
+[m_wl_google-chrome] run 1 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_google-chrome] run 2 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_google-chrome] run 3 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_google-chrome] run 4 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_google-chrome] run 5 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_google-chrome rc=0 15:38:51
+=== m_wl_qt-assistant 15:38:58 private shell 2968953 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2226793848,"pid":2968953,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2226793848]
+[m_wl_qt-assistant] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_qt-assistant] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_qt-assistant] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_qt-assistant] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_wl_qt-assistant] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_wl_qt-assistant rc=0 15:39:38

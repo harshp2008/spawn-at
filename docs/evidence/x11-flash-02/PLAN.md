@@ -152,3 +152,47 @@ loaded. Do not start gnome-text-editor or any forced GTK app on the live session
   measurement; the offline rule evaluation; per-app matrices once the batches run. The existing
   6.38 (hypothesis table), 6.40 (startup-id) and 6.41 (bisect) and the Known shortcomings entry
   need an update that points at DING; not done in this prompt (no site pages here).
+
+## Update after X11-FLASH-02i (mechanism, exposure map, activation-env patch)
+
+- **H7 is final**: DING is necessary and sufficient *together with an app that turns the startup
+  time into its focus time*. The mechanism is measured, not just a hypothesis: spawn-at's
+  `_TIME<epoch_ms>` suffix reaches GDK as an X11 timestamp, is truncated to 32 bits
+  (`1793266852988 -> 2265490556`), lands in `_NET_WM_USER_TIME` and `_NET_ACTIVE_WINDOW`, and is
+  16.7 days in the future on Mutter's monotonic clock. Mutter accepts it, and at the close refuses
+  the focus hand-over to DING's desktop window as "too old"; the fallback `unset_input_focus` is
+  refused by the same check; `meta_window_unmanage` asserts. Full detail: `ding-crash.md`.
+- The launch path is **not** needed: a plain launch with the real variables crashes (the earlier
+  `h7` plain cells 17/18/19 used `_TIME3`, a past time, so they did not test it; cell 7 changed
+  only one of the two variables). Size, anchor, `--no-wait`, the armed registration: irrelevant.
+  With a harmless value (or no `_TIME`) the same cells are clean.
+- **Exposure map** (DING loaded): `gnome-text-editor` X11 crashes (with and without
+  `--new-window`); eog, gnome-calculator, gnome-terminal, Chrome, Qt, Java Swing are clean on X11;
+  everything tested is clean on native Wayland. nautilus (D-Bus service window), VS Code (no
+  window), xterm (pty refused to the agent) and Firefox (snap refuses the private runtime dir) are
+  not measured here.
+- **Candidate fix** (patch only, not applied): drop the `_TIME<ms>` suffix, keep the unique id.
+  `proposed-fix-activation-env.patch`; tested in a throwaway worktree inside `psh`: the crashing
+  cell 5 of 5 clean, matching still works (all claimed), GTK3 eog clean, 521 crate tests pass.
+  Upstream is also at fault (no future-time sanity check; the `unset_input_focus` fallback cannot
+  work); draft in `upstream-report-draft.md`, bug report in `product-bug-activation-env.md`.
+- Migration note: `src/`, `crates/` and the existing tests are unchanged in the tree; only
+  `docs/evidence/x11-flash-02/tools/` (the standalone measurement tool) gained the cell options and
+  the Qt/Swing/editor app definitions, and `docs/evidence/x11-flash-02/` gained the new files.
+- Site pages still owed (numbers 6.42 and up), revised list:
+  1. **the DING crash mechanism and the factor table** (`ding-crash.md`) — the H7 follow-up page;
+  2. **the exposure map** (which apps crash, which do not);
+  3. **the activation-env bug, the patch and its verification** (`product-bug-activation-env.md`,
+     `upstream-report-draft.md`);
+  4. the live inventory and the H7 replica (already owed from 02h);
+  5. the per-app matrices from 02i-b if they exist (private Shell, no DING; do not duplicate);
+  6. the earlier-listed pages: tool inventory, pixel-capture failure, observer and clock
+     correlation, xterm measurement, offline rule evaluation.
+  Rewrites: **6.38** (hypothesis table: H2/H6/H7 and the startup-id lead corrected), **6.40**
+  (startup-id audit: the `_TIME` value is the trigger, with the truncation arithmetic), **6.41**
+  (bisect: why 69 runs without DING were clean, and that the plain cells were confounded), and the
+  **Known shortcomings** entry (the crash is a confirmed, mechanism-known bug with a workaround and
+  a candidate fix). None written in this prompt (no site pages here).
+- Gate note: the branch now also touches only `docs/`; the tool project under
+  `docs/evidence/x11-flash-02/tools/` is still standalone (empty `[workspace]`, not picked up).
+

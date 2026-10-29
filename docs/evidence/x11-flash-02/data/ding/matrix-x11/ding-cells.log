@@ -1,0 +1,130 @@
+=== m_x11_eog 15:23:10 private shell 2925581 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1052597896,"pid":2925581,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1052597896]
+[m_x11_eog] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_eog] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_eog] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_eog] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_eog] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_x11_eog rc=0 15:23:50
+=== m_x11_gnome-calculator 15:23:57 private shell 2927672 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3652356663]
+[m_x11_gnome-calculator] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_gnome-calculator] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_gnome-calculator] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_gnome-calculator] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_gnome-calculator] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== m_x11_gnome-calculator rc=0 15:24:38
+=== m_x11_nautilus 15:24:45 private shell 2929954 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1959105139,"pid":2929954,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1959105139]
+[m_x11_nautilus] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_nautilus] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_nautilus] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_nautilus] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[m_x11_nautilus] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== m_x11_nautilus rc=0 15:25:46
+=== m_x11_gnome-terminal 15:26:51 private shell 2934260 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3840412525]
+[m_x11_gnome-terminal] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_gnome-terminal] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_gnome-terminal] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_gnome-terminal] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_gnome-terminal] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_x11_gnome-terminal rc=0 15:27:30
+=== m_x11_google-chrome 15:27:37 private shell 2936325 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2088423414]
+[m_x11_google-chrome] run 1 focused=null close='' crashed=false ts0=false
+[m_x11_google-chrome] run 2 focused=null close='' crashed=false ts0=false
+[m_x11_google-chrome] run 3 focused=null close='' crashed=false ts0=false
+[m_x11_google-chrome] run 4 focused=null close='' crashed=false ts0=false
+[m_x11_google-chrome] run 5 focused=null close='' crashed=false ts0=false
+=== m_x11_google-chrome rc=0 15:28:34
+=== m_x11_xterm 15:28:41 private shell 2938808 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":68501600,"pid":2938808,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [68501600]
+[m_x11_xterm] run 1 focused=null close='' crashed=false ts0=false
+[m_x11_xterm] run 2 focused=null close='' crashed=false ts0=false
+[m_x11_xterm] run 3 focused=null close='' crashed=false ts0=false
+[m_x11_xterm] run 4 focused=null close='' crashed=false ts0=false
+[m_x11_xterm] run 5 focused=null close='' crashed=false ts0=false
+=== m_x11_xterm rc=0 15:29:39
+=== m_x11_java-swing 15:29:46 private shell 2940696 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2754460596,"pid":2940696,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2754460596]
+[m_x11_java-swing] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_java-swing] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_java-swing] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_java-swing] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_java-swing] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_x11_java-swing rc=0 15:30:45
+=== m_x11_google-chrome 15:31:35 private shell 2944561 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2232364451,"pid":2944561,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2232364451]
+[m_x11_google-chrome] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_google-chrome] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_google-chrome] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_google-chrome] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_google-chrome] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_x11_google-chrome rc=0 15:32:16
+=== m_x11_code 15:32:23 private shell 2948236 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":3132691381,"pid":2948236,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3132691381]
+[m_x11_code] run 1 focused=null close='' crashed=false ts0=false
+[m_x11_code] run 2 focused=null close='' crashed=false ts0=false
+[m_x11_code] run 3 focused=null close='' crashed=false ts0=false
+[m_x11_code] run 4 focused=null close='' crashed=false ts0=false
+[m_x11_code] run 5 focused=null close='' crashed=false ts0=false
+=== m_x11_code rc=0 15:33:21
+=== m_x11_qt-assistant 15:39:49 private shell 2971255 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2697509221,"pid":2971255,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2697509221]
+[m_x11_qt-assistant] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_qt-assistant] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_qt-assistant] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_qt-assistant] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[m_x11_qt-assistant] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== m_x11_qt-assistant rc=0 15:40:28
+=== m_x11_firefox 15:40:35 private shell 2973568 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2703757744,"pid":2973568,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2703757744]
+[m_x11_firefox] run 1 focused=null close='' crashed=false ts0=false
+[m_x11_firefox] run 2 focused=null close='' crashed=false ts0=false
+[m_x11_firefox] run 3 focused=null close='' crashed=false ts0=false
+[m_x11_firefox] run 4 focused=null close='' crashed=false ts0=false
+[m_x11_firefox] run 5 focused=null close='' crashed=false ts0=false
+=== m_x11_firefox rc=0 15:41:33
+=== m_x11_editor_nowindow 15:42:10 private shell 2977512 env=none spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":197857040,"pid":2977512,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [197857040]
+[m_x11_editor_nowindow] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[m_x11_editor_nowindow] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== m_x11_editor_nowindow rc=1 15:42:18

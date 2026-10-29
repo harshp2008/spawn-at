@@ -1,0 +1,102 @@
+libmutter-Message: 15:26:49.649: Running GNOME Shell (using mutter 46.2) as a Wayland display server
+libmutter-Message: 15:26:49.649: Enabling experimental feature 'scale-monitor-framebuffer'
+libEGL warning: failed to open /dev/dri/renderD128: Permission denied
+
+libEGL warning: failed to open /dev/dri/renderD128: Permission denied
+
+libEGL warning: failed to open /dev/dri/card1: Permission denied
+
+libmutter-Message: 15:26:49.687: Made thread 'KMS thread' realtime scheduled
+libmutter-Message: 15:26:49.703: Created surfaceless renderer without GPU
+libmutter-Message: 15:26:49.724: Added virtual monitor Meta-0
+libmutter-Message: 15:26:49.746: Using public X11 display :2, (using :3 for managed services)
+libmutter-Message: 15:26:49.746: Using Wayland display name 'xflash-wl'
+Window manager warning: Failed to set environment variable GNOME_SETUP_DISPLAY for gnome-session: GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: Name "org.gnome.SessionManager" does not exist
+Window manager warning: Failed to set environment variable DISPLAY for gnome-session: GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: Name "org.gnome.SessionManager" does not exist
+Window manager warning: Failed to set environment variable XAUTHORITY for gnome-session: GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: Name "org.gnome.SessionManager" does not exist
+Window manager warning: Failed to set environment variable WAYLAND_DISPLAY for gnome-session: GDBus.Error:org.freedesktop.DBus.Error.NameHasNoOwner: Name "org.gnome.SessionManager" does not exist
+GNOME Shell-Message: 15:26:50.006: Unset XDG_SESSION_ID, getCurrentSessionProxy() called outside a user session. Asking logind directly.
+GNOME Shell-Message: 15:26:50.006: Will monitor session 2717
+
+** (gnome-shell:2934260): WARNING **: 15:26:50.109: Could not issue 'GetUnit' systemd call
+
+(gnome-shell:2934260): Gjs-WARNING **: 15:26:50.121: Gio.UnixInputStream has been moved to a separate platform-specific library. Please update your code to use GioUnix.InputStream instead.
+0 inhibit() ["resource:///org/gnome/shell/misc/loginManager.js":209:8]
+1 InterpretGeneratorResume() ["self-hosted":1461:33]
+2 AsyncFunctionNext() ["self-hosted":852:26]
+3 anonymous() ["resource:///org/gnome/shell/ui/init.js":21:19]
+
+GNOME Shell-Message: 15:26:50.149: Error looking up permission: GDBus.Error:org.freedesktop.portal.Error.NotFound: No entry for geolocation
+/usr/share/ibus-table/engine/main.py:232: DeprecationWarning: Testing an element's truth value will raise an exception in future versions.  Use specific 'len(elem)' or 'elem is not None' test instead.
+  if element:
+GNOME Shell-Message: 15:26:50.326: Failed to register AuthenticationAgent
+** Message: 15:26:50.376: Failed to start camera monitor
+GNOME Shell-Message: 15:26:50.960: GNOME Shell started at Thu Oct 29 2026 15:26:50 GMT+0530 (India Standard Time)
+GNOME Shell-Message: 15:26:50.960: Registering session with GDM
+GNOME Shell-Message: 15:26:51.141: Launching DING process
+DING: Detected async api for thumbnails
+DING: (gjs:2934601): Gjs-WARNING **: 15:26:51.378: GLib.unix_signal_add has been moved to a separate platform-specific library. Please update your code to use GLibUnix.signal_add instead.
+DING: 0 DesktopManager() ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/desktopManager.js":264:12]
+DING: 1 anonymous() ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js":180:25]
+DING: 2 anonymous() ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js":197:20]
+DING: 3 <TOP LEVEL> ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js":206:12]
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: GFileInfo created without standard::is-hidden
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: file ../../../gio/gfileinfo.c: line 1632 (g_file_info_get_is_hidden): should not be reached
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: GFileInfo created without standard::is-backup
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: file ../../../gio/gfileinfo.c: line 1654 (g_file_info_get_is_backup): should not be reached
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: GFileInfo created without standard::is-symlink
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.398: file ../../../gio/gfileinfo.c: line 1676 (g_file_info_get_is_symlink): should not be reached
+DING: ** Message: 15:26:51.441: Connecting to org.freedesktop.Tracker3.Miner.Files
+DING: GNOME nautilus 46.4
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: GFileInfo created without standard::is-hidden
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: file ../../../gio/gfileinfo.c: line 1632 (g_file_info_get_is_hidden): should not be reached
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: GFileInfo created without standard::is-backup
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: file ../../../gio/gfileinfo.c: line 1654 (g_file_info_get_is_backup): should not be reached
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: GFileInfo created without standard::is-symlink
+DING: (gjs:2934601): GLib-GIO-CRITICAL **: 15:26:51.449: file ../../../gio/gfileinfo.c: line 1676 (g_file_info_get_is_symlink): should not be reached
+DING: DBus interface for Nautilus (org.gnome.Nautilus.FileOperations2) is now available.
+DING: DBus interface for Nautilus (org.freedesktop.FileManager1) is now available.
+DING: DBus interface for Gvfs daemon (org.gtk.vfs.Metadata) is now available.
+DING: DBus interface for Switcheroo control (net.hadess.SwitcherooControl) is now available.
+GNOME Shell-Message: 15:26:51.574: Received notification for window. 0 notifications remaining.
+libEGL warning: failed to open /dev/dri/renderD128: Permission denied
+
+libEGL warning: failed to open /dev/dri/renderD128: Permission denied
+
+libEGL warning: failed to open /dev/dri/card1: Permission denied
+
+Failed to initialize glamor, falling back to sw
+libEGL warning: failed to open /dev/dri/card1: Permission denied
+
+libEGL warning: failed to open /dev/dri/card1: Permission denied
+
+libEGL warning: failed to open /dev/dri/card1: Permission denied
+
+The XKEYBOARD keymap compiler (xkbcomp) reports:
+> Warning:          Could not resolve keysym XF86CameraAccessEnable
+> Warning:          Could not resolve keysym XF86CameraAccessDisable
+> Warning:          Could not resolve keysym XF86CameraAccessToggle
+> Warning:          Could not resolve keysym XF86NextElement
+> Warning:          Could not resolve keysym XF86PreviousElement
+> Warning:          Could not resolve keysym XF86AutopilotEngageToggle
+> Warning:          Could not resolve keysym XF86MarkWaypoint
+> Warning:          Could not resolve keysym XF86Sos
+> Warning:          Could not resolve keysym XF86NavChart
+> Warning:          Could not resolve keysym XF86FishingChart
+> Warning:          Could not resolve keysym XF86SingleRangeRadar
+> Warning:          Could not resolve keysym XF86DualRangeRadar
+> Warning:          Could not resolve keysym XF86RadarOverlay
+> Warning:          Could not resolve keysym XF86TraditionalSonar
+> Warning:          Could not resolve keysym XF86ClearvuSonar
+> Warning:          Could not resolve keysym XF86SidevuSonar
+> Warning:          Could not resolve keysym XF86NavInfo
+Errors from xkbcomp are not fatal to the X server
+
+** (gnome-shell:2934260): WARNING **: 15:26:53.519: Could not issue 'GetUnit' systemd call
+libEGL warning: DRI3 error: Could not get DRI3 device
+libEGL warning: Ensure your X server supports DRI3 to get accelerated rendering
+Window manager warning: Tried to ping window W1 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W2 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W3 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W4 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W5 with a bad serial! Not allowed.

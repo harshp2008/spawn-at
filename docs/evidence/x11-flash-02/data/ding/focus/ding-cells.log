@@ -1,0 +1,41 @@
+=== f1_debug_focus 15:08:13 private shell 2888811 env=none
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+xflash cell: No such file or directory (os error 2)
+=== f1_debug_focus rc=1 15:08:13
+=== f1_debug_focus 15:10:52 private shell 2891013 env=export MUTTER_DEBUG=focus,startup,ping spawn-at=<repo>/target/debug/spawn-at
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+[f1_debug_focus] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[f1_debug_focus] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== f1_debug_focus rc=1 15:10:58
+=== f2_debug_plain_vars 15:11:55 private shell 2892753 env=export MUTTER_DEBUG=focus,startup,ping spawn-at=<repo>/target/debug/spawn-at
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[spawn-at] INFO: extension is older than the CLI expects (protocol 0, need 5): MON and STATE are unavailable; run `spawn-at install` and log out and back in
+[spawn-at] ERROR: IPC Error: org.freedesktop.DBus.Error.UnknownMethod: Object does not exist at path “/org/gnome/Shell/Extensions/SpawnAt”
+[f2_debug_plain_vars] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[f2_debug_plain_vars] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== f2_debug_plain_vars rc=1 15:12:00
+=== f3_debug_plain_vars_noding 15:12:33 private shell 2894529 env=export MUTTER_DEBUG=focus,startup,ping spawn-at=<repo>/target/debug/spawn-at ding=0
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local']
+[]
+[f3_debug_plain_vars_noding] run 1 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+=== f3_debug_plain_vars_noding rc=0 15:12:46
+=== f4_debug_harmless_time123 15:21:57 private shell 2923504 env=export MUTTER_DEBUG=focus,startup,ping spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":1187967775,"pid":2923504,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [1187967775]
+[f4_debug_harmless_time123] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== f4_debug_harmless_time123 rc=0 15:22:08
+=== f5_debug_calc_x11 15:26:20 private shell 2932646 env=export MUTTER_DEBUG=focus,startup,ping spawn-at=<repo>/target/debug/spawn-at ding=1
+60b873160dbf1c68b45fdb9bcf020ea42bc68b26296c7d21418cc2e336b6711a  <repo>/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":4192896091,"pid":2932646,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [4192896091]
+[f5_debug_calc_x11] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== f5_debug_calc_x11 rc=0 15:26:31
