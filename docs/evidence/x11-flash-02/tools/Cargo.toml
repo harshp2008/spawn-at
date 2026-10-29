@@ -1,0 +1,18 @@
+[package]
+name = "xflash"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Measurement tools for TEST_LOG 6.38 to 6.42: an X-side observer, a run driver and an analyser. Not part of the spawn-at workspace."
+
+# An empty workspace table makes this directory its own workspace root, so cargo does not treat
+# it as a member of the repository's workspace. CI never builds it (it builds named packages).
+[workspace]
+
+[dependencies]
+x11rb = { version = "0.14", features = ["damage"] }
+libc = "0.2"
+
+[[bin]]
+name = "xflash"
+path = "src/main.rs"
