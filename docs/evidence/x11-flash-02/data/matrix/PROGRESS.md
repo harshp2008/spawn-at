@@ -25,3 +25,5 @@ batch of this run.
 | 17:28 | google-chrome loaded 40 of 40 runs ok, no crash; live pid unchanged |
 | 17:34 | qt-assistant idle 50 of 50 runs ok, no crash; live pid unchanged |
 | 17:41 | qt-assistant loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 17:49 | java-swing idle 40 of 40 runs ok, no crash; live pid unchanged |
+| 17:59 | java-swing loaded 40 of 40 runs ok, no crash; live pid unchanged |

@@ -165,3 +165,19 @@ plus 10 native Wayland controls (5 per size), then 20 runs per size loaded.
 | qt-assistant | idle | small | 5 | 0 | 12.4 / 14.1 | 5x reached:at-target | 5 |
 
 Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
+
+## java-swing (Swing, AWT X11)
+
+Private headless Shell, DING not loaded. X11 only (AWT X11); 20 runs per size idle, then 20 runs
+per size loaded. No native Wayland control exists for this toolkit.
+
+### X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: |
+| java-swing | idle | large | 20 | 20 | 0 | 14 | 20 | 0 | 20 | 31.8 / 46.8 | 7.7 |
+| java-swing | idle | small | 20 | 20 | 0 | 0 | 17 | 0 | 17 | 31.7 / 38.1 | 7.9 |
+| java-swing | loaded | large | 20 | 20 | 0 | 6 | 3 | 0 | 6 | -7.4 / 23.8 | 61.6 |
+| java-swing | loaded | small | 20 | 20 | 0 | 0 | 0 | 0 | 0 | -45.3 / -4.3 | 67.9 |
+
+Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
