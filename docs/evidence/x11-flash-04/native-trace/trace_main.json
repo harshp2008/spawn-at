@@ -1,0 +1,503 @@
+{
+ "fast": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_SAMPLE source=size-changed frame=(800x600) last=(400x300)",
+   "COMMIT_RESOLVED reason=AT_TARGET finalFrame=(800x600) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=reached elapsed_ms=20.0 waited_ms=20 reason=at-target finalFrame=(800x600) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(800x600)",
+   "APPLY_ANCHOR eff=(800x600) bounds=(0,40,1920x1040) final=(1104,464)",
+   "POSITION_SET preFrame=(50,90,800x600) postFrame=(1104,464,800x600) bufferRect=(1104,464,800x600) actor=(undefined,undefined) delta=(1054,374)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(800x600) actual=(800x600) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1104,464,800x600) bufferRect=(1104,464,800x600)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "reached",
+    800,
+    600,
+    20,
+    "at-target"
+   ]
+  },
+  "frame": {
+   "x": 1104,
+   "y": 464,
+   "width": 800,
+   "height": 600
+  },
+  "elapsed": 70
+ },
+ "slow": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_SAMPLE source=size-changed frame=(800x600) last=(400x300)",
+   "COMMIT_RESOLVED reason=AT_TARGET finalFrame=(800x600) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=reached elapsed_ms=220.0 waited_ms=220 reason=at-target finalFrame=(800x600) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(800x600)",
+   "APPLY_ANCHOR eff=(800x600) bounds=(0,40,1920x1040) final=(1104,464)",
+   "POSITION_SET preFrame=(50,90,800x600) postFrame=(1104,464,800x600) bufferRect=(1104,464,800x600) actor=(undefined,undefined) delta=(1054,374)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(800x600) actual=(800x600) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1104,464,800x600) bufferRect=(1104,464,800x600)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "reached",
+    800,
+    600,
+    220,
+    "at-target"
+   ]
+  },
+  "frame": {
+   "x": 1104,
+   "y": 464,
+   "width": 800,
+   "height": 600
+  },
+  "elapsed": 270
+ },
+ "refusing": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_RESOLVED reason=TIMEOUT_NO_CHANGE finalFrame=(400x300) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=timed-out elapsed_ms=250.0 waited_ms=250 reason=cap finalFrame=(400x300) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "timed-out",
+    400,
+    300,
+    250,
+    "cap"
+   ]
+  },
+  "frame": {
+   "x": 1504,
+   "y": 764,
+   "width": 400,
+   "height": 300
+  },
+  "elapsed": 300
+ },
+ "adjusted": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_SAMPLE source=size-changed frame=(494x292) last=(400x300)",
+   "COMMIT_RESOLVED reason=SIZE_SETTLED finalFrame=(494x292) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=adjusted elapsed_ms=70.0 waited_ms=70 reason=quiet finalFrame=(494x292) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(494x292)",
+   "APPLY_ANCHOR eff=(494x292) bounds=(0,40,1920x1040) final=(1410,772)",
+   "POSITION_SET preFrame=(50,90,494x292) postFrame=(1410,772,494x292) bufferRect=(1410,772,494x292) actor=(undefined,undefined) delta=(1360,682)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(494x292) actual=(494x292) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1410,772,494x292) bufferRect=(1410,772,494x292)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "adjusted",
+    494,
+    292,
+    70,
+    "quiet"
+   ]
+  },
+  "frame": {
+   "x": 1410,
+   "y": 772,
+   "width": 494,
+   "height": 292
+  },
+  "elapsed": 120
+ },
+ "restless": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(400x300)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(505x400) last=(506x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(504x400) last=(505x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(503x400) last=(504x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(502x400) last=(503x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(501x400) last=(502x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(500x400) last=(501x400)",
+   "COMMIT_SAMPLE source=size-changed frame=(506x400) last=(500x400)",
+   "COMMIT_RESOLVED reason=HARD_CAP finalFrame=(506x400) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=timed-out elapsed_ms=1500.0 waited_ms=1500 reason=hard finalFrame=(506x400) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(506x400)",
+   "APPLY_ANCHOR eff=(506x400) bounds=(0,40,1920x1040) final=(1398,664)",
+   "POSITION_SET preFrame=(50,90,506x400) postFrame=(1398,664,506x400) bufferRect=(1398,664,506x400) actor=(undefined,undefined) delta=(1348,574)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(506x400) actual=(506x400) needsReanchor=false",
+   "LATE_RESIZE_CORRECTED positioned=(506x400) actual=(503x400)",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(503x400)",
+   "APPLY_ANCHOR eff=(503x400) bounds=(0,40,1920x1040) final=(1401,664)",
+   "LATE_RESIZE_CORRECTED positioned=(503x400) actual=(501x400)",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(501x400)",
+   "APPLY_ANCHOR eff=(501x400) bounds=(0,40,1920x1040) final=(1403,664)",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1403,664,501x400) bufferRect=(1403,664,501x400)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "timed-out",
+    506,
+    400,
+    1500,
+    "hard"
+   ]
+  },
+  "frame": {
+   "x": 1403,
+   "y": 664,
+   "width": 501,
+   "height": 400
+  },
+  "elapsed": 1600
+ },
+ "nosize": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=legacy kind=NativeWayland why=no-size-request timeoutMs=300",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_RESOLVED reason=TIMEOUT_NO_CHANGE finalFrame=(400x300) target=(nullxnull) safe=(nullxnull)",
+   "READY_WAIT_RESOLVED strategy=legacy outcome=none elapsed_ms=300.0 reason=TIMEOUT_NO_CHANGE",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(nullxnull) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "SpawnClaimed"
+  ],
+  "frame": {
+   "x": 1504,
+   "y": 764,
+   "width": 400,
+   "height": 300
+  },
+  "elapsed": 350
+ },
+ "notresizable": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_RESOLVED reason=SKIPPED finalFrame=(400x300) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=skipped elapsed_ms=0.0 waited_ms=0 reason=not-resizable finalFrame=(400x300) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "skipped",
+    400,
+    300,
+    0,
+    "not-resizable"
+   ]
+  },
+  "frame": {
+   "x": 1504,
+   "y": 764,
+   "width": 400,
+   "height": 300
+  },
+  "elapsed": 50
+ },
+ "fullscreen": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=250 quiet=30 hard=1500",
+   "COMMIT_RESOLVED reason=SKIPPED finalFrame=(400x300) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=skipped elapsed_ms=0.0 waited_ms=0 reason=fullscreen finalFrame=(400x300) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "skipped",
+    400,
+    300,
+    0,
+    "fullscreen"
+   ]
+  },
+  "frame": {
+   "x": 1504,
+   "y": 764,
+   "width": 400,
+   "height": 300
+  },
+  "elapsed": 50
+ },
+ "overlegacy": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_OVERRIDE strategy=legacy cap_ms=60 unused=cap_ms(legacy-has-no-cap) ignored=none",
+   "READY_WAIT_START strategy=legacy kind=NativeWayland why=override-legacy timeoutMs=300",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_RESOLVED reason=TIMEOUT_NO_CHANGE finalFrame=(400x300) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=legacy outcome=none elapsed_ms=300.0 reason=TIMEOUT_NO_CHANGE",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "SpawnClaimed"
+  ],
+  "frame": {
+   "x": 1504,
+   "y": 764,
+   "width": 400,
+   "height": 300
+  },
+  "elapsed": 350
+ },
+ "overcap": {
+  "logs": [
+   "BATCH_STEP inst=Cloak",
+   "BATCH_STEP inst=SetSize",
+   "SET_SIZE_REQUEST requestedSize=(800x600) clampedSafeSize=(800x600) reportedMinSize=(0x0) preFrame=(50,90,400x300) bufferRect=(50,90,400x300)",
+   "BATCH_STEP inst=WaitForCommit",
+   "READY_WAIT_OVERRIDE strategy=none cap_ms=60 unused=none ignored=none",
+   "READY_WAIT_START strategy=ready-wait kind=NativeWayland target=(800x600) current=(400x300) cap=60 quiet=30 hard=1500",
+   "COMMIT_SAMPLE source=initial frame=(400x300) last=(400x300)",
+   "COMMIT_RESOLVED reason=TIMEOUT_NO_CHANGE finalFrame=(400x300) target=(800x600) safe=(800x600)",
+   "READY_WAIT_RESOLVED strategy=ready-wait outcome=timed-out elapsed_ms=60.0 waited_ms=60 reason=cap finalFrame=(400x300) target=(800x600)",
+   "BATCH_STEP inst=SetPositionAnchored",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(400x300)",
+   "APPLY_ANCHOR eff=(400x300) bounds=(0,40,1920x1040) final=(1504,764)",
+   "POSITION_SET preFrame=(50,90,400x300) postFrame=(1504,764,400x300) bufferRect=(1504,764,400x300) actor=(undefined,undefined) delta=(1454,674)",
+   "BATCH_STEP inst=Uncloak",
+   "UNCLOAK_4A delay=0ms (skipped)",
+   "UNCLOAK_4B wantWake=true clamped=false isVte=false",
+   "UNCLOAK_4C positioned=(400x300) actual=(400x300) needsReanchor=false",
+   "LATE_RESIZE_CORRECTED positioned=(400x300) actual=(800x600)",
+   "FALLBACK_USED reason=\"min size unreported\" usingFrame=(800x600)",
+   "APPLY_ANCHOR eff=(800x600) bounds=(0,40,1920x1040) final=(1104,464)",
+   "UNCLOAK_4D_REVEAL requestedSize=(800x600) postFrame=(1104,464,800x600) bufferRect=(1104,464,800x600)",
+   "ANCHOR_ARMED "
+  ],
+  "names": [
+   "ResizeOutcome",
+   "SpawnClaimed"
+  ],
+  "outcome": {
+   "format": "(ssuuus)",
+   "value": [
+    "tgt-1",
+    "timed-out",
+    400,
+    300,
+    60,
+    "cap"
+   ]
+  },
+  "frame": {
+   "x": 1104,
+   "y": 464,
+   "width": 800,
+   "height": 600
+  },
+  "elapsed": 160
+ }
+}

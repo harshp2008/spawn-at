@@ -1,0 +1,175 @@
+=== 00:26:35 cell bef-sent1: eog --sizes 1100x760,1100x760 --reps 5 --seed 301
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-sent1/probe/probe.jsonl: No such file
+[1/10] eog x11 1100x760 win=Some(699228221) status=ok
+[2/10] eog x11 1100x760 win=Some(699228222) status=ok
+[3/10] eog x11 1100x760 win=Some(699228223) status=ok
+[4/10] eog x11 1100x760 win=Some(699228224) status=ok
+[5/10] eog x11 1100x760 win=Some(699228225) status=ok
+[6/10] eog x11 1100x760 win=Some(699228226) status=ok
+[7/10] eog x11 1100x760 win=Some(699228227) status=ok
+[8/10] eog x11 1100x760 win=Some(699228228) status=ok
+[9/10] eog x11 1100x760 win=Some(699228229) status=ok
+[10/10] eog x11 1100x760 win=Some(699228230) status=ok
+runs done in this invocation: 10
+collected: 872 lines, 294 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-sent1/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 5 | 5 | 5 | 5 | 5 | 1.0 / 1 | 11.4 / 11.9 | 68.2% | 11.4 / 11.9 | 5 | 2 | 0 | 12.4 |
+| eog / x11 / idle / small | 5 | 5 | 3 | 3 | 3 | 1.0 / 1 | 9.8 / 13.3 | 58.9% | 9.8 / 13.3 | 4 | 1 | 0 | 10.5 |
+=== 00:27:59 cell bef-cap-eog-600-1100: eog --sizes 600x420,1100x760 --reps 20 --seed 311
+[22/40] eog x11 1100x760 win=Some(699228252) status=ok
+[23/40] eog x11 1100x760 win=Some(699228253) status=ok
+[24/40] eog x11 600x420 win=Some(699228254) status=ok
+[25/40] eog x11 600x420 win=Some(699228255) status=ok
+[26/40] eog x11 600x420 win=Some(699228256) status=ok
+[27/40] eog x11 600x420 win=Some(699228257) status=ok
+[28/40] eog x11 600x420 win=Some(699228258) status=ok
+[29/40] eog x11 1100x760 win=Some(699228259) status=ok
+[30/40] eog x11 1100x760 win=Some(699228260) status=ok
+[31/40] eog x11 1100x760 win=Some(699228261) status=ok
+[32/40] eog x11 600x420 win=Some(699228262) status=ok
+[33/40] eog x11 1100x760 win=Some(699228263) status=ok
+[34/40] eog x11 600x420 win=Some(699228264) status=ok
+[35/40] eog x11 1100x760 win=Some(699228265) status=ok
+[36/40] eog x11 1100x760 win=Some(699228266) status=ok
+[37/40] eog x11 600x420 win=Some(699228267) status=ok
+[38/40] eog x11 600x420 win=Some(699228268) status=ok
+[39/40] eog x11 600x420 win=Some(699228269) status=ok
+[40/40] eog x11 600x420 win=Some(699228270) status=ok
+runs done in this invocation: 40
+collected: 4484 lines, 1392 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-eog-600-1100/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 20 | 20 | 16 | 16 | 16 | 1.0 / 1 | 12.0 / 14.4 | 72.0% | 12.0 / 14.4 | 17 | 5 | 0 | 13.1 |
+| eog / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 1 | 1 | 0 | 6.6 |
+=== 00:32:47 cell bef-cap-eog-1700: eog --sizes 1700x1000,1700x1000 --reps 10 --seed 312
+[2/20] eog x11 1700x1000 win=Some(699228272) status=ok
+[3/20] eog x11 1700x1000 win=Some(699228273) status=ok
+[4/20] eog x11 1700x1000 win=Some(699228274) status=ok
+[5/20] eog x11 1700x1000 win=Some(699228275) status=ok
+[6/20] eog x11 1700x1000 win=Some(699228276) status=ok
+[7/20] eog x11 1700x1000 win=Some(699228277) status=ok
+[8/20] eog x11 1700x1000 win=Some(699228278) status=ok
+[9/20] eog x11 1700x1000 win=Some(699228279) status=ok
+[10/20] eog x11 1700x1000 win=Some(699228280) status=ok
+[11/20] eog x11 1700x1000 win=Some(699228281) status=ok
+[12/20] eog x11 1700x1000 win=Some(699228282) status=ok
+[13/20] eog x11 1700x1000 win=Some(699228283) status=ok
+[14/20] eog x11 1700x1000 win=Some(699228284) status=ok
+[15/20] eog x11 1700x1000 win=Some(699228285) status=ok
+[16/20] eog x11 1700x1000 win=Some(699228286) status=ok
+[17/20] eog x11 1700x1000 win=Some(699228287) status=ok
+[18/20] eog x11 1700x1000 win=Some(699228288) status=ok
+[19/20] eog x11 1700x1000 win=Some(699228289) status=ok
+[20/20] eog x11 1700x1000 win=Some(699228290) status=ok
+runs done in this invocation: 20
+collected: 1297 lines, 409 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-eog-1700/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 10 | 10 | 9 | 9 | 9 | 1.0 / 1 | 18.8 / 31.1 | 100.0% | 18.8 / 31.1 | 8 | 7 | 0 | 19.4 |
+| eog / x11 / idle / small | 10 | 10 | 8 | 8 | 8 | 1.0 / 1 | 17.8 / 45.6 | 100.0% | 17.8 / 45.6 | 7 | 8 | 0 | 19.1 |
+=== 00:35:35 cell bef-cap-editor: gnome-text-editor --reps 20 --seed 313
+[22/40] gnome-text-editor x11 1100x760 win=Some(699228312) status=ok
+[23/40] gnome-text-editor x11 1100x760 win=Some(699228313) status=ok
+[24/40] gnome-text-editor x11 640x420 win=Some(699228314) status=ok
+[25/40] gnome-text-editor x11 640x420 win=Some(699228315) status=ok
+[26/40] gnome-text-editor x11 640x420 win=Some(699228316) status=ok
+[27/40] gnome-text-editor x11 640x420 win=Some(699228317) status=ok
+[28/40] gnome-text-editor x11 1100x760 win=Some(699228318) status=ok
+[29/40] gnome-text-editor x11 640x420 win=Some(699228319) status=ok
+[30/40] gnome-text-editor x11 1100x760 win=Some(699228320) status=ok
+[31/40] gnome-text-editor x11 1100x760 win=Some(699228321) status=ok
+[32/40] gnome-text-editor x11 640x420 win=Some(699228322) status=ok
+[33/40] gnome-text-editor x11 640x420 win=Some(699228323) status=ok
+[34/40] gnome-text-editor x11 1100x760 win=Some(699228324) status=ok
+[35/40] gnome-text-editor x11 1100x760 win=Some(699228325) status=ok
+[36/40] gnome-text-editor x11 640x420 win=Some(699228326) status=ok
+[37/40] gnome-text-editor x11 640x420 win=Some(699228327) status=ok
+[38/40] gnome-text-editor x11 640x420 win=Some(699228328) status=ok
+[39/40] gnome-text-editor x11 1100x760 win=Some(699228329) status=ok
+[40/40] gnome-text-editor x11 640x420 win=Some(699228330) status=ok
+runs done in this invocation: 40
+collected: 10581 lines, 1552 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 20 | 20 | 10 | 10 | 10 | 0.5 / 2 | 30.0 / 93.6 | 50.0% | 30.0 / 93.6 | 1 | 0 | 0 | -0.7 |
+| gnome-text-editor / x11 / idle / small | 20 | 20 | 11 | 11 | 11 | 1.0 / 2 | 53.7 / 91.9 | 100.0% | 53.7 / 91.9 | 1 | 0 | 0 | -0.5 |
+=== 00:40:48 cell bef-cap-calc: gnome-calculator --reps 20 --seed 314
+[22/40] gnome-calculator x11 900x700 win=Some(699228352) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(699228353) status=ok
+[24/40] gnome-calculator x11 900x700 win=Some(699228354) status=ok
+[25/40] gnome-calculator x11 500x400 win=Some(699228355) status=ok
+[26/40] gnome-calculator x11 500x400 win=Some(699228356) status=ok
+[27/40] gnome-calculator x11 900x700 win=Some(699228357) status=ok
+[28/40] gnome-calculator x11 500x400 win=Some(699228358) status=ok
+[29/40] gnome-calculator x11 500x400 win=Some(699228359) status=ok
+[30/40] gnome-calculator x11 500x400 win=Some(699228360) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(699228361) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(699228362) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(699228363) status=ok
+[34/40] gnome-calculator x11 500x400 win=Some(699228364) status=ok
+[35/40] gnome-calculator x11 500x400 win=Some(699228365) status=ok
+[36/40] gnome-calculator x11 500x400 win=Some(699228366) status=ok
+[37/40] gnome-calculator x11 500x400 win=Some(699228367) status=ok
+[38/40] gnome-calculator x11 900x700 win=Some(699228368) status=ok
+[39/40] gnome-calculator x11 500x400 win=Some(699228369) status=ok
+[40/40] gnome-calculator x11 900x700 win=Some(699228370) status=ok
+runs done in this invocation: 40
+collected: 14504 lines, 1584 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 20 | 20 | 20 | 2.0 / 2 | 74.7 / 182.0 | 100.0% | 74.7 / 182.0 | 1 | 0 | 1 | -0.9 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 18 | 18 | 18 | 2.0 / 2 | 42.0 / 58.5 | 100.0% | 42.0 / 58.5 | 0 | 15 | 0 | 39.1 |
+=== 00:45:17 cell bef-cap-xterm: xterm --reps 10 --seed 315
+[2/20] xterm x11 400x260 win=Some(699228372) status=ok
+[3/20] xterm x11 400x260 win=Some(699228373) status=ok
+[4/20] xterm x11 400x260 win=Some(699228374) status=ok
+[5/20] xterm x11 900x560 win=Some(699228375) status=ok
+[6/20] xterm x11 900x560 win=Some(699228376) status=ok
+[7/20] xterm x11 900x560 win=Some(699228377) status=ok
+[8/20] xterm x11 400x260 win=Some(699228378) status=ok
+[9/20] xterm x11 900x560 win=Some(699228379) status=ok
+[10/20] xterm x11 900x560 win=Some(699228380) status=ok
+[11/20] xterm x11 400x260 win=Some(699228381) status=ok
+[12/20] xterm x11 900x560 win=Some(699228382) status=ok
+[13/20] xterm x11 400x260 win=Some(699228383) status=ok
+[14/20] xterm x11 900x560 win=Some(699228384) status=ok
+[15/20] xterm x11 900x560 win=Some(699228385) status=ok
+[16/20] xterm x11 400x260 win=Some(699228386) status=ok
+[17/20] xterm x11 900x560 win=Some(699228387) status=ok
+[18/20] xterm x11 400x260 win=Some(699228388) status=ok
+[19/20] xterm x11 900x560 win=Some(699228389) status=ok
+[20/20] xterm x11 400x260 win=Some(699228390) status=ok
+runs done in this invocation: 20
+collected: 779 lines, 95 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-xterm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| xterm / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+| xterm / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+=== 00:47:30 cell bef-cap-swing: java-swing --reps 10 --seed 316
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-swing/probe/probe.jsonl: No such file
+[1/20] java-swing x11 600x400 win=None status=no_window
+[2/20] java-swing x11 600x400 win=None status=no_window
+[3/20] java-swing x11 900x650 win=None status=no_window
+[4/20] java-swing x11 900x650 win=None status=no_window
+[5/20] java-swing x11 900x650 win=None status=no_window
+[6/20] java-swing x11 600x400 win=None status=no_window
+[7/20] java-swing x11 900x650 win=None status=no_window
+[8/20] java-swing x11 600x400 win=None status=no_window
+[9/20] java-swing x11 900x650 win=None status=no_window
+[10/20] java-swing x11 600x400 win=None status=no_window
+[11/20] java-swing x11 600x400 win=None status=no_window
+[12/20] java-swing x11 600x400 win=None status=no_window
+[13/20] java-swing x11 600x400 win=None status=no_window
+[14/20] java-swing x11 600x400 win=None status=no_window
+[15/20] java-swing x11 900x650 win=None status=no_window
+[16/20] java-swing x11 900x650 win=None status=no_window
+[17/20] java-swing x11 600x400 win=None status=no_window
+[18/20] java-swing x11 900x650 win=None status=no_window
+[19/20] java-swing x11 900x650 win=None status=no_window
+[20/20] java-swing x11 900x650 win=None status=no_window
+runs done in this invocation: 20
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-swing/probe/probe.jsonl: No such file
+collected:  lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-swing/probe
+xflash probe-analyze: /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-swing/probe/probe.jsonl: No such file or directory (os error 2)
+STOP: pcell bef-cap-swing rc=1

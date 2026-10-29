@@ -1,0 +1,17 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_aft-sent1/probe/probe.jsonl: No such file
+[1/10] eog x11 1100x760 win=Some(1068882202) status=ok
+[2/10] eog x11 1100x760 win=Some(1068882203) status=ok
+[3/10] eog x11 1100x760 win=Some(1068882204) status=ok
+[4/10] eog x11 1100x760 win=Some(1068882205) status=ok
+[5/10] eog x11 1100x760 win=Some(1068882206) status=ok
+[6/10] eog x11 1100x760 win=Some(1068882207) status=ok
+[7/10] eog x11 1100x760 win=Some(1068882208) status=ok
+[8/10] eog x11 1100x760 win=Some(1068882209) status=ok
+[9/10] eog x11 1100x760 win=Some(1068882210) status=ok
+[10/10] eog x11 1100x760 win=Some(1068882211) status=ok
+runs done in this invocation: 10
+collected: 956 lines, 309 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-sent1/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -7.7 |
+| eog / x11 / idle / small | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |

@@ -1,0 +1,531 @@
+=== 01:42:14 cell aft-sent1: eog --sizes 1100x760,1100x760 --reps 5 --seed 301
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_aft-sent1/probe/probe.jsonl: No such file
+[1/10] eog x11 1100x760 win=Some(1068882202) status=ok
+[2/10] eog x11 1100x760 win=Some(1068882203) status=ok
+[3/10] eog x11 1100x760 win=Some(1068882204) status=ok
+[4/10] eog x11 1100x760 win=Some(1068882205) status=ok
+[5/10] eog x11 1100x760 win=Some(1068882206) status=ok
+[6/10] eog x11 1100x760 win=Some(1068882207) status=ok
+[7/10] eog x11 1100x760 win=Some(1068882208) status=ok
+[8/10] eog x11 1100x760 win=Some(1068882209) status=ok
+[9/10] eog x11 1100x760 win=Some(1068882210) status=ok
+[10/10] eog x11 1100x760 win=Some(1068882211) status=ok
+runs done in this invocation: 10
+collected: 956 lines, 309 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-sent1/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -7.7 |
+| eog / x11 / idle / small | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+=== 01:43:38 cell aft-cap-eog-600-1100: eog --sizes 600x420,1100x760 --reps 20 --seed 311
+[22/40] eog x11 1100x760 win=Some(1068882233) status=ok
+[23/40] eog x11 1100x760 win=Some(1068882234) status=ok
+[24/40] eog x11 600x420 win=Some(1068882235) status=ok
+[25/40] eog x11 600x420 win=Some(1068882236) status=ok
+[26/40] eog x11 600x420 win=Some(1068882237) status=ok
+[27/40] eog x11 600x420 win=Some(1068882238) status=ok
+[28/40] eog x11 600x420 win=Some(1068882239) status=ok
+[29/40] eog x11 1100x760 win=Some(1068882240) status=ok
+[30/40] eog x11 1100x760 win=Some(1068882241) status=ok
+[31/40] eog x11 1100x760 win=Some(1068882242) status=ok
+[32/40] eog x11 600x420 win=Some(1068882243) status=ok
+[33/40] eog x11 1100x760 win=Some(1068882244) status=ok
+[34/40] eog x11 600x420 win=Some(1068882245) status=ok
+[35/40] eog x11 1100x760 win=Some(1068882246) status=ok
+[36/40] eog x11 1100x760 win=Some(1068882247) status=ok
+[37/40] eog x11 600x420 win=Some(1068882248) status=ok
+[38/40] eog x11 600x420 win=Some(1068882249) status=ok
+[39/40] eog x11 600x420 win=Some(1068882250) status=ok
+[40/40] eog x11 600x420 win=Some(1068882251) status=ok
+runs done in this invocation: 40
+collected: 4725 lines, 1420 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-eog-600-1100/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.5 |
+| eog / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+=== 01:48:28 cell aft-cap-eog-1700: eog --sizes 1700x1000,1700x1000 --reps 10 --seed 312
+[2/20] eog x11 1700x1000 win=Some(1068882253) status=ok
+[3/20] eog x11 1700x1000 win=Some(1068882254) status=ok
+[4/20] eog x11 1700x1000 win=Some(1068882255) status=ok
+[5/20] eog x11 1700x1000 win=Some(1068882256) status=ok
+[6/20] eog x11 1700x1000 win=Some(1068882257) status=ok
+[7/20] eog x11 1700x1000 win=Some(1068882258) status=ok
+[8/20] eog x11 1700x1000 win=Some(1068882259) status=ok
+[9/20] eog x11 1700x1000 win=Some(1068882260) status=ok
+[10/20] eog x11 1700x1000 win=Some(1068882261) status=ok
+[11/20] eog x11 1700x1000 win=Some(1068882262) status=ok
+[12/20] eog x11 1700x1000 win=Some(1068882263) status=ok
+[13/20] eog x11 1700x1000 win=Some(1068882264) status=ok
+[14/20] eog x11 1700x1000 win=Some(1068882265) status=ok
+[15/20] eog x11 1700x1000 win=Some(1068882266) status=ok
+[16/20] eog x11 1700x1000 win=Some(1068882267) status=ok
+[17/20] eog x11 1700x1000 win=Some(1068882268) status=ok
+[18/20] eog x11 1700x1000 win=Some(1068882269) status=ok
+[19/20] eog x11 1700x1000 win=Some(1068882270) status=ok
+[20/20] eog x11 1700x1000 win=Some(1068882271) status=ok
+runs done in this invocation: 20
+collected: 1422 lines, 436 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-eog-1700/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+| eog / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+=== 01:51:19 cell aft-cap-editor: gnome-text-editor --reps 20 --seed 313
+[22/40] gnome-text-editor x11 1100x760 win=Some(1068882293) status=ok
+[23/40] gnome-text-editor x11 1100x760 win=Some(1068882294) status=ok
+[24/40] gnome-text-editor x11 640x420 win=Some(1068882295) status=ok
+[25/40] gnome-text-editor x11 640x420 win=Some(1068882296) status=ok
+[26/40] gnome-text-editor x11 640x420 win=Some(1068882297) status=ok
+[27/40] gnome-text-editor x11 640x420 win=Some(1068882298) status=ok
+[28/40] gnome-text-editor x11 1100x760 win=Some(1068882299) status=ok
+[29/40] gnome-text-editor x11 640x420 win=Some(1068882300) status=ok
+[30/40] gnome-text-editor x11 1100x760 win=Some(1068882301) status=ok
+[31/40] gnome-text-editor x11 1100x760 win=Some(1068882302) status=ok
+[32/40] gnome-text-editor x11 640x420 win=Some(1068882303) status=ok
+[33/40] gnome-text-editor x11 640x420 win=Some(1068882304) status=ok
+[34/40] gnome-text-editor x11 1100x760 win=Some(1068882305) status=ok
+[35/40] gnome-text-editor x11 1100x760 win=Some(1068882306) status=ok
+[36/40] gnome-text-editor x11 640x420 win=Some(1068882307) status=ok
+[37/40] gnome-text-editor x11 640x420 win=Some(1068882308) status=ok
+[38/40] gnome-text-editor x11 640x420 win=Some(1068882309) status=ok
+[39/40] gnome-text-editor x11 1100x760 win=Some(1068882310) status=ok
+[40/40] gnome-text-editor x11 640x420 win=Some(1068882311) status=ok
+runs done in this invocation: 40
+collected: 11902 lines, 1482 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 20 | 20 | 1 | 2 | 2 | 0.0 / 1 | 0.0 / 63.0 | 0.0% | 0.0 / 63.0 | 0 | 0 | 0 | -72.2 |
+| gnome-text-editor / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -29.7 |
+=== 01:56:34 cell aft-cap-calc: gnome-calculator --reps 20 --seed 314
+[22/40] gnome-calculator x11 900x700 win=Some(1068882333) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(1068882334) status=ok
+[24/40] gnome-calculator x11 900x700 win=Some(1068882335) status=ok
+[25/40] gnome-calculator x11 500x400 win=Some(1068882336) status=ok
+[26/40] gnome-calculator x11 500x400 win=Some(1068882337) status=ok
+[27/40] gnome-calculator x11 900x700 win=Some(1068882338) status=ok
+[28/40] gnome-calculator x11 500x400 win=Some(1068882339) status=ok
+[29/40] gnome-calculator x11 500x400 win=Some(1068882340) status=ok
+[30/40] gnome-calculator x11 500x400 win=Some(1068882341) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(1068882342) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(1068882343) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(1068882344) status=ok
+[34/40] gnome-calculator x11 500x400 win=Some(1068882345) status=ok
+[35/40] gnome-calculator x11 500x400 win=Some(1068882346) status=ok
+[36/40] gnome-calculator x11 500x400 win=Some(1068882347) status=ok
+[37/40] gnome-calculator x11 500x400 win=Some(1068882348) status=ok
+[38/40] gnome-calculator x11 900x700 win=Some(1068882349) status=ok
+[39/40] gnome-calculator x11 500x400 win=Some(1068882350) status=ok
+[40/40] gnome-calculator x11 900x700 win=Some(1068882351) status=ok
+runs done in this invocation: 40
+collected: 15765 lines, 1564 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 0 | 4 | 4 | 0.0 / 1 | 0.0 / 22.8 | 0.0% | 0.0 / 22.8 | 0 | 0 | 0 | -84.2 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 1 | 0 | -35.9 |
+=== 02:01:12 cell aft-cap-xterm: xterm --reps 10 --seed 315
+[2/20] xterm x11 400x260 win=Some(1068882353) status=ok
+[3/20] xterm x11 400x260 win=Some(1068882354) status=ok
+[4/20] xterm x11 400x260 win=Some(1068882355) status=ok
+[5/20] xterm x11 900x560 win=Some(1068882356) status=ok
+[6/20] xterm x11 900x560 win=Some(1068882357) status=ok
+[7/20] xterm x11 900x560 win=Some(1068882358) status=ok
+[8/20] xterm x11 400x260 win=Some(1068882359) status=ok
+[9/20] xterm x11 900x560 win=Some(1068882360) status=ok
+[10/20] xterm x11 900x560 win=Some(1068882361) status=ok
+[11/20] xterm x11 400x260 win=Some(1068882362) status=ok
+[12/20] xterm x11 900x560 win=Some(1068882363) status=ok
+[13/20] xterm x11 400x260 win=Some(1068882364) status=ok
+[14/20] xterm x11 900x560 win=Some(1068882365) status=ok
+[15/20] xterm x11 900x560 win=Some(1068882366) status=ok
+[16/20] xterm x11 400x260 win=Some(1068882367) status=ok
+[17/20] xterm x11 900x560 win=Some(1068882368) status=ok
+[18/20] xterm x11 400x260 win=Some(1068882369) status=ok
+[19/20] xterm x11 900x560 win=Some(1068882370) status=ok
+[20/20] xterm x11 400x260 win=Some(1068882371) status=ok
+runs done in this invocation: 20
+collected: 765 lines, 90 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-xterm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| xterm / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.4 |
+| xterm / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+=== 02:03:24 cell aft-cap-swing: java-swing --reps 10 --seed 316
+[2/20] java-swing x11 600x400 win=Some(1068882373) status=ok
+[3/20] java-swing x11 900x650 win=Some(1068882374) status=ok
+[4/20] java-swing x11 900x650 win=Some(1068882375) status=ok
+[5/20] java-swing x11 900x650 win=Some(1068882376) status=ok
+[6/20] java-swing x11 600x400 win=Some(1068882377) status=ok
+[7/20] java-swing x11 900x650 win=Some(1068882378) status=ok
+[8/20] java-swing x11 600x400 win=Some(1068882379) status=ok
+[9/20] java-swing x11 900x650 win=Some(1068882380) status=ok
+[10/20] java-swing x11 600x400 win=Some(1068882381) status=ok
+[11/20] java-swing x11 600x400 win=Some(1068882382) status=ok
+[12/20] java-swing x11 600x400 win=Some(1068882383) status=ok
+[13/20] java-swing x11 600x400 win=Some(1068882384) status=ok
+[14/20] java-swing x11 600x400 win=Some(1068882385) status=ok
+[15/20] java-swing x11 900x650 win=Some(1068882386) status=ok
+[16/20] java-swing x11 900x650 win=Some(1068882387) status=ok
+[17/20] java-swing x11 600x400 win=Some(1068882388) status=ok
+[18/20] java-swing x11 900x650 win=Some(1068882389) status=ok
+[19/20] java-swing x11 900x650 win=Some(1068882390) status=ok
+[20/20] java-swing x11 900x650 win=Some(1068882391) status=ok
+runs done in this invocation: 20
+collected: 676 lines, 99 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-swing/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| java-swing / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 10 | 0 | 40.2 |
+| java-swing / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 9 | 0 | 35.3 |
+=== 02:07:30 cell aft-cap-qt: qt-assistant --reps 10 --seed 317
+[2/20] qt-assistant x11 700x500 win=Some(1068882393) status=ok
+[3/20] qt-assistant x11 700x500 win=Some(1068882394) status=ok
+[4/20] qt-assistant x11 1000x700 win=Some(1068882395) status=ok
+[5/20] qt-assistant x11 1000x700 win=Some(1068882396) status=ok
+[6/20] qt-assistant x11 700x500 win=Some(1068882397) status=ok
+[7/20] qt-assistant x11 700x500 win=Some(1068882398) status=ok
+[8/20] qt-assistant x11 700x500 win=Some(1068882399) status=ok
+[9/20] qt-assistant x11 1000x700 win=Some(1068882400) status=ok
+[10/20] qt-assistant x11 1000x700 win=Some(1068882401) status=ok
+[11/20] qt-assistant x11 1000x700 win=Some(1068882402) status=ok
+[12/20] qt-assistant x11 1000x700 win=Some(1068882403) status=ok
+[13/20] qt-assistant x11 700x500 win=Some(1068882404) status=ok
+[14/20] qt-assistant x11 1000x700 win=Some(1068882405) status=ok
+[15/20] qt-assistant x11 700x500 win=Some(1068882406) status=ok
+[16/20] qt-assistant x11 1000x700 win=Some(1068882407) status=ok
+[17/20] qt-assistant x11 700x500 win=Some(1068882408) status=ok
+[18/20] qt-assistant x11 1000x700 win=Some(1068882409) status=ok
+[19/20] qt-assistant x11 700x500 win=Some(1068882410) status=ok
+[20/20] qt-assistant x11 1000x700 win=Some(1068882411) status=ok
+runs done in this invocation: 20
+collected: 665 lines, 109 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-qt/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 10 | 10 | 0 | 1 | 1 | 0.0 / 2 | 0.0 / 31.1 | 0.0% | 0.0 / 31.1 | 0 | 10 | 0 | 38.5 |
+| qt-assistant / x11 / idle / small | 10 | 10 | 0 | 4 | 4 | 0.0 / 2 | 0.0 / 19.0 | 0.0% | 0.0 / 19.0 | 0 | 9 | 0 | 29.5 |
+=== 02:09:56 cell aft-cap-chrome: google-chrome --reps 10 --seed 318
+[2/20] google-chrome x11 1200x800 win=Some(1068882413) status=ok
+[3/20] google-chrome x11 700x480 win=Some(1068882414) status=ok
+[4/20] google-chrome x11 1200x800 win=Some(1068882415) status=ok
+[5/20] google-chrome x11 1200x800 win=Some(1068882416) status=ok
+[6/20] google-chrome x11 700x480 win=Some(1068882417) status=ok
+[7/20] google-chrome x11 1200x800 win=Some(1068882418) status=ok
+[8/20] google-chrome x11 1200x800 win=Some(1068882419) status=ok
+[9/20] google-chrome x11 1200x800 win=Some(1068882420) status=ok
+[10/20] google-chrome x11 700x480 win=Some(1068882421) status=ok
+[11/20] google-chrome x11 700x480 win=Some(1068882422) status=ok
+[12/20] google-chrome x11 700x480 win=Some(1068882423) status=ok
+[13/20] google-chrome x11 1200x800 win=Some(1068882424) status=ok
+[14/20] google-chrome x11 700x480 win=Some(1068882425) status=ok
+[15/20] google-chrome x11 700x480 win=Some(1068882426) status=ok
+[16/20] google-chrome x11 1200x800 win=Some(1068882427) status=ok
+[17/20] google-chrome x11 1200x800 win=Some(1068882428) status=ok
+[18/20] google-chrome x11 700x480 win=Some(1068882429) status=ok
+[19/20] google-chrome x11 1200x800 win=Some(1068882430) status=ok
+[20/20] google-chrome x11 700x480 win=Some(1068882431) status=ok
+runs done in this invocation: 20
+collected: 992 lines, 306 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-cap-chrome/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome / x11 / idle / large | 10 | 10 | 0 | 8 | 8 | 12.0 / 15 | 173.7 / 287.7 | 100.0% | 161.7 / 248.8 | 2 | 0 | 0 | -0.3 |
+| google-chrome / x11 / idle / small | 10 | 10 | 0 | 10 | 10 | 8.5 / 20 | 192.6 / 295.0 | 100.0% | 61.7 / 287.7 | 2 | 2 | 0 | -0.4 |
+=== 02:12:56 cell aft-nat-editor: gnome-text-editor --reps 0 --ctl-reps 20 --seed 321
+[2/20] gnome-text-editor wayland 640x420 win=Some(1068882433) status=ok
+[3/20] gnome-text-editor wayland 1100x760 win=Some(1068882434) status=ok
+[4/20] gnome-text-editor wayland 640x420 win=Some(1068882435) status=ok
+[5/20] gnome-text-editor wayland 1100x760 win=Some(1068882436) status=ok
+[6/20] gnome-text-editor wayland 1100x760 win=Some(1068882437) status=ok
+[7/20] gnome-text-editor wayland 640x420 win=Some(1068882438) status=ok
+[8/20] gnome-text-editor wayland 1100x760 win=Some(1068882439) status=ok
+[9/20] gnome-text-editor wayland 1100x760 win=Some(1068882440) status=ok
+[10/20] gnome-text-editor wayland 640x420 win=Some(1068882441) status=ok
+[11/20] gnome-text-editor wayland 640x420 win=Some(1068882442) status=ok
+[12/20] gnome-text-editor wayland 1100x760 win=Some(1068882443) status=ok
+[13/20] gnome-text-editor wayland 1100x760 win=Some(1068882444) status=ok
+[14/20] gnome-text-editor wayland 640x420 win=Some(1068882445) status=ok
+[15/20] gnome-text-editor wayland 1100x760 win=Some(1068882446) status=ok
+[16/20] gnome-text-editor wayland 640x420 win=Some(1068882447) status=ok
+[17/20] gnome-text-editor wayland 640x420 win=Some(1068882448) status=ok
+[18/20] gnome-text-editor wayland 640x420 win=Some(1068882449) status=ok
+[19/20] gnome-text-editor wayland 640x420 win=Some(1068882450) status=ok
+[20/20] gnome-text-editor wayland 1100x760 win=Some(1068882451) status=ok
+runs done in this invocation: 20
+collected: 393 lines, 20 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-nat-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-text-editor / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+=== 02:15:07 cell aft-nat-calc: gnome-calculator --reps 0 --ctl-reps 20 --seed 322
+[2/20] gnome-calculator wayland 900x700 win=Some(1068882453) status=ok
+[3/20] gnome-calculator wayland 900x700 win=Some(1068882454) status=ok
+[4/20] gnome-calculator wayland 500x400 win=Some(1068882455) status=ok
+[5/20] gnome-calculator wayland 900x700 win=Some(1068882456) status=ok
+[6/20] gnome-calculator wayland 500x400 win=Some(1068882457) status=ok
+[7/20] gnome-calculator wayland 900x700 win=Some(1068882458) status=ok
+[8/20] gnome-calculator wayland 900x700 win=Some(1068882459) status=ok
+[9/20] gnome-calculator wayland 500x400 win=Some(1068882460) status=ok
+[10/20] gnome-calculator wayland 900x700 win=Some(1068882461) status=ok
+[11/20] gnome-calculator wayland 500x400 win=Some(1068882462) status=ok
+[12/20] gnome-calculator wayland 500x400 win=Some(1068882463) status=ok
+[13/20] gnome-calculator wayland 900x700 win=Some(1068882464) status=ok
+[14/20] gnome-calculator wayland 900x700 win=Some(1068882465) status=ok
+[15/20] gnome-calculator wayland 500x400 win=Some(1068882466) status=ok
+[16/20] gnome-calculator wayland 900x700 win=Some(1068882467) status=ok
+[17/20] gnome-calculator wayland 500x400 win=Some(1068882468) status=ok
+[18/20] gnome-calculator wayland 500x400 win=Some(1068882469) status=ok
+[19/20] gnome-calculator wayland 500x400 win=Some(1068882470) status=ok
+[20/20] gnome-calculator wayland 500x400 win=Some(1068882471) status=ok
+runs done in this invocation: 20
+collected: 430 lines, 20 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-nat-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-calculator / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+=== 02:17:07 cell aft-nat-eog: eog --reps 0 --ctl-reps 20 --seed 323
+[2/20] eog wayland 1100x760 win=Some(1068882473) status=ok
+[3/20] eog wayland 600x420 win=Some(1068882474) status=ok
+[4/20] eog wayland 600x420 win=Some(1068882475) status=ok
+[5/20] eog wayland 1100x760 win=Some(1068882476) status=ok
+[6/20] eog wayland 1100x760 win=Some(1068882477) status=ok
+[7/20] eog wayland 600x420 win=Some(1068882478) status=ok
+[8/20] eog wayland 600x420 win=Some(1068882479) status=ok
+[9/20] eog wayland 600x420 win=Some(1068882480) status=ok
+[10/20] eog wayland 1100x760 win=Some(1068882481) status=ok
+[11/20] eog wayland 600x420 win=Some(1068882482) status=ok
+[12/20] eog wayland 600x420 win=Some(1068882483) status=ok
+[13/20] eog wayland 600x420 win=Some(1068882484) status=ok
+[14/20] eog wayland 600x420 win=Some(1068882485) status=ok
+[15/20] eog wayland 1100x760 win=Some(1068882486) status=ok
+[16/20] eog wayland 1100x760 win=Some(1068882487) status=ok
+[17/20] eog wayland 1100x760 win=Some(1068882488) status=ok
+[18/20] eog wayland 1100x760 win=Some(1068882489) status=ok
+[19/20] eog wayland 600x420 win=Some(1068882490) status=ok
+[20/20] eog wayland 1100x760 win=Some(1068882491) status=ok
+runs done in this invocation: 20
+collected: 2273 lines, 631 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-nat-eog/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| eog / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+=== 02:19:32 cell aft-pas-eog-600-1100: eog --sizes 600x420,1100x760 --reps 20 --seed 411
+[22/40] eog x11 600x420 win=Some(1068882513) status=ok
+[23/40] eog x11 1100x760 win=Some(1068882514) status=ok
+[24/40] eog x11 600x420 win=Some(1068882515) status=ok
+[25/40] eog x11 1100x760 win=Some(1068882516) status=ok
+[26/40] eog x11 600x420 win=Some(1068882517) status=ok
+[27/40] eog x11 1100x760 win=Some(1068882518) status=ok
+[28/40] eog x11 600x420 win=Some(1068882519) status=ok
+[29/40] eog x11 600x420 win=Some(1068882520) status=ok
+[30/40] eog x11 1100x760 win=Some(1068882521) status=ok
+[31/40] eog x11 1100x760 win=Some(1068882522) status=ok
+[32/40] eog x11 1100x760 win=Some(1068882523) status=ok
+[33/40] eog x11 1100x760 win=Some(1068882524) status=ok
+[34/40] eog x11 600x420 win=Some(1068882525) status=ok
+[35/40] eog x11 1100x760 win=Some(1068882526) status=ok
+[36/40] eog x11 1100x760 win=Some(1068882527) status=ok
+[37/40] eog x11 600x420 win=Some(1068882528) status=ok
+[38/40] eog x11 1100x760 win=Some(1068882529) status=ok
+[39/40] eog x11 1100x760 win=Some(1068882530) status=ok
+[40/40] eog x11 600x420 win=Some(1068882531) status=ok
+runs done in this invocation: 40
+collected: 6588 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-eog-600-1100/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.3 |
+| eog / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.3 |
+=== 02:23:38 cell aft-pas-eog-1700: eog --sizes 1700x1000,1700x1000 --reps 10 --seed 412
+[2/20] eog x11 1700x1000 win=Some(1068882533) status=ok
+[3/20] eog x11 1700x1000 win=Some(1068882534) status=ok
+[4/20] eog x11 1700x1000 win=Some(1068882535) status=ok
+[5/20] eog x11 1700x1000 win=Some(1068882536) status=ok
+[6/20] eog x11 1700x1000 win=Some(1068882537) status=ok
+[7/20] eog x11 1700x1000 win=Some(1068882538) status=ok
+[8/20] eog x11 1700x1000 win=Some(1068882539) status=ok
+[9/20] eog x11 1700x1000 win=Some(1068882540) status=ok
+[10/20] eog x11 1700x1000 win=Some(1068882541) status=ok
+[11/20] eog x11 1700x1000 win=Some(1068882542) status=ok
+[12/20] eog x11 1700x1000 win=Some(1068882543) status=ok
+[13/20] eog x11 1700x1000 win=Some(1068882544) status=ok
+[14/20] eog x11 1700x1000 win=Some(1068882545) status=ok
+[15/20] eog x11 1700x1000 win=Some(1068882546) status=ok
+[16/20] eog x11 1700x1000 win=Some(1068882547) status=ok
+[17/20] eog x11 1700x1000 win=Some(1068882548) status=ok
+[18/20] eog x11 1700x1000 win=Some(1068882549) status=ok
+[19/20] eog x11 1700x1000 win=Some(1068882550) status=ok
+[20/20] eog x11 1700x1000 win=Some(1068882551) status=ok
+runs done in this invocation: 20
+collected: 3389 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-eog-1700/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.4 |
+| eog / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.3 |
+=== 02:25:46 cell aft-pas-editor: gnome-text-editor --reps 20 --seed 413
+[22/40] gnome-text-editor x11 640x420 win=Some(1068882573) status=ok
+[23/40] gnome-text-editor x11 1100x760 win=Some(1068882574) status=ok
+[24/40] gnome-text-editor x11 640x420 win=Some(1068882575) status=ok
+[25/40] gnome-text-editor x11 640x420 win=Some(1068882576) status=ok
+[26/40] gnome-text-editor x11 640x420 win=Some(1068882577) status=ok
+[27/40] gnome-text-editor x11 1100x760 win=Some(1068882578) status=ok
+[28/40] gnome-text-editor x11 640x420 win=Some(1068882579) status=ok
+[29/40] gnome-text-editor x11 1100x760 win=Some(1068882580) status=ok
+[30/40] gnome-text-editor x11 640x420 win=Some(1068882581) status=ok
+[31/40] gnome-text-editor x11 640x420 win=Some(1068882582) status=ok
+[32/40] gnome-text-editor x11 1100x760 win=Some(1068882583) status=ok
+[33/40] gnome-text-editor x11 640x420 win=Some(1068882584) status=ok
+[34/40] gnome-text-editor x11 1100x760 win=Some(1068882585) status=ok
+[35/40] gnome-text-editor x11 1100x760 win=Some(1068882586) status=ok
+[36/40] gnome-text-editor x11 1100x760 win=Some(1068882587) status=ok
+[37/40] gnome-text-editor x11 1100x760 win=Some(1068882588) status=ok
+[38/40] gnome-text-editor x11 640x420 win=Some(1068882589) status=ok
+[39/40] gnome-text-editor x11 640x420 win=Some(1068882590) status=ok
+[40/40] gnome-text-editor x11 640x420 win=Some(1068882591) status=ok
+runs done in this invocation: 40
+collected: 24723 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.8 |
+| gnome-text-editor / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -63.5 |
+=== 02:29:56 cell aft-pas-calc: gnome-calculator --reps 20 --seed 414
+[22/40] gnome-calculator x11 500x400 win=Some(1068882613) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(1068882614) status=ok
+[24/40] gnome-calculator x11 500x400 win=Some(1068882615) status=ok
+[25/40] gnome-calculator x11 900x700 win=Some(1068882616) status=ok
+[26/40] gnome-calculator x11 900x700 win=Some(1068882617) status=ok
+[27/40] gnome-calculator x11 500x400 win=Some(1068882618) status=ok
+[28/40] gnome-calculator x11 500x400 win=Some(1068882619) status=ok
+[29/40] gnome-calculator x11 900x700 win=Some(1068882620) status=ok
+[30/40] gnome-calculator x11 500x400 win=Some(1068882621) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(1068882622) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(1068882623) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(1068882624) status=ok
+[34/40] gnome-calculator x11 500x400 win=Some(1068882625) status=ok
+[35/40] gnome-calculator x11 500x400 win=Some(1068882626) status=ok
+[36/40] gnome-calculator x11 900x700 win=Some(1068882627) status=ok
+[37/40] gnome-calculator x11 500x400 win=Some(1068882628) status=ok
+[38/40] gnome-calculator x11 500x400 win=Some(1068882629) status=ok
+[39/40] gnome-calculator x11 500x400 win=Some(1068882630) status=ok
+[40/40] gnome-calculator x11 500x400 win=Some(1068882631) status=ok
+runs done in this invocation: 40
+collected: 27209 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -76.7 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.5 |
+=== 02:33:49 cell aft-pas-xterm: xterm --reps 10 --seed 415
+[2/20] xterm x11 900x560 win=Some(1068882633) status=ok
+[3/20] xterm x11 900x560 win=Some(1068882634) status=ok
+[4/20] xterm x11 400x260 win=Some(1068882635) status=ok
+[5/20] xterm x11 400x260 win=Some(1068882636) status=ok
+[6/20] xterm x11 900x560 win=Some(1068882637) status=ok
+[7/20] xterm x11 900x560 win=Some(1068882638) status=ok
+[8/20] xterm x11 400x260 win=Some(1068882639) status=ok
+[9/20] xterm x11 400x260 win=Some(1068882640) status=ok
+[10/20] xterm x11 400x260 win=Some(1068882641) status=ok
+[11/20] xterm x11 900x560 win=Some(1068882642) status=ok
+[12/20] xterm x11 400x260 win=Some(1068882643) status=ok
+[13/20] xterm x11 400x260 win=Some(1068882644) status=ok
+[14/20] xterm x11 400x260 win=Some(1068882645) status=ok
+[15/20] xterm x11 900x560 win=Some(1068882646) status=ok
+[16/20] xterm x11 900x560 win=Some(1068882647) status=ok
+[17/20] xterm x11 900x560 win=Some(1068882648) status=ok
+[18/20] xterm x11 900x560 win=Some(1068882649) status=ok
+[19/20] xterm x11 900x560 win=Some(1068882650) status=ok
+[20/20] xterm x11 400x260 win=Some(1068882651) status=ok
+runs done in this invocation: 20
+collected: 660 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-xterm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| xterm / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.3 |
+| xterm / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.2 |
+=== 02:36:00 cell aft-pas-swing: java-swing --reps 10 --seed 416
+[2/20] java-swing x11 600x400 win=Some(1068882653) status=ok
+[3/20] java-swing x11 900x650 win=Some(1068882654) status=ok
+[4/20] java-swing x11 900x650 win=Some(1068882655) status=ok
+[5/20] java-swing x11 600x400 win=Some(1068882656) status=ok
+[6/20] java-swing x11 600x400 win=Some(1068882657) status=ok
+[7/20] java-swing x11 900x650 win=Some(1068882658) status=ok
+[8/20] java-swing x11 600x400 win=Some(1068882659) status=ok
+[9/20] java-swing x11 600x400 win=Some(1068882660) status=ok
+[10/20] java-swing x11 900x650 win=Some(1068882661) status=ok
+[11/20] java-swing x11 900x650 win=Some(1068882662) status=ok
+[12/20] java-swing x11 600x400 win=Some(1068882663) status=ok
+[13/20] java-swing x11 900x650 win=Some(1068882664) status=ok
+[14/20] java-swing x11 600x400 win=Some(1068882665) status=ok
+[15/20] java-swing x11 600x400 win=Some(1068882666) status=ok
+[16/20] java-swing x11 900x650 win=Some(1068882667) status=ok
+[17/20] java-swing x11 600x400 win=Some(1068882668) status=ok
+[18/20] java-swing x11 900x650 win=Some(1068882669) status=ok
+[19/20] java-swing x11 900x650 win=Some(1068882670) status=ok
+[20/20] java-swing x11 600x400 win=Some(1068882671) status=ok
+runs done in this invocation: 20
+collected: 591 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-swing/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| java-swing / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 10 | 0 | 30.0 |
+| java-swing / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 10 | 0 | 33.8 |
+=== 02:40:04 cell aft-pas-qt: qt-assistant --reps 10 --seed 417
+[2/20] qt-assistant x11 700x500 win=Some(1068882673) status=ok
+[3/20] qt-assistant x11 700x500 win=Some(1068882674) status=ok
+[4/20] qt-assistant x11 700x500 win=Some(1068882675) status=ok
+[5/20] qt-assistant x11 1000x700 win=Some(1068882676) status=ok
+[6/20] qt-assistant x11 700x500 win=Some(1068882677) status=ok
+[7/20] qt-assistant x11 700x500 win=Some(1068882678) status=ok
+[8/20] qt-assistant x11 1000x700 win=Some(1068882679) status=ok
+[9/20] qt-assistant x11 1000x700 win=Some(1068882680) status=ok
+[10/20] qt-assistant x11 1000x700 win=Some(1068882681) status=ok
+[11/20] qt-assistant x11 700x500 win=Some(1068882682) status=ok
+[12/20] qt-assistant x11 1000x700 win=Some(1068882683) status=ok
+[13/20] qt-assistant x11 1000x700 win=Some(1068882684) status=ok
+[14/20] qt-assistant x11 700x500 win=Some(1068882685) status=ok
+[15/20] qt-assistant x11 1000x700 win=Some(1068882686) status=ok
+[16/20] qt-assistant x11 1000x700 win=Some(1068882687) status=ok
+[17/20] qt-assistant x11 700x500 win=Some(1068882688) status=ok
+[18/20] qt-assistant x11 1000x700 win=Some(1068882689) status=ok
+[19/20] qt-assistant x11 700x500 win=Some(1068882690) status=ok
+[20/20] qt-assistant x11 1000x700 win=Some(1068882691) status=ok
+runs done in this invocation: 20
+collected: 649 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-qt/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 9 | 0 | 31.3 |
+| qt-assistant / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 6 | 0 | 22.8 |
+=== 02:42:23 cell aft-pas-chrome: google-chrome --reps 10 --seed 418
+[2/20] google-chrome x11 1200x800 win=Some(1068882693) status=ok
+[3/20] google-chrome x11 1200x800 win=Some(1068882694) status=ok
+[4/20] google-chrome x11 700x480 win=Some(1068882695) status=ok
+[5/20] google-chrome x11 700x480 win=Some(1068882696) status=ok
+[6/20] google-chrome x11 1200x800 win=Some(1068882697) status=ok
+[7/20] google-chrome x11 1200x800 win=Some(1068882698) status=ok
+[8/20] google-chrome x11 700x480 win=Some(1068882699) status=ok
+[9/20] google-chrome x11 700x480 win=Some(1068882700) status=ok
+[10/20] google-chrome x11 700x480 win=Some(1068882701) status=ok
+[11/20] google-chrome x11 1200x800 win=Some(1068882702) status=ok
+[12/20] google-chrome x11 700x480 win=Some(1068882703) status=ok
+[13/20] google-chrome x11 1200x800 win=Some(1068882704) status=ok
+[14/20] google-chrome x11 1200x800 win=Some(1068882705) status=ok
+[15/20] google-chrome x11 700x480 win=Some(1068882706) status=ok
+[16/20] google-chrome x11 700x480 win=Some(1068882707) status=ok
+[17/20] google-chrome x11 700x480 win=Some(1068882708) status=ok
+[18/20] google-chrome x11 1200x800 win=Some(1068882709) status=ok
+[19/20] google-chrome x11 1200x800 win=Some(1068882710) status=ok
+[20/20] google-chrome x11 700x480 win=Some(1068882711) status=ok
+runs done in this invocation: 20
+collected: 962 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-chrome/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 1 | 1 | 0 | -0.3 |
+| google-chrome / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 2 | 1 | 0 | -0.4 |
+=== 02:45:04 cell aft-sent2: eog --sizes 1100x760,1100x760 --reps 5 --seed 302
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_aft-sent2/probe/probe.jsonl: No such file
+[1/10] eog x11 1100x760 win=Some(1068882712) status=ok
+[2/10] eog x11 1100x760 win=Some(1068882713) status=ok
+[3/10] eog x11 1100x760 win=Some(1068882714) status=ok
+[4/10] eog x11 1100x760 win=Some(1068882715) status=ok
+[5/10] eog x11 1100x760 win=Some(1068882716) status=ok
+[6/10] eog x11 1100x760 win=Some(1068882717) status=ok
+[7/10] eog x11 1100x760 win=Some(1068882718) status=ok
+[8/10] eog x11 1100x760 win=Some(1068882719) status=ok
+[9/10] eog x11 1100x760 win=Some(1068882720) status=ok
+[10/10] eog x11 1100x760 win=Some(1068882721) status=ok
+runs done in this invocation: 10
+collected: 935 lines, 301 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-sent2/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+| eog / x11 / idle / small | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.4 |
+=== 02:46:31 group main done

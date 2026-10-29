@@ -1,0 +1,53 @@
+=== 02:46:31 cell aft-off-eog-1100: eog --sizes 1100x760,1100x760 --reps 10 --seed 331
+[2/20] eog x11 1100x760 win=Some(1068882723) status=ok
+[3/20] eog x11 1100x760 win=Some(1068882724) status=ok
+[4/20] eog x11 1100x760 win=Some(1068882725) status=ok
+[5/20] eog x11 1100x760 win=Some(1068882726) status=ok
+[6/20] eog x11 1100x760 win=Some(1068882727) status=ok
+[7/20] eog x11 1100x760 win=Some(1068882728) status=ok
+[8/20] eog x11 1100x760 win=Some(1068882729) status=ok
+[9/20] eog x11 1100x760 win=Some(1068882730) status=ok
+[10/20] eog x11 1100x760 win=Some(1068882731) status=ok
+[11/20] eog x11 1100x760 win=Some(1068882732) status=ok
+[12/20] eog x11 1100x760 win=Some(1068882733) status=ok
+[13/20] eog x11 1100x760 win=Some(1068882734) status=ok
+[14/20] eog x11 1100x760 win=Some(1068882735) status=ok
+[15/20] eog x11 1100x760 win=Some(1068882736) status=ok
+[16/20] eog x11 1100x760 win=Some(1068882737) status=ok
+[17/20] eog x11 1100x760 win=Some(1068882738) status=ok
+[18/20] eog x11 1100x760 win=Some(1068882739) status=ok
+[19/20] eog x11 1100x760 win=Some(1068882740) status=ok
+[20/20] eog x11 1100x760 win=Some(1068882741) status=ok
+runs done in this invocation: 20
+collected: 1871 lines, 636 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-off-eog-1100/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 10 | 10 | 6 | 6 | 6 | 1.0 / 1 | 8.5 / 12.5 | 51.0% | 8.5 / 12.5 | 8 | 2 | 0 | 12.0 |
+| eog / x11 / idle / small | 10 | 10 | 8 | 8 | 8 | 1.0 / 1 | 10.4 / 13.1 | 62.5% | 10.4 / 13.1 | 8 | 4 | 0 | 12.5 |
+=== 02:49:15 cell aft-off-editor: gnome-text-editor --reps 10 --seed 332
+[2/20] gnome-text-editor x11 640x420 win=Some(1068882743) status=ok
+[3/20] gnome-text-editor x11 1100x760 win=Some(1068882744) status=ok
+[4/20] gnome-text-editor x11 640x420 win=Some(1068882745) status=ok
+[5/20] gnome-text-editor x11 640x420 win=Some(1068882746) status=ok
+[6/20] gnome-text-editor x11 640x420 win=Some(1068882747) status=ok
+[7/20] gnome-text-editor x11 1100x760 win=Some(1068882748) status=ok
+[8/20] gnome-text-editor x11 1100x760 win=Some(1068882749) status=ok
+[9/20] gnome-text-editor x11 640x420 win=Some(1068882750) status=ok
+[10/20] gnome-text-editor x11 640x420 win=Some(1068882751) status=ok
+[11/20] gnome-text-editor x11 1100x760 win=Some(1068882752) status=ok
+[12/20] gnome-text-editor x11 640x420 win=Some(1068882753) status=ok
+[13/20] gnome-text-editor x11 640x420 win=Some(1068882754) status=ok
+[14/20] gnome-text-editor x11 1100x760 win=Some(1068882755) status=ok
+[15/20] gnome-text-editor x11 1100x760 win=Some(1068882756) status=ok
+[16/20] gnome-text-editor x11 1100x760 win=Some(1068882757) status=ok
+[17/20] gnome-text-editor x11 1100x760 win=Some(1068882758) status=ok
+[18/20] gnome-text-editor x11 1100x760 win=Some(1068882759) status=ok
+[19/20] gnome-text-editor x11 640x420 win=Some(1068882760) status=ok
+[20/20] gnome-text-editor x11 1100x760 win=Some(1068882761) status=ok
+runs done in this invocation: 20
+collected: 5914 lines, 774 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-off-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 10 | 10 | 5 | 5 | 5 | 1.0 / 2 | 33.8 / 87.7 | 50.0% | 33.8 / 87.7 | 0 | 0 | 0 | -0.7 |
+| gnome-text-editor / x11 / idle / small | 10 | 10 | 4 | 4 | 4 | 0.0 / 2 | 0.0 / 105.3 | 0.0% | 0.0 / 105.3 | 2 | 0 | 0 | -0.8 |
+=== 02:52:00 group off done

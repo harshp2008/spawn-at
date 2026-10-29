@@ -1,0 +1,3 @@
+DEV BUILD 0.2.4
+Previous Commit ID: 0984e11
+/tmp/w11c-sandbox.HcbOiQ/target-main/debug/spawn-at
