@@ -90,3 +90,32 @@ returned; the late windows were closed and the partial batch removed before the 
 above. This setting only extends how long `spawn-at` waits for a window that appears late; it does
 not change the extension's cloak/reveal timing used by the analyser. The xterm calibration and the
 gnome-text-editor/eog batches used the default. Full `xobs.jsonl` reduced to `xobs.head.jsonl`.
+
+## gnome-terminal (GTK3, server)
+
+Private headless Shell, DING not loaded. Forced X11 (`GDK_BACKEND=x11`), 20 runs per size idle plus
+10 native Wayland controls (5 per size), then 20 runs per size loaded.
+
+The batch tool started and closed a window on every run, but every window in the extension log was
+`proto=Wayland` (class `gnome-terminal-server`): the D-Bus-activated server, not the launched client,
+owns the window's protocol. The analyzer therefore has no X11 clock lines and no valid X11 rows.
+
+### X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: |
+| gnome-terminal | idle | large | 20 | 0 | 0 | 0 | 0 | 0 | 0 | - / - | - |
+| gnome-terminal | idle | small | 20 | 0 | 0 | 0 | 0 | 0 | 0 | - / - | - |
+| gnome-terminal | loaded | large | 20 | 0 | 0 | 0 | 0 | 0 | 0 | - / - | - |
+| gnome-terminal | loaded | small | 20 | 0 | 0 | 0 | 0 | 0 | 0 | - / - | - |
+
+### Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
+| gnome-terminal | idle | large | 5 | 0 | - / - | 5x adjusted:quiet | 0 |
+| gnome-terminal | idle | small | 5 | 0 | - / - | 5x adjusted:quiet | 0 |
+
+Note: this is the server caveat listed in `PLAN.md`. No X11 number can be reported for this app with
+the unmodified batch tool; it did not crash the Shell. Full `xobs.jsonl` reduced to
+`xobs.head.jsonl`.

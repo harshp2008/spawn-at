@@ -19,3 +19,5 @@ batch of this run.
 | 16:53 | gnome-calculator loaded run 0 and run 1 no_window under the 22-thread load (default spawn window timeout 4 s, window appeared at ~5 s); windows closed, partial batch removed |
 | 16:56 | spawn-at config `$SB/none.toml` raised `spawn.window_timeout_ms` to 15000 for this sandbox only; calculator loaded restarted, run 0 ok |
 | 17:01 | gnome-calculator loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 17:08 | gnome-terminal idle 50 of 50 runs ok, no crash; live pid unchanged; every window was `proto=Wayland` class `gnome-terminal-server` (the server decides the backend), so the X11 rows have valid 0 |
+| 17:14 | gnome-terminal loaded 40 of 40 runs ok, no crash; live pid unchanged |
