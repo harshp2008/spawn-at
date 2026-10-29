@@ -1,0 +1,597 @@
+[spawn-at-time] +8677233.14ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709045.23ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709233.62ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709404.47ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709579.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709762.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +8709906.75ms | SET_LOGGING enabled=true
+[spawn-at-time] +8710042.30ms | SET_LOGGING enabled=true
+[spawn-at-time] +8710166.26ms | SET_LOGGING enabled=true
+[spawn-at-time] +8710291.33ms | SET_LOGGING enabled=true
+[spawn-at-time] +8710428.04ms | SET_LOGGING enabled=true
+[spawn-at-time] +8710853.88ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711054.58ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711167.82ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711307.81ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711421.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711536.22ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711609.42ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711694.85ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711785.87ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711879.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +8711967.78ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712047.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712143.93ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712295.38ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712421.54ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712528.32ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712625.15ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712754.39ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712853.26ms | SET_LOGGING enabled=true
+[spawn-at-time] +8712928.31ms | SET_LOGGING enabled=true
+[spawn-at-time] +8713070.04ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8717558.46ms | WINDOW_CREATED win=[id=3310989554 pid=3263210 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8718231.42ms | ACTOR_MAP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8718231.72ms | DISPATCH win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8718232.67ms | BATCH_STEP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8718232.96ms | CLOAK win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8718233.09ms | BATCH_STEP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8718233.35ms | SET_SIZE_REQUEST win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8718233.62ms | AFTER_SET_SIZE win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8718233.71ms | BATCH_STEP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8718237.17ms | READY_WAIT_START win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8718237.71ms | COMMIT_SAMPLE win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(1000x700) last=(1000x700)
+[spawn-at-time] +8718348.49ms | COMMIT_SAMPLE win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x500) last=(1000x700)
+[spawn-at-time] +8718352.17ms | COMMIT_RESOLVED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8718352.31ms | READY_WAIT_RESOLVED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=118.6 waited_ms=115.2519999742508 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8718353.21ms | BATCH_STEP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8718353.71ms | FALLBACK_USED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8718353.82ms | APPLY_ANCHOR win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8718354.52ms | POSITION_SET win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(737,409)
+[spawn-at-time] +8718354.69ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8718354.77ms | BATCH_STEP win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8718354.91ms | UNCLOAK_4A win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8718371.22ms | UNCLOAK_4B win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8718371.55ms | UNCLOAK_4C win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8718397.35ms | UNCLOAK win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8718397.60ms | UNCLOAK_4D_REVEAL win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8718397.84ms | ANCHOR_ARMED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8722536.71ms | ANCHOR_RELEASED win=[id=3310989554 pid=3263210 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8727140.30ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8731208.81ms | WINDOW_CREATED win=[id=3310989555 pid=3263441 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8731336.18ms | ACTOR_MAP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8731336.28ms | DISPATCH win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8731336.60ms | BATCH_STEP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8731336.67ms | CLOAK win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8731336.70ms | BATCH_STEP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8731336.77ms | SET_SIZE_REQUEST win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8731336.85ms | AFTER_SET_SIZE win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8731336.91ms | BATCH_STEP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8731337.05ms | READY_WAIT_START win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8731337.26ms | COMMIT_SAMPLE win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(700x500) last=(700x500)
+[spawn-at-time] +8731589.55ms | COMMIT_RESOLVED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] reason=TIMEOUT_NO_CHANGE finalFrame=(700x500) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8731589.65ms | READY_WAIT_RESOLVED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=timed-out elapsed_ms=252.7 waited_ms=250 reason=cap finalFrame=(700x500) target=(1000x700)
+[spawn-at-time] +8731589.83ms | BATCH_STEP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8731590.20ms | FALLBACK_USED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8731590.23ms | APPLY_ANCHOR win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8731590.64ms | POSITION_SET win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,1000x700) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8731590.73ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8731590.75ms | BATCH_STEP win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8731590.81ms | UNCLOAK_4A win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8731596.87ms | UNCLOAK_4B win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8731596.96ms | UNCLOAK_4C win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8731601.48ms | UNCLOAK win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8731601.54ms | UNCLOAK_4D_REVEAL win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(1196,556,700x500) bufferRect=(1196,556,1000x700)
+[spawn-at-time] +8731601.61ms | ANCHOR_ARMED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8735316.43ms | ANCHOR_RELEASED win=[id=3310989555 pid=3263441 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8739038.77ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8740588.40ms | WINDOW_CREATED win=[id=3310989556 pid=3263635 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8740930.44ms | ACTOR_MAP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8740930.64ms | DISPATCH win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8740934.28ms | BATCH_STEP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8740934.46ms | CLOAK win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8740934.51ms | BATCH_STEP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8740934.68ms | SET_SIZE_REQUEST win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8740934.82ms | AFTER_SET_SIZE win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8740934.93ms | BATCH_STEP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8740939.13ms | READY_WAIT_START win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8740939.49ms | COMMIT_RESOLVED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8740939.55ms | READY_WAIT_RESOLVED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=4.7 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8740959.65ms | BATCH_STEP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8740960.05ms | FALLBACK_USED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8740960.13ms | APPLY_ANCHOR win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8740960.51ms | POSITION_SET win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8740960.61ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8740960.66ms | BATCH_STEP win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8740960.78ms | UNCLOAK_4A win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8740971.48ms | UNCLOAK_4B win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8740971.64ms | UNCLOAK_4C win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8740990.63ms | UNCLOAK win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8740990.77ms | UNCLOAK_4D_REVEAL win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8740990.90ms | ANCHOR_ARMED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8744163.65ms | ANCHOR_RELEASED win=[id=3310989556 pid=3263635 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8747472.32ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8748879.92ms | WINDOW_CREATED win=[id=3310989557 pid=3263813 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8749112.51ms | ACTOR_MAP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8749112.66ms | DISPATCH win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8749113.04ms | BATCH_STEP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8749113.13ms | CLOAK win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8749113.16ms | BATCH_STEP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8749113.27ms | SET_SIZE_REQUEST win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8749113.35ms | AFTER_SET_SIZE win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8749113.41ms | BATCH_STEP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8749113.57ms | READY_WAIT_START win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8749113.71ms | COMMIT_RESOLVED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8749113.78ms | READY_WAIT_RESOLVED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.4 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8749126.57ms | BATCH_STEP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8749126.82ms | FALLBACK_USED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8749126.86ms | APPLY_ANCHOR win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8749127.09ms | POSITION_SET win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8749127.15ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8749127.18ms | BATCH_STEP win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8749127.23ms | UNCLOAK_4A win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8749133.80ms | UNCLOAK_4B win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8749133.90ms | UNCLOAK_4C win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8749146.14ms | UNCLOAK win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8749146.22ms | UNCLOAK_4D_REVEAL win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8749146.31ms | ANCHOR_ARMED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8752267.94ms | ANCHOR_RELEASED win=[id=3310989557 pid=3263813 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8755587.07ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8756679.76ms | WINDOW_CREATED win=[id=3310989558 pid=3264036 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8756867.24ms | ACTOR_MAP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8756867.34ms | DISPATCH win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8756867.71ms | BATCH_STEP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8756867.79ms | CLOAK win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8756867.81ms | BATCH_STEP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8756867.89ms | SET_SIZE_REQUEST win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8756867.97ms | AFTER_SET_SIZE win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8756867.99ms | BATCH_STEP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8756870.11ms | READY_WAIT_START win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8756870.29ms | COMMIT_SAMPLE win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(1000x700) last=(1000x700)
+[spawn-at-time] +8756922.67ms | COMMIT_SAMPLE win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x500) last=(1000x700)
+[spawn-at-time] +8756922.95ms | COMMIT_RESOLVED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8756922.98ms | READY_WAIT_RESOLVED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=55.0 waited_ms=54.82000005245209 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8756926.56ms | BATCH_STEP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8756926.79ms | FALLBACK_USED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8756926.85ms | APPLY_ANCHOR win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8756928.27ms | POSITION_SET win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(737,409)
+[spawn-at-time] +8756928.36ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8756928.39ms | BATCH_STEP win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8756928.43ms | UNCLOAK_4A win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8756930.76ms | UNCLOAK_4B win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8756930.82ms | UNCLOAK_4C win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8756938.66ms | UNCLOAK win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8756938.73ms | UNCLOAK_4D_REVEAL win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8756938.81ms | ANCHOR_ARMED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8760060.72ms | ANCHOR_RELEASED win=[id=3310989558 pid=3264036 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8763384.57ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8764215.28ms | WINDOW_CREATED win=[id=3310989559 pid=3264249 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8764330.21ms | ACTOR_MAP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8764330.34ms | DISPATCH win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8764330.71ms | BATCH_STEP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8764330.78ms | CLOAK win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8764330.80ms | BATCH_STEP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8764330.88ms | SET_SIZE_REQUEST win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8764330.96ms | AFTER_SET_SIZE win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8764333.76ms | BATCH_STEP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8764334.06ms | READY_WAIT_START win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8764334.29ms | COMMIT_RESOLVED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8764334.32ms | READY_WAIT_RESOLVED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=3.3 waited_ms=0 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8764345.67ms | BATCH_STEP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8764345.89ms | FALLBACK_USED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8764345.93ms | APPLY_ANCHOR win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8764346.16ms | POSITION_SET win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8764346.22ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8764346.24ms | BATCH_STEP win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8764346.30ms | UNCLOAK_4A win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8764350.67ms | UNCLOAK_4B win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8764350.77ms | UNCLOAK_4C win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8764357.30ms | UNCLOAK win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8764357.37ms | UNCLOAK_4D_REVEAL win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8764357.43ms | ANCHOR_ARMED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8767482.65ms | ANCHOR_RELEASED win=[id=3310989559 pid=3264249 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8770759.77ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8771825.97ms | WINDOW_CREATED win=[id=3310989560 pid=3264428 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8771958.91ms | ACTOR_MAP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8771959.05ms | DISPATCH win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8771959.37ms | BATCH_STEP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8771959.46ms | CLOAK win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8771959.48ms | BATCH_STEP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8771959.57ms | SET_SIZE_REQUEST win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8771959.65ms | AFTER_SET_SIZE win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8771959.71ms | BATCH_STEP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8771959.86ms | READY_WAIT_START win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8771960.04ms | COMMIT_SAMPLE win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(700x500) last=(700x500)
+[spawn-at-time] +8772009.97ms | COMMIT_SAMPLE win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1000x700) last=(700x500)
+[spawn-at-time] +8772010.25ms | COMMIT_RESOLVED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8772010.29ms | READY_WAIT_RESOLVED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=50.6 waited_ms=50.47099995613098 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8772010.58ms | BATCH_STEP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8772010.75ms | FALLBACK_USED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8772010.79ms | APPLY_ANCHOR win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8772010.98ms | POSITION_SET win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(637,309)
+[spawn-at-time] +8772011.04ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8772011.06ms | BATCH_STEP win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8772011.11ms | UNCLOAK_4A win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8772013.87ms | UNCLOAK_4B win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8772013.95ms | UNCLOAK_4C win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8772018.58ms | UNCLOAK win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8772018.64ms | UNCLOAK_4D_REVEAL win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8772018.71ms | ANCHOR_ARMED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8775125.05ms | ANCHOR_RELEASED win=[id=3310989560 pid=3264428 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8778467.02ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8779196.63ms | WINDOW_CREATED win=[id=3310989561 pid=3264623 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8779329.89ms | ACTOR_MAP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8779333.04ms | DISPATCH win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8779333.55ms | BATCH_STEP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8779333.64ms | CLOAK win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8779333.66ms | BATCH_STEP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8779333.74ms | SET_SIZE_REQUEST win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8779333.82ms | AFTER_SET_SIZE win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8779333.84ms | BATCH_STEP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8779334.00ms | READY_WAIT_START win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8779334.14ms | COMMIT_RESOLVED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8779334.17ms | READY_WAIT_RESOLVED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.3 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8779344.02ms | BATCH_STEP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8779344.25ms | FALLBACK_USED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8779344.28ms | APPLY_ANCHOR win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8779344.48ms | POSITION_SET win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8779344.56ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8779344.58ms | BATCH_STEP win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8779344.68ms | UNCLOAK_4A win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8779347.17ms | UNCLOAK_4B win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8779347.25ms | UNCLOAK_4C win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8779355.64ms | UNCLOAK win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8779355.70ms | UNCLOAK_4D_REVEAL win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8779355.76ms | ANCHOR_ARMED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8782468.54ms | ANCHOR_RELEASED win=[id=3310989561 pid=3264623 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8785744.06ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8786729.73ms | WINDOW_CREATED win=[id=3310989562 pid=3264801 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8786898.17ms | ACTOR_MAP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8786898.29ms | DISPATCH win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8786898.71ms | BATCH_STEP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8786898.78ms | CLOAK win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8786898.81ms | BATCH_STEP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8786898.89ms | SET_SIZE_REQUEST win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8786898.97ms | AFTER_SET_SIZE win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8786899.04ms | BATCH_STEP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8786899.16ms | READY_WAIT_START win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8786899.35ms | COMMIT_SAMPLE win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(1000x700) last=(1000x700)
+[spawn-at-time] +8786962.16ms | COMMIT_SAMPLE win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x500) last=(1000x700)
+[spawn-at-time] +8786962.43ms | COMMIT_RESOLVED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8786962.48ms | READY_WAIT_RESOLVED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=63.5 waited_ms=63.33499991893768 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8786962.82ms | BATCH_STEP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8786963.02ms | FALLBACK_USED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8786963.06ms | APPLY_ANCHOR win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8786963.29ms | POSITION_SET win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(737,409)
+[spawn-at-time] +8786963.35ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8786963.38ms | BATCH_STEP win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8786963.44ms | UNCLOAK_4A win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8786969.77ms | UNCLOAK_4B win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8786969.87ms | UNCLOAK_4C win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8786979.55ms | UNCLOAK win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8786979.63ms | UNCLOAK_4D_REVEAL win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8786979.71ms | ANCHOR_ARMED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8790099.04ms | ANCHOR_RELEASED win=[id=3310989562 pid=3264801 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8793363.29ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8794854.65ms | WINDOW_CREATED win=[id=3310989563 pid=3264989 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8795145.36ms | ACTOR_MAP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8795145.64ms | DISPATCH win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8795146.50ms | BATCH_STEP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8795146.70ms | CLOAK win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8795146.75ms | BATCH_STEP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8795147.00ms | SET_SIZE_REQUEST win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8795147.32ms | AFTER_SET_SIZE win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8795147.41ms | BATCH_STEP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8795147.81ms | READY_WAIT_START win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8795151.35ms | COMMIT_SAMPLE win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(700x500) last=(700x500)
+[spawn-at-time] +8795291.57ms | COMMIT_SAMPLE win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1000x700) last=(700x500)
+[spawn-at-time] +8795292.00ms | COMMIT_RESOLVED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8795292.10ms | READY_WAIT_RESOLVED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=144.7 waited_ms=144.4760000705719 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8795292.67ms | BATCH_STEP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8795293.04ms | FALLBACK_USED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8795293.10ms | APPLY_ANCHOR win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8795293.52ms | POSITION_SET win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(637,309)
+[spawn-at-time] +8795293.62ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8795293.65ms | BATCH_STEP win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8795293.73ms | UNCLOAK_4A win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8795304.08ms | UNCLOAK_4B win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8795304.36ms | UNCLOAK_4C win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8795324.20ms | UNCLOAK win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8795324.38ms | UNCLOAK_4D_REVEAL win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8795324.56ms | ANCHOR_ARMED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8798490.83ms | ANCHOR_RELEASED win=[id=3310989563 pid=3264989 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8801758.71ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8802491.34ms | WINDOW_CREATED win=[id=3310989564 pid=3265171 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8802636.49ms | ACTOR_MAP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8802636.57ms | DISPATCH win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8802636.89ms | BATCH_STEP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8802636.97ms | CLOAK win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8802636.99ms | BATCH_STEP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8802643.16ms | SET_SIZE_REQUEST win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8802643.27ms | AFTER_SET_SIZE win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8802643.29ms | BATCH_STEP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8802643.46ms | READY_WAIT_START win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8802643.63ms | COMMIT_RESOLVED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8802643.67ms | READY_WAIT_RESOLVED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.4 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8802650.95ms | BATCH_STEP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8802651.12ms | FALLBACK_USED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8802651.15ms | APPLY_ANCHOR win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8802651.32ms | POSITION_SET win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8802651.40ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8802651.42ms | BATCH_STEP win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8802651.46ms | UNCLOAK_4A win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8802653.81ms | UNCLOAK_4B win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8802653.89ms | UNCLOAK_4C win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8802671.69ms | UNCLOAK win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8802671.78ms | UNCLOAK_4D_REVEAL win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8802671.85ms | ANCHOR_ARMED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8805846.38ms | ANCHOR_RELEASED win=[id=3310989564 pid=3265171 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8809121.43ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8810143.81ms | WINDOW_CREATED win=[id=3310989565 pid=3265365 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8810304.86ms | ACTOR_MAP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8810304.96ms | DISPATCH win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8810305.28ms | BATCH_STEP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8810305.36ms | CLOAK win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8810305.39ms | BATCH_STEP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8810305.46ms | SET_SIZE_REQUEST win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8810305.53ms | AFTER_SET_SIZE win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8810305.58ms | BATCH_STEP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8810305.70ms | READY_WAIT_START win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8810305.85ms | COMMIT_RESOLVED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8810305.88ms | READY_WAIT_RESOLVED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.3 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8810317.73ms | BATCH_STEP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8810317.92ms | FALLBACK_USED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8810317.95ms | APPLY_ANCHOR win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8810318.14ms | POSITION_SET win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8810318.19ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8810318.21ms | BATCH_STEP win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8810318.26ms | UNCLOAK_4A win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8810323.41ms | UNCLOAK_4B win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8810323.48ms | UNCLOAK_4C win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8810337.34ms | UNCLOAK win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8810337.40ms | UNCLOAK_4D_REVEAL win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8810337.46ms | ANCHOR_ARMED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8813431.35ms | ANCHOR_RELEASED win=[id=3310989565 pid=3265365 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8816752.81ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8818171.55ms | WINDOW_CREATED win=[id=3310989566 pid=3265545 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8818370.71ms | ACTOR_MAP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8818370.87ms | DISPATCH win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8818371.22ms | BATCH_STEP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8818371.30ms | CLOAK win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8818371.32ms | BATCH_STEP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8818371.40ms | SET_SIZE_REQUEST win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8818371.48ms | AFTER_SET_SIZE win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8818371.54ms | BATCH_STEP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8818371.69ms | READY_WAIT_START win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8818371.84ms | COMMIT_RESOLVED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1000x700) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8818371.91ms | READY_WAIT_RESOLVED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.4 waited_ms=0 reason=at-target finalFrame=(1000x700) target=(1000x700)
+[spawn-at-time] +8818382.72ms | BATCH_STEP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8818383.08ms | FALLBACK_USED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1000x700)
+[spawn-at-time] +8818383.12ms | APPLY_ANCHOR win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] eff=(1000x700) bounds=(0,32,1920x1048) final=(896,356)
+[spawn-at-time] +8818383.32ms | POSITION_SET win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700) actor=(896,356) delta=(437,209)
+[spawn-at-time] +8818383.37ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(896,356,1000x700)
+[spawn-at-time] +8818383.39ms | BATCH_STEP win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8818383.44ms | UNCLOAK_4A win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8818386.21ms | UNCLOAK_4B win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8818386.28ms | UNCLOAK_4C win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(1000x700) actual=(1000x700) needsReanchor=false
+[spawn-at-time] +8818392.73ms | UNCLOAK win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(896,356,1000x700)
+[spawn-at-time] +8818392.79ms | UNCLOAK_4D_REVEAL win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(896,356,1000x700) bufferRect=(896,356,1000x700)
+[spawn-at-time] +8818392.86ms | ANCHOR_ARMED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8821524.50ms | ANCHOR_RELEASED win=[id=3310989566 pid=3265545 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8824801.43ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8825983.51ms | WINDOW_CREATED win=[id=3310989567 pid=3265747 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8826161.61ms | ACTOR_MAP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8826161.69ms | DISPATCH win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8826162.06ms | BATCH_STEP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8826162.16ms | CLOAK win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8826162.18ms | BATCH_STEP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8826162.26ms | SET_SIZE_REQUEST win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8826162.35ms | AFTER_SET_SIZE win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8826162.37ms | BATCH_STEP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8826162.52ms | READY_WAIT_START win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8826162.67ms | COMMIT_SAMPLE win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(1000x700) last=(1000x700)
+[spawn-at-time] +8826207.61ms | COMMIT_SAMPLE win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x500) last=(1000x700)
+[spawn-at-time] +8826207.81ms | COMMIT_RESOLVED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8826207.84ms | READY_WAIT_RESOLVED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=45.5 waited_ms=45.37000000476837 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8826208.07ms | BATCH_STEP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8826208.20ms | FALLBACK_USED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8826208.23ms | APPLY_ANCHOR win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8826208.40ms | POSITION_SET win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(737,409)
+[spawn-at-time] +8826208.48ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8826208.50ms | BATCH_STEP win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8826208.58ms | UNCLOAK_4A win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8826213.73ms | UNCLOAK_4B win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8826213.80ms | UNCLOAK_4C win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8826222.59ms | UNCLOAK win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8826222.65ms | UNCLOAK_4D_REVEAL win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8826222.71ms | ANCHOR_ARMED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8829338.94ms | ANCHOR_RELEASED win=[id=3310989567 pid=3265747 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8832639.08ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8833592.38ms | WINDOW_CREATED win=[id=3310989568 pid=3265932 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8833721.19ms | ACTOR_MAP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8833721.31ms | DISPATCH win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8833721.76ms | BATCH_STEP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8833721.84ms | CLOAK win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8833721.86ms | BATCH_STEP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8833721.94ms | SET_SIZE_REQUEST win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8833724.27ms | AFTER_SET_SIZE win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8833724.36ms | BATCH_STEP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8833724.49ms | READY_WAIT_START win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8833724.69ms | COMMIT_RESOLVED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8833724.72ms | READY_WAIT_RESOLVED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=2.7 waited_ms=0 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8833734.11ms | BATCH_STEP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8833734.29ms | FALLBACK_USED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8833734.32ms | APPLY_ANCHOR win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8833734.52ms | POSITION_SET win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8833734.56ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8833734.59ms | BATCH_STEP win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8833734.63ms | UNCLOAK_4A win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8833740.42ms | UNCLOAK_4B win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8833740.49ms | UNCLOAK_4C win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8833751.69ms | UNCLOAK win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8833751.77ms | UNCLOAK_4D_REVEAL win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8833751.84ms | ANCHOR_ARMED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8836929.72ms | ANCHOR_RELEASED win=[id=3310989568 pid=3265932 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8840243.39ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8841732.65ms | WINDOW_CREATED win=[id=3310989569 pid=3266151 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8841879.38ms | ACTOR_MAP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8841879.52ms | DISPATCH win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8841879.86ms | BATCH_STEP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8841879.95ms | CLOAK win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8841879.98ms | BATCH_STEP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8841880.09ms | SET_SIZE_REQUEST win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8841880.17ms | AFTER_SET_SIZE win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8841880.23ms | BATCH_STEP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8841880.39ms | READY_WAIT_START win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8841880.54ms | COMMIT_RESOLVED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8841880.62ms | READY_WAIT_RESOLVED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.4 waited_ms=0 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8841893.79ms | BATCH_STEP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8841895.48ms | FALLBACK_USED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8841895.55ms | APPLY_ANCHOR win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8841895.80ms | POSITION_SET win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8841895.86ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8841895.89ms | BATCH_STEP win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8841895.95ms | UNCLOAK_4A win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8841898.74ms | UNCLOAK_4B win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8841898.84ms | UNCLOAK_4C win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8841911.75ms | UNCLOAK win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8841911.83ms | UNCLOAK_4D_REVEAL win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8841911.91ms | ANCHOR_ARMED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8845037.59ms | ANCHOR_RELEASED win=[id=3310989569 pid=3266151 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8848340.45ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8849150.02ms | WINDOW_CREATED win=[id=3310989570 pid=3266368 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8849271.90ms | ACTOR_MAP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8849272.02ms | DISPATCH win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8849272.43ms | BATCH_STEP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8849272.52ms | CLOAK win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8849272.54ms | BATCH_STEP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8849272.63ms | SET_SIZE_REQUEST win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) clampedSafeSize=(1000x700) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8849272.71ms | AFTER_SET_SIZE win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8849272.73ms | BATCH_STEP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8849272.88ms | READY_WAIT_START win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1000x700) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8849275.08ms | COMMIT_SAMPLE win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(700x500) last=(700x500)
+[spawn-at-time] +8849524.78ms | COMMIT_RESOLVED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] reason=TIMEOUT_NO_CHANGE finalFrame=(700x500) target=(1000x700) safe=(1000x700)
+[spawn-at-time] +8849524.88ms | READY_WAIT_RESOLVED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=timed-out elapsed_ms=252.1 waited_ms=250 reason=cap finalFrame=(700x500) target=(1000x700)
+[spawn-at-time] +8849525.06ms | BATCH_STEP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8849525.25ms | FALLBACK_USED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8849525.28ms | APPLY_ANCHOR win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8849525.67ms | POSITION_SET win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,1000x700) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8849525.77ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8849525.80ms | BATCH_STEP win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8849525.83ms | UNCLOAK_4A win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8849532.26ms | UNCLOAK_4B win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8849532.33ms | UNCLOAK_4C win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8849534.59ms | UNCLOAK win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8849534.65ms | UNCLOAK_4D_REVEAL win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(1000x700) postFrame=(1196,556,700x500) bufferRect=(1196,556,1000x700)
+[spawn-at-time] +8849534.71ms | ANCHOR_ARMED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8852970.82ms | ANCHOR_RELEASED win=[id=3310989570 pid=3266368 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8856257.26ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8857209.24ms | WINDOW_CREATED win=[id=3310989571 pid=3266544 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8857407.29ms | ACTOR_MAP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8857407.42ms | DISPATCH win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8857407.79ms | BATCH_STEP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8857407.90ms | CLOAK win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8857407.94ms | BATCH_STEP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8857408.07ms | SET_SIZE_REQUEST win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(459,147,1000x700) bufferRect=(459,147,1000x700)
+[spawn-at-time] +8857408.20ms | AFTER_SET_SIZE win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(459,147,1000x700)
+[spawn-at-time] +8857408.25ms | BATCH_STEP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8857408.41ms | READY_WAIT_START win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(1000x700) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8857408.64ms | COMMIT_SAMPLE win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] source=initial frame=(1000x700) last=(1000x700)
+[spawn-at-time] +8857468.47ms | COMMIT_SAMPLE win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x500) last=(1000x700)
+[spawn-at-time] +8857468.81ms | COMMIT_RESOLVED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8857468.87ms | READY_WAIT_RESOLVED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=60.6 waited_ms=60.444000005722046 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8857469.28ms | BATCH_STEP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8857469.50ms | FALLBACK_USED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8857469.55ms | APPLY_ANCHOR win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8857469.82ms | POSITION_SET win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(459,147,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(737,409)
+[spawn-at-time] +8857469.89ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8857469.92ms | BATCH_STEP win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8857469.99ms | UNCLOAK_4A win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8857473.82ms | UNCLOAK_4B win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8857473.93ms | UNCLOAK_4C win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8857479.51ms | UNCLOAK win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8857479.59ms | UNCLOAK_4D_REVEAL win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8857479.69ms | ANCHOR_ARMED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8860619.45ms | ANCHOR_RELEASED win=[id=3310989571 pid=3266544 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8863967.47ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8865071.85ms | WINDOW_CREATED win=[id=3310989572 pid=3266725 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8865233.61ms | ACTOR_MAP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8865233.78ms | DISPATCH win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8865234.19ms | BATCH_STEP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8865234.29ms | CLOAK win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8865234.32ms | BATCH_STEP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8865234.43ms | SET_SIZE_REQUEST win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8865234.51ms | AFTER_SET_SIZE win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8865234.58ms | BATCH_STEP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8865234.77ms | READY_WAIT_START win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8865238.28ms | COMMIT_RESOLVED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8865238.40ms | READY_WAIT_RESOLVED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=3.8 waited_ms=0 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8865249.37ms | BATCH_STEP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8865249.61ms | FALLBACK_USED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8865249.66ms | APPLY_ANCHOR win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8865249.89ms | POSITION_SET win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8865249.95ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8865249.98ms | BATCH_STEP win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8865253.08ms | UNCLOAK_4A win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8865257.36ms | UNCLOAK_4B win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8865257.46ms | UNCLOAK_4C win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8865264.10ms | UNCLOAK win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8865264.17ms | UNCLOAK_4D_REVEAL win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8865264.26ms | ANCHOR_ARMED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8868421.55ms | ANCHOR_RELEASED win=[id=3310989572 pid=3266725 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8871735.15ms | ARM_SPAWN target="assistant"
+[spawn-at-time] +8872761.99ms | WINDOW_CREATED win=[id=3310989573 pid=3266952 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8872932.64ms | ACTOR_MAP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8872932.78ms | DISPATCH win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8872933.38ms | BATCH_STEP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8872933.50ms | CLOAK win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8872933.53ms | BATCH_STEP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8872933.65ms | SET_SIZE_REQUEST win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) clampedSafeSize=(700x500) reportedMinSize=(0x0) preFrame=(259,47,700x500) bufferRect=(259,47,700x500)
+[spawn-at-time] +8872933.76ms | AFTER_SET_SIZE win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(259,47,700x500)
+[spawn-at-time] +8872933.80ms | BATCH_STEP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8872934.02ms | READY_WAIT_START win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x500) current=(700x500) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8872934.28ms | COMMIT_RESOLVED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x500) target=(700x500) safe=(700x500)
+[spawn-at-time] +8872934.32ms | READY_WAIT_RESOLVED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.5 waited_ms=0 reason=at-target finalFrame=(700x500) target=(700x500)
+[spawn-at-time] +8872950.56ms | BATCH_STEP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8872950.85ms | FALLBACK_USED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x500)
+[spawn-at-time] +8872950.91ms | APPLY_ANCHOR win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] eff=(700x500) bounds=(0,32,1920x1048) final=(1196,556)
+[spawn-at-time] +8872952.88ms | POSITION_SET win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] preFrame=(259,47,700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500) actor=(1196,556) delta=(937,509)
+[spawn-at-time] +8872953.03ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,556,700x500)
+[spawn-at-time] +8872953.06ms | BATCH_STEP win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8872953.18ms | UNCLOAK_4A win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8872958.06ms | UNCLOAK_4B win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8872962.29ms | UNCLOAK_4C win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] positioned=(700x500) actual=(700x500) needsReanchor=false
+[spawn-at-time] +8872995.90ms | UNCLOAK win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,556,700x500)
+[spawn-at-time] +8872999.04ms | UNCLOAK_4D_REVEAL win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] requestedSize=(700x500) postFrame=(1196,556,700x500) bufferRect=(1196,556,700x500)
+[spawn-at-time] +8872999.20ms | ANCHOR_ARMED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8876144.24ms | ANCHOR_RELEASED win=[id=3310989573 pid=3266952 class="assistant" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8879363.39ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879440.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879552.64ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879663.88ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879746.14ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879848.52ms | SET_LOGGING enabled=true
+[spawn-at-time] +8879957.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880070.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880169.46ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880270.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880358.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880449.74ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880537.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880620.32ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880709.32ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880843.15ms | SET_LOGGING enabled=true
+[spawn-at-time] +8880976.86ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881064.76ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881151.63ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881235.55ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881327.99ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881406.61ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881488.24ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881561.28ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881652.55ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881787.08ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881865.63ms | SET_LOGGING enabled=true
+[spawn-at-time] +8881937.63ms | SET_LOGGING enabled=true
+[spawn-at-time] +8882020.38ms | SET_LOGGING enabled=true
+[spawn-at-time] +8882096.74ms | SET_LOGGING enabled=true

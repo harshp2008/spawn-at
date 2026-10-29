@@ -1,0 +1,621 @@
+[spawn-at-time] +7641194.13ms | SET_LOGGING enabled=true
+[spawn-at-time] +7642901.59ms | SET_LOGGING enabled=true
+[spawn-at-time] +7642948.48ms | SET_LOGGING enabled=true
+[spawn-at-time] +7642993.55ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643038.88ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643083.96ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643128.67ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643174.90ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643223.34ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643270.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643315.91ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643361.01ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643406.96ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643454.44ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643501.19ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643548.40ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643595.76ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643640.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643686.53ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643735.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643781.83ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643826.80ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643873.28ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643920.87ms | SET_LOGGING enabled=true
+[spawn-at-time] +7643966.96ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644012.97ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644057.99ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644103.34ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644150.87ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644198.25ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644244.59ms | SET_LOGGING enabled=true
+[spawn-at-time] +7644313.25ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7644471.31ms | WINDOW_CREATED win=[id=3310989454 pid=3225586 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7644497.11ms | ACTOR_MAP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7644497.17ms | DISPATCH win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7644497.37ms | BATCH_STEP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7644497.41ms | CLOAK win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7644497.42ms | BATCH_STEP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7644497.47ms | SET_SIZE_REQUEST win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7644497.51ms | AFTER_SET_SIZE win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7644497.52ms | BATCH_STEP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7644497.60ms | READY_WAIT_START win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7644497.70ms | COMMIT_SAMPLE win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7644510.10ms | COMMIT_SAMPLE win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7644510.25ms | COMMIT_RESOLVED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7644510.26ms | READY_WAIT_RESOLVED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=12.7 waited_ms=12.67900002002716 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7644510.38ms | BATCH_STEP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7644510.43ms | FALLBACK_USED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7644510.45ms | APPLY_ANCHOR win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7644510.51ms | POSITION_SET win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7644510.54ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7644510.54ms | BATCH_STEP win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7644510.58ms | UNCLOAK_4A win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7644511.25ms | UNCLOAK_4B win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7644511.28ms | UNCLOAK_4C win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7644512.99ms | UNCLOAK win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7644513.03ms | UNCLOAK_4D_REVEAL win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7644513.05ms | ANCHOR_ARMED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7647048.88ms | ANCHOR_RELEASED win=[id=3310989454 pid=3225586 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7650253.60ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7650423.56ms | WINDOW_CREATED win=[id=3310989455 pid=3225742 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7650448.42ms | ACTOR_MAP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7650448.47ms | DISPATCH win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7650448.55ms | BATCH_STEP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7650448.57ms | CLOAK win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7650448.58ms | BATCH_STEP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7650448.61ms | SET_SIZE_REQUEST win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7650448.63ms | AFTER_SET_SIZE win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7650448.65ms | BATCH_STEP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7650448.69ms | READY_WAIT_START win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7650448.73ms | COMMIT_SAMPLE win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7650461.50ms | COMMIT_SAMPLE win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7650461.62ms | COMMIT_RESOLVED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7650461.63ms | READY_WAIT_RESOLVED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.0 waited_ms=12.92299997806549 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7650461.74ms | BATCH_STEP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7650461.80ms | FALLBACK_USED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7650461.81ms | APPLY_ANCHOR win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7650461.87ms | POSITION_SET win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7650461.88ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7650461.89ms | BATCH_STEP win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7650461.90ms | UNCLOAK_4A win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7650462.46ms | UNCLOAK_4B win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7650462.48ms | UNCLOAK_4C win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7650463.83ms | UNCLOAK win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7650463.85ms | UNCLOAK_4D_REVEAL win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7650463.88ms | ANCHOR_ARMED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7653003.10ms | ANCHOR_RELEASED win=[id=3310989455 pid=3225742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7656102.75ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7656259.13ms | WINDOW_CREATED win=[id=3310989456 pid=3225895 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7656283.51ms | ACTOR_MAP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7656283.55ms | DISPATCH win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7656283.69ms | BATCH_STEP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7656283.72ms | CLOAK win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7656283.72ms | BATCH_STEP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7656283.75ms | SET_SIZE_REQUEST win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7656283.78ms | AFTER_SET_SIZE win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7656283.80ms | BATCH_STEP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7656283.85ms | READY_WAIT_START win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7656283.91ms | COMMIT_SAMPLE win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7656292.70ms | COMMIT_SAMPLE win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7656292.77ms | COMMIT_RESOLVED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7656292.78ms | READY_WAIT_RESOLVED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.0 waited_ms=8.960000038146973 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7656292.87ms | BATCH_STEP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7656292.92ms | FALLBACK_USED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7656292.92ms | APPLY_ANCHOR win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7656292.97ms | POSITION_SET win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7656292.98ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7656292.98ms | BATCH_STEP win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7656293.00ms | UNCLOAK_4A win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7656293.61ms | UNCLOAK_4B win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7656293.63ms | UNCLOAK_4C win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7656294.41ms | UNCLOAK win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7656294.42ms | UNCLOAK_4D_REVEAL win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7656294.44ms | ANCHOR_ARMED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7658834.40ms | ANCHOR_RELEASED win=[id=3310989456 pid=3225895 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7661949.46ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7662130.06ms | WINDOW_CREATED win=[id=3310989457 pid=3226077 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7662155.10ms | ACTOR_MAP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7662155.14ms | DISPATCH win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7662155.21ms | BATCH_STEP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7662155.24ms | CLOAK win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7662155.24ms | BATCH_STEP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7662155.26ms | SET_SIZE_REQUEST win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7662155.30ms | AFTER_SET_SIZE win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7662155.31ms | BATCH_STEP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7662155.35ms | READY_WAIT_START win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7662155.40ms | COMMIT_SAMPLE win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7662163.92ms | COMMIT_SAMPLE win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7662164.00ms | COMMIT_RESOLVED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7662164.02ms | READY_WAIT_RESOLVED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=8.7 waited_ms=8.675999999046326 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7662164.12ms | BATCH_STEP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7662164.23ms | FALLBACK_USED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7662164.25ms | APPLY_ANCHOR win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7662164.33ms | POSITION_SET win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7662164.34ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7662164.35ms | BATCH_STEP win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7662164.37ms | UNCLOAK_4A win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7662164.86ms | UNCLOAK_4B win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7662164.88ms | UNCLOAK_4C win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7662166.25ms | UNCLOAK win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7662166.28ms | UNCLOAK_4D_REVEAL win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7662166.30ms | ANCHOR_ARMED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7664702.75ms | ANCHOR_RELEASED win=[id=3310989457 pid=3226077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7667869.90ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7668016.79ms | WINDOW_CREATED win=[id=3310989458 pid=3226245 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7668049.78ms | ACTOR_MAP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7668049.82ms | DISPATCH win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7668049.93ms | BATCH_STEP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7668049.96ms | CLOAK win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7668049.96ms | BATCH_STEP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7668049.99ms | SET_SIZE_REQUEST win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7668050.02ms | AFTER_SET_SIZE win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7668050.03ms | BATCH_STEP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7668050.08ms | READY_WAIT_START win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7668050.16ms | COMMIT_SAMPLE win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7668063.85ms | COMMIT_SAMPLE win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7668063.98ms | COMMIT_RESOLVED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7668063.99ms | READY_WAIT_RESOLVED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=14.0 waited_ms=13.885000109672546 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7668064.13ms | BATCH_STEP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7668064.18ms | FALLBACK_USED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7668064.20ms | APPLY_ANCHOR win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7668064.26ms | POSITION_SET win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7668064.29ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7668064.29ms | BATCH_STEP win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7668064.31ms | UNCLOAK_4A win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7668065.05ms | UNCLOAK_4B win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7668065.09ms | UNCLOAK_4C win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7668066.68ms | UNCLOAK win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7668066.70ms | UNCLOAK_4D_REVEAL win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7668066.72ms | ANCHOR_ARMED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7670604.98ms | ANCHOR_RELEASED win=[id=3310989458 pid=3226245 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7673739.76ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7673918.24ms | WINDOW_CREATED win=[id=3310989459 pid=3226431 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7673942.43ms | ACTOR_MAP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7673942.47ms | DISPATCH win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7673942.76ms | BATCH_STEP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7673942.78ms | CLOAK win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7673942.78ms | BATCH_STEP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7673942.80ms | SET_SIZE_REQUEST win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7673942.83ms | AFTER_SET_SIZE win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7673942.84ms | BATCH_STEP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7673942.89ms | READY_WAIT_START win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7673942.93ms | COMMIT_SAMPLE win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7673951.09ms | COMMIT_SAMPLE win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7673951.17ms | COMMIT_RESOLVED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7673951.18ms | READY_WAIT_RESOLVED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=8.3 waited_ms=8.304999947547913 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7673951.27ms | BATCH_STEP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7673951.33ms | FALLBACK_USED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7673951.34ms | APPLY_ANCHOR win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7673951.42ms | POSITION_SET win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7673951.44ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7673951.45ms | BATCH_STEP win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7673951.47ms | UNCLOAK_4A win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7673952.13ms | UNCLOAK_4B win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7673952.16ms | UNCLOAK_4C win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7673953.23ms | UNCLOAK win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7673953.24ms | UNCLOAK_4D_REVEAL win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7673953.26ms | ANCHOR_ARMED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7676491.36ms | ANCHOR_RELEASED win=[id=3310989459 pid=3226431 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7679596.84ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7679771.25ms | WINDOW_CREATED win=[id=3310989460 pid=3226587 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7679797.94ms | ACTOR_MAP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7679797.98ms | DISPATCH win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7679798.11ms | BATCH_STEP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7679798.14ms | CLOAK win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7679798.15ms | BATCH_STEP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7679798.17ms | SET_SIZE_REQUEST win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7679798.20ms | AFTER_SET_SIZE win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7679798.22ms | BATCH_STEP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7679798.26ms | READY_WAIT_START win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7679798.31ms | COMMIT_SAMPLE win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7679811.54ms | COMMIT_SAMPLE win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7679811.64ms | COMMIT_RESOLVED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7679811.65ms | READY_WAIT_RESOLVED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.4 waited_ms=13.393999934196472 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7679811.76ms | BATCH_STEP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7679811.82ms | FALLBACK_USED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7679811.83ms | APPLY_ANCHOR win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7679811.88ms | POSITION_SET win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7679811.90ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7679811.91ms | BATCH_STEP win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7679811.92ms | UNCLOAK_4A win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7679812.64ms | UNCLOAK_4B win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7679812.67ms | UNCLOAK_4C win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7679814.15ms | UNCLOAK win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7679814.17ms | UNCLOAK_4D_REVEAL win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7679814.20ms | ANCHOR_ARMED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7682347.20ms | ANCHOR_RELEASED win=[id=3310989460 pid=3226587 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7685452.33ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7685602.34ms | WINDOW_CREATED win=[id=3310989461 pid=3226742 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7685627.11ms | ACTOR_MAP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7685627.16ms | DISPATCH win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7685627.32ms | BATCH_STEP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7685627.36ms | CLOAK win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7685627.36ms | BATCH_STEP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7685627.40ms | SET_SIZE_REQUEST win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7685627.42ms | AFTER_SET_SIZE win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7685627.44ms | BATCH_STEP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7685627.49ms | READY_WAIT_START win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7685627.54ms | COMMIT_SAMPLE win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7685636.44ms | COMMIT_SAMPLE win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7685636.51ms | COMMIT_RESOLVED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7685636.51ms | READY_WAIT_RESOLVED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.1 waited_ms=9.049000024795532 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7685636.60ms | BATCH_STEP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7685636.66ms | FALLBACK_USED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7685636.67ms | APPLY_ANCHOR win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7685636.72ms | POSITION_SET win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7685636.74ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7685636.74ms | BATCH_STEP win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7685636.76ms | UNCLOAK_4A win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7685637.35ms | UNCLOAK_4B win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7685637.37ms | UNCLOAK_4C win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7685638.58ms | UNCLOAK win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7685638.60ms | UNCLOAK_4D_REVEAL win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7685638.62ms | ANCHOR_ARMED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7688176.08ms | ANCHOR_RELEASED win=[id=3310989461 pid=3226742 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7691283.15ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7691431.04ms | WINDOW_CREATED win=[id=3310989462 pid=3226925 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7691454.32ms | ACTOR_MAP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7691454.36ms | DISPATCH win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7691454.50ms | BATCH_STEP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7691454.52ms | CLOAK win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7691454.52ms | BATCH_STEP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7691454.56ms | SET_SIZE_REQUEST win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7691454.60ms | AFTER_SET_SIZE win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7691454.61ms | BATCH_STEP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7691454.68ms | READY_WAIT_START win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7691454.74ms | COMMIT_SAMPLE win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7691468.19ms | COMMIT_SAMPLE win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7691468.29ms | COMMIT_RESOLVED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7691468.31ms | READY_WAIT_RESOLVED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.7 waited_ms=13.63700008392334 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7691468.42ms | BATCH_STEP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7691468.47ms | FALLBACK_USED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7691468.48ms | APPLY_ANCHOR win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7691468.54ms | POSITION_SET win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7691468.56ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7691468.57ms | BATCH_STEP win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7691468.59ms | UNCLOAK_4A win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7691469.28ms | UNCLOAK_4B win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7691469.33ms | UNCLOAK_4C win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7691470.82ms | UNCLOAK win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7691470.85ms | UNCLOAK_4D_REVEAL win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7691470.88ms | ANCHOR_ARMED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7694015.29ms | ANCHOR_RELEASED win=[id=3310989462 pid=3226925 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7697122.05ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7697287.14ms | WINDOW_CREATED win=[id=3310989463 pid=3227093 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7697310.88ms | ACTOR_MAP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7697310.92ms | DISPATCH win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7697310.99ms | BATCH_STEP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7697311.02ms | CLOAK win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7697311.02ms | BATCH_STEP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7697311.04ms | SET_SIZE_REQUEST win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7697311.08ms | AFTER_SET_SIZE win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7697311.09ms | BATCH_STEP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7697311.13ms | READY_WAIT_START win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7697311.18ms | COMMIT_SAMPLE win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7697324.10ms | COMMIT_SAMPLE win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7697324.21ms | COMMIT_RESOLVED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7697324.22ms | READY_WAIT_RESOLVED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.1 waited_ms=13.092000007629395 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7697324.34ms | BATCH_STEP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7697324.40ms | FALLBACK_USED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7697324.41ms | APPLY_ANCHOR win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7697324.48ms | POSITION_SET win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7697324.49ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7697324.50ms | BATCH_STEP win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7697324.51ms | UNCLOAK_4A win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7697325.15ms | UNCLOAK_4B win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7697325.19ms | UNCLOAK_4C win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7697326.92ms | UNCLOAK win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7697326.95ms | UNCLOAK_4D_REVEAL win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7697326.96ms | ANCHOR_ARMED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7699865.66ms | ANCHOR_RELEASED win=[id=3310989463 pid=3227093 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7702973.94ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7703133.78ms | WINDOW_CREATED win=[id=3310989464 pid=3227255 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7703158.20ms | ACTOR_MAP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7703158.24ms | DISPATCH win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7703158.35ms | BATCH_STEP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7703158.38ms | CLOAK win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7703158.39ms | BATCH_STEP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7703158.41ms | SET_SIZE_REQUEST win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7703158.44ms | AFTER_SET_SIZE win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7703158.46ms | BATCH_STEP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7703158.52ms | READY_WAIT_START win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7703158.58ms | COMMIT_SAMPLE win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7703167.52ms | COMMIT_SAMPLE win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7703167.62ms | COMMIT_RESOLVED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7703167.63ms | READY_WAIT_RESOLVED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.2 waited_ms=9.11900007724762 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7703167.73ms | BATCH_STEP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7703167.78ms | FALLBACK_USED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7703167.79ms | APPLY_ANCHOR win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7703167.85ms | POSITION_SET win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7703167.86ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7703167.87ms | BATCH_STEP win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7703167.88ms | UNCLOAK_4A win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7703168.53ms | UNCLOAK_4B win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7703168.55ms | UNCLOAK_4C win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7703169.56ms | UNCLOAK win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7703169.58ms | UNCLOAK_4D_REVEAL win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7703169.60ms | ANCHOR_ARMED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7705705.80ms | ANCHOR_RELEASED win=[id=3310989464 pid=3227255 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7708809.16ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7708984.29ms | WINDOW_CREATED win=[id=3310989465 pid=3227413 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7709009.58ms | ACTOR_MAP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7709009.62ms | DISPATCH win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7709009.69ms | BATCH_STEP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7709009.71ms | CLOAK win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7709009.72ms | BATCH_STEP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7709009.96ms | SET_SIZE_REQUEST win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7709009.99ms | AFTER_SET_SIZE win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7709010.02ms | BATCH_STEP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7709010.06ms | READY_WAIT_START win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7709010.12ms | COMMIT_SAMPLE win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7709023.33ms | COMMIT_SAMPLE win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7709023.43ms | COMMIT_RESOLVED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7709023.44ms | READY_WAIT_RESOLVED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.4 waited_ms=13.391000032424927 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7709023.55ms | BATCH_STEP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7709023.61ms | FALLBACK_USED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7709023.62ms | APPLY_ANCHOR win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7709023.67ms | POSITION_SET win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7709023.68ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7709023.69ms | BATCH_STEP win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7709023.70ms | UNCLOAK_4A win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7709024.23ms | UNCLOAK_4B win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7709024.26ms | UNCLOAK_4C win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7709025.75ms | UNCLOAK win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7709025.77ms | UNCLOAK_4D_REVEAL win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7709025.79ms | ANCHOR_ARMED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7711574.26ms | ANCHOR_RELEASED win=[id=3310989465 pid=3227413 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7714686.35ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7714838.62ms | WINDOW_CREATED win=[id=3310989466 pid=3227568 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7714863.30ms | ACTOR_MAP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7714863.34ms | DISPATCH win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7714863.46ms | BATCH_STEP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7714863.49ms | CLOAK win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7714863.50ms | BATCH_STEP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7714863.52ms | SET_SIZE_REQUEST win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7714863.55ms | AFTER_SET_SIZE win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7714863.56ms | BATCH_STEP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7714863.61ms | READY_WAIT_START win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7714863.69ms | COMMIT_SAMPLE win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7714873.37ms | COMMIT_SAMPLE win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7714873.46ms | COMMIT_RESOLVED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7714873.47ms | READY_WAIT_RESOLVED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.9 waited_ms=9.859000086784363 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7714873.58ms | BATCH_STEP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7714873.64ms | FALLBACK_USED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7714873.65ms | APPLY_ANCHOR win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7714873.70ms | POSITION_SET win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7714873.73ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7714873.73ms | BATCH_STEP win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7714873.75ms | UNCLOAK_4A win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7714874.45ms | UNCLOAK_4B win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7714874.48ms | UNCLOAK_4C win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7714876.68ms | UNCLOAK win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7714876.70ms | UNCLOAK_4D_REVEAL win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7714876.72ms | ANCHOR_ARMED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7717408.11ms | ANCHOR_RELEASED win=[id=3310989466 pid=3227568 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7720520.33ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7720708.99ms | WINDOW_CREATED win=[id=3310989467 pid=3227751 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7720733.51ms | ACTOR_MAP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7720733.55ms | DISPATCH win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7720733.66ms | BATCH_STEP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7720733.68ms | CLOAK win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7720733.69ms | BATCH_STEP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7720733.71ms | SET_SIZE_REQUEST win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7720733.74ms | AFTER_SET_SIZE win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7720733.75ms | BATCH_STEP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7720733.79ms | READY_WAIT_START win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7720733.83ms | COMMIT_SAMPLE win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7720747.21ms | COMMIT_SAMPLE win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7720747.32ms | COMMIT_RESOLVED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7720747.33ms | READY_WAIT_RESOLVED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=13.6 waited_ms=13.529000043869019 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7720747.44ms | BATCH_STEP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7720747.50ms | FALLBACK_USED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7720747.51ms | APPLY_ANCHOR win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7720747.57ms | POSITION_SET win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7720747.58ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7720747.59ms | BATCH_STEP win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7720747.63ms | UNCLOAK_4A win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7720748.23ms | UNCLOAK_4B win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7720748.28ms | UNCLOAK_4C win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7720749.69ms | UNCLOAK win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7720749.72ms | UNCLOAK_4D_REVEAL win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7720749.74ms | ANCHOR_ARMED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7723286.60ms | ANCHOR_RELEASED win=[id=3310989467 pid=3227751 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7726394.82ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7726558.28ms | WINDOW_CREATED win=[id=3310989468 pid=3227917 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7726582.88ms | ACTOR_MAP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7726582.93ms | DISPATCH win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7726583.06ms | BATCH_STEP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7726583.08ms | CLOAK win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7726583.09ms | BATCH_STEP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7726583.11ms | SET_SIZE_REQUEST win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7726583.14ms | AFTER_SET_SIZE win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7726583.16ms | BATCH_STEP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7726583.21ms | READY_WAIT_START win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7726583.29ms | COMMIT_SAMPLE win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7726597.50ms | COMMIT_SAMPLE win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7726597.59ms | COMMIT_RESOLVED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7726597.61ms | READY_WAIT_RESOLVED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=14.5 waited_ms=14.41699993610382 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7726597.72ms | BATCH_STEP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7726597.84ms | FALLBACK_USED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7726597.86ms | APPLY_ANCHOR win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7726597.93ms | POSITION_SET win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7726597.94ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7726597.95ms | BATCH_STEP win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7726597.97ms | UNCLOAK_4A win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7726598.65ms | UNCLOAK_4B win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7726598.68ms | UNCLOAK_4C win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7726600.26ms | UNCLOAK win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7726600.28ms | UNCLOAK_4D_REVEAL win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7726600.30ms | ANCHOR_ARMED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7729141.20ms | ANCHOR_RELEASED win=[id=3310989468 pid=3227917 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7732251.98ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7732405.61ms | WINDOW_CREATED win=[id=3310989469 pid=3228077 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7732428.95ms | ACTOR_MAP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7732428.99ms | DISPATCH win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7732429.06ms | BATCH_STEP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7732429.08ms | CLOAK win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7732429.09ms | BATCH_STEP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7732429.11ms | SET_SIZE_REQUEST win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7732429.14ms | AFTER_SET_SIZE win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7732429.16ms | BATCH_STEP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7732429.20ms | READY_WAIT_START win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7732429.25ms | COMMIT_SAMPLE win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7732439.04ms | COMMIT_SAMPLE win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7732439.11ms | COMMIT_RESOLVED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7732439.12ms | READY_WAIT_RESOLVED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=10.0 waited_ms=9.937999963760376 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7732439.20ms | BATCH_STEP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7732439.25ms | FALLBACK_USED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7732439.26ms | APPLY_ANCHOR win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7732439.31ms | POSITION_SET win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7732439.33ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7732439.33ms | BATCH_STEP win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7732439.35ms | UNCLOAK_4A win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7732439.89ms | UNCLOAK_4B win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7732439.91ms | UNCLOAK_4C win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7732440.88ms | UNCLOAK win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7732440.89ms | UNCLOAK_4D_REVEAL win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7732440.91ms | ANCHOR_ARMED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7734979.42ms | ANCHOR_RELEASED win=[id=3310989469 pid=3228077 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7738084.12ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7738234.47ms | WINDOW_CREATED win=[id=3310989470 pid=3228246 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7738258.72ms | ACTOR_MAP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7738258.76ms | DISPATCH win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7738258.89ms | BATCH_STEP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7738258.92ms | CLOAK win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7738258.92ms | BATCH_STEP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7738258.95ms | SET_SIZE_REQUEST win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7738258.98ms | AFTER_SET_SIZE win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7738258.99ms | BATCH_STEP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7738259.06ms | READY_WAIT_START win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7738259.14ms | COMMIT_SAMPLE win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7738267.39ms | COMMIT_SAMPLE win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7738267.49ms | COMMIT_RESOLVED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7738267.50ms | READY_WAIT_RESOLVED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=8.5 waited_ms=8.45800006389618 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7738267.60ms | BATCH_STEP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7738267.65ms | FALLBACK_USED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7738267.66ms | APPLY_ANCHOR win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7738267.71ms | POSITION_SET win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7738267.73ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7738267.74ms | BATCH_STEP win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7738267.76ms | UNCLOAK_4A win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7738268.41ms | UNCLOAK_4B win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7738268.44ms | UNCLOAK_4C win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7738269.47ms | UNCLOAK win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7738269.49ms | UNCLOAK_4D_REVEAL win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7738269.51ms | ANCHOR_ARMED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7740806.20ms | ANCHOR_RELEASED win=[id=3310989470 pid=3228246 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7743945.82ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7744098.57ms | WINDOW_CREATED win=[id=3310989471 pid=3228403 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7744124.34ms | ACTOR_MAP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7744124.38ms | DISPATCH win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7744124.45ms | BATCH_STEP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7744124.47ms | CLOAK win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7744124.68ms | BATCH_STEP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7744124.71ms | SET_SIZE_REQUEST win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7744124.74ms | AFTER_SET_SIZE win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7744124.75ms | BATCH_STEP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7744124.80ms | READY_WAIT_START win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7744124.85ms | COMMIT_SAMPLE win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7744138.70ms | COMMIT_SAMPLE win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7744138.81ms | COMMIT_RESOLVED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7744138.82ms | READY_WAIT_RESOLVED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=14.1 waited_ms=14.026999950408936 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7744138.94ms | BATCH_STEP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7744139.00ms | FALLBACK_USED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7744139.01ms | APPLY_ANCHOR win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7744139.08ms | POSITION_SET win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7744139.09ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7744139.10ms | BATCH_STEP win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7744139.12ms | UNCLOAK_4A win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7744139.69ms | UNCLOAK_4B win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7744139.72ms | UNCLOAK_4C win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7744142.03ms | UNCLOAK win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7744142.05ms | UNCLOAK_4D_REVEAL win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7744142.07ms | ANCHOR_ARMED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7746676.78ms | ANCHOR_RELEASED win=[id=3310989471 pid=3228403 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7749779.23ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7749924.59ms | WINDOW_CREATED win=[id=3310989472 pid=3228566 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7749948.78ms | ACTOR_MAP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7749948.82ms | DISPATCH win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7749948.93ms | BATCH_STEP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7749948.95ms | CLOAK win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7749948.96ms | BATCH_STEP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7749948.99ms | SET_SIZE_REQUEST win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7749949.02ms | AFTER_SET_SIZE win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7749949.03ms | BATCH_STEP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7749949.08ms | READY_WAIT_START win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7749949.13ms | COMMIT_SAMPLE win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7749963.73ms | COMMIT_SAMPLE win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(540x450)
+[spawn-at-time] +7749963.82ms | COMMIT_RESOLVED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +7749963.84ms | READY_WAIT_RESOLVED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=14.8 waited_ms=14.772000074386597 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +7749963.94ms | BATCH_STEP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7749963.99ms | FALLBACK_USED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +7749964.00ms | APPLY_ANCHOR win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +7749964.06ms | POSITION_SET win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812) actor=(770,273) delta=(648,216)
+[spawn-at-time] +7749964.07ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +7749964.08ms | BATCH_STEP win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7749964.09ms | UNCLOAK_4A win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7749964.79ms | UNCLOAK_4B win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7749964.82ms | UNCLOAK_4C win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +7749966.80ms | UNCLOAK win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +7749966.82ms | UNCLOAK_4D_REVEAL win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(770,273,1152x812)
+[spawn-at-time] +7749966.84ms | ANCHOR_ARMED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7752501.11ms | ANCHOR_RELEASED win=[id=3310989472 pid=3228566 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7755604.82ms | ARM_SPAWN target="org.gnome.eog"
+[spawn-at-time] +7755765.71ms | WINDOW_CREATED win=[id=3310989473 pid=3228754 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +7755790.47ms | ACTOR_MAP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7755790.52ms | DISPATCH win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +7755790.61ms | BATCH_STEP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +7755790.63ms | CLOAK win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7755790.64ms | BATCH_STEP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +7755790.67ms | SET_SIZE_REQUEST win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) clampedSafeSize=(600x420) reportedMinSize=(0x0) preFrame=(148,80,540x450) bufferRect=(122,57,592x502)
+[spawn-at-time] +7755790.70ms | AFTER_SET_SIZE win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(148,80,540x450)
+[spawn-at-time] +7755790.71ms | BATCH_STEP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +7755790.75ms | READY_WAIT_START win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(600x420) current=(540x450) cap=250 quiet=30 hard=1500
+[spawn-at-time] +7755790.81ms | COMMIT_SAMPLE win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=initial frame=(540x450) last=(540x450)
+[spawn-at-time] +7755800.34ms | COMMIT_SAMPLE win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] source=size-changed frame=(600x420) last=(540x450)
+[spawn-at-time] +7755800.43ms | COMMIT_RESOLVED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(600x420) target=(600x420) safe=(600x420)
+[spawn-at-time] +7755800.43ms | READY_WAIT_RESOLVED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.7 waited_ms=9.689000010490417 reason=at-target finalFrame=(600x420) target=(600x420)
+[spawn-at-time] +7755800.54ms | BATCH_STEP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +7755800.60ms | FALLBACK_USED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(600x420)
+[spawn-at-time] +7755800.61ms | APPLY_ANCHOR win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] eff=(600x420) bounds=(0,32,1920x1048) final=(1296,636)
+[spawn-at-time] +7755800.67ms | POSITION_SET win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] preFrame=(148,80,600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472) actor=(1270,613) delta=(1148,556)
+[spawn-at-time] +7755800.68ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=0 frame=(1296,636,600x420)
+[spawn-at-time] +7755800.69ms | BATCH_STEP win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +7755800.74ms | UNCLOAK_4A win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +7755801.34ms | UNCLOAK_4B win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +7755801.36ms | UNCLOAK_4C win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] positioned=(600x420) actual=(600x420) needsReanchor=false
+[spawn-at-time] +7755802.65ms | UNCLOAK win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] opacity=255 frame=(1296,636,600x420)
+[spawn-at-time] +7755802.66ms | UNCLOAK_4D_REVEAL win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] requestedSize=(600x420) postFrame=(1296,636,600x420) bufferRect=(1270,613,652x472)
+[spawn-at-time] +7755802.68ms | ANCHOR_ARMED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland]
+[spawn-at-time] +7758335.08ms | ANCHOR_RELEASED win=[id=3310989473 pid=3228754 class="eog" app="org.gnome.eog" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +7761416.33ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761462.12ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761506.97ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761553.78ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761602.76ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761650.67ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761698.70ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761745.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761790.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761838.92ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761886.54ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761931.56ms | SET_LOGGING enabled=true
+[spawn-at-time] +7761978.88ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762025.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762071.95ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762120.38ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762166.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762211.69ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762258.99ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762307.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762355.80ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762403.56ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762448.70ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762494.40ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762539.43ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762587.63ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762635.62ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762682.75ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762728.59ms | SET_LOGGING enabled=true
+[spawn-at-time] +7762775.41ms | SET_LOGGING enabled=true

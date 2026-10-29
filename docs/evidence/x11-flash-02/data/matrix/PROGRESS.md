@@ -29,3 +29,5 @@ batch of this run.
 | 17:59 | java-swing loaded 40 of 40 runs ok, no crash; live pid unchanged |
 | 18:04 | gnome-text-editor-nowindow idle 50 of 50 runs ok, no crash; live pid unchanged |
 | 18:10 | gnome-text-editor-nowindow loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 18:38 | T1 native Wayland batches done for gnome-text-editor, eog, google-chrome, qt-assistant (20 runs each per condition, idle and loaded); no crash; live pid unchanged |
+| 18:42 | T2 plain geometry runs: xterm 10 of 10, google-chrome 10 of 10; Qt Assistant skipped (`Unknown option: -geometry`, exit 255) |

@@ -1,0 +1,621 @@
+[spawn-at-time] +8017325.93ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019033.86ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019080.12ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019125.42ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019173.81ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019219.38ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019267.68ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019312.97ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019357.77ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019405.03ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019450.75ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019496.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019543.35ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019589.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019634.49ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019680.19ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019726.30ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019774.20ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019822.02ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019869.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019915.68ms | SET_LOGGING enabled=true
+[spawn-at-time] +8019961.68ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020008.88ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020056.32ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020102.36ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020149.35ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020195.29ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020242.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020290.18ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020335.25ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020383.19ms | SET_LOGGING enabled=true
+[spawn-at-time] +8020451.17ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8020644.57ms | WINDOW_CREATED win=[id=3310989494 pid=3233808 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8020848.83ms | ACTOR_MAP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8020848.89ms | DISPATCH win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8020849.04ms | BATCH_STEP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8020849.07ms | CLOAK win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8020849.08ms | BATCH_STEP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8020849.11ms | SET_SIZE_REQUEST win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8020849.14ms | AFTER_SET_SIZE win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8020849.16ms | BATCH_STEP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8020849.22ms | READY_WAIT_START win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8020849.29ms | COMMIT_SAMPLE win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8020875.28ms | COMMIT_SAMPLE win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8020875.44ms | COMMIT_RESOLVED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8020875.46ms | READY_WAIT_RESOLVED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=26.3 waited_ms=26.236000061035156 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8020875.57ms | BATCH_STEP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8020875.64ms | FALLBACK_USED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8020875.66ms | APPLY_ANCHOR win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8020875.72ms | POSITION_SET win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8020875.73ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8020875.74ms | BATCH_STEP win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8020875.75ms | UNCLOAK_4A win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8020876.78ms | UNCLOAK_4B win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8020876.82ms | UNCLOAK_4C win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8020877.98ms | UNCLOAK win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8020878.02ms | UNCLOAK_4D_REVEAL win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8020878.04ms | ANCHOR_ARMED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8024913.42ms | ANCHOR_RELEASED win=[id=3310989494 pid=3233808 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8028133.21ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8028327.43ms | WINDOW_CREATED win=[id=3310989495 pid=3234389 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8028544.92ms | ACTOR_MAP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8028544.96ms | DISPATCH win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8028545.13ms | BATCH_STEP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8028545.16ms | CLOAK win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8028545.17ms | BATCH_STEP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8028545.20ms | SET_SIZE_REQUEST win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8028545.22ms | AFTER_SET_SIZE win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8028545.23ms | BATCH_STEP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8028545.27ms | READY_WAIT_START win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8028545.32ms | COMMIT_SAMPLE win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8028574.00ms | COMMIT_SAMPLE win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8028574.14ms | COMMIT_RESOLVED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8028574.16ms | READY_WAIT_RESOLVED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=28.9 waited_ms=28.858999967575073 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8028574.31ms | BATCH_STEP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8028574.40ms | FALLBACK_USED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8028574.42ms | APPLY_ANCHOR win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8028574.52ms | POSITION_SET win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8028574.54ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8028574.56ms | BATCH_STEP win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8028574.58ms | UNCLOAK_4A win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8028575.79ms | UNCLOAK_4B win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8028575.85ms | UNCLOAK_4C win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8028577.52ms | UNCLOAK win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8028577.56ms | UNCLOAK_4D_REVEAL win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8028577.60ms | ANCHOR_ARMED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8032612.74ms | ANCHOR_RELEASED win=[id=3310989495 pid=3234389 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8035858.29ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8036064.77ms | WINDOW_CREATED win=[id=3310989496 pid=3234968 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8036283.13ms | ACTOR_MAP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8036283.19ms | DISPATCH win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8036283.38ms | BATCH_STEP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8036283.43ms | CLOAK win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8036283.43ms | BATCH_STEP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8036283.49ms | SET_SIZE_REQUEST win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8036283.54ms | AFTER_SET_SIZE win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8036283.55ms | BATCH_STEP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8036283.64ms | READY_WAIT_START win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8036283.73ms | COMMIT_SAMPLE win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8036308.25ms | COMMIT_SAMPLE win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8036308.37ms | COMMIT_RESOLVED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8036308.38ms | READY_WAIT_RESOLVED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=24.8 waited_ms=24.763000011444092 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8036308.50ms | BATCH_STEP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8036308.56ms | FALLBACK_USED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8036308.57ms | APPLY_ANCHOR win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8036308.65ms | POSITION_SET win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8036308.67ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8036308.68ms | BATCH_STEP win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8036308.70ms | UNCLOAK_4A win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8036309.71ms | UNCLOAK_4B win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8036309.75ms | UNCLOAK_4C win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8036311.00ms | UNCLOAK win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8036311.04ms | UNCLOAK_4D_REVEAL win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8036311.08ms | ANCHOR_ARMED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8040344.84ms | ANCHOR_RELEASED win=[id=3310989496 pid=3234968 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8043603.71ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8043809.68ms | WINDOW_CREATED win=[id=3310989497 pid=3235533 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8044019.83ms | ACTOR_MAP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8044019.89ms | DISPATCH win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8044020.06ms | BATCH_STEP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8044020.09ms | CLOAK win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8044020.11ms | BATCH_STEP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8044020.14ms | SET_SIZE_REQUEST win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8044020.17ms | AFTER_SET_SIZE win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8044020.20ms | BATCH_STEP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8044020.26ms | READY_WAIT_START win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8044020.33ms | COMMIT_SAMPLE win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8044044.79ms | COMMIT_SAMPLE win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8044044.97ms | COMMIT_RESOLVED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8044044.99ms | READY_WAIT_RESOLVED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=24.8 waited_ms=24.71399998664856 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8044045.09ms | BATCH_STEP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8044045.15ms | FALLBACK_USED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8044045.16ms | APPLY_ANCHOR win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8044045.21ms | POSITION_SET win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8044045.23ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8044045.24ms | BATCH_STEP win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8044045.25ms | UNCLOAK_4A win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8044046.49ms | UNCLOAK_4B win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8044046.53ms | UNCLOAK_4C win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8044047.57ms | UNCLOAK win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8044047.60ms | UNCLOAK_4D_REVEAL win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8044047.62ms | ANCHOR_ARMED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8048077.34ms | ANCHOR_RELEASED win=[id=3310989497 pid=3235533 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8051289.93ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8051491.68ms | WINDOW_CREATED win=[id=3310989498 pid=3236108 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8051723.12ms | ACTOR_MAP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8051723.17ms | DISPATCH win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8051723.35ms | BATCH_STEP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8051723.38ms | CLOAK win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8051723.39ms | BATCH_STEP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8051723.42ms | SET_SIZE_REQUEST win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8051723.45ms | AFTER_SET_SIZE win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8051723.46ms | BATCH_STEP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8051723.51ms | READY_WAIT_START win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8051723.57ms | COMMIT_SAMPLE win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8051753.45ms | COMMIT_SAMPLE win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8051753.62ms | COMMIT_RESOLVED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8051753.65ms | READY_WAIT_RESOLVED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=30.2 waited_ms=30.075999975204468 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8051753.80ms | BATCH_STEP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8051753.90ms | FALLBACK_USED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8051753.92ms | APPLY_ANCHOR win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8051754.07ms | POSITION_SET win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8051754.10ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8051754.11ms | BATCH_STEP win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8051754.15ms | UNCLOAK_4A win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8051755.27ms | UNCLOAK_4B win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8051755.30ms | UNCLOAK_4C win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8051756.36ms | UNCLOAK win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8051756.38ms | UNCLOAK_4D_REVEAL win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8051756.41ms | ANCHOR_ARMED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8055789.63ms | ANCHOR_RELEASED win=[id=3310989498 pid=3236108 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8059006.67ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8059211.25ms | WINDOW_CREATED win=[id=3310989499 pid=3236698 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8059404.41ms | ACTOR_MAP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8059404.46ms | DISPATCH win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8059404.63ms | BATCH_STEP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8059404.67ms | CLOAK win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8059404.68ms | BATCH_STEP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8059404.71ms | SET_SIZE_REQUEST win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8059404.75ms | AFTER_SET_SIZE win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8059404.76ms | BATCH_STEP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8059404.82ms | READY_WAIT_START win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8059404.92ms | COMMIT_SAMPLE win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8059435.14ms | COMMIT_SAMPLE win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8059435.26ms | COMMIT_RESOLVED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8059435.28ms | READY_WAIT_RESOLVED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=30.5 waited_ms=30.449999928474426 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8059435.39ms | BATCH_STEP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8059435.45ms | FALLBACK_USED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8059435.46ms | APPLY_ANCHOR win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8059435.52ms | POSITION_SET win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8059435.55ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8059435.56ms | BATCH_STEP win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8059435.58ms | UNCLOAK_4A win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8059436.55ms | UNCLOAK_4B win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8059436.59ms | UNCLOAK_4C win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8059437.66ms | UNCLOAK win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8059437.69ms | UNCLOAK_4D_REVEAL win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8059437.71ms | ANCHOR_ARMED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8063473.88ms | ANCHOR_RELEASED win=[id=3310989499 pid=3236698 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8066705.18ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8066906.24ms | WINDOW_CREATED win=[id=3310989500 pid=3237265 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8067139.38ms | ACTOR_MAP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8067139.44ms | DISPATCH win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8067139.58ms | BATCH_STEP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8067139.61ms | CLOAK win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8067139.61ms | BATCH_STEP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8067139.64ms | SET_SIZE_REQUEST win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8067139.67ms | AFTER_SET_SIZE win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8067139.69ms | BATCH_STEP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8067139.74ms | READY_WAIT_START win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8067139.80ms | COMMIT_SAMPLE win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8067170.67ms | COMMIT_SAMPLE win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8067170.76ms | COMMIT_RESOLVED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8067170.78ms | READY_WAIT_RESOLVED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=31.1 waited_ms=31.05900001525879 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8067170.88ms | BATCH_STEP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8067170.94ms | FALLBACK_USED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8067170.95ms | APPLY_ANCHOR win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8067171.01ms | POSITION_SET win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8067171.03ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8067171.04ms | BATCH_STEP win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8067171.05ms | UNCLOAK_4A win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8067172.03ms | UNCLOAK_4B win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8067172.06ms | UNCLOAK_4C win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8067173.12ms | UNCLOAK win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8067173.14ms | UNCLOAK_4D_REVEAL win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8067173.16ms | ANCHOR_ARMED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8071205.26ms | ANCHOR_RELEASED win=[id=3310989500 pid=3237265 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8074419.25ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8074614.14ms | WINDOW_CREATED win=[id=3310989501 pid=3237823 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8074838.21ms | ACTOR_MAP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8074838.26ms | DISPATCH win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8074838.42ms | BATCH_STEP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8074838.45ms | CLOAK win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8074838.46ms | BATCH_STEP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8074838.49ms | SET_SIZE_REQUEST win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8074838.51ms | AFTER_SET_SIZE win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8074838.52ms | BATCH_STEP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8074838.56ms | READY_WAIT_START win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8074838.61ms | COMMIT_SAMPLE win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8074869.09ms | COMMIT_SAMPLE win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8074869.18ms | COMMIT_RESOLVED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8074869.19ms | READY_WAIT_RESOLVED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=30.7 waited_ms=30.633000016212463 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8074869.29ms | BATCH_STEP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8074869.41ms | FALLBACK_USED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8074869.42ms | APPLY_ANCHOR win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8074869.49ms | POSITION_SET win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8074869.51ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8074869.51ms | BATCH_STEP win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8074869.53ms | UNCLOAK_4A win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8074870.28ms | UNCLOAK_4B win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8074870.31ms | UNCLOAK_4C win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8074879.40ms | UNCLOAK win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8074879.42ms | UNCLOAK_4D_REVEAL win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8074879.45ms | ANCHOR_ARMED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8078915.62ms | ANCHOR_RELEASED win=[id=3310989501 pid=3237823 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8082140.04ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8082343.20ms | WINDOW_CREATED win=[id=3310989502 pid=3238387 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8082549.13ms | ACTOR_MAP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8082549.17ms | DISPATCH win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8082549.31ms | BATCH_STEP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8082549.34ms | CLOAK win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8082549.35ms | BATCH_STEP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8082549.38ms | SET_SIZE_REQUEST win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8082549.41ms | AFTER_SET_SIZE win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8082549.42ms | BATCH_STEP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8082549.48ms | READY_WAIT_START win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8082549.57ms | COMMIT_SAMPLE win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8082572.08ms | COMMIT_SAMPLE win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8082572.20ms | COMMIT_RESOLVED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8082572.21ms | READY_WAIT_RESOLVED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=22.8 waited_ms=22.717000007629395 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8082572.32ms | BATCH_STEP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8082572.38ms | FALLBACK_USED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8082572.39ms | APPLY_ANCHOR win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8082572.45ms | POSITION_SET win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8082572.48ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8082572.48ms | BATCH_STEP win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8082572.50ms | UNCLOAK_4A win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8082573.48ms | UNCLOAK_4B win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8082573.51ms | UNCLOAK_4C win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8082574.43ms | UNCLOAK win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8082574.45ms | UNCLOAK_4D_REVEAL win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8082574.47ms | ANCHOR_ARMED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8086607.82ms | ANCHOR_RELEASED win=[id=3310989502 pid=3238387 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8089820.60ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8090026.38ms | WINDOW_CREATED win=[id=3310989503 pid=3238979 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8090302.71ms | ACTOR_MAP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8090302.80ms | DISPATCH win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8090303.03ms | BATCH_STEP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8090303.09ms | CLOAK win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8090303.11ms | BATCH_STEP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8090303.16ms | SET_SIZE_REQUEST win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8090303.21ms | AFTER_SET_SIZE win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8090303.25ms | BATCH_STEP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8090303.34ms | READY_WAIT_START win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8090303.45ms | COMMIT_SAMPLE win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8090334.27ms | COMMIT_SAMPLE win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8090334.40ms | COMMIT_RESOLVED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8090334.42ms | READY_WAIT_RESOLVED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=31.2 waited_ms=31.157000064849854 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8090334.52ms | BATCH_STEP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8090334.59ms | FALLBACK_USED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8090334.60ms | APPLY_ANCHOR win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8090334.66ms | POSITION_SET win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8090334.68ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8090334.68ms | BATCH_STEP win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8090334.70ms | UNCLOAK_4A win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8090335.64ms | UNCLOAK_4B win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8090335.67ms | UNCLOAK_4C win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8090336.68ms | UNCLOAK win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8090336.70ms | UNCLOAK_4D_REVEAL win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8090336.72ms | ANCHOR_ARMED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8094376.95ms | ANCHOR_RELEASED win=[id=3310989503 pid=3238979 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8097631.21ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8097831.97ms | WINDOW_CREATED win=[id=3310989504 pid=3239556 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8098025.67ms | ACTOR_MAP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8098025.73ms | DISPATCH win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8098025.95ms | BATCH_STEP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8098026.00ms | CLOAK win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8098026.03ms | BATCH_STEP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8098026.07ms | SET_SIZE_REQUEST win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8098026.12ms | AFTER_SET_SIZE win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8098026.14ms | BATCH_STEP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8098026.22ms | READY_WAIT_START win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8098026.31ms | COMMIT_SAMPLE win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8098056.38ms | COMMIT_SAMPLE win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8098056.49ms | COMMIT_RESOLVED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8098056.51ms | READY_WAIT_RESOLVED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=30.4 waited_ms=30.325000047683716 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8098056.62ms | BATCH_STEP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8098056.67ms | FALLBACK_USED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8098056.68ms | APPLY_ANCHOR win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8098056.74ms | POSITION_SET win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8098056.75ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8098056.76ms | BATCH_STEP win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8098056.80ms | UNCLOAK_4A win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8098057.79ms | UNCLOAK_4B win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8098057.82ms | UNCLOAK_4C win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8098058.79ms | UNCLOAK win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8098058.81ms | UNCLOAK_4D_REVEAL win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8098058.83ms | ANCHOR_ARMED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8102090.15ms | ANCHOR_RELEASED win=[id=3310989504 pid=3239556 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8105303.74ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8105496.80ms | WINDOW_CREATED win=[id=3310989505 pid=3240121 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8105724.10ms | ACTOR_MAP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8105724.17ms | DISPATCH win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8105724.33ms | BATCH_STEP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8105724.37ms | CLOAK win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8105724.38ms | BATCH_STEP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8105724.42ms | SET_SIZE_REQUEST win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8105724.47ms | AFTER_SET_SIZE win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8105724.50ms | BATCH_STEP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8105724.59ms | READY_WAIT_START win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8105724.69ms | COMMIT_SAMPLE win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8105753.76ms | COMMIT_SAMPLE win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8105753.89ms | COMMIT_RESOLVED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8105753.91ms | READY_WAIT_RESOLVED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=29.4 waited_ms=29.353000044822693 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8105754.39ms | BATCH_STEP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8105754.57ms | FALLBACK_USED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8105754.60ms | APPLY_ANCHOR win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8105754.75ms | POSITION_SET win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8105754.79ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8105754.81ms | BATCH_STEP win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8105754.85ms | UNCLOAK_4A win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8105756.04ms | UNCLOAK_4B win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8105756.08ms | UNCLOAK_4C win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8105757.83ms | UNCLOAK win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8105757.86ms | UNCLOAK_4D_REVEAL win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8105757.91ms | ANCHOR_ARMED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8109792.25ms | ANCHOR_RELEASED win=[id=3310989505 pid=3240121 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8113036.84ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8113243.58ms | WINDOW_CREATED win=[id=3310989506 pid=3240692 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8113430.73ms | ACTOR_MAP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8113430.80ms | DISPATCH win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8113431.02ms | BATCH_STEP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8113431.08ms | CLOAK win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8113431.09ms | BATCH_STEP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8113431.14ms | SET_SIZE_REQUEST win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8113431.20ms | AFTER_SET_SIZE win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8113431.24ms | BATCH_STEP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8113431.32ms | READY_WAIT_START win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8113431.43ms | COMMIT_SAMPLE win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8113454.46ms | COMMIT_SAMPLE win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8113454.54ms | COMMIT_RESOLVED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8113454.56ms | READY_WAIT_RESOLVED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=23.4 waited_ms=23.312000036239624 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8113454.66ms | BATCH_STEP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8113454.71ms | FALLBACK_USED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8113454.72ms | APPLY_ANCHOR win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8113454.77ms | POSITION_SET win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8113454.79ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8113454.79ms | BATCH_STEP win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8113454.80ms | UNCLOAK_4A win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8113455.96ms | UNCLOAK_4B win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8113455.99ms | UNCLOAK_4C win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8113457.04ms | UNCLOAK win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8113457.06ms | UNCLOAK_4D_REVEAL win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8113457.08ms | ANCHOR_ARMED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8117489.40ms | ANCHOR_RELEASED win=[id=3310989506 pid=3240692 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8120697.24ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8120893.76ms | WINDOW_CREATED win=[id=3310989507 pid=3241284 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8121121.92ms | ACTOR_MAP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8121121.98ms | DISPATCH win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8121122.13ms | BATCH_STEP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8121122.16ms | CLOAK win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8121122.17ms | BATCH_STEP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8121122.21ms | SET_SIZE_REQUEST win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8121122.25ms | AFTER_SET_SIZE win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8121122.26ms | BATCH_STEP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8121122.33ms | READY_WAIT_START win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8121122.39ms | COMMIT_SAMPLE win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8121153.10ms | COMMIT_SAMPLE win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8121153.21ms | COMMIT_RESOLVED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8121153.23ms | READY_WAIT_RESOLVED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=31.0 waited_ms=30.92299997806549 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8121153.33ms | BATCH_STEP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8121153.39ms | FALLBACK_USED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8121153.41ms | APPLY_ANCHOR win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8121153.47ms | POSITION_SET win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8121153.49ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8121153.49ms | BATCH_STEP win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8121153.51ms | UNCLOAK_4A win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8121154.60ms | UNCLOAK_4B win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8121154.64ms | UNCLOAK_4C win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8121155.67ms | UNCLOAK win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8121155.70ms | UNCLOAK_4D_REVEAL win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8121155.73ms | ANCHOR_ARMED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8125188.20ms | ANCHOR_RELEASED win=[id=3310989507 pid=3241284 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8128401.02ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8128603.45ms | WINDOW_CREATED win=[id=3310989508 pid=3241852 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8128842.35ms | ACTOR_MAP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8128842.42ms | DISPATCH win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8128842.68ms | BATCH_STEP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8128842.75ms | CLOAK win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8128842.76ms | BATCH_STEP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8128842.82ms | SET_SIZE_REQUEST win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8128842.88ms | AFTER_SET_SIZE win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8128842.89ms | BATCH_STEP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8128842.98ms | READY_WAIT_START win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8128843.14ms | COMMIT_SAMPLE win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8128870.44ms | COMMIT_SAMPLE win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8128870.56ms | COMMIT_RESOLVED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8128870.58ms | READY_WAIT_RESOLVED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=27.7 waited_ms=27.622999906539917 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8128870.67ms | BATCH_STEP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8128870.72ms | FALLBACK_USED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8128870.73ms | APPLY_ANCHOR win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8128870.79ms | POSITION_SET win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8128870.82ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8128870.82ms | BATCH_STEP win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8128870.83ms | UNCLOAK_4A win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8128871.62ms | UNCLOAK_4B win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8128871.65ms | UNCLOAK_4C win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8128872.56ms | UNCLOAK win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8128872.59ms | UNCLOAK_4D_REVEAL win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8128872.61ms | ANCHOR_ARMED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8132904.80ms | ANCHOR_RELEASED win=[id=3310989508 pid=3241852 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8136113.18ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8136334.35ms | WINDOW_CREATED win=[id=3310989509 pid=3242409 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8136508.13ms | ACTOR_MAP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8136508.18ms | DISPATCH win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8136508.32ms | BATCH_STEP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8136508.35ms | CLOAK win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8136508.36ms | BATCH_STEP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8136508.38ms | SET_SIZE_REQUEST win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8136508.41ms | AFTER_SET_SIZE win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8136508.43ms | BATCH_STEP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8136508.50ms | READY_WAIT_START win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8136508.57ms | COMMIT_SAMPLE win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8136537.55ms | COMMIT_SAMPLE win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8136537.68ms | COMMIT_RESOLVED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8136537.69ms | READY_WAIT_RESOLVED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=29.3 waited_ms=29.19600009918213 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8136537.79ms | BATCH_STEP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8136537.84ms | FALLBACK_USED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8136537.85ms | APPLY_ANCHOR win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8136537.90ms | POSITION_SET win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8136537.91ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8136537.92ms | BATCH_STEP win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8136537.93ms | UNCLOAK_4A win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8136538.83ms | UNCLOAK_4B win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8136538.86ms | UNCLOAK_4C win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8136539.80ms | UNCLOAK win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8136539.82ms | UNCLOAK_4D_REVEAL win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8136539.84ms | ANCHOR_ARMED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8140572.85ms | ANCHOR_RELEASED win=[id=3310989509 pid=3242409 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8143781.75ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8143982.25ms | WINDOW_CREATED win=[id=3310989510 pid=3243014 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8144188.34ms | ACTOR_MAP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8144188.40ms | DISPATCH win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8144188.53ms | BATCH_STEP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8144188.55ms | CLOAK win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8144188.56ms | BATCH_STEP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8144188.58ms | SET_SIZE_REQUEST win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8144188.61ms | AFTER_SET_SIZE win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8144188.63ms | BATCH_STEP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8144188.68ms | READY_WAIT_START win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8144188.73ms | COMMIT_SAMPLE win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8144217.01ms | COMMIT_SAMPLE win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8144217.13ms | COMMIT_RESOLVED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8144217.15ms | READY_WAIT_RESOLVED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=28.5 waited_ms=28.48199999332428 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8144217.25ms | BATCH_STEP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8144217.31ms | FALLBACK_USED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8144217.33ms | APPLY_ANCHOR win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8144217.39ms | POSITION_SET win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8144217.41ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8144217.41ms | BATCH_STEP win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8144217.43ms | UNCLOAK_4A win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8144218.43ms | UNCLOAK_4B win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8144218.47ms | UNCLOAK_4C win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8144219.48ms | UNCLOAK win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8144219.50ms | UNCLOAK_4D_REVEAL win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8144219.53ms | ANCHOR_ARMED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8148253.93ms | ANCHOR_RELEASED win=[id=3310989510 pid=3243014 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8151465.35ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8151691.30ms | WINDOW_CREATED win=[id=3310989511 pid=3243610 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8151926.87ms | ACTOR_MAP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8151926.92ms | DISPATCH win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8151927.12ms | BATCH_STEP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8151927.15ms | CLOAK win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8151927.16ms | BATCH_STEP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8151927.19ms | SET_SIZE_REQUEST win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8151927.23ms | AFTER_SET_SIZE win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8151927.23ms | BATCH_STEP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8151927.29ms | READY_WAIT_START win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8151927.35ms | COMMIT_SAMPLE win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8151954.70ms | COMMIT_SAMPLE win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8151954.84ms | COMMIT_RESOLVED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8151954.85ms | READY_WAIT_RESOLVED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=27.6 waited_ms=27.54799997806549 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8151954.95ms | BATCH_STEP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8151955.00ms | FALLBACK_USED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8151955.02ms | APPLY_ANCHOR win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8151955.08ms | POSITION_SET win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8151955.11ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8151955.11ms | BATCH_STEP win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8151955.15ms | UNCLOAK_4A win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8151956.03ms | UNCLOAK_4B win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8151956.06ms | UNCLOAK_4C win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8151956.91ms | UNCLOAK win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8151956.92ms | UNCLOAK_4D_REVEAL win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8151956.95ms | ANCHOR_ARMED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8155993.30ms | ANCHOR_RELEASED win=[id=3310989511 pid=3243610 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8159205.88ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8159391.09ms | WINDOW_CREATED win=[id=3310989512 pid=3244180 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8159576.67ms | ACTOR_MAP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8159576.71ms | DISPATCH win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8159576.84ms | BATCH_STEP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8159576.86ms | CLOAK win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8159576.87ms | BATCH_STEP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8159576.90ms | SET_SIZE_REQUEST win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) clampedSafeSize=(1200x800) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8159576.92ms | AFTER_SET_SIZE win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8159576.94ms | BATCH_STEP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8159576.98ms | READY_WAIT_START win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1200x800) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8159577.05ms | COMMIT_SAMPLE win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8159603.95ms | COMMIT_SAMPLE win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(1200x800) last=(925x1037)
+[spawn-at-time] +8159604.07ms | COMMIT_RESOLVED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1200x800) target=(1200x800) safe=(1200x800)
+[spawn-at-time] +8159604.09ms | READY_WAIT_RESOLVED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=27.1 waited_ms=27.098999977111816 reason=at-target finalFrame=(1200x800) target=(1200x800)
+[spawn-at-time] +8159604.20ms | BATCH_STEP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8159604.34ms | FALLBACK_USED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1200x800)
+[spawn-at-time] +8159604.35ms | APPLY_ANCHOR win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(1200x800) bounds=(0,32,1920x1048) final=(696,256)
+[spawn-at-time] +8159604.43ms | POSITION_SET win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823) actor=(686,246) delta=(662,221)
+[spawn-at-time] +8159604.45ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(696,256,1200x800)
+[spawn-at-time] +8159604.45ms | BATCH_STEP win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8159604.47ms | UNCLOAK_4A win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8159605.54ms | UNCLOAK_4B win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8159605.57ms | UNCLOAK_4C win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(1200x800) actual=(1200x800) needsReanchor=false
+[spawn-at-time] +8159606.62ms | UNCLOAK win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(696,256,1200x800)
+[spawn-at-time] +8159606.64ms | UNCLOAK_4D_REVEAL win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(1200x800) postFrame=(696,256,1200x800) bufferRect=(686,246,1220x823)
+[spawn-at-time] +8159606.66ms | ANCHOR_ARMED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8163642.05ms | ANCHOR_RELEASED win=[id=3310989512 pid=3244180 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8166924.93ms | ARM_SPAWN target="xflash-chrome"
+[spawn-at-time] +8167146.82ms | WINDOW_CREATED win=[id=3310989513 pid=3244744 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +8167314.87ms | ACTOR_MAP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8167314.92ms | DISPATCH win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +8167315.05ms | BATCH_STEP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +8167315.08ms | CLOAK win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8167315.08ms | BATCH_STEP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +8167315.11ms | SET_SIZE_REQUEST win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) clampedSafeSize=(700x480) reportedMinSize=(0x0) preFrame=(34,35,925x1037) bufferRect=(24,25,945x1060)
+[spawn-at-time] +8167315.14ms | AFTER_SET_SIZE win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(34,35,925x1037)
+[spawn-at-time] +8167315.16ms | BATCH_STEP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +8167315.21ms | READY_WAIT_START win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(700x480) current=(925x1037) cap=250 quiet=30 hard=1500
+[spawn-at-time] +8167315.26ms | COMMIT_SAMPLE win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=initial frame=(925x1037) last=(925x1037)
+[spawn-at-time] +8167345.63ms | COMMIT_SAMPLE win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] source=size-changed frame=(700x480) last=(925x1037)
+[spawn-at-time] +8167345.75ms | COMMIT_RESOLVED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(700x480) target=(700x480) safe=(700x480)
+[spawn-at-time] +8167345.77ms | READY_WAIT_RESOLVED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=30.6 waited_ms=30.562999963760376 reason=at-target finalFrame=(700x480) target=(700x480)
+[spawn-at-time] +8167345.88ms | BATCH_STEP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +8167345.94ms | FALLBACK_USED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(700x480)
+[spawn-at-time] +8167345.95ms | APPLY_ANCHOR win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] eff=(700x480) bounds=(0,32,1920x1048) final=(1196,576)
+[spawn-at-time] +8167346.03ms | POSITION_SET win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] preFrame=(34,35,700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503) actor=(1186,566) delta=(1162,541)
+[spawn-at-time] +8167346.05ms | AFTER_SET_POSITION_ANCHORED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=0 frame=(1196,576,700x480)
+[spawn-at-time] +8167346.06ms | BATCH_STEP win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +8167346.07ms | UNCLOAK_4A win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +8167347.19ms | UNCLOAK_4B win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +8167347.22ms | UNCLOAK_4C win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] positioned=(700x480) actual=(700x480) needsReanchor=false
+[spawn-at-time] +8167348.60ms | UNCLOAK win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] opacity=255 frame=(1196,576,700x480)
+[spawn-at-time] +8167348.62ms | UNCLOAK_4D_REVEAL win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] requestedSize=(700x480) postFrame=(1196,576,700x480) bufferRect=(1186,566,720x503)
+[spawn-at-time] +8167348.65ms | ANCHOR_ARMED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland]
+[spawn-at-time] +8171381.65ms | ANCHOR_RELEASED win=[id=3310989513 pid=3244744 class="xflash-chrome" app="" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +8174672.63ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174720.28ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174767.48ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174813.73ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174860.71ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174907.83ms | SET_LOGGING enabled=true
+[spawn-at-time] +8174954.49ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175000.31ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175046.49ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175091.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175136.23ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175183.90ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175229.12ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175274.82ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175320.11ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175366.56ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175412.83ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175458.29ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175503.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175549.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175598.14ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175646.06ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175690.91ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175738.59ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175783.92ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175830.67ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175878.15ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175924.14ms | SET_LOGGING enabled=true
+[spawn-at-time] +8175971.97ms | SET_LOGGING enabled=true
+[spawn-at-time] +8176020.03ms | SET_LOGGING enabled=true
