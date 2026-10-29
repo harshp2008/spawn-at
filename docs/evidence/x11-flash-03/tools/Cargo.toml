@@ -1,0 +1,31 @@
+[package]
+name = "xflash"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "Measurement tools for TEST_LOG 6.38 to 6.42: an X-side observer, a run driver and an analyser. Not part of the spawn-at workspace."
+
+# An empty workspace table makes this directory its own workspace root, so cargo does not treat
+# it as a member of the repository's workspace. CI never builds it (it builds named packages).
+[workspace]
+
+[dependencies]
+x11rb = { version = "0.14", features = ["damage"] }
+libc = "0.2"
+# probe-analyze: PNG decoding of the probe's window captures, and its JSON lines.
+png = "0.17"
+serde_json = "1"
+
+[[bin]]
+name = "xflash"
+path = "src/main.rs"
+
+# A stand-in for org.freedesktop.systemd1 on the PRIVATE session bus only. The Shell asks systemd to
+# start gnome-session-x11-services.target before it opens its X11 display; the private bus has no
+# systemd, so without this the private Xwayland never gets a window manager (see psh-start.sh).
+[[bin]]
+name = "sysd1stub"
+path = "src/bin/sysd1stub.rs"
+
+[dependencies.zbus]
+version = "4.4"

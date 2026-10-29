@@ -1,0 +1,29 @@
+--- a/extension.js
++++ b/extension.js
+@@ -814,6 +814,9 @@
+     // nothing a native window would not do anyway; `cap_ms` replaces the 250 ms cap of the machine.
+     async _stepWaitForCommit(ctx, args) {
+         const { window } = ctx;
++        // X11-FLASH-03 positive control (tools only, never shipped): wait for nothing.
++        this.logTime('READY_WAIT_START', 'strategy=control-nowait', window);
++        return;
+         const kind = this._windowKind(window);
+         const hasRequest = ctx.safeW !== null && ctx.safeH !== null;
+         const forceLegacy = args.strategy === 'legacy';
+@@ -1008,7 +1011,7 @@
+                 ctx.item.focusApplied = true;
+         }
+ 
+-        await this._commitLatch.waitForFrames(global.stage, 1, FRAME_WAIT_CEILING_MS);
++        // X11-FLASH-03 positive control: no frame wait before the reveal.
+         if (this._disabled)
+             return;
+ 
+@@ -1021,7 +1024,6 @@
+         // before it is revealed; the last check is still in the reveal's tick.
+         let passes = 0;
+         while (this._reanchorLateResize(ctx) && ++passes < LATE_RESIZE_MAX_PASSES) {
+-            await this._commitLatch.waitForFrames(global.stage, 1, FRAME_WAIT_CEILING_MS);
+             if (this._disabled)
+                 return;
+         }

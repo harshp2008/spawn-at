@@ -1,0 +1,6 @@
+{
+  "name": "xflash probe",
+  "description": "Ground-truth paint probe for the X11-FLASH-03 experiments. Loaded only in a private headless Shell by tools/psh-start.sh (PROBE=1). Never shipped.",
+  "uuid": "xflash-probe@local",
+  "shell-version": ["46"]
+}
