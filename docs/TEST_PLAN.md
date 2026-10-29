@@ -168,7 +168,7 @@ The fifth ignored test is in `crates/spawn-at-verify/tests/tui/focus_chain_sway.
 
 The table lists the 59 planned catalog rows. 47 are Covered: the spec file in the last column exists. 12 are **Not written**: that spec file does not exist. No row was dropped by a decision. The last 18 Covered rows are the placement resize specs of section 6.10.
 
-The spec files under `verify/` make 67 tests (55 auto and 12 both): 60 files, plus 3 more from the matrix of `cloak/delayed-paint` and 4 more from the matrix of `transforms/anchor-corners`. That is more than the 47 Covered rows because specs added later are not rows of the 59, such as the `hostile/` cells of 6.22 and the specs for existing windows (7.5). The others are not matched to rows one by one.
+The spec files under `verify/` make 68 tests (56 auto and 12 both): 61 files, plus 3 more from the matrix of `cloak/delayed-paint` and 4 more from the matrix of `transforms/anchor-corners`. That is more than the 47 Covered rows because specs added later are not rows of the 59, such as the `hostile/` cells of 6.22 and the specs for existing windows (7.5). The others are not matched to rows one by one.
 
 | ID | Title | Mode | Status | Spec / Test Path |
 | :--- | :--- | :---: | :---: | :--- |

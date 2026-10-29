@@ -65,6 +65,17 @@ pub const SETUP_FLAGS: &[(&str, bool)] = &[
     ("--flap-ms", true),
 ];
 
+/// The tag every spec that starts a real program (`[[setup]] command`) must carry. Such a spec
+/// needs that program installed and a session where closing its focused window is acceptable, so
+/// it belongs to attended release-gate runs; no automated suite selects the tag.
+pub const REAL_APP_TAG: &str = "needs-real-app";
+
+/// Real programs a `[[setup]] command` may start. Anything else is refused at load time.
+pub const SETUP_PROGRAMS: &[&str] = &["gnome-text-editor"];
+
+/// Environment variables a `[[setup]] env` may set, with the values each may take.
+pub const SETUP_ENV: &[(&str, &[&str])] = &[("GDK_BACKEND", &["x11", "wayland"])];
+
 /// One `${name}` or `${name.title}` found in a string.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Placeholder {
@@ -262,6 +273,69 @@ pub fn validate_setup_args(label: &str, args: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// The rules for a real program that hold wherever it is started (the loader and the runner both
+/// call this): `command[0]` is a bare program name, so it is looked up on `PATH` and never a path;
+/// no argument holds a NUL byte; `env` names and values are in [`SETUP_ENV`].
+pub fn validate_setup_command(
+    label: &str,
+    command: &[String],
+    env: &std::collections::BTreeMap<String, String>,
+) -> Result<(), String> {
+    let Some(program) = command.first() else {
+        return Err(format!("{label}: command is empty"));
+    };
+    let bare = !program.is_empty()
+        && program
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || matches!(c, '-' | '_' | '.'));
+    if !bare {
+        return Err(format!(
+            "{label}: command '{program}' must be a bare program name (lower-case letters, digits, '-', '_', '.'), not a path"
+        ));
+    }
+    if command.iter().any(|a| a.contains('\0')) {
+        return Err(format!("{label}: command holds a NUL byte"));
+    }
+    for (k, v) in env {
+        let Some((_, allowed)) = SETUP_ENV.iter().find(|(name, _)| name == k) else {
+            return Err(format!(
+                "{label}: env '{k}' is not allowed (allowed: {:?})",
+                SETUP_ENV.iter().map(|(n, _)| *n).collect::<Vec<_>>()
+            ));
+        };
+        if !allowed.contains(&v.as_str()) {
+            return Err(format!(
+                "{label}: env {k}='{v}' is not allowed (allowed values: {allowed:?})"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// The extra loader rules for `[[setup]] command`: the program is in [`SETUP_PROGRAMS`] and every
+/// other word is a flag (`--new-window`), so a spec can not hand a real program a file to open.
+fn validate_setup_program(label: &str, command: &[String]) -> Result<(), String> {
+    if !SETUP_PROGRAMS.contains(&command[0].as_str()) {
+        return Err(format!(
+            "{label}: command '{}' is not in the allowed list {SETUP_PROGRAMS:?}",
+            command[0]
+        ));
+    }
+    for a in &command[1..] {
+        let flag = a.starts_with("--")
+            && a.len() > 2
+            && a[2..]
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+        if !flag {
+            return Err(format!(
+                "{label}: command argument '{a}' must be a flag such as --new-window"
+            ));
+        }
+    }
+    Ok(())
+}
+
 /// Applies the load-time rules to a parsed spec. A version 1 spec passes if it uses none of the
 /// version 2 keys; a version 2 spec must satisfy every rule of design section 2.3.
 pub fn validate(t: &TestDefinition) -> Result<(), String> {
@@ -333,7 +407,26 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
                 )));
             }
         }
-        validate_setup_args(&format!("Spec '{id}': setup '{}'", s.name), &s.args)?;
+        let label = format!("Spec '{id}': setup '{}'", s.name);
+        validate_setup_args(&label, &s.args)?;
+        if s.command.is_empty() {
+            if !s.env.is_empty() {
+                return Err(format!("{label}: env needs a command"));
+            }
+        } else {
+            if !s.args.is_empty() {
+                return Err(format!(
+                    "{label}: args are fixture flags and cannot be combined with command"
+                ));
+            }
+            validate_setup_command(&label, &s.command, &s.env)?;
+            validate_setup_program(&label, &s.command)?;
+            if !t.tags.iter().any(|x| x == REAL_APP_TAG) {
+                return Err(format!(
+                    "{label}: a spec that starts a real program must carry the tag \"{REAL_APP_TAG}\""
+                ));
+            }
+        }
     }
 
     // A fixture window takes focus when it is mapped. Marking it lets a suite leave such specs
@@ -354,7 +447,13 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
     let last_action = t.v2.then.len();
     for (i, c) in t.v2.check.iter().enumerate() {
         let label = format!("Spec '{id}': [[check]] #{}", i + 1);
-        if !declared.contains(c.window.as_str()) {
+        if c.shell_alive {
+            if !c.window.is_empty() {
+                return Err(format!(
+                    "{label}: shell_alive is about the Shell, not a window; remove window"
+                ));
+            }
+        } else if !declared.contains(c.window.as_str()) {
             return Err(format!(
                 "{label}: window '{}' names no [[setup]] of this spec",
                 c.window
@@ -362,10 +461,11 @@ pub fn validate(t: &TestDefinition) -> Result<(), String> {
         }
         let kinds = usize::from(c.state.is_some())
             + usize::from(c.same_rect_as.is_some())
-            + usize::from(c.process_exited);
+            + usize::from(c.process_exited)
+            + usize::from(c.shell_alive);
         if kinds != 1 {
             return Err(format!(
-                "{label}: give exactly one of state, same_rect_as, process_exited (found {kinds})"
+                "{label}: give exactly one of state, same_rect_as, process_exited, shell_alive (found {kinds})"
             ));
         }
         if let Some(r) = &c.same_rect_as {

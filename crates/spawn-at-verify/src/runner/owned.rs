@@ -239,8 +239,8 @@ impl Default for Timings {
     }
 }
 
-/// One fixture window to launch.
-#[derive(Debug, Clone)]
+/// One window to launch: the fixture, or with `command` a real program.
+#[derive(Debug, Clone, Default)]
 pub struct SetupRequest {
     /// Setup name (`${name}` in the spec).
     pub name: String,
@@ -248,6 +248,66 @@ pub struct SetupRequest {
     pub args: Vec<String>,
     /// The spec's own wait limit, if it set one.
     pub timeout: Option<Duration>,
+    /// A real program (its name, then flags) to start instead of the fixture. Empty: the fixture.
+    pub command: Vec<String>,
+    /// Environment for `command` (`v2::SETUP_ENV`).
+    pub env: std::collections::BTreeMap<String, String>,
+}
+
+/// The identity of the GNOME Shell process: its pid and the start time in `/proc/<pid>/stat`
+/// (clock ticks after boot), so a new process that got the same pid is a different Shell.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ShellId {
+    /// Process id.
+    pub pid: u32,
+    /// Field 22 of `/proc/<pid>/stat`.
+    pub start: u64,
+}
+
+/// Field 22 (start time) of a `/proc/<pid>/stat` line. The command name is field 2, in
+/// parentheses, and may hold spaces and `)`, so counting starts after the last `)`: the next field
+/// is the state (field 3), so the start time is the 20th word after it.
+pub fn parse_stat_start(stat: &str) -> Option<u64> {
+    let rest = &stat[stat.rfind(')')? + 1..];
+    rest.split_whitespace().nth(19)?.parse().ok()
+}
+
+/// The GNOME Shell of this user: the one process named `gnome-shell` owned by the current user.
+/// `None` when there is none, or several (it does not guess), or `/proc` can not be read.
+pub fn read_shell_id() -> Option<ShellId> {
+    use std::os::unix::fs::MetadataExt;
+    // SAFETY: geteuid(2) has no preconditions and cannot fail.
+    let me = unsafe { libc::geteuid() };
+    let mut found = Vec::new();
+    for entry in std::fs::read_dir("/proc").ok()?.flatten() {
+        let Some(pid) = entry
+            .file_name()
+            .to_str()
+            .and_then(|n| n.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        let dir = entry.path();
+        let Ok(comm) = std::fs::read_to_string(dir.join("comm")) else {
+            continue;
+        };
+        if comm.trim() != "gnome-shell" {
+            continue;
+        }
+        if std::fs::metadata(&dir).map(|m| m.uid()).ok() != Some(me) {
+            continue;
+        }
+        let start = std::fs::read_to_string(dir.join("stat"))
+            .ok()
+            .and_then(|s| parse_stat_start(&s));
+        if let Some(start) = start {
+            found.push(ShellId { pid, start });
+        }
+    }
+    match found.as_slice() {
+        [one] => Some(*one),
+        _ => None,
+    }
 }
 
 /// Why a setup failed. Always an `Error` result, never a `Fail`: nothing about the product was
@@ -322,7 +382,12 @@ impl std::fmt::Display for SetupError {
 /// One fixture process and, once found, its window.
 struct OwnedFixture {
     name: String,
+    /// The unique title of a fixture; for a real program the title its window had when it was
+    /// recorded (the program chooses it), so closing still checks the window is the same one.
     title: String,
+    /// Real program only: the ids listed before it started. Its window is the one new window
+    /// whose pid is the child's. `None` for a fixture, found by its unique title.
+    known_ids: Option<Vec<u64>>,
     window_id: Option<u64>,
     /// The child; kept for the whole session. `reaped` says `try_wait` has returned a status.
     child: Child,
@@ -390,6 +455,10 @@ pub struct SetupSession {
     /// The window that had focus before the first fixture started; focus goes back to it after
     /// teardown if it still exists and lost focus (design 3.6). Never one of our own windows.
     refocus: Option<u64>,
+    /// Looks up the Shell for `shell_alive`; replaced in tests.
+    shell_probe: fn() -> Option<ShellId>,
+    /// The Shell as it was when the session began.
+    shell_at_start: Option<ShellId>,
 }
 
 /// True once `child` has exited, waiting at most `limit`. A status read by `try_wait` reaps the
@@ -455,7 +524,39 @@ impl SetupSession {
             torn_down: false,
             report: TeardownReport::default(),
             refocus: None,
+            shell_probe: read_shell_id,
+            shell_at_start: read_shell_id(),
         })
+    }
+
+    /// Uses `probe` to find the Shell, and records it now as the Shell the test began with.
+    pub fn with_shell_probe(mut self, probe: fn() -> Option<ShellId>) -> Self {
+        self.shell_probe = probe;
+        self.shell_at_start = probe();
+        self
+    }
+
+    /// Whether the Shell that was running when the session began is still the one running.
+    /// An error says what changed, or that the Shell could not be identified (then nothing is
+    /// compared, and the test is judged not passed rather than guessed).
+    pub fn check_shell_alive(&self) -> Result<(), String> {
+        let Some(start) = self.shell_at_start else {
+            return Err(
+                "GNOME Shell could not be identified when the test began (it needs exactly one gnome-shell process of this user)"
+                    .into(),
+            );
+        };
+        match (self.shell_probe)() {
+            Some(now) if now == start => Ok(()),
+            Some(now) => Err(format!(
+                "GNOME Shell was pid {} (started at tick {}) and is now pid {} (started at tick {}): it ended and a new one started",
+                start.pid, start.start, now.pid, now.start
+            )),
+            None => Err(format!(
+                "GNOME Shell (pid {}) is no longer running, or more than one is",
+                start.pid
+            )),
+        }
     }
 
     /// Records the id of the window that has focus now, for [`SetupSession::teardown`] to give
@@ -582,26 +683,64 @@ impl SetupSession {
             )));
         }
         // Defence in depth: the loader already refuses these, but this module must hold alone.
-        v2::validate_setup_args(&format!("setup '{}'", req.name), &req.args)
-            .map_err(SetupError::BadRequest)?;
-        if !self.fixture_bin.exists() {
-            return Err(SetupError::FixtureMissing(self.fixture_bin.clone()));
+        let real = !req.command.is_empty();
+        let label = format!("setup '{}'", req.name);
+        if real {
+            if !req.args.is_empty() {
+                return Err(SetupError::BadRequest(format!(
+                    "{label}: fixture flags cannot be combined with a command"
+                )));
+            }
+            v2::validate_setup_command(&label, &req.command, &req.env)
+                .map_err(SetupError::BadRequest)?;
+        } else {
+            v2::validate_setup_args(&label, &req.args).map_err(SetupError::BadRequest)?;
+            if !req.env.is_empty() {
+                return Err(SetupError::BadRequest(format!(
+                    "{label}: env needs a command"
+                )));
+            }
+            if !self.fixture_bin.exists() {
+                return Err(SetupError::FixtureMissing(self.fixture_bin.clone()));
+            }
         }
-        let title = self.title_of(&req.name);
+        // A real program chooses its own title, so its window is recognised by being new and by
+        // belonging to the process started here; the ids listed now are the ones that are not new.
+        let known_ids = if real {
+            let listed = self.control.windows().map_err(SetupError::QueryFailed)?;
+            Some(listed.iter().map(|w| w.id).collect::<Vec<u64>>())
+        } else {
+            None
+        };
+        let title = if real {
+            String::new()
+        } else {
+            self.title_of(&req.name)
+        };
         let stderr_path = self.dir.join(format!("fixture-{}.err", req.name));
         let stderr_file = std::fs::File::create(&stderr_path)
             .map_err(|e| SetupError::LaunchFailed(format!("{}: {e}", stderr_path.display())))?;
 
-        let mut cmd = Command::new(&self.fixture_bin);
-        cmd.args([
-            "--title",
-            &title,
-            "--app-id",
-            &format!("verify.owned.{}", req.name),
-            "--exit-after-ms",
-            &self.exit_after_ms.to_string(),
-        ]);
-        cmd.args(&req.args);
+        let mut cmd = if real {
+            let mut c = Command::new(&req.command[0]);
+            c.args(&req.command[1..]);
+            for (k, v) in &req.env {
+                c.env(k, v);
+            }
+            c
+        } else {
+            let mut c = Command::new(&self.fixture_bin);
+            c.args([
+                "--title",
+                &title,
+                "--app-id",
+                &format!("verify.owned.{}", req.name),
+                "--exit-after-ms",
+                &self.exit_after_ms.to_string(),
+            ]);
+            c.args(&req.args);
+            c
+        };
         for (k, v) in &self.extra_env {
             cmd.env(k, v);
         }
@@ -623,6 +762,7 @@ impl SetupSession {
         self.fixtures.push(OwnedFixture {
             name: req.name.clone(),
             title,
+            known_ids,
             window_id: None,
             child,
             reaped: false,
@@ -655,7 +795,15 @@ impl SetupSession {
             }
             let windows = self.control.windows().map_err(SetupError::QueryFailed)?;
             let f = &mut self.fixtures[idx];
-            let ours: Vec<&WindowInfo> = windows.iter().filter(|w| w.title == f.title).collect();
+            let child_pid = u64::from(f.child.id());
+            let ours: Vec<&WindowInfo> = match &f.known_ids {
+                // A real program: a window that was not listed before and is the child's.
+                Some(known) => windows
+                    .iter()
+                    .filter(|w| !known.contains(&w.id) && w.pid == Some(child_pid))
+                    .collect(),
+                None => windows.iter().filter(|w| w.title == f.title).collect(),
+            };
             match ours.as_slice() {
                 [] => {}
                 [one] => {
@@ -668,6 +816,9 @@ impl SetupSession {
                         }
                     }
                     f.window_id = Some(one.id);
+                    if f.known_ids.is_some() {
+                        f.title = one.title.clone();
+                    }
                     return Ok(());
                 }
                 many => {

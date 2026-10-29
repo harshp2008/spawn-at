@@ -1,0 +1,50 @@
+# Attended release-gate session only; never run unattended. This starts a real program, gnome-text-editor
+# forced onto XWayland, and closes its focused window. Before the fix to the launch startup id
+# (CHANGELOG.md, Unreleased) that close aborted GNOME Shell in `meta_window_unmanage` on a desktop with
+# Desktop Icons NG, so a failing run can end the session it runs in. The tag `manual-setup` keeps it out
+# of the `full` and `release-gate` suites; run it by name:
+#   spawn-at-verify run --glob 'robustness/gtk4-x11-close-focused'
+schema_version = 2
+id = "robustness/gtk4-x11-close-focused"
+category = "robustness"
+title = "Close a focused forced-X11 GTK4 window and keep the Shell running"
+description = "Starts gnome-text-editor with GDK_BACKEND=x11 (XWayland), focuses its window, checks that it has focus, closes it by id and checks that the window is gone and that the GNOME Shell process is the same one (pid and start time) as before. The check that the window has focus comes before the close, so a run in which the window never got focus fails instead of passing without trying the case. Needs gnome-text-editor and a GNOME session. See docs-site shortcomings, 'Closing a focused GTK4 window that runs on XWayland could abort the Shell'."
+kind = "auto"
+required = false
+tags = ["needs-real-app", "moves-focus", "manual-setup"]
+
+[requires]
+backend = ["gnome"]
+apps = ["gnome-text-editor"]
+
+[[setup]]
+name = "w"
+command = ["gnome-text-editor", "--new-window"]
+env = { GDK_BACKEND = "x11" }
+timeout_ms = 15000
+
+[action]
+command = "focus"
+args = ["--id", "${w}"]
+
+[[check]]
+after = 0
+window = "w"
+state = "focused"
+
+[[then]]
+command = "close"
+args = ["--id", "${w}"]
+
+[[check]]
+after = 1
+window = "w"
+state = "gone"
+
+[[check]]
+after = 1
+shell_alive = true
+
+[expect]
+exit_code = 0
+stderr_absent = ["[spawn-at] ERROR:"]

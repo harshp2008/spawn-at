@@ -182,6 +182,7 @@ fn test_flags_the_runner_owns_are_refused_at_launch() {
             name: "w".into(),
             args: bad.iter().map(|s| s.to_string()).collect(),
             timeout: None,
+            ..Default::default()
         };
         assert!(
             matches!(s.launch(&r), Err(SetupError::BadRequest(_))),
@@ -519,4 +520,202 @@ fn test_parse_windows_rejects_non_arrays_and_skips_entries_without_an_id() {
     assert_eq!(w.len(), 1);
     assert_eq!(w[0].id, 2);
     assert!(w[0].rect.is_none());
+}
+
+// ---- a real program instead of the fixture (`[[setup]] command`) ----
+
+/// A stand-in for a real program: a script with a bare name that registers a window the way the
+/// fake fixture does (`<pid> <title>` in `state`), then stays alive. Returns the name, and puts
+/// `env.dir` in front of the child's `PATH` through the session.
+fn real_program(env: &Env) -> String {
+    let name = format!("vrf-real-{}", SEQ.fetch_add(1, Ordering::SeqCst));
+    let path = env.dir.join(&name);
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nprintf '%s %s\\n' \"$$\" \"Real Program Window\" >> \"$(dirname \"$0\")/state\"\nexec sleep 30\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    name
+}
+
+fn real_request(name: &str, program: &str) -> SetupRequest {
+    SetupRequest {
+        name: name.into(),
+        command: vec![program.into()],
+        timeout: Some(Duration::from_millis(1500)),
+        ..Default::default()
+    }
+}
+
+fn with_program_on_path(s: SetupSession, env: &Env) -> SetupSession {
+    let old = std::env::var("PATH").unwrap_or_default();
+    s.with_env("PATH", &format!("{}:{old}", env.dir.display()))
+}
+
+#[test]
+fn test_a_real_program_window_is_the_new_window_with_the_childs_pid() {
+    let env = Env::new("normal");
+    let fake = Fake::new(&env);
+    let program = real_program(&env);
+    let mut s = with_program_on_path(session(&env, &fake), &env);
+    // A window that was there before the program started, with another pid: never taken.
+    fake.st
+        .lock()
+        .unwrap()
+        .extra
+        .push(info(77, Some(1), "Old window"));
+
+    s.launch(&real_request("w", &program)).unwrap();
+
+    assert_eq!(s.window_id("w"), Some(1000));
+    let pid = u64::from(s.child_pid("w").unwrap());
+    assert_eq!(fake.windows().unwrap()[0].pid, Some(pid));
+    // The title is the program's own, recorded, and the target check uses it.
+    assert_eq!(s.verify_target("w").unwrap().title, "Real Program Window");
+    s.teardown();
+    assert_eq!(
+        fake.close_calls(),
+        vec![1000],
+        "only its own window is closed"
+    );
+    assert!(!alive(pid as u32));
+}
+
+#[test]
+fn test_a_real_program_with_two_new_windows_is_ambiguous_and_nothing_is_closed() {
+    let env = Env::new("normal");
+    let fake = Fake::new(&env);
+    let name = format!("vrf-real-{}", SEQ.fetch_add(1, Ordering::SeqCst));
+    let path = env.dir.join(&name);
+    std::fs::write(
+        &path,
+        "#!/bin/sh\nD=\"$(dirname \"$0\")\"\nprintf '%s %s\\n' \"$$\" \"First\" >> \"$D/state\"\nprintf '%s %s\\n' \"$$\" \"Second\" >> \"$D/state\"\nexec sleep 30\n",
+    )
+    .unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut s = with_program_on_path(session(&env, &fake), &env);
+
+    let err = s.launch(&real_request("w", &name)).unwrap_err();
+    assert!(matches!(err, SetupError::Ambiguous(_)), "{err}");
+    assert_eq!(s.window_id("w"), None);
+    s.teardown();
+    assert!(
+        fake.close_calls().is_empty(),
+        "no window is closed when none was recorded"
+    );
+}
+
+#[test]
+fn test_a_real_program_that_ends_before_showing_a_window_is_a_setup_error() {
+    let env = Env::new("exit-now");
+    let fake = Fake::new(&env);
+    let name = format!("vrf-real-{}", SEQ.fetch_add(1, Ordering::SeqCst));
+    let path = env.dir.join(&name);
+    std::fs::write(&path, "#!/bin/sh\necho gone >&2\nexit 3\n").unwrap();
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).unwrap();
+    let mut s = with_program_on_path(session(&env, &fake), &env);
+
+    let err = s.launch(&real_request("w", &name)).unwrap_err();
+    assert!(matches!(err, SetupError::ExitedEarly { .. }), "{err}");
+    assert!(fake.close_calls().is_empty());
+}
+
+#[test]
+fn test_a_real_program_request_is_refused_when_it_is_not_a_bare_name_or_not_allowed_env() {
+    let env = Env::new("normal");
+    let fake = Fake::new(&env);
+    let mut s = session(&env, &fake);
+
+    let mut path = real_request("w", "/bin/sleep");
+    assert!(matches!(s.launch(&path), Err(SetupError::BadRequest(_))));
+    path.command = vec!["sleep".into(), "1\0".into()];
+    assert!(matches!(s.launch(&path), Err(SetupError::BadRequest(_))));
+
+    let mut ld = real_request("w", "sleep");
+    ld.env.insert("LD_PRELOAD".into(), "/tmp/x.so".into());
+    assert!(matches!(s.launch(&ld), Err(SetupError::BadRequest(_))));
+
+    let mut value = real_request("w", "sleep");
+    value.env.insert("GDK_BACKEND".into(), "mir".into());
+    assert!(matches!(s.launch(&value), Err(SetupError::BadRequest(_))));
+
+    let mut mixed = real_request("w", "sleep");
+    mixed.args = vec!["--width".into(), "400".into()];
+    assert!(matches!(s.launch(&mixed), Err(SetupError::BadRequest(_))));
+
+    let mut env_only = req("w");
+    env_only.env.insert("GDK_BACKEND".into(), "x11".into());
+    assert!(matches!(
+        s.launch(&env_only),
+        Err(SetupError::BadRequest(_))
+    ));
+    assert!(env.fixture_pids().is_empty(), "nothing was started");
+}
+
+// ---- the Shell identity behind `shell_alive` ----
+
+#[test]
+fn test_parse_stat_start_reads_field_22_after_the_command_name() {
+    let line = "1234 (gnome-shell) S 1 1234 1234 0 -1 4194560 100 0 0 0 5 6 0 0 20 0 14 0 987654 12345 678 18446744073709551615";
+    assert_eq!(super::owned::parse_stat_start(line), Some(987654));
+    // A name with spaces and a ')' in it must not shift the fields.
+    let odd = "77 (a b) c) R 1 77 77 0 -1 0 0 0 0 0 0 0 0 0 20 0 1 0 424242 1 1 1";
+    assert_eq!(super::owned::parse_stat_start(odd), Some(424242));
+    assert_eq!(super::owned::parse_stat_start("garbage"), None);
+    assert_eq!(super::owned::parse_stat_start("1 (x) S 1 2"), None);
+}
+
+use super::owned::ShellId;
+static PROBE_PID: AtomicUsize = AtomicUsize::new(0);
+static PROBE_START: AtomicUsize = AtomicUsize::new(0);
+/// The probe is a plain `fn`, so it reads these statics; the tests that set them take turns.
+static PROBE_LOCK: Mutex<()> = Mutex::new(());
+fn probe_now() -> Option<ShellId> {
+    match PROBE_PID.load(Ordering::SeqCst) {
+        0 => None,
+        pid => Some(ShellId {
+            pid: pid as u32,
+            start: PROBE_START.load(Ordering::SeqCst) as u64,
+        }),
+    }
+}
+
+#[test]
+fn test_shell_alive_holds_for_the_same_process_and_fails_for_a_new_or_missing_one() {
+    let _only = PROBE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let env = Env::new("normal");
+    let fake = Fake::new(&env);
+    PROBE_PID.store(500, Ordering::SeqCst);
+    PROBE_START.store(9000, Ordering::SeqCst);
+    let s = session(&env, &fake).with_shell_probe(probe_now);
+    assert_eq!(s.check_shell_alive(), Ok(()));
+
+    // Same pid, other start time: the pid was reused by a new Shell.
+    PROBE_START.store(9500, Ordering::SeqCst);
+    let e = s.check_shell_alive().unwrap_err();
+    assert!(e.contains("500") && e.contains("new one started"), "{e}");
+
+    // Another pid: the session restarted.
+    PROBE_PID.store(731, Ordering::SeqCst);
+    PROBE_START.store(9000, Ordering::SeqCst);
+    assert!(s.check_shell_alive().is_err());
+
+    // No Shell at all (or several): not alive.
+    PROBE_PID.store(0, Ordering::SeqCst);
+    let e = s.check_shell_alive().unwrap_err();
+    assert!(e.contains("no longer running"), "{e}");
+}
+
+#[test]
+fn test_shell_alive_is_an_error_when_the_shell_was_not_identified_at_the_start() {
+    let _only = PROBE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let env = Env::new("normal");
+    let fake = Fake::new(&env);
+    PROBE_PID.store(0, Ordering::SeqCst);
+    let s = session(&env, &fake).with_shell_probe(probe_now);
+    // Identified now but not at the start: nothing to compare with, so not a pass.
+    PROBE_PID.store(500, Ordering::SeqCst);
+    let e = s.check_shell_alive().unwrap_err();
+    assert!(e.contains("could not be identified"), "{e}");
 }

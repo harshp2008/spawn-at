@@ -666,3 +666,150 @@ margin = 16
         .collect();
     assert_eq!(anchors, ["top-left", "center"]);
 }
+
+// ---- a real program in [[setup]], and the shell_alive check ----
+
+const REAL_HEAD: &str = r#"
+id = "apps/example"
+category = "apps"
+title = "example"
+description = "example"
+tags = ["needs-real-app", "moves-focus", "manual-setup"]
+kind = "auto"
+"#;
+
+fn real(body: &str) -> Result<TestDefinition, String> {
+    let text = format!("schema_version = 2\n{REAL_HEAD}\n{body}");
+    let def: TestDefinition = toml::from_str(&text).map_err(|e| format!("parse: {e}"))?;
+    validate(&def)?;
+    Ok(def)
+}
+
+#[track_caller]
+fn assert_real_err(body: &str, needle: &str) {
+    match real(body) {
+        Ok(_) => panic!("expected an error containing '{needle}', but the spec loaded"),
+        Err(e) => assert!(e.contains(needle), "error '{e}' lacks '{needle}'"),
+    }
+}
+
+const REAL_GOOD: &str = r#"
+[[setup]]
+name = "w"
+command = ["gnome-text-editor", "--new-window"]
+env = { GDK_BACKEND = "x11" }
+
+[action]
+command = "close"
+args = ["--id", "${w}"]
+
+[[check]]
+window = "w"
+state = "gone"
+
+[[check]]
+shell_alive = true
+"#;
+
+#[test]
+fn test_a_real_program_setup_and_a_shell_alive_check_load() {
+    let def = real(REAL_GOOD).unwrap();
+    assert_eq!(
+        def.v2.setup[0].command,
+        ["gnome-text-editor", "--new-window"]
+    );
+    assert_eq!(def.v2.setup[0].env["GDK_BACKEND"], "x11");
+    assert!(def.v2.check[1].shell_alive && def.v2.check[1].window.is_empty());
+}
+
+#[test]
+fn test_a_real_program_setup_needs_the_needs_real_app_tag() {
+    let text = format!("schema_version = 2\n{HEAD}\n{REAL_GOOD}");
+    let def: TestDefinition = toml::from_str(&text).unwrap();
+    let e = validate(&def).unwrap_err();
+    assert!(e.contains("needs-real-app"), "{e}");
+}
+
+#[test]
+fn test_only_listed_programs_flags_and_environment_are_allowed() {
+    let setup = |command: &str, env: &str| {
+        format!(
+            "[[setup]]\nname = \"w\"\ncommand = {command}\n{env}\n[action]\ncommand = \"close\"\nargs = [\"--id\", \"${{w}}\"]\n"
+        )
+    };
+    assert_real_err(
+        &setup(r#"["sh", "-c", "x"]"#, ""),
+        "not in the allowed list",
+    );
+    assert_real_err(
+        &setup(r#"["/usr/bin/gnome-text-editor"]"#, ""),
+        "bare program name",
+    );
+    assert_real_err(
+        &setup(r#"["gnome-text-editor", "/etc/passwd"]"#, ""),
+        "must be a flag",
+    );
+    assert_real_err(
+        &setup(r#"["gnome-text-editor", "-n"]"#, ""),
+        "must be a flag",
+    );
+    assert_real_err(
+        &setup(
+            r#"["gnome-text-editor"]"#,
+            r#"env = { LD_PRELOAD = "/tmp/x.so" }"#,
+        ),
+        "not allowed",
+    );
+    assert_real_err(
+        &setup(
+            r#"["gnome-text-editor"]"#,
+            r#"env = { GDK_BACKEND = "mir" }"#,
+        ),
+        "allowed values",
+    );
+    // An empty command is not a real program: it is the fixture, as before.
+    assert!(real(&setup("[]", "")).is_ok());
+}
+
+#[test]
+fn test_command_and_fixture_flags_do_not_mix_and_env_needs_a_command() {
+    assert_real_err(
+        "[[setup]]\nname = \"w\"\ncommand = [\"gnome-text-editor\"]\nargs = [\"--width\", \"400\"]\n[action]\ncommand = \"close\"\nargs = [\"--id\", \"${w}\"]\n",
+        "cannot be combined",
+    );
+    assert_real_err(
+        "[[setup]]\nname = \"w\"\nenv = { GDK_BACKEND = \"x11\" }\n[action]\ncommand = \"close\"\nargs = [\"--id\", \"${w}\"]\n",
+        "env needs a command",
+    );
+}
+
+#[test]
+fn test_shell_alive_takes_no_window_and_no_other_kind() {
+    let with = |check: &str| {
+        format!(
+            "[[setup]]\nname = \"w\"\ncommand = [\"gnome-text-editor\"]\n[action]\ncommand = \"close\"\nargs = [\"--id\", \"${{w}}\"]\n{check}"
+        )
+    };
+    assert_real_err(
+        &with("[[check]]\nwindow = \"w\"\nshell_alive = true\n"),
+        "not a window",
+    );
+    assert_real_err(
+        &with("[[check]]\nshell_alive = true\nstate = \"gone\"\n"),
+        "exactly one of",
+    );
+    // Every other kind still names a declared window.
+    assert_real_err(&with("[[check]]\nstate = \"gone\"\n"), "names no [[setup]]");
+    assert!(real(&with("[[check]]\nshell_alive = true\n")).is_ok());
+}
+
+#[test]
+fn test_version_1_serialization_and_existing_setups_have_no_new_keys() {
+    let def = v2(GOOD).unwrap();
+    let text = toml::to_string(&def).unwrap();
+    assert!(
+        !text.contains("command = []") && !text.contains("shell_alive"),
+        "{text}"
+    );
+    assert!(!text.contains("[setup.env]"), "{text}");
+}

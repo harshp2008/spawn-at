@@ -125,14 +125,20 @@ pub fn render_spec_section(builder: &mut DrawerBuilder, test: &TestDefinition) {
                 (Some(s), _, _) => format!("{s:?}").to_lowercase(),
                 (_, Some(r), _) => format!("same rectangle as {r}"),
                 (_, _, true) => "fixture process exited".to_string(),
+                _ if c.shell_alive => "GNOME Shell is the same process".to_string(),
                 _ => "nothing".to_string(),
+            };
+            let subject = if c.shell_alive {
+                "shell"
+            } else {
+                c.window.as_str()
             };
             let when = match c.after {
                 Some(n) => format!("after action {n}"),
                 None => "after the last action".to_string(),
             };
             let text = format!("{what} ({when})");
-            builder.push_kv(&format!("Check {}", c.window), grey(text.clone()), &text);
+            builder.push_kv(&format!("Check {subject}"), grey(text.clone()), &text);
         }
     }
 
