@@ -46,11 +46,15 @@ measured.
 The exit status of the state commands and the cursor options on Sway are covered on
 [Known limits](/spawn-at/known-limits/).
 
-### A GTK app forced onto X11 was followed by two Shell crashes
+### Two Shell crashes after closing a GTK4 app forced onto X11
 
-On 2026-10-29 GNOME Shell 46.0 aborted twice, each time 6 ms after spawn-at closed a `gnome-text-editor` window that had been forced onto X11 with `GDK_BACKEND=x11`. The spawn-at startup id carries a `_TIME` number that is not a valid X11 timestamp. 
+On one machine, GNOME Shell 46.0 (Mutter 46.2) crashed twice on 2026-10-29. Each time it was about 6 ms after a gnome-text-editor window, forced onto X11 with `GDK_BACKEND=x11` and holding focus, was closed gracefully. Both crashes logged the same Mutter assertion.
 
-**Established:** the two aborts, their identical assertion, that the extension was idle at both, and the oversized number. **Not established:** that spawn-at or its startup id causes the crash; it did not reproduce in a private Shell (0 of 69 runs). It is under investigation. Details: [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/) and [6.40](/spawn-at/experiments/6-40-startup-id-audit/). Until it is understood, avoid forcing GTK apps onto X11 when you place them with spawn-at.
+Established: the journal lines; that the spawn-at tooling was idle at both crashes; and that the same configuration ran 27 times in a private headless Shell without a crash (69 private runs in total).
+
+Not established: the cause; whether it affects other machines; whether spawn-at plays any part; and whether it is a Mutter 46.2 problem. Status: under investigation. Details: [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/), [6.40](/spawn-at/experiments/6-40-startup-id-audit/) and [6.41](/spawn-at/experiments/6-41-bisect-private-shell/).
+
+As a precaution until this is understood, avoid forcing GTK4 apps onto X11 when placing them with spawn-at on GNOME Wayland.
 
 ## Not verified anywhere
 

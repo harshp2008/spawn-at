@@ -34,7 +34,7 @@ xterm is natively X11; gnome-text-editor, eog, Chrome and Firefox are forced ont
 - **No batch runs on the maintainer's live session until an isolation or bisect result says it is
   safe** (`isolation-feasibility.md`). Both crashes happened on the live session while closing a
   focused gnome-text-editor window.
-- Gates for a push: G1 diff vs main only under `docs/`, `docs-site/` (and sidebar/index config);
+- Gates for a push: G1 diff vs main touches only `docs/`, `docs-site/` and `docs/evidence/x11-flash-02/`; Cargo.toml and Cargo.lock are allowed ONLY under `docs/evidence/x11-flash-02/tools/`, and only while that project is standalone (empty `[workspace]`) and nothing picks it up (checked 2026-10-29: no workflow, xtask, test, script, dependabot config or installer list refers to it; root `cargo metadata` lists the same 4 packages as clean main; `target/` is gitignored);
   G2 the full test suite equals the baseline (`scratch/xflash02/baseline/`); G3 docs site build and
   checks clean (`cargo xtask docs-site`); G4 installer embedded-file guards pass, no new installer
   file; G5 evidence under 20 MB and scrubbed (no tokens, keys, emails, absolute home paths); G6 read
@@ -121,3 +121,9 @@ loaded. Do not start gnome-text-editor or any forced GTK app on the live session
   batches (editor, eog, others) can run in the private Shell with `psh-batch.sh`, which is safe for
   the desktop but whose timing differs from the live compositor (headless, no real input, a
   single virtual monitor). State that on every page that uses those numbers.
+
+## Update after X11-FLASH-02g2
+
+- Site pages 6.38 to 6.41 are written and committed. They are NOT published: publishing goes through a pull request from `exp/x11-flash-02` (the repo rules forbid pushing main). The branch is backed up on origin only (hash in the report of that prompt; see `git ls-remote --heads origin exp/x11-flash-02`). No workflow runs on a push of this branch (ci and docs run on pull requests and pushes to main; release on tags).
+- Pages still owed (numbers 6.42 and up): tool inventory and environment; pixel-capture feasibility (negative); the X-side observer and clock correlation; the xterm measurement (idle and loaded, 80 runs, data under `data/xterm-live/`); the offline evaluation of the "client settled" rule; plus the remaining app batches if they are run (in the private Shell, stated on each page).
+- The Known shortcomings entry on the crashes was softened: observed, established, not established, under investigation, and a precaution only.

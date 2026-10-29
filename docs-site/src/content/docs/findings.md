@@ -84,7 +84,7 @@ and the harness's flash analysis cannot run there. See [Sway](/spawn-at/environm
 
 ## Shell crashes with a GTK app on XWayland
 
-Two live GNOME Shell aborts (same assertion, 34 minutes apart) followed the graceful close of a `gnome-text-editor` window forced onto X11. A focused close alone is not the cause: 80 focused xterm closes were clean. In a private headless Shell the same configuration did not crash in 69 runs, 27 of them the exact one, so the cause is **unexplained**. That Shell has no real input and no desktop services, so this says nothing yet about the live session. See [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/), [6.39](/spawn-at/experiments/6-39-private-headless-shell/), [6.40](/spawn-at/experiments/6-40-startup-id-audit/) and [6.41](/spawn-at/experiments/6-41-bisect-private-shell/).
+Two live GNOME Shell aborts (same assertion, 34 minutes apart) followed the graceful close of a `gnome-text-editor` window forced onto X11. A focused close alone is not the cause: 80 focused xterm closes were clean. In a private headless Shell the same configuration did not crash in 69 runs, 27 of them the exact one, so the cause is unexplained. That Shell has no real input and no desktop services, so this says nothing yet about the live session. See [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/), [6.39](/spawn-at/experiments/6-39-private-headless-shell/), [6.40](/spawn-at/experiments/6-40-startup-id-audit/) and [6.41](/spawn-at/experiments/6-41-bisect-private-shell/).
 
 ## What no result covers
 
