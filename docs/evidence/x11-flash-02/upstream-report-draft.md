@@ -33,7 +33,7 @@ Bail out!
 ```
 
 The Shell aborts (SIGTRAP), the session loses its windows. Reproduced 11 times in 11 attempts in a
-private headless Shell; with the same value treated as a past time, or with no `_TIME`, 30 of 30
+private headless Shell; with the same value treated as a past time, or with no `_TIME`, 20 of 20
 runs are clean.
 
 ### Expected

@@ -354,7 +354,7 @@ Established (MEASURED):
   focus at close → the assertion, every time, in a fresh DING-only private Shell. 11 crashes, all
   the same assertion; 0 clean runs with that configuration.
 - The trigger is the **value** in the variables (the 13-digit `_TIME`, truncated to 32 bits, read as
-  a future time): the same cells with a harmless value (past or no `_TIME`) are clean 30 of 30.
+  a future time): the same cells with a harmless value (past or no `_TIME`) are clean 20 of 20.
 - The launch path is not needed: plain launches with the real variables crash; size, anchor,
   `--no-wait` and the armed registration are irrelevant; without DING nothing is focused and
   nothing crashes.
