@@ -16,3 +16,13 @@ libc = "0.2"
 [[bin]]
 name = "xflash"
 path = "src/main.rs"
+
+# A stand-in for org.freedesktop.systemd1 on the PRIVATE session bus only. The Shell asks systemd to
+# start gnome-session-x11-services.target before it opens its X11 display; the private bus has no
+# systemd, so without this the private Xwayland never gets a window manager (see psh-start.sh).
+[[bin]]
+name = "sysd1stub"
+path = "src/bin/sysd1stub.rs"
+
+[dependencies.zbus]
+version = "4.4"

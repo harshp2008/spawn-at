@@ -1,0 +1,25 @@
+#!/bin/sh
+# psh: run ONE command inside the private session, or refuse. Usage: psh CMD [ARGS...]
+# It exports the private environment and checks, every time, that the private Wayland socket,
+# X display, bus and Shell are really the private ones and that none is the live one.
+root=$(cd "$(dirname "$0")/../../../.." && pwd)
+cur="$root/scratch/xflash02/priv/CURRENT"
+[ -f "$cur" ] || { echo "psh: no private session (run psh-start.sh)" >&2; exit 97; }
+SB=$(cat "$cur")
+[ -d "$SB" ] && [ -f "$SB/env" ] && [ -f "$SB/live.env" ] || { echo "psh: sandbox $SB is gone" >&2; exit 97; }
+# shellcheck disable=SC1090,SC1091
+. "$SB/live.env"
+# shellcheck disable=SC1090
+. "$SB/env"
+fail() { echo "psh: refusing: $1" >&2; exit 98; }
+[ -n "${PSH_SB:-}" ] && [ "$PSH_SB" = "$SB" ] || fail "sandbox mismatch"
+[ -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] || fail "private Wayland socket missing"
+[ "$WAYLAND_DISPLAY" != "$LIVE_WAYLAND_DISPLAY" ] || fail "WAYLAND_DISPLAY is the live one"
+[ -n "${DISPLAY:-}" ] && [ "$DISPLAY" != "$LIVE_DISPLAY" ] || fail "DISPLAY is empty or the live one"
+case "$DBUS_SESSION_BUS_ADDRESS" in "unix:path=$SB/run/bus") ;; *) fail "bus address is not the private one";; esac
+[ "$DBUS_SESSION_BUS_ADDRESS" != "$LIVE_BUS" ] || fail "bus is the live one"
+[ "$XDG_RUNTIME_DIR" != "$LIVE_XDG_RUNTIME_DIR" ] || fail "XDG_RUNTIME_DIR is the live one"
+pid=$(cat "$SB/shell.pid" 2>/dev/null)
+[ -n "$pid" ] && kill -0 "$pid" 2>/dev/null || fail "private gnome-shell is not running"
+[ "$(cat /proc/$pid/comm 2>/dev/null)" = "gnome-shell" ] || fail "recorded pid is not a gnome-shell"
+exec "$@"

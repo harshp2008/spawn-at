@@ -163,6 +163,8 @@ struct Opts {
     sizes: Option<((u32, u32), (u32, u32))>,
     max_runs: Option<usize>,
     ack_restart: bool,
+    shell_log: Option<PathBuf>,
+    shell_pid_file: Option<PathBuf>,
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
@@ -182,6 +184,8 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         sizes: None,
         max_runs: None,
         ack_restart: false,
+        shell_log: None,
+        shell_pid_file: None,
     };
     let mut i = 0;
     while i < args.len() {
@@ -199,6 +203,8 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         match flag {
             "--out" => o.out = PathBuf::from(val),
             "--state" => o.state = PathBuf::from(val),
+            "--shell-log" => o.shell_log = Some(PathBuf::from(val)),
+            "--shell-pid-file" => o.shell_pid_file = Some(PathBuf::from(val)),
             "--app" => o.app = val.clone(),
             "--cond" => o.cond = val.clone(),
             "--reps" => o.reps = val.parse().map_err(|_| "--reps N")?,
@@ -239,7 +245,7 @@ struct Planned {
     size_case: &'static str,
 }
 
-fn sh_out(prog: &str, args: &[&str]) -> String {
+pub fn sh_out(prog: &str, args: &[&str]) -> String {
     Command::new(prog)
         .args(args)
         .output()
@@ -256,15 +262,26 @@ fn read_loadavg() -> String {
 /// Identity of the running session: boot id, gnome-shell pid and its start time (field 22 of
 /// /proc/PID/stat, in clock ticks since boot). A change in any of them is a Shell restart.
 #[derive(Clone, PartialEq, Debug)]
-struct Health {
-    boot_id: String,
-    shell_pid: String,
-    shell_start: String,
+pub struct Health {
+    pub boot_id: String,
+    pub shell_pid: String,
+    pub shell_start: String,
 }
 
-fn health() -> Health {
-    let pid = sh_out("pgrep", &["-x", "gnome-shell"]);
-    let first = pid.lines().next().unwrap_or("").to_string();
+/// Where the Shell under test is recorded when it is not the live one: `--shell-pid-file` (the
+/// private headless Shell of psh-start.sh). Set once at the start of a batch.
+pub static SHELL_PID_FILE: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+
+pub fn health() -> Health {
+    let first = match SHELL_PID_FILE.get().and_then(|o| o.as_ref()) {
+        // A private Shell: the pid in the file, and only while that pid really is a gnome-shell.
+        Some(f) => {
+            let p = fs::read_to_string(f).unwrap_or_default().trim().to_string();
+            let comm = fs::read_to_string(format!("/proc/{}/comm", p)).unwrap_or_default();
+            if comm.trim() == "gnome-shell" { p } else { String::new() }
+        }
+        None => sh_out("pgrep", &["-x", "gnome-shell"]).lines().next().unwrap_or("").to_string(),
+    };
     let start = fs::read_to_string(format!("/proc/{}/stat", first))
         .ok()
         .and_then(|s| {
@@ -300,7 +317,7 @@ fn parse_health(s: &str) -> Option<Health> {
     })
 }
 
-fn set_logging(on: bool) -> bool {
+pub fn set_logging(on: bool) -> bool {
     Command::new("gdbus")
         .args([
             "call",
@@ -341,7 +358,7 @@ fn calibrate(log: &mut File, tag: &str, n: usize) {
     }
 }
 
-fn windows_json() -> String {
+pub fn windows_json() -> String {
     Command::new("spawn-at")
         .args(["query", "windows", "--json"])
         .output()
@@ -350,7 +367,7 @@ fn windows_json() -> String {
 }
 
 /// The object of `spawn-at query windows --json` whose id is `id`.
-fn window_entry(all: &str, id: u64) -> Option<String> {
+pub fn window_entry(all: &str, id: u64) -> Option<String> {
     let pat = format!("{{\"id\":{},", id);
     let start = all.find(&pat)?;
     let rest = &all[start..];
@@ -358,7 +375,7 @@ fn window_entry(all: &str, id: u64) -> Option<String> {
     Some(rest[..end].to_string())
 }
 
-fn all_ids(all: &str) -> Vec<(u64, u64)> {
+pub fn all_ids(all: &str) -> Vec<(u64, u64)> {
     let mut v = Vec::new();
     let mut rest = all;
     while let Some(p) = rest.find("{\"id\":") {
@@ -373,11 +390,11 @@ fn all_ids(all: &str) -> Vec<(u64, u64)> {
     v
 }
 
-fn pid_alive(pid: u64) -> bool {
+pub fn pid_alive(pid: u64) -> bool {
     Path::new(&format!("/proc/{}", pid)).exists()
 }
 
-fn signal(pid: u64, sig: i32) {
+pub fn signal(pid: u64, sig: i32) {
     // SAFETY: plain kill(2) on a pid this tool recorded; no pattern matching involved.
     unsafe {
         libc::kill(pid as i32, sig);
@@ -464,6 +481,10 @@ fn done_keys(path: &Path) -> HashSet<String> {
 
 pub fn run(args: &[String]) -> Result<(), String> {
     let o = parse(args)?;
+    let _ = SHELL_PID_FILE.set(o.shell_pid_file.clone());
+    // Private session: the extension's lines are read from the Shell's own stderr file, from the
+    // size it has now (the batch's start), not from the journal.
+    let log_off: u64 = o.shell_log.as_ref().and_then(|p| fs::metadata(p).ok()).map(|m| m.len()).unwrap_or(0);
     let all_apps = apps();
     let app = all_apps
         .iter()
@@ -693,6 +714,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
         cmd.stdin(Stdio::null()).stdout(sf).stderr(ef);
         let load = read_loadavg();
+        let log_before: u64 = o.shell_log.as_ref().and_then(|p| fs::metadata(p).ok()).map(|m| m.len()).unwrap_or(0);
         let t_start = mono_ns();
         let mut child = cmd.spawn().map_err(|e| format!("spawn-at: {e}"))?;
         let deadline = Instant::now() + Duration::from_secs(25);
@@ -734,6 +756,19 @@ pub fn run(args: &[String]) -> Result<(), String> {
         };
         let focused_at_close = entry.as_deref().map(|e| raw_field(e, "focused").unwrap_or("null").to_string()).unwrap_or_else(|| "null".into());
         let t_settled = mono_ns();
+        // What the app really got: DESKTOP_STARTUP_ID and XDG_ACTIVATION_TOKEN from its environment.
+        let app_env = wpid
+            .and_then(|p| fs::read(format!("/proc/{}/environ", p)).ok())
+            .map(|raw| {
+                let get = |k: &str| -> String {
+                    raw.split(|b| *b == 0)
+                        .filter_map(|e| std::str::from_utf8(e).ok())
+                        .find_map(|e| e.strip_prefix(&format!("{}=", k)).map(|v| js(v)))
+                        .unwrap_or_else(|| "null".into())
+                };
+                format!("{{\"DESKTOP_STARTUP_ID\":{},\"XDG_ACTIVATION_TOKEN\":{}}}", get("DESKTOP_STARTUP_ID"), get("XDG_ACTIVATION_TOKEN"))
+            })
+            .unwrap_or_else(|| "null".into());
 
         // ---- graceful close; a signal only to a pid whose window is already gone ----
         let mut closed = false;
@@ -793,9 +828,24 @@ pub fn run(args: &[String]) -> Result<(), String> {
             }
         }
         let t_end = mono_ns();
+        // The Shell's own warnings during this run (private session only; the log has no stamps,
+        // so the slice is taken by file offset).
+        let shell_warn = match &o.shell_log {
+            Some(p) => {
+                let all = fs::read(p).unwrap_or_default();
+                let from = (log_before as usize).min(all.len());
+                let text = String::from_utf8_lossy(&all[from..]).into_owned();
+                let w: Vec<&str> = text
+                    .lines()
+                    .filter(|l| !l.contains("[spawn-at-time]") && (l.contains("warning") || l.contains("assertion") || l.contains("Bail out") || l.contains("crashed") || l.contains("Buggy") || l.contains("ERROR")))
+                    .collect();
+                js(&w.join(" | "))
+            }
+            None => "null".into(),
+        };
         let status = if wid.is_none() { "no_window" } else if !closed { "not_closed" } else if timed_out { "timed_out" } else { "ok" };
         let rec = format!(
-            "{{\"run\":{},\"key\":{},\"app\":{},\"toolkit\":{},\"mode\":{},\"size_case\":{},\"cond\":{},\"req_w\":{},\"req_h\":{},\"window_id\":{},\"win_pid\":{},\"exit\":{},\"timed_out\":{},\"t_start\":{},\"t_return\":{},\"t_settled\":{},\"t_end\":{},\"loadavg\":{},\"closed\":{},\"focused_at_close\":{},\"killed\":{},\"final\":{},\"spawn_json\":{},\"stderr\":{}}}\n",
+            "{{\"run\":{},\"key\":{},\"app\":{},\"toolkit\":{},\"mode\":{},\"size_case\":{},\"cond\":{},\"req_w\":{},\"req_h\":{},\"window_id\":{},\"win_pid\":{},\"exit\":{},\"timed_out\":{},\"t_start\":{},\"t_return\":{},\"t_settled\":{},\"t_end\":{},\"loadavg\":{},\"closed\":{},\"focused_at_close\":{},\"killed\":{},\"app_env\":{},\"shell_warn\":{},\"final\":{},\"spawn_json\":{},\"stderr\":{}}}\n",
             n,
             js(&key),
             js(app.id),
@@ -817,6 +867,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
             closed,
             focused_at_close,
             js(&killed),
+            app_env,
+            shell_warn,
             entry
                 .as_deref()
                 .map(|e| format!(
@@ -860,16 +912,29 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let _ = observer.wait();
     std::thread::sleep(Duration::from_secs(3)); // the extension flushes its log at idle priority
 
-    let journal = Command::new("journalctl")
-        .args(["--user", "-b", "_COMM=gnome-shell", "--since", &format!("@{}", since_epoch), "-o", "cat", "--no-pager"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
-        .unwrap_or_default();
-    let mut ext = File::create(o.out.join("ext.log")).map_err(|e| e.to_string())?;
-    let mut other = File::create(o.out.join("journal_other.txt")).map_err(|e| e.to_string())?;
+    let journal = match &o.shell_log {
+        Some(p) => {
+            let all = fs::read(p).unwrap_or_default();
+            let from = (log_off as usize).min(all.len());
+            String::from_utf8_lossy(&all[from..]).into_owned()
+        }
+        None => Command::new("journalctl")
+            .args(["--user", "-b", "_COMM=gnome-shell", "--since", &format!("@{}", since_epoch), "-o", "cat", "--no-pager"])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default(),
+    };
+    // A private run appends (several invocations share one Shell log); the live path rewrites.
+    let append = o.shell_log.is_some();
+    let open = |name: &str| -> Result<File, String> {
+        OpenOptions::new().create(true).write(true).append(append).truncate(!append).open(o.out.join(name)).map_err(|e| e.to_string())
+    };
+    let mut ext = open("ext.log")?;
+    let mut other = open("journal_other.txt")?;
     for line in journal.lines() {
-        if line.starts_with("[spawn-at-time]") {
-            let _ = writeln!(ext, "{}", line);
+        // Stderr lines may carry a prefix; the extension's text starts at its tag.
+        if let Some(i) = line.find("[spawn-at-time]") {
+            let _ = writeln!(ext, "{}", &line[i..]);
         } else if !line.trim().is_empty() {
             let _ = writeln!(other, "{}", line);
         }
