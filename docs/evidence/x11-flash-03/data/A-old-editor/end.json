@@ -1,0 +1,1 @@
+{"ended":"2026-10-29T21:59:16+05:30","stopped":"CRASH: gnome-shell or boot id changed before run 1","health_start":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"3625115","shell_start":"84517173"},"health_end":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"","shell_start":""},"loadavg_end":"4.61 2.27 1.47","ran_in_this_invocation":1}

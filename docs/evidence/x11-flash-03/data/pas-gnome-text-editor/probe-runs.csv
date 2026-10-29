@@ -1,0 +1,21 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+gnome-text-editor|x11|idle|large,514423525,1,9.8,1100x760,822x642,1100x760,822x642,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.98,,9.5,0.0,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423526,528,0.4,640x420,1222x882,640x420,762x542,2,63.49,0,0,0,0,0,0.00,-,0,0,0,0,-0.63,,2.6,65.6,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423527,460,0.5,640x420,762x542,640x420,762x542,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.99,,2.4,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|large,514423528,453,0.4,1100x760,762x542,1100x760,1222x882,2,64.73,0,0,0,0,0,0.00,-,0,0,0,0,-0.53,,10.4,73.8,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423529,502,0.4,640x420,1222x882,640x420,762x542,1,60.25,0,0,0,0,0,0.00,-,0,0,0,0,-1.05,,4.6,64.2,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423530,369,0.5,640x420,762x542,640x420,762x542,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.10,,2.8,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|large,514423531,506,0.4,1100x760,762x542,1100x760,1222x882,2,65.39,0,0,0,0,0,0.00,-,0,0,0,0,-1.88,,2.3,64.1,0,0,false,no pixels
+gnome-text-editor|x11|idle|large,514423532,430,0.4,1100x760,1222x882,1100x760,1222x882,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.46,,2.9,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|large,514423533,448,0.4,1100x760,1222x882,1100x760,1222x882,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.59,,2.9,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|large,514423534,433,0.4,1100x760,1222x882,1100x760,1222x882,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.30,,2.5,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|large,514423535,390,0.5,1100x760,1222x882,1100x760,1222x882,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.37,,1.9,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|small,514423536,437,0.5,640x420,1222x882,640x420,762x542,2,77.70,0,0,0,0,0,0.00,-,0,0,0,0,-0.63,,3.0,80.4,0,0,false,no pixels
+gnome-text-editor|x11|idle|large,514423537,457,0.5,1100x760,762x542,1100x760,1222x882,2,52.60,0,0,0,0,0,0.00,-,0,0,0,0,-0.92,,10.4,62.3,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423538,448,0.4,640x420,1222x882,640x420,762x542,2,64.13,0,0,0,0,0,0.00,-,0,0,0,0,-0.70,,5.5,69.4,0,0,false,no pixels
+gnome-text-editor|x11|idle|large,514423539,428,0.5,1100x760,762x542,1100x760,1222x882,2,71.20,0,0,0,0,0,0.00,-,0,0,0,0,-0.87,,3.0,73.0,0,0,false,no pixels
+gnome-text-editor|x11|idle|large,514423540,415,0.5,1100x760,1222x882,1100x760,1222x882,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.45,,2.2,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|small,514423541,412,0.5,640x420,1222x882,640x420,762x542,2,76.63,0,0,0,0,0,0.00,-,0,0,0,0,-3.20,,9.5,84.3,0,0,false,no pixels
+gnome-text-editor|x11|idle|small,514423542,360,0.5,640x420,762x542,640x420,762x542,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.45,,4.2,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|small,514423543,402,0.4,640x420,762x542,640x420,762x542,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.62,,2.8,0.0,0,0,true,no pixels
+gnome-text-editor|x11|idle|small,514423544,476,0.5,640x420,762x542,640x420,762x542,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,-0.53,,3.1,0.0,0,0,true,no pixels

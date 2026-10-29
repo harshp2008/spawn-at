@@ -1,0 +1,11 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+eog|x11|idle|large,1177839124,94,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,1,47,0,198.53,1.60,9.4,8.1,0,0,true,no pixels
+eog|x11|idle|large,1177839125,112,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,12.62,,14.1,13.7,0,0,true,no pixels
+eog|x11|idle|small,1177839126,81,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,0,1,0,23.76,,10.1,9.3,0,0,true,no pixels
+eog|x11|idle|large,1177839127,84,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,1,1,0,32.79,1.21,30.5,4.0,0,0,true,no pixels
+eog|x11|idle|large,1177839128,104,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,0,1,0,16.87,,7.0,6.6,0,0,true,no pixels
+eog|x11|idle|large,1177839129,77,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,15.68,,4.6,4.1,0,0,true,no pixels
+eog|x11|idle|small,1177839130,89,2.2,1100x760,592x502,1100x760,1152x812,1,5.35,0,0,0,0,0,0.00,-,0,1,0,0,16.51,2.44,3.5,8.4,0,0,false,no pixels
+eog|x11|idle|small,1177839131,95,2.2,1100x760,1152x812,1100x760,1152x812,0,0.00,0,0,0,0,0,0.00,-,0,1,1,0,21.70,1.43,10.2,9.6,0,0,true,no pixels
+eog|x11|idle|small,1177839132,77,2.2,1100x760,592x502,1100x760,1152x812,1,2.27,0,0,0,0,0,0.00,-,0,1,0,0,11.50,1.69,1.9,3.8,0,0,false,no pixels
+eog|x11|idle|small,1177839133,115,2.2,1100x760,592x502,1100x760,1152x812,1,1.04,0,0,0,0,0,0.00,-,0,1,0,0,11.93,1.69,3.2,3.9,0,0,false,no pixels

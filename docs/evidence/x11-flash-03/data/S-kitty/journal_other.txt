@@ -1,0 +1,4 @@
+Window manager warning: Buggy client sent a _NET_ACTIVE_WINDOW message with a timestamp of 0 for 0xa0000e
+Window manager warning: Tried to ping window 0xa0000e with a bad serial! Not allowed.
+Window manager warning: Buggy client sent a _NET_ACTIVE_WINDOW message with a timestamp of 0 for 0xa0000e
+Window manager warning: Tried to ping window 0xa0000e with a bad serial! Not allowed.

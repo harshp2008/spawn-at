@@ -1,0 +1,3 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+nautilus|x11|idle|large,453647417,1,2.6,1100x760,1012x672,1100x760,1012x672,0,0.00,1,0,0,0,0,0.00,0.0,0,1,0,0,5.75,5.22,2.6,0.0,0,0,false,
+nautilus|x11|idle|small,453647418,142,0.7,700x480,1012x672,700x480,822x602,2,57.30,40,2,2,1,1,57.30,57.3,0,0,0,0,-0.24,,3.9,60.8,0,0,false,
