@@ -93,6 +93,10 @@ else keeps the old rule. Nothing of it is implemented, and none of it has been t
 applications. The proposed order starts with testing real apps, then opt-in native-Wayland launch
 variables for apps that can run on Wayland.
 
+## New (2026-10-29): real applications and Shell crashes
+
+The flicker numbers on this page still come from the test window only. A first live run with real applications forced onto X11 ended in two GNOME Shell aborts (a GTK4 editor closed while focused), which is why the real-application measurement moved into a private Shell. Nothing stated above changed. See [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/) to [6.41](/spawn-at/experiments/6-41-bisect-private-shell/) and [Known shortcomings](/spawn-at/shortcomings/).
+
 ## Limits of the flicker measurement
 
 - Nothing captures pixels. "Flash" is computed from the client's own paint time against the

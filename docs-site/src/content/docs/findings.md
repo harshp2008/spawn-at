@@ -82,6 +82,10 @@ table and the numbers are on [X11 and XWayland](/spawn-at/environments/x11-xwayl
 positions and commands, not timing: **the one-frame flash that Sway can have has not been measured**,
 and the harness's flash analysis cannot run there. See [Sway](/spawn-at/environments/sway/).
 
+## Shell crashes with a GTK app on XWayland
+
+Two live GNOME Shell aborts (same assertion, 34 minutes apart) followed the graceful close of a `gnome-text-editor` window forced onto X11. A focused close alone is not the cause: 80 focused xterm closes were clean. In a private headless Shell the same configuration did not crash in 69 runs, 27 of them the exact one, so the cause is **unexplained**. That Shell has no real input and no desktop services, so this says nothing yet about the live session. See [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/), [6.39](/spawn-at/experiments/6-39-private-headless-shell/), [6.40](/spawn-at/experiments/6-40-startup-id-audit/) and [6.41](/spawn-at/experiments/6-41-bisect-private-shell/).
+
 ## What no result covers
 
 - GNOME versions other than 46; multi-monitor; fractional scaling.
@@ -97,3 +101,4 @@ and the harness's flash analysis cannot run there. See [Sway](/spawn-at/environm
 - `docs/TEST_PLAN.md`, section 6.0 (the zenity minimum) and 7
 - `docs/DESIGN_READY_WAIT.md`, section 12
 - `docs/DESIGN_SWAY.md`, section 5
+- `docs/evidence/x11-flash-02/` (the Shell crash round, 6.38 to 6.41)

@@ -46,6 +46,12 @@ measured.
 The exit status of the state commands and the cursor options on Sway are covered on
 [Known limits](/spawn-at/known-limits/).
 
+### A GTK app forced onto X11 was followed by two Shell crashes
+
+On 2026-10-29 GNOME Shell 46.0 aborted twice, each time 6 ms after spawn-at closed a `gnome-text-editor` window that had been forced onto X11 with `GDK_BACKEND=x11`. The spawn-at startup id carries a `_TIME` number that is not a valid X11 timestamp. 
+
+**Established:** the two aborts, their identical assertion, that the extension was idle at both, and the oversized number. **Not established:** that spawn-at or its startup id causes the crash; it did not reproduce in a private Shell (0 of 69 runs). It is under investigation. Details: [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/) and [6.40](/spawn-at/experiments/6-40-startup-id-audit/). Until it is understood, avoid forcing GTK apps onto X11 when you place them with spawn-at.
+
 ## Not verified anywhere
 
 | Area | Status |
@@ -90,6 +96,7 @@ The gaps in the test suite itself are on [Testing and the verify tool](/spawn-at
 
 - `docs/TEST_COVERAGE_AUDIT.md`, sections 3, 4 and 7 (gaps 1 to 18 and their updates)
 - `README.md` ("How well it works", "Support", the `--focus` note)
+- `docs/evidence/x11-flash-02/` (crash notes and bisect for the entry on GTK apps forced onto X11)
 - `docs/KNOWLEDGE.md` ("Testing and fixtures", "Gotchas", "Open questions")
 - `docs/DESIGN_RUNNER_SETUP.md`, section 5.5 (what the extension logs per command)
 - `assets/gnome/modern/extension.js` (the workspace lookup, the log calls)

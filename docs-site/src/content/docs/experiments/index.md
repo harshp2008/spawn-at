@@ -79,6 +79,17 @@ The question was how to tell that an X11 client has painted at its new size. The
 Section 6.30 of the log, "Regression after the removal of the X11 experiments", is a regression
 check and has no record here.
 
+## Shell crashes and a private Shell (2026-10-29)
+
+These records are not written from `docs/TEST_LOG.md`. They rest on notes, tools and run data kept in the repository under `docs/evidence/x11-flash-02/` (linked from each page). Later pages of this round, on the real-application measurements, take the numbers after 6.41.
+
+| ID | Experiment | Verdict |
+| :--- | :--- | :--- |
+| [6.38](/spawn-at/experiments/6-38-shell-crash-live-xwayland-editor/) | Two Shell crashes closing a GTK app on XWayland | **GNOME Shell aborted twice**, same assertion; trigger not established |
+| [6.39](/spawn-at/experiments/6-39-private-headless-shell/) | A private headless Shell | Works with a systemd stand-in; not like the live session |
+| [6.40](/spawn-at/experiments/6-40-startup-id-audit/) | The startup id spawn-at sets | `_TIME` is not a valid X11 timestamp; harm not shown |
+| [6.41](/spawn-at/experiments/6-41-bisect-private-shell/) | Bisect in the private Shell | 0 crashes in 69 runs; not decidable |
+
 ## Proposed and not run
 
 | ID | Experiment | State |
@@ -114,6 +125,7 @@ that writes each tag records:
 ## Sources
 
 - `docs/TEST_LOG.md` (sections 6.25 to 6.35)
+- `docs/evidence/x11-flash-02/` (6.38 to 6.41: crash notes, private Shell, startup-id audit, bisect data)
 - `assets/gnome/modern/commit.js`, `assets/gnome/modern/extension.js`, `assets/gnome/modern/x11_observe.js` (the log tags)
 - `crates/spawn-at-verify/src/bin/fixture/trace.rs` (`FIRST_PAINT`)
 - `docs/KNOWLEDGE.md` ("Dead ends")
