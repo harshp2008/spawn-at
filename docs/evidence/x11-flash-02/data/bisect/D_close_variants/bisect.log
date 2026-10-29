@@ -1,0 +1,11 @@
+=== c10a 13:56:25 private shell 2777441
+[c10a_editor_x11_wmdelete] run 1 focused=true close='sent WM_DELETE_WINDOW; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+[c10a_editor_x11_wmdelete] run 2 focused=true close='sent WM_DELETE_WINDOW; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+[c10a_editor_x11_wmdelete] run 3 focused=true close='sent WM_DELETE_WINDOW; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+=== c10a rc=0 13:57:11
+=== c10b 13:57:18 private shell 2783129
+[c10b_editor_x11_key] run 1 focused=true close='xdotool ctrl+w sent; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+[c10b_editor_x11_key] run 2 focused=true close='xdotool ctrl+w sent; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+[c10b_editor_x11_key] run 3 focused=true close='xdotool ctrl+w sent; method did not close, fell back to spawn-at close; window gone' crashed=false ts0=false
+=== c10b rc=0 13:58:06
+ALLDONE

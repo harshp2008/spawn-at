@@ -1,0 +1,16 @@
+=== c11 13:54:30 private shell 2772404
+[c11_editor_x11_spawnat_bgwayland] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c11_editor_x11_spawnat_bgwayland] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c11_editor_x11_spawnat_bgwayland] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c11 rc=0 13:54:57
+=== c12 13:55:04 private shell 2774096
+[c12_xterm_spawnat_bgwayland] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c12_xterm_spawnat_bgwayland] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c12_xterm_spawnat_bgwayland] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c12 rc=0 13:55:34
+=== c13 13:55:40 private shell 2775750
+[c13_eog_x11_spawnat_bgwayland] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c13_eog_x11_spawnat_bgwayland] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c13_eog_x11_spawnat_bgwayland] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c13 rc=0 13:56:09
+ALLDONE

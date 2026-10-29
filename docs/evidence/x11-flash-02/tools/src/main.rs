@@ -3,6 +3,7 @@
 //! (offline analysis of one or more batch directories).
 
 mod analyze;
+mod cell;
 mod obs;
 mod run;
 mod util;
@@ -20,6 +21,7 @@ fn main() {
         "observe" => obs::run(rest),
         "run" => run::run(rest),
         "analyze" => analyze::run(rest),
+        "cell" => cell::run(rest),
         other => Err(format!("unknown subcommand {other}")),
     };
     if let Err(e) = res {
