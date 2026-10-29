@@ -23,3 +23,5 @@ batch of this run.
 | 17:14 | gnome-terminal loaded 40 of 40 runs ok, no crash; live pid unchanged |
 | 17:21 | google-chrome idle 50 of 50 runs ok, no crash; live pid unchanged |
 | 17:28 | google-chrome loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 17:34 | qt-assistant idle 50 of 50 runs ok, no crash; live pid unchanged |
+| 17:41 | qt-assistant loaded 40 of 40 runs ok, no crash; live pid unchanged |

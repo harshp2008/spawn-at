@@ -142,3 +142,26 @@ Private headless Shell, DING not loaded. Forced X11 (`--ozone-platform=x11`, `--
 | google-chrome | idle | small | 5 | 0 | 31.5 / 34.1 | 5x reached:at-target | 5 |
 
 Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
+
+## qt-assistant (Qt 5.15 Widgets)
+
+Private headless Shell, DING not loaded. Forced X11 (`QT_QPA_PLATFORM=xcb`), 20 runs per size idle
+plus 10 native Wayland controls (5 per size), then 20 runs per size loaded.
+
+### X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: |
+| qt-assistant | idle | large | 20 | 20 | 0 | 10 | 20 | 0 | 20 | 43.9 / 52.7 | 6.4 |
+| qt-assistant | idle | small | 20 | 20 | 0 | 1 | 14 | 0 | 14 | 23.6 / 37.1 | 5.3 |
+| qt-assistant | loaded | large | 20 | 20 | 0 | 5 | 6 | 0 | 7 | 21.5 / 67.3 | 48.4 |
+| qt-assistant | loaded | small | 20 | 20 | 0 | 2 | 10 | 0 | 11 | 12.5 / 49.8 | 45.3 |
+
+### Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
+| qt-assistant | idle | large | 5 | 0 | 252.7 / 253.6 | 2x reached:at-target; 3x timed-out:cap | 2 |
+| qt-assistant | idle | small | 5 | 0 | 12.4 / 14.1 | 5x reached:at-target | 5 |
+
+Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.
