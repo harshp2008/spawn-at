@@ -159,13 +159,16 @@ function createActor() {
     const signals = [];
     const handlers = new Map();
     let nextId = 1;
+    let texture = [800, 600];
     return {
         opacity: 255,
         width: 800,
         height: 600,
         get_stage: () => globalThis.global.stage,
         is_destroyed: () => false,
-        get_texture: () => ({ get_texture: () => ({ get_width: () => 800, get_height: () => 600 }) }),
+        get_texture: () => ({ get_texture: () => ({ get_width: () => texture[0], get_height: () => texture[1] }) }),
+        /** The size of the surface texture, as a client commit changes it (the texture gate reads it). */
+        setTexture: (w, h) => { texture = [w, h]; },
         connect: (signal, callback) => {
             signals.push(signal);
             const id = nextId++;
@@ -282,7 +285,7 @@ async function runOn(rig, windowOptions, script = () => {}, batch = WITH_SIZE) {
 
     const window = createWindow(windowOptions);
     const actor = createActor();
-    script(sim, window);
+    script(sim, window, actor);
     await sim.run(ext._runBatch(window, actor, validateInstructions(batch), 'tgt-1'));
     const frame = window.get_frame_rect();
     const logs = rig.logs.slice(logFrom);
@@ -710,4 +713,173 @@ test('thawed: a native Wayland window is never watched, even if its actor emits 
     } finally {
         GObject.signal_lookup = saved;
     }
+});
+
+// ---------------------------------------------------------------------------------------------
+// 5. The X11 texture gate (CommitLatch.waitForTexture, run after the original wait): an X11 or
+//    XWayland window with a size request is revealed once its surface texture is as big as its
+//    buffer rect, or when the cap runs out. The native Wayland path does not read a texture.
+// ---------------------------------------------------------------------------------------------
+
+// The window of these tests has buffer rect == frame rect, so after SetSize the gate wants an
+// 800x600 texture. 592x502 is eog's own default size, the stale texture of X11-FLASH-03b.
+const STALE = [592, 502];
+// Time the rest of an X11 batch takes with nothing to wait for: the 50 ms frame wait of the Uncloak step
+// (the test stage never emits after-update, so the ceiling ends it).
+const REST_OF_BATCH_MS = 50;
+const gateLines = r => r.logs.filter(e => e.tag.startsWith('X11_GATE')).map(e => `${e.tag} ${e.extra}`);
+
+test('texture gate: a texture that already has the buffer rect size adds no wait', async () => {
+    const r = await runBatch({ kind: 'x11' });
+    assert.deepEqual(gateLines(r), [
+        'X11_GATE_START cap=250 poll=4 texture=(800x600) buffer=(800x600)',
+        'X11_GATE_RESOLVED reason=texture-matched waited_ms=0.0 cap=250 texture=(800x600) buffer=(800x600)',
+    ]);
+    assert.equal(r.window.handlerCount(), 0);
+    // the original wait lines are what they were without the gate
+    assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=X11 why=not-native-wayland timeoutMs=300$/);
+    assert.match(r.line('READY_WAIT_RESOLVED'), /^strategy=legacy outcome=none elapsed_ms=\d+\.\d reason=AT_TARGET$/);
+    assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
+});
+
+test('texture gate: holds the reveal until the texture catches up (70 ms), then places the window', async () => {
+    const stale = (sim, _w, actor) => { actor.setTexture(...STALE); sim.at(70, () => actor.setTexture(800, 600)); };
+    const r = await runBatch({ kind: 'x11' }, stale);
+    const resolved = r.line('X11_GATE_RESOLVED');
+    assert.match(resolved, /^reason=texture-matched waited_ms=7[0-4]\.0 cap=250 texture=\(800x600\) buffer=\(800x600\)$/);
+    assert.match(r.line('X11_GATE_START'), /texture=\(592x502\) buffer=\(800x600\)$/);
+    // the next poll after the change at 70 ms (polls are 4 ms apart) ends the wait, not a timer
+    assert.ok(r.elapsed >= 70 + REST_OF_BATCH_MS && r.elapsed <= 74 + REST_OF_BATCH_MS, `batch took ${r.elapsed} ms`);
+    assert.equal(r.window.handlerCount(), 0, 'no size-changed handler left');
+    assert.deepEqual(r.names, ['SpawnClaimed']);
+    assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
+});
+
+test('texture gate: a texture that never matches is revealed at the cap (250 ms) and the batch still finishes', async () => {
+    const r = await runBatch({ kind: 'x11' }, (_sim, _w, actor) => actor.setTexture(...STALE));
+    assert.equal(r.line('X11_GATE_RESOLVED'), 'reason=cap waited_ms=250.0 cap=250 texture=(592x502) buffer=(800x600)');
+    assert.equal(r.elapsed, 250 + REST_OF_BATCH_MS);
+    assert.equal(r.window.handlerCount(), 0);
+    assert.deepEqual(r.names, ['SpawnClaimed']);
+    assert.deepEqual(rect(r.frame), [1104, 464, 800, 600]);
+});
+
+test('texture gate: a match in the same tick as the cap counts as a match', async () => {
+    const r = await runBatch({ kind: 'x11' }, (sim, _w, actor) => {
+        actor.setTexture(...STALE);
+        sim.at(250, () => actor.setTexture(800, 600));
+    });
+    assert.match(r.line('X11_GATE_RESOLVED'), /^reason=texture-matched waited_ms=250\.0 /);
+});
+
+test('texture gate: the buffer rect is read again each time, so a client that resizes itself is waited for at its new size', async () => {
+    // gnome-calculator resets itself to 360x492 after the request (X11-FLASH-03b 3d)
+    const r = await runBatch({ kind: 'x11' }, (sim, w, actor) => {
+        actor.setTexture(...STALE);
+        sim.at(40, () => w.respond(360, 492));
+        sim.at(60, () => actor.setTexture(360, 492));
+    });
+    assert.match(r.line('X11_GATE_RESOLVED'), /^reason=texture-matched waited_ms=6[0-4]\.0 cap=250 texture=\(360x492\) buffer=\(360x492\)$/);
+});
+
+test('texture gate: a size-changed that brings the buffer rect to the texture ends the wait at once, without waiting for a poll', async () => {
+    const r = await runBatch({ kind: 'x11' }, (sim, w, actor) => {
+        actor.setTexture(500, 400);
+        sim.at(41, () => w.respond(500, 400));
+    });
+    assert.match(r.line('X11_GATE_RESOLVED'), /^reason=texture-matched waited_ms=41\.0 /);
+});
+
+test('texture gate: cap_ms replaces the cap; the override line does not call it unused', async () => {
+    const r = await runBatch({ kind: 'x11' }, (_sim, _w, actor) => actor.setTexture(...STALE), withWait({ cap_ms: 90 }));
+    assert.equal(r.line('X11_GATE_RESOLVED'), 'reason=cap waited_ms=90.0 cap=90 texture=(592x502) buffer=(800x600)');
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=none cap_ms=90 unused=none ignored=none');
+    // and a 120 ms editor is matched under the default cap but not under 90
+    const slow = (sim, _w, actor) => { actor.setTexture(...STALE); sim.at(120, () => actor.setTexture(800, 600)); };
+    assert.match((await runBatch({ kind: 'x11' }, slow)).line('X11_GATE_RESOLVED'), /^reason=texture-matched /);
+    assert.match((await runBatch({ kind: 'x11' }, slow, withWait({ cap_ms: 90 }))).line('X11_GATE_RESOLVED'), /^reason=cap /);
+});
+
+test('texture gate: strategy legacy switches it off, nothing is read, and the batch ends with the original wait', async () => {
+    const rig = makeRig();
+    let reads = 0;
+    rig.ext.textureSize = () => { reads++; return { width: 1, height: 1 }; };
+    const r = await runOn(rig, { kind: 'x11' }, (_sim, _w, actor) => actor.setTexture(...STALE),
+        withWait({ strategy: 'legacy', cap_ms: 60 }));
+    rig.ext.disable();
+    assert.deepEqual(gateLines(r), []);
+    assert.equal(reads, 0);
+    assert.equal(r.line('READY_WAIT_OVERRIDE'), 'strategy=legacy cap_ms=60 unused=cap_ms(legacy-has-no-cap) ignored=none');
+    assert.equal(r.elapsed, REST_OF_BATCH_MS, 'nothing waited for the texture');
+});
+
+test('texture gate: a window without a size request is not gated', async () => {
+    const r = await runBatch({ kind: 'x11' }, (_sim, _w, actor) => actor.setTexture(...STALE), WITHOUT_SIZE);
+    assert.deepEqual(gateLines(r), []);
+    assert.match(r.line('READY_WAIT_START'), /why=no-size-request /);
+});
+
+test('texture gate: a window that cannot say what it is (no get_client_type) is not gated', async () => {
+    const r = await runBatch({ hasClientType: false, kind: 'x11' }, (_sim, _w, actor) => actor.setTexture(...STALE));
+    assert.deepEqual(gateLines(r), []);
+});
+
+test('texture gate: a texture that cannot be read releases the reveal at once (unreadable), it never holds a window it cannot see', async () => {
+    const r = await runBatch({ kind: 'x11' }, (_sim, _w, actor) => { actor.get_texture = () => null; });
+    assert.match(r.line('X11_GATE_START'), /texture=\(na\) buffer=\(800x600\)$/);
+    assert.equal(r.line('X11_GATE_RESOLVED'), 'reason=unreadable waited_ms=0.0 cap=250 texture=(na) buffer=(800x600)');
+    assert.equal(r.elapsed, REST_OF_BATCH_MS);
+});
+
+test('texture gate: XWayland windows are gated like X11 ones', async () => {
+    const original = Meta.is_wayland_compositor;
+    Meta.is_wayland_compositor = () => true;
+    try {
+        const r = await runBatch({ kind: 'x11' }, (sim, _w, actor) => { actor.setTexture(...STALE); sim.at(30, () => actor.setTexture(800, 600)); });
+        assert.match(r.line('READY_WAIT_START'), /^strategy=legacy kind=XWayland /);
+        assert.match(r.line('X11_GATE_RESOLVED'), /^reason=texture-matched waited_ms=3[0-4]\.0 /);
+    } finally {
+        Meta.is_wayland_compositor = original;
+    }
+});
+
+test('texture gate: native Wayland is untouched: no gate line, no texture read, same wait lines and timing as before', async () => {
+    for (const [name, answer, expectTail] of [
+        ['fast app', (sim, w) => sim.at(20, () => w.respond(800, 600)), /outcome=reached elapsed_ms=20\.0 waited_ms=20 reason=at-target /],
+        ['refusing app', () => {}, /outcome=timed-out elapsed_ms=250\.0 waited_ms=250 reason=cap /],
+    ]) {
+        const rig = makeRig();
+        let reads = 0;
+        rig.ext.textureSize = () => { reads++; return { width: 1, height: 1 }; };
+        const r = await runOn(rig, {}, (sim, w, actor) => { actor.setTexture(...STALE); answer(sim, w); });
+        rig.ext.disable();
+        assert.deepEqual(gateLines(r), [], name);
+        assert.equal(reads, 0, `${name}: a native window's texture is never read`);
+        assert.match(r.line('READY_WAIT_RESOLVED'), expectTail, name);
+        assert.equal(r.window.handlerCount(), 0, name);
+    }
+});
+
+test('texture gate: native Wayland with strategy legacy (no size request, or forced) is not gated either', async () => {
+    for (const batch of [WITHOUT_SIZE, withWait({ strategy: 'legacy' })]) {
+        const rig = makeRig();
+        let reads = 0;
+        rig.ext.textureSize = () => { reads++; return { width: 1, height: 1 }; };
+        const r = await runOn(rig, {}, (_sim, _w, actor) => actor.setTexture(...STALE), batch);
+        rig.ext.disable();
+        assert.deepEqual(gateLines(r), []);
+        assert.equal(reads, 0);
+    }
+});
+
+test('texture gate: disabling the extension mid-wait does not run the rest of the batch', async () => {
+    const rig = makeRig();
+    const window = createWindow({ kind: 'x11' });
+    const actor = createActor();
+    actor.setTexture(...STALE);
+    const done = rig.ext._runBatch(window, actor, validateInstructions(WITH_SIZE), 'tgt-1');
+    rig.sim.at(20, () => rig.ext.disable());
+    // the gate's timers go with the extension (disable drops every timer), so the batch never resumes
+    await Promise.race([done, new Promise(resolve => setTimeout(resolve, 50))]);
+    assert.equal(rig.emitted.some(e => e.name === 'SpawnClaimed'), false);
 });

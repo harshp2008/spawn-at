@@ -6,6 +6,7 @@
  * - waitForSizeQuiet: waits until client-side resize events settle.
  * - waitForFrames: waits for compositor stage updates before uncloaking.
  * - waitForReady: the ready-wait machine (ready_wait.js) for native Wayland windows.
+ * - waitForTexture: the texture gate for X11 and XWayland windows, run after waitForCommit.
  */
 
 import { ReadyWait, mergePolicy } from './ready_wait.js';
@@ -13,6 +14,17 @@ import { ReadyWait, mergePolicy } from './ready_wait.js';
 const COMMIT_QUIET_MS = 30;
 const COMMIT_MIN_TIMEOUT_MS = 120;
 const COMMIT_HARD_CAP_MS = 1500;
+
+// The X11 texture gate (waitForTexture). The cap is the 250 ms cap of the ready-wait machine. It
+// is longer than every match measured in X11-FLASH-03: from the old reveal to the final-size
+// texture, gnome-text-editor 95 ms at most, eog 69 ms, gnome-calculator 195 ms passive and 233 ms
+// with frame capture. A window whose texture never equals its buffer rect (Chrome) is revealed
+// when the cap runs out, so this is also how much later such a window appears.
+export const X11_GATE_CAP_MS = 250;
+
+// The gate looks at the texture this often. No compositor signal says "a new buffer was attached"
+// while the window is cloaked, so the size is polled; a mean of 2 ms is added to a match.
+const X11_GATE_POLL_MS = 4;
 
 /**
  * The `reason=` text of the READY_WAIT_RESOLVED line: why the machine stopped.
@@ -139,6 +151,105 @@ export class CommitLatch {
             capTimer = this._helper.addTimer(COMMIT_HARD_CAP_MS, () => finish('HARD_CAP'));
 
             check('initial');
+        });
+    }
+
+    /**
+     * Holds the reveal of an X11 client window until its surface texture has the size of its buffer
+     * rect, or `capMs` has passed. For GTK apps the bad frame is the compositor showing the texture
+     * of the old size before the client commits its final-size buffer (X11-FLASH-03b); the frame
+     * rect is already final at this point, so the texture is the signal that is still missing.
+     *
+     * The sizes are read on every poll and on every `size-changed`, and the buffer rect is read
+     * again each time, so a client that resizes itself while the gate waits is compared against
+     * its new size. A texture that cannot be read ends the wait at once (`unreadable`): the gate
+     * never holds a window it cannot see.
+     *
+     * Needs `textureSize(actor)` (`{width, height}` or `{error}`) on the helper.
+     *
+     * @param {object} window - Meta.Window of an X11 or XWayland client
+     * @param {object} actor - its Meta.WindowActor
+     * @param {{capMs?: number}} [options] - `capMs` replaces X11_GATE_CAP_MS
+     * @returns {Promise<{reason: string, waitedMs: number}>} `reason` is `texture-matched`, `cap` or
+     *     `unreadable`; `waitedMs` is the time the gate held the batch
+     */
+    waitForTexture(window, actor, { capMs = X11_GATE_CAP_MS } = {}) {
+        return new Promise(resolve => {
+            const helper = this._helper;
+            const startedAt = helper.nowMs();
+            const fmt = size => (size ? `(${size.width}x${size.height})` : '(na)');
+
+            let finished = false;
+            let pollTimer = 0;
+            let capTimer = 0;
+            let sigId = 0;
+
+            // `matched` is null when either size cannot be read.
+            const look = () => {
+                let texture = null;
+                let buffer = null;
+                try {
+                    const t = helper.textureSize(actor);
+                    texture = t && !t.error ? { width: t.width, height: t.height } : null;
+                    buffer = window.get_buffer_rect ? window.get_buffer_rect() : null;
+                } catch (_e) {}
+                const matched = texture && buffer
+                    ? texture.width === buffer.width && texture.height === buffer.height
+                    : null;
+                return { texture, buffer, matched };
+            };
+
+            const finish = (reason, seen) => {
+                if (finished)
+                    return;
+                finished = true;
+                helper.removeTimer(pollTimer);
+                helper.removeTimer(capTimer);
+                helper.safeDisconnect(window, sigId);
+                const waitedMs = Math.max(0, helper.nowMs() - startedAt);
+                helper.logTime('X11_GATE_RESOLVED',
+                    `reason=${reason} waited_ms=${waitedMs.toFixed(1)} cap=${capMs} ` +
+                    `texture=${fmt(seen.texture)} buffer=${fmt(seen.buffer)}`,
+                    window);
+                resolve({ reason, waitedMs });
+            };
+
+            const check = () => {
+                if (finished)
+                    return;
+                const seen = look();
+                if (seen.matched === null)
+                    finish('unreadable', seen);
+                else if (seen.matched)
+                    finish('texture-matched', seen);
+            };
+
+            const first = look();
+            helper.logTime('X11_GATE_START',
+                `cap=${capMs} poll=${X11_GATE_POLL_MS} texture=${fmt(first.texture)} buffer=${fmt(first.buffer)}`,
+                window);
+            if (first.matched === null) {
+                finish('unreadable', first);
+                return;
+            }
+            if (first.matched) {
+                finish('texture-matched', first);
+                return;
+            }
+
+            const poll = () => {
+                pollTimer = 0;
+                check();
+                if (!finished)
+                    pollTimer = helper.addTimer(X11_GATE_POLL_MS, poll);
+            };
+            sigId = helper.tryConnect(window, 'size-changed', check);
+            pollTimer = helper.addTimer(X11_GATE_POLL_MS, poll);
+            capTimer = helper.addTimer(capMs, () => {
+                capTimer = 0;
+                const seen = look();
+                finish(seen.matched ? 'texture-matched' : 'cap', seen);
+            });
         });
     }
 

@@ -23,7 +23,7 @@ import GObject from 'gi://GObject';
 
 import { DBusManager } from './dbus.js';
 import { CloakManager } from './cloak.js';
-import { CommitLatch, readyReason } from './commit.js';
+import { CommitLatch, readyReason, X11_GATE_CAP_MS } from './commit.js';
 import { FocusPulse } from './pulse.js';
 import { computeAnchoredPosition } from './anchor.js';
 import { SessionLogger } from './logger.js';
@@ -808,18 +808,24 @@ export default class SpawnAtExtension extends Extension {
     // the session, decides: an XWayland window inside a Wayland session reports its frame size
     // immediately, which the machine would read as an instant answer.
     //
+    // An X11 or XWayland window with a size request then also passes the texture gate
+    // (CommitLatch.waitForTexture): the frame rect is already final here, so the reveal waits for
+    // the surface texture to reach the buffer rect size. The strategy line above is not changed by it.
+    //
     // A developer override rides in `args` of this one instruction (`strategy`, `cap_ms`, validator.js)
     // and so applies to this spawn only; nothing is stored on the extension. `legacy` sends even a
-    // native Wayland window down the original rule (`why=override-legacy`); `ready-wait` changes
-    // nothing a native window would not do anyway; `cap_ms` replaces the 250 ms cap of the machine.
+    // native Wayland window down the original rule (`why=override-legacy`) and switches the texture
+    // gate off; `ready-wait` changes nothing a native window would not do anyway; `cap_ms` replaces
+    // the 250 ms cap of the machine, or the cap of the texture gate (X11_GATE_CAP_MS) for an X11 window.
     async _stepWaitForCommit(ctx, args) {
         const { window } = ctx;
         const kind = this._windowKind(window);
         const hasRequest = ctx.safeW !== null && ctx.safeH !== null;
         const forceLegacy = args.strategy === 'legacy';
         const useMachine = kind === 'NativeWayland' && hasRequest && !forceLegacy;
+        const useGate = (kind === 'X11' || kind === 'XWayland') && hasRequest && !forceLegacy && Boolean(ctx.actor);
 
-        this._logWaitOverride(window, args, useMachine, hasRequest);
+        this._logWaitOverride(window, args, useMachine, hasRequest, useGate);
 
         if (useMachine) {
             const before = ctx.preSetSizeFrame;
@@ -856,13 +862,21 @@ export default class SpawnAtExtension extends Extension {
         this.logTime('READY_WAIT_RESOLVED',
             `strategy=legacy outcome=none elapsed_ms=${(this.nowMs() - startedAt).toFixed(1)} reason=${reason}`,
             window);
+
+        if (useGate && !this._disabled)
+            ctx.gate = await this._commitLatch.waitForTexture(window, ctx.actor, { capMs: args.cap_ms ?? X11_GATE_CAP_MS });
+    }
+
+    // The size of the actor's surface texture for the texture gate (`{width, height}` or `{error}`).
+    textureSize(actor) {
+        return readTextureSize(actor);
     }
 
     // Says what a developer override did, in one line before READY_WAIT_START (which then shows the
     // effective strategy and cap). Silent when the instruction carries no override field, so a
     // default spawn logs exactly what it did before. `unused` names valid fields that had no
     // effect on this window; `ignored` (last, free text) names fields the validator dropped.
-    _logWaitOverride(window, args, useMachine, hasRequest) {
+    _logWaitOverride(window, args, useMachine, hasRequest, useGate) {
         const ignored = args.ignored ?? [];
         if (args.strategy === undefined && args.cap_ms === undefined && ignored.length === 0)
             return;
@@ -870,7 +884,7 @@ export default class SpawnAtExtension extends Extension {
         const unused = [];
         if (args.strategy === 'ready-wait' && !useMachine)
             unused.push(`strategy(ready-wait:${hasRequest ? 'not-native-wayland' : 'no-size-request'})`);
-        if (args.cap_ms !== undefined && !useMachine)
+        if (args.cap_ms !== undefined && !useMachine && !useGate)
             unused.push('cap_ms(legacy-has-no-cap)');
 
         this.logTime('READY_WAIT_OVERRIDE',
