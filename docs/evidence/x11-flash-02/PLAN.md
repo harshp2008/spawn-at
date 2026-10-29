@@ -108,3 +108,16 @@ loaded. Do not start gnome-text-editor or any forced GTK app on the live session
 2. If safe, run the bisect, then the remaining batches inside the isolated session (tool changes
    listed in `isolation-feasibility.md` section 5).
 3. Write the pages (task 6), run `cargo xtask docs-site`, check gates G1 to G6, report, wait.
+
+## Update after X11-FLASH-02f (private headless Shell)
+
+- A private headless Shell works (`tools/psh-start.sh`, `psh`, `psh-batch.sh`, `psh-stop.sh`, `bisect-cells.sh`,
+  `xflash cell`, `sysd1stub`); see `bisect-2026-10-29.md` section 1. Start it, use it only through
+  `psh`, stop it with `psh-stop.sh`.
+- The bisect (69 runs, 4 rounds) did not reproduce the crash or the timestamp-0 warning, so the
+  trigger is not in the app, spawn-at, the observer or the startup id alone. The live xterm closes
+  were focused too (80 of 80), so a focused close is not sufficient.
+- No batch of the measurement plan has run on the live session since the second crash. Remaining
+  batches (editor, eog, others) can run in the private Shell with `psh-batch.sh`, which is safe for
+  the desktop but whose timing differs from the live compositor (headless, no real input, a
+  single virtual monitor). State that on every page that uses those numbers.
