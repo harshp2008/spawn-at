@@ -1,0 +1,6 @@
+=== c7 14:39:02 private shell 2859176
+[c7_editor_x11_spawnat_fitid] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[c7_editor_x11_spawnat_fitid] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c7 rc=1 14:39:07
+ALLDONE

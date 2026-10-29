@@ -22,6 +22,30 @@ enabled-extensions=['spawn-at@harsh.local']
 disable-user-extensions=false
 welcome-dialog-last-shown-version='99'
 KF
+# H7 replica (X11-FLASH-02h): the live session's other extensions (COPIES, read from the user's
+# extension directory) and its allowlisted settings, minus GSConnect (network) and Win11Clip Bridge
+# (clipboard). System extensions are found through XDG_DATA_DIRS.
+if [ -n "${H7:-}" ]; then
+  h=docs/evidence/x11-flash-02/data/h7
+  list="'spawn-at@harsh.local'"
+  for u in $(cat "$h/user-extensions.txt"); do
+    cp -r "$HOME/.local/share/gnome-shell/extensions/$u" "$SB/data/gnome-shell/extensions/"
+    list="$list, '$u'"
+  done
+  for u in $(cat "$h/system-extensions.txt"); do list="$list, '$u'"; done
+  if [ -n "${H7_SKIP:-}" ]; then
+    # H7_SKIP="uuid1 uuid2": leave those out of the enabled list (bisect by halves)
+    nl="'spawn-at@harsh.local'"
+    for u in $(cat "$h/user-extensions.txt" "$h/system-extensions.txt"); do
+      case " $H7_SKIP " in *" $u "*) ;; *) nl="$nl, '$u'";; esac
+    done
+    list=$nl
+  fi
+  {
+    printf "[org/gnome/shell]\nenabled-extensions=[%s]\ndisable-user-extensions=false\nwelcome-dialog-last-shown-version='99'\n\n" "$list"
+    cat "$h/keyfile.ini"
+  } > "$SB/config/glib-2.0/settings/keyfile"
+fi
 cat > "$SB/live.env" <<LV
 LIVE_WAYLAND_DISPLAY='$live_wl'
 LIVE_DISPLAY='$live_x'

@@ -28,6 +28,8 @@ struct Cell {
     unset_startup: bool,
     focus: bool,
     bg_window: bool,
+    unset_vars: Vec<String>,
+    set_env: Vec<(String, String)>,
     startup_id: Option<String>,
     close: String,
     runs: usize,
@@ -46,6 +48,8 @@ fn parse(args: &[String]) -> Result<Cell, String> {
         unset_startup: false,
         focus: false,
         bg_window: false,
+        unset_vars: Vec::new(),
+        set_env: Vec::new(),
         startup_id: None,
         close: "spawn-at".into(),
         runs: 3,
@@ -70,6 +74,8 @@ fn parse(args: &[String]) -> Result<Cell, String> {
                     "--label" => c.label = v,
                     "--app" => c.app = v,
                     "--startup-id" => c.startup_id = Some(v),
+                    "--unset" => c.unset_vars.push(v),
+                    "--setenv" => { if let Some((k, val)) = v.split_once('=') { c.set_env.push((k.to_string(), val.to_string())); } }
                     "--close" => c.close = v,
                     "--runs" => c.runs = v.parse().map_err(|_| "--runs N")?,
                     "--settle-ms" => c.settle_ms = v.parse().map_err(|_| "--settle-ms N")?,
@@ -177,7 +183,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     }
     let mut base: Vec<u64> = all_ids(&windows_json()).into_iter().map(|(i, _)| i).collect();
     if !base.is_empty() {
-        return Err(format!("the private Shell already has windows: {:?}", base));
+        eprintln!("note: the private Shell already has windows (e.g. a desktop-icons window): {:?}", base);
     }
     let mut res = OpenOptions::new().create(true).append(true).open(c.out.join("cells.jsonl")).map_err(|e| e.to_string())?;
     let cell_off = log_len(&c.shell_log);
@@ -245,6 +251,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
         if c.plain {
             let mut cmd = Command::new(argv[0]);
             cmd.args(&argv[1..]);
+            for (k, v) in c.set_env.iter() {
+                cmd.env(k, v);
+            }
             for (k, v) in envs {
                 cmd.env(k, v);
             }
@@ -253,7 +262,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
             let until = Instant::now() + Duration::from_secs(12);
             while Instant::now() < until && wid.is_none() {
                 std::thread::sleep(Duration::from_millis(100));
-                wid = all_ids(&windows_json()).into_iter().map(|(i, _)| i).find(|i| !base.contains(i));
+                // The window of the process we started (other windows, e.g. a desktop-icons window, may appear meanwhile).
+                let cpid = plain_child.as_ref().map(|c| c.id() as u64).unwrap_or(0);
+                wid = all_ids(&windows_json()).into_iter().find(|(i, p)| *p == cpid && !base.contains(i)).map(|(i, _)| i);
             }
         } else {
             let mut cmd = Command::new("spawn-at");
@@ -262,10 +273,13 @@ pub fn run(args: &[String]) -> Result<(), String> {
                 cmd.args(["-c", class]);
             }
             cmd.args(["--no-focus", "--anchor", "bottom-right", "--size", &size.0.to_string(), &size.1.to_string(), "-m", "24", "--json", "--"]);
-            if c.unset_startup || c.startup_id.is_some() {
+            if c.unset_startup || c.startup_id.is_some() || !c.unset_vars.is_empty() {
                 cmd.arg("env");
                 if c.unset_startup {
                     cmd.args(["-u", "DESKTOP_STARTUP_ID", "-u", "XDG_ACTIVATION_TOKEN"]);
+                }
+                for u in &c.unset_vars {
+                    cmd.args(["-u", u.as_str()]);
                 }
                 if let Some(s) = &c.startup_id {
                     cmd.arg(format!("DESKTOP_STARTUP_ID={}", s));

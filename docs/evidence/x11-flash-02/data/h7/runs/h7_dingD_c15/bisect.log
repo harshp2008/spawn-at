@@ -1,0 +1,6 @@
+=== c15 14:40:53 private shell 2862306
+[c15_editor_x11_spawnat_no_dsid] run 1 focused=true close='spawn-at close; window gone' crashed=true ts0=true
+[c15_editor_x11_spawnat_no_dsid] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c15 rc=1 14:40:58
+ALLDONE

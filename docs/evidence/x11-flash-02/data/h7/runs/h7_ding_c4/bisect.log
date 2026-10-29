@@ -1,0 +1,8 @@
+=== c4 14:30:07 private shell 2840479
+[c4_editor_x11_plain] run 1 focused=null close='spawn-at close; window gone' crashed=false ts0=true
+[c4_editor_x11_plain] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c4_editor_x11_plain] run 3 focused=null close='spawn-at close; window gone' crashed=false ts0=true
+[c4_editor_x11_plain] run 4 focused=false close='spawn-at close; window gone' crashed=false ts0=true
+[c4_editor_x11_plain] run 5 focused=null close='spawn-at close; window gone' crashed=false ts0=true
+=== c4 rc=0 14:30:51
+ALLDONE

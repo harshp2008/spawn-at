@@ -1,0 +1,10 @@
+dash-to-dock@micxgx.gmail.com
+touchpad-speed-control@ritesh
+swap-finger-gestures-3-4@0verwritten.github.com
+gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com
+adaptive-dock@harsh.patel
+caffeine@patapon.info
+just-perfection-desktop@just-perfection
+space-bar@luchrioh
+dock-hover-preview@kaleabcodes.dev
+window-calls@domandoman.xyz

@@ -19,6 +19,12 @@ for c in "$@"; do
     c7) a="--label c7_editor_x11_spawnat_fitid --app gnome-text-editor --startup-id spawn-at-fit_TIME123456789";;
     c8) a="--label c8_editor_x11_spawnat_obs --app gnome-text-editor --observer";;
     c9) a="--label c9_eog_x11_spawnat --app eog";;
+    c14) a="--label c14_xterm_plain --app xterm --plain";;
+    c15) a="--label c15_editor_x11_spawnat_no_dsid --app gnome-text-editor --unset DESKTOP_STARTUP_ID";;
+    c16) a="--label c16_editor_x11_spawnat_no_token --app gnome-text-editor --unset XDG_ACTIVATION_TOKEN";;
+    c17) a="--label c17_editor_x11_plain_with_ids --app gnome-text-editor --plain --setenv DESKTOP_STARTUP_ID=spawn-at-1-2_TIME3 --setenv XDG_ACTIVATION_TOKEN=spawn-at-1-2_TIME3";;
+    c18) a="--label c18_editor_x11_plain_dsid_only --app gnome-text-editor --plain --setenv DESKTOP_STARTUP_ID=spawn-at-1-2_TIME3";;
+    c19) a="--label c19_editor_x11_plain_token_only --app gnome-text-editor --plain --setenv XDG_ACTIVATION_TOKEN=spawn-at-1-2_TIME3";;
     c11) a="--label c11_editor_x11_spawnat_bgwayland --app gnome-text-editor --bg-window";;
     c12) a="--label c12_xterm_spawnat_bgwayland --app xterm --bg-window";;
     c13) a="--label c13_eog_x11_spawnat_bgwayland --app eog --bg-window";;
@@ -33,7 +39,7 @@ for c in "$@"; do
   echo "=== $c $(date +%T) private shell $(cat "$SB/shell.pid")" >> "$out/bisect.log"
   # shellcheck disable=SC2086
   systemd-run --user --scope --quiet -p MemoryMax=3G -p MemorySwapMax=0 -- \
-    $T/psh $T/target/debug/xflash cell $a ${XFLAGS:-} --runs 3 --out "$out" \
+    $T/psh $T/target/debug/xflash cell $a ${XFLAGS:-} --runs ${RUNS:-3} --out "$out" \
     --shell-pid-file "$SB/shell.pid" --shell-log "$SB/log/shell.log" >> "$out/bisect.log" 2>&1
   rc=$?
   echo "=== $c rc=$rc $(date +%T)" >> "$out/bisect.log"
