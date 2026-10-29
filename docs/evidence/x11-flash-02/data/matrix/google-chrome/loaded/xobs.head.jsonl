@@ -115,7 +115,7 @@
 {"t":828571627493219,"ev":"snap","win":14680065,"parent":0,"map":"gone","override":false,"x":null,"y":null,"w":null,"h":null}
 {"t":828571945287173,"ev":"CreateNotify","win":10485763,"parent":1263,"x":10,"y":42,"w":945,"h":1028,"override":false}
 {"t":828571945920877,"ev":"snap","win":10485763,"parent":1263,"map":"unmapped","override":false,"x":10,"y":42,"w":945,"h":1028}
-{"t":828571945920877,"ev":"props","win":10485763,"instance":"google-chrome (/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash02/profiles/loaded-0)","class":"xflash-chrome","pid":3136296}
+{"t":828571945920877,"ev":"props","win":10485763,"instance":"google-chrome (<repo>/scratch/xflash02/profiles/loaded-0)","class":"xflash-chrome","pid":3136296}
 {"t":828571977559513,"ev":"PropertyNotify","win":10485763,"prop":"_NET_WM_PID","deleted":false}
 {"t":828571981626155,"ev":"PropertyNotify","win":10485763,"prop":"WM_CLASS","deleted":false}
 {"t":828571982558416,"ev":"PropertyNotify","win":10485763,"prop":"_NET_WM_NAME","deleted":false}
@@ -139,7 +139,7 @@
 {"t":828572893322564,"ev":"PropertyNotify","win":10485763,"prop":"WM_STATE","deleted":false}
 {"t":828572895507609,"ev":"PropertyNotify","win":10485763,"prop":"_NET_WM_STATE","deleted":false}
 {"t":828572952467726,"ev":"MapNotify","win":10485763,"override":false}
-{"t":828572952500482,"ev":"props","win":10485763,"instance":"google-chrome (/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash02/profiles/loaded-0)","class":"xflash-chrome","pid":3136296,"title":"Untitled - Google Chrome","hints":{"flags":532,"us_pos":false,"us_size":false,"p_pos":true,"p_size":false,"min":[544,187],"max":[-1,-1],"inc":[-1,-1],"base":[-1,-1],"gravity":10},"gtk_frame_extents":[22, 22, 19, 25]}
+{"t":828572952500482,"ev":"props","win":10485763,"instance":"google-chrome (<repo>/scratch/xflash02/profiles/loaded-0)","class":"xflash-chrome","pid":3136296,"title":"Untitled - Google Chrome","hints":{"flags":532,"us_pos":false,"us_size":false,"p_pos":true,"p_size":false,"min":[544,187],"max":[-1,-1],"inc":[-1,-1],"base":[-1,-1],"gravity":10},"gtk_frame_extents":[22, 22, 19, 25]}
 {"t":828573015761312,"ev":"DamageNotify","win":10485763,"ax":0,"ay":0,"aw":945,"ah":1028,"gw":945,"gh":1028}
 {"t":828573015802236,"ev":"PropertyNotify","win":10485763,"prop":"_NET_WM_STATE","deleted":false}
 {"t":828573015912260,"ev":"CreateNotify","win":10485768,"parent":1263,"x":-10000,"y":-10000,"w":10,"h":10,"override":false}
@@ -190,7 +190,7 @@
 {"t":828584844780457,"ev":"PropertyNotify","win":12582913,"prop":"_NET_WM_PID","deleted":false}
 {"t":828586253128537,"ev":"CreateNotify","win":10485763,"parent":1263,"x":10,"y":42,"w":945,"h":1028,"override":false}
 {"t":828586253294775,"ev":"snap","win":10485763,"parent":1263,"map":"unmapped","override":false,"x":10,"y":42,"w":945,"h":1028}
-{"t":828586253294775,"ev":"props","win":10485763,"instance":"google-chrome (/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash02/profiles/loaded-1)","class":"xflash-chrome","pid":3136871}
+{"t":828586253294775,"ev":"props","win":10485763,"instance":"google-chrome (<repo>/scratch/xflash02/profiles/loaded-1)","class":"xflash-chrome","pid":3136871}
 {"t":828586439883602,"ev":"PropertyNotify","win":10485763,"prop":"_NET_WM_NAME","deleted":false}
 {"t":828586439928947,"ev":"PropertyNotify","win":10485763,"prop":"WM_NAME","deleted":false}
 {"t":828586439944560,"ev":"CreateNotify","win":10485765,"parent":1263,"x":-10000,"y":-10000,"w":10,"h":10,"override":false}

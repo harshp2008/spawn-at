@@ -28,7 +28,7 @@ Checked against the scripts (read 2026-10-29):
 ## 0. Pre-flight (every batch)
 
 ```
-cd "/home/harsh/Documents/GITHUB PROJECTS/spawn-at"
+cd "$(git rev-parse --show-toplevel)"
 p=$(pgrep -x gnome-shell | head -1); s=$(awk '{print $22}' "/proc/$p/stat"); echo "LIVE $p $s"
 ```
 

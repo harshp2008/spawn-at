@@ -196,3 +196,41 @@ loaded. Do not start gnome-text-editor or any forced GTK app on the live session
 - Gate note: the branch now also touches only `docs/`; the tool project under
   `docs/evidence/x11-flash-02/tools/` is still standalone (empty `[workspace]`, not picked up).
 
+## Update after X11-FLASH-02i-b (calibration and per-app matrix, private headless Shell, no DING)
+
+- Setup: one private headless Shell (`psh-start.sh`), enabled extensions exactly
+  `['spawn-at@harsh.local']`, DING installed but disabled (state 6); live Shell pid 2718897 /
+  start 81373971 unchanged before and after every batch. Smoke test xterm 3 of 3 runs ok. **0 private
+  Shell crashes** in the whole prompt.
+- Calibration: xterm idle and loaded, 40 runs each, same options as the live batches (seeds 11/12).
+  Side-by-side numbers in `calibration.md`; raw `data/matrix/xterm/`.
+- Measured in the matrix (idle 20 per size + 10 native controls, loaded 20 per size): xterm,
+  gnome-text-editor, eog, gnome-calculator, gnome-terminal, google-chrome, qt-assistant,
+  java-swing, gnome-text-editor-nowindow. `matrix-notes.md` has the per-app tables; raw data under
+  `data/matrix/<app>/`.
+- Not measured: Firefox (snap refuses the private runtime dir), nautilus (no window through
+  spawn-at, D-Bus service), VS Code (Electron; opens no window), so the Electron app of the list
+  was skipped. gnome-terminal ran, but every window was the Wayland server's (`proto=Wayland`), so
+  it has no valid X11 rows.
+- Deviations: (1) the first loaded attempt for gnome-text-editor and eog hit `no_window` under the
+  22-thread load (default `spawn.window_timeout_ms` 2000, so at most ~4 s total); the late window
+  was closed, the batch resumed/restarted, and the tables say so. (2) From gnome-calculator on, the
+  private sandbox's `$SB/none.toml` sets `spawn.window_timeout_ms = 15000` for the same reason; the
+  extension's cloak/reveal timing is not changed by that setting. (3) `xobs.jsonl` of the matrix
+  batches was reduced to its first 200 lines after analysis to keep the evidence under 20 MB.
+- T1 (native Wayland with spawn-at, 10 per size, idle and loaded): gnome-text-editor (GTK4), eog
+  (GTK3), google-chrome (Chromium), qt-assistant (Qt 5.15). A native-only batch has no X11 clock
+  origin, so A/cloak are not printable there; the Step 3 native controls (5 per size) supplied those.
+  T2 (plain launch with the toolkit geometry option): xterm and Chrome 10 of 10; Qt Assistant
+  skipped (`Unknown option: -geometry`, exit 255); Electron skipped (no window); GTK apps have no
+  geometry option. Both in `toolkit-measurements.md`.
+- Pixel capture: attempt 1 introspected `org.gnome.Shell.Screencast` (methods present,
+  `ScreencastSupported=true`); attempt 2 failed with `Failed to start screen cast: Couldn't connect
+  pipewire context`; attempt 3 not run. `pixel-capture.md`.
+- Runbook: `RUNBOOK-02i-b.md`. Progress/breaks: `data/matrix/PROGRESS.md`.
+- Site pages still owed (numbers 6.42 and up), additions from this prompt: **calibration (live vs
+  private xterm)**, **each app's matrix (or one combined matrix page) with "private headless Shell,
+  DING not loaded"**, **toolkit measurements T1 and T2**, **pixel capture (the pipewire failure)**,
+  plus the pages already owed from 02h/02i.
+
+
