@@ -9,3 +9,6 @@ batch of this run.
 | 16:10 | smoke test xterm, 3 of 3 runs ok; live pid unchanged |
 | 16:14 | xterm idle 40 of 40 runs ok, no crash; live pid unchanged |
 | 16:20 | xterm loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 16:26 | gnome-text-editor idle 50 of 50 runs ok, no crash; live pid unchanged |
+| 16:27 | gnome-text-editor loaded run 0 no_window, batch stopped on a late window (not a Shell crash); window closed, batch restarted |
+| 16:34 | gnome-text-editor loaded 40 of 40 runs ok, no crash; live pid unchanged |
