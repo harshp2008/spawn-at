@@ -266,6 +266,114 @@ pub fn apps() -> Vec<App> {
             small: (700, 500),
             large: (1000, 700),
         },
+        // X11-FLASH-03: more toolkits for RUNBOOK-03b. Class names are the first guess and are
+        // checked by the runbook's smoke step (`status=ok` and a window id for 1 run each).
+        App {
+            id: "mousepad",
+            toolkit: "GTK3",
+            class_x11: "Mousepad",
+            class_wl: "Mousepad",
+            argv: &["mousepad", "--disable-server"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GDK_BACKEND", "wayland"), ("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2500,
+            small: (600, 420),
+            large: (1000, 700),
+        },
+        App {
+            id: "evince",
+            toolkit: "GTK3",
+            class_x11: "Evince",
+            class_wl: "org.gnome.Evince",
+            argv: &["evince"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2500,
+            small: (600, 420),
+            large: (1000, 700),
+        },
+        App {
+            id: "gnome-system-monitor",
+            toolkit: "GTK4 (libadwaita)",
+            class_x11: "gnome-system-monitor",
+            class_wl: "gnome-system-monitor",
+            argv: &["gnome-system-monitor"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (700, 500),
+            large: (1000, 700),
+        },
+        App {
+            id: "baobab",
+            toolkit: "GTK4 (libadwaita)",
+            class_x11: "baobab",
+            class_wl: "org.gnome.baobab",
+            argv: &["baobab"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (700, 500),
+            large: (1000, 700),
+        },
+        App {
+            // GPU terminal (OpenGL); kitty chooses its display server with an option, not an env var.
+            id: "kitty",
+            toolkit: "GLFW/OpenGL",
+            class_x11: "xflash-kitty",
+            class_wl: "xflash-kitty",
+            argv: &["kitty", "--class", "xflash-kitty", "-o", "linux_display_server={OZONE}", "-o", "confirm_os_window_close=0"],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 3000,
+            small: (700, 460),
+            large: (1000, 700),
+        },
+        App {
+            id: "xclock",
+            toolkit: "Xt/Athena (X11 only)",
+            class_x11: "XClock",
+            class_wl: "",
+            argv: &["xclock", "-digital"],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: false,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2000,
+            small: (300, 120),
+            large: (600, 200),
+        },
+        App {
+            id: "xcalc",
+            toolkit: "Xt/Athena (X11 only)",
+            class_x11: "XCalc",
+            class_wl: "",
+            argv: &["xcalc"],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: false,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2000,
+            small: (300, 400),
+            large: (500, 600),
+        },
     ]
 }
 
@@ -539,6 +647,17 @@ fn is_safe_profile_dir(repo: &Path, dir: &Path) -> bool {
     !mounted
 }
 
+/// Whether `pid` belongs to the private sandbox this batch runs in. `psh` exports `PSH_SB=<dir>` into
+/// every process of the sandbox. Without `PSH_SB` in our own environment (a batch outside `psh`)
+/// every process counts, as before. X11-FLASH-03: an editor the maintainer opens in the LIVE session
+/// has no `PSH_SB`, and must not stop a batch (the scan is by program name).
+fn in_our_sandbox(pid: u32) -> bool {
+    let Ok(sb) = std::env::var("PSH_SB") else { return true };
+    let Ok(env) = fs::read(format!("/proc/{}/environ", pid)) else { return false };
+    let want = format!("PSH_SB={}", sb);
+    env.split(|b| *b == 0).any(|kv| kv == want.as_bytes())
+}
+
 /// Read-only scan of /proc for leftovers of an earlier batch: an observer, a CPU burner, a test app.
 fn stray_processes(own: u32) -> Vec<String> {
     let mut found = Vec::new();
@@ -560,7 +679,7 @@ fn stray_processes(own: u32) -> Vec<String> {
         let ours = (base == "xflash")
             || (base == "xtask" && args.iter().any(|a| a == "burn-cpu"))
             || args.iter().any(|a| a.contains("scratch/xflash02/profiles"))
-            || matches!(base, "xterm" | "gnome-text-editor" | "eog");
+            || (matches!(base, "xterm" | "gnome-text-editor" | "eog") && in_our_sandbox(pid));
         if ours {
             found.push(format!("{} {}", pid, args.iter().take(3).cloned().collect::<Vec<_>>().join(" ")));
         }

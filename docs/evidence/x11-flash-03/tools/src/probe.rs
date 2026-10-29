@@ -35,6 +35,16 @@ struct Frame {
     n: u64,
     vis: bool,
     fr: Option<[i64; 4]>,
+    bf: Option<[i64; 4]>,
+    tex: Option<[i64; 2]>,
+}
+
+/// One `e` line: a window or actor signal with the state at that moment.
+#[derive(Clone, Debug)]
+struct Ev {
+    t: f64,
+    name: String,
+    op: Option<i64>,
     tex: Option<[i64; 2]>,
 }
 
@@ -50,6 +60,7 @@ struct Win {
     cls: String,
     created: f64,
     frames: Vec<Frame>,
+    events: Vec<Ev>,
     shots: Vec<Shot>,
     first_frame_ev: Option<f64>,
     end_reason: String,
@@ -95,6 +106,7 @@ fn read_probe(path: &Path) -> Result<BTreeMap<u64, Win>, String> {
                 n: v["n"].as_u64().unwrap_or(0),
                 vis: v["vis"].as_bool().unwrap_or(false),
                 fr: arr4(&v["fr"]),
+                bf: arr4(&v["bf"]),
                 tex: arr2(&v["tex"]),
             }),
             "px" => win.shots.push(Shot {
@@ -102,7 +114,18 @@ fn read_probe(path: &Path) -> Result<BTreeMap<u64, Win>, String> {
                 file: v["file"].as_str().unwrap_or("").to_string(),
                 ok: v.get("err").is_none() && v.get("bytes").is_some(),
             }),
-            "e" if v["ev"].as_str() == Some("first-frame") => win.first_frame_ev = v["t"].as_f64(),
+            "e" => {
+                let name = v["ev"].as_str().unwrap_or("").to_string();
+                if name == "first-frame" {
+                    win.first_frame_ev = v["t"].as_f64();
+                }
+                win.events.push(Ev {
+                    t: v["t"].as_f64().unwrap_or(0.0),
+                    name,
+                    op: v["op"].as_i64(),
+                    tex: arr2(&v["tex"]),
+                });
+            }
             "end" => win.end_reason = v["reason"].as_str().unwrap_or("").to_string(),
             _ => {}
         }
@@ -200,6 +223,17 @@ pub struct Row {
     pub final_rect: String,
     pub final_tex: String,
     pub frame_gap_med_ms: Option<f64>,
+    /// Reveal = the first `actor-opacity` event that sets opacity 255 (the extension's uncloak).
+    pub reveal_to_first_frame_ms: Option<f64>,
+    /// Time from the reveal to the first moment the surface texture had its final size (0 if it
+    /// already had it).
+    pub reveal_to_tex_final_ms: Option<f64>,
+    /// `win-size-changed` / `win-position-changed` signals after the reveal.
+    pub size_changed_after: usize,
+    pub pos_changed_after: usize,
+    /// At the first visible frame: texture size equals the buffer rect size ("a texture gate would
+    /// let the reveal through").
+    pub gate_open_first: Option<bool>,
     pub note: String,
 }
 
@@ -228,8 +262,35 @@ fn analyze_window(wid: u64, win: &Win, dir: &Path) -> Row {
     row.final_rect = format!("{}x{}", fin_fr[2], fin_fr[3]);
     row.final_tex = fin_tex.map(|t| format!("{}x{}", t[0], t[1])).unwrap_or_else(|| "none".into());
 
+    // timing around the reveal
+    let reveal = win
+        .events
+        .iter()
+        .filter(|e| e.name == "actor-opacity" && e.op == Some(255))
+        .map(|e| e.t)
+        .fold(f64::NAN, f64::min);
+    if reveal.is_finite() {
+        row.reveal_to_first_frame_ms = Some(t0 - reveal);
+        let tex_final = win
+            .events
+            .iter()
+            .filter(|e| e.t >= reveal && e.tex == fin_tex)
+            .map(|e| e.t)
+            .chain(win.frames.iter().filter(|f| f.t >= reveal && f.tex == fin_tex).map(|f| f.t))
+            .fold(f64::NAN, f64::min);
+        if tex_final.is_finite() && fin_tex.is_some() {
+            row.reveal_to_tex_final_ms = Some(tex_final - reveal);
+        }
+        row.size_changed_after = win.events.iter().filter(|e| e.name == "win-size-changed" && e.t > reveal).count();
+        row.pos_changed_after = win.events.iter().filter(|e| e.name == "win-position-changed" && e.t > reveal).count();
+    }
+    row.gate_open_first = match (vis[0].bf, vis[0].tex) {
+        (Some(b), Some(t)) => Some(b[2] == t[0] && b[3] == t[1]),
+        _ => None,
+    };
+
     // texture reading
-    let good_tex = |f: &Frame| f.fr.map(|r| sz(&r)) == Some(sz(&fin_fr)) && f.tex == fin_tex && fin_tex.is_some();
+    let good_tex =|f: &Frame| f.fr.map(|r| sz(&r)) == Some(sz(&fin_fr)) && f.tex == fin_tex && fin_tex.is_some();
     let ftex = vis.iter().position(|f| good_tex(f));
     match ftex {
         Some(i) => {
@@ -276,32 +337,38 @@ fn analyze_window(wid: u64, win: &Win, dir: &Path) -> Row {
     }
     row.shots = classes.iter().filter(|(_, c)| *c != Class::NoShot).count();
     let first_good = classes.iter().position(|(_, c)| matches!(c, Class::Real | Class::NoShot));
-    if let Some(i) = first_good {
-        row.first_good_px_ms = Some(classes[i].0 - t0);
-        let mut ms = 0.0;
-        for j in 0..i {
-            row.bad_px += 1;
-            match classes[j].1 {
-                Class::OldSize => {
-                    row.old_size += 1;
-                    row.hard_px += 1;
-                }
-                Class::Blank => {
-                    row.blank += 1;
-                    row.hard_px += 1;
-                }
-                _ => {}
+    // Every visible frame before the first good one is bad. With no good frame in the observed
+    // window (the probe stops 300 ms after the first visible frame) all of them are bad and the
+    // duration is only a lower bound: the note says `censored`.
+    let end = first_good.unwrap_or(classes.len());
+    let mut ms = 0.0;
+    for j in 0..end {
+        row.bad_px += 1;
+        match classes[j].1 {
+            Class::OldSize => {
+                row.old_size += 1;
+                row.hard_px += 1;
             }
+            Class::Blank => {
+                row.blank += 1;
+                row.hard_px += 1;
+            }
+            _ => {}
+        }
+        if j + 1 < classes.len() {
             ms += classes[j + 1].0 - classes[j].0;
         }
-        row.bad_ms_px = ms;
-        row.regress_px = classes[i..]
-            .iter()
-            .filter(|(_, c)| matches!(c, Class::OldSize | Class::Blank))
-            .count();
-    } else {
-        row.note = "no good frame (pixels)".into();
-        row.bad_px = classes.len();
+    }
+    row.bad_ms_px = ms;
+    match first_good {
+        Some(i) => {
+            row.first_good_px_ms = Some(classes[i].0 - t0);
+            row.regress_px = classes[i..]
+                .iter()
+                .filter(|(_, c)| matches!(c, Class::OldSize | Class::Blank))
+                .count();
+        }
+        None => row.note = "no good frame (pixels), bad_ms is a lower bound: censored".into(),
     }
     row
 }
@@ -391,18 +458,22 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // per-run csv
     let mut c = String::from(
         "label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,\
-shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,note\n",
+shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,\
+reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note\n",
     );
     for r in &rows {
         let m = csv.get(&r.wid);
         let g = |k: &str| m.and_then(|m| m.get(k)).cloned().unwrap_or_default();
         let _ = writeln!(
             c,
-            "{},{},{},{},{},{},{},{},{},{:.2},{},{},{},{},{},{:.2},{},{},{},{},{},{},{}",
+            "{},{},{},{},{},{},{},{},{},{:.2},{},{},{},{},{},{:.2},{},{},{},{},{},{},{},{},{},{},{},{},{}",
             r.label, r.wid, r.vis_frames, f1(r.frame_gap_med_ms), r.first_vis_rect, r.first_vis_tex,
             r.final_rect, r.final_tex, r.bad_tex, r.bad_ms_tex, r.shots, r.bad_px, r.hard_px, r.old_size,
             r.blank, r.bad_ms_px, f1(r.first_good_px_ms), r.regress_px,
-            g("R"), g("D"), g("A"), g("L_last_ms"), r.note
+            g("R"), g("D"), g("A"), g("L_last_ms"), g("R_first_ms"),
+            f1(r.reveal_to_first_frame_ms), f1(r.reveal_to_tex_final_ms), r.size_changed_after,
+            r.pos_changed_after,
+            r.gate_open_first.map(|b| b.to_string()).unwrap_or_default(), r.note
         );
     }
     fs::write(out.join("probe-runs.csv"), c).map_err(|e| e.to_string())?;
@@ -541,6 +612,53 @@ mod tests {
         let row = analyze_window(3, &wins[&3], &d);
         assert_eq!((row.vis_frames, row.bad_tex, row.bad_px, row.old_size), (2, 1, 1, 1));
         assert!((row.bad_ms_px - 16.0).abs() < 1e-9);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn timing_around_the_reveal_and_the_texture_gate() {
+        let d = tmpdir("timing");
+        let log = [
+            r#"{"k":"e","w":5,"t":100.0,"ev":"actor-opacity","op":255,"tex":[10,10]}"#,
+            r#"{"k":"f","w":5,"t":103.0,"n":1,"fr":[0,0,40,30],"bf":[0,0,50,40],"tex":[10,10],"vis":true}"#,
+            r#"{"k":"e","w":5,"t":111.0,"ev":"damaged","op":255,"tex":[50,40]}"#,
+            r#"{"k":"f","w":5,"t":112.0,"n":2,"fr":[0,0,40,30],"bf":[0,0,50,40],"tex":[50,40],"vis":true}"#,
+            r#"{"k":"e","w":5,"t":150.0,"ev":"win-size-changed","op":255,"tex":[50,40]}"#,
+            r#"{"k":"e","w":5,"t":151.0,"ev":"win-position-changed","op":255,"tex":[50,40]}"#,
+        ]
+        .join("\n");
+        fs::write(d.join("probe.jsonl"), log).unwrap();
+        let wins = read_probe(&d.join("probe.jsonl")).unwrap();
+        let row = analyze_window(5, &wins[&5], &d);
+        assert_eq!(row.reveal_to_first_frame_ms, Some(3.0));
+        assert_eq!(row.reveal_to_tex_final_ms, Some(11.0));
+        assert_eq!((row.size_changed_after, row.pos_changed_after), (1, 1));
+        assert_eq!(row.gate_open_first, Some(false));
+        assert_eq!(row.bad_tex, 1);
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_window_that_stays_black_is_all_bad_and_censored() {
+        let d = tmpdir("censored");
+        for n in 1..=3 {
+            write_png(&d.join(format!("px/4-{n}.png")), 40, 30, |_, _| [0, 0, 0, 255]);
+        }
+        let log = [
+            r#"{"k":"f","w":4,"t":10.0,"n":1,"fr":[0,0,40,30],"tex":[40,30],"vis":true}"#,
+            r#"{"k":"px","w":4,"n":1,"file":"px/4-1.png","bytes":10}"#,
+            r#"{"k":"f","w":4,"t":40.0,"n":2,"fr":[0,0,40,30],"tex":[40,30],"vis":true}"#,
+            r#"{"k":"px","w":4,"n":2,"file":"px/4-2.png","bytes":10}"#,
+            r#"{"k":"f","w":4,"t":90.0,"n":3,"fr":[0,0,40,30],"tex":[40,30],"vis":true}"#,
+            r#"{"k":"px","w":4,"n":3,"file":"px/4-3.png","bytes":10}"#,
+        ]
+        .join("\n");
+        fs::write(d.join("probe.jsonl"), log).unwrap();
+        let wins = read_probe(&d.join("probe.jsonl")).unwrap();
+        let row = analyze_window(4, &wins[&4], &d);
+        assert_eq!((row.bad_tex, row.bad_px, row.blank, row.hard_px), (0, 3, 3, 3));
+        assert!((row.bad_ms_px - 80.0).abs() < 1e-9);
+        assert!(row.first_good_px_ms.is_none() && row.note.contains("censored"));
         let _ = fs::remove_dir_all(&d);
     }
 }

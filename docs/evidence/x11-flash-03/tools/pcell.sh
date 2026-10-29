@@ -17,8 +17,12 @@ case "$label" in */*|.*) echo "pcell: bad label $label" >&2; exit 2;; esac
 out="$root/scratch/xflash03/cells/$label"
 [ -e "$out" ] && { echo "pcell: $out exists; choose another label" >&2; exit 2; }
 mkdir -p "$out"
-PATH="$root/scratch/xflash03/target-main/debug:$PATH"
+# SPAWN_AT_BIN_DIR: directory holding the `spawn-at` to test (default: built from this tree, == main).
+# The fixed CLI of PR #94 is built into scratch/xflash03/target-fix/debug from commit 703dfb3.
+PATH="${SPAWN_AT_BIN_DIR:-$root/scratch/xflash03/target-main/debug}:$PATH"
 export PATH
+spawn-at --version 2>&1 | sed -n '1p;4p' > "$out/binary.txt"
+command -v spawn-at >> "$out/binary.txt"
 # Empty the probe's directory so this cell's windows are the only ones in it.
 sh "$t/probe-collect.sh" "$root/scratch/xflash03/cells/_before_$label" >/dev/null
 b="$root/scratch/xflash03/cells/_before_$label"
