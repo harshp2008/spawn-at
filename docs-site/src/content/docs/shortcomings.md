@@ -43,6 +43,57 @@ The cause is unknown.
 Sway cannot hold a new window invisible, so a window can show before it is placed. This was not
 measured.
 
+### XWayland and X11 windows can flash at the wrong size (GTK: fixed after 0.2.4; other toolkits: not)
+
+Status: **partly fixed** after 0.2.4 (not yet in a release), for GTK programs only. Every release up to 0.2.4 has the flash.
+
+The flash on XWayland is the Shell showing a window whose surface texture still has the old size,
+before the program has committed its final-size buffer. The frame is already final at that point, so
+no size event announces the late buffer. The extension now holds an XWayland or X11 window that has a
+size request hidden until the texture size equals the buffer rect, or for at most 250 ms
+(`wait.cap_ms` replaces the cap, `wait.strategy legacy` switches the hold off). Windows without a
+size request, native Wayland windows and the legacy extension (GNOME 42 to 44) are not touched.
+
+Measured in a private headless GNOME Shell 46.0 with Xwayland (not a live session), 20 runs per
+size, one run at a time, with the same CLI before and after, counting windows that showed a frame
+at the wrong texture size:
+
+| Program | Size | Before | After |
+| :-- | :-- | --: | --: |
+| eog | 600 px wide | 0 of 20 | 0 of 20 |
+| eog | 1100 px wide | 16 of 20 | 0 of 20 |
+| eog | 1700 px wide | 17 of 20 | 0 of 20 |
+| gnome-text-editor (forced X11) | 640x420 | 11 of 20 | 0 of 20 |
+| gnome-text-editor (forced X11) | 1100x760 | 10 of 20 | 1 of 20 |
+| gnome-calculator (forced X11) | 500x400 | 18 of 20 | 0 of 20 |
+| gnome-calculator (forced X11) | 900x700 | 20 of 20 | 0 of 20 |
+
+The editor row at 1100x760 does not count one window per side that never got a final-size buffer at
+all; counting it, the rows are 11 and 2 of 20.
+
+What it does **not** fix, and what it costs:
+
+- **A frame of the right size with nothing painted in it** is not seen, because the gate reads sizes,
+  not pixels. Qt Assistant showed one in 16 of 20 runs before and 5 of 20 after (the cause of the
+  drop is not established), Chrome in 18 of 20 before and after, gnome-calculator in 4 of 20 large
+  runs and gnome-text-editor in 1 of 20 large runs after the change.
+- **A texture that does not arrive in 250 ms** is shown as it is at the cap, with the old flash, 250 ms
+  later. Two of 20 editor runs at 1100x760 did that in the capture cell (0 of 20 in the passive cell):
+  one texture arrived 318 ms after the hold began, the other window never got a final-size buffer.
+  With the cap forced down to 5 ms, eog at 1700 px flashed again in 7 of 10 runs. Chrome, which was
+  expected to never match, matched in 20 of 20 runs, after a median of 9 to 13 ms (at most 58 ms).
+- **gnome-calculator resets itself to 360x492** in about a quarter of the runs (20 of 80 before, 21 of
+  80 after). The gate does not prevent that, and the window is placed for the size it ends with.
+- **The window appears later.** Median time hidden, passive cells, before then after: eog 2.4 to 8.5
+  ms (600 px), 2.6 to 17.5 ms (1100 px), 3.0 to 24.6 ms (1700 px); gnome-text-editor 4.9 to 35.6 ms
+  (640x420; at 1100x760 the median stays 4 to 5 ms and the 90th percentile goes from 11.6 to 88.2 ms);
+  gnome-calculator 7.3 to 82.0 ms and 36.2 to 86.5 ms (up to 115 ms); Qt Assistant, Chrome and Java
+  Swing 0 to 9 ms more at the median; xterm none.
+- **Only GNOME 46 in a private session was run**: no live session, no real Xorg session, no other
+  Shell version, no loaded machine, and only three GTK programs plus four regression programs (xterm, Java
+  Swing, Qt Assistant, Chrome). The numbers are from one session per side, and eog at
+  1100 px varied from 3 to 8 of 10 between batches of one earlier session.
+
 ### Closing a focused GTK4 window that runs on XWayland could abort the Shell
 
 Status: **fixed** after 0.2.4 (not yet in a release). Every release up to 0.2.4 has the bug.
@@ -90,7 +141,7 @@ The exit status of the state commands and the cursor options on Sway are covered
 | GNOME 50 (50.1, Ubuntu 26.04), Wayland | Partly tested, with failures. One `release-gate` run on a clean build: of 36 required cases 16 passed, 9 failed (every "request below the minimum size" case came out 300x300 instead of 300x200), 4 cloak cases were skipped (their spec limits them to Shell 42-48) and 7 await a human verdict. The extension logged `reportedMinSize=(0x300)` for the test window, which may explain the extra height (not investigated). |
 | GNOME 45, 47, 48, 49 and 51 and later | The extension's metadata lists 45 to 50, but only 46 has been run in earnest. |
 | GNOME layouts and apps | Multi-monitor, fractional scaling, Qt and Electron apps: untested. |
-| X11 and XWayland | Test window only, no real apps. No test touches an X server. |
+| X11 and XWayland | The native X11 driver: test window only. The extension's XWayland path: eog, gnome-text-editor, gnome-calculator, xterm, Java Swing, Qt Assistant and Chrome in a private headless GNOME 46 Shell; never a live session or a real Xorg session. No test touches an X server. |
 | Sway | A private headless Sway 1.9 only. No real session, no other version, no i3. |
 | Sway layouts | More than two outputs and output scales other than 1 and 2: untried. |
 | Windows and macOS | Not implemented. The code is only compile-checked, never run. |
