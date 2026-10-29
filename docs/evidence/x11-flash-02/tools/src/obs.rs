@@ -18,7 +18,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use std::io::{LineWriter, Write};
 use x11rb::connection::Connection;
-use x11rb::protocol::damage::{self, ConnectionExt as _, ReportLevel};
+use x11rb::protocol::damage::{ConnectionExt as _, ReportLevel};
 use x11rb::protocol::xproto::{
     Atom, AtomEnum, ChangeWindowAttributesAux, ConnectionExt as _, EventMask, MapState, Window,
 };
@@ -41,11 +41,29 @@ struct Observer {
     out: LineWriter<File>,
     tracked: HashMap<Window, u8>,
     names: HashMap<Atom, String>,
+    /// Caps that keep a busy client from flooding the file or the process (see `Caps`).
+    caps: Caps,
+    bytes: u64,
+    sec_start: u64,
+    dmg_in_sec: u32,
+    dmg_dropped: u64,
+    capped: bool,
+}
+
+/// Limits on what the observer writes: at most `max_damage_per_s` DamageNotify lines per second
+/// (the rest are counted in a `dropped` line, and are still subtracted so the server keeps
+/// sending), and at most `max_bytes` in the file; past that only structural events (create, map,
+/// unmap, destroy, reparent, configure) are written.
+struct Caps {
+    max_damage_per_s: u32,
+    max_bytes: u64,
 }
 
 pub fn run(args: &[String]) -> Result<(), String> {
     let mut out_path = None;
     let mut level = ReportLevel::RAW_RECTANGLES;
+    let mut max_damage_per_s: u32 = 400;
+    let mut max_bytes: u64 = 40_000_000;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -59,6 +77,15 @@ pub fn run(args: &[String]) -> Result<(), String> {
                     Some("raw") => ReportLevel::RAW_RECTANGLES,
                     other => return Err(format!("--damage raw|nonempty, got {:?}", other)),
                 };
+                i += 1;
+            }
+            "--max-damage-per-s" => {
+                max_damage_per_s = args.get(i + 1).and_then(|s| s.parse().ok()).ok_or("--max-damage-per-s N")?;
+                i += 1;
+            }
+            "--max-mb" => {
+                let mb: u64 = args.get(i + 1).and_then(|s| s.parse().ok()).ok_or("--max-mb N")?;
+                max_bytes = mb * 1_000_000;
                 i += 1;
             }
             other => return Err(format!("observe: unknown argument {other}")),
@@ -99,6 +126,12 @@ pub fn run(args: &[String]) -> Result<(), String> {
         out: LineWriter::new(file),
         tracked: HashMap::new(),
         names: HashMap::new(),
+        caps: Caps { max_damage_per_s, max_bytes },
+        bytes: 0,
+        sec_start: 0,
+        dmg_in_sec: 0,
+        dmg_dropped: 0,
+        capped: false,
     };
     let display = std::env::var("DISPLAY").unwrap_or_default();
     ob.emit(
@@ -151,7 +184,35 @@ impl Observer {
         } else {
             format!("{{\"t\":{},\"ev\":\"{}\",{}}}\n", t, ev, fields)
         };
+        self.bytes += line.len() as u64;
         let _ = self.out.write_all(line.as_bytes());
+    }
+
+    /// Writes a high-rate event unless a cap says no. Returns whether it was written.
+    fn emit_bulk(&mut self, t: u64, ev: &str, fields: &str) -> bool {
+        if self.bytes >= self.caps.max_bytes {
+            if !self.capped {
+                self.capped = true;
+                self.emit(t, "cap", &format!("\"max_bytes\":{}", self.caps.max_bytes));
+            }
+            return false;
+        }
+        if t / 1_000_000_000 != self.sec_start {
+            if self.dmg_dropped > 0 {
+                let d = self.dmg_dropped;
+                self.emit(t, "dropped", &format!("\"damage\":{},\"sec\":{}", d, self.sec_start));
+                self.dmg_dropped = 0;
+            }
+            self.sec_start = t / 1_000_000_000;
+            self.dmg_in_sec = 0;
+        }
+        if self.dmg_in_sec >= self.caps.max_damage_per_s {
+            self.dmg_dropped += 1;
+            return false;
+        }
+        self.dmg_in_sec += 1;
+        self.emit(t, ev, fields);
+        true
     }
 
     fn atom_name(&mut self, a: Atom) -> String {
@@ -411,13 +472,23 @@ impl Observer {
                         "PropertyNotify",
                         &format!("\"win\":{},\"prop\":{},\"deleted\":{}", e.window, js(&name), e.state == x11rb::protocol::xproto::Property::DELETE),
                     );
-                    if name != "WM_NAME" && name != "_NET_WM_NAME" && name != "WM_STATE" {
-                        self.props(mono_ns(), e.window);
+                    // One read of the changed property only (the full set is read at tracking time
+                    // and at MapNotify): a burst of property events costs one round trip each.
+                    let value = match name.as_str() {
+                        "WM_NORMAL_HINTS" => self.hints_json(e.window),
+                        "_NET_WM_STATE" => self.state_json(e.window),
+                        "_GTK_FRAME_EXTENTS" | "_NET_FRAME_EXTENTS" => self
+                            .read_prop(e.window, e.atom, AtomEnum::CARDINAL, 4)
+                            .map(|(v, _)| format!("{:?}", Self::cardinals(&v))),
+                        _ => None,
+                    };
+                    if let Some(v) = value {
+                        self.emit(mono_ns(), "propval", &format!("\"win\":{},\"prop\":{},\"value\":{}", e.window, js(&name), v));
                     }
                 }
             }
             Event::DamageNotify(e) => {
-                self.emit(
+                self.emit_bulk(
                     t,
                     "DamageNotify",
                     &format!(

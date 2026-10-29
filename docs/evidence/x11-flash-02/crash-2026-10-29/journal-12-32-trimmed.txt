@@ -1,0 +1,47 @@
+12:32:16.820898[spawn-at-time] +445630.17ms | ARM_SPAWN target="Google-chrome"
+12:32:17.134949[spawn-at-time] +445866.94ms | WINDOW_CREATED win=[id=3462464368 pid=2685344 class="xflash-chrome" app="" type=NORMAL proto=XWayland] actorFound=true
+12:32:17.135059[spawn-at-time] +445882.81ms | ACTOR_MAP win=[id=3462464368 pid=2685344 class="xflash-chrome" app="" type=NORMAL proto=XWayland]
+12:32:17.135133[spawn-at-time] +445882.91ms | REJECT_UNMATCHED win=[id=3462464368 pid=2685344 class="xflash-chrome" app="" type=NORMAL proto=XWayland]
+12:32:18.827031[spawn-at-time] +447636.53ms | DISARM_ENTRY target="Google-chrome" entry="spawn-at-2685320-1793257336819_TIME1793257336819" removed=true
+12:32:23.154238Window manager warning: Tried to ping window 0x1200003 with a bad serial! Not allowed.
+12:32:24.266003[spawn-at-time] +453075.34ms | ARM_SPAWN target="Google-chrome"
+12:32:24.521851[spawn-at-time] +453293.76ms | WINDOW_CREATED win=[id=3462464369 pid=2685922 class="xflash-chrome" app="" type=NORMAL proto=XWayland] actorFound=true
+12:32:24.521955[spawn-at-time] +453310.49ms | ACTOR_MAP win=[id=3462464369 pid=2685922 class="xflash-chrome" app="" type=NORMAL proto=XWayland]
+12:32:24.522023[spawn-at-time] +453310.60ms | REJECT_UNMATCHED win=[id=3462464369 pid=2685922 class="xflash-chrome" app="" type=NORMAL proto=XWayland]
+12:32:26.271320[spawn-at-time] +455080.22ms | DISARM_ENTRY target="Google-chrome" entry="spawn-at-2685898-1793257344264_TIME1793257344264" removed=true
+12:32:30.598298Window manager warning: Tried to ping window 0x1200003 with a bad serial! Not allowed.
+12:32:31.706037[spawn-at-time] +460515.30ms | ARM_SPAWN target="org.gnome.TextEditor"
+12:32:31.954448Window manager warning: Buggy client sent a _NET_ACTIVE_WINDOW message with a timestamp of 0 for 0x1200004
+12:32:31.990197[spawn-at-time] +460762.79ms | WINDOW_CREATED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] actorFound=true
+12:32:31.990285[spawn-at-time] +460775.07ms | ACTOR_MAP win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland]
+12:32:31.990364[spawn-at-time] +460775.12ms | DISPATCH win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] instructionsCount=5
+12:32:31.990451[spawn-at-time] +460775.26ms | X11_OBS_START win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=3462464370 mono_ms=811186059.057 damaged=available first_frame=available
+12:32:31.990594[spawn-at-time] +460775.53ms | CLOAK win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] opacity=0 frame=(50,90,466x240)
+12:32:31.990729[spawn-at-time] +460775.61ms | SET_SIZE_REQUEST win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(50,90,466x240) bufferRect=(-11,35,588x362)
+12:32:31.990800[spawn-at-time] +460775.69ms | X11_OBS_MARK win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] what=set_size id=3462464370 mono_ms=811186059.485
+12:32:31.991685[spawn-at-time] +460775.76ms | AFTER_SET_SIZE win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] opacity=0 frame=(50,90,640x420)
+12:32:31.991811[spawn-at-time] +460775.84ms | READY_WAIT_START win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] strategy=legacy kind=XWayland why=not-native-wayland timeoutMs=300
+12:32:31.991920[spawn-at-time] +460775.99ms | COMMIT_RESOLVED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+12:32:31.991973[spawn-at-time] +460789.94ms | X11_OBS_MARK win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] what=commit_resolved id=3462464370 mono_ms=811186073.738
+12:32:31.992026[spawn-at-time] +460789.97ms | READY_WAIT_RESOLVED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] strategy=legacy outcome=none elapsed_ms=14.1 reason=AT_TARGET
+12:32:31.992138[spawn-at-time] +460790.16ms | FALLBACK_USED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(640x420)
+12:32:31.992196[spawn-at-time] +460790.18ms | APPLY_ANCHOR win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] eff=(640x420) bounds=(0,40,1920x1040) final=(1256,636)
+12:32:31.992256[spawn-at-time] +460790.24ms | POSITION_SET win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] preFrame=(50,90,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(-11,35) delta=(1206,546)
+12:32:31.992313[spawn-at-time] +460790.25ms | AFTER_SET_POSITION_ANCHORED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] opacity=0 frame=(1256,636,640x420)
+12:32:31.992426[spawn-at-time] +460790.28ms | UNCLOAK_4A win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] delay=0ms (skipped)
+12:32:31.992493[spawn-at-time] +460793.91ms | UNCLOAK_4B win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+12:32:31.992551[spawn-at-time] +460793.94ms | UNCLOAK_4C win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+12:32:31.992607[spawn-at-time] +460799.55ms | UNCLOAK win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] opacity=255 frame=(1256,636,640x420)
+12:32:31.992668[spawn-at-time] +460799.57ms | UNCLOAK_4D_REVEAL win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+12:32:31.992724[spawn-at-time] +460799.59ms | X11_OBS_MARK win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] what=reveal id=3462464370 mono_ms=811186083.400
+12:32:31.992780[spawn-at-time] +460799.63ms | ANCHOR_ARMED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland]
+12:32:32.490799[spawn-at-time] +461299.92ms | X11_OBS_END win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] id=3462464370 reason=reveal+500ms mono_ms=811186583.722 damaged=15 first_frame=1 thawed=29
+12:32:34.519090Window manager warning: Tried to ping window 0x1200004 with a bad serial! Not allowed.
+12:32:34.519420[spawn-at-time] +463328.72ms | ANCHOR_RELEASED win=[id=3462464370 pid=2686523 class="gnome-text-editor" app="org.gnome.TextEditor" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+12:32:34.525213Window manager warning: Failed to focus window W1043 while avoiding 0x1200004
+12:32:34.525213**
+12:32:34.525213libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+12:32:34.525213Bail out! libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+12:32:34.525404GNOME Shell crashed with signal 6
+12:32:34.525404== Stack trace for context 0x56f7f4438420 ==
+12:32:34.529093#0   56f7f4504558 i   resource:///org/gnome/shell/ui/init.js:21 (1c6295a70bf0 @ 48)

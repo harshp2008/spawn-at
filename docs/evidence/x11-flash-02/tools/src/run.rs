@@ -1,13 +1,26 @@
-//! `xflash run`: drives one batch of spawns of real applications and records, for each run, the
-//! monotonic stamps and the answers of `spawn-at`. It starts the X-side observer
-//! (`xflash observe`) as a child for the whole batch, turns the extension's timing log on, and at
-//! the end copies the extension's lines out of the journal.
+//! `xflash run`: drives one batch of spawns of ONE real application and records, for each run, the
+//! monotonic stamps and the answers of `spawn-at`. It starts the X-side observer (`xflash
+//! observe`) as a child for the whole batch, turns the extension's timing log on, and at the end
+//! copies the extension's lines out of the journal.
 //!
-//! It only ever signals process ids it recorded itself (the observer, the CPU burner and, for the
-//! apps marked `kill_ok`, the pid that `spawn-at query windows` reports for the window it
-//! spawned). It never matches a process by name.
+//! Safety rules, all enforced here:
+//! - Resumable: `progress.jsonl` gets one line per finished run; a restarted batch (same
+//!   arguments, same seed, same `--out`) skips every key already there. A crash loses at most the
+//!   run that was in flight.
+//! - One window at a time: a run starts only when no window exists that was not there when the
+//!   batch started, and 3 s after the previous window is gone.
+//! - Graceful close only (`spawn-at close --id`, which asks the window to close). A process is
+//!   signalled only if it is the pid the compositor reported for the window we spawned, the window
+//!   is already gone, and it has not exited 5 s later: SIGTERM first, SIGKILL as a last resort.
+//!   Never by name, never while the window still exists.
+//! - No focus request of any kind: windows are spawned with `--no-focus` and this tool has no X11
+//!   code and no `activate`/`focus` call.
+//! - Shell watch: the pid and start time of gnome-shell and the boot id are recorded. If they
+//!   differ from the last recorded values (in this batch or in the state file of the previous
+//!   batch) the tool writes a `crash` event and stops; `--ack-restart` accepts one such change.
 
 use crate::util::{js, mono_ns, num_field, raw_field, str_field, Rng};
+use std::collections::HashSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -18,10 +31,10 @@ use std::time::{Duration, Instant};
 pub struct App {
     pub id: &'static str,
     pub toolkit: &'static str,
-    /// Value of `spawn-at spawn --class`: the WM_CLASS class (X11) or app id (Wayland) of the window.
+    /// Value of `spawn-at spawn --class` for an X11 window (WM_CLASS class) and for a Wayland one.
     pub class_x11: &'static str,
     pub class_wl: &'static str,
-    /// argv; `{PROFILE}` is replaced by a fresh directory, `{OZONE}` by x11 or wayland.
+    /// argv; `{PROFILE}` becomes a fresh directory, `{OZONE}` x11 or wayland.
     pub argv: &'static [&'static str],
     pub env_x11: &'static [(&'static str, &'static str)],
     pub env_wl: &'static [(&'static str, &'static str)],
@@ -29,7 +42,7 @@ pub struct App {
     pub wayland: bool,
     /// Needs a throwaway profile directory per run.
     pub profile: bool,
-    /// The window's pid is a process of ours and may be signalled after the window is closed.
+    /// The window's pid is a process of ours and may be signalled once its window is gone.
     pub kill_ok: bool,
     pub settle_ms: u64,
     /// The two requested sizes (smaller and larger than the app's own default).
@@ -87,7 +100,8 @@ pub fn apps() -> Vec<App> {
         App {
             id: "google-chrome",
             toolkit: "Chromium",
-            class_x11: "Google-chrome",
+            // `--class=xflash-chrome` sets the window's class on both protocols.
+            class_x11: "xflash-chrome",
             class_wl: "xflash-chrome",
             argv: &[
                 "google-chrome",
@@ -135,7 +149,8 @@ pub fn apps() -> Vec<App> {
 
 struct Opts {
     out: PathBuf,
-    apps: Vec<String>,
+    state: PathBuf,
+    app: String,
     cond: String,
     reps: usize,
     ctl_reps: usize,
@@ -147,12 +162,14 @@ struct Opts {
     probe: bool,
     sizes: Option<((u32, u32), (u32, u32))>,
     max_runs: Option<usize>,
+    ack_restart: bool,
 }
 
 fn parse(args: &[String]) -> Result<Opts, String> {
     let mut o = Opts {
         out: PathBuf::new(),
-        apps: Vec::new(),
+        state: PathBuf::from("scratch/xflash02/state.json"),
+        app: String::new(),
         cond: "idle".into(),
         reps: 20,
         ctl_reps: 0,
@@ -164,28 +181,37 @@ fn parse(args: &[String]) -> Result<Opts, String> {
         probe: false,
         sizes: None,
         max_runs: None,
+        ack_restart: false,
     };
     let mut i = 0;
-    let need = |i: usize| -> Result<&String, String> {
-        args.get(i + 1).ok_or_else(|| format!("{} needs a value", args[i]))
-    };
     while i < args.len() {
-        match args[i].as_str() {
-            "--out" => o.out = PathBuf::from(need(i)?),
-            "--apps" => o.apps = need(i)?.split(',').map(|s| s.to_string()).collect(),
-            "--cond" => o.cond = need(i)?.clone(),
-            "--reps" => o.reps = need(i)?.parse().map_err(|_| "--reps N")?,
-            "--ctl-reps" => o.ctl_reps = need(i)?.parse().map_err(|_| "--ctl-reps N")?,
-            "--seed" => o.seed = need(i)?.parse().map_err(|_| "--seed N")?,
-            "--warmup-s" => o.warmup_s = need(i)?.parse().map_err(|_| "--warmup-s N")?,
-            "--burn" => o.burn = need(i)?.clone(),
-            "--burn-threads" => o.burn_threads = need(i)?.parse().map_err(|_| "--burn-threads N")?,
-            "--settle-ms" => o.settle_override = Some(need(i)?.parse().map_err(|_| "--settle-ms N")?),
-            "--max-runs" => o.max_runs = Some(need(i)?.parse().map_err(|_| "--max-runs N")?),
+        let flag = args[i].as_str();
+        if flag == "--probe" || flag == "--ack-restart" {
+            if flag == "--probe" {
+                o.probe = true;
+            } else {
+                o.ack_restart = true;
+            }
+            i += 1;
+            continue;
+        }
+        let val = args.get(i + 1).ok_or_else(|| format!("{flag} needs a value"))?;
+        match flag {
+            "--out" => o.out = PathBuf::from(val),
+            "--state" => o.state = PathBuf::from(val),
+            "--app" => o.app = val.clone(),
+            "--cond" => o.cond = val.clone(),
+            "--reps" => o.reps = val.parse().map_err(|_| "--reps N")?,
+            "--ctl-reps" => o.ctl_reps = val.parse().map_err(|_| "--ctl-reps N")?,
+            "--seed" => o.seed = val.parse().map_err(|_| "--seed N")?,
+            "--warmup-s" => o.warmup_s = val.parse().map_err(|_| "--warmup-s N")?,
+            "--burn" => o.burn = val.clone(),
+            "--burn-threads" => o.burn_threads = val.parse().map_err(|_| "--burn-threads N")?,
+            "--settle-ms" => o.settle_override = Some(val.parse().map_err(|_| "--settle-ms N")?),
+            "--max-runs" => o.max_runs = Some(val.parse().map_err(|_| "--max-runs N")?),
             "--sizes" => {
-                // WxH,WxH : small, large for every app of the batch
-                let v = need(i)?;
-                let mut it = v.split(',').map(|s| {
+                // WxH,WxH : small, large
+                let mut it = val.split(',').map(|s| {
                     let mut p = s.split('x');
                     (
                         p.next().and_then(|x| x.parse().ok()).unwrap_or(0u32),
@@ -194,12 +220,6 @@ fn parse(args: &[String]) -> Result<Opts, String> {
                 });
                 o.sizes = Some((it.next().unwrap_or((0, 0)), it.next().unwrap_or((0, 0))));
             }
-            "--probe" => {
-                // A flag with no value: advance by one and skip the value step below.
-                o.probe = true;
-                i += 1;
-                continue;
-            }
             other => return Err(format!("run: unknown argument {other}")),
         }
         i += 2;
@@ -207,15 +227,14 @@ fn parse(args: &[String]) -> Result<Opts, String> {
     if o.out.as_os_str().is_empty() {
         return Err("run: --out DIR is required".into());
     }
-    if o.apps.is_empty() {
-        return Err("run: --apps a,b,c is required".into());
+    if o.app.is_empty() {
+        return Err("run: --app NAME is required (one application per batch)".into());
     }
     Ok(o)
 }
 
 #[derive(Clone)]
 struct Planned {
-    app: usize,
     wayland: bool,
     size_case: &'static str,
 }
@@ -234,8 +253,51 @@ fn read_loadavg() -> String {
         .unwrap_or_default()
 }
 
-fn shell_pid() -> String {
-    sh_out("pgrep", &["-x", "gnome-shell"])
+/// Identity of the running session: boot id, gnome-shell pid and its start time (field 22 of
+/// /proc/PID/stat, in clock ticks since boot). A change in any of them is a Shell restart.
+#[derive(Clone, PartialEq, Debug)]
+struct Health {
+    boot_id: String,
+    shell_pid: String,
+    shell_start: String,
+}
+
+fn health() -> Health {
+    let pid = sh_out("pgrep", &["-x", "gnome-shell"]);
+    let first = pid.lines().next().unwrap_or("").to_string();
+    let start = fs::read_to_string(format!("/proc/{}/stat", first))
+        .ok()
+        .and_then(|s| {
+            // The command name is in parentheses and may contain spaces: split after the last ')'.
+            let rest = s.rsplit_once(") ")?.1.to_string();
+            rest.split_whitespace().nth(19).map(|v| v.to_string())
+        })
+        .unwrap_or_default();
+    Health {
+        boot_id: fs::read_to_string("/proc/sys/kernel/random/boot_id")
+            .unwrap_or_default()
+            .trim()
+            .to_string(),
+        shell_pid: first,
+        shell_start: start,
+    }
+}
+
+fn health_json(h: &Health) -> String {
+    format!(
+        "{{\"boot_id\":{},\"shell_pid\":{},\"shell_start\":{}}}",
+        js(&h.boot_id),
+        js(&h.shell_pid),
+        js(&h.shell_start)
+    )
+}
+
+fn parse_health(s: &str) -> Option<Health> {
+    Some(Health {
+        boot_id: str_field(s, "boot_id")?,
+        shell_pid: str_field(s, "shell_pid")?,
+        shell_start: str_field(s, "shell_start")?,
+    })
 }
 
 fn set_logging(on: bool) -> bool {
@@ -258,8 +320,9 @@ fn set_logging(on: bool) -> bool {
 }
 
 /// `n` bracketed SetLogging(true) calls. Each leaves a `SET_LOGGING` echo in the extension log;
-/// the analyser pairs the echoes with these brackets in order (same method as the verify tool's
-/// ClockAnchor, crates/spawn-at-verify/src/trace/flash.rs).
+/// the analyser pairs the echoes with these brackets in order (the method of the verify tool's
+/// ClockAnchor, crates/spawn-at-verify/src/trace/flash.rs). It is a cross-check: the
+/// `mono_ms` fields of the extension's `X11_OBS_*` lines give the clock origin directly.
 fn calibrate(log: &mut File, tag: &str, n: usize) {
     for k in 0..n {
         let before = mono_ns();
@@ -337,88 +400,202 @@ fn is_safe_profile_dir(repo: &Path, dir: &Path) -> bool {
     !mounted
 }
 
+/// Read-only scan of /proc for leftovers of an earlier batch: an observer, a CPU burner, a test app.
+fn stray_processes(own: u32) -> Vec<String> {
+    let mut found = Vec::new();
+    let Ok(rd) = fs::read_dir("/proc") else { return found };
+    for e in rd.flatten() {
+        let name = e.file_name().to_string_lossy().to_string();
+        let Ok(pid) = name.parse::<u32>() else { continue };
+        if pid == own {
+            continue;
+        }
+        let Ok(raw) = fs::read(format!("/proc/{}/cmdline", pid)) else { continue };
+        let args: Vec<String> = raw
+            .split(|b| *b == 0)
+            .filter(|a| !a.is_empty())
+            .map(|a| String::from_utf8_lossy(a).into_owned())
+            .collect();
+        let Some(first) = args.first() else { continue };
+        let base = first.rsplit('/').next().unwrap_or(first);
+        let ours = (base == "xflash")
+            || (base == "xtask" && args.iter().any(|a| a == "burn-cpu"))
+            || args.iter().any(|a| a.contains("scratch/xflash02/profiles"))
+            || matches!(base, "xterm" | "gnome-text-editor" | "eog");
+        if ours {
+            found.push(format!("{} {}", pid, args.iter().take(3).cloned().collect::<Vec<_>>().join(" ")));
+        }
+    }
+    found
+}
+
+struct Progress {
+    file: File,
+}
+
+impl Progress {
+    fn event(&mut self, ev: &str, extra: &str) {
+        let line = format!(
+            "{{\"ev\":\"{}\",\"t_mono\":{},\"t_wall\":{}{}}}\n",
+            ev,
+            mono_ns(),
+            js(&sh_out("date", &["-Is"])),
+            if extra.is_empty() { String::new() } else { format!(",{}", extra) }
+        );
+        let _ = self.file.write_all(line.as_bytes());
+        let _ = self.file.flush();
+        let _ = self.file.sync_data();
+    }
+}
+
+fn done_keys(path: &Path) -> HashSet<String> {
+    let mut s = HashSet::new();
+    if let Ok(text) = fs::read_to_string(path) {
+        for l in text.lines() {
+            if str_field(l, "ev").as_deref() == Some("run") {
+                if let Some(k) = str_field(l, "key") {
+                    s.insert(k);
+                }
+            }
+        }
+    }
+    s
+}
+
 pub fn run(args: &[String]) -> Result<(), String> {
     let o = parse(args)?;
     let all_apps = apps();
+    let app = all_apps
+        .iter()
+        .find(|a| a.id == o.app)
+        .ok_or_else(|| format!("unknown app {}", o.app))?;
     let repo = std::env::current_dir().map_err(|e| e.to_string())?;
     fs::create_dir_all(&o.out).map_err(|e| format!("{}: {e}", o.out.display()))?;
     let prof_root = repo.join("scratch").join("xflash02").join("profiles");
     fs::create_dir_all(&prof_root).map_err(|e| e.to_string())?;
+    let progress_path = o.out.join("progress.jsonl");
+    let mut prog = Progress {
+        file: OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&progress_path)
+            .map_err(|e| e.to_string())?,
+    };
 
-    // ---- plan ----
-    let mut chosen = Vec::new();
-    for name in &o.apps {
-        let idx = all_apps
-            .iter()
-            .position(|a| a.id == name)
-            .ok_or_else(|| format!("unknown app {name}"))?;
-        chosen.push(idx);
+    // ---- startup checks ----
+    let h0 = health();
+    let mut last: Option<Health> = fs::read_to_string(&o.state).ok().and_then(|s| parse_health(&s));
+    // The progress file of this batch also carries the last health seen.
+    if let Ok(text) = fs::read_to_string(&progress_path) {
+        for l in text.lines().rev() {
+            if let Some(h) = raw_field(l, "health").and_then(parse_health) {
+                last = Some(h);
+                break;
+            }
+        }
     }
+    let strays = stray_processes(std::process::id());
+    if !strays.is_empty() {
+        prog.event("stop", &format!("\"reason\":\"stray processes\",\"pids\":{}", js(&strays.join("; "))));
+        return Err(format!("stray processes, not touching them: {}", strays.join("; ")));
+    }
+    if h0.shell_pid.is_empty() {
+        return Err("gnome-shell not found".into());
+    }
+    if let Some(l) = &last {
+        if *l != h0 {
+            prog.event(
+                "crash",
+                &format!(
+                    "\"note\":\"session changed since the last recorded run (shell restart or reboot)\",\"before\":{},\"now\":{},\"acknowledged\":{}",
+                    health_json(l),
+                    health_json(&h0),
+                    o.ack_restart
+                ),
+            );
+            if !o.ack_restart {
+                return Err("the Shell restarted since the last run: CRASH event written, stopping. Review, then pass --ack-restart.".into());
+            }
+        }
+    }
+    let _ = fs::write(&o.state, health_json(&h0));
+    let baseline_json = windows_json();
+    let baseline: HashSet<u64> = all_ids(&baseline_json).into_iter().map(|(i, _)| i).collect();
+    let baseline_pids: HashSet<u64> = all_ids(&baseline_json).into_iter().map(|(_, p)| p).collect();
+
+    // ---- plan (deterministic from the arguments and the seed) ----
     let mut plan: Vec<Planned> = Vec::new();
     let reps = if o.probe { 1 } else { o.reps };
-    for &a in &chosen {
-        for case in ["small", "large"] {
-            for _ in 0..reps {
-                plan.push(Planned { app: a, wayland: false, size_case: case });
-            }
+    for case in ["small", "large"] {
+        for _ in 0..reps {
+            plan.push(Planned { wayland: false, size_case: if case == "small" { "small" } else { "large" } });
         }
-        if all_apps[a].wayland && o.ctl_reps > 0 {
-            for k in 0..o.ctl_reps {
-                plan.push(Planned {
-                    app: a,
-                    wayland: true,
-                    size_case: if k % 2 == 0 { "small" } else { "large" },
-                });
-            }
+    }
+    if app.wayland && o.ctl_reps > 0 {
+        for k in 0..o.ctl_reps {
+            plan.push(Planned { wayland: true, size_case: if k % 2 == 0 { "small" } else { "large" } });
         }
-        if o.probe && all_apps[a].wayland {
-            plan.push(Planned { app: a, wayland: true, size_case: "small" });
-        }
+    }
+    if o.probe && app.wayland {
+        plan.push(Planned { wayland: true, size_case: "small" });
     }
     let mut rng = Rng(o.seed.max(1));
     rng.shuffle(&mut plan);
     if let Some(m) = o.max_runs {
         plan.truncate(m);
     }
+    let done = done_keys(&progress_path);
+    let key_of = |n: usize, p: &Planned| format!("{}:{}:{}:{}", n, app.id, if p.wayland { "wayland" } else { "x11" }, p.size_case);
+    let todo = plan.iter().enumerate().filter(|(n, p)| !done.contains(&key_of(*n, p))).count();
 
-    // ---- files ----
-    let mut runs = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(o.out.join("runs.jsonl"))
-        .map_err(|e| e.to_string())?;
-    let start_wall = sh_out("date", &["-Is"]);
-    let t_batch0 = mono_ns();
-    let meta = format!(
-        "{{\"started\":{},\"cond\":{},\"reps\":{},\"ctl_reps\":{},\"seed\":{},\"apps\":{},\"planned_runs\":{},\"probe\":{},\"loadavg_start\":{},\"gnome_shell\":{},\"gnome_shell_pid\":{},\"spawn_at\":{},\"session\":{},\"warmup_s\":{},\"burn_threads\":{}}}\n",
-        js(&start_wall),
-        js(&o.cond),
-        o.reps,
-        o.ctl_reps,
-        o.seed,
-        js(&o.apps.join(",")),
-        plan.len(),
-        o.probe,
-        js(&read_loadavg()),
-        js(&sh_out("gnome-shell", &["--version"])),
-        js(&shell_pid()),
-        js(&sh_out("spawn-at", &["--version"])),
-        js(&std::env::var("XDG_SESSION_TYPE").unwrap_or_default()),
-        o.warmup_s,
-        o.burn_threads
+    let resumed = !done.is_empty() || o.out.join("meta.json").exists();
+    if !o.out.join("meta.json").exists() {
+        let meta = format!(
+            "{{\"started\":{},\"started_epoch\":{},\"app\":{},\"cond\":{},\"reps\":{},\"ctl_reps\":{},\"seed\":{},\"planned_runs\":{},\"probe\":{},\"loadavg_start\":{},\"gnome_shell\":{},\"spawn_at\":{},\"session\":{},\"warmup_s\":{},\"burn_threads\":{},\"health\":{},\"no_focus\":true}}\n",
+            js(&sh_out("date", &["-Is"])),
+            sh_out("date", &["+%s"]),
+            js(app.id),
+            js(&o.cond),
+            o.reps,
+            o.ctl_reps,
+            o.seed,
+            plan.len(),
+            o.probe,
+            js(&read_loadavg()),
+            js(&sh_out("gnome-shell", &["--version"])),
+            js(&sh_out("spawn-at", &["--version"])),
+            js(&std::env::var("XDG_SESSION_TYPE").unwrap_or_default()),
+            o.warmup_s,
+            o.burn_threads,
+            health_json(&h0)
+        );
+        fs::write(o.out.join("meta.json"), meta).map_err(|e| e.to_string())?;
+    }
+    let since_epoch: String = fs::read_to_string(o.out.join("meta.json"))
+        .ok()
+        .and_then(|m| num_field(&m, "started_epoch"))
+        .map(|v| format!("{}", v as u64))
+        .unwrap_or_else(|| sh_out("date", &["+%s"]));
+    prog.event(
+        if resumed { "resume" } else { "start" },
+        &format!("\"health\":{},\"todo\":{},\"planned\":{}", health_json(&h0), todo, plan.len()),
     );
-    fs::write(o.out.join("meta.json"), meta).map_err(|e| e.to_string())?;
-    let mut calib = File::create(o.out.join("calib.jsonl")).map_err(|e| e.to_string())?;
+    if todo == 0 {
+        prog.event("stop", "\"reason\":\"nothing left to do\"");
+        return Ok(());
+    }
 
-    let health0 = shell_pid();
+    let mut runs = OpenOptions::new().create(true).append(true).open(o.out.join("runs.jsonl")).map_err(|e| e.to_string())?;
+    let mut calib = OpenOptions::new().create(true).append(true).open(o.out.join("calib.jsonl")).map_err(|e| e.to_string())?;
     if !set_logging(true) {
+        prog.event("stop", "\"reason\":\"SetLogging failed\"");
         return Err("SetLogging(true) failed: is the extension loaded?".into());
     }
     std::thread::sleep(Duration::from_millis(200));
 
     // ---- observer ----
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-    let obs_path = o.out.join("xobs.jsonl");
+    let obs_path = o.out.join(if resumed { format!("xobs-{}.jsonl", mono_ns() / 1_000_000_000) } else { "xobs.jsonl".to_string() });
     let mut observer = Command::new(&exe)
         .arg("observe")
         .arg("--out")
@@ -433,7 +610,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let mut burner: Option<u64> = None;
     let mut burn_child = None;
     if o.cond == "loaded" {
-        let secs = (plan.len() as u64) * 14 + o.warmup_s + 120;
+        let secs = (todo as u64) * 16 + o.warmup_s + 120;
         let c = Command::new(&o.burn)
             .args(["burn-cpu", "--threads", &o.burn_threads.to_string(), "--seconds", &secs.to_string()])
             .stdin(Stdio::null())
@@ -446,24 +623,43 @@ pub fn run(args: &[String]) -> Result<(), String> {
         eprintln!("warming up {} s under load ...", o.warmup_s);
         std::thread::sleep(Duration::from_secs(o.warmup_s));
     }
-
-    calibrate(&mut calib, "start", 40);
+    calibrate(&mut calib, if resumed { "resume" } else { "start" }, 30);
 
     // ---- runs ----
-    let mut aborted = String::new();
+    let mut stopped = String::new();
+    let mut ran = 0usize;
     for (n, p) in plan.iter().enumerate() {
-        if shell_pid() != health0 {
-            aborted = format!("gnome-shell pid changed before run {n}");
+        let key = key_of(n, p);
+        if done.contains(&key) {
+            continue;
+        }
+        if health() != h0 {
+            stopped = format!("CRASH: gnome-shell or boot id changed before run {n}");
+            prog.event("crash", &format!("\"key\":{},\"now\":{}", js(&key), health_json(&health())));
             break;
         }
-        let app = &all_apps[p.app];
+        // One window at a time: nothing may exist that was not there at the start.
+        let mut clear = false;
+        for _ in 0..50 {
+            let cur: Vec<u64> = all_ids(&windows_json()).into_iter().map(|(i, _)| i).collect();
+            if cur.iter().all(|i| baseline.contains(i)) {
+                clear = true;
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        if !clear {
+            stopped = format!("a window that is not in the baseline still exists before run {n}");
+            prog.event("stop", &format!("\"reason\":{}", js(&stopped)));
+            break;
+        }
+
         let size = match o.sizes {
             Some((s, l)) => if p.size_case == "small" { s } else { l },
             None => if p.size_case == "small" { app.small } else { app.large },
         };
         let settle = o.settle_override.unwrap_or(app.settle_ms);
-        let pre = windows_json();
-        let pre_ids = all_ids(&pre);
+        let pre_pids = baseline_pids.clone();
         let profile = if app.profile {
             let d = prof_root.join(format!("{}-{}", o.out.file_name().and_then(|s| s.to_str()).unwrap_or("b"), n));
             let _ = fs::create_dir_all(&d);
@@ -490,7 +686,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
         if !class.is_empty() {
             cmd.args(["-c", class]);
         }
-        cmd.args(["--anchor", "bottom-right", "--size", &size.0.to_string(), &size.1.to_string(), "-m", "24", "--json", "--"]);
+        cmd.args(["--no-focus", "--anchor", "bottom-right", "--size", &size.0.to_string(), &size.1.to_string(), "-m", "24", "--json", "--"]);
         cmd.args(&argv);
         for (k, v) in if p.wayland { app.env_wl } else { app.env_x11 } {
             cmd.env(k, v);
@@ -518,9 +714,9 @@ pub fn run(args: &[String]) -> Result<(), String> {
         }
         let t_ret = mono_ns();
         let timed_out = exit.is_none();
-        let spawn_pid = child.id() as u64;
         if timed_out {
-            signal(spawn_pid, libc::SIGTERM);
+            // Our own `spawn-at spawn` child, pid recorded by std.
+            signal(child.id() as u64, libc::SIGTERM);
             let _ = child.wait();
         }
         let stdout = fs::read_to_string(&out_f).unwrap_or_default();
@@ -536,44 +732,54 @@ pub fn run(args: &[String]) -> Result<(), String> {
             }
             None => (None, None),
         };
+        let focused_at_close = entry.as_deref().map(|e| raw_field(e, "focused").unwrap_or("null").to_string()).unwrap_or_else(|| "null".into());
         let t_settled = mono_ns();
 
-        // ---- close ----
+        // ---- graceful close; a signal only to a pid whose window is already gone ----
         let mut closed = false;
         let mut killed = String::new();
         if let Some(w) = wid {
-            let user_pid = wpid.map(|p| pre_ids.iter().any(|(_, q)| *q == p)).unwrap_or(true);
-            let _ = Command::new("spawn-at").args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
-            let until = Instant::now() + Duration::from_secs(6);
-            while Instant::now() < until {
-                if window_entry(&windows_json(), w).is_none() {
-                    closed = true;
+            for attempt in 0..2 {
+                let _ = Command::new("spawn-at").args(["close", "--id", &w.to_string()]).stdout(Stdio::null()).stderr(Stdio::null()).status();
+                let until = Instant::now() + Duration::from_secs(5);
+                while Instant::now() < until {
+                    if window_entry(&windows_json(), w).is_none() {
+                        closed = true;
+                        break;
+                    }
+                    std::thread::sleep(Duration::from_millis(200));
+                }
+                if closed {
                     break;
                 }
-                std::thread::sleep(Duration::from_millis(200));
+                let _ = attempt;
             }
-            if let (Some(pid), true) = (wpid, app.kill_ok && !user_pid) {
-                let until = Instant::now() + Duration::from_secs(5);
-                while pid_alive(pid) && Instant::now() < until {
-                    std::thread::sleep(Duration::from_millis(100));
-                }
-                if pid_alive(pid) {
-                    signal(pid, libc::SIGTERM);
-                    killed.push_str("TERM ");
-                    let until = Instant::now() + Duration::from_secs(4);
+            if closed {
+                let user_pid = wpid.map(|p| pre_pids.contains(&p)).unwrap_or(true);
+                if let (Some(pid), true) = (wpid, app.kill_ok && !user_pid) {
+                    let until = Instant::now() + Duration::from_secs(5);
                     while pid_alive(pid) && Instant::now() < until {
                         std::thread::sleep(Duration::from_millis(100));
                     }
                     if pid_alive(pid) {
-                        signal(pid, libc::SIGKILL);
-                        killed.push_str("KILL");
+                        signal(pid, libc::SIGTERM);
+                        killed.push_str("TERM ");
+                        let until = Instant::now() + Duration::from_secs(5);
+                        while pid_alive(pid) && Instant::now() < until {
+                            std::thread::sleep(Duration::from_millis(100));
+                        }
+                        if pid_alive(pid) {
+                            signal(pid, libc::SIGKILL);
+                            killed.push_str("KILL");
+                        }
                     }
                 }
+            } else {
+                stopped = format!("window {w} did not close after two graceful requests; not signalling a process whose window still exists");
             }
         }
         if let Some(d) = &profile {
-            // The profile may hold files a dying browser is still writing; retry once.
-            for _ in 0..2 {
+            for _ in 0..3 {
                 if is_safe_profile_dir(&repo, d) {
                     let _ = fs::remove_dir_all(d);
                 } else {
@@ -587,9 +793,11 @@ pub fn run(args: &[String]) -> Result<(), String> {
             }
         }
         let t_end = mono_ns();
+        let status = if wid.is_none() { "no_window" } else if !closed { "not_closed" } else if timed_out { "timed_out" } else { "ok" };
         let rec = format!(
-            "{{\"run\":{},\"app\":{},\"toolkit\":{},\"mode\":{},\"size_case\":{},\"cond\":{},\"req_w\":{},\"req_h\":{},\"window_id\":{},\"win_pid\":{},\"exit\":{},\"timed_out\":{},\"t_start\":{},\"t_return\":{},\"t_settled\":{},\"t_end\":{},\"loadavg\":{},\"closed\":{},\"killed\":{},\"final\":{},\"spawn_json\":{},\"stderr\":{}}}\n",
+            "{{\"run\":{},\"key\":{},\"app\":{},\"toolkit\":{},\"mode\":{},\"size_case\":{},\"cond\":{},\"req_w\":{},\"req_h\":{},\"window_id\":{},\"win_pid\":{},\"exit\":{},\"timed_out\":{},\"t_start\":{},\"t_return\":{},\"t_settled\":{},\"t_end\":{},\"loadavg\":{},\"closed\":{},\"focused_at_close\":{},\"killed\":{},\"final\":{},\"spawn_json\":{},\"stderr\":{}}}\n",
             n,
+            js(&key),
             js(app.id),
             js(app.toolkit),
             js(if p.wayland { "wayland" } else { "x11" }),
@@ -607,6 +815,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
             t_end,
             js(&load),
             closed,
+            focused_at_close,
             js(&killed),
             entry
                 .as_deref()
@@ -625,22 +834,20 @@ pub fn run(args: &[String]) -> Result<(), String> {
         );
         let _ = runs.write_all(rec.as_bytes());
         let _ = runs.flush();
-        eprintln!(
-            "[{}/{}] {} {} {}x{} win={:?} closed={}",
-            n + 1,
-            plan.len(),
-            app.id,
-            if p.wayland { "wayland" } else { "x11" },
-            size.0,
-            size.1,
-            wid,
-            closed
-        );
-        std::thread::sleep(Duration::from_millis(900));
+        prog.event("run", &format!("\"key\":{},\"status\":{},\"window_id\":{},\"health\":{}", js(&key), js(status), wid.map(|v| v.to_string()).unwrap_or_else(|| "null".into()), health_json(&health())));
+        ran += 1;
+        eprintln!("[{}/{}] {} {} {}x{} win={:?} status={}", n + 1, plan.len(), app.id, if p.wayland { "wayland" } else { "x11" }, size.0, size.1, wid, status);
+        if !stopped.is_empty() {
+            prog.event("stop", &format!("\"reason\":{}", js(&stopped)));
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(3000)); // settle: the next spawn starts 3 s after the window is gone
     }
+    eprintln!("runs done in this invocation: {ran}");
 
-    calibrate(&mut calib, "end", 40);
-    let t_batch1 = mono_ns();
+    if stopped.is_empty() {
+        calibrate(&mut calib, "end", 30);
+    }
 
     // ---- teardown: only pids recorded above ----
     if let Some(b) = burner {
@@ -653,9 +860,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
     let _ = observer.wait();
     std::thread::sleep(Duration::from_secs(3)); // the extension flushes its log at idle priority
 
-    let secs = (t_batch1 - t_batch0) / 1_000_000_000 + 30;
     let journal = Command::new("journalctl")
-        .args(["--user", "-b", "_COMM=gnome-shell", "--since", &format!("-{}s", secs), "-o", "cat", "--no-pager"])
+        .args(["--user", "-b", "_COMM=gnome-shell", "--since", &format!("@{}", since_epoch), "-o", "cat", "--no-pager"])
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
         .unwrap_or_default();
@@ -668,24 +874,29 @@ pub fn run(args: &[String]) -> Result<(), String> {
             let _ = writeln!(other, "{}", line);
         }
     }
-    let health1 = shell_pid();
+    let h1 = health();
     let end = format!(
-        "{{\"ended\":{},\"aborted\":{},\"gnome_shell_pid_start\":{},\"gnome_shell_pid_end\":{},\"loadavg_end\":{},\"duration_s\":{}}}\n",
+        "{{\"ended\":{},\"stopped\":{},\"health_start\":{},\"health_end\":{},\"loadavg_end\":{},\"ran_in_this_invocation\":{}}}\n",
         js(&sh_out("date", &["-Is"])),
-        js(&aborted),
-        js(&health0),
-        js(&health1),
+        js(&stopped),
+        health_json(&h0),
+        health_json(&h1),
         js(&read_loadavg()),
-        (t_batch1 - t_batch0) / 1_000_000_000
+        ran
     );
     fs::write(o.out.join("end.json"), end).map_err(|e| e.to_string())?;
     let _ = fs::remove_file(o.out.join("tmp_stdout.txt"));
     let _ = fs::remove_file(o.out.join("tmp_stderr.txt"));
-    if !aborted.is_empty() {
-        return Err(aborted);
+    if h1 == h0 {
+        let _ = fs::write(&o.state, health_json(&h1));
+    } else {
+        prog.event("crash", &format!("\"note\":\"session changed during the batch\",\"now\":{}", health_json(&h1)));
+        if stopped.is_empty() {
+            stopped = "the Shell restarted during the batch".into();
+        }
     }
-    if health0 != health1 {
-        return Err("gnome-shell pid changed during the batch".into());
+    if !stopped.is_empty() {
+        return Err(stopped);
     }
     Ok(())
 }
