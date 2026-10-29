@@ -1,0 +1,300 @@
+[spawn-at-time] +0.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +1709.25ms | SET_LOGGING enabled=true
+[spawn-at-time] +1755.20ms | SET_LOGGING enabled=true
+[spawn-at-time] +1800.90ms | SET_LOGGING enabled=true
+[spawn-at-time] +1846.72ms | SET_LOGGING enabled=true
+[spawn-at-time] +1893.38ms | SET_LOGGING enabled=true
+[spawn-at-time] +1940.14ms | SET_LOGGING enabled=true
+[spawn-at-time] +1987.52ms | SET_LOGGING enabled=true
+[spawn-at-time] +2033.87ms | SET_LOGGING enabled=true
+[spawn-at-time] +2079.22ms | SET_LOGGING enabled=true
+[spawn-at-time] +2125.33ms | SET_LOGGING enabled=true
+[spawn-at-time] +2171.53ms | SET_LOGGING enabled=true
+[spawn-at-time] +2217.91ms | SET_LOGGING enabled=true
+[spawn-at-time] +2263.68ms | SET_LOGGING enabled=true
+[spawn-at-time] +2309.32ms | SET_LOGGING enabled=true
+[spawn-at-time] +2355.95ms | SET_LOGGING enabled=true
+[spawn-at-time] +2401.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +2450.79ms | SET_LOGGING enabled=true
+[spawn-at-time] +2499.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +2545.06ms | SET_LOGGING enabled=true
+[spawn-at-time] +2593.11ms | SET_LOGGING enabled=true
+[spawn-at-time] +2640.48ms | SET_LOGGING enabled=true
+[spawn-at-time] +2687.36ms | SET_LOGGING enabled=true
+[spawn-at-time] +2735.53ms | SET_LOGGING enabled=true
+[spawn-at-time] +2781.66ms | SET_LOGGING enabled=true
+[spawn-at-time] +2827.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +2875.82ms | SET_LOGGING enabled=true
+[spawn-at-time] +2924.71ms | SET_LOGGING enabled=true
+[spawn-at-time] +2970.37ms | SET_LOGGING enabled=true
+[spawn-at-time] +3016.17ms | SET_LOGGING enabled=true
+[spawn-at-time] +3062.36ms | SET_LOGGING enabled=true
+[spawn-at-time] +3133.66ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +3359.26ms | WINDOW_CREATED win=[id=2512246994 pid=3585969 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +4305.00ms | ACTOR_MAP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +4305.07ms | DISPATCH win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +4305.56ms | BATCH_STEP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +4305.62ms | CLOAK win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(259,34,700x520)
+[spawn-at-time] +4305.64ms | BATCH_STEP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +4305.73ms | SET_SIZE_REQUEST win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(259,34,700x520) bufferRect=(198,-21,822x642)
+[spawn-at-time] +4305.81ms | AFTER_SET_SIZE win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(259,34,700x520)
+[spawn-at-time] +4305.83ms | BATCH_STEP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +4306.13ms | READY_WAIT_START win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(700x520) cap=250 quiet=30 hard=1500
+[spawn-at-time] +4306.19ms | COMMIT_SAMPLE win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=initial frame=(700x520) last=(700x520)
+[spawn-at-time] +4315.38ms | COMMIT_SAMPLE win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(700x520)
+[spawn-at-time] +4315.48ms | COMMIT_RESOLVED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +4315.50ms | READY_WAIT_RESOLVED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.7 waited_ms=9.640000104904175 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +4315.63ms | BATCH_STEP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +4315.71ms | FALLBACK_USED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +4315.72ms | APPLY_ANCHOR win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +4315.81ms | POSITION_SET win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(259,34,1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882) actor=(735,241) delta=(537,262)
+[spawn-at-time] +4315.82ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +4315.83ms | BATCH_STEP win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +4315.85ms | UNCLOAK_4A win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +4316.93ms | UNCLOAK_4B win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +4316.96ms | UNCLOAK_4C win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +4319.26ms | UNCLOAK win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +4319.27ms | UNCLOAK_4D_REVEAL win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882)
+[spawn-at-time] +4319.30ms | ANCHOR_ARMED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +6877.43ms | ANCHOR_RELEASED win=[id=2512246994 pid=3585969 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +9976.35ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +10190.36ms | WINDOW_CREATED win=[id=2512246995 pid=3586319 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +10277.42ms | ACTOR_MAP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +10277.48ms | DISPATCH win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +10277.63ms | BATCH_STEP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +10277.68ms | CLOAK win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +10277.69ms | BATCH_STEP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +10277.74ms | SET_SIZE_REQUEST win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(409,127,1100x760) bufferRect=(348,72,1222x882)
+[spawn-at-time] +10277.80ms | AFTER_SET_SIZE win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +10277.84ms | BATCH_STEP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +10277.98ms | READY_WAIT_START win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(1100x760) cap=250 quiet=30 hard=1500
+[spawn-at-time] +10278.13ms | COMMIT_SAMPLE win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=initial frame=(1100x760) last=(1100x760)
+[spawn-at-time] +10286.33ms | COMMIT_SAMPLE win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=size-changed frame=(640x420) last=(1100x760)
+[spawn-at-time] +10286.39ms | COMMIT_RESOLVED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +10286.41ms | READY_WAIT_RESOLVED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=8.6 waited_ms=8.572999954223633 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +10286.47ms | BATCH_STEP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +10286.51ms | FALLBACK_USED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +10286.52ms | APPLY_ANCHOR win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +10286.58ms | POSITION_SET win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(409,127,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(847,509)
+[spawn-at-time] +10286.59ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +10286.60ms | BATCH_STEP win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +10286.61ms | UNCLOAK_4A win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +10287.39ms | UNCLOAK_4B win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +10287.41ms | UNCLOAK_4C win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +10287.75ms | UNCLOAK win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +10287.76ms | UNCLOAK_4D_REVEAL win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +10287.78ms | ANCHOR_ARMED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +12826.00ms | ANCHOR_RELEASED win=[id=2512246995 pid=3586319 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +15923.16ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +16144.90ms | WINDOW_CREATED win=[id=2512246996 pid=3586674 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +16238.80ms | ACTOR_MAP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +16238.84ms | DISPATCH win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +16239.00ms | BATCH_STEP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +16239.05ms | CLOAK win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +16239.07ms | BATCH_STEP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +16239.10ms | SET_SIZE_REQUEST win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +16239.14ms | AFTER_SET_SIZE win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +16239.15ms | BATCH_STEP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +16239.23ms | READY_WAIT_START win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +16239.33ms | COMMIT_RESOLVED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +16239.38ms | READY_WAIT_RESOLVED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.2 waited_ms=0 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +16240.65ms | BATCH_STEP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +16240.85ms | FALLBACK_USED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +16240.87ms | APPLY_ANCHOR win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +16240.98ms | POSITION_SET win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(937,536)
+[spawn-at-time] +16241.01ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +16241.02ms | BATCH_STEP win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +16241.04ms | UNCLOAK_4A win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +16241.92ms | UNCLOAK_4B win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +16241.96ms | UNCLOAK_4C win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +16242.76ms | UNCLOAK win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +16242.78ms | UNCLOAK_4D_REVEAL win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +16242.81ms | ANCHOR_ARMED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +18778.31ms | ANCHOR_RELEASED win=[id=2512246996 pid=3586674 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +21878.40ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +22104.16ms | WINDOW_CREATED win=[id=2512246997 pid=3587015 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +22189.82ms | ACTOR_MAP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +22189.90ms | DISPATCH win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +22190.03ms | BATCH_STEP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +22190.07ms | CLOAK win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +22190.09ms | BATCH_STEP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +22190.14ms | SET_SIZE_REQUEST win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +22190.18ms | AFTER_SET_SIZE win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +22190.22ms | BATCH_STEP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +22190.31ms | READY_WAIT_START win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +22190.40ms | COMMIT_RESOLVED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +22190.42ms | READY_WAIT_RESOLVED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.2 waited_ms=0 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +22191.85ms | BATCH_STEP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +22192.11ms | FALLBACK_USED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +22192.13ms | APPLY_ANCHOR win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +22192.22ms | POSITION_SET win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(937,536)
+[spawn-at-time] +22192.25ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +22192.26ms | BATCH_STEP win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +22192.29ms | UNCLOAK_4A win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +22193.58ms | UNCLOAK_4B win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +22193.63ms | UNCLOAK_4C win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +22194.71ms | UNCLOAK win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +22194.74ms | UNCLOAK_4D_REVEAL win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +22194.78ms | ANCHOR_ARMED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +24728.13ms | ANCHOR_RELEASED win=[id=2512246997 pid=3587015 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +27825.22ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +28033.73ms | WINDOW_CREATED win=[id=2512246998 pid=3587354 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +28120.77ms | ACTOR_MAP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +28120.81ms | DISPATCH win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +28120.89ms | BATCH_STEP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +28120.92ms | CLOAK win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +28120.93ms | BATCH_STEP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +28120.95ms | SET_SIZE_REQUEST win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +28120.98ms | AFTER_SET_SIZE win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +28120.99ms | BATCH_STEP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +28121.03ms | READY_WAIT_START win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +28121.12ms | COMMIT_RESOLVED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +28121.15ms | READY_WAIT_RESOLVED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.1 waited_ms=0 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +28122.70ms | BATCH_STEP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +28122.86ms | FALLBACK_USED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +28122.88ms | APPLY_ANCHOR win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +28122.98ms | POSITION_SET win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(937,536)
+[spawn-at-time] +28122.99ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +28123.00ms | BATCH_STEP win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +28123.02ms | UNCLOAK_4A win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +28123.85ms | UNCLOAK_4B win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +28123.89ms | UNCLOAK_4C win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +28124.73ms | UNCLOAK win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +28124.75ms | UNCLOAK_4D_REVEAL win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +28124.78ms | ANCHOR_ARMED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +30665.01ms | ANCHOR_RELEASED win=[id=2512246998 pid=3587354 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +33766.66ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +33963.69ms | WINDOW_CREATED win=[id=2512246999 pid=3587707 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +34101.42ms | ACTOR_MAP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +34101.52ms | DISPATCH win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +34101.77ms | BATCH_STEP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +34101.82ms | CLOAK win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +34101.83ms | BATCH_STEP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +34101.90ms | SET_SIZE_REQUEST win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +34101.96ms | AFTER_SET_SIZE win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +34101.99ms | BATCH_STEP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +34102.06ms | READY_WAIT_START win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +34102.15ms | COMMIT_RESOLVED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +34102.17ms | READY_WAIT_RESOLVED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.2 waited_ms=0 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +34103.75ms | BATCH_STEP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +34104.07ms | FALLBACK_USED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +34104.10ms | APPLY_ANCHOR win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +34104.20ms | POSITION_SET win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(937,536)
+[spawn-at-time] +34104.23ms | AFTER_SET_POSITION_ANCHORED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +34104.24ms | BATCH_STEP win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +34104.31ms | UNCLOAK_4A win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +34105.49ms | UNCLOAK_4B win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +34105.54ms | UNCLOAK_4C win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +34106.53ms | UNCLOAK win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +34106.55ms | UNCLOAK_4D_REVEAL win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +34106.58ms | ANCHOR_ARMED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +36638.44ms | ANCHOR_RELEASED win=[id=2512246999 pid=3587707 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +39740.31ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +39936.72ms | WINDOW_CREATED win=[id=2512247000 pid=3588043 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +40028.25ms | ACTOR_MAP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +40028.31ms | DISPATCH win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +40028.46ms | BATCH_STEP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +40028.51ms | CLOAK win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +40028.53ms | BATCH_STEP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +40028.58ms | SET_SIZE_REQUEST win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) clampedSafeSize=(640x420) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +40028.63ms | AFTER_SET_SIZE win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +40028.66ms | BATCH_STEP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +40028.80ms | READY_WAIT_START win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(640x420) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +40028.94ms | COMMIT_RESOLVED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(640x420) target=(640x420) safe=(640x420)
+[spawn-at-time] +40028.96ms | READY_WAIT_RESOLVED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.3 waited_ms=0 reason=at-target finalFrame=(640x420) target=(640x420)
+[spawn-at-time] +40031.28ms | BATCH_STEP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +40031.61ms | FALLBACK_USED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(640x420)
+[spawn-at-time] +40031.63ms | APPLY_ANCHOR win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(640x420) bounds=(0,32,1920x1048) final=(1256,636)
+[spawn-at-time] +40031.78ms | POSITION_SET win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542) actor=(1195,581) delta=(937,536)
+[spawn-at-time] +40031.82ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(1256,636,640x420)
+[spawn-at-time] +40031.84ms | BATCH_STEP win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +40031.86ms | UNCLOAK_4A win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +40033.14ms | UNCLOAK_4B win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +40033.17ms | UNCLOAK_4C win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(640x420) actual=(640x420) needsReanchor=false
+[spawn-at-time] +40033.88ms | UNCLOAK win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(1256,636,640x420)
+[spawn-at-time] +40033.90ms | UNCLOAK_4D_REVEAL win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(640x420) postFrame=(1256,636,640x420) bufferRect=(1195,581,762x542)
+[spawn-at-time] +40033.92ms | ANCHOR_ARMED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +42570.52ms | ANCHOR_RELEASED win=[id=2512247000 pid=3588043 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +45666.60ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +45884.49ms | WINDOW_CREATED win=[id=2512247001 pid=3588392 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +45965.28ms | ACTOR_MAP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +45965.34ms | DISPATCH win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +45965.47ms | BATCH_STEP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +45965.51ms | CLOAK win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +45965.53ms | BATCH_STEP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +45965.57ms | SET_SIZE_REQUEST win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(319,100,640x420) bufferRect=(258,45,762x542)
+[spawn-at-time] +45965.66ms | AFTER_SET_SIZE win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(319,100,640x420)
+[spawn-at-time] +45965.69ms | BATCH_STEP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +45965.77ms | READY_WAIT_START win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(640x420) cap=250 quiet=30 hard=1500
+[spawn-at-time] +45965.90ms | COMMIT_SAMPLE win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=initial frame=(640x420) last=(640x420)
+[spawn-at-time] +45974.29ms | COMMIT_SAMPLE win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] source=size-changed frame=(1100x760) last=(640x420)
+[spawn-at-time] +45974.38ms | COMMIT_RESOLVED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +45974.39ms | READY_WAIT_RESOLVED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=8.8 waited_ms=8.70200002193451 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +45974.47ms | BATCH_STEP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +45974.52ms | FALLBACK_USED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +45974.53ms | APPLY_ANCHOR win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +45974.58ms | POSITION_SET win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(319,100,1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882) actor=(735,241) delta=(477,196)
+[spawn-at-time] +45974.60ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +45974.60ms | BATCH_STEP win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +45974.61ms | UNCLOAK_4A win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +45975.37ms | UNCLOAK_4B win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +45975.39ms | UNCLOAK_4C win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +45975.76ms | UNCLOAK win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +45975.78ms | UNCLOAK_4D_REVEAL win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882)
+[spawn-at-time] +45975.80ms | ANCHOR_ARMED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +48519.21ms | ANCHOR_RELEASED win=[id=2512247001 pid=3588392 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +51614.77ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +51831.04ms | WINDOW_CREATED win=[id=2512247002 pid=3588737 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +51923.92ms | ACTOR_MAP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +51923.98ms | DISPATCH win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +51924.22ms | BATCH_STEP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +51924.30ms | CLOAK win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +51924.32ms | BATCH_STEP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +51924.40ms | SET_SIZE_REQUEST win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(409,127,1100x760) bufferRect=(348,72,1222x882)
+[spawn-at-time] +51924.46ms | AFTER_SET_SIZE win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +51924.49ms | BATCH_STEP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +51924.59ms | READY_WAIT_START win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(1100x760) cap=250 quiet=30 hard=1500
+[spawn-at-time] +51924.68ms | COMMIT_RESOLVED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +51924.71ms | READY_WAIT_RESOLVED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.2 waited_ms=0 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +51926.24ms | BATCH_STEP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +51926.54ms | FALLBACK_USED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +51926.57ms | APPLY_ANCHOR win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +51926.69ms | POSITION_SET win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(409,127,1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882) actor=(735,241) delta=(387,169)
+[spawn-at-time] +51926.73ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +51926.75ms | BATCH_STEP win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +51926.78ms | UNCLOAK_4A win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +51928.30ms | UNCLOAK_4B win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +51928.34ms | UNCLOAK_4C win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +51928.97ms | UNCLOAK win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +51928.99ms | UNCLOAK_4D_REVEAL win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882)
+[spawn-at-time] +51929.01ms | ANCHOR_ARMED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +54464.65ms | ANCHOR_RELEASED win=[id=2512247002 pid=3588737 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +57561.48ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +57762.30ms | WINDOW_CREATED win=[id=2512247003 pid=3589068 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +57854.74ms | ACTOR_MAP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +57854.78ms | DISPATCH win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +57854.87ms | BATCH_STEP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +57854.97ms | CLOAK win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +57855.00ms | BATCH_STEP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +57855.04ms | SET_SIZE_REQUEST win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) clampedSafeSize=(1100x760) reportedMinSize=(0x0) preFrame=(409,127,1100x760) bufferRect=(348,72,1222x882)
+[spawn-at-time] +57855.08ms | AFTER_SET_SIZE win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(409,127,1100x760)
+[spawn-at-time] +57855.09ms | BATCH_STEP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +57855.17ms | READY_WAIT_START win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(1100x760) current=(1100x760) cap=250 quiet=30 hard=1500
+[spawn-at-time] +57855.28ms | COMMIT_RESOLVED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(1100x760) target=(1100x760) safe=(1100x760)
+[spawn-at-time] +57855.32ms | READY_WAIT_RESOLVED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=0.2 waited_ms=0 reason=at-target finalFrame=(1100x760) target=(1100x760)
+[spawn-at-time] +57856.47ms | BATCH_STEP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +57856.66ms | FALLBACK_USED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(1100x760)
+[spawn-at-time] +57856.68ms | APPLY_ANCHOR win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] eff=(1100x760) bounds=(0,32,1920x1048) final=(796,296)
+[spawn-at-time] +57856.77ms | POSITION_SET win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] preFrame=(409,127,1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882) actor=(735,241) delta=(387,169)
+[spawn-at-time] +57856.80ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=0 frame=(796,296,1100x760)
+[spawn-at-time] +57856.81ms | BATCH_STEP win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +57856.83ms | UNCLOAK_4A win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +57857.75ms | UNCLOAK_4B win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +57857.78ms | UNCLOAK_4C win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] positioned=(1100x760) actual=(1100x760) needsReanchor=false
+[spawn-at-time] +57858.60ms | UNCLOAK win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] opacity=255 frame=(796,296,1100x760)
+[spawn-at-time] +57858.62ms | UNCLOAK_4D_REVEAL win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] requestedSize=(1100x760) postFrame=(796,296,1100x760) bufferRect=(735,241,1222x882)
+[spawn-at-time] +57858.64ms | ANCHOR_ARMED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]
+[spawn-at-time] +60394.87ms | ANCHOR_RELEASED win=[id=2512247003 pid=3589068 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +63681.63ms | ARM_SPAWN target="org.gnome.TextEditor"
+[spawn-at-time] +63894.20ms | WINDOW_CREATED win=[id=2512247004 pid=3589397 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +63978.05ms | ACTOR_MAP win=[id=2512247004 pid=3589397 class="org.gnome.TextEditor" app="org.gnome.TextEditor" type=NORMAL proto=Wayland]

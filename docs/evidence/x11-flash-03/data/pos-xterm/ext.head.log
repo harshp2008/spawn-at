@@ -1,0 +1,300 @@
+[spawn-at-time] +0.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +1711.34ms | SET_LOGGING enabled=true
+[spawn-at-time] +1757.54ms | SET_LOGGING enabled=true
+[spawn-at-time] +1801.72ms | SET_LOGGING enabled=true
+[spawn-at-time] +1848.07ms | SET_LOGGING enabled=true
+[spawn-at-time] +1894.01ms | SET_LOGGING enabled=true
+[spawn-at-time] +1940.86ms | SET_LOGGING enabled=true
+[spawn-at-time] +1986.74ms | SET_LOGGING enabled=true
+[spawn-at-time] +2033.43ms | SET_LOGGING enabled=true
+[spawn-at-time] +2079.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +2125.75ms | SET_LOGGING enabled=true
+[spawn-at-time] +2171.47ms | SET_LOGGING enabled=true
+[spawn-at-time] +2216.94ms | SET_LOGGING enabled=true
+[spawn-at-time] +2262.64ms | SET_LOGGING enabled=true
+[spawn-at-time] +2307.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +2352.56ms | SET_LOGGING enabled=true
+[spawn-at-time] +2397.84ms | SET_LOGGING enabled=true
+[spawn-at-time] +2444.07ms | SET_LOGGING enabled=true
+[spawn-at-time] +2489.65ms | SET_LOGGING enabled=true
+[spawn-at-time] +2535.50ms | SET_LOGGING enabled=true
+[spawn-at-time] +2581.61ms | SET_LOGGING enabled=true
+[spawn-at-time] +2629.87ms | SET_LOGGING enabled=true
+[spawn-at-time] +2675.06ms | SET_LOGGING enabled=true
+[spawn-at-time] +2719.86ms | SET_LOGGING enabled=true
+[spawn-at-time] +2767.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +2815.01ms | SET_LOGGING enabled=true
+[spawn-at-time] +2861.66ms | SET_LOGGING enabled=true
+[spawn-at-time] +2906.77ms | SET_LOGGING enabled=true
+[spawn-at-time] +2953.25ms | SET_LOGGING enabled=true
+[spawn-at-time] +3002.65ms | SET_LOGGING enabled=true
+[spawn-at-time] +3048.76ms | SET_LOGGING enabled=true
+[spawn-at-time] +3116.64ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +3162.11ms | WINDOW_CREATED win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +3200.51ms | ACTOR_MAP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +3200.58ms | DISPATCH win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +3200.72ms | X11_OBS_START win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662908 mono_ms=842908037.893 damaged=available first_frame=available
+[spawn-at-time] +3200.94ms | BATCH_STEP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +3201.00ms | CLOAK win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +3201.02ms | BATCH_STEP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +3201.13ms | SET_SIZE_REQUEST win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) clampedSafeSize=(400x260) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +3201.32ms | X11_OBS_MARK win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662908 mono_ms=842908038.500
+[spawn-at-time] +3201.37ms | AFTER_SET_SIZE win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,400x249)
+[spawn-at-time] +3201.39ms | BATCH_STEP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +3201.45ms | READY_WAIT_START win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +3202.59ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662908 mono_ms=842908039.682 seq=1 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(232,145,400x249) buffer=(218,133,428x278)
+[spawn-at-time] +3203.13ms | BATCH_STEP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +3203.44ms | FALLBACK_USED win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(400x249)
+[spawn-at-time] +3203.47ms | APPLY_ANCHOR win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(400x249) bounds=(0,32,1920x1048) final=(1496,807)
+[spawn-at-time] +3203.60ms | POSITION_SET win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,400x249) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278) actor=(1482,795) delta=(1264,662)
+[spawn-at-time] +3203.63ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(1496,807,400x249)
+[spawn-at-time] +3203.65ms | BATCH_STEP win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +3203.68ms | UNCLOAK_4A win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +3204.09ms | UNCLOAK_4B win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +3204.13ms | UNCLOAK_4C win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(400x249) actual=(400x249) needsReanchor=false
+[spawn-at-time] +3204.32ms | UNCLOAK win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(1496,807,400x249)
+[spawn-at-time] +3204.35ms | UNCLOAK_4D_REVEAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278)
+[spawn-at-time] +3204.37ms | X11_OBS_MARK win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662908 mono_ms=842908041.555
+[spawn-at-time] +3204.43ms | ANCHOR_ARMED win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +3208.63ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662908 mono_ms=842908045.713 seq=2 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3236.28ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662908 mono_ms=842908073.255 seq=3 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3236.41ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662908 mono_ms=842908073.542 seq=4 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3237.24ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662908 mono_ms=842908074.378 seq=5 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3242.12ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662908 mono_ms=842908079.246 seq=6 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3332.17ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662908 mono_ms=842908169.261 seq=7 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3335.28ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662908 mono_ms=842908172.350 seq=8 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3335.89ms | X11_OBS_SIGNAL win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662908 mono_ms=842908172.975 seq=9 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +3705.30ms | X11_OBS_END win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662908 reason=reveal+500ms mono_ms=842908542.473 damaged=4 first_frame=1 thawed=4
+[spawn-at-time] +6046.39ms | ANCHOR_RELEASED win=[id=1693662908 pid=3576233 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +9209.53ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +9248.96ms | WINDOW_CREATED win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +9261.55ms | ACTOR_MAP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +9261.58ms | DISPATCH win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +9261.68ms | X11_OBS_START win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662909 mono_ms=842914098.861 damaged=available first_frame=available
+[spawn-at-time] +9261.76ms | BATCH_STEP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +9261.79ms | CLOAK win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +9261.80ms | BATCH_STEP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +9261.83ms | SET_SIZE_REQUEST win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) clampedSafeSize=(900x560) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +9261.94ms | X11_OBS_MARK win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662909 mono_ms=842914099.122
+[spawn-at-time] +9261.98ms | AFTER_SET_SIZE win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,898x548)
+[spawn-at-time] +9262.04ms | BATCH_STEP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +9262.06ms | READY_WAIT_START win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +9262.54ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662909 mono_ms=842914099.688 seq=1 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(232,145,898x548) buffer=(218,133,926x577)
+[spawn-at-time] +9262.75ms | BATCH_STEP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +9262.87ms | FALLBACK_USED win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(898x548)
+[spawn-at-time] +9262.88ms | APPLY_ANCHOR win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(898x548) bounds=(0,32,1920x1048) final=(998,508)
+[spawn-at-time] +9262.93ms | POSITION_SET win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,898x548) postFrame=(998,508,898x548) bufferRect=(984,496,926x577) actor=(984,496) delta=(766,363)
+[spawn-at-time] +9262.94ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(998,508,898x548)
+[spawn-at-time] +9262.95ms | BATCH_STEP win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +9262.97ms | UNCLOAK_4A win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +9263.22ms | UNCLOAK_4B win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +9263.24ms | UNCLOAK_4C win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(898x548) actual=(898x548) needsReanchor=false
+[spawn-at-time] +9263.34ms | UNCLOAK win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(998,508,898x548)
+[spawn-at-time] +9263.35ms | UNCLOAK_4D_REVEAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) postFrame=(998,508,898x548) bufferRect=(984,496,926x577)
+[spawn-at-time] +9263.36ms | X11_OBS_MARK win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662909 mono_ms=842914100.549
+[spawn-at-time] +9263.39ms | ANCHOR_ARMED win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +9274.21ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662909 mono_ms=842914111.233 seq=2 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9275.19ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662909 mono_ms=842914112.336 seq=3 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9283.07ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662909 mono_ms=842914120.195 seq=4 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9286.31ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662909 mono_ms=842914123.411 seq=5 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9425.17ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662909 mono_ms=842914262.104 seq=6 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9431.26ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662909 mono_ms=842914268.336 seq=7 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9432.07ms | X11_OBS_SIGNAL win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662909 mono_ms=842914269.171 seq=8 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +9763.74ms | X11_OBS_END win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662909 reason=reveal+500ms mono_ms=842914600.917 damaged=4 first_frame=1 thawed=3
+[spawn-at-time] +12112.09ms | ANCHOR_RELEASED win=[id=1693662909 pid=3576554 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +15290.34ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +15328.96ms | WINDOW_CREATED win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +15343.40ms | ACTOR_MAP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +15343.43ms | DISPATCH win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +15343.50ms | X11_OBS_START win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662910 mono_ms=842920180.685 damaged=available first_frame=available
+[spawn-at-time] +15343.60ms | BATCH_STEP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +15343.63ms | CLOAK win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +15343.64ms | BATCH_STEP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +15343.67ms | SET_SIZE_REQUEST win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) clampedSafeSize=(400x260) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +15343.77ms | X11_OBS_MARK win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662910 mono_ms=842920180.957
+[spawn-at-time] +15343.80ms | AFTER_SET_SIZE win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,400x249)
+[spawn-at-time] +15343.85ms | BATCH_STEP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +15343.90ms | READY_WAIT_START win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +15344.37ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662910 mono_ms=842920181.526 seq=1 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(232,145,400x249) buffer=(218,133,428x278)
+[spawn-at-time] +15344.73ms | BATCH_STEP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +15344.91ms | FALLBACK_USED win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(400x249)
+[spawn-at-time] +15344.92ms | APPLY_ANCHOR win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(400x249) bounds=(0,32,1920x1048) final=(1496,807)
+[spawn-at-time] +15345.00ms | POSITION_SET win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,400x249) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278) actor=(1482,795) delta=(1264,662)
+[spawn-at-time] +15345.03ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(1496,807,400x249)
+[spawn-at-time] +15345.04ms | BATCH_STEP win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +15345.06ms | UNCLOAK_4A win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +15345.32ms | UNCLOAK_4B win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +15345.34ms | UNCLOAK_4C win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(400x249) actual=(400x249) needsReanchor=false
+[spawn-at-time] +15345.47ms | UNCLOAK win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(1496,807,400x249)
+[spawn-at-time] +15345.49ms | UNCLOAK_4D_REVEAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278)
+[spawn-at-time] +15345.50ms | X11_OBS_MARK win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662910 mono_ms=842920182.685
+[spawn-at-time] +15345.53ms | ANCHOR_ARMED win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +15396.51ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662910 mono_ms=842920233.569 seq=2 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15396.68ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662910 mono_ms=842920233.804 seq=3 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15398.05ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662910 mono_ms=842920235.181 seq=4 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15402.01ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662910 mono_ms=842920239.146 seq=5 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15508.43ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662910 mono_ms=842920345.526 seq=6 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15508.76ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662910 mono_ms=842920345.895 seq=7 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15511.32ms | X11_OBS_SIGNAL win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662910 mono_ms=842920348.449 seq=8 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +15846.85ms | X11_OBS_END win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662910 reason=reveal+500ms mono_ms=842920683.956 damaged=4 first_frame=1 thawed=3
+[spawn-at-time] +18206.76ms | ANCHOR_RELEASED win=[id=1693662910 pid=3576829 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +21319.30ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +21358.29ms | WINDOW_CREATED win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +21372.29ms | ACTOR_MAP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +21372.34ms | DISPATCH win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +21372.53ms | X11_OBS_START win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662911 mono_ms=842926209.699 damaged=available first_frame=available
+[spawn-at-time] +21372.69ms | BATCH_STEP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +21372.75ms | CLOAK win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +21372.76ms | BATCH_STEP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +21372.82ms | SET_SIZE_REQUEST win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) clampedSafeSize=(900x560) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +21372.99ms | X11_OBS_MARK win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662911 mono_ms=842926210.165
+[spawn-at-time] +21373.02ms | AFTER_SET_SIZE win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,898x548)
+[spawn-at-time] +21373.05ms | BATCH_STEP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +21373.07ms | READY_WAIT_START win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +21373.66ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662911 mono_ms=842926210.776 seq=1 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(232,145,898x548) buffer=(218,133,926x577)
+[spawn-at-time] +21374.02ms | BATCH_STEP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +21374.28ms | FALLBACK_USED win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(898x548)
+[spawn-at-time] +21374.31ms | APPLY_ANCHOR win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(898x548) bounds=(0,32,1920x1048) final=(998,508)
+[spawn-at-time] +21374.42ms | POSITION_SET win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,898x548) postFrame=(998,508,898x548) bufferRect=(984,496,926x577) actor=(984,496) delta=(766,363)
+[spawn-at-time] +21374.45ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(998,508,898x548)
+[spawn-at-time] +21374.46ms | BATCH_STEP win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +21374.49ms | UNCLOAK_4A win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +21374.96ms | UNCLOAK_4B win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +21375.00ms | UNCLOAK_4C win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(898x548) actual=(898x548) needsReanchor=false
+[spawn-at-time] +21375.18ms | UNCLOAK win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(998,508,898x548)
+[spawn-at-time] +21375.21ms | UNCLOAK_4D_REVEAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) postFrame=(998,508,898x548) bufferRect=(984,496,926x577)
+[spawn-at-time] +21375.23ms | X11_OBS_MARK win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662911 mono_ms=842926212.410
+[spawn-at-time] +21375.28ms | ANCHOR_ARMED win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +21389.68ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662911 mono_ms=842926226.786 seq=2 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21395.30ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662911 mono_ms=842926232.366 seq=3 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21399.42ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662911 mono_ms=842926236.571 seq=4 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21403.23ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662911 mono_ms=842926240.369 seq=5 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21528.10ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662911 mono_ms=842926365.212 seq=6 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21530.76ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662911 mono_ms=842926367.832 seq=7 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21533.97ms | X11_OBS_SIGNAL win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662911 mono_ms=842926371.102 seq=8 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +21877.19ms | X11_OBS_END win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662911 reason=reveal+500ms mono_ms=842926714.364 damaged=4 first_frame=1 thawed=3
+[spawn-at-time] +24223.75ms | ANCHOR_RELEASED win=[id=1693662911 pid=3577110 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +27402.90ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +27435.92ms | WINDOW_CREATED win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +27450.63ms | ACTOR_MAP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +27450.68ms | DISPATCH win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +27450.79ms | X11_OBS_START win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662912 mono_ms=842932287.967 damaged=available first_frame=available
+[spawn-at-time] +27450.93ms | BATCH_STEP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +27450.98ms | CLOAK win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +27451.00ms | BATCH_STEP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +27451.06ms | SET_SIZE_REQUEST win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) clampedSafeSize=(900x560) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +27451.22ms | X11_OBS_MARK win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662912 mono_ms=842932288.398
+[spawn-at-time] +27451.27ms | AFTER_SET_SIZE win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,898x548)
+[spawn-at-time] +27451.34ms | BATCH_STEP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +27451.40ms | READY_WAIT_START win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +27452.37ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662912 mono_ms=842932289.488 seq=1 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(232,145,898x548) buffer=(218,133,926x577)
+[spawn-at-time] +27452.99ms | BATCH_STEP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +27453.28ms | FALLBACK_USED win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(898x548)
+[spawn-at-time] +27453.31ms | APPLY_ANCHOR win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(898x548) bounds=(0,32,1920x1048) final=(998,508)
+[spawn-at-time] +27453.43ms | POSITION_SET win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,898x548) postFrame=(998,508,898x548) bufferRect=(984,496,926x577) actor=(984,496) delta=(766,363)
+[spawn-at-time] +27453.45ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(998,508,898x548)
+[spawn-at-time] +27453.47ms | BATCH_STEP win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +27453.50ms | UNCLOAK_4A win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +27454.03ms | UNCLOAK_4B win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +27454.07ms | UNCLOAK_4C win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(898x548) actual=(898x548) needsReanchor=false
+[spawn-at-time] +27454.27ms | UNCLOAK win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(998,508,898x548)
+[spawn-at-time] +27454.30ms | UNCLOAK_4D_REVEAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) postFrame=(998,508,898x548) bufferRect=(984,496,926x577)
+[spawn-at-time] +27454.32ms | X11_OBS_MARK win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662912 mono_ms=842932291.504
+[spawn-at-time] +27454.37ms | ANCHOR_ARMED win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +27459.68ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662912 mono_ms=842932296.795 seq=2 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27468.86ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662912 mono_ms=842932305.998 seq=3 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27477.75ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662912 mono_ms=842932314.854 seq=4 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27479.08ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662912 mono_ms=842932316.218 seq=5 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27488.60ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662912 mono_ms=842932325.581 seq=6 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27615.09ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662912 mono_ms=842932452.218 seq=7 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27616.97ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662912 mono_ms=842932454.099 seq=8 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27617.61ms | X11_OBS_SIGNAL win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662912 mono_ms=842932454.769 seq=9 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +27954.74ms | X11_OBS_END win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662912 reason=reveal+500ms mono_ms=842932791.915 damaged=4 first_frame=1 thawed=4
+[spawn-at-time] +30306.54ms | ANCHOR_RELEASED win=[id=1693662912 pid=3577441 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +33413.93ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +33479.10ms | WINDOW_CREATED win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +33491.29ms | ACTOR_MAP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +33491.32ms | DISPATCH win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +33491.44ms | X11_OBS_START win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662913 mono_ms=842938328.622 damaged=available first_frame=available
+[spawn-at-time] +33491.52ms | BATCH_STEP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +33491.55ms | CLOAK win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +33491.56ms | BATCH_STEP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +33491.59ms | SET_SIZE_REQUEST win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) clampedSafeSize=(400x260) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +33491.68ms | X11_OBS_MARK win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662913 mono_ms=842938328.861
+[spawn-at-time] +33491.69ms | AFTER_SET_SIZE win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,400x249)
+[spawn-at-time] +33491.71ms | BATCH_STEP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +33491.72ms | READY_WAIT_START win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +33492.21ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662913 mono_ms=842938329.361 seq=1 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(232,145,400x249) buffer=(218,133,428x278)
+[spawn-at-time] +33492.40ms | BATCH_STEP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +33492.57ms | FALLBACK_USED win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(400x249)
+[spawn-at-time] +33492.58ms | APPLY_ANCHOR win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(400x249) bounds=(0,32,1920x1048) final=(1496,807)
+[spawn-at-time] +33492.64ms | POSITION_SET win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,400x249) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278) actor=(1482,795) delta=(1264,662)
+[spawn-at-time] +33492.66ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(1496,807,400x249)
+[spawn-at-time] +33492.67ms | BATCH_STEP win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +33492.70ms | UNCLOAK_4A win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +33492.99ms | UNCLOAK_4B win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +33493.02ms | UNCLOAK_4C win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(400x249) actual=(400x249) needsReanchor=false
+[spawn-at-time] +33493.15ms | UNCLOAK win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(1496,807,400x249)
+[spawn-at-time] +33493.17ms | UNCLOAK_4D_REVEAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) postFrame=(1496,807,400x249) bufferRect=(1482,795,428x278)
+[spawn-at-time] +33493.18ms | X11_OBS_MARK win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662913 mono_ms=842938330.368
+[spawn-at-time] +33493.23ms | ANCHOR_ARMED win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +33502.98ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662913 mono_ms=842938339.967 seq=2 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33503.83ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662913 mono_ms=842938340.946 seq=3 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33508.83ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662913 mono_ms=842938345.938 seq=4 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33516.67ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662913 mono_ms=842938353.737 seq=5 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33661.41ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662913 mono_ms=842938498.514 seq=6 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33667.60ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662913 mono_ms=842938504.693 seq=7 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33667.99ms | X11_OBS_SIGNAL win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662913 mono_ms=842938505.149 seq=8 texture=(428x278) texture_via=shaped>multi actor=(428x278) frame=(1496,807,400x249) buffer=(1482,795,428x278)
+[spawn-at-time] +33994.13ms | X11_OBS_END win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662913 reason=reveal+500ms mono_ms=842938831.302 damaged=4 first_frame=1 thawed=3
+[spawn-at-time] +36336.31ms | ANCHOR_RELEASED win=[id=1693662913 pid=3577667 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +39471.68ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +39504.66ms | WINDOW_CREATED win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +39516.35ms | ACTOR_MAP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +39516.38ms | DISPATCH win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +39516.44ms | X11_OBS_START win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662914 mono_ms=842944353.627 damaged=available first_frame=available
+[spawn-at-time] +39516.54ms | BATCH_STEP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +39516.57ms | CLOAK win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +39516.58ms | BATCH_STEP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +39516.61ms | SET_SIZE_REQUEST win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) clampedSafeSize=(900x560) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +39516.73ms | X11_OBS_MARK win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662914 mono_ms=842944353.906
+[spawn-at-time] +39516.77ms | AFTER_SET_SIZE win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,898x548)
+[spawn-at-time] +39516.80ms | BATCH_STEP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +39516.82ms | READY_WAIT_START win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +39517.45ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662914 mono_ms=842944354.596 seq=1 texture=(512x382) texture_via=shaped>multi actor=(926x577) frame=(232,145,898x548) buffer=(218,133,926x577)
+[spawn-at-time] +39517.72ms | BATCH_STEP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored
+[spawn-at-time] +39517.89ms | FALLBACK_USED win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] reason="min size unreported" usingFrame=(898x548)
+[spawn-at-time] +39517.90ms | APPLY_ANCHOR win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] eff=(898x548) bounds=(0,32,1920x1048) final=(998,508)
+[spawn-at-time] +39517.97ms | POSITION_SET win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] preFrame=(232,145,898x548) postFrame=(998,508,898x548) bufferRect=(984,496,926x577) actor=(984,496) delta=(766,363)
+[spawn-at-time] +39518.00ms | AFTER_SET_POSITION_ANCHORED win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(998,508,898x548)
+[spawn-at-time] +39518.01ms | BATCH_STEP win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Uncloak
+[spawn-at-time] +39518.04ms | UNCLOAK_4A win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] delay=0ms (skipped)
+[spawn-at-time] +39518.35ms | UNCLOAK_4B win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +39518.37ms | UNCLOAK_4C win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] positioned=(898x548) actual=(898x548) needsReanchor=false
+[spawn-at-time] +39518.48ms | UNCLOAK win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=255 frame=(998,508,898x548)
+[spawn-at-time] +39518.50ms | UNCLOAK_4D_REVEAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(900x560) postFrame=(998,508,898x548) bufferRect=(984,496,926x577)
+[spawn-at-time] +39518.51ms | X11_OBS_MARK win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] what=reveal id=1693662914 mono_ms=842944355.695
+[spawn-at-time] +39518.54ms | ANCHOR_ARMED win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +39528.93ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662914 mono_ms=842944366.063 seq=2 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39537.58ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662914 mono_ms=842944374.683 seq=3 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39538.71ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662914 mono_ms=842944375.848 seq=4 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39547.43ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662914 mono_ms=842944384.489 seq=5 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39700.07ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662914 mono_ms=842944537.015 seq=6 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39703.11ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=thawed id=1693662914 mono_ms=842944540.184 seq=7 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +39706.45ms | X11_OBS_SIGNAL win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] signal=damaged id=1693662914 mono_ms=842944543.592 seq=8 texture=(926x577) texture_via=shaped>multi actor=(926x577) frame=(998,508,898x548) buffer=(984,496,926x577)
+[spawn-at-time] +40019.49ms | X11_OBS_END win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] id=1693662914 reason=reveal+500ms mono_ms=842944856.652 damaged=4 first_frame=1 thawed=3
+[spawn-at-time] +42370.69ms | ANCHOR_RELEASED win=[id=1693662914 pid=3577969 class="XTerm" app="" type=NORMAL proto=XWayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +45473.39ms | ARM_SPAWN target="XTerm"
+[spawn-at-time] +45508.13ms | WINDOW_CREATED win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] actorFound=true
+[spawn-at-time] +45524.39ms | ACTOR_MAP win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland]
+[spawn-at-time] +45524.43ms | DISPATCH win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] instructionsCount=5
+[spawn-at-time] +45524.57ms | X11_OBS_START win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] kind=XWayland wayland=true client_type=1 id=1693662915 mono_ms=842950361.745 damaged=available first_frame=available
+[spawn-at-time] +45524.67ms | BATCH_STEP win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] inst=Cloak
+[spawn-at-time] +45524.69ms | CLOAK win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,484x353)
+[spawn-at-time] +45524.70ms | BATCH_STEP win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetSize
+[spawn-at-time] +45524.73ms | SET_SIZE_REQUEST win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] requestedSize=(400x260) clampedSafeSize=(400x260) reportedMinSize=(0x0) preFrame=(232,145,484x353) bufferRect=(218,133,512x382)
+[spawn-at-time] +45524.86ms | X11_OBS_MARK win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] what=set_size id=1693662915 mono_ms=842950362.044
+[spawn-at-time] +45524.88ms | AFTER_SET_SIZE win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] opacity=0 frame=(232,145,400x249)
+[spawn-at-time] +45524.92ms | BATCH_STEP win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] inst=WaitForCommit
+[spawn-at-time] +45524.95ms | READY_WAIT_START win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] strategy=control-nowait
+[spawn-at-time] +45525.54ms | X11_OBS_SIGNAL win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] signal=first-frame id=1693662915 mono_ms=842950362.691 seq=1 texture=(512x382) texture_via=shaped>multi actor=(428x278) frame=(232,145,400x249) buffer=(218,133,428x278)
+[spawn-at-time] +45525.91ms | BATCH_STEP win=[id=1693662915 pid=3578264 class="XTerm" app="" type=NORMAL proto=XWayland] inst=SetPositionAnchored

@@ -1,0 +1,300 @@
+[spawn-at-time] +139649.71ms | SET_LOGGING enabled=true
+[spawn-at-time] +141360.34ms | SET_LOGGING enabled=true
+[spawn-at-time] +141407.43ms | SET_LOGGING enabled=true
+[spawn-at-time] +141454.00ms | SET_LOGGING enabled=true
+[spawn-at-time] +141500.61ms | SET_LOGGING enabled=true
+[spawn-at-time] +141547.15ms | SET_LOGGING enabled=true
+[spawn-at-time] +141594.45ms | SET_LOGGING enabled=true
+[spawn-at-time] +141640.77ms | SET_LOGGING enabled=true
+[spawn-at-time] +141686.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +141733.97ms | SET_LOGGING enabled=true
+[spawn-at-time] +141780.69ms | SET_LOGGING enabled=true
+[spawn-at-time] +141826.35ms | SET_LOGGING enabled=true
+[spawn-at-time] +141872.48ms | SET_LOGGING enabled=true
+[spawn-at-time] +141918.49ms | SET_LOGGING enabled=true
+[spawn-at-time] +141963.51ms | SET_LOGGING enabled=true
+[spawn-at-time] +142008.64ms | SET_LOGGING enabled=true
+[spawn-at-time] +142055.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +142100.83ms | SET_LOGGING enabled=true
+[spawn-at-time] +142147.71ms | SET_LOGGING enabled=true
+[spawn-at-time] +142193.57ms | SET_LOGGING enabled=true
+[spawn-at-time] +142238.59ms | SET_LOGGING enabled=true
+[spawn-at-time] +142284.60ms | SET_LOGGING enabled=true
+[spawn-at-time] +142330.41ms | SET_LOGGING enabled=true
+[spawn-at-time] +142381.34ms | SET_LOGGING enabled=true
+[spawn-at-time] +142430.61ms | SET_LOGGING enabled=true
+[spawn-at-time] +142477.74ms | SET_LOGGING enabled=true
+[spawn-at-time] +142522.92ms | SET_LOGGING enabled=true
+[spawn-at-time] +142569.05ms | SET_LOGGING enabled=true
+[spawn-at-time] +142615.10ms | SET_LOGGING enabled=true
+[spawn-at-time] +142662.36ms | SET_LOGGING enabled=true
+[spawn-at-time] +142710.72ms | SET_LOGGING enabled=true
+[spawn-at-time] +142780.37ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +142961.19ms | WINDOW_CREATED win=[id=2512247014 pid=3593368 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +143050.51ms | ACTOR_MAP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +143050.56ms | DISPATCH win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +143050.67ms | BATCH_STEP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +143050.70ms | CLOAK win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,49,360x497)
+[spawn-at-time] +143050.70ms | BATCH_STEP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +143050.73ms | SET_SIZE_REQUEST win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,49,360x497) bufferRect=(-4,-6,482x619)
+[spawn-at-time] +143050.77ms | AFTER_SET_SIZE win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,49,360x497)
+[spawn-at-time] +143050.79ms | BATCH_STEP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +143050.83ms | READY_WAIT_START win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x497) cap=250 quiet=30 hard=1500
+[spawn-at-time] +143050.91ms | COMMIT_SAMPLE win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x497) last=(360x497)
+[spawn-at-time] +143055.78ms | COMMIT_SAMPLE win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(500x497) last=(360x497)
+[spawn-at-time] +143086.94ms | COMMIT_RESOLVED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(500x497) target=(500x400) safe=(500x400)
+[spawn-at-time] +143086.97ms | READY_WAIT_RESOLVED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=adjusted elapsed_ms=36.2 waited_ms=35.038999915122986 reason=quiet finalFrame=(500x497) target=(500x400)
+[spawn-at-time] +143087.03ms | BATCH_STEP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +143087.09ms | FALLBACK_USED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(500x497)
+[spawn-at-time] +143087.10ms | APPLY_ANCHOR win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(500x497) bounds=(0,32,1920x1048) final=(1396,559)
+[spawn-at-time] +143087.18ms | POSITION_SET win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,49,500x497) postFrame=(1396,559,500x497) bufferRect=(1335,504,622x619) actor=(1335,504) delta=(1339,510)
+[spawn-at-time] +143087.19ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(1396,559,500x497)
+[spawn-at-time] +143087.20ms | BATCH_STEP win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +143087.22ms | UNCLOAK_4A win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +143087.93ms | UNCLOAK_4B win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false
+[spawn-at-time] +143087.94ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="non-VTE toolkit; bypassing synthetic defocus"
+[spawn-at-time] +143087.96ms | UNCLOAK_4C win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(500x497) actual=(500x497) needsReanchor=false
+[spawn-at-time] +143088.36ms | UNCLOAK win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(1396,559,500x497)
+[spawn-at-time] +143088.38ms | UNCLOAK_4D_REVEAL win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) postFrame=(1396,559,500x497) bufferRect=(1335,504,622x619)
+[spawn-at-time] +143088.40ms | ANCHOR_ARMED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +145121.23ms | ANCHOR_RELEASED win=[id=2512247014 pid=3593368 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +148294.55ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +148503.97ms | WINDOW_CREATED win=[id=2512247015 pid=3593624 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +148609.28ms | ACTOR_MAP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +148609.33ms | DISPATCH win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +148609.43ms | BATCH_STEP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +148609.45ms | CLOAK win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +148609.46ms | BATCH_STEP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +148609.50ms | SET_SIZE_REQUEST win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) clampedSafeSize=(900x700) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +148609.56ms | AFTER_SET_SIZE win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +148609.57ms | BATCH_STEP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +148609.66ms | READY_WAIT_START win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(900x700) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +148609.73ms | COMMIT_SAMPLE win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +148619.13ms | COMMIT_SAMPLE win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(900x700) last=(360x509)
+[spawn-at-time] +148619.23ms | COMMIT_RESOLVED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(900x700) target=(900x700) safe=(900x700)
+[spawn-at-time] +148619.25ms | READY_WAIT_RESOLVED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.7 waited_ms=9.615000009536743 reason=at-target finalFrame=(900x700) target=(900x700)
+[spawn-at-time] +148619.31ms | BATCH_STEP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +148619.40ms | FALLBACK_USED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(900x700)
+[spawn-at-time] +148619.42ms | APPLY_ANCHOR win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(900x700) bounds=(0,32,1920x1048) final=(996,356)
+[spawn-at-time] +148619.48ms | POSITION_SET win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822) actor=(935,301) delta=(939,315)
+[spawn-at-time] +148619.49ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(996,356,900x700)
+[spawn-at-time] +148619.50ms | BATCH_STEP win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +148619.51ms | UNCLOAK_4A win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +148620.20ms | UNCLOAK_4B win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +148620.22ms | UNCLOAK_4C win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(900x700) actual=(900x700) needsReanchor=false
+[spawn-at-time] +148620.61ms | UNCLOAK win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(996,356,900x700)
+[spawn-at-time] +148620.63ms | UNCLOAK_4D_REVEAL win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822)
+[spawn-at-time] +148620.66ms | ANCHOR_ARMED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +150654.70ms | ANCHOR_RELEASED win=[id=2512247015 pid=3593624 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +153763.72ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +153934.66ms | WINDOW_CREATED win=[id=2512247016 pid=3593902 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +154032.04ms | ACTOR_MAP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +154032.08ms | DISPATCH win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +154032.18ms | BATCH_STEP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +154032.21ms | CLOAK win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +154032.22ms | BATCH_STEP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +154032.25ms | SET_SIZE_REQUEST win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) clampedSafeSize=(900x700) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +154032.29ms | AFTER_SET_SIZE win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +154032.31ms | BATCH_STEP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +154032.38ms | READY_WAIT_START win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(900x700) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +154032.51ms | COMMIT_SAMPLE win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +154041.20ms | COMMIT_SAMPLE win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(900x700) last=(360x509)
+[spawn-at-time] +154041.29ms | COMMIT_RESOLVED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(900x700) target=(900x700) safe=(900x700)
+[spawn-at-time] +154041.30ms | READY_WAIT_RESOLVED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=9.0 waited_ms=8.968999981880188 reason=at-target finalFrame=(900x700) target=(900x700)
+[spawn-at-time] +154041.38ms | BATCH_STEP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +154041.43ms | FALLBACK_USED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(900x700)
+[spawn-at-time] +154041.44ms | APPLY_ANCHOR win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(900x700) bounds=(0,32,1920x1048) final=(996,356)
+[spawn-at-time] +154041.51ms | POSITION_SET win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822) actor=(935,301) delta=(939,315)
+[spawn-at-time] +154041.54ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(996,356,900x700)
+[spawn-at-time] +154041.55ms | BATCH_STEP win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +154041.57ms | UNCLOAK_4A win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +154042.52ms | UNCLOAK_4B win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +154042.55ms | UNCLOAK_4C win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(900x700) actual=(900x700) needsReanchor=false
+[spawn-at-time] +154042.92ms | UNCLOAK win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(996,356,900x700)
+[spawn-at-time] +154042.94ms | UNCLOAK_4D_REVEAL win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822)
+[spawn-at-time] +154042.96ms | ANCHOR_ARMED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +156071.29ms | ANCHOR_RELEASED win=[id=2512247016 pid=3593902 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +159167.67ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +159337.49ms | WINDOW_CREATED win=[id=2512247017 pid=3594217 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +159450.53ms | ACTOR_MAP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +159450.58ms | DISPATCH win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +159450.69ms | BATCH_STEP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +159450.73ms | CLOAK win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +159450.74ms | BATCH_STEP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +159450.78ms | SET_SIZE_REQUEST win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +159450.83ms | AFTER_SET_SIZE win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +159450.86ms | BATCH_STEP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +159451.29ms | READY_WAIT_START win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +159451.39ms | COMMIT_SAMPLE win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +159458.83ms | COMMIT_SAMPLE win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(500x509) last=(360x509)
+[spawn-at-time] +159489.58ms | COMMIT_RESOLVED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(500x509) target=(500x400) safe=(500x400)
+[spawn-at-time] +159489.65ms | READY_WAIT_RESOLVED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=adjusted elapsed_ms=38.7 waited_ms=38.05399990081787 reason=quiet finalFrame=(500x509) target=(500x400)
+[spawn-at-time] +159489.73ms | BATCH_STEP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +159489.80ms | FALLBACK_USED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(500x509)
+[spawn-at-time] +159489.81ms | APPLY_ANCHOR win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(500x509) bounds=(0,32,1920x1048) final=(1396,547)
+[spawn-at-time] +159489.92ms | POSITION_SET win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,500x509) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631) actor=(1335,492) delta=(1339,506)
+[spawn-at-time] +159489.94ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(1396,547,500x509)
+[spawn-at-time] +159489.95ms | BATCH_STEP win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +159489.96ms | UNCLOAK_4A win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +159490.79ms | UNCLOAK_4B win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false
+[spawn-at-time] +159490.80ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="non-VTE toolkit; bypassing synthetic defocus"
+[spawn-at-time] +159490.82ms | UNCLOAK_4C win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(500x509) actual=(500x509) needsReanchor=false
+[spawn-at-time] +159491.30ms | UNCLOAK win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(1396,547,500x509)
+[spawn-at-time] +159491.32ms | UNCLOAK_4D_REVEAL win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631)
+[spawn-at-time] +159491.34ms | ANCHOR_ARMED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +161537.57ms | ANCHOR_RELEASED win=[id=2512247017 pid=3594217 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +164644.58ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +164854.19ms | WINDOW_CREATED win=[id=2512247018 pid=3594435 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +164946.50ms | ACTOR_MAP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +164946.55ms | DISPATCH win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +164946.81ms | BATCH_STEP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +164946.84ms | CLOAK win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +164946.85ms | BATCH_STEP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +164946.90ms | SET_SIZE_REQUEST win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +164946.94ms | AFTER_SET_SIZE win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +164946.96ms | BATCH_STEP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +164947.01ms | READY_WAIT_START win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +164947.07ms | COMMIT_SAMPLE win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +164953.08ms | COMMIT_SAMPLE win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(500x509) last=(360x509)
+[spawn-at-time] +164983.80ms | COMMIT_RESOLVED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(500x509) target=(500x400) safe=(500x400)
+[spawn-at-time] +164983.83ms | READY_WAIT_RESOLVED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=adjusted elapsed_ms=36.9 waited_ms=36.22100007534027 reason=quiet finalFrame=(500x509) target=(500x400)
+[spawn-at-time] +164983.89ms | BATCH_STEP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +164983.95ms | FALLBACK_USED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(500x509)
+[spawn-at-time] +164983.96ms | APPLY_ANCHOR win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(500x509) bounds=(0,32,1920x1048) final=(1396,547)
+[spawn-at-time] +164984.05ms | POSITION_SET win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,500x509) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631) actor=(1335,492) delta=(1339,506)
+[spawn-at-time] +164984.06ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(1396,547,500x509)
+[spawn-at-time] +164984.07ms | BATCH_STEP win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +164984.10ms | UNCLOAK_4A win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +164984.97ms | UNCLOAK_4B win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false
+[spawn-at-time] +164984.98ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="non-VTE toolkit; bypassing synthetic defocus"
+[spawn-at-time] +164985.00ms | UNCLOAK_4C win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(500x509) actual=(500x509) needsReanchor=false
+[spawn-at-time] +164985.44ms | UNCLOAK win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(1396,547,500x509)
+[spawn-at-time] +164985.45ms | UNCLOAK_4D_REVEAL win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631)
+[spawn-at-time] +164985.48ms | ANCHOR_ARMED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +167030.56ms | ANCHOR_RELEASED win=[id=2512247018 pid=3594435 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +170137.66ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +170302.28ms | WINDOW_CREATED win=[id=2512247019 pid=3594735 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +170385.51ms | ACTOR_MAP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +170385.55ms | DISPATCH win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +170385.72ms | BATCH_STEP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +170385.76ms | CLOAK win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +170385.77ms | BATCH_STEP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +170385.81ms | SET_SIZE_REQUEST win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +170385.86ms | AFTER_SET_SIZE win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +170385.87ms | BATCH_STEP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +170385.95ms | READY_WAIT_START win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +170386.07ms | COMMIT_SAMPLE win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +170393.77ms | COMMIT_SAMPLE win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(500x509) last=(360x509)
+[spawn-at-time] +170424.73ms | COMMIT_RESOLVED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(500x509) target=(500x400) safe=(500x400)
+[spawn-at-time] +170424.78ms | READY_WAIT_RESOLVED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=adjusted elapsed_ms=38.9 waited_ms=37.95800006389618 reason=quiet finalFrame=(500x509) target=(500x400)
+[spawn-at-time] +170424.85ms | BATCH_STEP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +170424.94ms | FALLBACK_USED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(500x509)
+[spawn-at-time] +170424.95ms | APPLY_ANCHOR win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(500x509) bounds=(0,32,1920x1048) final=(1396,547)
+[spawn-at-time] +170425.09ms | POSITION_SET win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,500x509) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631) actor=(1335,492) delta=(1339,506)
+[spawn-at-time] +170425.14ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(1396,547,500x509)
+[spawn-at-time] +170425.15ms | BATCH_STEP win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +170425.17ms | UNCLOAK_4A win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +170426.17ms | UNCLOAK_4B win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false
+[spawn-at-time] +170426.19ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="non-VTE toolkit; bypassing synthetic defocus"
+[spawn-at-time] +170426.23ms | UNCLOAK_4C win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(500x509) actual=(500x509) needsReanchor=false
+[spawn-at-time] +170426.82ms | UNCLOAK win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(1396,547,500x509)
+[spawn-at-time] +170426.85ms | UNCLOAK_4D_REVEAL win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631)
+[spawn-at-time] +170426.88ms | ANCHOR_ARMED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +172465.95ms | ANCHOR_RELEASED win=[id=2512247019 pid=3594735 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +175579.47ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +175749.30ms | WINDOW_CREATED win=[id=2512247020 pid=3595006 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +175843.59ms | ACTOR_MAP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +175843.63ms | DISPATCH win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +175843.70ms | BATCH_STEP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +175843.72ms | CLOAK win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +175843.73ms | BATCH_STEP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +175843.75ms | SET_SIZE_REQUEST win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +175843.78ms | AFTER_SET_SIZE win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +175843.79ms | BATCH_STEP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +175843.83ms | READY_WAIT_START win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +175843.92ms | COMMIT_SAMPLE win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +175850.44ms | COMMIT_SAMPLE win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(500x509) last=(360x509)
+[spawn-at-time] +175881.71ms | COMMIT_RESOLVED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=SIZE_SETTLED finalFrame=(500x509) target=(500x400) safe=(500x400)
+[spawn-at-time] +175881.78ms | READY_WAIT_RESOLVED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=adjusted elapsed_ms=37.9 waited_ms=36.70800006389618 reason=quiet finalFrame=(500x509) target=(500x400)
+[spawn-at-time] +175881.85ms | BATCH_STEP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +175881.92ms | FALLBACK_USED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(500x509)
+[spawn-at-time] +175881.93ms | APPLY_ANCHOR win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(500x509) bounds=(0,32,1920x1048) final=(1396,547)
+[spawn-at-time] +175882.03ms | POSITION_SET win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,500x509) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631) actor=(1335,492) delta=(1339,506)
+[spawn-at-time] +175882.05ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(1396,547,500x509)
+[spawn-at-time] +175882.05ms | BATCH_STEP win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +175882.07ms | UNCLOAK_4A win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +175882.95ms | UNCLOAK_4B win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=true isVte=false
+[spawn-at-time] +175882.96ms | FOCUS_PULSE_SKIP_NOT_VTE win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="non-VTE toolkit; bypassing synthetic defocus"
+[spawn-at-time] +175882.99ms | UNCLOAK_4C win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(500x509) actual=(500x509) needsReanchor=false
+[spawn-at-time] +175883.45ms | UNCLOAK win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(1396,547,500x509)
+[spawn-at-time] +175883.46ms | UNCLOAK_4D_REVEAL win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) postFrame=(1396,547,500x509) bufferRect=(1335,492,622x631)
+[spawn-at-time] +175883.49ms | ANCHOR_ARMED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +177917.56ms | ANCHOR_RELEASED win=[id=2512247020 pid=3595006 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +181020.59ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +181200.76ms | WINDOW_CREATED win=[id=2512247021 pid=3595319 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +181303.23ms | ACTOR_MAP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +181303.27ms | DISPATCH win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +181303.34ms | BATCH_STEP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +181303.36ms | CLOAK win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +181303.37ms | BATCH_STEP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +181303.40ms | SET_SIZE_REQUEST win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) clampedSafeSize=(900x700) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +181303.42ms | AFTER_SET_SIZE win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +181303.44ms | BATCH_STEP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +181303.48ms | READY_WAIT_START win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(900x700) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +181303.53ms | COMMIT_SAMPLE win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +181309.97ms | COMMIT_SAMPLE win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(900x700) last=(360x509)
+[spawn-at-time] +181310.09ms | COMMIT_RESOLVED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(900x700) target=(900x700) safe=(900x700)
+[spawn-at-time] +181310.11ms | READY_WAIT_RESOLVED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=6.7 waited_ms=6.585999965667725 reason=at-target finalFrame=(900x700) target=(900x700)
+[spawn-at-time] +181310.19ms | BATCH_STEP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +181310.24ms | FALLBACK_USED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(900x700)
+[spawn-at-time] +181310.26ms | APPLY_ANCHOR win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(900x700) bounds=(0,32,1920x1048) final=(996,356)
+[spawn-at-time] +181310.32ms | POSITION_SET win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822) actor=(935,301) delta=(939,315)
+[spawn-at-time] +181310.33ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(996,356,900x700)
+[spawn-at-time] +181310.34ms | BATCH_STEP win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +181310.36ms | UNCLOAK_4A win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +181311.18ms | UNCLOAK_4B win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +181311.21ms | UNCLOAK_4C win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(900x700) actual=(900x700) needsReanchor=false
+[spawn-at-time] +181311.61ms | UNCLOAK win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(996,356,900x700)
+[spawn-at-time] +181311.63ms | UNCLOAK_4D_REVEAL win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822)
+[spawn-at-time] +181311.64ms | ANCHOR_ARMED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +183347.79ms | ANCHOR_RELEASED win=[id=2512247021 pid=3595319 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +186498.02ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +186663.42ms | WINDOW_CREATED win=[id=2512247022 pid=3595527 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +186744.41ms | ACTOR_MAP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +186744.45ms | DISPATCH win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +186744.53ms | BATCH_STEP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +186744.55ms | CLOAK win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +186744.56ms | BATCH_STEP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +186744.58ms | SET_SIZE_REQUEST win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) clampedSafeSize=(900x700) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +186744.61ms | AFTER_SET_SIZE win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +186744.62ms | BATCH_STEP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +186744.67ms | READY_WAIT_START win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(900x700) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +186744.76ms | COMMIT_SAMPLE win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
+[spawn-at-time] +186752.33ms | COMMIT_SAMPLE win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=size-changed frame=(900x700) last=(360x509)
+[spawn-at-time] +186752.42ms | COMMIT_RESOLVED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=AT_TARGET finalFrame=(900x700) target=(900x700) safe=(900x700)
+[spawn-at-time] +186752.44ms | READY_WAIT_RESOLVED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait outcome=reached elapsed_ms=7.8 waited_ms=7.761000037193298 reason=at-target finalFrame=(900x700) target=(900x700)
+[spawn-at-time] +186752.51ms | BATCH_STEP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetPositionAnchored
+[spawn-at-time] +186752.55ms | FALLBACK_USED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason="min size unreported" usingFrame=(900x700)
+[spawn-at-time] +186752.56ms | APPLY_ANCHOR win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] eff=(900x700) bounds=(0,32,1920x1048) final=(996,356)
+[spawn-at-time] +186752.62ms | POSITION_SET win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] preFrame=(57,41,900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822) actor=(935,301) delta=(939,315)
+[spawn-at-time] +186752.64ms | AFTER_SET_POSITION_ANCHORED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(996,356,900x700)
+[spawn-at-time] +186752.64ms | BATCH_STEP win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Uncloak
+[spawn-at-time] +186752.66ms | UNCLOAK_4A win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] delay=0ms (skipped)
+[spawn-at-time] +186753.35ms | UNCLOAK_4B win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] wantWake=true clamped=false isVte=false
+[spawn-at-time] +186753.37ms | UNCLOAK_4C win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] positioned=(900x700) actual=(900x700) needsReanchor=false
+[spawn-at-time] +186753.75ms | UNCLOAK win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=255 frame=(996,356,900x700)
+[spawn-at-time] +186753.76ms | UNCLOAK_4D_REVEAL win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(900x700) postFrame=(996,356,900x700) bufferRect=(935,301,1022x822)
+[spawn-at-time] +186753.78ms | ANCHOR_ARMED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +188802.66ms | ANCHOR_RELEASED win=[id=2512247022 pid=3595527 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] reason=EXTERNAL_CLOSE
+[spawn-at-time] +191896.90ms | ARM_SPAWN target="org.gnome.Calculator"
+[spawn-at-time] +192069.02ms | WINDOW_CREATED win=[id=2512247023 pid=3595762 class="" app="" type=NORMAL proto=Wayland] actorFound=true
+[spawn-at-time] +192151.35ms | ACTOR_MAP win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland]
+[spawn-at-time] +192151.39ms | DISPATCH win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] instructionsCount=5
+[spawn-at-time] +192151.46ms | BATCH_STEP win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=Cloak
+[spawn-at-time] +192151.48ms | CLOAK win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +192151.48ms | BATCH_STEP win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=SetSize
+[spawn-at-time] +192151.51ms | SET_SIZE_REQUEST win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] requestedSize=(500x400) clampedSafeSize=(500x400) reportedMinSize=(0x0) preFrame=(57,41,360x509) bufferRect=(-4,-14,482x631)
+[spawn-at-time] +192151.53ms | AFTER_SET_SIZE win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] opacity=0 frame=(57,41,360x509)
+[spawn-at-time] +192151.55ms | BATCH_STEP win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] inst=WaitForCommit
+[spawn-at-time] +192151.59ms | READY_WAIT_START win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] strategy=ready-wait kind=NativeWayland target=(500x400) current=(360x509) cap=250 quiet=30 hard=1500
+[spawn-at-time] +192151.64ms | COMMIT_SAMPLE win=[id=2512247023 pid=3595762 class="org.gnome.Calculator" app="org.gnome.Calculator" type=NORMAL proto=Wayland] source=initial frame=(360x509) last=(360x509)
