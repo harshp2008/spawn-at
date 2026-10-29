@@ -119,3 +119,26 @@ owns the window's protocol. The analyzer therefore has no X11 clock lines and no
 Note: this is the server caveat listed in `PLAN.md`. No X11 number can be reported for this app with
 the unmodified batch tool; it did not crash the Shell. Full `xobs.jsonl` reduced to
 `xobs.head.jsonl`.
+
+## google-chrome (Chromium)
+
+Private headless Shell, DING not loaded. Forced X11 (`--ozone-platform=x11`, `--class=xflash-chrome`),
+20 runs per size idle plus 10 native Wayland controls (5 per size), then 20 runs per size loaded.
+
+### X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: |
+| google-chrome | idle | large | 20 | 20 | 0 | 9 | 1 | 0 | 9 | -1.8 / 23.6 | 11.4 |
+| google-chrome | idle | small | 20 | 20 | 0 | 14 | 3 | 0 | 14 | 0.8 / 52.4 | 5.8 |
+| google-chrome | loaded | large | 20 | 20 | 0 | 15 | 13 | 0 | 15 | 20.5 / 49.5 | 46.3 |
+| google-chrome | loaded | small | 20 | 20 | 0 | 4 | 0 | 0 | 4 | -0.6 / 14.6 | 31.3 |
+
+### Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
+| google-chrome | idle | large | 5 | 0 | 32.2 / 34.4 | 5x reached:at-target | 5 |
+| google-chrome | idle | small | 5 | 0 | 31.5 / 34.1 | 5x reached:at-target | 5 |
+
+Full `xobs.jsonl` reduced to `xobs.head.jsonl` after analysis.

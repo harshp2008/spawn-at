@@ -21,3 +21,5 @@ batch of this run.
 | 17:01 | gnome-calculator loaded 40 of 40 runs ok, no crash; live pid unchanged |
 | 17:08 | gnome-terminal idle 50 of 50 runs ok, no crash; live pid unchanged; every window was `proto=Wayland` class `gnome-terminal-server` (the server decides the backend), so the X11 rows have valid 0 |
 | 17:14 | gnome-terminal loaded 40 of 40 runs ok, no crash; live pid unchanged |
+| 17:21 | google-chrome idle 50 of 50 runs ok, no crash; live pid unchanged |
+| 17:28 | google-chrome loaded 40 of 40 runs ok, no crash; live pid unchanged |
