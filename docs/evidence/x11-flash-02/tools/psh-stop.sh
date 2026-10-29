@@ -34,6 +34,7 @@ done
 # Remove the sandbox only if it is a plain directory under /tmp/xflash-priv.* and not a mount point.
 case "$SB" in /tmp/xflash-priv.*) ;; *) echo "psh-stop: unexpected sandbox path $SB, not removing" >&2; exit 1;; esac
 if findmnt -M "$SB" >/dev/null 2>&1; then echo "psh-stop: $SB is a mount point, not removing" >&2; exit 1; fi
+if findmnt -rn -o TARGET | grep -q "^$SB/"; then echo "psh-stop: a mount (gvfs/portal fuse) is still under $SB, not removing" >&2; exit 1; fi
 rm -rf "$SB"
 rm -f "$cur"
 echo "stopped; logs in $out"

@@ -127,3 +127,28 @@ loaded. Do not start gnome-text-editor or any forced GTK app on the live session
 - Site pages 6.38 to 6.41 are written and committed. They are NOT published: publishing goes through a pull request from `exp/x11-flash-02` (the repo rules forbid pushing main). The branch is backed up on origin only (hash in the report of that prompt; see `git ls-remote --heads origin exp/x11-flash-02`). No workflow runs on a push of this branch (ci and docs run on pull requests and pushes to main; release on tags).
 - Pages still owed (numbers 6.42 and up): tool inventory and environment; pixel-capture feasibility (negative); the X-side observer and clock correlation; the xterm measurement (idle and loaded, 80 runs, data under `data/xterm-live/`); the offline evaluation of the "client settled" rule; plus the remaining app batches if they are run (in the private Shell, stated on each page).
 - The Known shortcomings entry on the crashes was softened: observed, established, not established, under investigation, and a precaution only.
+
+## Update after X11-FLASH-02h (H7)
+
+- Step 1 done: `live-inventory.md` (22 extensions enabled live, allowlisted settings, warning counts).
+- Step 2 done, and it stopped the prompt: the live extension set in the private Shell reproduces the
+  crash (same assertion). Bisect by halves names **Desktop Icons NG (ding@rastersoft.com)**: it alone,
+  with the spawn-at launch path, crashes at run 1; all other extensions without it do not (5 runs);
+  see `h7-replica.md`, raw data `data/h7/`. Plain launches (no spawn-at command) do not crash with
+  DING but show the timestamp-0 warning. Removing both `DESKTOP_STARTUP_ID` and `XDG_ACTIVATION_TOKEN`
+  removed the crash; a 32-bit-safe `_TIME` did not. The startup-id idea in its original form
+  (oversized `_TIME`) is contradicted.
+- Steps 3 to 6 (xterm calibration, the matrix, rule evaluation, private pixel capture) NOT run: the
+  prompt says to stop at a reproduced crash and wait for the maintainer.
+- Tools added: `H7=1` / `H7_SKIP` in `psh-start.sh`, `--unset`, `--setenv`, `--bg-window`, `--focus`
+  cell options, `CELL`/`RUNS` in the scratch `h7try.sh` (not committed).
+- H table: H1 editor: supported only together with DING; H2 any GTK app on X11: eog and xterm clean
+  with DING, so not general; H3 observer: contradicted (cell 8 crashes with it, c5 without);
+  H4 extension path: spawn-at launch path required (plain launches clean) but cause unknown;
+  H5 degraded live Shell: not needed (a fresh private Shell crashes); H6 focused close: not
+  sufficient; H7 another extension: **supported, DING named**.
+- Site pages still owed (numbers 6.42 and up): live inventory and H7 replica (the key one); the
+  earlier-listed inventory, pixel-capture failure, observer and clock correlation; the xterm
+  measurement; the offline rule evaluation; per-app matrices once the batches run. The existing
+  6.38 (hypothesis table), 6.40 (startup-id) and 6.41 (bisect) and the Known shortcomings entry
+  need an update that points at DING; not done in this prompt (no site pages here).
