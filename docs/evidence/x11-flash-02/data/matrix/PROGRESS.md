@@ -31,3 +31,4 @@ batch of this run.
 | 18:10 | gnome-text-editor-nowindow loaded 40 of 40 runs ok, no crash; live pid unchanged |
 | 18:38 | T1 native Wayland batches done for gnome-text-editor, eog, google-chrome, qt-assistant (20 runs each per condition, idle and loaded); no crash; live pid unchanged |
 | 18:42 | T2 plain geometry runs: xterm 10 of 10, google-chrome 10 of 10; Qt Assistant skipped (`Unknown option: -geometry`, exit 255) |
+| 18:45 | pixel capture: attempt 1 (introspect) ok; attempt 2 failed with `Failed to start screen cast: Couldn't connect pipewire context`; attempt 3 not run per the time-box; private Shell still running, live pid unchanged |
