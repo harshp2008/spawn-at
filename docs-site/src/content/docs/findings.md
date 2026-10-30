@@ -89,6 +89,11 @@ and the harness's flash analysis cannot run there. See [Sway](/spawn-at/environm
 - Anything under a different Shell build or a different login than the logs describe.
 - Pixels on screen.
 
+**Correction (2026-10-31).** The line above says Chrome was never matched. That is wrong. In run 04,
+the texture gate matched in 20 of 20 Chrome runs, after a median of 9 to 13 ms and at most 58 ms.
+Chrome's remaining problem is blank frames at the right size: 18 of 20 runs before the gate and 18 of
+20 after it (MEASURED, `docs/evidence/x11-flash-04/findings.md`, on branch `exp/x11-flash-03`).
+
 ## Sources
 
 - `README.md` ("How well it works"). Its pointer says `docs/TEST_PLAN.md` sections 6.22 and 6.23; the two measurement pairs above are in `docs/TEST_LOG.md` sections 6.23 and 6.30 (the plan only links there)

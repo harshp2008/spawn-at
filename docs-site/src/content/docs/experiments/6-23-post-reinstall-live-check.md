@@ -12,6 +12,12 @@ Post-reinstall live check: default cap, A/D regression, XWayland signal study. T
 | **Verdict** | "Is any candidate reliable enough to build on? No." Product consequences unchanged: XWayland and X11 windows keep the legacy rule. |
 | **Raw results** | `scratch/p23r/` (gitignored). Not in the repository. |
 
+**Correction (2026-10-31).** The Build row above says it was not tested whether closing a focused
+XWayland window crashes Mutter 46.2 regardless of this extension. It is now answered. The cause is the
+long `_TIME` value in the startup id, fixed in PR #94. DING is not required: 2 of 2 old-id aborts
+happened without it, and 50 of 50 closes with the fixed id were clean (run 03b,
+`docs/evidence/x11-flash-03/findings.md`, on branch `exp/x11-flash-03`).
+
 ## What was tested
 
 **Question**
