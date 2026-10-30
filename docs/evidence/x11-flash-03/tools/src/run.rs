@@ -115,6 +115,24 @@ pub fn apps() -> Vec<App> {
             large: (1100, 760),
         },
         App {
+            // X11-FLASH-05 Task D: eog with a real image instead of an empty viewer. `{IMAGE}`
+            // comes from XFLASH_EOG_IMAGE (a file made in scratch/); an empty value is the same
+            // empty viewer as `eog`, so a missing file is visible in the run's stderr.
+            id: "eog-image",
+            toolkit: "GTK3",
+            class_x11: "Eog",
+            class_wl: "org.gnome.eog",
+            argv: &["eog", "--new-instance", "{IMAGE}"],
+            env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
+            env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2500,
+            small: (600, 420),
+            large: (1100, 760),
+        },
+        App {
             id: "google-chrome",
             toolkit: "Chromium",
             // `--class=xflash-chrome` sets the window's class on both protocols.
@@ -135,6 +153,35 @@ pub fn apps() -> Vec<App> {
             env_wl: &[],
             wayland: true,
             profile: true,
+            kill_ok: true,
+            settle_ms: 4000,
+            small: (700, 480),
+            large: (1200, 800),
+        },
+        App {
+            // X11-FLASH-05 Task A: Chrome with ONE profile for the whole cell, so a keeper window
+            // makes the next launch talk to the running browser (a warm start) instead of a new
+            // browser process. `{CHROME_PROFILE}` comes from XFLASH_CHROME_PROFILE.
+            id: "google-chrome-warm",
+            toolkit: "Chromium",
+            class_x11: "xflash-chrome",
+            class_wl: "xflash-chrome",
+            argv: &[
+                "google-chrome",
+                "--user-data-dir={CHROME_PROFILE}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-sync",
+                "--no-sandbox",
+                "--ozone-platform={OZONE}",
+                "--class=xflash-chrome",
+                "--new-window",
+                "about:blank",
+            ],
+            env_x11: &[],
+            env_wl: &[],
+            wayland: true,
+            profile: false,
             kill_ok: true,
             settle_ms: 4000,
             small: (700, 480),
@@ -172,6 +219,25 @@ pub fn apps() -> Vec<App> {
             argv: &["gnome-calculator"],
             env_x11: &[("GDK_BACKEND", "x11"), ("GSETTINGS_BACKEND", "memory")],
             env_wl: &[("GSETTINGS_BACKEND", "memory")],
+            wayland: true,
+            profile: false,
+            kill_ok: true,
+            settle_ms: 2000,
+            small: (500, 400),
+            large: (900, 700),
+        },
+        App {
+            // X11-FLASH-05 Task B: the calculator with the sandbox's KEYFILE settings backend (no
+            // GSETTINGS_BACKEND override), so a `window-size` written by a previous launch is
+            // really restored. The batch app above uses `memory`, so every run starts from the
+            // schema default (-1,-1) = the app's natural size.
+            id: "gnome-calculator-keyfile",
+            toolkit: "GTK4",
+            class_x11: "org.gnome.Calculator",
+            class_wl: "org.gnome.Calculator",
+            argv: &["gnome-calculator"],
+            env_x11: &[("GDK_BACKEND", "x11")],
+            env_wl: &[],
             wayland: true,
             profile: false,
             kill_ok: true,
@@ -658,14 +724,26 @@ fn in_our_sandbox(pid: u32) -> bool {
     env.split(|b| *b == 0).any(|kv| kv == want.as_bytes())
 }
 
+/// Pids named in `XFLASH_KEEP_PIDS` (comma separated) are deliberate keepers for a warm cell: a
+/// pre-existing app window that must stay open for the whole batch. They are excluded from the
+/// stray check; every other process of the sandbox is still reported.
+fn kept_pids() -> Vec<u32> {
+    std::env::var("XFLASH_KEEP_PIDS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|s| s.trim().parse::<u32>().ok())
+        .collect()
+}
+
 /// Read-only scan of /proc for leftovers of an earlier batch: an observer, a CPU burner, a test app.
 fn stray_processes(own: u32) -> Vec<String> {
     let mut found = Vec::new();
+    let keep = kept_pids();
     let Ok(rd) = fs::read_dir("/proc") else { return found };
     for e in rd.flatten() {
         let name = e.file_name().to_string_lossy().to_string();
         let Ok(pid) = name.parse::<u32>() else { continue };
-        if pid == own {
+        if pid == own || keep.contains(&pid) {
             continue;
         }
         let Ok(raw) = fs::read(format!("/proc/{}/cmdline", pid)) else { continue };
@@ -858,10 +936,12 @@ pub fn run(args: &[String]) -> Result<(), String> {
     // ---- observer ----
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     let obs_path = o.out.join(if resumed { format!("xobs-{}.jsonl", mono_ns() / 1_000_000_000) } else { "xobs.jsonl".to_string() });
-    let mut observer = Command::new(&exe)
-        .arg("observe")
-        .arg("--out")
-        .arg(&obs_path)
+    let mut observer_cmd = Command::new(&exe);
+    observer_cmd.arg("observe").arg("--out").arg(&obs_path);
+    if std::env::var("XFLASH_SYNC").is_ok() {
+        observer_cmd.arg("--sync");
+    }
+    let mut observer = observer_cmd
         .stdin(Stdio::null())
         .spawn()
         .map_err(|e| format!("observer: {e}"))?;
@@ -922,6 +1002,18 @@ pub fn run(args: &[String]) -> Result<(), String> {
         };
         let settle = o.settle_override.unwrap_or(app.settle_ms);
         let pre_pids = baseline_pids.clone();
+        // X11-FLASH-05: gnome-text-editor stores `default-window-size` in
+        // $XDG_DATA_HOME/org.gnome.TextEditor/session.gvariant and opens at it. A fixed-size cell
+        // therefore stops being a size-mismatch test after its first run. With this set, every run
+        // starts from the app's built-in default size (the file is gone), which is the cold-start
+        // condition "a fresh process whose saved size differs from the request".
+        if std::env::var("XFLASH_RESET_EDITOR_STATE").is_ok() {
+            if let Ok(data) = std::env::var("XDG_DATA_HOME") {
+                let _ = fs::remove_file(
+                    Path::new(&data).join("org.gnome.TextEditor").join("session.gvariant"),
+                );
+            }
+        }
         let profile = if app.profile {
             let d = prof_root.join(format!("{}-{}", o.out.file_name().and_then(|s| s.to_str()).unwrap_or("b"), n));
             let _ = fs::create_dir_all(&d);
@@ -936,6 +1028,8 @@ pub fn run(args: &[String]) -> Result<(), String> {
             .map(|a| {
                 a.replace("{OZONE}", ozone)
                     .replace("{PROFILE}", &profile.as_ref().map(|d| d.display().to_string()).unwrap_or_default())
+                    .replace("{IMAGE}", &std::env::var("XFLASH_EOG_IMAGE").unwrap_or_default())
+                    .replace("{CHROME_PROFILE}", &std::env::var("XFLASH_CHROME_PROFILE").unwrap_or_default())
             })
             .collect();
         let class = if p.wayland { app.class_wl } else { app.class_x11 };

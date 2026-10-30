@@ -15,7 +15,12 @@ before=$(ls /tmp/.X11-unix 2>/dev/null | tr '\n' ' ')
 SB=$(mktemp -d /tmp/xflash-priv.XXXXXX)
 mkdir -m 0700 "$SB/run"
 mkdir -p "$SB/config/glib-2.0/settings" "$SB/data/gnome-shell/extensions/spawn-at@harsh.local" "$SB/cache" "$SB/state" "$SB/log"
-cp -r assets/gnome/modern/. "$SB/data/gnome-shell/extensions/spawn-at@harsh.local/"
+# EXT_SRC picks the tree to load (default: this repo's assets). X11-FLASH-05 uses it to load the
+# gated extension of PR #95 (777867c) from a separate worktree without changing assets/; the
+# sha256 of every loaded file is written to the sandbox for the evidence.
+ext_src=${EXT_SRC:-assets/gnome/modern}
+cp -r "$ext_src"/. "$SB/data/gnome-shell/extensions/spawn-at@harsh.local/"
+if [ -d "$ext_src" ]; then (cd "$ext_src" && sha256sum ./* 2>/dev/null) > "$SB/ext-sha256.txt"; fi
 ext_list="'spawn-at@harsh.local'"
 # X11-FLASH-03: PROBE=1 loads the ground-truth paint probe as a second extension (private Shell only);
 # PROBE_CFG is the probe's config.json text. CONTROL=<name> applies tools/controls/<name>.patch to the

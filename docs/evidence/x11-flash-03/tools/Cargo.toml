@@ -10,7 +10,7 @@ description = "Measurement tools for TEST_LOG 6.38 to 6.42: an X-side observer, 
 [workspace]
 
 [dependencies]
-x11rb = { version = "0.14", features = ["damage"] }
+x11rb = { version = "0.14", features = ["damage", "sync"] }
 libc = "0.2"
 # probe-analyze: PNG decoding of the probe's window captures, and its JSON lines.
 png = "0.17"
