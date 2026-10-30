@@ -1,0 +1,55 @@
+[1/2] gnome-text-editor x11 1100x760 win=Some(2384563480) status=ok
+[2/2] gnome-text-editor x11 1100x760 win=Some(2384563481) status=ok
+runs done in this invocation: 2
+collected: 393 lines, 80 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/C-sync-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+| gnome-text-editor / x11 / idle / small | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.1 |
+
+real	0m28.284s
+user	0m7.688s
+sys	0m1.417s
+=== rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_C-sync-calc/probe/probe.jsonl: No such file
+[1/2] gnome-calculator x11 900x700 win=Some(2384563482) status=ok
+[2/2] gnome-calculator x11 900x700 win=Some(2384563483) status=ok
+runs done in this invocation: 2
+collected: 1164 lines, 80 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/C-sync-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -68.3 |
+| gnome-calculator / x11 / idle / small | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -64.7 |
+
+real	0m22.773s
+user	0m2.682s
+sys	0m1.088s
+=== rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_C-sync-qt/probe/probe.jsonl: No such file
+[1/2] qt-assistant x11 1000x700 win=Some(2384563484) status=ok
+[2/2] qt-assistant x11 1000x700 win=Some(2384563485) status=ok
+runs done in this invocation: 2
+collected: 65 lines, 12 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/C-sync-qt/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 1 | 0 | 28.6 |
+| qt-assistant / x11 / idle / small | 1 | 1 | 0 | 1 | 1 | 2.0 / 2 | 17.3 / 17.3 | 100.0% | 17.3 / 17.3 | 0 | 1 | 0 | - |
+
+real	0m23.208s
+user	0m0.919s
+sys	0m0.483s
+=== rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_C-sync-chrome/probe/probe.jsonl: No such file
+[1/2] google-chrome x11 1200x800 win=Some(2384563486) status=ok
+[2/2] google-chrome x11 1200x800 win=Some(2384563487) status=ok
+runs done in this invocation: 2
+collected: 83 lines, 24 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/C-sync-chrome/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome / x11 / idle / large | 1 | 1 | 0 | 1 | 1 | 11.0 / 11 | 209.4 / 209.4 | 100.0% | 209.4 / 209.4 | 0 | 0 | 0 | -0.9 |
+| google-chrome / x11 / idle / small | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | 1.0 |
+
+real	0m26.691s
+user	0m2.094s
+sys	0m0.550s
+=== rc=0 ===

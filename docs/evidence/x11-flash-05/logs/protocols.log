@@ -1,0 +1,26 @@
+===== editor (launched pid 406286) =====
+_NET_CLIENT_LIST(WINDOW): window id # 0x600004
+WM_CLASS(STRING) = "gnome-text-editor", "gnome-text-editor"
+WM_PROTOCOLS(ATOM): protocols  WM_DELETE_WINDOW, WM_TAKE_FOCUS, _NET_WM_PING, _NET_WM_SYNC_REQUEST
+_NET_WM_SYNC_REQUEST_COUNTER(CARDINAL) = 6291462, 6291463
+===== calculator (launched pid 406695) =====
+_NET_CLIENT_LIST(WINDOW): window id # 0x600004
+WM_CLASS(STRING) = "gnome-calculator", "gnome-calculator"
+WM_PROTOCOLS(ATOM): protocols  WM_DELETE_WINDOW, WM_TAKE_FOCUS, _NET_WM_PING, _NET_WM_SYNC_REQUEST
+_NET_WM_SYNC_REQUEST_COUNTER(CARDINAL) = 6291462, 6291463
+===== qt-assistant (launched pid 406932) =====
+_NET_CLIENT_LIST(WINDOW): window id # 0x600006
+WM_CLASS(STRING) = "assistant", "assistant"
+WM_PROTOCOLS(ATOM): protocols  WM_DELETE_WINDOW, WM_TAKE_FOCUS, _NET_WM_PING, _NET_WM_SYNC_REQUEST
+_NET_WM_SYNC_REQUEST_COUNTER(CARDINAL) = 6291463
+===== eog (launched pid 407551) =====
+_NET_CLIENT_LIST(WINDOW): window id # 0x600007
+WM_CLASS(STRING) = "eog", "Eog"
+WM_PROTOCOLS(ATOM): protocols  WM_DELETE_WINDOW, WM_TAKE_FOCUS, _NET_WM_PING, _NET_WM_SYNC_REQUEST
+_NET_WM_SYNC_REQUEST_COUNTER(CARDINAL) = 6291465, 6291466
+===== chrome (launched pid 408118) =====
+_NET_CLIENT_LIST(WINDOW): window id # 0x600003
+WM_CLASS(STRING) = "google-chrome (/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash05/chrome-xprop)", "xflash-chrome"
+WM_PROTOCOLS(ATOM): protocols  WM_DELETE_WINDOW, _NET_WM_PING, _NET_WM_SYNC_REQUEST
+_NET_WM_SYNC_REQUEST_COUNTER(CARDINAL) = 6291460
+== done ==
