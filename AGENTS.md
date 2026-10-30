@@ -50,6 +50,16 @@ Stop the task, write down what happened, and report to the owner before doing an
 - Stop a task that runs over about 90 minutes, write what is done and not done, then move on.
 - If something is unclear, take the safe choice and write down which one. If no safe choice is clear, stop and ask.
 
+## Git and pull requests
+
+- Start every task from an up-to-date `main` (`git checkout main && git pull --ff-only`).
+- Push only the branch you created, by branch name.
+- Open a draft PR only, with `gh`.
+- Never merge, tag or push `main`.
+- One commit per step, with conventional commit messages (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `ci:`, `chore:`).
+- Never add Co-Authored-By trailers, "Generated with" lines or session links to commits or PR text.
+- `gh pr edit` does not work here. Change a PR with `gh api -X PATCH repos/harshp2008/spawn-at/pulls/<n> -f title=... -f body=...`.
+
 ## Recording results (after every run)
 
 This section is identical in CLAUDE.md; change both together.
