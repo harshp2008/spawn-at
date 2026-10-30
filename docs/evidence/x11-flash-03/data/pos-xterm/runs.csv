@@ -1,0 +1,11 @@
+batch,run,app,toolkit,mode,cond,size_case,req_w,req_h,final_w,final_h,status,wid,cloak_ms,commit_reason,ready_outcome,A,late_corrected,x_found,V,map_minus_cloak_ms,init_w,init_h,self_resizes_before_set,R,R_first_ms,R_last_ms,D,D_first_ms,D_in_frame,D_other,L_cfg_ms,L_d1_ms,L_last_ms,flash_any,R1_fired,R1_extra_ms,R1_fixed,R1_misfire,R2_fired,R2_extra_ms,R2_fixed,R2_misfire
+pos-xterm,0,xterm,Xt (X11 only),x11,idle,small,400,260,400,249,ok,1693662908,3.32,,,0,0,true,false,24.60,1,1,2,1,0.63,0.63,0,,22,3,0.63,0.64,4.24,true,true,17.34,true,false,true,20.94,true,false
+pos-xterm,1,xterm,Xt (X11 only),x11,idle,large,900,560,898,548,ok,1693662909,1.55,,,0,0,true,false,5.26,1,1,2,1,2.75,2.75,0,,49,3,2.75,2.78,5.24,true,true,19.48,true,false,true,21.94,true,false
+pos-xterm,2,xterm,Xt (X11 only),x11,idle,small,400,260,400,249,ok,1693662910,1.84,,,0,0,true,false,5.48,1,1,2,0,,,0,,21,3,-1.11,-0.18,2.63,false,true,16.52,false,false,true,19.33,false,false
+pos-xterm,3,xterm,Xt (X11 only),x11,idle,large,900,560,898,548,ok,1693662911,2.43,,,0,0,true,false,5.40,1,1,2,1,2.90,2.90,0,,49,3,2.90,2.92,5.85,true,true,19.62,true,false,true,22.55,true,false
+pos-xterm,4,xterm,Xt (X11 only),x11,idle,large,900,560,898,548,ok,1693662912,3.29,,,0,0,true,false,4.32,1,1,2,1,1.05,1.05,0,,49,3,1.05,1.05,5.19,true,true,17.75,true,false,true,21.89,true,false
+pos-xterm,5,xterm,Xt (X11 only),x11,idle,small,400,260,400,249,ok,1693662913,1.60,,,0,0,true,false,5.21,1,1,2,0,,,0,,22,3,-0.93,1.52,3.59,false,true,18.22,false,false,true,20.29,false,false
+pos-xterm,6,xterm,Xt (X11 only),x11,idle,large,900,560,898,548,ok,1693662914,1.91,,,0,0,true,false,4.28,1,1,2,1,1.90,1.90,0,,49,3,1.90,1.91,4.32,true,true,18.61,true,false,true,21.02,true,false
+pos-xterm,7,xterm,Xt (X11 only),x11,idle,small,400,260,400,249,ok,1693662915,1.98,,,0,0,true,false,6.39,1,1,2,0,,,0,,21,3,-1.10,-0.19,2.72,false,true,16.51,false,false,true,19.42,false,false
+pos-xterm,8,xterm,Xt (X11 only),x11,idle,large,900,560,898,548,ok,1693662916,1.48,,,0,0,true,false,5.44,1,1,2,1,1.74,1.74,0,,49,3,1.74,1.76,4.98,true,true,18.46,true,false,true,21.68,true,false
+pos-xterm,9,xterm,Xt (X11 only),x11,idle,small,400,260,400,249,ok,1693662917,2.01,,,0,0,true,false,4.75,1,1,2,0,,,0,,22,3,-1.19,0.03,3.37,false,true,16.73,false,false,true,20.07,false,false

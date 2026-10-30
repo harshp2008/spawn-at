@@ -1,0 +1,11 @@
+batch,run,app,toolkit,mode,cond,size_case,req_w,req_h,final_w,final_h,status,wid,cloak_ms,commit_reason,ready_outcome,A,late_corrected,x_found,V,map_minus_cloak_ms,init_w,init_h,self_resizes_before_set,R,R_first_ms,R_last_ms,D,D_first_ms,D_in_frame,D_other,L_cfg_ms,L_d1_ms,L_last_ms,flash_any,R1_fired,R1_extra_ms,R1_fixed,R1_misfire,R2_fired,R2_extra_ms,R2_fixed,R2_misfire
+pos-eog,0,eog,GTK3,x11,idle,small,600,420,600,420,ok,1693662918,2.26,,,0,0,true,false,1.08,592,502,0,0,,,0,,3,53,-0.35,-0.31,15.09,false,true,16.39,false,false,true,31.79,false,false
+pos-eog,1,eog,GTK3,x11,idle,small,600,420,600,420,ok,1693662919,2.61,,,0,0,true,false,0.56,592,502,0,0,,,0,,2,48,-0.94,-0.89,4.14,false,true,15.81,false,false,true,20.84,false,false
+pos-eog,2,eog,GTK3,x11,idle,small,600,420,600,420,ok,1693662920,2.63,,,0,0,true,false,0.98,592,502,0,0,,,0,,3,63,-0.95,-0.93,10.22,false,true,15.77,false,false,true,26.92,false,false
+pos-eog,3,eog,GTK3,x11,idle,large,1100,760,1100,760,ok,1693662921,12.66,,,0,0,true,false,0.97,592,502,0,1,13.15,13.15,3,24.94,1,42,13.15,13.32,43.10,true,true,30.02,false,true,true,59.80,true,false
+pos-eog,4,eog,GTK3,x11,idle,large,1100,760,1100,760,ok,1693662922,1.73,,,0,0,true,false,1.44,592,502,0,1,2.11,2.11,1,21.51,3,37,2.11,2.15,21.51,true,true,18.85,false,true,true,38.21,true,false
+pos-eog,5,eog,GTK3,x11,idle,small,600,420,600,420,ok,1693662923,2.39,,,0,0,true,false,1.79,592,502,0,0,,,0,,3,58,-0.81,-0.78,7.81,false,true,15.92,false,false,true,24.51,false,false
+pos-eog,6,eog,GTK3,x11,idle,large,1100,760,1100,760,ok,1693662924,2.54,,,0,0,true,false,0.61,592,502,0,1,2.53,2.53,0,,3,35,2.53,2.57,11.75,true,true,19.27,true,false,true,28.45,true,false
+pos-eog,7,eog,GTK3,x11,idle,large,1100,760,1100,760,ok,1693662925,2.20,,,0,0,true,false,1.00,592,502,0,1,1.47,1.47,0,,3,41,1.47,1.50,8.97,true,true,18.20,true,false,true,25.67,true,false
+pos-eog,8,eog,GTK3,x11,idle,large,1100,760,1100,760,ok,1693662926,1.56,,,0,0,true,false,0.58,592,502,0,1,2.17,2.17,0,,3,41,2.17,2.19,9.99,true,true,18.89,true,false,true,26.69,true,false
+pos-eog,9,eog,GTK3,x11,idle,small,600,420,600,420,ok,1693662927,2.11,,,0,0,true,false,1.36,592,502,0,0,,,0,,3,55,-0.35,-0.31,8.24,false,true,16.39,false,false,true,24.94,false,false
