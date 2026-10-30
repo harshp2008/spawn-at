@@ -141,9 +141,10 @@ or an earlier failure.
   size request, until its texture size equals its buffer rect size, for at most 250 ms. In a private
   GNOME 46 Shell this took eog, gnome-text-editor and gnome-calculator from 10 to 20 flashes in 20
   runs at the larger sizes to 0 or 1. It does not help a frame that has the right size but nothing
-  painted in it (seen with Qt Assistant, Chrome and a few gnome-calculator runs), and it makes the
-  window appear 6 to 85 ms later for GTK programs. `spawn-at config set wait.strategy legacy` turns
-  it off. Measurements: [Known shortcomings](/spawn-at/shortcomings/); see also
+  painted in it: gnome-text-editor showed one in 5 of 100 gated runs, gnome-calculator in 5 of 40, Qt
+  Assistant in 3 of 4 and Chrome in 2 of 4 in a later session. It makes the window appear 6 to 85 ms
+  later for GTK programs. `spawn-at config set wait.strategy legacy` turns it off. Measurements:
+  [Known shortcomings](/spawn-at/shortcomings/); see also
   [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
 ### `spawn-at update` says "up to date (dev)"

@@ -43,9 +43,11 @@ The cause is unknown.
 Sway cannot hold a new window invisible, so a window can show before it is placed. This was not
 measured.
 
-### XWayland and X11 windows can flash at the wrong size (GTK: fixed after 0.2.4; other toolkits: not)
+### XWayland and X11 windows can still flash (the old-size frame is fixed for GTK after 0.2.4)
 
-Status: **partly fixed** after 0.2.4 (not yet in a release), for GTK programs only. Every release up to 0.2.4 has the flash.
+Status: **partly fixed** after 0.2.4 (not yet in a release). The gate removes the old-size frame for
+GTK programs, but it cannot see a blank frame at the right size, and those still happen. Every
+release up to 0.2.4 has both.
 
 The flash on XWayland is the Shell showing a window whose surface texture still has the old size,
 before the program has committed its final-size buffer. The frame is already final at that point, so
@@ -73,10 +75,17 @@ all; counting it, the rows are 11 and 2 of 20.
 
 What it does **not** fix, and what it costs:
 
-- **A frame of the right size with nothing painted in it** is not seen, because the gate reads sizes,
-  not pixels. Qt Assistant showed one in 16 of 20 runs before and 5 of 20 after (the cause of the
-  drop is not established), Chrome in 18 of 20 before and after, gnome-calculator in 4 of 20 large
-  runs and gnome-text-editor in 1 of 20 large runs after the change.
+- **A frame of the right size with nothing painted in it** is still shown, because the gate reads
+  sizes, not pixels. In the same private headless GNOME 46 Shell (04 and 05, capture mode) it happened
+  after the gate to gnome-text-editor in 5 of 100 gated runs (3 of 20 at 1100x760 warm, 2 of 10 at
+  1100x760 after its saved size was deleted, 0 of 50 at 640x420), gnome-calculator in 5 of 40 at
+  900x700, Qt Assistant in 5 of 20 at 1000x700 in 04 and 3 of 4 runs in 05's coarse Qt cell, and
+  Chrome in 18 of 20 cold runs (1200x800 and 700x480, 10 each) in 04 and 2 of 4 warm runs in 05. The
+  editor's frame is pure black; Qt and Chrome are near black. The blank frame is the main remaining
+  problem for Chrome, and the gate is not useless for it: Chrome reached the texture match in 20 of
+  20 runs, after a median of 9 to 13 ms (at most 58 ms), so it is not a cap case. Qt Assistant's drop
+  from 16 of 20 blank runs before the gate to 5 of 20 after is not explained. The pure-black frame
+  seen once in the live session at 640x420 was not reproduced in 50 gated runs at that size.
 - **A texture that does not arrive in 250 ms** is shown as it is at the cap, with the old flash, 250 ms
   later. Two of 20 editor runs at 1100x760 did that in the capture cell (0 of 20 in the passive cell):
   one texture arrived 318 ms after the hold began, the other window never got a final-size buffer.
