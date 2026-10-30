@@ -52,7 +52,7 @@ Stop the task, write down what happened, and report to the owner before doing an
 
 ## Recording results (after every run)
 
-This section is identical in AGENTS.md; change both together.
+This section is identical in CLAUDE.md; change both together.
 
 Why: we must always be able to see what we tried, what we saw, and what we still do not know. A run is not finished until it is written down.
 
