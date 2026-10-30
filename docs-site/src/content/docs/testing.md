@@ -29,7 +29,7 @@ The harness rows need the binaries first: `cargo build -p spawn-at -p spawn-at-v
 spawn-at-verify/fixture`. The binary embeds its commit, so rebuild after every commit or the
 preflight check blocks the run as a stale binary.
 
-The first four `cargo` rows are what CI runs. The `node --test` row lists the 13 `*_test.js` files by
+The first four `cargo` rows are what CI runs. The `node --test` row lists the 14 `*_test.js` files by
 name. CI runs `node --test tests/*.js` instead, which also runs the 3 tests of
 `tests/install_unsupported_test.js`.
 
@@ -64,17 +64,21 @@ This is the one table of counts. Other pages point here.
 | `spawn-at-verify`, no features | 435 | 0 | `cargo test --locked -p spawn-at-verify -- --list` |
 | `spawn-at-verify`, `tui` | 600 | 1 | `cargo test --locked -p spawn-at-verify --features tui -- --list` |
 | `spawn-at-verify`, `tui,fixture` (what CI runs) | 626 | 5 | `cargo test --locked -p spawn-at-verify --features tui,fixture -- --list` |
-| Node, 13 `*_test.js` files | 254 | 0 | `node --test tests/<file>`, once per file |
+| Node, 14 `*_test.js` files | 272 | 0 | `node --test tests/<file>`, once per file |
 | Node, the install-script test | 3 | 0 | CI only |
 
-Rust total with `tui,fixture`: 1342 run and 5 ignored (520 + 64 + 132 + 626). With the 254 Node tests
-that run locally: 1596. With the 3 install-script tests, which only CI runs: 1599.
+Rust total with `tui,fixture`: 1342 run and 5 ignored (520 + 64 + 132 + 626). With the 272 Node tests
+that run locally: 1614. With the 3 install-script tests, which only CI runs: 1617.
 
-Last checked on 2026-10-23 at commit `cca1bc3`, which contains v0.2.4 (`07228c4`) and the
-documentation changes of this branch. Every Rust row was produced by the command in its last column
-(`--list`, then `grep -c ': test$'`, and `--list --ignored` for the ignored column). The Node row was
-produced by running each of the 13 local files once with `node --test tests/<file>`: `tests 254`,
-`pass 254`, `fail 0` in total.
+The Rust rows were last checked on 2026-10-23 at commit `cca1bc3`, which contains v0.2.4 (`07228c4`) and
+the documentation changes of that branch, and were not counted again since. Each was produced by the
+command in its last column (`--list`, then `grep -c ': test$'`, and `--list --ignored` for the ignored
+column). The Node row was counted on 2026-10-30, after the X11 texture gate (15 new tests in
+`ready_wait_wiring_test.js`, now 67): each of the 14 local files was run once with
+`node --test tests/<file>`, and `node --test tests/*.js` printed `tests 276`, `pass 276`, `fail 0` in
+total, which is the 272 local tests, the 3 install-script tests and the one `gi_loader.js` loads as a
+test. The 14th local file is `launch_key_test.js` (3 tests, from the startup-id fix), which the earlier
+count of 254 in 13 files did not include.
 
 The `xtask` row includes the 13 tests of `release.rs` from v0.2.4 and the tests of this branch (the
 Status check of the mirror, the image checks and the readability warnings). No Rust or JavaScript code

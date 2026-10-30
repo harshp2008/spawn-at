@@ -131,15 +131,21 @@ or an earlier failure.
 ### The window flashes at its default place (XWayland and X11 windows)
 
 - **Symptom.** The window shows at its default place before it moves.
-- **Cause.** XWayland, X11 and GNOME 42-44 windows use the legacy 30 ms rule. The project looked for
-  a signal that says an X11 client has painted at its new size and found none that works for every
-  toolkit. The measured flash rate of that rule on XWayland varied between logins: 1 of 10 in one
-  session and 9 of 10 and 10 of 10 in others
+- **Cause.** XWayland, X11 and GNOME 42-44 windows use the legacy 30 ms rule. For GTK programs the
+  flash is the Shell showing the surface texture of the old size until the program commits its
+  final-size buffer. The measured flash rate of that rule on XWayland varied between logins: 1 of 10
+  in one session and 9 of 10 and 10 of 10 in others
   ([6.17](/spawn-at/experiments/6-17-flash-baseline/),
-  [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/)), and the explanation of the
-  difference is a hypothesis.
-- **Fix.** None recorded. See [X11 and XWayland](/spawn-at/environments/x11-xwayland/) for what was
-  tried.
+  [6.18](/spawn-at/experiments/6-18-ready-wait-live-validation/)), and it rises with the window size.
+- **Fix.** After 0.2.4 (not in a release yet) the modern extension holds such a window, when it has a
+  size request, until its texture size equals its buffer rect size, for at most 250 ms. In a private
+  GNOME 46 Shell this took eog, gnome-text-editor and gnome-calculator from 10 to 20 flashes in 20
+  runs at the larger sizes to 0 or 1. It does not help a frame that has the right size but nothing
+  painted in it: gnome-text-editor showed one in 5 of 100 gated runs, gnome-calculator in 5 of 40, Qt
+  Assistant in 3 of 4 and Chrome in 2 of 4 in a later session. It makes the window appear 6 to 85 ms
+  later for GTK programs. `spawn-at config set wait.strategy legacy` turns it off. Measurements:
+  [Known shortcomings](/spawn-at/shortcomings/); see also
+  [X11 and XWayland](/spawn-at/environments/x11-xwayland/).
 
 ### `spawn-at update` says "up to date (dev)"
 

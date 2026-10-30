@@ -112,8 +112,11 @@ for the application is the **ready-wait**:
   default cap is 250 ms and the hard limit is 1500 ms (`wait.cap_ms`).
 - XWayland and X11 windows, and the legacy extension for GNOME 42 to 44, use the legacy rule: a
   30 ms quiet period, a 120 ms minimum, and a 1500 ms hard cap.
-- Setting `wait.strategy` to `legacy` selects that same 30 ms rule; see
-  [Configuration](/spawn-at/configuration/).
+- On the modern extension an XWayland or X11 window that has a size request then also waits for its
+  surface texture to reach the size of its buffer rect, for at most 250 ms (the texture gate). The
+  frame is already final at that point; the texture is what lags. The legacy extension has no gate.
+- Setting `wait.strategy` to `legacy` selects the 30 ms rule alone, for native Wayland windows too, and
+  turns the texture gate off; see [Configuration](/spawn-at/configuration/).
 
 A window never stays invisible. Registrations expire after 15 seconds (1.2 seconds for wildcard
 matches), a window that matches nothing is revealed at once, and an error during placement restores

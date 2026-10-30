@@ -9,8 +9,8 @@ settings existed.
 
 | Key | Default | Allowed | What it does |
 | :--- | :--- | :--- | :--- |
-| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (it was 150 ms in development builds) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway |
-| `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the 30 ms quiet rule; `ready-wait` is the newer wait on GNOME Wayland |
+| `wait.cap_ms` | not sent: the extension uses its own default, 250 ms (it was 150 ms in development builds) | whole milliseconds, 1 to 1500 | The longest the extension waits for an app to answer a size request before it shows the window anyway. For an XWayland or X11 window it is also the longest the texture gate waits for the surface texture to reach the buffer rect size |
+| `wait.strategy` | `auto` | `auto`, `legacy`, `ready-wait` | Which rule waits for the resized window. `auto` lets the extension choose; `legacy` is the 30 ms quiet rule, with no texture gate for XWayland and X11 windows; `ready-wait` is the newer wait on GNOME Wayland |
 | `spawn.window_timeout_ms` | 2000 | whole milliseconds, 200 to 60000 | How long `spawn` waits for the new window to appear before it warns that it did not (applies to the extension's claim and again to the fallback poll) |
 
 ## The `config` command

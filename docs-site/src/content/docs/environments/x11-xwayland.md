@@ -9,8 +9,19 @@ this name, and they behave differently.
 
 The GNOME extension handles them like any window, but it keeps the older, shorter wait: a 30 ms
 quiet period, a 120 ms minimum, a 1500 ms hard cap. The newer ready-wait is native-Wayland only.
-These windows can still flash. They were tried with the project's test window, not with real
-X11 applications.
+
+After 0.2.4 (not in a release yet) the modern extension adds a texture gate for such a window when
+it has a size request: it stays hidden until the size of its surface texture equals the size of its
+buffer rect, or for 250 ms (`wait.cap_ms` changes the 250, `wait.strategy legacy` turns the gate off).
+Each gated window logs `X11_GATE_START` and `X11_GATE_RESOLVED reason=texture-matched|cap|unreadable`.
+In a private headless GNOME 46 Shell the gate removed the old-size frame of eog, gnome-text-editor and
+gnome-calculator (0 or 1 of 20 runs per size, from 10 to 20 of 20 at the larger sizes). It cannot see
+a frame of the right size that has nothing painted in it. Those still happen: gnome-text-editor in 5
+of 100 gated runs, gnome-calculator in 5 of 40, Qt Assistant in 3 of 4 and Chrome in 2 of 4 in a later
+session (04 and 05 findings; counts and conditions on [Known shortcomings](/spawn-at/shortcomings/)).
+The gate is not useless for Chrome: it reached the texture match in 20 of 20 runs, and the blank frame
+is what remains. The added hidden time and what was not run are there too. Windows can still flash; no
+live session or real Xorg session was used.
 
 ## 2. The native X11 driver
 
