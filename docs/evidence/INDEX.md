@@ -1,8 +1,11 @@
 # Every run
 
 One row per run that has a folder in `docs/evidence/`, plus the two pull requests that fixed the
-startup id and added the texture gate. The evidence for `x11-flash-02` to `x11-flash-05` is not on
-`main`; read it on the branch named in the row with `git show <branch>:docs/evidence/<run-name>/`.
+startup id and added the texture gate. The text evidence for `x11-flash-02` to `x11-flash-05`
+(README, findings, notes, checkpoints and small data files) is in `docs/evidence/<run>/` on `main`.
+Each run folder has a `FILES.md` that lists what stayed on the experiment branches. The full data is
+only on the branches `exp/x11-flash-02`, `exp/x11-flash-03` and `exp/x11-flash-05-ds`; those branches
+must be kept.
 
 | Run | Date | Question | Result | Branch | Website page |
 | :-- | :-- | :-- | :-- | :-- | :-- |
