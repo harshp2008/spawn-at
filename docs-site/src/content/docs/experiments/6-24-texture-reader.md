@@ -2,6 +2,13 @@
 title: "6.24 Texture reader and texture size as a signal"
 ---
 
+:::note[Reader's note]
+This page was written on 2026-10-13. It asked whether the texture size tells us the app has painted.
+The answer was no. The later texture gate asks a different question: is the texture still the old
+size? If yes, it keeps the window hidden. Both statements are true. The gate (run 04, draft PR #95) is
+not about this page's question.
+:::
+
 Texture reader live check and texture size as a signal. The corrected reader works, but the texture size is not a usable signal.
 
 | Field | Value |
