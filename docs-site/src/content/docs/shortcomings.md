@@ -86,11 +86,16 @@ What it does **not** fix, and what it costs:
   20 runs, after a median of 9 to 13 ms (at most 58 ms), so it is not a cap case. Qt Assistant's drop
   from 16 of 20 blank runs before the gate to 5 of 20 after is not explained. The pure-black frame
   seen once in the live session at 640x420 was not reproduced in 50 gated runs at that size.
-- **A texture that does not arrive in 250 ms** is shown as it is at the cap, with the old flash, 250 ms
-  later. Two of 20 editor runs at 1100x760 did that in the capture cell (0 of 20 in the passive cell):
-  one texture arrived 318 ms after the hold began, the other window never got a final-size buffer.
-  With the cap forced down to 5 ms, eog at 1700 px flashed again in 7 of 10 runs. Chrome, which was
-  expected to never match, matched in 20 of 20 runs, after a median of 9 to 13 ms (at most 58 ms).
+- **A texture that does not arrive in 250 ms** is not fixed. The gate fixed the old-size frame for
+  runs whose texture arrives before the cap, but it still stops waiting at 250 ms, and a later
+  texture can still show the old frame. In 04, 2 of 20 editor runs at 1100x760 reached the cap in the
+  capture cell (0 of 20 in the passive cell): in one the texture arrived 68 ms after the reveal (318
+  ms after the hold began, so the probe counted a bad frame) and in the other the window never got a
+  final-size buffer in 2.5 s. In 05, one of 100 gated editor runs at 1100x760 (after the saved size
+  was deleted) reached the cap at 251.3 ms, with the texture at 822x642 against a buffer of 1222x882;
+  the texture arrived before the first captured frame, so it was not counted as a bad frame. The cap
+  was not raised; the tail is still there. With the cap forced down to 5 ms, eog at 1700 px flashed
+  again in 7 of 10 runs, and a screenshot showed a 540x450 viewer in the corner of a 1700x1000 frame.
 - **gnome-calculator resets itself to 360x492.** Before the gate it did so in 20 of 80 runs and after
   in 21 of 80, all in the test sandbox. That sandbox had no saved window size. With a saved size, 0 of
   30 runs ended at the wrong size (05, Task B). The live rate is not measured; the live user has a
