@@ -2,6 +2,24 @@
 title: "6.26 Hold the cloak: live A/B"
 ---
 
+:::note[Reader's note]
+This page was written on 2026-10-14. The verdict below says the X sync counter was still untried.
+6.31 to 6.35 are the experiments that tried it and the routes around it. The result was not usable as
+a ready signal:
+
+- [6.31](/spawn-at/experiments/6-31-sync-counter-feasibility/): not testable with the fixture, which
+  does not take part in X sync.
+- [6.32](/spawn-at/experiments/6-32-gtk4-client-legacy-rule/): a sync-capable GTK4 client flashed as
+  much as the fixture under load, and Mutter did not visibly wait for it.
+- [6.33](/spawn-at/experiments/6-33-sync-counter-moves-on-repaint/): the extended counter moved on
+  repaint for that GTK4 client only; the basic counter never moved, and the extension cannot read
+  XSync counters.
+- [6.34](/spawn-at/experiments/6-34-self-sent-sync-request/): counter A never moved, so the batches
+  were not run.
+- [6.35](/spawn-at/experiments/6-35-ld-preload-geometry-shim/): an `LD_PRELOAD` shim worked on one
+  toolkit, and the log does not recommend shipping it.
+:::
+
 `x11-hold-damage`, live A/B against the legacy rule on the XWayland fixture. The second damaged event is a shell-side event, so the method is not usable as a ready signal.
 
 | Field | Value |
