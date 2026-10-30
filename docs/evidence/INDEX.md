@@ -12,7 +12,7 @@ startup id and added the texture gate. The evidence for `x11-flash-02` to `x11-f
 | `x11-flash-04` | 2026-10-30 | Does the texture gate remove the X11 flash without breaking placement? | GTK bad frames fell from 16, 17 and 11 of 20 to 0, 0 and 0; one editor run was still bad; placement unchanged. | `exp/x11-flash-03` (evidence); product on `fix/x11-texture-gate` | not on the site yet |
 | `x11-flash-05` | 2026-10-30 | What does the texture gate leave unfixed? | Blank frames remain (5 of 100 editor runs); the calculator size is a map race; the sync counter is dead; native Wayland 0 bad of 130. | `exp/x11-flash-05-ds` | not on the site yet |
 | [PR #94](https://github.com/harshp2008/spawn-at/pull/94) | 2026-10-29 | Does an oversized startup-id time crash the Shell when a focused X11 window closes? | With DING, 10 of 10 crash cells aborted; `_TIME0` gave 0 of 10 and matching still worked. | `fix/startup-id-time` | not on the site yet |
-| [PR #95](https://github.com/harshp2008/spawn-at/pull/95) | 2026-10-29 | Does holding the reveal until the texture matches remove the flash? | GTK stale-size flash gone; blank frames and the 250 ms cap tail remain; placement unchanged. | `fix/x11-texture-gate` | not checked |
+| [PR #95](https://github.com/harshp2008/spawn-at/pull/95) | 2026-10-29 | Does holding the reveal until the texture matches remove the flash? | GTK stale-size flash gone; blank frames and the 250 ms cap tail remain; placement unchanged. | `fix/x11-texture-gate` | not on the site yet |
 
 `stage1` holds before and after snapshots of the tooling refactor, not an experiment. Its README and
 findings are the snapshot files themselves. `x11-flash-02` has no `README.md` or `findings.md`; start
