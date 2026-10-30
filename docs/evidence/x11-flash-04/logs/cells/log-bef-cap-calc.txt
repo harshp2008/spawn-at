@@ -1,0 +1,47 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-calc/probe/probe.jsonl: No such file
+[1/40] gnome-calculator x11 900x700 win=Some(699228331) status=ok
+[2/40] gnome-calculator x11 900x700 win=Some(699228332) status=ok
+[3/40] gnome-calculator x11 500x400 win=Some(699228333) status=ok
+[4/40] gnome-calculator x11 900x700 win=Some(699228334) status=ok
+[5/40] gnome-calculator x11 900x700 win=Some(699228335) status=ok
+[6/40] gnome-calculator x11 900x700 win=Some(699228336) status=ok
+[7/40] gnome-calculator x11 500x400 win=Some(699228337) status=ok
+[8/40] gnome-calculator x11 500x400 win=Some(699228338) status=ok
+[9/40] gnome-calculator x11 900x700 win=Some(699228339) status=ok
+[10/40] gnome-calculator x11 900x700 win=Some(699228340) status=ok
+[11/40] gnome-calculator x11 900x700 win=Some(699228341) status=ok
+[12/40] gnome-calculator x11 500x400 win=Some(699228342) status=ok
+[13/40] gnome-calculator x11 900x700 win=Some(699228343) status=ok
+[14/40] gnome-calculator x11 500x400 win=Some(699228344) status=ok
+[15/40] gnome-calculator x11 900x700 win=Some(699228345) status=ok
+[16/40] gnome-calculator x11 500x400 win=Some(699228346) status=ok
+[17/40] gnome-calculator x11 900x700 win=Some(699228347) status=ok
+[18/40] gnome-calculator x11 500x400 win=Some(699228348) status=ok
+[19/40] gnome-calculator x11 500x400 win=Some(699228349) status=ok
+[20/40] gnome-calculator x11 500x400 win=Some(699228350) status=ok
+[21/40] gnome-calculator x11 500x400 win=Some(699228351) status=ok
+[22/40] gnome-calculator x11 900x700 win=Some(699228352) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(699228353) status=ok
+[24/40] gnome-calculator x11 900x700 win=Some(699228354) status=ok
+[25/40] gnome-calculator x11 500x400 win=Some(699228355) status=ok
+[26/40] gnome-calculator x11 500x400 win=Some(699228356) status=ok
+[27/40] gnome-calculator x11 900x700 win=Some(699228357) status=ok
+[28/40] gnome-calculator x11 500x400 win=Some(699228358) status=ok
+[29/40] gnome-calculator x11 500x400 win=Some(699228359) status=ok
+[30/40] gnome-calculator x11 500x400 win=Some(699228360) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(699228361) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(699228362) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(699228363) status=ok
+[34/40] gnome-calculator x11 500x400 win=Some(699228364) status=ok
+[35/40] gnome-calculator x11 500x400 win=Some(699228365) status=ok
+[36/40] gnome-calculator x11 500x400 win=Some(699228366) status=ok
+[37/40] gnome-calculator x11 500x400 win=Some(699228367) status=ok
+[38/40] gnome-calculator x11 900x700 win=Some(699228368) status=ok
+[39/40] gnome-calculator x11 500x400 win=Some(699228369) status=ok
+[40/40] gnome-calculator x11 900x700 win=Some(699228370) status=ok
+runs done in this invocation: 40
+collected: 14504 lines, 1584 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 20 | 20 | 20 | 2.0 / 2 | 74.7 / 182.0 | 100.0% | 74.7 / 182.0 | 1 | 0 | 1 | -0.9 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 18 | 18 | 18 | 2.0 / 2 | 42.0 / 58.5 | 100.0% | 42.0 / 58.5 | 0 | 15 | 0 | 39.1 |

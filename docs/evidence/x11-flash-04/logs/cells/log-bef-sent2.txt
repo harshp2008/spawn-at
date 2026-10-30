@@ -1,0 +1,17 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-sent2/probe/probe.jsonl: No such file
+[1/10] eog x11 1100x760 win=Some(699228731) status=ok
+[2/10] eog x11 1100x760 win=Some(699228732) status=ok
+[3/10] eog x11 1100x760 win=Some(699228733) status=ok
+[4/10] eog x11 1100x760 win=Some(699228734) status=ok
+[5/10] eog x11 1100x760 win=Some(699228735) status=ok
+[6/10] eog x11 1100x760 win=Some(699228736) status=ok
+[7/10] eog x11 1100x760 win=Some(699228737) status=ok
+[8/10] eog x11 1100x760 win=Some(699228738) status=ok
+[9/10] eog x11 1100x760 win=Some(699228739) status=ok
+[10/10] eog x11 1100x760 win=Some(699228740) status=ok
+runs done in this invocation: 10
+collected: 814 lines, 271 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-sent2/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 5 | 5 | 4 | 4 | 4 | 1.0 / 1 | 11.8 / 25.6 | 70.8% | 11.8 / 25.6 | 5 | 2 | 0 | 14.2 |
+| eog / x11 / idle / small | 5 | 5 | 5 | 5 | 5 | 1.0 / 1 | 10.1 / 10.7 | 60.8% | 10.1 / 10.7 | 5 | 1 | 0 | 11.4 |

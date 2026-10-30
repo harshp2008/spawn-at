@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-chrome/probe/probe.jsonl: No such file
+[1/20] google-chrome x11 700x480 win=Some(699228431) status=ok
+[2/20] google-chrome x11 1200x800 win=Some(699228432) status=ok
+[3/20] google-chrome x11 700x480 win=Some(699228433) status=ok
+[4/20] google-chrome x11 1200x800 win=Some(699228434) status=ok
+[5/20] google-chrome x11 1200x800 win=Some(699228435) status=ok
+[6/20] google-chrome x11 700x480 win=Some(699228436) status=ok
+[7/20] google-chrome x11 1200x800 win=Some(699228437) status=ok
+[8/20] google-chrome x11 1200x800 win=Some(699228438) status=ok
+[9/20] google-chrome x11 1200x800 win=Some(699228439) status=ok
+[10/20] google-chrome x11 700x480 win=Some(699228440) status=ok
+[11/20] google-chrome x11 700x480 win=Some(699228441) status=ok
+[12/20] google-chrome x11 700x480 win=Some(699228442) status=ok
+[13/20] google-chrome x11 1200x800 win=Some(699228443) status=ok
+[14/20] google-chrome x11 700x480 win=Some(699228444) status=ok
+[15/20] google-chrome x11 700x480 win=Some(699228445) status=ok
+[16/20] google-chrome x11 1200x800 win=Some(699228446) status=ok
+[17/20] google-chrome x11 1200x800 win=Some(699228447) status=ok
+[18/20] google-chrome x11 700x480 win=Some(699228448) status=ok
+[19/20] google-chrome x11 1200x800 win=Some(699228449) status=ok
+[20/20] google-chrome x11 700x480 win=Some(699228450) status=ok
+runs done in this invocation: 20
+collected: 866 lines, 279 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-chrome/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome / x11 / idle / large | 10 | 10 | 0 | 8 | 8 | 11.5 / 15 | 229.3 / 299.7 | 100.0% | 228.2 / 299.7 | 2 | 1 | 0 | -1.0 |
+| google-chrome / x11 / idle / small | 10 | 10 | 0 | 10 | 10 | 11.5 / 14 | 171.8 / 295.4 | 100.0% | 154.4 / 295.4 | 3 | 1 | 0 | -0.8 |

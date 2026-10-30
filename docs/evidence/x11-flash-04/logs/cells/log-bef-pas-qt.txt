@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-pas-qt/probe/probe.jsonl: No such file
+[1/20] qt-assistant x11 700x500 win=Some(699228691) status=ok
+[2/20] qt-assistant x11 700x500 win=Some(699228692) status=ok
+[3/20] qt-assistant x11 700x500 win=Some(699228693) status=ok
+[4/20] qt-assistant x11 700x500 win=Some(699228694) status=ok
+[5/20] qt-assistant x11 1000x700 win=Some(699228695) status=ok
+[6/20] qt-assistant x11 700x500 win=Some(699228696) status=ok
+[7/20] qt-assistant x11 700x500 win=Some(699228697) status=ok
+[8/20] qt-assistant x11 1000x700 win=Some(699228698) status=ok
+[9/20] qt-assistant x11 1000x700 win=Some(699228699) status=ok
+[10/20] qt-assistant x11 1000x700 win=Some(699228700) status=ok
+[11/20] qt-assistant x11 700x500 win=Some(699228701) status=ok
+[12/20] qt-assistant x11 1000x700 win=Some(699228702) status=ok
+[13/20] qt-assistant x11 1000x700 win=Some(699228703) status=ok
+[14/20] qt-assistant x11 700x500 win=Some(699228704) status=ok
+[15/20] qt-assistant x11 1000x700 win=Some(699228705) status=ok
+[16/20] qt-assistant x11 1000x700 win=Some(699228706) status=ok
+[17/20] qt-assistant x11 700x500 win=Some(699228707) status=ok
+[18/20] qt-assistant x11 1000x700 win=Some(699228708) status=ok
+[19/20] qt-assistant x11 700x500 win=Some(699228709) status=ok
+[20/20] qt-assistant x11 1000x700 win=Some(699228710) status=ok
+runs done in this invocation: 20
+collected: 614 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-pas-qt/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 10 | 10 | 4 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 2 | 10 | 0 | 39.2 |
+| qt-assistant / x11 / idle / small | 10 | 10 | 1 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 9 | 0 | 30.1 |

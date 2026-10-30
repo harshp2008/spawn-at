@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-nat-editor/probe/probe.jsonl: No such file
+[1/20] gnome-text-editor wayland 1100x760 win=Some(699228451) status=ok
+[2/20] gnome-text-editor wayland 640x420 win=Some(699228452) status=ok
+[3/20] gnome-text-editor wayland 1100x760 win=Some(699228453) status=ok
+[4/20] gnome-text-editor wayland 640x420 win=Some(699228454) status=ok
+[5/20] gnome-text-editor wayland 1100x760 win=Some(699228455) status=ok
+[6/20] gnome-text-editor wayland 1100x760 win=Some(699228456) status=ok
+[7/20] gnome-text-editor wayland 640x420 win=Some(699228457) status=ok
+[8/20] gnome-text-editor wayland 1100x760 win=Some(699228458) status=ok
+[9/20] gnome-text-editor wayland 1100x760 win=Some(699228459) status=ok
+[10/20] gnome-text-editor wayland 640x420 win=Some(699228460) status=ok
+[11/20] gnome-text-editor wayland 640x420 win=Some(699228461) status=ok
+[12/20] gnome-text-editor wayland 1100x760 win=Some(699228462) status=ok
+[13/20] gnome-text-editor wayland 1100x760 win=Some(699228463) status=ok
+[14/20] gnome-text-editor wayland 640x420 win=Some(699228464) status=ok
+[15/20] gnome-text-editor wayland 1100x760 win=Some(699228465) status=ok
+[16/20] gnome-text-editor wayland 640x420 win=Some(699228466) status=ok
+[17/20] gnome-text-editor wayland 640x420 win=Some(699228467) status=ok
+[18/20] gnome-text-editor wayland 640x420 win=Some(699228468) status=ok
+[19/20] gnome-text-editor wayland 640x420 win=Some(699228469) status=ok
+[20/20] gnome-text-editor wayland 1100x760 win=Some(699228470) status=ok
+runs done in this invocation: 20
+collected: 393 lines, 20 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-nat-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-text-editor / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |

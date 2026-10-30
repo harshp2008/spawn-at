@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_aft-pas-eog-1700/probe/probe.jsonl: No such file
+[1/20] eog x11 1700x1000 win=Some(1068882532) status=ok
+[2/20] eog x11 1700x1000 win=Some(1068882533) status=ok
+[3/20] eog x11 1700x1000 win=Some(1068882534) status=ok
+[4/20] eog x11 1700x1000 win=Some(1068882535) status=ok
+[5/20] eog x11 1700x1000 win=Some(1068882536) status=ok
+[6/20] eog x11 1700x1000 win=Some(1068882537) status=ok
+[7/20] eog x11 1700x1000 win=Some(1068882538) status=ok
+[8/20] eog x11 1700x1000 win=Some(1068882539) status=ok
+[9/20] eog x11 1700x1000 win=Some(1068882540) status=ok
+[10/20] eog x11 1700x1000 win=Some(1068882541) status=ok
+[11/20] eog x11 1700x1000 win=Some(1068882542) status=ok
+[12/20] eog x11 1700x1000 win=Some(1068882543) status=ok
+[13/20] eog x11 1700x1000 win=Some(1068882544) status=ok
+[14/20] eog x11 1700x1000 win=Some(1068882545) status=ok
+[15/20] eog x11 1700x1000 win=Some(1068882546) status=ok
+[16/20] eog x11 1700x1000 win=Some(1068882547) status=ok
+[17/20] eog x11 1700x1000 win=Some(1068882548) status=ok
+[18/20] eog x11 1700x1000 win=Some(1068882549) status=ok
+[19/20] eog x11 1700x1000 win=Some(1068882550) status=ok
+[20/20] eog x11 1700x1000 win=Some(1068882551) status=ok
+runs done in this invocation: 20
+collected: 3389 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-pas-eog-1700/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.4 |
+| eog / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.3 |

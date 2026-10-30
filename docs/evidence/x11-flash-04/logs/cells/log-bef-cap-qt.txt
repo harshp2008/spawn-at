@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-qt/probe/probe.jsonl: No such file
+[1/20] qt-assistant x11 700x500 win=Some(699228411) status=ok
+[2/20] qt-assistant x11 700x500 win=Some(699228412) status=ok
+[3/20] qt-assistant x11 700x500 win=Some(699228413) status=ok
+[4/20] qt-assistant x11 1000x700 win=Some(699228414) status=ok
+[5/20] qt-assistant x11 1000x700 win=Some(699228415) status=ok
+[6/20] qt-assistant x11 700x500 win=Some(699228416) status=ok
+[7/20] qt-assistant x11 700x500 win=Some(699228417) status=ok
+[8/20] qt-assistant x11 700x500 win=Some(699228418) status=ok
+[9/20] qt-assistant x11 1000x700 win=Some(699228419) status=ok
+[10/20] qt-assistant x11 1000x700 win=Some(699228420) status=ok
+[11/20] qt-assistant x11 1000x700 win=Some(699228421) status=ok
+[12/20] qt-assistant x11 1000x700 win=Some(699228422) status=ok
+[13/20] qt-assistant x11 700x500 win=Some(699228423) status=ok
+[14/20] qt-assistant x11 1000x700 win=Some(699228424) status=ok
+[15/20] qt-assistant x11 700x500 win=Some(699228425) status=ok
+[16/20] qt-assistant x11 1000x700 win=Some(699228426) status=ok
+[17/20] qt-assistant x11 700x500 win=Some(699228427) status=ok
+[18/20] qt-assistant x11 1000x700 win=Some(699228428) status=ok
+[19/20] qt-assistant x11 700x500 win=Some(699228429) status=ok
+[20/20] qt-assistant x11 1000x700 win=Some(699228430) status=ok
+runs done in this invocation: 20
+collected: 651 lines, 129 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-qt/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 10 | 10 | 6 | 10 | 10 | 2.0 / 3 | 15.2 / 23.0 | 91.1% | 15.2 / 23.0 | 5 | 10 | 0 | 46.9 |
+| qt-assistant / x11 / idle / small | 10 | 10 | 0 | 6 | 6 | 1.0 / 2 | 8.6 / 18.9 | 51.8% | 8.6 / 18.9 | 0 | 8 | 0 | 30.1 |

@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-nat-eog/probe/probe.jsonl: No such file
+[1/20] eog wayland 1100x760 win=Some(699228491) status=ok
+[2/20] eog wayland 1100x760 win=Some(699228492) status=ok
+[3/20] eog wayland 600x420 win=Some(699228493) status=ok
+[4/20] eog wayland 600x420 win=Some(699228494) status=ok
+[5/20] eog wayland 1100x760 win=Some(699228495) status=ok
+[6/20] eog wayland 1100x760 win=Some(699228496) status=ok
+[7/20] eog wayland 600x420 win=Some(699228497) status=ok
+[8/20] eog wayland 600x420 win=Some(699228498) status=ok
+[9/20] eog wayland 600x420 win=Some(699228499) status=ok
+[10/20] eog wayland 1100x760 win=Some(699228500) status=ok
+[11/20] eog wayland 600x420 win=Some(699228501) status=ok
+[12/20] eog wayland 600x420 win=Some(699228502) status=ok
+[13/20] eog wayland 600x420 win=Some(699228503) status=ok
+[14/20] eog wayland 600x420 win=Some(699228504) status=ok
+[15/20] eog wayland 1100x760 win=Some(699228505) status=ok
+[16/20] eog wayland 1100x760 win=Some(699228506) status=ok
+[17/20] eog wayland 1100x760 win=Some(699228507) status=ok
+[18/20] eog wayland 1100x760 win=Some(699228508) status=ok
+[19/20] eog wayland 600x420 win=Some(699228509) status=ok
+[20/20] eog wayland 1100x760 win=Some(699228510) status=ok
+runs done in this invocation: 20
+collected: 2153 lines, 591 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-nat-eog/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| eog / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
