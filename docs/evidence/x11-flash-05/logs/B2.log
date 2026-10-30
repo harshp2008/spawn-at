@@ -1,0 +1,34 @@
+== keyfile arm: saved window-size (900,700), 20 runs at the same size ==
+(900, 700)
+[1/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563374) status=ok
+[2/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563375) status=ok
+[3/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563376) status=ok
+[4/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563377) status=ok
+[5/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563378) status=ok
+[6/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563379) status=ok
+[7/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563380) status=ok
+[8/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563381) status=ok
+[9/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563382) status=ok
+[10/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563383) status=ok
+[11/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563384) status=ok
+[12/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563385) status=ok
+[13/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563386) status=ok
+[14/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563387) status=ok
+[15/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563388) status=ok
+[16/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563389) status=ok
+[17/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563390) status=ok
+[18/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563391) status=ok
+[19/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563392) status=ok
+[20/20] gnome-calculator-keyfile x11 900x700 win=Some(2384563393) status=ok
+runs done in this invocation: 20
+collected: 4658 lines, 734 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/B-calc-keyfile-900/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator-keyfile / x11 / idle / large | 10 | 10 | 0 | 1 | 1 | 0.0 / 1 | 0.0 / 13.3 | 0.0% | 0.0 / 13.3 | 0 | 0 | 0 | -79.9 |
+| gnome-calculator-keyfile / x11 / idle / small | 10 | 10 | 0 | 3 | 3 | 0.0 / 1 | 0.0 / 97.0 | 0.0% | 0.0 / 97.0 | 0 | 0 | 0 | -73.5 |
+
+real	2m32.723s
+user	0m32.194s
+sys	0m5.962s
+rc=0
+(900, 700)

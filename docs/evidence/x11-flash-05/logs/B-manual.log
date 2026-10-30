@@ -1,0 +1,33 @@
+=== T1: saved window-size 900x700, launch without spawn-at, size after 2s ===
+(900, 700)
+calc pid 314870
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+=== T2: close, then window-size ===
+error: invalid value '' for '--id <ID>': cannot parse integer from empty string
+
+For more information, try '--help'.
+(900, 700)
+=== T3: relaunch, size after 2s (restore?) ===
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+=== T4: order test, transform 2s after map to 900x700 ===
+error: invalid value '' for '--id <ID>': cannot parse integer from empty string
+
+For more information, try '--help'.
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+=== T5: spawn-at run, then transform correction if 360x492 ===
+error: invalid value '' for '--id <ID>': cannot parse integer from empty string
+
+For more information, try '--help'.
+{"window_id":2384563362,"x":996,"y":356,"w":900,"h":700,"rel_x":996,"rel_y":324,"area":"workarea","size_raised":false,"raised_w":false,"raised_h":false,"reused_existing_window":false,"source":"claim","resize":{"outcome":"reached","requested":{"w":900,"h":700},"final":{"w":900,"h":700},"waited_ms":7,"reason":"at-target"}}
+[spawn-at] INFO: Window mapped at final size (900x700), anchor bottom-right in workarea (origin 0, 32) -> screen position (996, 356).
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+
+For more information, try '--help'.
+docs/evidence/x11-flash-03/tools/psh: 25: exec: /home/harsh/Documents/GITHUB: not found
+error: invalid value '' for '--id <ID>': cannot parse integer from empty string
+
+For more information, try '--help'.

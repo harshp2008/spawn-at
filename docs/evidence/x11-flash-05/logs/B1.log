@@ -1,0 +1,233 @@
+=== gsettings before ===
+org.gnome.calculator accuracy 9
+org.gnome.calculator angle-units 'degrees'
+org.gnome.calculator base 10
+org.gnome.calculator button-mode 'basic'
+org.gnome.calculator number-format 'automatic'
+org.gnome.calculator precision 2000
+org.gnome.calculator refresh-interval 604800
+org.gnome.calculator show-thousands false
+org.gnome.calculator show-zeroes false
+org.gnome.calculator source-currency ''
+org.gnome.calculator source-units 'degree'
+org.gnome.calculator target-currency ''
+org.gnome.calculator target-units 'radian'
+org.gnome.calculator window-maximized false
+org.gnome.calculator window-position (-1, -1)
+org.gnome.calculator window-size (-1, -1)
+org.gnome.calculator word-size 64
+gate on: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_B-calc-gate-cold/probe/probe.jsonl: No such file
+[1/40] gnome-calculator x11 900x700 win=Some(2384563240) status=ok
+[2/40] gnome-calculator x11 900x700 win=Some(2384563241) status=ok
+[3/40] gnome-calculator x11 900x700 win=Some(2384563242) status=ok
+[4/40] gnome-calculator x11 900x700 win=Some(2384563243) status=ok
+[5/40] gnome-calculator x11 900x700 win=Some(2384563244) status=ok
+[6/40] gnome-calculator x11 900x700 win=Some(2384563245) status=ok
+[7/40] gnome-calculator x11 900x700 win=Some(2384563246) status=ok
+[8/40] gnome-calculator x11 900x700 win=Some(2384563247) status=ok
+[9/40] gnome-calculator x11 900x700 win=Some(2384563248) status=ok
+[10/40] gnome-calculator x11 900x700 win=Some(2384563249) status=ok
+[11/40] gnome-calculator x11 900x700 win=Some(2384563250) status=ok
+[12/40] gnome-calculator x11 900x700 win=Some(2384563251) status=ok
+[13/40] gnome-calculator x11 900x700 win=Some(2384563252) status=ok
+[14/40] gnome-calculator x11 900x700 win=Some(2384563253) status=ok
+[15/40] gnome-calculator x11 900x700 win=Some(2384563254) status=ok
+[16/40] gnome-calculator x11 900x700 win=Some(2384563255) status=ok
+[17/40] gnome-calculator x11 900x700 win=Some(2384563256) status=ok
+[18/40] gnome-calculator x11 900x700 win=Some(2384563257) status=ok
+[19/40] gnome-calculator x11 900x700 win=Some(2384563258) status=ok
+[20/40] gnome-calculator x11 900x700 win=Some(2384563259) status=ok
+[21/40] gnome-calculator x11 900x700 win=Some(2384563260) status=ok
+[22/40] gnome-calculator x11 900x700 win=Some(2384563261) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(2384563262) status=ok
+[24/40] gnome-calculator x11 900x700 win=Some(2384563263) status=ok
+[25/40] gnome-calculator x11 900x700 win=Some(2384563264) status=ok
+[26/40] gnome-calculator x11 900x700 win=Some(2384563265) status=ok
+[27/40] gnome-calculator x11 900x700 win=Some(2384563266) status=ok
+[28/40] gnome-calculator x11 900x700 win=Some(2384563267) status=ok
+[29/40] gnome-calculator x11 900x700 win=Some(2384563268) status=ok
+[30/40] gnome-calculator x11 900x700 win=Some(2384563269) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(2384563270) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(2384563271) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(2384563272) status=ok
+[34/40] gnome-calculator x11 900x700 win=Some(2384563273) status=ok
+[35/40] gnome-calculator x11 900x700 win=Some(2384563274) status=ok
+[36/40] gnome-calculator x11 900x700 win=Some(2384563275) status=ok
+[37/40] gnome-calculator x11 900x700 win=Some(2384563276) status=ok
+[38/40] gnome-calculator x11 900x700 win=Some(2384563277) status=ok
+[39/40] gnome-calculator x11 900x700 win=Some(2384563278) status=ok
+[40/40] gnome-calculator x11 900x700 win=Some(2384563279) status=ok
+runs done in this invocation: 40
+collected: 12743 lines, 1579 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/B-calc-gate-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 0 | 1 | 1 | 0.0 / 1 | 0.0 / 20.4 | 0.0% | 0.0 / 20.4 | 0 | 0 | 0 | -73.7 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 0 | 4 | 4 | 0.0 / 1 | 0.0 / 37.8 | 0.0% | 0.0 / 37.8 | 0 | 0 | 0 | -79.3 |
+
+real	4m50.862s
+user	1m1.996s
+sys	0m11.529s
+=== rc=0 ===
+=== gsettings after gate-on ===
+org.gnome.calculator accuracy 9
+org.gnome.calculator angle-units 'degrees'
+org.gnome.calculator base 10
+org.gnome.calculator button-mode 'basic'
+org.gnome.calculator number-format 'automatic'
+org.gnome.calculator precision 2000
+org.gnome.calculator refresh-interval 604800
+org.gnome.calculator show-thousands false
+org.gnome.calculator show-zeroes false
+org.gnome.calculator source-currency ''
+org.gnome.calculator source-units 'degree'
+org.gnome.calculator target-currency ''
+org.gnome.calculator target-units 'radian'
+org.gnome.calculator window-maximized false
+org.gnome.calculator window-position (-1, -1)
+org.gnome.calculator window-size (-1, -1)
+org.gnome.calculator word-size 64
+gate off: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+[wait]
+strategy = "legacy"
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_B-calc-legacy-cold/probe/probe.jsonl: No such file
+[1/40] gnome-calculator x11 900x700 win=Some(2384563280) status=ok
+[2/40] gnome-calculator x11 900x700 win=Some(2384563281) status=ok
+[3/40] gnome-calculator x11 900x700 win=Some(2384563282) status=ok
+[4/40] gnome-calculator x11 900x700 win=Some(2384563283) status=ok
+[5/40] gnome-calculator x11 900x700 win=Some(2384563284) status=ok
+[6/40] gnome-calculator x11 900x700 win=Some(2384563285) status=ok
+[7/40] gnome-calculator x11 900x700 win=Some(2384563286) status=ok
+[8/40] gnome-calculator x11 900x700 win=Some(2384563287) status=ok
+[9/40] gnome-calculator x11 900x700 win=Some(2384563288) status=ok
+[10/40] gnome-calculator x11 900x700 win=Some(2384563289) status=ok
+[11/40] gnome-calculator x11 900x700 win=Some(2384563290) status=ok
+[12/40] gnome-calculator x11 900x700 win=Some(2384563291) status=ok
+[13/40] gnome-calculator x11 900x700 win=Some(2384563292) status=ok
+[14/40] gnome-calculator x11 900x700 win=Some(2384563293) status=ok
+[15/40] gnome-calculator x11 900x700 win=Some(2384563294) status=ok
+[16/40] gnome-calculator x11 900x700 win=Some(2384563295) status=ok
+[17/40] gnome-calculator x11 900x700 win=Some(2384563296) status=ok
+[18/40] gnome-calculator x11 900x700 win=Some(2384563297) status=ok
+[19/40] gnome-calculator x11 900x700 win=Some(2384563298) status=ok
+[20/40] gnome-calculator x11 900x700 win=Some(2384563299) status=ok
+[21/40] gnome-calculator x11 900x700 win=Some(2384563300) status=ok
+[22/40] gnome-calculator x11 900x700 win=Some(2384563301) status=ok
+[23/40] gnome-calculator x11 900x700 win=Some(2384563302) status=ok
+[24/40] gnome-calculator x11 900x700 win=Some(2384563303) status=ok
+[25/40] gnome-calculator x11 900x700 win=Some(2384563304) status=ok
+[26/40] gnome-calculator x11 900x700 win=Some(2384563305) status=ok
+[27/40] gnome-calculator x11 900x700 win=Some(2384563306) status=ok
+[28/40] gnome-calculator x11 900x700 win=Some(2384563307) status=ok
+[29/40] gnome-calculator x11 900x700 win=Some(2384563308) status=ok
+[30/40] gnome-calculator x11 900x700 win=Some(2384563309) status=ok
+[31/40] gnome-calculator x11 900x700 win=Some(2384563310) status=ok
+[32/40] gnome-calculator x11 900x700 win=Some(2384563311) status=ok
+[33/40] gnome-calculator x11 900x700 win=Some(2384563312) status=ok
+[34/40] gnome-calculator x11 900x700 win=Some(2384563313) status=ok
+[35/40] gnome-calculator x11 900x700 win=Some(2384563314) status=ok
+[36/40] gnome-calculator x11 900x700 win=Some(2384563315) status=ok
+[37/40] gnome-calculator x11 900x700 win=Some(2384563316) status=ok
+[38/40] gnome-calculator x11 900x700 win=Some(2384563317) status=ok
+[39/40] gnome-calculator x11 900x700 win=Some(2384563318) status=ok
+[40/40] gnome-calculator x11 900x700 win=Some(2384563319) status=ok
+runs done in this invocation: 40
+collected: 8395 lines, 1478 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/B-calc-legacy-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / x11 / idle / large | 20 | 20 | 18 | 18 | 18 | 2.0 / 5 | 71.2 / 221.7 | 100.0% | 71.2 / 221.7 | 4 | 1 | 1 | -0.8 |
+| gnome-calculator / x11 / idle / small | 20 | 20 | 19 | 19 | 19 | 2.0 / 2 | 78.3 / 104.9 | 100.0% | 78.3 / 104.9 | 1 | 0 | 1 | -1.0 |
+
+real	4m46.997s
+user	0m58.588s
+sys	0m10.682s
+=== rc=0 ===
+=== gsettings after legacy ===
+org.gnome.calculator accuracy 9
+org.gnome.calculator angle-units 'degrees'
+org.gnome.calculator base 10
+org.gnome.calculator button-mode 'basic'
+org.gnome.calculator number-format 'automatic'
+org.gnome.calculator precision 2000
+org.gnome.calculator refresh-interval 604800
+org.gnome.calculator show-thousands false
+org.gnome.calculator show-zeroes false
+org.gnome.calculator source-currency ''
+org.gnome.calculator source-units 'degree'
+org.gnome.calculator target-currency ''
+org.gnome.calculator target-units 'radian'
+org.gnome.calculator window-maximized false
+org.gnome.calculator window-position (-1, -1)
+org.gnome.calculator window-size (-1, -1)
+org.gnome.calculator word-size 64
+gate on: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_B-calc-native-cold/probe/probe.jsonl: No such file
+[1/40] gnome-calculator wayland 900x700 win=Some(2384563320) status=ok
+[2/40] gnome-calculator wayland 900x700 win=Some(2384563321) status=ok
+[3/40] gnome-calculator wayland 900x700 win=Some(2384563322) status=ok
+[4/40] gnome-calculator wayland 900x700 win=Some(2384563323) status=ok
+[5/40] gnome-calculator wayland 900x700 win=Some(2384563324) status=ok
+[6/40] gnome-calculator wayland 900x700 win=Some(2384563325) status=ok
+[7/40] gnome-calculator wayland 900x700 win=Some(2384563326) status=ok
+[8/40] gnome-calculator wayland 900x700 win=Some(2384563327) status=ok
+[9/40] gnome-calculator wayland 900x700 win=Some(2384563328) status=ok
+[10/40] gnome-calculator wayland 900x700 win=Some(2384563329) status=ok
+[11/40] gnome-calculator wayland 900x700 win=Some(2384563330) status=ok
+[12/40] gnome-calculator wayland 900x700 win=Some(2384563331) status=ok
+[13/40] gnome-calculator wayland 900x700 win=Some(2384563332) status=ok
+[14/40] gnome-calculator wayland 900x700 win=Some(2384563333) status=ok
+[15/40] gnome-calculator wayland 900x700 win=Some(2384563334) status=ok
+[16/40] gnome-calculator wayland 900x700 win=Some(2384563335) status=ok
+[17/40] gnome-calculator wayland 900x700 win=Some(2384563336) status=ok
+[18/40] gnome-calculator wayland 900x700 win=Some(2384563337) status=ok
+[19/40] gnome-calculator wayland 900x700 win=Some(2384563338) status=ok
+[20/40] gnome-calculator wayland 900x700 win=Some(2384563339) status=ok
+[21/40] gnome-calculator wayland 900x700 win=Some(2384563340) status=ok
+[22/40] gnome-calculator wayland 900x700 win=Some(2384563341) status=ok
+[23/40] gnome-calculator wayland 900x700 win=Some(2384563342) status=ok
+[24/40] gnome-calculator wayland 900x700 win=Some(2384563343) status=ok
+[25/40] gnome-calculator wayland 900x700 win=Some(2384563344) status=ok
+[26/40] gnome-calculator wayland 900x700 win=Some(2384563345) status=ok
+[27/40] gnome-calculator wayland 900x700 win=Some(2384563346) status=ok
+[28/40] gnome-calculator wayland 900x700 win=Some(2384563347) status=ok
+[29/40] gnome-calculator wayland 900x700 win=Some(2384563348) status=ok
+[30/40] gnome-calculator wayland 900x700 win=Some(2384563349) status=ok
+[31/40] gnome-calculator wayland 900x700 win=Some(2384563350) status=ok
+[32/40] gnome-calculator wayland 900x700 win=Some(2384563351) status=ok
+[33/40] gnome-calculator wayland 900x700 win=Some(2384563352) status=ok
+[34/40] gnome-calculator wayland 900x700 win=Some(2384563353) status=ok
+[35/40] gnome-calculator wayland 900x700 win=Some(2384563354) status=ok
+[36/40] gnome-calculator wayland 900x700 win=Some(2384563355) status=ok
+[37/40] gnome-calculator wayland 900x700 win=Some(2384563356) status=ok
+[38/40] gnome-calculator wayland 900x700 win=Some(2384563357) status=ok
+[39/40] gnome-calculator wayland 900x700 win=Some(2384563358) status=ok
+[40/40] gnome-calculator wayland 900x700 win=Some(2384563359) status=ok
+runs done in this invocation: 40
+collected: 960 lines, 79 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/B-calc-native-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / wayland / idle / large | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-calculator / wayland / idle / small | 20 | 20 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+
+real	3m52.077s
+user	0m5.955s
+sys	0m3.703s
+=== rc=0 ===
+=== gsettings after native ===
+org.gnome.calculator accuracy 9
+org.gnome.calculator angle-units 'degrees'
+org.gnome.calculator base 10
+org.gnome.calculator button-mode 'basic'
+org.gnome.calculator number-format 'automatic'
+org.gnome.calculator precision 2000
+org.gnome.calculator refresh-interval 604800
+org.gnome.calculator show-thousands false
+org.gnome.calculator show-zeroes false
+org.gnome.calculator source-currency ''
+org.gnome.calculator source-units 'degree'
+org.gnome.calculator target-currency ''
+org.gnome.calculator target-units 'radian'
+org.gnome.calculator window-maximized false
+org.gnome.calculator window-position (-1, -1)
+org.gnome.calculator window-size (-1, -1)
+org.gnome.calculator word-size 64
