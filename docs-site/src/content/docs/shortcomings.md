@@ -138,13 +138,16 @@ Who was affected, as far as it was measured:
 - gnome-text-editor started with `GDK_BACKEND=x11` on Ubuntu 24.04 (GNOME Shell 46.0, Mutter 46.2),
   in a private headless Shell with Desktop Icons NG (`ding@rastersoft.com`, installed by default)
   loaded: the Shell stopped on 10 of 10 closes with the old id and on 0 of 10 with the new one.
-- Without Desktop Icons NG the Shell did not stop in 30 runs (one or two native Wayland windows open,
-  the editor focused or not when it was closed). In those runs the editor never asked for activation
-  with the id's time, so the condition for the bug was not reached. That the bug needs Desktop Icons NG
-  is therefore not shown.
+- DING is not required. With the old id the Shell aborted in 2 of 2 runs without it, and with the
+  fixed id 50 of 50 focused closes were clean (03b, `docs/evidence/x11-flash-03/findings.md`). The
+  cause is the long `_TIME` value in the startup id, fixed in PR #94.
 - The investigation before this fix also tried gnome-calculator, eog, gnome-terminal, Chrome and Qt
   Assistant with the old id and Desktop Icons NG (5 runs each); the Shell did not stop. Those runs
   were not repeated for this change. Whether another toolkit would stop it is unknown.
+
+**Correction (2026-10-31).** Earlier text said whether the bug needs DING was not shown. DING is not
+required: 2 of 2 old-id aborts happened without it, and 50 of 50 closes with the fixed id were clean
+(`docs/evidence/x11-flash-03/findings.md`, 03b).
 
 Not established: other GNOME or Mutter versions (Mutter's development branch still has the assertion),
 other programs, whether the two Shell stops seen on a live session were this cause (they are
