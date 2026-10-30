@@ -71,6 +71,49 @@ spawn-at is a Rust CLI plus a GNOME Shell extension that places windows without 
 - The repo path has a space (`~/Documents/GITHUB PROJECTS/spawn-at`). Always quote it.
 - `scratch/` is gitignored working space (rules, baselines, audits, fake-curl test kit). Archived material is in `~/spawn-at-archive/`.
 
+## Recording results (after every run)
+
+This section is identical in AGENTS.md; change both together.
+
+Why: we must always be able to see what we tried, what we saw, and what we still do not know. A run is not finished until it is written down.
+
+When: after every run that measures or tests something, big or small, and after anything that changes what we believe. Do it before you send your final report. Runs that found nothing, or failed, are written down too.
+
+Where things go:
+- Small raw data, logs and sample files: docs/evidence/<run-name>/data/
+- The story of the run in plain English: docs/evidence/<run-name>/findings.md. README.md in the same folder says what the run was and how to read the files.
+- Short facts worth keeping: docs/KNOWLEDGE.md, under the right heading. Dead ends go under "Dead ends".
+- Anything a user will notice: CHANGELOG.md under Unreleased.
+- The website page for the run: write the entry in docs/TEST_LOG.md. The experiments page 6.NN is written by hand from that entry, using only numbers that are in the log. Pages go live only through a docs pull request that the owner merges.
+- One list of every run: docs/evidence/INDEX.md. One row per run: name, date, the question, the result in one line, the branch, and the website page or "not on the site yet". Add your row in the same commit as your findings.
+- A mistake in something we wrote earlier: fix it where it appears, add a dated "Correction" line that says what was wrong and what is true, and list it under "Corrections" in your findings.md.
+
+Be honest:
+1. Say what you did, what you saw and how sure you are.
+2. Label each claim. MEASURED: you ran it, and you name the file or cell. READ: from source code or docs, and you name the file or link. GUESS: your reasoning, not tested.
+3. Give counts as "N of M runs", with the app, size, build and conditions.
+4. Say what was not run, and why.
+5. Never delete or quietly rewrite a wrong or failed result. Leave it, add a dated correction, and mark the old page "Superseded by ...".
+6. If a new result disagrees with an old one, say so on both pages.
+7. Do not say a fix works unless you measured before and after under the same conditions.
+
+Write in plain English:
+- Short sentences, one idea each.
+- Use everyday words. Use a technical word only when there is no plain way to say it, and explain it in one sentence the first time it appears on a page.
+- Use numbers, not adjectives: "17 of 20 runs", not "most runs".
+- Say what it means for the person using spawn-at.
+- Keep bold and code formatting light.
+- How to shape a page for a run is in docs-site/src/content/docs/contributing/writing-docs.md, section "Recording a run".
+
+Before you finish a run, copy this checklist into your final report and mark each line done, not done (with the reason), or not needed:
+- [ ] findings.md and README.md written in docs/evidence/<run-name>/
+- [ ] row added to docs/evidence/INDEX.md
+- [ ] new facts and dead ends added to docs/KNOWLEDGE.md
+- [ ] CHANGELOG.md updated if a user would notice
+- [ ] entry added to docs/TEST_LOG.md
+- [ ] corrections made where earlier statements were wrong
+- [ ] "not run" list and "not sure" list written
+
 ## Knowledge base (don't rediscover things)
 - All discoveries live in ONE file: `docs/KNOWLEDGE.md`. At the start of every task, read only its table of contents, then read just the sections relevant to the task. Never read the whole file unless the task needs it.
 - Add an entry as soon as you learn something that took more than a couple of tool calls to find. Examples: where a feature lives, why something is built the way it is, a gotcha, a command that works, a dead end, a finding about GNOME/Mutter behavior.
