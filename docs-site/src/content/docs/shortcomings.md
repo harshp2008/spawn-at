@@ -75,18 +75,21 @@ all; counting it, the rows are 11 and 2 of 20.
 
 What it does **not** fix, and what it costs:
 
-- **A frame of the right size with nothing painted in it** is still shown, because the gate reads
-  sizes, not pixels. In the same private headless GNOME 46 Shell (04 and 05, capture mode) it happened
-  after the gate to gnome-text-editor in 5 of 100 gated runs (0 of 20 at 1100x760 cold, 3 of 20 at
-  1100x760 warm, 2 of 10 at 1100x760 after its saved size was deleted, 0 of 50 at 640x420),
-  gnome-calculator in 5 of 40 at 900x700, Qt Assistant in 5 of 20 in 04 at 1000x700 and 700x500
-  (10 each) and 3 of 4 in 05's coarse Qt cell, and Chrome in 18 of 20 cold runs (1200x800 and
-  700x480, 10 each) in 04 and 2 of 4 warm runs in 05. The editor's frame is pure black; Qt and
-  Chrome are near black. The blank frame is the main remaining problem for Chrome, and the gate is
-  not useless for it: Chrome reached the texture match in 20 of 20 runs, after a median of 9 to 13 ms
-  (at most 58 ms), so it is not a cap case. Qt Assistant's drop from 16 of 20 blank runs before the
-  gate to 5 of 20 after is not explained. The pure-black frame seen once in the live session at
-  640x420 was not reproduced in 50 gated runs at that size.
+- **A frame of the right size with nothing painted in it** is still shown. The gate reads sizes, not
+  pixels. In the same private headless GNOME 46 Shell (04 and 05, capture mode), after the gate:
+
+  - gnome-text-editor: 5 of 100 gated runs. That is 0 of 20 at 1100x760 cold, 3 of 20 at 1100x760
+    warm, 2 of 10 at 1100x760 after its saved size was deleted, and 0 of 50 at 640x420.
+  - gnome-calculator: 5 of 40 at 900x700.
+  - Qt Assistant: 5 of 20 in 04 at 1000x700 and 700x500 (10 each), and 3 of 4 in 05's coarse cell.
+  - Chrome: 18 of 20 cold runs in 04 (1200x800 and 700x480, 10 each) and 2 of 4 warm runs in 05.
+  - The pure-black frame seen once in the live session at 640x420 was not reproduced in 50 gated
+    runs at that size.
+
+  The editor's frame is pure black; Qt and Chrome are near black. The blank frame is the main
+  remaining problem for Chrome. The gate is not useless for Chrome: it reached the texture match in
+  20 of 20 runs after a median of 9 to 13 ms (at most 58 ms), so it is not a cap case. Qt's drop from
+  16 of 20 blank runs before the gate to 5 of 20 after is not explained.
 - **A texture that does not arrive in 250 ms** is not fixed. The gate fixed the old-size frame for
   runs whose texture arrives before the cap, but it still stops waiting at 250 ms, and a later
   texture can still show the old frame. In 04, 2 of 20 editor runs at 1100x760 reached the cap in the
