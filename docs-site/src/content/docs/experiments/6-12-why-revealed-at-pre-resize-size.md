@@ -73,6 +73,12 @@ the nested-shell trial.
   the start. The log says its author did not restore it and that how it came back is not established.
   The nested shell itself started in about 1 s but the extension was not shown to load there.
 
+**Correction (2026-10-31).** The bullet above says Chrome was never claimed, so there is no Chrome
+timing. That was true for this run, but it is not true now. In run 04, the texture gate matched Chrome
+in 20 of 20 runs, after a median of 9 to 13 ms and at most 58 ms, so Chrome timing exists. Chrome's
+remaining problem is blank frames at the right size (MEASURED,
+`docs/evidence/x11-flash-04/findings.md`, on branch `exp/x11-flash-03`).
+
 ## Not verified
 
 Why the idle stale rate differed from the stored runs; that the first allocation is the app's own
