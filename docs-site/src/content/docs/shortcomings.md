@@ -97,9 +97,10 @@ What it does **not** fix, and what it costs:
   ms after the hold began, so the probe counted a bad frame) and in the other the window never got a
   final-size buffer in 2.5 s. In 05, one of 100 gated editor runs at 1100x760 (after the saved size
   was deleted) reached the cap at 251.3 ms, with the texture at 822x642 against a buffer of 1222x882;
-  the texture arrived before the first captured frame, so it was not counted as a bad frame. The cap
-  was not raised; the tail is still there. With the cap forced down to 5 ms, eog at 1700 px flashed
-  again in 7 of 10 runs, and a screenshot showed a 540x450 viewer in the corner of a 1700x1000 frame.
+  the texture arrived before the first captured frame, so it was not counted as a bad frame. What a
+  user saw in that run was not measured. The cap was not raised; the tail is still there. With the
+  cap forced down to 5 ms, eog at 1700 px flashed again in 7 of 10 runs, and a screenshot showed a
+  540x450 viewer in the corner of a 1700x1000 frame.
 - **gnome-calculator resets itself to 360x492.** Before the gate it did so in 20 of 80 runs and after
   in 21 of 80, all in the test sandbox. That sandbox had no saved window size. With a saved size, 0 of
   30 runs ended at the wrong size (05, Task B). The live rate is not measured; the live user has a
