@@ -1,0 +1,25 @@
+== keyfile arm 2: saved window-size (800,600), request 900x700 ==
+(800, 600)
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_B-calc-keyfile-800/probe/probe.jsonl: No such file
+[1/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563394) status=ok
+[2/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563395) status=ok
+[3/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563396) status=ok
+[4/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563397) status=ok
+[5/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563398) status=ok
+[6/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563399) status=ok
+[7/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563400) status=ok
+[8/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563401) status=ok
+[9/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563402) status=ok
+[10/10] gnome-calculator-keyfile x11 900x700 win=Some(2384563403) status=ok
+runs done in this invocation: 10
+collected: 2437 lines, 365 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/B-calc-keyfile-800/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator-keyfile / x11 / idle / large | 5 | 5 | 0 | 1 | 1 | 0.0 / 1 | 0.0 / 10.0 | 0.0% | 0.0 / 10.0 | 0 | 0 | 0 | -82.0 |
+| gnome-calculator-keyfile / x11 / idle / small | 5 | 5 | 1 | 1 | 1 | 0.0 / 1 | 0.0 / 160.6 | 0.0% | 0.0 / 160.6 | 0 | 0 | 0 | -86.2 |
+
+real	1m21.707s
+user	0m17.309s
+sys	0m2.807s
+rc=0
+(900, 700)

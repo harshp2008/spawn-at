@@ -1,0 +1,64 @@
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_A-editor-640-gate-cold/probe/probe.jsonl: No such file
+[1/20] gnome-text-editor x11 640x420 win=Some(2384562997) status=ok
+[2/20] gnome-text-editor x11 640x420 win=Some(2384562998) status=ok
+[3/20] gnome-text-editor x11 640x420 win=Some(2384562999) status=ok
+[4/20] gnome-text-editor x11 640x420 win=Some(2384563000) status=ok
+[5/20] gnome-text-editor x11 640x420 win=Some(2384563001) status=ok
+[6/20] gnome-text-editor x11 640x420 win=Some(2384563002) status=ok
+[7/20] gnome-text-editor x11 640x420 win=Some(2384563003) status=ok
+[8/20] gnome-text-editor x11 640x420 win=Some(2384563004) status=ok
+[9/20] gnome-text-editor x11 640x420 win=Some(2384563005) status=ok
+[10/20] gnome-text-editor x11 640x420 win=Some(2384563006) status=ok
+[11/20] gnome-text-editor x11 640x420 win=Some(2384563007) status=ok
+[12/20] gnome-text-editor x11 640x420 win=Some(2384563008) status=ok
+[13/20] gnome-text-editor x11 640x420 win=Some(2384563009) status=ok
+[14/20] gnome-text-editor x11 640x420 win=Some(2384563010) status=ok
+[15/20] gnome-text-editor x11 640x420 win=Some(2384563011) status=ok
+[16/20] gnome-text-editor x11 640x420 win=Some(2384563012) status=ok
+[17/20] gnome-text-editor x11 640x420 win=Some(2384563013) status=ok
+[18/20] gnome-text-editor x11 640x420 win=Some(2384563014) status=ok
+[19/20] gnome-text-editor x11 640x420 win=Some(2384563015) status=ok
+[20/20] gnome-text-editor x11 640x420 win=Some(2384563016) status=ok
+runs done in this invocation: 20
+collected: 8921 lines, 800 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/A-editor-640-gate-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.4 |
+| gnome-text-editor / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.5 |
+
+real	2m26.715s
+user	0m22.576s
+sys	0m3.879s
+=== cell rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_A-editor-1100-gate-cold/probe/probe.jsonl: No such file
+[1/20] gnome-text-editor x11 1100x760 win=Some(2384563017) status=ok
+[2/20] gnome-text-editor x11 1100x760 win=Some(2384563018) status=ok
+[3/20] gnome-text-editor x11 1100x760 win=Some(2384563019) status=ok
+[4/20] gnome-text-editor x11 1100x760 win=Some(2384563020) status=ok
+[5/20] gnome-text-editor x11 1100x760 win=Some(2384563021) status=ok
+[6/20] gnome-text-editor x11 1100x760 win=Some(2384563022) status=ok
+[7/20] gnome-text-editor x11 1100x760 win=Some(2384563023) status=ok
+[8/20] gnome-text-editor x11 1100x760 win=Some(2384563024) status=ok
+[9/20] gnome-text-editor x11 1100x760 win=Some(2384563025) status=ok
+[10/20] gnome-text-editor x11 1100x760 win=Some(2384563026) status=ok
+[11/20] gnome-text-editor x11 1100x760 win=Some(2384563027) status=ok
+[12/20] gnome-text-editor x11 1100x760 win=Some(2384563028) status=ok
+[13/20] gnome-text-editor x11 1100x760 win=Some(2384563029) status=ok
+[14/20] gnome-text-editor x11 1100x760 win=Some(2384563030) status=ok
+[15/20] gnome-text-editor x11 1100x760 win=Some(2384563031) status=ok
+[16/20] gnome-text-editor x11 1100x760 win=Some(2384563032) status=ok
+[17/20] gnome-text-editor x11 1100x760 win=Some(2384563033) status=ok
+[18/20] gnome-text-editor x11 1100x760 win=Some(2384563034) status=ok
+[19/20] gnome-text-editor x11 1100x760 win=Some(2384563035) status=ok
+[20/20] gnome-text-editor x11 1100x760 win=Some(2384563036) status=ok
+runs done in this invocation: 20
+collected: 3176 lines, 773 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/A-editor-1100-gate-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.6 |
+| gnome-text-editor / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.5 |
+
+real	3m1.650s
+user	0m54.815s
+sys	0m5.840s
+=== cell rc=0 ===

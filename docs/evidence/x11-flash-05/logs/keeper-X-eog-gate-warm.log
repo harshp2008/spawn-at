@@ -1,0 +1,2 @@
+keeper X-eog-gate-warm: launched pid 236789
+keeper X-eog-gate-warm: window 2384563208 window_pid 236789 launched_pid 236789 class Eog allow=236789 geom={"id":2384563208,"pid":236789,"class":"Eog","app_id":"org.gnome.eog","x":690,"y":328,"w":540,"h":450}

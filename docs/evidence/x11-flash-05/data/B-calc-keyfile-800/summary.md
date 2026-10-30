@@ -1,0 +1,15 @@
+# xflash analysis
+
+Clock: B-calc-keyfile-800: 5609 ext lines, 5258 X11_OBS clock lines, 10 windows with an origin, per-window origin spread max 1.037 ms, observer dropped 3685 damage lines; SetLogging brackets (60 pairs, newest-first pairing): origin in an interval 3.57 ms wide; X11_OBS origin inside that interval (offset from its middle 1.23 ms)
+
+## X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms | R1 fixed/needed (never, misfire) | R1 extra med/max ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: | :-- | :-- |
+| gnome-calculator-keyfile | idle | large | 5 | 5 | 0 | 0 | 0 | 0 | 0 | -82.0 / -69.7 | 86.0 | 0/0 (0, 0) | -65.3 / -53.0 |
+| gnome-calculator-keyfile | idle | small | 5 | 5 | 0 | 0 | 0 | 0 | 0 | -86.2 / -73.7 | 90.6 | 0/0 (0, 0) | -69.5 / -57.0 |
+
+## Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
