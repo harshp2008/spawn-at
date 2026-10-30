@@ -33,7 +33,7 @@ Stop the task, write down what happened, and report to the owner before doing an
 - Use `--tags`, `--all` or `--mirror`.
 - Add `Co-Authored-By`, "Generated with" or session links to commits, PR text or any file.
 - Edit `src/` or `assets/` in a measurement or documentation task.
-- Edit `AGENTS.md` or `CLAUDE.md` unless the task says so.
+- Edit `AGENTS.md` or `CLAUDE.md`, unless the task is about the rules (then change both together).
 - Run real X11 or XWayland apps in tests. Test only with the fixture and our own scratch test clients, and never close a focused real XWayland window.
 - Set `LD_PRELOAD` in the shell session, `systemctl --user set-environment`, `~/.profile` or any file. Use it only on the test client's own process.
 - Push `archive/x11-experiments` or publish a release.
