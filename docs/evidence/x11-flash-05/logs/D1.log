@@ -1,0 +1,120 @@
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_D-eog-image-native/probe/probe.jsonl: No such file
+[1/20] eog-image wayland 600x420 win=Some(2384563404) status=ok
+[2/20] eog-image wayland 1100x760 win=Some(2384563405) status=ok
+[3/20] eog-image wayland 600x420 win=Some(2384563406) status=ok
+[4/20] eog-image wayland 600x420 win=Some(2384563407) status=ok
+[5/20] eog-image wayland 600x420 win=Some(2384563408) status=ok
+[6/20] eog-image wayland 1100x760 win=Some(2384563409) status=ok
+[7/20] eog-image wayland 600x420 win=Some(2384563410) status=ok
+[8/20] eog-image wayland 600x420 win=Some(2384563411) status=ok
+[9/20] eog-image wayland 1100x760 win=Some(2384563412) status=ok
+[10/20] eog-image wayland 1100x760 win=Some(2384563413) status=ok
+[11/20] eog-image wayland 1100x760 win=Some(2384563414) status=ok
+[12/20] eog-image wayland 600x420 win=Some(2384563415) status=ok
+[13/20] eog-image wayland 1100x760 win=Some(2384563416) status=ok
+[14/20] eog-image wayland 1100x760 win=Some(2384563417) status=ok
+[15/20] eog-image wayland 600x420 win=Some(2384563418) status=ok
+[16/20] eog-image wayland 1100x760 win=Some(2384563419) status=ok
+[17/20] eog-image wayland 600x420 win=Some(2384563420) status=ok
+[18/20] eog-image wayland 1100x760 win=Some(2384563421) status=ok
+[19/20] eog-image wayland 600x420 win=Some(2384563422) status=ok
+[20/20] eog-image wayland 1100x760 win=Some(2384563423) status=ok
+runs done in this invocation: 20
+collected: 1253 lines, 296 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/D-eog-image-native/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog-image / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| eog-image / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+
+real	2m25.171s
+user	0m13.726s
+sys	0m2.673s
+=== rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_D-qt-native/probe/probe.jsonl: No such file
+[1/20] qt-assistant wayland 1000x700 win=Some(2384563424) status=ok
+[2/20] qt-assistant wayland 1000x700 win=Some(2384563425) status=ok
+[3/20] qt-assistant wayland 1000x700 win=Some(2384563426) status=ok
+[4/20] qt-assistant wayland 1000x700 win=Some(2384563427) status=ok
+[5/20] qt-assistant wayland 700x500 win=Some(2384563428) status=ok
+[6/20] qt-assistant wayland 700x500 win=Some(2384563429) status=ok
+[7/20] qt-assistant wayland 1000x700 win=Some(2384563430) status=ok
+[8/20] qt-assistant wayland 1000x700 win=Some(2384563431) status=ok
+[9/20] qt-assistant wayland 1000x700 win=Some(2384563432) status=ok
+[10/20] qt-assistant wayland 700x500 win=Some(2384563433) status=ok
+[11/20] qt-assistant wayland 700x500 win=Some(2384563434) status=ok
+[12/20] qt-assistant wayland 700x500 win=Some(2384563435) status=ok
+[13/20] qt-assistant wayland 1000x700 win=Some(2384563436) status=ok
+[14/20] qt-assistant wayland 700x500 win=Some(2384563437) status=ok
+[15/20] qt-assistant wayland 700x500 win=Some(2384563438) status=ok
+[16/20] qt-assistant wayland 700x500 win=Some(2384563439) status=ok
+[17/20] qt-assistant wayland 700x500 win=Some(2384563440) status=ok
+[18/20] qt-assistant wayland 1000x700 win=Some(2384563441) status=ok
+[19/20] qt-assistant wayland 1000x700 win=Some(2384563442) status=ok
+[20/20] qt-assistant wayland 700x500 win=Some(2384563443) status=ok
+runs done in this invocation: 20
+collected: 473 lines, 25 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/D-qt-native/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| qt-assistant / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+
+real	2m19.038s
+user	0m1.957s
+sys	0m2.039s
+=== rc=0 ===
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_D-chrome-native/probe/probe.jsonl: No such file
+[1/20] google-chrome wayland 1200x800 win=Some(2384563444) status=ok
+[2/20] google-chrome wayland 1200x800 win=Some(2384563445) status=ok
+[3/20] google-chrome wayland 700x480 win=Some(2384563446) status=ok
+[4/20] google-chrome wayland 1200x800 win=Some(2384563447) status=ok
+[5/20] google-chrome wayland 700x480 win=Some(2384563448) status=ok
+[6/20] google-chrome wayland 700x480 win=Some(2384563449) status=ok
+[7/20] google-chrome wayland 700x480 win=Some(2384563450) status=ok
+[8/20] google-chrome wayland 700x480 win=Some(2384563451) status=ok
+[9/20] google-chrome wayland 700x480 win=Some(2384563452) status=ok
+[10/20] google-chrome wayland 1200x800 win=Some(2384563453) status=ok
+[11/20] google-chrome wayland 1200x800 win=Some(2384563454) status=ok
+[12/20] google-chrome wayland 1200x800 win=Some(2384563455) status=ok
+[13/20] google-chrome wayland 1200x800 win=Some(2384563456) status=ok
+[14/20] google-chrome wayland 1200x800 win=Some(2384563457) status=ok
+[15/20] google-chrome wayland 700x480 win=Some(2384563458) status=ok
+[16/20] google-chrome wayland 700x480 win=Some(2384563459) status=ok
+[17/20] google-chrome wayland 1200x800 win=Some(2384563460) status=ok
+[18/20] google-chrome wayland 700x480 win=Some(2384563461) status=ok
+[19/20] google-chrome wayland 700x480 win=Some(2384563462) status=ok
+[20/20] google-chrome wayland 1200x800 win=Some(2384563463) status=ok
+runs done in this invocation: 20
+collected: 877 lines, 64 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/D-chrome-native/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| google-chrome / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+
+real	2m58.020s
+user	0m6.412s
+sys	0m4.491s
+=== rc=0 ===
+keeper D-editor-native-warm: launched pid 392677
+keeper D-editor-native-warm: window 2384563464 window_pid 392677 launched_pid 392677 class org.gnome.TextEditor allow=392677 geom={"id":2384563464,"pid":392677,"class":"org.gnome.TextEditor","app_id":"org.gnome.TextEditor","x":0,"y":0,"w":0,"h":0}
+[1/10] gnome-text-editor wayland 640x420 win=Some(2384563465) status=ok
+[2/10] gnome-text-editor wayland 1100x760 win=Some(2384563466) status=ok
+[3/10] gnome-text-editor wayland 1100x760 win=Some(2384563467) status=ok
+[4/10] gnome-text-editor wayland 640x420 win=Some(2384563468) status=ok
+[5/10] gnome-text-editor wayland 640x420 win=Some(2384563469) status=ok
+[6/10] gnome-text-editor wayland 1100x760 win=Some(2384563470) status=ok
+[7/10] gnome-text-editor wayland 1100x760 win=Some(2384563471) status=ok
+[8/10] gnome-text-editor wayland 640x420 win=Some(2384563472) status=ok
+[9/10] gnome-text-editor wayland 640x420 win=Some(2384563473) status=ok
+[10/10] gnome-text-editor wayland 1100x760 win=Some(2384563474) status=ok
+runs done in this invocation: 10
+collected: 618 lines, 224 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/D-editor-native-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / wayland / idle / large | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-text-editor / wayland / idle / small | 5 | 5 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+keeper D-editor-native-warm: stopped pids 392677 392677
+
+real	1m18.891s
+user	0m9.479s
+sys	0m1.584s
+=== rc=0 ===
