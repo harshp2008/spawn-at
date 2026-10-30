@@ -84,7 +84,7 @@ Where things go:
 - The story of the run in plain English: docs/evidence/<run-name>/findings.md. README.md in the same folder says what the run was and how to read the files.
 - Short facts worth keeping: docs/KNOWLEDGE.md, under the right heading. Dead ends go under "Dead ends".
 - Anything a user will notice: CHANGELOG.md under Unreleased.
-- The website page for the run: write the entry in docs/TEST_LOG.md. The experiments page 6.NN is built from it. Pages go live only through a docs pull request that the owner merges.
+- The website page for the run: write the entry in docs/TEST_LOG.md. The experiments page 6.NN is written by hand from that entry, using only numbers that are in the log. Pages go live only through a docs pull request that the owner merges.
 - One list of every run: docs/evidence/INDEX.md. One row per run: name, date, the question, the result in one line, the branch, and the website page or "not on the site yet". Add your row in the same commit as your findings.
 - A mistake in something we wrote earlier: fix it where it appears, add a dated "Correction" line that says what was wrong and what is true, and list it under "Corrections" in your findings.md.
 
