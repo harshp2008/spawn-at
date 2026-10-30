@@ -24,4 +24,5 @@ No website page was found for PR #95.
 ## Corrections
 
 - **2026-10-31.** The `x11-flash-02` row said "DING plus a future `_TIME` from the startup id is the crash mechanism". That was wrong: DING is not required; the long `_TIME` value is the cause, fixed in PR #94. Evidence: `docs/evidence/x11-flash-03/findings.md` (03b) on `exp/x11-flash-03`.
+- **2026-10-31.** The `x11-flash-03`, `x11-flash-04`, `x11-flash-05`, PR #94 and `stage1` rows were reworded to match what each run measured: the gate result moved from 03 to 04, the 04 counts now name each app and size, the 05 sync-counter claim was narrowed, PR #94 now says DING was loaded, and the unverified stage1 test-name claim was removed.
 
