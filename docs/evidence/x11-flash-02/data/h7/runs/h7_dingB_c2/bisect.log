@@ -1,0 +1,9 @@
+=== c2 14:36:35 private shell 2853444
+[c2_editor_wayland_plain] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 6 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c2 rc=0 14:37:43
+ALLDONE

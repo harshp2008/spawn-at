@@ -1,0 +1,1 @@
+Qt Assistant rejects the geometry option: "Unknown option: -geometry" (assistant exits 255 before creating a window); no other Qt app is installed, so T2 for Qt was skipped. Electron (VS Code) was skipped because the earlier run showed no window; GTK apps have no geometry command-line option (gnome-terminal --geometry only applies to its Wayland server window in this session).

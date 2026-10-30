@@ -1,0 +1,8 @@
+=== c5 14:46:57 private shell 2875486
+[c5_editor_x11_spawnat] run 1 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 2 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 3 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 4 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 5 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+=== c5 rc=0 14:47:35
+ALLDONE

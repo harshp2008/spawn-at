@@ -1,0 +1,1 @@
+{"started":"2026-10-29T12:32:13+05:30","cond":"idle","reps":20,"ctl_reps":0,"seed":7,"apps":"xterm,gnome-text-editor,eog,google-chrome,firefox","planned_runs":14,"probe":true,"loadavg_start":"0.45 0.66 0.77","gnome_shell":"GNOME Shell 46.0","gnome_shell_pid":"2950057","spawn_at":"spawn-at 0.2.4","session":"wayland","warmup_s":30,"burn_threads":22}

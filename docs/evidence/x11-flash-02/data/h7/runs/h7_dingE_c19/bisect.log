@@ -1,0 +1,8 @@
+=== c19 14:45:54 private shell 2873061
+[c19_editor_x11_plain_token_only] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c19_editor_x11_plain_token_only] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c19_editor_x11_plain_token_only] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c19_editor_x11_plain_token_only] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c19_editor_x11_plain_token_only] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== c19 rc=0 14:46:51
+ALLDONE

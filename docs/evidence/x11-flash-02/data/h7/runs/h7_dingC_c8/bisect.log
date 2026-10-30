@@ -1,0 +1,8 @@
+=== c8 14:39:13 private shell 2860445
+note: the private Shell already has windows (e.g. a desktop-icons window): [1168964232]
+xflash observe: event: The X11 server closed the connection
+[c8_editor_x11_spawnat_obs] run 1 focused=true close='spawn-at close' crashed=true ts0=true
+[c8_editor_x11_spawnat_obs] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c8 rc=1 14:39:19
+ALLDONE

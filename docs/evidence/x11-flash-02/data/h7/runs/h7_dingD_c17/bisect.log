@@ -1,0 +1,8 @@
+=== c17 14:41:16 private shell 2864835
+[c17_editor_x11_plain_with_ids] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c17_editor_x11_plain_with_ids] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c17_editor_x11_plain_with_ids] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c17_editor_x11_plain_with_ids] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c17_editor_x11_plain_with_ids] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== c17 rc=0 14:42:13
+ALLDONE

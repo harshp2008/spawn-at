@@ -1,0 +1,19 @@
+=== c5 14:20:44 private shell 2823274
+[c5_editor_x11_spawnat] run 1 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 2 focused=true close='spawn-at close' crashed=true ts0=true
+[c5_editor_x11_spawnat] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c5 rc=1 14:20:57
+=== c5 14:21:03 private shell 2824692
+[c5_editor_x11_spawnat] run 1 focused=null close='' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 2 focused=true close='spawn-at close; window gone' crashed=true ts0=true
+[c5_editor_x11_spawnat] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c5 rc=1 14:21:15
+=== c5 14:21:21 private shell 2826083
+[c5_editor_x11_spawnat] run 1 focused=false close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 2 focused=true close='spawn-at close' crashed=true ts0=true
+[c5_editor_x11_spawnat] PRIVATE SHELL DIED; its log tail is saved
+xflash cell: private shell died
+=== c5 rc=1 14:21:34
+ALLDONE

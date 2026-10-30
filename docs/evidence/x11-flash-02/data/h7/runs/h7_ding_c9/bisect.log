@@ -1,0 +1,8 @@
+=== c9 14:32:41 private shell 2846523
+[c9_eog_x11_spawnat] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c9 rc=0 14:33:18
+ALLDONE
