@@ -623,7 +623,7 @@ evidence folder that holds the numbers. The page says what was asked, what was d
 found; the folder holds the raw files. Link to the folder, do not copy it.
 
 This is the current shape for a new run page. The "Experiment record template" above stays for the
-pages already written with it.
+pages already written from it.
 
 | Part | What it holds |
 | :-- | :-- |
@@ -706,8 +706,8 @@ Every claim gets one label:
 | READ | It comes from source code, a document or a log, and the page names the file or the link |
 | GUESS | It is reasoning, not tested |
 
-Put the label next to the claim, and in the summary when the summary rests on a guess. A page with no
-label on a claim is read as MEASURED, so label the guesses.
+Put the label next to the claim, and in the summary when the summary rests on a guess. A claim with no
+label is not ready: add the label, or mark it "not verified".
 
 ### Numbering a run page
 
