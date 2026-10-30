@@ -91,8 +91,16 @@ What it does **not** fix, and what it costs:
   one texture arrived 318 ms after the hold began, the other window never got a final-size buffer.
   With the cap forced down to 5 ms, eog at 1700 px flashed again in 7 of 10 runs. Chrome, which was
   expected to never match, matched in 20 of 20 runs, after a median of 9 to 13 ms (at most 58 ms).
-- **gnome-calculator resets itself to 360x492** in about a quarter of the runs (20 of 80 before, 21 of
-  80 after). The gate does not prevent that, and the window is placed for the size it ends with.
+- **gnome-calculator resets itself to 360x492.** Before the gate it did so in 20 of 80 runs and after
+  in 21 of 80, all in the test sandbox. That sandbox had no saved window size. With a saved size, 0 of
+  30 runs ended at the wrong size (05, Task B). The live rate is not measured; the live user has a
+  saved size. The gate does not prevent the reset, and the window is placed for the size it ends
+  with.
+
+**Correction (2026-10-31).** Earlier text said this happened in "about a quarter" of runs. That
+figure came from the test sandbox, which had no saved window size. With a saved size, 0 of 30 runs
+were wrong, and the live rate is not measured (`docs/evidence/x11-flash-05/findings.md`, Task B).
+
 - **The window appears later.** Median time hidden, passive cells, before then after: eog 2.4 to 8.5
   ms (600 px), 2.6 to 17.5 ms (1100 px), 3.0 to 24.6 ms (1700 px); gnome-text-editor 4.9 to 35.6 ms
   (640x420; at 1100x760 the median stays 4 to 5 ms and the 90th percentile goes from 11.6 to 88.2 ms);
