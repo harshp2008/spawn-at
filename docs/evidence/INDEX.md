@@ -20,3 +20,8 @@ at its `PLAN.md`, then `matrix-notes.md` and `ding-crash.md`.
 
 The draft pages 6.38 to 6.41 are on `exp/x11-flash-02`. They are not on `main` and not published.
 No website page was found for PR #95.
+
+## Corrections
+
+- **2026-10-31.** The `x11-flash-02` row said "DING plus a future `_TIME` from the startup id is the crash mechanism". That was wrong: DING is not required; the long `_TIME` value is the cause, fixed in PR #94. Evidence: `docs/evidence/x11-flash-03/findings.md` (03b) on `exp/x11-flash-03`.
+
