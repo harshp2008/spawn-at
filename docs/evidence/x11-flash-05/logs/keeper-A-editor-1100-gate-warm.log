@@ -1,0 +1,2 @@
+keeper A-editor-1100-gate-warm: launched pid 172926
+keeper A-editor-1100-gate-warm: window 2384563058 window_pid 172926 launched_pid 172926 class org.gnome.TextEditor allow=172926 geom={"id":2384563058,"pid":172926,"class":"gnome-text-editor","app_id":"org.gnome.TextEditor","x":409,"y":127,"w":1100,"h":760}

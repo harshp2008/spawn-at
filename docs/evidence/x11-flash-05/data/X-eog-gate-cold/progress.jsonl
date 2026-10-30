@@ -1,0 +1,5 @@
+{"ev":"start","t_mono":5624868591911,"t_wall":"2026-10-30T21:24:53+05:30","health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"},"todo":4,"planned":4}
+{"ev":"run","t_mono":5630911469159,"t_wall":"2026-10-30T21:24:59+05:30","key":"0:eog:x11:small","status":"ok","window_id":2384563204,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}
+{"ev":"run","t_mono":5636820515594,"t_wall":"2026-10-30T21:25:05+05:30","key":"1:eog:x11:small","status":"ok","window_id":2384563205,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}
+{"ev":"run","t_mono":5642768158289,"t_wall":"2026-10-30T21:25:11+05:30","key":"2:eog:x11:large","status":"ok","window_id":2384563206,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}
+{"ev":"run","t_mono":5648725149764,"t_wall":"2026-10-30T21:25:17+05:30","key":"3:eog:x11:large","status":"ok","window_id":2384563207,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}

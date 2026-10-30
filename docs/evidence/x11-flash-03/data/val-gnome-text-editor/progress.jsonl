@@ -1,0 +1,4 @@
+{"ev":"start","t_mono":843670125925242,"t_wall":"2026-10-29T21:33:56+05:30","health":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"3585011","shell_start":"84310273"},"todo":20,"planned":20}
+{"ev":"run","t_mono":843676254434066,"t_wall":"2026-10-29T21:34:02+05:30","key":"0:gnome-text-editor:x11:small","status":"ok","window_id":2512247074,"health":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"","shell_start":""}}
+{"ev":"crash","t_mono":843679287252519,"t_wall":"2026-10-29T21:34:05+05:30","key":"1:gnome-text-editor:x11:large","now":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"","shell_start":""}}
+{"ev":"crash","t_mono":843682298649361,"t_wall":"2026-10-29T21:34:08+05:30","note":"session changed during the batch","now":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"","shell_start":""}}

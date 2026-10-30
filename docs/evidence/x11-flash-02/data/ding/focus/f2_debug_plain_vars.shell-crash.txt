@@ -1,0 +1,60 @@
+libmutter-Message: 15:11:56.253: STARTUP: COMPARISON:
+  net_wm_user_time_set : 1
+  net_wm_user_time     : 2265552722
+  initial_timestamp_set: 0
+  initial_timestamp    : 0
+libmutter-Message: 15:11:56.253: STARTUP: COMPARISON (continued):
+  focus_window             : W0
+  fw->net_wm_user_time_set : 1
+  fw->net_wm_user_time     : 820749783
+libmutter-Message: 15:11:56.253: STARTUP: new window 0x400004 with no intervening events
+libmutter-Message: 15:11:56.253: FOCUS: Setting input focus on 0x400004 since input = true
+libmutter-Message: 15:11:56.253: FOCUS: Focus change has no effect, because there is no matching wayland surface
+libmutter-Message: 15:11:56.253: FOCUS: Setting X11 input focus for window 0x400004 to 0x400004
+libmutter-Message: 15:11:56.253: FOCUS: Updating X11 focus window from 0x200003 to 0x400004
+libmutter-Message: 15:11:56.253: FOCUS: W0 is now the previous focus window due to being focused out or unmapped
+libmutter-Message: 15:11:56.253: FOCUS: * Focus --> 0x400004
+libmutter-Message: 15:11:56.255: FOCUS: Sending WM_TAKE_FOCUS to 0x400004 since take_focus = true
+libmutter-Message: 15:11:56.255: FOCUS: WM_TAKE_FOCUS(0x400004, 820750347)
+libmutter-Message: 15:11:56.255: FOCUS: Setting input focus on 0x400004 since input = true
+libmutter-Message: 15:11:56.255: FOCUS: Focus change has no effect, because there is no matching wayland surface
+libmutter-Message: 15:11:56.255: FOCUS: Setting X11 input focus for window 0x400004 to 0x400004
+libmutter-Message: 15:11:56.255: FOCUS: Sending WM_TAKE_FOCUS to 0x400004 since take_focus = true
+libmutter-Message: 15:11:56.255: FOCUS: WM_TAKE_FOCUS(0x400004, 820750347)
+libmutter-Message: 15:11:56.255: PING: Sending ping with serial 820750347 to window 0x400004
+libmutter-Message: 15:11:56.255: FOCUS: _NET_ACTIVE_WINDOW message sent for 0x400004 at time 2265552722 by client type 1.
+libmutter-Message: 15:11:56.255: STARTUP: Window 0x400004 has _NET_WM_USER_TIME of 2265552722
+libmutter-Message: 15:11:56.255: FOCUS: Focusing window 0x400004 due to activation
+libmutter-Message: 15:11:56.255: FOCUS: Setting input focus to window 0x400004, input: 1 focusable: 1
+libmutter-Message: 15:11:56.255: FOCUS: Setting input focus on 0x400004 since input = true
+libmutter-Message: 15:11:56.255: FOCUS: Focus change has no effect, because there is no matching wayland surface
+libmutter-Message: 15:11:56.255: FOCUS: Setting X11 input focus for window 0x400004 to 0x400004
+libmutter-Message: 15:11:56.255: FOCUS: Sending WM_TAKE_FOCUS to 0x400004 since take_focus = true
+libmutter-Message: 15:11:56.255: FOCUS: WM_TAKE_FOCUS(0x400004, 2265552722)
+libmutter-Message: 15:11:56.255: PING: Window 0x400004 already is being pinged with serial 820750347
+libmutter-Message: 15:11:56.256: FOCUS: Focus in event received on 0x400004 0x400004 (client window) mode NotifyNormal detail NotifyAncestor serial 386
+libmutter-Message: 15:11:56.268: STARTUP: COMPARISON:
+  net_wm_user_time_set : 1
+  net_wm_user_time     : 2265552722
+  initial_timestamp_set: 0
+  initial_timestamp    : 0
+libmutter-Message: 15:11:56.269: STARTUP: COMPARISON (continued):
+  focus_window             : 0x400004
+  fw->net_wm_user_time_set : 1
+  fw->net_wm_user_time     : 2265552722
+libmutter-Message: 15:11:56.269: STARTUP: new window 0x400004 with no intervening events
+libmutter-Message: 15:11:57.268: FOCUS: Focus out event received on 0x400004 0x400004 (client window) mode NotifyNormal detail NotifyAncestor serial 433
+libmutter-Message: 15:11:57.268: FOCUS: Ignoring focus out with NotifyInferior
+libmutter-Message: 15:11:57.268: PING: Received a pong with serial 820750347
+libmutter-Message: 15:11:57.268: PING: Matching ping found for pong 820750347
+Window manager warning: Tried to ping window 0x400004 with a bad serial! Not allowed.
+libmutter-Message: 15:11:59.019: FOCUS: Focusing default window since we're unmanaging 0x400004
+libmutter-Message: 15:11:59.019: FOCUS: Focusing MRU window excluding 0x400004
+libmutter-Message: 15:11:59.019: FOCUS: Focusing workspace MRU window W0
+libmutter-Message: 15:11:59.019: FOCUS: Setting input focus to window W0, input: 1 focusable: 1
+Window manager warning: Failed to focus window W0 while avoiding 0x400004
+libmutter-Message: 15:11:59.019: FOCUS: No MRU window to focus found; focusing no_focus_window.
+**
+libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+Bail out! libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+(EE) failed to read Wayland events: Connection reset by peer

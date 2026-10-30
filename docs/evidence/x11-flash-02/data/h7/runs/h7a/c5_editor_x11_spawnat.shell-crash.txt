@@ -1,0 +1,60 @@
+DING: 2 anonymous() ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js":197:20]
+DING: 3 <TOP LEVEL> ["/usr/share/gnome-shell/extensions/ding@rastersoft.com/app/ding.js":206:12]
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: GFileInfo created without standard::is-hidden
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: file ../../../gio/gfileinfo.c: line 1632 (g_file_info_get_is_hidden): should not be reached
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: GFileInfo created without standard::is-backup
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: file ../../../gio/gfileinfo.c: line 1654 (g_file_info_get_is_backup): should not be reached
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: GFileInfo created without standard::is-symlink
+DING: (gjs:2826611): GLib-GIO-CRITICAL **: 14:21:23.460: file ../../../gio/gfileinfo.c: line 1676 (g_file_info_get_is_symlink): should not be reached
+DING: DBus interface for Gvfs daemon (org.gtk.vfs.Metadata) is now available.
+DING: DBus interface for Nautilus (org.gnome.Nautilus.FileOperations2) is now available.
+DING: DBus interface for Nautilus (org.freedesktop.FileManager1) is now available.
+DING: DBus interface for Switcheroo control (net.hadess.SwitcherooControl) is now available.
+DING: ** Message: 14:21:23.479: Connecting to org.freedesktop.Tracker3.Miner.Files
+DING: GNOME nautilus 46.4
+GNOME Shell-Message: 14:21:23.562: Received notification for window. 0 notifications remaining.
+Window manager warning: Overwriting existing binding of keysym 32 with keysym 32 (keycode b).
+Window manager warning: Overwriting existing binding of keysym 33 with keysym 33 (keycode c).
+Window manager warning: Overwriting existing binding of keysym 6e with keysym 6e (keycode 39).
+Window manager warning: Overwriting existing binding of keysym ff54 with keysym ff54 (keycode 74).
+Window manager warning: Overwriting existing binding of keysym 32 with keysym 32 (keycode b).
+Window manager warning: Overwriting existing binding of keysym 38 with keysym 38 (keycode 11).
+Window manager warning: Overwriting existing binding of keysym 30 with keysym 30 (keycode 13).
+Window manager warning: Overwriting existing binding of keysym 33 with keysym 33 (keycode c).
+Window manager warning: Overwriting existing binding of keysym 60 with keysym 2f7259c9 (keycode 31).
+Window manager warning: Overwriting existing binding of keysym 34 with keysym 34 (keycode d).
+Window manager warning: Overwriting existing binding of keysym ff52 with keysym ff52 (keycode 6f).
+Window manager warning: Overwriting existing binding of keysym 35 with keysym 35 (keycode e).
+Window manager warning: Overwriting existing binding of keysym 31 with keysym 31 (keycode a).
+Window manager warning: Overwriting existing binding of keysym 36 with keysym 36 (keycode f).
+Window manager warning: Overwriting existing binding of keysym 34 with keysym 34 (keycode d).
+Window manager warning: Overwriting existing binding of keysym 32 with keysym 32 (keycode b).
+Window manager warning: Overwriting existing binding of keysym 31 with keysym 31 (keycode a).
+Window manager warning: Overwriting existing binding of keysym 33 with keysym 33 (keycode c).
+Window manager warning: Overwriting existing binding of keysym 37 with keysym 37 (keycode 10).
+Window manager warning: Overwriting existing binding of keysym 38 with keysym 38 (keycode 11).
+Window manager warning: Overwriting existing binding of keysym 39 with keysym 39 (keycode 12).
+Window manager warning: Overwriting existing binding of keysym 39 with keysym 39 (keycode 12).
+Window manager warning: Overwriting existing binding of keysym ff51 with keysym ff51 (keycode 71).
+Window manager warning: Overwriting existing binding of keysym 34 with keysym 34 (keycode d).
+Window manager warning: Overwriting existing binding of keysym 37 with keysym 37 (keycode 10).
+Window manager warning: Overwriting existing binding of keysym 31 with keysym 31 (keycode a).
+Window manager warning: Overwriting existing binding of keysym 36 with keysym 36 (keycode f).
+Window manager warning: Overwriting existing binding of keysym 36 with keysym 36 (keycode f).
+Window manager warning: Overwriting existing binding of keysym ff53 with keysym ff53 (keycode 72).
+Window manager warning: Overwriting existing binding of keysym 38 with keysym 38 (keycode 11).
+Window manager warning: Overwriting existing binding of keysym 37 with keysym 37 (keycode 10).
+Window manager warning: Overwriting existing binding of keysym 35 with keysym 35 (keycode e).
+Window manager warning: Overwriting existing binding of keysym 35 with keysym 35 (keycode e).
+Window manager warning: Overwriting existing binding of keysym 39 with keysym 39 (keycode 12).
+GNOME Shell-Message: 14:21:23.764: gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com: Done adding to index 'applications'
+GNOME Shell-Message: 14:21:23.795: gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com: updating index 'applications' with 78 items
+GNOME Shell-Message: 14:21:23.796: gnome-fuzzy-app-search@gnome-shell-extensions.Czarlie.gitlab.com: Done adding to index 'applications'
+Window manager warning: Tried to ping window 0x400004 with a bad serial! Not allowed.
+Window manager warning: Buggy client sent a _NET_ACTIVE_WINDOW message with a timestamp of 0 for 0x400004
+Window manager warning: Tried to ping window 0x400004 with a bad serial! Not allowed.
+Window manager warning: Failed to focus window W1 while avoiding 0x400004
+**
+libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+Bail out! libmutter:ERROR:../src/core/window.c:1518:meta_window_unmanage: assertion failed: (window->display->focus_window != window)
+(EE) failed to read Wayland events: Connection reset by peer

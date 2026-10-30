@@ -1,0 +1,22 @@
+Window manager warning: Tried to ping window W896 with a bad serial! Not allowed.
+(gnome-shell:3008087): libmutter-CRITICAL **: 18:27:49.564: surface_state_changed: assertion 'wl_window->has_last_sent_configuration' failed
+(gnome-shell:3008087): GNOME Shell-WARNING **: 18:27:50.617: [spawn-at] Window is oversized (925x1037); bottom/right margins ignored to keep top-left reachable.
+Window manager warning: Tried to ping window W897 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W898 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W899 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W900 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W901 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W902 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W903 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W904 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W905 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W906 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W907 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W908 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W909 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W910 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W911 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W912 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W913 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W914 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window W915 with a bad serial! Not allowed.

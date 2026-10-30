@@ -1,0 +1,3 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+baobab|x11|idle|large,1177839311,10,7.3,1000x700,1082x722,1000x700,1122x822,2,65.70,10,2,2,2,0,65.70,65.7,0,0,0,0,-1.12,,5.3,70.5,0,0,false,
+baobab|x11|idle|small,1177839312,59,2.3,764x500,1082x722,764x500,886x622,2,26.13,40,2,2,1,1,26.13,26.1,0,0,2,0,29.89,,6.0,31.8,0,0,false,

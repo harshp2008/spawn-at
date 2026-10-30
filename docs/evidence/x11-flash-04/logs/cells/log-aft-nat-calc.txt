@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_aft-nat-calc/probe/probe.jsonl: No such file
+[1/20] gnome-calculator wayland 900x700 win=Some(1068882452) status=ok
+[2/20] gnome-calculator wayland 900x700 win=Some(1068882453) status=ok
+[3/20] gnome-calculator wayland 900x700 win=Some(1068882454) status=ok
+[4/20] gnome-calculator wayland 500x400 win=Some(1068882455) status=ok
+[5/20] gnome-calculator wayland 900x700 win=Some(1068882456) status=ok
+[6/20] gnome-calculator wayland 500x400 win=Some(1068882457) status=ok
+[7/20] gnome-calculator wayland 900x700 win=Some(1068882458) status=ok
+[8/20] gnome-calculator wayland 900x700 win=Some(1068882459) status=ok
+[9/20] gnome-calculator wayland 500x400 win=Some(1068882460) status=ok
+[10/20] gnome-calculator wayland 900x700 win=Some(1068882461) status=ok
+[11/20] gnome-calculator wayland 500x400 win=Some(1068882462) status=ok
+[12/20] gnome-calculator wayland 500x400 win=Some(1068882463) status=ok
+[13/20] gnome-calculator wayland 900x700 win=Some(1068882464) status=ok
+[14/20] gnome-calculator wayland 900x700 win=Some(1068882465) status=ok
+[15/20] gnome-calculator wayland 500x400 win=Some(1068882466) status=ok
+[16/20] gnome-calculator wayland 900x700 win=Some(1068882467) status=ok
+[17/20] gnome-calculator wayland 500x400 win=Some(1068882468) status=ok
+[18/20] gnome-calculator wayland 500x400 win=Some(1068882469) status=ok
+[19/20] gnome-calculator wayland 500x400 win=Some(1068882470) status=ok
+[20/20] gnome-calculator wayland 500x400 win=Some(1068882471) status=ok
+runs done in this invocation: 20
+collected: 430 lines, 20 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-nat-calc/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-calculator / wayland / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |
+| gnome-calculator / wayland / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | - |

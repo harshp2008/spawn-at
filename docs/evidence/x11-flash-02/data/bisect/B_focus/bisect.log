@@ -1,0 +1,46 @@
+=== c5 13:49:07 private shell 2758017
+[c5_editor_x11_spawnat] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c5_editor_x11_spawnat] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c5 rc=0 13:49:32
+=== c1 13:49:39 private shell 2759571
+[c1_xterm_spawnat_obs] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c1_xterm_spawnat_obs] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c1_xterm_spawnat_obs] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c1 rc=0 13:50:05
+=== c4 13:50:12 private shell 2761121
+[c4_editor_x11_plain] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c4_editor_x11_plain] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c4_editor_x11_plain] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c4 rc=0 13:50:48
+=== c2 13:50:55 private shell 2762898
+[c2_editor_wayland_plain] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c2_editor_wayland_plain] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c2 rc=0 13:51:31
+=== c3 13:51:37 private shell 2764545
+[c3_editor_wayland_spawnat] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c3_editor_wayland_spawnat] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c3_editor_wayland_spawnat] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c3 rc=0 13:52:02
+=== c6 13:52:09 private shell 2766040
+[c6_editor_x11_spawnat_nostartupid] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c6_editor_x11_spawnat_nostartupid] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c6_editor_x11_spawnat_nostartupid] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c6 rc=0 13:52:33
+=== c7 13:52:39 private shell 2767588
+[c7_editor_x11_spawnat_fitid] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c7_editor_x11_spawnat_fitid] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c7_editor_x11_spawnat_fitid] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c7 rc=0 13:53:03
+=== c8 13:53:10 private shell 2769161
+[c8_editor_x11_spawnat_obs] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c8_editor_x11_spawnat_obs] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c8_editor_x11_spawnat_obs] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c8 rc=0 13:53:36
+=== c9 13:53:43 private shell 2770737
+[c9_eog_x11_spawnat] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c9_eog_x11_spawnat] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c9 rc=0 13:54:07
+ALLDONE

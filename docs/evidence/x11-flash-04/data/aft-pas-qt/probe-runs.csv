@@ -1,0 +1,21 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+qt-assistant|x11|idle|small,1068882672,9,2.1,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,11,0,32.14,,0.8,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882673,5,2.8,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,,,2.7,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882674,5,3.3,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,,,5.7,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882675,5,1.9,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,,,5.4,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882676,10,7.5,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,0.11,,9.3,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882677,10,2.2,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,13,0,24.55,,1.3,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882678,9,2.4,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,1,0,,,3.2,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882679,11,2.4,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,12,0,35.21,,3.2,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882680,7,2.8,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,5,0,,,2.8,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882681,7,3.1,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,6,0,,,3.5,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882682,10,2.2,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,5,0,21.00,,1.0,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882683,6,2.4,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,11,0,29.56,,7.2,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882684,10,2.2,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,11,0,,,2.7,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882685,12,2.1,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,7,0,28.13,,0.6,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882686,11,2.7,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,9,0,37.54,,1.8,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882687,8,4.5,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,14,0,,,8.3,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882688,8,1.9,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,0,0,13.06,,2.8,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882689,11,2.4,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,11,0,30.94,,1.6,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|small,1068882690,11,2.3,700x500,728x529,700x500,728x529,0,0.00,0,0,0,0,0,0.00,-,0,0,3,0,18.65,,2.2,0.0,0,0,true,no pixels
+qt-assistant|x11|idle|large,1068882691,7,3.2,1000x700,1028x729,1000x700,1028x729,0,0.00,0,0,0,0,0,0.00,-,0,0,5,0,31.65,,1.6,0.0,0,0,true,no pixels

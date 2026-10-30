@@ -1,0 +1,15 @@
+# xflash analysis
+
+Clock: aft-cap-qt: 910 ext lines, 268 X11_OBS clock lines, 20 windows with an origin, per-window origin spread max 3.994 ms, observer dropped 0 damage lines; SetLogging brackets (60 pairs, newest-first pairing): origin in an interval 4.51 ms wide; X11_OBS origin inside that interval (offset from its middle 1.69 ms)
+
+## X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms | R1 fixed/needed (never, misfire) | R1 extra med/max ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: | :-- | :-- |
+| qt-assistant | idle | large | 10 | 10 | 0 | 0 | 10 | 0 | 10 | 38.5 / 46.4 | 12.5 | 0/10 (4, 6) | 12.8 / 16.0 |
+| qt-assistant | idle | small | 10 | 10 | 0 | 0 | 9 | 0 | 9 | 29.5 / 41.4 | 7.5 | 0/9 (4, 6) | 10.8 / 12.3 |
+
+## Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |

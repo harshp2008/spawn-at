@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-swing/probe/probe.jsonl: No such file
+[1/20] java-swing x11 600x400 win=Some(699228391) status=ok
+[2/20] java-swing x11 600x400 win=Some(699228392) status=ok
+[3/20] java-swing x11 900x650 win=Some(699228393) status=ok
+[4/20] java-swing x11 900x650 win=Some(699228394) status=ok
+[5/20] java-swing x11 900x650 win=Some(699228395) status=ok
+[6/20] java-swing x11 600x400 win=Some(699228396) status=ok
+[7/20] java-swing x11 900x650 win=Some(699228397) status=ok
+[8/20] java-swing x11 600x400 win=Some(699228398) status=ok
+[9/20] java-swing x11 900x650 win=Some(699228399) status=ok
+[10/20] java-swing x11 600x400 win=Some(699228400) status=ok
+[11/20] java-swing x11 600x400 win=Some(699228401) status=ok
+[12/20] java-swing x11 600x400 win=Some(699228402) status=ok
+[13/20] java-swing x11 600x400 win=Some(699228403) status=ok
+[14/20] java-swing x11 600x400 win=Some(699228404) status=ok
+[15/20] java-swing x11 900x650 win=Some(699228405) status=ok
+[16/20] java-swing x11 900x650 win=Some(699228406) status=ok
+[17/20] java-swing x11 600x400 win=Some(699228407) status=ok
+[18/20] java-swing x11 900x650 win=Some(699228408) status=ok
+[19/20] java-swing x11 900x650 win=Some(699228409) status=ok
+[20/20] java-swing x11 900x650 win=Some(699228410) status=ok
+runs done in this invocation: 20
+collected: 654 lines, 107 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-swing/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| java-swing / x11 / idle / large | 10 | 10 | 1 | 1 | 1 | 0.0 / 1 | 0.0 / 11.0 | 0.0% | 0.0 / 11.0 | 8 | 10 | 0 | 40.1 |
+| java-swing / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 8 | 0 | 33.1 |

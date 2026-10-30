@@ -1,0 +1,8 @@
+[1/2] eog x11 1100x760 win=Some(1068882200) status=ok
+[2/2] eog x11 1100x760 win=Some(1068882201) status=ok
+runs done in this invocation: 2
+collected: 232 lines, 73 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/aft-smoke-eog/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+| eog / x11 / idle / small | 1 | 1 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |

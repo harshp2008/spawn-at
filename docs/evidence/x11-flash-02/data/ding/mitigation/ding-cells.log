@@ -1,0 +1,44 @@
+=== p1_patch_editor_x11 15:45:47 private shell 2982922 env=none spawn-at=/tmp/xflash-fix/target/debug/spawn-at ding=1
+0e5da9c44c0568a2b7ae94f54ce8999aa7b2cb19d59ff716aa3fef9af6cab844  /tmp/xflash-fix/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2386755808]
+[p1_patch_editor_x11] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p1_patch_editor_x11] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p1_patch_editor_x11] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p1_patch_editor_x11] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p1_patch_editor_x11] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== p1_patch_editor_x11 rc=0 15:46:28
+=== p2_patch_eog_x11 15:46:42 private shell 2985485 env=none spawn-at=/tmp/xflash-fix/target/debug/spawn-at ding=1
+0e5da9c44c0568a2b7ae94f54ce8999aa7b2cb19d59ff716aa3fef9af6cab844  /tmp/xflash-fix/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":2969368468,"pid":2985485,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [2969368468]
+[p2_patch_eog_x11] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p2_patch_eog_x11] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p2_patch_eog_x11] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p2_patch_eog_x11] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p2_patch_eog_x11] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== p2_patch_eog_x11 rc=0 15:47:22
+=== p3_patch_editor_wl 15:47:29 private shell 2987744 env=none spawn-at=/tmp/xflash-fix/target/debug/spawn-at ding=1
+0e5da9c44c0568a2b7ae94f54ce8999aa7b2cb19d59ff716aa3fef9af6cab844  /tmp/xflash-fix/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":4010306868,"pid":2987744,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":0,"w":1920,"h":1080,"rel":{"x":0,"y":-40},"area":"workarea","focused":true,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [4010306868]
+[p3_patch_editor_wl] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p3_patch_editor_wl] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p3_patch_editor_wl] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p3_patch_editor_wl] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[p3_patch_editor_wl] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== p3_patch_editor_wl rc=0 15:48:11
+=== p4_patch_calc_x11 15:48:18 private shell 2990321 env=none spawn-at=/tmp/xflash-fix/target/debug/spawn-at ding=1
+0e5da9c44c0568a2b7ae94f54ce8999aa7b2cb19d59ff716aa3fef9af6cab844  /tmp/xflash-fix/target/debug/spawn-at
+['spawn-at@harsh.local', 'ding@rastersoft.com']
+[{"id":3798625478,"pid":2990321,"title":"Desktop Icons 1","class":"gjs","app_id":"com.rastersoft.ding","x":0,"y":40,"w":1920,"h":1080,"rel":{"x":0,"y":0},"area":"workarea","focused":false,"maximized":true,"minimized":false,"monitor":0,"state":"maximized","workspace":0}]
+note: the private Shell already has windows (e.g. a desktop-icons window): [3798625478]
+[p4_patch_calc_x11] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p4_patch_calc_x11] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p4_patch_calc_x11] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p4_patch_calc_x11] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[p4_patch_calc_x11] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== p4_patch_calc_x11 rc=0 15:49:01

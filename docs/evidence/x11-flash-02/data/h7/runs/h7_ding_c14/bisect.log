@@ -1,0 +1,8 @@
+=== c14 14:30:58 private shell 2842552
+[c14_xterm_plain] run 1 focused=null close='spawn-at close; window gone' crashed=false ts0=false
+[c14_xterm_plain] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c14_xterm_plain] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c14_xterm_plain] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+[c14_xterm_plain] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=false
+=== c14 rc=0 14:31:50
+ALLDONE

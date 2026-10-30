@@ -1,0 +1,21 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+google-chrome|x11|idle|large,1177839284,6,15.4,1200x800,1244x844,1200x800,1244x844,0,0.00,6,6,6,0,6,286.21,-,0,0,0,0,-2.47,,8.9,5.9,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|small,1177839285,11,13.6,700x480,744x524,700x480,744x524,0,0.00,11,11,11,0,11,276.29,-,0,0,0,0,-1.03,,16.3,15.6,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|large,1177839286,20,8.4,1200x800,1244x844,1200x800,1244x844,0,0.00,20,14,14,0,14,149.99,150.0,0,0,0,0,-1.48,,10.5,10.0,0,0,true,
+google-chrome|x11|idle|large,1177839287,20,7.8,1200x800,1244x844,1200x800,1244x844,0,0.00,20,15,15,0,15,154.44,154.4,0,0,0,0,-1.22,,5.8,5.2,0,0,true,
+google-chrome|x11|idle|small,1177839288,7,27.1,700x480,744x524,700x480,744x524,0,0.00,7,7,7,0,7,290.51,-,0,1,0,0,0.58,0.46,3.3,3.0,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|large,1177839289,4,53.3,1200x800,1244x844,1200x800,1244x844,0,0.00,4,4,4,0,4,197.46,-,0,0,0,0,-3.11,,31.5,30.0,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|small,1177839290,20,6.1,700x480,744x524,700x480,744x524,0,0.00,20,16,16,0,16,253.72,253.7,0,1,0,0,12.33,12.23,3.9,3.5,0,0,true,
+google-chrome|x11|idle|large,1177839291,18,9.8,1200x800,1244x844,1200x800,1244x844,0,0.00,18,13,13,0,13,163.78,163.8,0,0,0,0,-1.03,,10.4,5.0,0,0,true,
+google-chrome|x11|idle|large,1177839292,12,10.9,1200x800,1244x844,1200x800,1244x844,0,0.00,12,12,12,0,12,219.88,-,0,1,0,0,4.20,4.13,3.3,3.0,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|large,1177839293,12,17.5,1200x800,1244x844,1200x800,1244x844,0,0.00,12,12,12,0,12,281.71,-,0,0,0,0,-7.72,,5.6,4.9,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|small,1177839294,15,9.4,700x480,744x524,700x480,744x524,0,0.00,15,15,15,0,15,252.08,-,0,1,0,0,16.55,16.46,3.1,2.8,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|large,1177839295,14,8.9,1200x800,1244x844,1200x800,1244x844,0,0.00,14,13,13,0,13,232.29,232.3,0,1,3,0,69.26,69.14,10.3,4.1,0,0,true,
+google-chrome|x11|idle|small,1177839296,14,11.2,700x480,744x524,700x480,744x524,0,0.00,14,14,14,0,14,191.99,-,0,0,0,0,-7.38,,8.0,7.4,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|small,1177839297,15,7.5,700x480,744x524,700x480,744x524,0,0.00,15,15,15,0,15,217.76,-,0,0,0,0,-1.36,,4.4,3.9,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|large,1177839298,10,13.4,1200x800,1244x844,1200x800,1244x844,0,0.00,10,10,10,0,10,222.85,-,0,0,0,0,-1.42,,8.0,6.3,0,0,true,no good frame (pixels), bad_ms is a lower bound: censored
+google-chrome|x11|idle|small,1177839299,18,6.5,700x480,744x524,700x480,744x524,0,0.00,18,14,14,0,14,169.12,169.1,3,0,0,0,-3.48,,5.9,5.4,0,0,true,
+google-chrome|x11|idle|large,1177839300,13,11.1,1200x800,1244x844,1200x800,1244x844,0,0.00,13,12,12,0,12,258.49,258.5,0,0,0,0,-1.59,,7.4,6.8,0,0,true,
+google-chrome|x11|idle|small,1177839301,17,6.3,700x480,744x524,700x480,744x524,0,0.00,17,1,1,0,1,21.96,22.0,8,0,0,0,-1.35,,6.6,6.0,0,0,true,
+google-chrome|x11|idle|small,1177839302,14,7.9,700x480,744x524,700x480,744x524,0,0.00,14,13,13,0,13,297.76,297.8,0,0,0,0,-0.99,,5.1,4.6,0,0,true,
+google-chrome|x11|idle|small,1177839303,6,19.1,700x480,744x524,700x480,744x524,0,0.00,6,0,0,0,0,0.00,0.0,3,0,0,0,-7.40,,13.6,13.2,0,0,true,

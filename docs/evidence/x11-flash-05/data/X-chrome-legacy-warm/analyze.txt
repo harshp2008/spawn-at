@@ -1,0 +1,16 @@
+# xflash analysis
+
+Clock: X-chrome-legacy-warm: 271 ext lines, 98 X11_OBS clock lines, 4 windows with an origin, per-window origin spread max 1.627 ms, observer dropped 0 damage lines; SetLogging brackets (60 pairs, newest-first pairing): origin in an interval 3.63 ms wide; X11_OBS origin inside that interval (offset from its middle 1.35 ms)
+
+## X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms | R1 fixed/needed (never, misfire) | R1 extra med/max ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: | :-- | :-- |
+| google-chrome-warm | idle | large | 2 | 2 | 0 | 0 | 2 | 0 | 2 | 272.3 / 273.8 | 7.1 | 0/2 (0, 2) | 15.2 / 16.0 |
+| google-chrome-warm | idle | small | 2 | 2 | 0 | 0 | 2 | 0 | 2 | 286.5 / 297.2 | 4.6 | 0/2 (0, 2) | 15.3 / 15.4 |
+
+## Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |
+

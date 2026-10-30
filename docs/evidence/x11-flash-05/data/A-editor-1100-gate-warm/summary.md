@@ -1,0 +1,15 @@
+# xflash analysis
+
+Clock: A-editor-1100-gate-warm: 6473 ext lines, 5832 X11_OBS clock lines, 20 windows with an origin, per-window origin spread max 3.600 ms, observer dropped 11541 damage lines; SetLogging brackets (60 pairs, newest-first pairing): origin in an interval 3.98 ms wide; X11_OBS origin inside that interval (offset from its middle 1.49 ms)
+
+## X11/XWayland runs
+
+| app | cond | size | n | valid | V | R | D | A | any | L_last med/max ms | cloak med ms | R1 fixed/needed (never, misfire) | R1 extra med/max ms |
+| :-- | :-- | :-- | --: | --: | --: | --: | --: | --: | --: | :-- | --: | :-- | :-- |
+| gnome-text-editor | idle | large | 10 | 10 | 0 | 0 | 4 | 0 | 4 | 11.2 / 48.2 | 2.7 | 0/4 (10, 0) | - / - |
+| gnome-text-editor | idle | small | 10 | 10 | 0 | 0 | 5 | 0 | 5 | 14.9 / 58.7 | 2.6 | 0/5 (10, 0) | - / - |
+
+## Native Wayland control runs (extension log only)
+
+| app | cond | size | n | A>0 | cloak med / max ms | ready-wait outcomes | final == requested |
+| :-- | :-- | :-- | --: | --: | :-- | :-- | --: |

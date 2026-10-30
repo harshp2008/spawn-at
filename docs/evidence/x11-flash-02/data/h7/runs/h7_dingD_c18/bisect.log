@@ -1,0 +1,8 @@
+=== c18 14:42:20 private shell 2867090
+[c18_editor_x11_plain_dsid_only] run 1 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c18_editor_x11_plain_dsid_only] run 2 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c18_editor_x11_plain_dsid_only] run 3 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c18_editor_x11_plain_dsid_only] run 4 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+[c18_editor_x11_plain_dsid_only] run 5 focused=true close='spawn-at close; window gone' crashed=false ts0=true
+=== c18 rc=0 14:43:17
+ALLDONE

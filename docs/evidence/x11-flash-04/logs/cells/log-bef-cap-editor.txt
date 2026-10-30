@@ -1,0 +1,47 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-cap-editor/probe/probe.jsonl: No such file
+[1/40] gnome-text-editor x11 1100x760 win=Some(699228291) status=ok
+[2/40] gnome-text-editor x11 1100x760 win=Some(699228292) status=ok
+[3/40] gnome-text-editor x11 1100x760 win=Some(699228293) status=ok
+[4/40] gnome-text-editor x11 640x420 win=Some(699228294) status=ok
+[5/40] gnome-text-editor x11 1100x760 win=Some(699228295) status=ok
+[6/40] gnome-text-editor x11 640x420 win=Some(699228296) status=ok
+[7/40] gnome-text-editor x11 1100x760 win=Some(699228297) status=ok
+[8/40] gnome-text-editor x11 1100x760 win=Some(699228298) status=ok
+[9/40] gnome-text-editor x11 640x420 win=Some(699228299) status=ok
+[10/40] gnome-text-editor x11 640x420 win=Some(699228300) status=ok
+[11/40] gnome-text-editor x11 1100x760 win=Some(699228301) status=ok
+[12/40] gnome-text-editor x11 640x420 win=Some(699228302) status=ok
+[13/40] gnome-text-editor x11 1100x760 win=Some(699228303) status=ok
+[14/40] gnome-text-editor x11 640x420 win=Some(699228304) status=ok
+[15/40] gnome-text-editor x11 1100x760 win=Some(699228305) status=ok
+[16/40] gnome-text-editor x11 1100x760 win=Some(699228306) status=ok
+[17/40] gnome-text-editor x11 640x420 win=Some(699228307) status=ok
+[18/40] gnome-text-editor x11 640x420 win=Some(699228308) status=ok
+[19/40] gnome-text-editor x11 640x420 win=Some(699228309) status=ok
+[20/40] gnome-text-editor x11 1100x760 win=Some(699228310) status=ok
+[21/40] gnome-text-editor x11 1100x760 win=Some(699228311) status=ok
+[22/40] gnome-text-editor x11 1100x760 win=Some(699228312) status=ok
+[23/40] gnome-text-editor x11 1100x760 win=Some(699228313) status=ok
+[24/40] gnome-text-editor x11 640x420 win=Some(699228314) status=ok
+[25/40] gnome-text-editor x11 640x420 win=Some(699228315) status=ok
+[26/40] gnome-text-editor x11 640x420 win=Some(699228316) status=ok
+[27/40] gnome-text-editor x11 640x420 win=Some(699228317) status=ok
+[28/40] gnome-text-editor x11 1100x760 win=Some(699228318) status=ok
+[29/40] gnome-text-editor x11 640x420 win=Some(699228319) status=ok
+[30/40] gnome-text-editor x11 1100x760 win=Some(699228320) status=ok
+[31/40] gnome-text-editor x11 1100x760 win=Some(699228321) status=ok
+[32/40] gnome-text-editor x11 640x420 win=Some(699228322) status=ok
+[33/40] gnome-text-editor x11 640x420 win=Some(699228323) status=ok
+[34/40] gnome-text-editor x11 1100x760 win=Some(699228324) status=ok
+[35/40] gnome-text-editor x11 1100x760 win=Some(699228325) status=ok
+[36/40] gnome-text-editor x11 640x420 win=Some(699228326) status=ok
+[37/40] gnome-text-editor x11 640x420 win=Some(699228327) status=ok
+[38/40] gnome-text-editor x11 640x420 win=Some(699228328) status=ok
+[39/40] gnome-text-editor x11 1100x760 win=Some(699228329) status=ok
+[40/40] gnome-text-editor x11 640x420 win=Some(699228330) status=ok
+runs done in this invocation: 40
+collected: 10581 lines, 1552 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-cap-editor/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 20 | 20 | 10 | 10 | 10 | 0.5 / 2 | 30.0 / 93.6 | 50.0% | 30.0 / 93.6 | 1 | 0 | 0 | -0.7 |
+| gnome-text-editor / x11 / idle / small | 20 | 20 | 11 | 11 | 11 | 1.0 / 2 | 53.7 / 91.9 | 100.0% | 53.7 / 91.9 | 1 | 0 | 0 | -0.5 |

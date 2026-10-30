@@ -1,0 +1,2 @@
+Window manager warning: Tried to ping window 0xa00004 with a bad serial! Not allowed.
+Window manager warning: Tried to ping window 0xa00004 with a bad serial! Not allowed.

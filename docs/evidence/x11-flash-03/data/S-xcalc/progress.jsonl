@@ -1,0 +1,3 @@
+{"ev":"start","t_mono":849212538197990,"t_wall":"2026-10-29T23:06:18+05:30","health":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"3627843","shell_start":"84521476"},"todo":2,"planned":2}
+{"ev":"run","t_mono":849217963212049,"t_wall":"2026-10-29T23:06:23+05:30","key":"0:xcalc:x11:large","status":"ok","window_id":1177839317,"health":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"3627843","shell_start":"84521476"}}
+{"ev":"run","t_mono":849223161599931,"t_wall":"2026-10-29T23:06:29+05:30","key":"1:xcalc:x11:small","status":"ok","window_id":1177839318,"health":{"boot_id":"4b4e9ad0-e03c-4408-8e9b-12c418d1c21c","shell_pid":"3627843","shell_start":"84521476"}}

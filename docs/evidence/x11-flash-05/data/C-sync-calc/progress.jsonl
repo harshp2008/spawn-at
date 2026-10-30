@@ -1,0 +1,3 @@
+{"ev":"start","t_mono":7878116416591,"t_wall":"2026-10-30T22:02:27+05:30","health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"},"todo":2,"planned":2}
+{"ev":"run","t_mono":7883997186388,"t_wall":"2026-10-30T22:02:32+05:30","key":"0:gnome-calculator:x11:small","status":"ok","window_id":2384563482,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}
+{"ev":"run","t_mono":7889844807404,"t_wall":"2026-10-30T22:02:38+05:30","key":"1:gnome-calculator:x11:large","status":"ok","window_id":2384563483,"health":{"boot_id":"6d42c4f6-9943-4bc3-8eb8-2f6b0c8bab4b","shell_pid":"135562","shell_start":"353713"}}

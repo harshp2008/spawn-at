@@ -1,0 +1,27 @@
+/tmp/w11c-sandbox.HcbOiQ/exp03/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/_before_bef-pas-xterm/probe/probe.jsonl: No such file
+[1/20] xterm x11 400x260 win=Some(699228651) status=ok
+[2/20] xterm x11 900x560 win=Some(699228652) status=ok
+[3/20] xterm x11 900x560 win=Some(699228653) status=ok
+[4/20] xterm x11 400x260 win=Some(699228654) status=ok
+[5/20] xterm x11 400x260 win=Some(699228655) status=ok
+[6/20] xterm x11 900x560 win=Some(699228656) status=ok
+[7/20] xterm x11 900x560 win=Some(699228657) status=ok
+[8/20] xterm x11 400x260 win=Some(699228658) status=ok
+[9/20] xterm x11 400x260 win=Some(699228659) status=ok
+[10/20] xterm x11 400x260 win=Some(699228660) status=ok
+[11/20] xterm x11 900x560 win=Some(699228661) status=ok
+[12/20] xterm x11 400x260 win=Some(699228662) status=ok
+[13/20] xterm x11 400x260 win=Some(699228663) status=ok
+[14/20] xterm x11 400x260 win=Some(699228664) status=ok
+[15/20] xterm x11 900x560 win=Some(699228665) status=ok
+[16/20] xterm x11 900x560 win=Some(699228666) status=ok
+[17/20] xterm x11 900x560 win=Some(699228667) status=ok
+[18/20] xterm x11 900x560 win=Some(699228668) status=ok
+[19/20] xterm x11 900x560 win=Some(699228669) status=ok
+[20/20] xterm x11 400x260 win=Some(699228670) status=ok
+runs done in this invocation: 20
+collected: 678 lines, 0 png in /tmp/w11c-sandbox.HcbOiQ/exp03/scratch/xflash03/cells/bef-pas-xterm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| xterm / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.2 |
+| xterm / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | - / - | 0 | 0 | 0 | -0.2 |
