@@ -1,0 +1,143 @@
+gate on: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+[1/4] eog x11 600x420 win=Some(2384563204) status=ok
+[2/4] eog x11 600x420 win=Some(2384563205) status=ok
+[3/4] eog x11 1100x760 win=Some(2384563206) status=ok
+[4/4] eog x11 1100x760 win=Some(2384563207) status=ok
+runs done in this invocation: 4
+collected: 541 lines, 156 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-eog-gate-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+| eog / x11 / idle / small | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.2 |
+
+real	0m38.224s
+user	0m4.766s
+sys	0m0.978s
+=== rc=0 ===
+keeper X-eog-gate-warm: launched pid 236789
+keeper X-eog-gate-warm: window 2384563208 window_pid 236789 launched_pid 236789 class Eog allow=236789 geom={"id":2384563208,"pid":236789,"class":"Eog","app_id":"org.gnome.eog","x":690,"y":328,"w":540,"h":450}
+[1/4] eog x11 1100x760 win=Some(2384563209) status=ok
+[2/4] eog x11 600x420 win=Some(2384563210) status=ok
+[3/4] eog x11 1100x760 win=Some(2384563211) status=ok
+[4/4] eog x11 600x420 win=Some(2384563212) status=ok
+runs done in this invocation: 4
+collected: 569 lines, 160 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-eog-gate-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -3.5 |
+| eog / x11 / idle / small | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -1.0 |
+keeper X-eog-gate-warm: stopped pids 236789 236789
+
+real	0m40.844s
+user	0m5.003s
+sys	0m0.985s
+=== rc=0 ===
+gate off: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+[wait]
+strategy = "legacy"
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_X-eog-legacy-cold/probe/probe.jsonl: No such file
+[1/4] eog x11 1100x760 win=Some(2384563213) status=ok
+[2/4] eog x11 1100x760 win=Some(2384563214) status=ok
+[3/4] eog x11 600x420 win=Some(2384563215) status=ok
+[4/4] eog x11 600x420 win=Some(2384563216) status=ok
+runs done in this invocation: 4
+collected: 463 lines, 143 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-eog-legacy-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 2 | 2 | 2 | 2 | 2 | 1.0 / 1 | 13.3 / 16.2 | 79.9% | 13.3 / 16.2 | 2 | 1 | 0 | 16.1 |
+| eog / x11 / idle / small | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 1 | 0 | 0 | 7.4 |
+
+real	0m37.918s
+user	0m4.653s
+sys	0m0.801s
+=== rc=0 ===
+keeper X-eog-legacy-warm: launched pid 240528
+keeper X-eog-legacy-warm: window 2384563217 window_pid 240528 launched_pid 240528 class Eog allow=240528 geom={"id":2384563217,"pid":240528,"class":"Eog","app_id":"org.gnome.eog","x":690,"y":328,"w":540,"h":450}
+[1/4] eog x11 600x420 win=Some(2384563218) status=ok
+[2/4] eog x11 1100x760 win=Some(2384563219) status=ok
+[3/4] eog x11 600x420 win=Some(2384563220) status=ok
+[4/4] eog x11 1100x760 win=Some(2384563221) status=ok
+runs done in this invocation: 4
+collected: 551 lines, 158 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-eog-legacy-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| eog / x11 / idle / large | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 1 | 1 | 0 | 16.6 |
+| eog / x11 / idle / small | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | 8.6 |
+keeper X-eog-legacy-warm: stopped pids 240528 240528
+
+real	0m41.345s
+user	0m5.563s
+sys	0m1.039s
+=== rc=0 ===
+gate on: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_X-qt-gate-cold/probe/probe.jsonl: No such file
+[1/4] qt-assistant x11 700x500 win=Some(2384563222) status=ok
+[2/4] qt-assistant x11 700x500 win=Some(2384563223) status=ok
+[3/4] qt-assistant x11 1000x700 win=Some(2384563224) status=ok
+[4/4] qt-assistant x11 1000x700 win=Some(2384563225) status=ok
+runs done in this invocation: 4
+collected: 120 lines, 19 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-qt-gate-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 2 | 2 | 0 | 1 | 1 | 0.5 / 1 | 4.9 / 9.8 | 29.5% | 4.9 / 9.8 | 0 | 2 | 0 | 37.8 |
+| qt-assistant / x11 / idle / small | 2 | 2 | 0 | 2 | 2 | 2.5 / 3 | 18.1 / 23.3 | 88.5% | 18.1 / 23.3 | 0 | 2 | 0 | 23.6 |
+
+real	0m36.051s
+user	0m1.195s
+sys	0m0.616s
+=== rc=0 ===
+keeper X-qt-gate-warm: launched pid 246010
+keeper X-qt-gate-warm: window 2384563226 window_pid 246010 launched_pid 246010 class assistant allow=246010 geom={"id":2384563226,"pid":246010,"class":"assistant","app_id":"","x":896,"y":356,"w":1000,"h":700}
+[1/4] qt-assistant x11 700x500 win=Some(2384563227) status=ok
+[2/4] qt-assistant x11 1000x700 win=Some(2384563228) status=ok
+[3/4] qt-assistant x11 1000x700 win=Some(2384563229) status=ok
+[4/4] qt-assistant x11 700x500 win=Some(2384563230) status=ok
+runs done in this invocation: 4
+collected: 297 lines, 100 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-qt-gate-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 2 | 0 | 50.4 |
+| qt-assistant / x11 / idle / small | 2 | 2 | 0 | 2 | 2 | 1.5 / 2 | 11.1 / 12.4 | 66.8% | 11.1 / 12.4 | 0 | 2 | 0 | 34.9 |
+keeper X-qt-gate-warm: stopped pids 246010 246010
+
+real	0m41.830s
+user	0m4.386s
+sys	0m0.897s
+=== rc=0 ===
+gate off: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+[wait]
+strategy = "legacy"
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_X-qt-legacy-cold/probe/probe.jsonl: No such file
+[1/4] qt-assistant x11 1000x700 win=Some(2384563231) status=ok
+[2/4] qt-assistant x11 1000x700 win=Some(2384563232) status=ok
+[3/4] qt-assistant x11 700x500 win=Some(2384563233) status=ok
+[4/4] qt-assistant x11 700x500 win=Some(2384563234) status=ok
+runs done in this invocation: 4
+collected: 122 lines, 22 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-qt-legacy-cold/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 2 | 2 | 0 | 1 | 1 | 1.0 / 2 | 8.2 / 16.4 | 49.1% | 8.2 / 16.4 | 0 | 2 | 0 | - |
+| qt-assistant / x11 / idle / small | 2 | 2 | 0 | 1 | 1 | 1.0 / 2 | 6.5 / 13.0 | 39.0% | 6.5 / 13.0 | 0 | 2 | 0 | 27.6 |
+
+real	0m36.046s
+user	0m1.288s
+sys	0m0.584s
+=== rc=0 ===
+keeper X-qt-legacy-warm: launched pid 251169
+keeper X-qt-legacy-warm: window 2384563235 window_pid 251169 launched_pid 251169 class assistant allow=251169 geom={"id":2384563235,"pid":251169,"class":"assistant","app_id":"","x":1196,"y":556,"w":700,"h":500}
+[1/4] qt-assistant x11 700x500 win=Some(2384563236) status=ok
+[2/4] qt-assistant x11 1000x700 win=Some(2384563237) status=ok
+[3/4] qt-assistant x11 700x500 win=Some(2384563238) status=ok
+[4/4] qt-assistant x11 1000x700 win=Some(2384563239) status=ok
+runs done in this invocation: 4
+collected: 260 lines, 89 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-qt-legacy-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| qt-assistant / x11 / idle / large | 2 | 2 | 1 | 1 | 1 | 1.5 / 3 | 11.7 / 23.3 | 50.0% | 11.7 / 23.3 | 1 | 2 | 0 | 60.4 |
+| qt-assistant / x11 / idle / small | 2 | 2 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 2 | 0 | 22.3 |
+keeper X-qt-legacy-warm: stopped pids 251169 251169
+
+real	0m41.684s
+user	0m4.414s
+sys	0m0.797s
+=== rc=0 ===

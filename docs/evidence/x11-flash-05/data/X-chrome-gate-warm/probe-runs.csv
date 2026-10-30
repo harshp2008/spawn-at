@@ -1,0 +1,5 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+google-chrome-warm|x11|idle|small,2384563489,17,12.5,700x480,744x524,700x480,744x524,0,0.00,17,1,1,0,1,30.55,30.5,0,0,17,0,263.63,,12.6,0.0,0,0,true,
+google-chrome-warm|x11|idle|small,2384563490,18,12.8,700x480,744x524,700x480,744x524,0,0.00,18,0,0,0,0,0.00,0.0,1,0,16,0,255.27,,2.5,0.0,0,0,true,
+google-chrome-warm|x11|idle|large,2384563491,14,19.3,1200x800,1244x844,1200x800,1244x844,0,0.00,14,1,1,0,1,24.46,24.5,0,0,14,0,254.65,,2.8,0.0,0,0,true,
+google-chrome-warm|x11|idle|large,2384563492,20,12.3,1200x800,1244x844,1200x800,1244x844,0,0.00,20,0,0,0,0,0.00,0.0,0,0,19,0,286.69,,1.8,0.0,0,0,true,

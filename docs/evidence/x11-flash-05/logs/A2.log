@@ -1,0 +1,68 @@
+keeper A-editor-640-gate-warm: launched pid 165936
+keeper A-editor-640-gate-warm: window 2384563037 window_pid 165936 launched_pid 165936 class org.gnome.TextEditor allow=165936 geom={"id":2384563037,"pid":165936,"class":"gnome-text-editor","app_id":"org.gnome.TextEditor","x":409,"y":127,"w":1100,"h":760}
+[1/20] gnome-text-editor x11 640x420 win=Some(2384563038) status=ok
+[2/20] gnome-text-editor x11 640x420 win=Some(2384563039) status=ok
+[3/20] gnome-text-editor x11 640x420 win=Some(2384563040) status=ok
+[4/20] gnome-text-editor x11 640x420 win=Some(2384563041) status=ok
+[5/20] gnome-text-editor x11 640x420 win=Some(2384563042) status=ok
+[6/20] gnome-text-editor x11 640x420 win=Some(2384563043) status=ok
+[7/20] gnome-text-editor x11 640x420 win=Some(2384563044) status=ok
+[8/20] gnome-text-editor x11 640x420 win=Some(2384563045) status=ok
+[9/20] gnome-text-editor x11 640x420 win=Some(2384563046) status=ok
+[10/20] gnome-text-editor x11 640x420 win=Some(2384563047) status=ok
+[11/20] gnome-text-editor x11 640x420 win=Some(2384563048) status=ok
+[12/20] gnome-text-editor x11 640x420 win=Some(2384563049) status=ok
+[13/20] gnome-text-editor x11 640x420 win=Some(2384563050) status=ok
+[14/20] gnome-text-editor x11 640x420 win=Some(2384563051) status=ok
+[15/20] gnome-text-editor x11 640x420 win=Some(2384563052) status=ok
+[16/20] gnome-text-editor x11 640x420 win=Some(2384563053) status=ok
+[17/20] gnome-text-editor x11 640x420 win=Some(2384563054) status=ok
+[18/20] gnome-text-editor x11 640x420 win=Some(2384563055) status=ok
+[19/20] gnome-text-editor x11 640x420 win=Some(2384563056) status=ok
+[20/20] gnome-text-editor x11 640x420 win=Some(2384563057) status=ok
+runs done in this invocation: 20
+collected: 5726 lines, 800 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/A-editor-640-gate-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.3 |
+| gnome-text-editor / x11 / idle / small | 10 | 10 | 0 | 0 | 0 | 0.0 / 0 | 0.0 / 0.0 | 0.0% | 0.0 / 0.0 | 0 | 0 | 0 | -0.4 |
+keeper A-editor-640-gate-warm: stopped pids 165936 165936
+
+real	2m29.878s
+user	0m29.420s
+sys	0m6.491s
+=== cell rc=0 ===
+keeper A-editor-1100-gate-warm: launched pid 172926
+keeper A-editor-1100-gate-warm: window 2384563058 window_pid 172926 launched_pid 172926 class org.gnome.TextEditor allow=172926 geom={"id":2384563058,"pid":172926,"class":"gnome-text-editor","app_id":"org.gnome.TextEditor","x":409,"y":127,"w":1100,"h":760}
+[1/20] gnome-text-editor x11 1100x760 win=Some(2384563059) status=ok
+[2/20] gnome-text-editor x11 1100x760 win=Some(2384563060) status=ok
+[3/20] gnome-text-editor x11 1100x760 win=Some(2384563061) status=ok
+[4/20] gnome-text-editor x11 1100x760 win=Some(2384563062) status=ok
+[5/20] gnome-text-editor x11 1100x760 win=Some(2384563063) status=ok
+[6/20] gnome-text-editor x11 1100x760 win=Some(2384563064) status=ok
+[7/20] gnome-text-editor x11 1100x760 win=Some(2384563065) status=ok
+[8/20] gnome-text-editor x11 1100x760 win=Some(2384563066) status=ok
+[9/20] gnome-text-editor x11 1100x760 win=Some(2384563067) status=ok
+[10/20] gnome-text-editor x11 1100x760 win=Some(2384563068) status=ok
+[11/20] gnome-text-editor x11 1100x760 win=Some(2384563069) status=ok
+[12/20] gnome-text-editor x11 1100x760 win=Some(2384563070) status=ok
+[13/20] gnome-text-editor x11 1100x760 win=Some(2384563071) status=ok
+[14/20] gnome-text-editor x11 1100x760 win=Some(2384563072) status=ok
+[15/20] gnome-text-editor x11 1100x760 win=Some(2384563073) status=ok
+[16/20] gnome-text-editor x11 1100x760 win=Some(2384563074) status=ok
+[17/20] gnome-text-editor x11 1100x760 win=Some(2384563075) status=ok
+[18/20] gnome-text-editor x11 1100x760 win=Some(2384563076) status=ok
+[19/20] gnome-text-editor x11 1100x760 win=Some(2384563077) status=ok
+[20/20] gnome-text-editor x11 1100x760 win=Some(2384563078) status=ok
+runs done in this invocation: 20
+collected: 1792 lines, 648 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/A-editor-1100-gate-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| gnome-text-editor / x11 / idle / large | 10 | 10 | 0 | 1 | 1 | 0.0 / 1 | 0.0 / 65.2 | 0.0% | 0.0 / 65.2 | 0 | 4 | 0 | 11.2 |
+| gnome-text-editor / x11 / idle / small | 10 | 10 | 0 | 2 | 2 | 0.0 / 1 | 0.0 / 74.7 | 0.0% | 0.0 / 74.7 | 0 | 5 | 0 | 14.9 |
+keeper A-editor-1100-gate-warm: stopped pids 172926 172926
+
+real	2m54.909s
+user	0m52.907s
+sys	0m7.283s
+=== cell rc=0 ===

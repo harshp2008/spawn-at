@@ -1,0 +1,5 @@
+label,wid,vis_frames,frame_gap_med_ms,first_vis_rect,first_vis_tex,final_rect,final_tex,bad_tex,bad_ms_tex,shots,bad_px,hard_px,old_size,blank,bad_ms_px,first_good_px_ms,regress_px,R,D,A,L_last_ms,R_first_ms,reveal_to_first_frame_ms,reveal_to_tex_final_ms,size_changed_after,pos_changed_after,gate_open_first,note
+qt-assistant|x11|idle|large,2384563231,6,7.5,1000x700,1028x729,1000x700,1028x729,0,0.00,6,2,2,0,2,16.38,16.4,0,0,14,0,,,2.8,0.0,0,0,true,
+qt-assistant|x11|idle|large,2384563232,5,6.4,1000x700,1028x729,1000x700,1028x729,0,0.00,5,0,0,0,0,0.00,0.0,0,0,6,0,,,5.7,0.0,0,0,true,
+qt-assistant|x11|idle|small,2384563233,8,3.4,700x500,728x529,700x500,728x529,0,0.00,8,2,2,0,2,13.00,13.0,0,0,10,0,27.61,,3.5,3.2,0,0,true,
+qt-assistant|x11|idle|small,2384563234,3,6.1,700x500,728x529,700x500,728x529,0,0.00,3,0,0,0,0,0.00,0.0,0,0,2,0,,,6.7,0.0,0,0,true,

@@ -1,0 +1,40 @@
+gate on: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+keeper X-chrome-gate-warm: launched pid 423581
+keeper X-chrome-gate-warm: window 2384563488 window_pid 423581 launched_pid 423581 class xflash-chrome allow=423581 geom={"id":2384563488,"pid":423581,"class":"xflash-chrome","app_id":"","x":32,"y":61,"w":901,"h":984}
+[1/4] google-chrome-warm x11 700x480 win=Some(2384563489) status=ok
+[2/4] google-chrome-warm x11 700x480 win=Some(2384563490) status=ok
+[3/4] google-chrome-warm x11 1200x800 win=Some(2384563491) status=ok
+[4/4] google-chrome-warm x11 1200x800 win=Some(2384563492) status=ok
+runs done in this invocation: 4
+collected: 276 lines, 69 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-chrome-gate-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome-warm / x11 / idle / large | 2 | 2 | 0 | 1 | 1 | 0.5 / 1 | 12.2 / 24.5 | 50.0% | 12.2 / 24.5 | 0 | 2 | 0 | 270.7 |
+| google-chrome-warm / x11 / idle / small | 2 | 2 | 0 | 1 | 1 | 0.5 / 1 | 15.3 / 30.5 | 50.0% | 15.3 / 30.5 | 0 | 2 | 0 | 259.4 |
+keeper X-chrome-gate-warm: stopped pids 423581 423581
+
+real	0m46.378s
+user	0m4.947s
+sys	0m0.852s
+=== rc=0 ===
+gate off: SPAWN_AT_CONFIG=/tmp/xflash-priv.YEacKm/none.toml
+[wait]
+strategy = "legacy"
+keeper X-chrome-legacy-warm: launched pid 427297
+keeper X-chrome-legacy-warm: window 2384563493 window_pid 427297 launched_pid 427297 class xflash-chrome allow=427297 geom={"id":2384563493,"pid":427297,"class":"xflash-chrome","app_id":"","x":32,"y":61,"w":901,"h":984}
+[1/4] google-chrome-warm x11 700x480 win=Some(2384563494) status=ok
+[2/4] google-chrome-warm x11 1200x800 win=Some(2384563495) status=ok
+[3/4] google-chrome-warm x11 1200x800 win=Some(2384563496) status=ok
+[4/4] google-chrome-warm x11 700x480 win=Some(2384563497) status=ok
+runs done in this invocation: 4
+collected: 272 lines, 73 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/X-chrome-legacy-warm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| google-chrome-warm / x11 / idle / large | 2 | 2 | 0 | 1 | 1 | 0.5 / 1 | 15.6 / 31.2 | 50.0% | 15.6 / 31.2 | 0 | 2 | 0 | 272.4 |
+| google-chrome-warm / x11 / idle / small | 2 | 2 | 0 | 2 | 2 | 1.0 / 1 | 28.3 / 34.0 | 100.0% | 28.3 / 34.0 | 0 | 2 | 0 | 286.5 |
+keeper X-chrome-legacy-warm: stopped pids 427297 427297
+
+real	0m45.741s
+user	0m4.321s
+sys	0m1.249s
+=== rc=0 ===

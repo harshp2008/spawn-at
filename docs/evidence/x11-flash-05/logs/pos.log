@@ -1,0 +1,17 @@
+/home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/docs/evidence/x11-flash-03/tools/probe-collect.sh: 19: cannot open /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/_before_C-pos-xterm/probe/probe.jsonl: No such file
+[1/10] xterm x11 400x260 win=Some(1146984958) status=ok
+[2/10] xterm x11 900x560 win=Some(1146984959) status=ok
+[3/10] xterm x11 400x260 win=Some(1146984960) status=ok
+[4/10] xterm x11 900x560 win=Some(1146984961) status=ok
+[5/10] xterm x11 900x560 win=Some(1146984962) status=ok
+[6/10] xterm x11 400x260 win=Some(1146984963) status=ok
+[7/10] xterm x11 900x560 win=Some(1146984964) status=ok
+[8/10] xterm x11 400x260 win=Some(1146984965) status=ok
+[9/10] xterm x11 900x560 win=Some(1146984966) status=ok
+[10/10] xterm x11 400x260 win=Some(1146984967) status=ok
+runs done in this invocation: 10
+collected: 341 lines, 69 png in /home/harsh/Documents/GITHUB PROJECTS/spawn-at/scratch/xflash05/wt/scratch/xflash03/cells/C-pos-xterm/probe
+| cell (app/mode/cond/size) | n | seen | runs bad tex | runs bad px | runs hard px | bad frames px med/max | bad_ms px med/max | p60 med | first good px ms med/max | R | D | A>0 | L med ms |
+| :-- | --: | --: | --: | --: | --: | :-- | :-- | --: | :-- | --: | --: | --: | --: |
+| xterm / x11 / idle / large | 5 | 5 | 5 | 5 | 5 | 1.0 / 1 | 9.8 / 19.0 | 59.0% | 9.8 / 19.0 | 5 | 0 | 0 | 5.1 |
+| xterm / x11 / idle / small | 5 | 5 | 5 | 5 | 5 | 1.0 / 1 | 8.1 / 18.9 | 48.7% | 8.1 / 18.9 | 0 | 0 | 0 | 2.3 |
