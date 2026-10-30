@@ -19,8 +19,9 @@ gnome-calculator (0 or 1 of 20 runs per size, from 10 to 20 of 20 at the larger 
 a frame of the right size that has nothing painted in it. Those still happen: gnome-text-editor in 5
 of 100 gated runs, gnome-calculator in 5 of 40, Qt Assistant in 3 of 4 and Chrome in 2 of 4 in a later
 session (04 and 05 findings; counts and conditions on [Known shortcomings](/spawn-at/shortcomings/)).
-The added hidden time and what was not run are there too. Windows can still flash; no live session or
-real Xorg session was used.
+The gate is not useless for Chrome: it reached the texture match in 20 of 20 runs, and the blank frame
+is what remains. The added hidden time and what was not run are there too. Windows can still flash; no
+live session or real Xorg session was used.
 
 ## 2. The native X11 driver
 
