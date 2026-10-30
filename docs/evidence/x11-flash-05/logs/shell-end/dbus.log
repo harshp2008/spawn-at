@@ -1,0 +1,108 @@
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.Daemon' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.Daemon'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.a11y.Bus' requested by ':1.4' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.a11y.Bus'
+dbus-daemon[135619]: Activating service name='org.a11y.atspi.Registry' requested by ':1.0' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135619]: Successfully activated service 'org.a11y.atspi.Registry'
+SpiRegistry daemon is running with well-known name - org.a11y.atspi.Registry
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.Shell.Screencast' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.impl.portal.PermissionStore' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.Shell.CalendarServer' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.impl.portal.PermissionStore'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.evolution.dataserver.Sources5' requested by ':1.10' (uid=1000 pid=135655 comm="/usr/libexec/gnome-shell-calendar-server" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.OnlineAccounts' requested by ':1.11' (uid=1000 pid=135667 comm="/usr/libexec/evolution-source-registry" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.Shell.Notifications' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.evolution.dataserver.Sources5'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.evolution.dataserver.Calendar8' requested by ':1.10' (uid=1000 pid=135655 comm="/usr/libexec/gnome-shell-calendar-server" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.Shell.CalendarServer'
+goa-daemon-Message: 20:50:06.618: goa-daemon version 3.50.4 starting
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.Identity' requested by ':1.14' (uid=1000 pid=135679 comm="/usr/libexec/goa-daemon" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.OnlineAccounts'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.Identity'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.Shell.Notifications'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.evolution.dataserver.Calendar8'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.UDisks2VolumeMonitor' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.evolution.dataserver.AddressBook10' requested by ':1.15' (uid=1000 pid=135703 comm="/usr/libexec/evolution-calendar-factory" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.evolution.dataserver.AddressBook10'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.UDisks2VolumeMonitor'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.AfcVolumeMonitor' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.AfcVolumeMonitor'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.GPhoto2VolumeMonitor' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.GPhoto2VolumeMonitor'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.GoaVolumeMonitor' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.GoaVolumeMonitor'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.MTPVolumeMonitor' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.MTPVolumeMonitor'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.portal.IBus' requested by ':1.23' (uid=1000 pid=135691 comm="ibus-daemon --panel disable" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.portal.IBus'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.portal.Desktop' requested by ':1.26' (uid=1000 pid=135809 comm="/usr/libexec/ibus-extension-gtk3" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.portal.Documents' requested by ':1.30' (uid=1000 pid=135867 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.portal.Documents'
+Ignoring invalid max threads value 4294967295 > max (100000).
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.impl.portal.desktop.gnome' requested by ':1.30' (uid=1000 pid=135867 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.Shell.Screencast'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.impl.portal.desktop.gnome'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.impl.portal.desktop.gtk' requested by ':1.30' (uid=1000 pid=135867 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.impl.portal.desktop.gtk'
+
+(/usr/libexec/xdg-desktop-portal:135867): xdg-desktop-portal-WARNING **: 20:50:07.364: Failed connect to PipeWire: Couldn't connect to PipeWire
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.secrets' requested by ':1.30' (uid=1000 pid=135867 comm="/usr/libexec/xdg-desktop-portal" label="unconfined")
+** Message: 20:50:07.374: couldn't access control socket: /tmp/xflash-priv.YEacKm/run/keyring/control: No such file or directory
+discover_other_daemon: 0dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.secrets'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.portal.Desktop'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gnome.Shell.Extensions' requested by ':1.37' (uid=1000 pid=136326 comm="gdbus call --session --dest org.gnome.Shell.Extens" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gnome.Shell.Extensions'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.freedesktop.portal.IBus' requested by ':1.41' (uid=1000 pid=136724 comm="ibus-daemon --panel disable -r --xim" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.freedesktop.portal.IBus'
+dbus-daemon[135551]: [session uid=1000 pid=135551] Activating service name='org.gtk.vfs.Metadata' requested by ':1.1' (uid=1000 pid=135562 comm="gnome-shell --headless --wayland --wayland-display" label="unconfined")
+dbus-daemon[135551]: [session uid=1000 pid=135551] Successfully activated service 'org.gtk.vfs.Metadata'
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:55:48.665: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:55:59.001: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:07.880: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:16.468: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:25.544: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:33.498: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:41.257: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:49.052: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:56:56.851: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:04.666: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:12.498: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:20.311: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:28.165: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:35.892: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:43.763: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:51.609: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:57:59.995: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:58:08.224: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:58:16.514: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 21:58:24.260: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 22:01:49.118: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 22:03:20.544: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 22:03:28.108: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 22:05:24.765: prompting failed: The operation was cancelled
+
+** (gnome-keyring-daemon:135918): WARNING **: 22:06:10.500: prompting failed: The operation was cancelled
