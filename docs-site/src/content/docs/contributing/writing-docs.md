@@ -616,6 +616,113 @@ What the experiment did not cover.
 - `path/to/log` (section and lines)
 ````
 
+## Recording a run
+
+A run is one measurement or test. Its record has two parts: the page a reader opens, and the
+evidence folder that holds the numbers. The page says what was asked, what was done and what was
+found; the folder holds the raw files. Link to the folder, do not copy it.
+
+This is the current shape for a new run page. The "Experiment record template" above stays for the
+pages already written with it.
+
+| Part | What it holds |
+| :-- | :-- |
+| Title | A plain question, for example "Does the texture gate remove the X11 flash?". It is the front-matter `title:`; the body starts with `##` |
+| Status | One line: **Status:** open, **Status:** closed or **Status:** superseded |
+| Summary | Three short paragraphs: what we asked, what we did, what we found and how sure we are |
+| Result table | The numbers, one row per group, with n and the before and after columns when there are two conditions |
+| What it means | What changes for someone using spawn-at, in user terms |
+| Not sure | The limits of the measurement and what could explain the result differently |
+| Not run | What was not run, and why |
+| Corrections | Dated lines that say what was wrong and what is true (write "none" when there are none) |
+| Files | Links to the evidence folder: `README.md`, `findings.md`, the raw `data/` folder and any samples |
+
+A reader who stops after the summary gets the answer and the level of confidence. "Open" means the
+run is still going or the answer is not settled. "Closed" means the question was answered.
+"Superseded" means a later page replaces this one.
+
+### Writing a correction
+
+A correction is dated and says what was wrong, what is true now and how we know. Put it on the page
+where the wrong statement is, and leave the old statement readable.
+
+```md
+**Correction (2026-10-30).** The earlier text said the gate removes every X11 flash. That is wrong:
+it removes the stale-size frames only. Blank frames at the final size remained in 5 of 100 editor
+runs (MEASURED, `docs/evidence/x11-flash-05/findings.md`).
+```
+
+When a later run replaces a page, set the status to superseded and add one line under it:
+
+```md
+**Superseded by:** [6.42 Does the texture gate remove the flash?](/spawn-at/experiments/).
+```
+
+### A reader's note
+
+An old page can get a note at the top without changing its evidence text. The note is for a reader
+who lands on the old page from a link or a search. It says when the page was written, what is now
+known, and where to read next.
+
+```md
+:::note[Reader's note]
+This page was written on 2026-10-12. Two statements in it are now known to be wrong. Read the
+corrections below and the newer page.
+:::
+```
+
+### Plain English
+
+- Start with the result, then give the method.
+- One idea in a sentence. Keep sentences short.
+- Use the everyday word. Use a technical word only when there is no plain one, and explain it once,
+  on its first use on the page.
+- Give the number and the count: "17 of 20 runs", not "most runs". Give the app, size, build and
+  conditions with it.
+- Say what the result means for the person using spawn-at.
+- Say "not measured" or "not run" when that is the case. Do not fill the gap with reasoning.
+- Keep bold and code formatting light. Bold marks a warning or the one fact a section hinges on, not
+  every label.
+
+| Instead of | Write |
+| :-- | :-- |
+| leverage, utilise | use |
+| latency | delay |
+| significant | the number |
+| various, numerous | the list |
+| in order to | to |
+| approximately | about |
+| prior to | before |
+| due to the fact that | because |
+| it is important to note that | (delete the phrase) |
+
+### Numbers and labels
+
+Every claim gets one label:
+
+| Label | Meaning |
+| :-- | :-- |
+| MEASURED | The run measured it, and the page names the file or the cell that holds the number |
+| READ | It comes from source code, a document or a log, and the page names the file or the link |
+| GUESS | It is reasoning, not tested |
+
+Put the label next to the claim, and in the summary when the summary rests on a guess. A page with no
+label on a claim is read as MEASURED, so label the guesses.
+
+### Numbering a run page
+
+Take the next free number in the 6.NN series. Check `docs/TEST_LOG.md`, the files in
+`docs-site/src/content/docs/experiments/` and any open branch. A number is never reused, even when a
+page is removed. Add the page to the experiments index (`docs-site/src/content/docs/experiments/index.md`)
+and to the sidebar (`docs-site/astro.config.mjs`) in the same commit.
+
+### What may change on a published page
+
+Evidence text is fixed. Numbers, commands, results and the wording of a result are not rewritten for
+readability. A readability pass may add a summary box at the top, a reader's note and dated
+corrections. It may not change the evidence text. Mark a replaced page superseded and link to the
+new page; do not delete it. When a statement was wrong, leave it visible and add a dated correction.
+
 ## Not verified
 
 - The CI job `docs.yml` was read, not run, for this page. The commands in the build section were taken
